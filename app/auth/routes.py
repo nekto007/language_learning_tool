@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timezone
 from flask_babel import lazy_gettext as _l
-from flask import Blueprint, flash, make_response, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from itsdangerous import URLSafeTimedSerializer
 
@@ -238,7 +238,8 @@ def register():
         ref_code = request.args.get('ref')
         if ref_code and request.method == 'GET':
             resp = make_response(render_template('auth/register.html', form=RegistrationForm()))
-            resp.set_cookie('ref', ref_code, max_age=86400 * 30, httponly=True, samesite='Lax')
+            resp.set_cookie('ref', ref_code, max_age=86400 * 30, httponly=True,
+                           samesite='Lax', secure=not current_app.debug)
             return resp
 
         form = RegistrationForm()
@@ -264,6 +265,9 @@ def register():
                             db.session.add(referral_log)
                             db.session.commit()
                     except Exception:
+                        current_app.logger.warning(
+                            "Referral processing failed for ref=%s", saved_ref, exc_info=True
+                        )
                         db.session.rollback()  # Don't fail registration over referral
 
                 # Grant default modules to the new user

@@ -254,13 +254,16 @@ def create_app(config_class=Config):
                 db.session.commit()
 
             # Redirect to onboarding if not completed (e.g. remember-me cookie login)
-            # Skip AJAX/API requests to avoid breaking frontend JS calls
+            # Skip AJAX/API requests and public/auth endpoints
+            ONBOARDING_SKIP_PREFIXES = (
+                'onboarding.', 'auth.', 'static', 'legal.', 'seo.',
+                'grammar_public.', 'landing.',
+            )
             if not current_user.onboarding_completed and request.endpoint \
-               and request.endpoint not in ('onboarding.wizard', 'onboarding.complete',
-                                             'auth.logout', 'static') \
+               and not any(request.endpoint.startswith(p) for p in ONBOARDING_SKIP_PREFIXES) \
                and request.headers.get('X-Requested-With') != 'XMLHttpRequest' \
                and 'application/json' not in request.headers.get('Accept', ''):
-                return redirect(url_for('onboarding.wizard', next=request.full_path))
+                return redirect(url_for('onboarding.wizard', next=request.path))
 
     @login_manager.unauthorized_handler
     def unauthorized():

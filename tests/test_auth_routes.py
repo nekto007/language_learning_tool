@@ -63,6 +63,7 @@ class TestLogin:
             'password': 'testpass123',
         }, follow_redirects=True)
         assert r.status_code == 200
+        assert 'неактивна' in r.data.decode().lower() or 'inactive' in r.data.decode().lower()
 
     def test_login_redirect_next(self, client, test_user):
         r = client.post('/login?next=/curriculum/api/levels', data={
@@ -153,8 +154,9 @@ class TestRegister:
         assert '/onboarding' in location
 
         # Verify user is logged in: accessing a login-required page should NOT
-        # redirect to /login. It may return 200, 403, or redirect elsewhere.
+        # redirect to /login. It may return 200 or redirect to onboarding, but not login.
         r2 = client.get('/dashboard', follow_redirects=False)
+        assert r2.status_code in (200, 302)
         if r2.status_code == 302:
             assert '/login' not in r2.headers.get('Location', '')
 

@@ -180,7 +180,8 @@ class TestShareURL:
         r = authenticated_client.get('/study/achievements', follow_redirects=True)
         assert r.status_code == 200
         html = r.data.decode()
-        assert 'share-buttons' in html or 'shareVia' in html
+        assert 'share-buttons' in html
+        assert 'shareVia' in html
 
     def test_share_js_loaded_on_achievements(self, authenticated_client):
         """Achievements page should load share.js."""

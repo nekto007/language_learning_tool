@@ -13,11 +13,7 @@ def wizard():
     if current_user.onboarding_completed:
         return redirect(url_for('words.dashboard'))
 
-    # Get CEFR levels for step 1
-    from app.curriculum.models import CEFRLevel
-    levels = CEFRLevel.query.order_by(CEFRLevel.order).all()
-
-    return render_template('onboarding/wizard.html', levels=levels,
+    return render_template('onboarding/wizard.html',
                            next_url=request.args.get('next', ''))
 
 

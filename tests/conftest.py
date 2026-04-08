@@ -166,13 +166,14 @@ def db_session(app):
         db.session.rollback()
 
         from app.curriculum.models import LessonProgress, Lessons, Module, CEFRLevel
-        from app.auth.models import User
+        from app.auth.models import User, ReferralLog
 
         try:
             LessonProgress.query.delete()
             Lessons.query.delete()
             Module.query.delete()
             CEFRLevel.query.delete()
+            ReferralLog.query.delete()
             User.query.delete()
             db.session.commit()
         except Exception:
