@@ -558,3 +558,26 @@ def daily_plan_next_step() -> tuple:
         'steps_done': steps_done,
         'steps_total': steps_total,
     })
+
+
+@words.route('/api/streak/repair', methods=['POST'])
+@login_required
+def streak_repair_web():
+    """Session-based streak repair for web dashboard."""
+    from app.achievements.streak_service import find_missed_date, apply_paid_repair
+    from app.telegram.queries import get_current_streak
+
+    tz = request.json.get('tz', 'Europe/Moscow') if request.is_json else 'Europe/Moscow'
+
+    missed = find_missed_date(current_user.id, tz=tz)
+    if not missed:
+        return jsonify({'success': False, 'error': 'no_missed_date'}), 400
+
+    result = apply_paid_repair(current_user.id, missed)
+    if result['success']:
+        db.session.commit()
+        result['new_streak'] = get_current_streak(current_user.id, tz=tz)
+    else:
+        db.session.rollback()
+
+    return jsonify(result)
