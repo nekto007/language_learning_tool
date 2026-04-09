@@ -174,12 +174,8 @@ class TestRegister:
         }, follow_redirects=False)
         mock_email.send_email.assert_called_once()
         call_kwargs = mock_email.send_email.call_args
-        assert call_kwargs[1]['to_email'] == email or call_kwargs[0][1] == email
-        # Check template name is 'welcome'
-        if call_kwargs[1].get('template_name'):
-            assert call_kwargs[1]['template_name'] == 'welcome'
-        else:
-            assert 'welcome' in str(call_kwargs)
+        assert call_kwargs[1]['to_email'] == email
+        assert call_kwargs[1]['template_name'] == 'welcome'
 
     @patch('app.auth.routes.email_sender')
     def test_register_succeeds_even_if_email_fails(self, mock_email, client, db_session):
@@ -276,7 +272,7 @@ class TestPasswordResetRequest:
         r = client.post('/reset_password', data={
             'email': test_user.email,
         }, follow_redirects=False)
-        assert r.status_code in [302, 200]
+        assert r.status_code == 302
 
     @patch('app.auth.routes.email_sender')
     def test_unknown_email_still_redirects(self, mock_email, client):
@@ -302,7 +298,7 @@ class TestPasswordResetRequest:
 class TestPasswordResetWithToken:
     def test_invalid_token(self, client):
         r = client.get('/reset_password/invalidtoken123')
-        assert r.status_code in [302, 200]
+        assert r.status_code == 302
 
     def test_valid_token_renders_form(self, client, test_user):
         from app.auth.routes import get_reset_token

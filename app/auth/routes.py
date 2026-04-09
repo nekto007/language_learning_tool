@@ -1,6 +1,7 @@
 import secrets
 from datetime import datetime, timezone
 from flask_babel import lazy_gettext as _l
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from flask import Blueprint, current_app, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from itsdangerous import URLSafeTimedSerializer
@@ -208,8 +209,9 @@ def login():
 
                 # Redirect to onboarding if not completed, preserving next param
                 if not user.onboarding_completed:
-                    if next_page:
-                        return redirect(url_for('onboarding.wizard', next=next_page))
+                    safe_next = get_safe_redirect_url(next_page) if next_page else None
+                    if safe_next and safe_next != url_for('words.dashboard'):
+                        return redirect(url_for('onboarding.wizard', next=safe_next))
                     return redirect(url_for('onboarding.wizard'))
 
                 safe_url = get_safe_redirect_url(next_page)
@@ -257,14 +259,14 @@ def register():
 
                 # Process referral
                 saved_ref = request.cookies.get('ref')
-                if saved_ref:
+                if saved_ref and len(saved_ref) <= 16 and saved_ref.isalnum():
                     try:
                         referrer = User.query.filter_by(referral_code=saved_ref).first()
                         if referrer and referrer.id != user.id:
                             referral_log = ReferralLog(referrer_id=referrer.id, referred_id=user.id)
                             db.session.add(referral_log)
                             db.session.commit()
-                    except Exception:
+                    except (IntegrityError, SQLAlchemyError):
                         current_app.logger.warning(
                             "Referral processing failed for ref=%s", saved_ref, exc_info=True
                         )
@@ -276,14 +278,14 @@ def register():
                     ModuleService.grant_default_modules_to_user(user.id)
                 except Exception as module_error:
                     # Log the error but don't fail registration
-                    print(module_error)
+                    current_app.logger.warning("Module granting failed for user=%s", user.id, exc_info=True)
 
                 # Auto-login after registration
                 login_user(user)
                 user.last_login = datetime.now(timezone.utc)
                 db.session.commit()
 
-                # Send welcome email (non-blocking)
+                # Send welcome email (may be slow if mail server is unresponsive)
                 try:
                     dashboard_url = url_for('words.dashboard', _external=True)
                     email_sender.send_email(

@@ -24,6 +24,13 @@ def complete():
     if current_user.onboarding_completed:
         return redirect(url_for('words.dashboard'))
 
+    # Save onboarding choices
+    level = request.form.get('level', '').strip()
+    focus = request.form.get('focus', '').strip()
+    if level:
+        current_user.onboarding_level = level[:4]
+    if focus:
+        current_user.onboarding_focus = focus[:100]
     current_user.onboarding_completed = True
     db.session.commit()
 

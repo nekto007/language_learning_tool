@@ -52,6 +52,11 @@
           <span class="onboarding-level-btn__name">Advanced</span>
           <span class="onboarding-level-btn__desc">Понимаю сложные тексты и фильмы</span>
         </button>
+        <button class="onboarding-level-btn" data-level="C2" data-desc="Владею английским на уровне носителя">
+          <span class="onboarding-level-btn__code">C2</span>
+          <span class="onboarding-level-btn__name">Proficiency</span>
+          <span class="onboarding-level-btn__desc">Владею английским на уровне носителя</span>
+        </button>
       </div>
     </div>
 
@@ -375,7 +380,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (selectedFocuses.length === 0) return;
 
     // Build summary
-    var levelNames = {A0:'Starter',A1:'Beginner',A2:'Elementary',B1:'Intermediate',B2:'Upper-Intermediate',C1:'Advanced'};
+    var levelNames = {A0:'Starter',A1:'Beginner',A2:'Elementary',B1:'Intermediate',B2:'Upper-Intermediate',C1:'Advanced',C2:'Proficiency'};
     var focusNames = {grammar:'Грамматика',vocabulary:'Слова',reading:'Чтение',all:'Всё сразу'};
     var summary = '<strong>Уровень:</strong> ' + selectedLevel + ' — ' + (levelNames[selectedLevel]||'') + '<br>';
     summary += '<strong>Фокус:</strong> ' + selectedFocuses.map(function(f){return focusNames[f]||f;}).join(', ');

@@ -19,6 +19,19 @@ login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'info'
 
+# Endpoint prefixes that skip onboarding redirect
+_ONBOARDING_SKIP_PREFIXES = (
+    'onboarding.', 'auth.', 'static', 'legal.', 'seo.',
+    'grammar_lab.', 'landing.', 'telegram.',
+    'api_auth.', 'api_words.', 'api_books.', 'api_anki.',
+    'api_topics_collections.', 'api_daily_plan.',
+    'uploads.',
+    'admin.', 'user_admin.', 'audio_admin.', 'book_admin.',
+    'collection_admin.', 'topic_admin.', 'word_admin.',
+    'system_admin.', 'grammar_lab_admin.', 'admin_curriculum.',
+    'curriculum_admin.', 'reminders.',
+)
+
 csrf = CSRFProtect()
 
 # JWT Manager for API authentication
@@ -255,19 +268,8 @@ def create_app(config_class=Config):
 
             # Redirect to onboarding if not completed (e.g. remember-me cookie login)
             # Skip AJAX/API requests and public/auth endpoints
-            ONBOARDING_SKIP_PREFIXES = (
-                'onboarding.', 'auth.', 'static', 'legal.', 'seo.',
-                'grammar_lab.', 'landing.', 'telegram.',
-                'api_auth.', 'api_words.', 'api_books.', 'api_anki.',
-                'api_topics_collections.', 'api_daily_plan.',
-                'uploads.',
-                'admin.', 'user_admin.', 'audio_admin.', 'book_admin.',
-                'collection_admin.', 'topic_admin.', 'word_admin.',
-                'system_admin.', 'grammar_lab_admin.', 'admin_curriculum.',
-                'curriculum_admin.', 'reminders.',
-            )
             if not current_user.onboarding_completed and request.endpoint \
-               and not any(request.endpoint.startswith(p) for p in ONBOARDING_SKIP_PREFIXES) \
+               and not any(request.endpoint.startswith(p) for p in _ONBOARDING_SKIP_PREFIXES) \
                and request.headers.get('X-Requested-With') != 'XMLHttpRequest' \
                and 'application/json' not in request.headers.get('Accept', ''):
                 return redirect(url_for('onboarding.wizard', next=request.path))

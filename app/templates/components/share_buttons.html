@@ -4,7 +4,12 @@
      - share_url: URL to share (optional, defaults to current page)
      - variant: 'inline' (default) or 'compact'
 #}
-{% set url = share_url|default(request.url) %}
+{% set base_url = share_url|default(request.url) %}
+{% if current_user is defined and current_user.is_authenticated and current_user.referral_code %}
+  {% set url = base_url ~ ('&' if '?' in base_url else '?') ~ 'ref=' ~ current_user.referral_code %}
+{% else %}
+  {% set url = base_url %}
+{% endif %}
 {% set text = share_text|default('') %}
 
 <div class="share-buttons {% if variant == 'compact' %}share-buttons--compact{% endif %}">

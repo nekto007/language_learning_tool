@@ -93,6 +93,44 @@ class TestOnboardingRedirect:
         assert '/onboarding' in r.headers.get('Location', '')
 
 
+class TestOnboardingBeforeRequest:
+    """Test the before_request hook that redirects unonboarded users."""
+
+    def test_unonboarded_user_redirected_from_dashboard(self, client, new_user):
+        """Authenticated user with onboarding_completed=False should be redirected to onboarding."""
+        client.post('/login', data={
+            'username_or_email': new_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=True)
+        r = client.get('/dashboard', follow_redirects=False)
+        assert r.status_code == 302
+        assert '/onboarding' in r.headers.get('Location', '')
+
+    def test_unonboarded_user_can_access_public_pages(self, client, new_user):
+        """Public pages like /privacy and /grammar-lab should not redirect to onboarding."""
+        client.post('/login', data={
+            'username_or_email': new_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=True)
+        r = client.get('/privacy', follow_redirects=False)
+        assert r.status_code == 200
+
+    def test_ajax_request_not_redirected(self, client, new_user):
+        """AJAX requests should not be redirected to onboarding."""
+        client.post('/login', data={
+            'username_or_email': new_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=True)
+        r = client.get('/dashboard', headers={'X-Requested-With': 'XMLHttpRequest'},
+                       follow_redirects=False)
+        # AJAX requests must NOT be redirected to onboarding.
+        # The endpoint may return 200, 403 (module_required), etc. — that's fine.
+        # The only failure is being redirected to /onboarding.
+        if r.status_code == 302:
+            assert '/onboarding' not in r.headers.get('Location', ''), \
+                "AJAX request was redirected to onboarding"
+
+
 class TestOnboardingComplete:
     def test_complete_marks_user_onboarded(self, client, db_session, new_user):
         # Login
@@ -108,9 +146,11 @@ class TestOnboardingComplete:
         }, follow_redirects=False)
         assert r.status_code == 302
 
-        # Verify user is marked completed
+        # Verify user is marked completed and choices are saved
         db_session.refresh(new_user)
         assert new_user.onboarding_completed is True
+        assert new_user.onboarding_level == 'B1'
+        assert new_user.onboarding_focus == 'grammar,vocabulary'
 
     def test_complete_already_onboarded_redirects(self, client, test_user):
         # Login with completed user
@@ -124,6 +164,21 @@ class TestOnboardingComplete:
         }, follow_redirects=False)
         assert r.status_code == 302
         assert '/onboarding' not in r.headers.get('Location', '')
+
+    def test_complete_with_next_redirects_to_target(self, client, db_session, new_user):
+        """POST /onboarding/complete with next param should redirect to that URL."""
+        client.post('/login', data={
+            'username_or_email': new_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=True)
+
+        r = client.post('/onboarding/complete', data={
+            'level': 'B2',
+            'focus': 'grammar',
+            'next': '/study/achievements',
+        }, follow_redirects=False)
+        assert r.status_code == 302
+        assert '/study/achievements' in r.headers.get('Location', '')
 
     def test_after_completion_login_goes_to_dashboard(self, client, db_session, new_user):
         # Login and complete onboarding

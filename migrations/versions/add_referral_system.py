@@ -1,7 +1,7 @@
 """Add referral system (referral_code on users, referral_logs table)
 
 Revision ID: add_referral_system
-Revises: add_onboarding_fields, add_streak_steps_fields
+Revises: add_onboarding_fields
 Create Date: 2026-04-08
 
 """
