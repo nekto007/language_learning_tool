@@ -56,7 +56,6 @@ def _check_referral_achievements(referrer_id: int) -> None:
         notify_achievement(referrer_id, name, icon)
 
 
-def get_safe_redirect_url(next_url, fallback='words.dashboard'):
 def _default_fallback() -> str:
     """Return words.dashboard if user has the module, else landing page."""
     from app.modules.service import ModuleService

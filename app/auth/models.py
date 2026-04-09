@@ -219,7 +219,7 @@ class ReferralLog(db.Model):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     referrer = relationship('User', foreign_keys=[referrer_id], backref='referrals_made')
-    referred = relationship('User', foreign_keys=[referred_id], backref='referred_by')
+    referred = relationship('User', foreign_keys=[referred_id], backref='referral_log_entry')
 
     __table_args__ = (
         Index('idx_referral_referrer', 'referrer_id'),

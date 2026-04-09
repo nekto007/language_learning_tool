@@ -197,10 +197,6 @@ def create_app(config_class=Config):
     from app.telegram import telegram_bp
     app.register_blueprint(telegram_bp)
 
-    # Register SEO blueprint (sitemap, robots.txt)
-    from app.seo import seo_bp
-    app.register_blueprint(seo_bp)
-
     # Register notifications blueprint
     from app.notifications import notifications_bp
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
