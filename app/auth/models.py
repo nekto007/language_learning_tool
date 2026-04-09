@@ -33,14 +33,28 @@ class User(db.Model, UserMixin):
 
     # Referral system
     referral_code = Column(String(16), unique=True, nullable=True, default=_generate_referral_code)
-
+    referred_by_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    
     # Default deck for adding words to study (null = "только в изучение")
     default_study_deck_id = Column(Integer, ForeignKey('quiz_decks.id', ondelete='SET NULL'), nullable=True)
+
+    # Email unsubscribe
+    email_unsubscribe_token = Column(String(64), nullable=True, unique=True)
+    email_opted_out = Column(Boolean, default=False, nullable=False)
+
+    referred_by = relationship('User', remote_side='User.id', foreign_keys=[referred_by_id])
 
     __table_args__ = (
         Index('idx_user_username', 'username'),
         Index('idx_user_email', 'email'),
     )
+
+    def ensure_referral_code(self) -> str:
+        """Generate a referral code if not set, and return it."""
+        if not self.referral_code:
+            self.referral_code = secrets.token_urlsafe(8)[:12]
+            db.session.commit()
+        return self.referral_code
 
     def set_password(self, password):
         self.salt = secrets.token_hex(16)

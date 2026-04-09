@@ -203,6 +203,22 @@
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
+                    <!-- Notification Bell -->
+                    <li class="nav-item" style="position: relative;">
+                        <a class="nav-link" href="#" id="notif-bell" onclick="toggleNotifPanel(); return false;" style="position: relative;">
+                            <i class="fas fa-bell"></i>
+                            <span id="notif-badge" style="display:none; position:absolute; top:4px; right:2px; background:#ef4444; color:#fff; font-size:0.65rem; font-weight:700; border-radius:50%; min-width:16px; height:16px; line-height:16px; text-align:center; padding:0 3px;">0</span>
+                        </a>
+                        <div id="notif-panel" style="display:none; position:absolute; right:0; top:100%; width:320px; max-height:400px; overflow-y:auto; background:#fff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.12); z-index:1050; padding:0.5rem 0;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem 1rem; border-bottom:1px solid #e2e8f0;">
+                                <span style="font-weight:600; font-size:0.9rem;">Уведомления</span>
+                                <a href="#" onclick="markAllRead(); return false;" style="font-size:0.75rem; color:#2563eb; text-decoration:none;">Прочитать все</a>
+                            </div>
+                            <div id="notif-list" style="padding:0.25rem 0;">
+                                <div style="text-align:center; color:#94a3b8; padding:1rem; font-size:0.85rem;">Загрузка...</div>
+                            </div>
+                        </div>
+                    </li>
                     <!-- User Menu -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
@@ -216,6 +232,8 @@
                             {% if has_module('study') %}
                             <li><a class="dropdown-item" href="{{ url_for('study.stats') }}"><i class="fas fa-chart-bar me-2"></i>Статистика</a></li>
                             {% endif %}
+                            <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}"><i class="fas fa-user me-2"></i>Профиль</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.referrals') }}"><i class="fas fa-user-friends me-2"></i>Приглашения</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('study.settings') }}"><i class="fas fa-cog me-2"></i>Настройки</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('modules.settings') }}"><i class="fas fa-puzzle-piece me-2"></i>Модули</a></li>
                             <li><hr class="dropdown-divider"></li>
@@ -288,6 +306,8 @@
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
     <!-- Unified JavaScript -->
     <script src="{{ url_for('static', filename='js/unified-js.js') }}" defer></script>
+    <!-- Share functionality -->
+    <script src="{{ url_for('static', filename='js/share.js') }}" defer></script>
     {% block scripts %}{% endblock %}
     {% block extra_js %}{% endblock %}
 
@@ -389,5 +409,128 @@
         setInterval(refreshCsrfToken, REFRESH_INTERVAL);
     })();
 </script>
+
+{% if current_user.is_authenticated %}
+<!-- Notification center JS -->
+<script>
+var notifPanelOpen = false;
+function toggleNotifPanel() {
+    var panel = document.getElementById('notif-panel');
+    notifPanelOpen = !notifPanelOpen;
+    panel.style.display = notifPanelOpen ? 'block' : 'none';
+    if (notifPanelOpen) loadNotifications();
+}
+function loadNotifications() {
+    fetch('/api/notifications/list?limit=10')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.success) return;
+            var list = document.getElementById('notif-list');
+            if (!data.notifications.length) {
+                list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:1rem;font-size:0.85rem;">Нет уведомлений</div>';
+                return;
+            }
+            list.innerHTML = data.notifications.map(function(n) {
+                return '<a href="' + (n.link || '#') + '" style="display:flex;gap:0.625rem;padding:0.625rem 1rem;text-decoration:none;transition:background 0.15s;' + (n.read ? '' : 'background:#f0f7ff;') + '" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'' + (n.read ? '' : '#f0f7ff') + '\'">' +
+                    '<span style="font-size:1.25rem;flex-shrink:0;">' + n.icon + '</span>' +
+                    '<div><div style="font-size:0.85rem;font-weight:' + (n.read ? '400' : '600') + ';color:#0f172a;">' + n.title + '</div>' +
+                    (n.message ? '<div style="font-size:0.75rem;color:#64748b;">' + n.message + '</div>' : '') + '</div></a>';
+            }).join('');
+        }).catch(function() {});
+}
+function markAllRead() {
+    var csrf = document.querySelector('meta[name=csrf-token]');
+    fetch('/api/notifications/read-all', {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrf ? csrf.getAttribute('content') : ''}
+    }).then(function() {
+        var badge = document.getElementById('notif-badge');
+        badge.style.display = 'none';
+        badge.textContent = '0';
+        loadNotifications();
+    });
+}
+// Poll unread count
+(function() {
+    fetch('/api/notifications/unread-count')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success && data.count > 0) {
+                var badge = document.getElementById('notif-badge');
+                badge.textContent = data.count > 99 ? '99+' : data.count;
+                badge.style.display = 'block';
+            }
+        }).catch(function() {});
+})();
+// Close panel on outside click
+document.addEventListener('click', function(e) {
+    if (notifPanelOpen && !e.target.closest('#notif-bell') && !e.target.closest('#notif-panel')) {
+        document.getElementById('notif-panel').style.display = 'none';
+        notifPanelOpen = false;
+    }
+});
+</script>
+
+<!-- Level-up celebration check -->
+<div id="levelup-modal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:16px; padding:2rem; max-width:380px; width:90%; text-align:center; animation: land-slideUp .4s ease-out;">
+    <div style="font-size:3rem; margin-bottom:0.5rem;" id="levelup-icon">🎉</div>
+    <h2 style="font-size:1.5rem; font-weight:800; margin:0 0 0.5rem;" id="levelup-title">Новый уровень!</h2>
+    <p style="font-size:1rem; color:#64748b; margin:0 0 1rem;" id="levelup-desc"></p>
+    <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
+      <button onclick="document.getElementById('levelup-modal').style.display='none'" style="padding:0.625rem 1.5rem; background:linear-gradient(135deg,#2563eb,#0ea5e9); color:#fff; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.9rem;">Отлично!</button>
+      <a href="#" onclick="shareVia('telegram','https://llt-english.com',document.getElementById('levelup-title').textContent); document.getElementById('levelup-modal').style.display='none'; return false;" style="padding:0.625rem 1.5rem; border:1px solid #e2e8f0; background:#fff; color:#475569; border-radius:10px; font-weight:600; text-decoration:none; font-size:0.9rem;">Поделиться</a>
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+    var CHECK_DELAY = 2000;
+    setTimeout(function() {
+        // Pass last seen timestamp to avoid repeated popups
+        var lastSeen = localStorage.getItem('llt_celeb_seen') || '';
+        var url = '/study/api/celebrations';
+        if (lastSeen) url += '?after=' + encodeURIComponent(lastSeen);
+
+        fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.success) return;
+                var lastLevel = parseInt(localStorage.getItem('llt_level') || '0');
+                var currentLevel = data.level || 1;
+                var shown = false;
+
+                // Level up detected
+                if (lastLevel > 0 && currentLevel > lastLevel) {
+                    var modal = document.getElementById('levelup-modal');
+                    document.getElementById('levelup-icon').textContent = '🎉';
+                    document.getElementById('levelup-title').textContent = 'Уровень ' + currentLevel + '!';
+                    document.getElementById('levelup-desc').textContent = 'Поздравляем! Вы достигли уровня ' + currentLevel + '. Так держать!';
+                    modal.style.display = 'flex';
+                    if (typeof showConfetti === 'function') showConfetti();
+                    shown = true;
+                }
+                localStorage.setItem('llt_level', currentLevel);
+
+                // Show celebrations (achievements, streak milestones) — only first unseen
+                if (data.celebrations && data.celebrations.length > 0 && !shown) {
+                    var modal = document.getElementById('levelup-modal');
+                    var c = data.celebrations[0];
+                    document.getElementById('levelup-icon').textContent = c.icon || '🎉';
+                    document.getElementById('levelup-title').textContent = c.title;
+                    document.getElementById('levelup-desc').textContent = c.description || '';
+                    modal.style.display = 'flex';
+                    if (typeof showConfetti === 'function') showConfetti();
+                }
+
+                // Mark as seen — store current timestamp so next page load skips these
+                localStorage.setItem('llt_celeb_seen', new Date().toISOString());
+            })
+            .catch(function() {});
+    }, CHECK_DELAY);
+})();
+</script>
+{% endif %}
+
 </body>
 </html>

@@ -428,10 +428,32 @@
     <!-- Telegram Banner -->
     {% include 'partials/telegram_banner.html' %}
 
+    <!-- Personalized recommendation -->
+    {% if onboarding_focus and (words_total + grammar_studied + books_reading) < 5 %}
+    <div class="dash-recommendation" style="background: linear-gradient(135deg, rgba(37,99,235,0.05), rgba(14,165,233,0.05)); border: 1px solid #dbeafe; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; align-items: center; gap: .75rem;">
+        <span style="font-size: 1.5rem;">
+            {% if onboarding_focus == 'grammar' %}&#129504;{% elif onboarding_focus == 'vocabulary' %}&#127183;{% elif onboarding_focus == 'reading' %}&#128218;{% else %}&#127891;{% endif %}
+        </span>
+        <div>
+            <div style="font-weight: 600; font-size: .9rem; color: #0f172a;">
+                {% if onboarding_focus == 'grammar' %}Рекомендуем начать с грамматики
+                {% elif onboarding_focus == 'vocabulary' %}Рекомендуем начать со словарного запаса
+                {% elif onboarding_focus == 'reading' %}Рекомендуем начать с чтения
+                {% else %}Рекомендуем пройти первый курс
+                {% endif %}
+            </div>
+            <div style="font-size: .8rem; color: #64748b;">На основе ваших предпочтений при регистрации</div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Progress Overview -->
     <div class="dash-progress">
         <h3 class="dash-progress__heading">&#1052;&#1086;&#1081; &#1087;&#1088;&#1086;&#1075;&#1088;&#1077;&#1089;&#1089;</h3>
         <div class="dash-progress__grid">
+            {# Reorder progress cards based on onboarding_focus #}
+            {% set cards = [] %}
+            {% set words_card %}
             <a href="{{ url_for('study.index') }}" class="dash-progress__card dash-progress__card--words">
                 <div class="dash-progress__emoji">&#127183;</div>
                 <div class="dash-progress__data">
@@ -440,6 +462,8 @@
                 </div>
                 <div class="dash-progress__arrow">&rsaquo;</div>
             </a>
+            {% endset %}
+            {% set grammar_card %}
             <a href="{{ url_for('grammar_lab.index') }}" class="dash-progress__card dash-progress__card--grammar">
                 <div class="dash-progress__emoji">&#129504;</div>
                 <div class="dash-progress__data">
@@ -448,6 +472,8 @@
                 </div>
                 <div class="dash-progress__arrow">&rsaquo;</div>
             </a>
+            {% endset %}
+            {% set courses_card %}
             <a href="{{ url_for('book_courses.list_book_courses') }}" class="dash-progress__card dash-progress__card--courses">
                 <div class="dash-progress__emoji">&#127891;</div>
                 <div class="dash-progress__data">
@@ -456,6 +482,8 @@
                 </div>
                 <div class="dash-progress__arrow">&rsaquo;</div>
             </a>
+            {% endset %}
+            {% set books_card %}
             <a href="{{ url_for('books.book_list') }}" class="dash-progress__card dash-progress__card--books">
                 <div class="dash-progress__emoji">&#128218;</div>
                 <div class="dash-progress__data">
@@ -464,6 +492,17 @@
                 </div>
                 <div class="dash-progress__arrow">&rsaquo;</div>
             </a>
+            {% endset %}
+
+            {% if onboarding_focus == 'grammar' %}
+                {{ grammar_card }}{{ words_card }}{{ courses_card }}{{ books_card }}
+            {% elif onboarding_focus == 'reading' %}
+                {{ books_card }}{{ words_card }}{{ grammar_card }}{{ courses_card }}
+            {% elif onboarding_focus == 'vocabulary' %}
+                {{ words_card }}{{ grammar_card }}{{ books_card }}{{ courses_card }}
+            {% else %}
+                {{ words_card }}{{ grammar_card }}{{ courses_card }}{{ books_card }}
+            {% endif %}
         </div>
     </div>
 

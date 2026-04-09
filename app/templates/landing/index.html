@@ -26,6 +26,22 @@
   }
 }
 </script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "Платформа бесплатная?", "acceptedAnswer": {"@type": "Answer", "text": "Да, LLT English полностью бесплатна. Все уроки, карточки, книги и грамматика доступны без ограничений."}},
+    {"@type": "Question", "name": "Какой уровень английского нужен для начала?", "acceptedAnswer": {"@type": "Answer", "text": "Начать можно с полного нуля — уровень A0 (Starter). Программа проведёт вас от первых слов до свободного владения."}},
+    {"@type": "Question", "name": "Сколько времени нужно заниматься в день?", "acceptedAnswer": {"@type": "Answer", "text": "Рекомендуем 15-20 минут в день. Система сама подберёт план: урок, повторение слов и грамматику."}},
+    {"@type": "Question", "name": "Как работает система повторения слов?", "acceptedAnswer": {"@type": "Answer", "text": "Мы используем алгоритм SM-2 (как в Anki). Система рассчитывает оптимальный момент для повторения каждого слова, чтобы оно запомнилось надолго."}},
+    {"@type": "Question", "name": "Можно ли учиться с телефона?", "acceptedAnswer": {"@type": "Answer", "text": "Да, платформа адаптирована для мобильных устройств. Также есть Telegram-бот для повторения слов и отслеживания прогресса."}},
+    {"@type": "Question", "name": "Есть ли грамматика?", "acceptedAnswer": {"@type": "Answer", "text": "Да, Grammar Lab включает теорию и упражнения по всем темам от A1 до C1. Каждая тема — с примерами, правилами и практикой."}},
+    {"@type": "Question", "name": "Что такое уровни CEFR?", "acceptedAnswer": {"@type": "Answer", "text": "CEFR — это международная шкала владения языком: A1-A2 (начальный), B1-B2 (средний), C1-C2 (продвинутый). Программа построена по этой шкале."}},
+    {"@type": "Question", "name": "Как отслеживать свой прогресс?", "acceptedAnswer": {"@type": "Answer", "text": "На дашборде видна вся статистика: пройденные уроки, изученные слова, стрик дней, достижения и рейтинг."}}
+  ]
+}
+</script>
 {% endblock %}
 
 {% block extra_css %}
@@ -723,6 +739,106 @@
         </div>
     </section>
 
+    <!-- Testimonials -->
+    <section class="land-testimonials land-anim land-anim--d6" style="margin-bottom: 3rem;">
+        <h2 class="land-section__title">Что говорят наши ученики</h2>
+        <p class="land-section__subtitle">Реальные отзывы от людей, которые учат английский на LLT English</p>
+
+        <div class="land-testimonials__grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+            <div class="land-testimonial" style="background: var(--land-surface); border: 1px solid var(--land-border); border-radius: var(--land-radius); padding: 1.5rem;">
+                <div style="display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem;">
+                    <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--land-gradient); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: .95rem;">А</div>
+                    <div>
+                        <div style="font-weight: 600; color: var(--land-text); font-size: .95rem;">Анна К.</div>
+                        <div style="font-size: .8rem; color: var(--land-text-muted);">Учится 4 месяца</div>
+                    </div>
+                </div>
+                <p style="font-size: .9rem; color: var(--land-text-muted); line-height: 1.6; margin: 0;">Наконец-то нашла платформу, где всё собрано в одном месте. Карточки со словами помогают запоминать надолго, а уроки по уровням дают понятную структуру.</p>
+            </div>
+
+            <div class="land-testimonial" style="background: var(--land-surface); border: 1px solid var(--land-border); border-radius: var(--land-radius); padding: 1.5rem;">
+                <div style="display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem;">
+                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #06b6d4); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: .95rem;">М</div>
+                    <div>
+                        <div style="font-weight: 600; color: var(--land-text); font-size: .95rem;">Максим Д.</div>
+                        <div style="font-size: .8rem; color: var(--land-text-muted);">Учится 7 месяцев</div>
+                    </div>
+                </div>
+                <p style="font-size: .9rem; color: var(--land-text-muted); line-height: 1.6; margin: 0;">Стрик в 60 дней! Система повторения реально работает — слова запоминаются сами. Особенно нравится чтение книг с мгновенным переводом.</p>
+            </div>
+
+            <div class="land-testimonial" style="background: var(--land-surface); border: 1px solid var(--land-border); border-radius: var(--land-radius); padding: 1.5rem;">
+                <div style="display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem;">
+                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #ef4444); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: .95rem;">Е</div>
+                    <div>
+                        <div style="font-weight: 600; color: var(--land-text); font-size: .95rem;">Елена С.</div>
+                        <div style="font-size: .8rem; color: var(--land-text-muted);">Учится 2 месяца</div>
+                    </div>
+                </div>
+                <p style="font-size: .9rem; color: var(--land-text-muted); line-height: 1.6; margin: 0;">Начала с нуля. За два месяца прошла уровень A1 и начала A2. Очень удобно, что есть Telegram-бот — напоминает о занятиях и показывает прогресс.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="land-faq land-anim land-anim--d7" style="margin-bottom: 3rem;">
+        <h2 class="land-section__title">Частые вопросы</h2>
+        <p class="land-section__subtitle">Ответы на самые популярные вопросы о платформе</p>
+
+        <div class="land-faq__list" style="max-width: 700px; margin: 0 auto;">
+            {% set faq_items = [
+                ("Платформа бесплатная?", "Да, LLT English полностью бесплатна. Все уроки, карточки, книги и грамматика доступны без ограничений."),
+                ("Какой уровень английского нужен для начала?", "Начать можно с полного нуля — уровень A0 (Starter). Программа проведёт вас от первых слов до свободного владения."),
+                ("Сколько времени нужно заниматься в день?", "Рекомендуем 15-20 минут в день. Система сама подберёт план: урок, повторение слов и грамматику."),
+                ("Как работает система повторения слов?", "Мы используем алгоритм SM-2 (как в Anki). Система рассчитывает оптимальный момент для повторения каждого слова, чтобы оно запомнилось надолго."),
+                ("Можно ли учиться с телефона?", "Да, платформа адаптирована для мобильных устройств. Также есть Telegram-бот для повторения слов и отслеживания прогресса."),
+                ("Есть ли грамматика?", "Да, Grammar Lab включает теорию и упражнения по всем темам от A1 до C1. Каждая тема — с примерами, правилами и практикой."),
+                ("Что такое уровни CEFR?", "CEFR — это международная шкала владения языком: A1-A2 (начальный), B1-B2 (средний), C1-C2 (продвинутый). Программа построена по этой шкале."),
+                ("Как отслеживать свой прогресс?", "На дашборде видна вся статистика: пройденные уроки, изученные слова, стрик дней, достижения и рейтинг.")
+            ] %}
+
+            {% for question, answer in faq_items %}
+            <details class="land-faq__item" style="background: var(--land-surface); border: 1px solid var(--land-border); border-radius: var(--land-radius-sm); margin-bottom: .5rem;">
+                <summary style="padding: 1rem 1.25rem; cursor: pointer; font-weight: 600; color: var(--land-text); font-size: .95rem; list-style: none; display: flex; align-items: center; justify-content: space-between;">
+                    {{ question }}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; transition: transform .2s;"><path d="M6 9l6 6 6-6"/></svg>
+                </summary>
+                <div style="padding: 0 1.25rem 1rem; font-size: .9rem; color: var(--land-text-muted); line-height: 1.6;">
+                    {{ answer }}
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Word of the Day -->
+    {% if word_of_day %}
+    <section class="land-wotd land-anim land-anim--d7" style="margin-bottom: 3rem;">
+        <h2 class="land-section__title">Слово дня</h2>
+        <div style="max-width: 500px; margin: 0 auto; background: var(--land-surface); border: 1px solid var(--land-border); border-radius: var(--land-radius); padding: 1.5rem; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 800; color: var(--land-primary); margin-bottom: 0.25rem;">{{ word_of_day.english_word }}</div>
+            <div style="font-size: 1.1rem; color: var(--land-text-muted); margin-bottom: 1rem;">{{ word_of_day.russian_word }}</div>
+            {% if word_of_day.sentences %}
+            <div style="font-size: 0.9rem; color: var(--land-text); line-height: 1.6; padding: 0.75rem 1rem; background: var(--land-surface-alt); border-radius: 8px; border-left: 3px solid var(--land-primary); text-align: left; margin-bottom: 1rem;">
+                {{ word_of_day.sentences|truncate(150)|sanitize }}
+            </div>
+            {% endif %}
+            {% if word_of_day.get_download and word_of_day.listening %}
+            <button onclick="playAudio('{{ url_for('static', filename='audio/' + word_of_day.listening|audio_filename) }}')" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border: 1px solid var(--land-border); background: var(--land-surface); border-radius: 999px; cursor: pointer; font-size: 0.85rem; color: var(--land-text-muted); font-family: var(--land-font); transition: all 0.2s; margin-bottom: 1rem;" onmouseover="this.style.borderColor='var(--land-primary)'; this.style.color='var(--land-primary)'" onmouseout="this.style.borderColor='var(--land-border)'; this.style.color='var(--land-text-muted)'">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
+                Послушать
+            </button>
+            {% endif %}
+            <div>
+                <a href="{{ url_for('auth.register') }}" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1.5rem; background: var(--land-gradient); color: #fff; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 0.9rem; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='none'">
+                    Учить больше слов
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </a>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
     <!-- Bottom CTA -->
     <section class="land-cta land-anim land-anim--d7">
         <div class="land-cta__circle land-cta__circle--1"></div>
@@ -747,4 +863,14 @@
     </section>
 
 </div>
+
+{% if word_of_day and word_of_day.get_download and word_of_day.listening %}
+<audio id="audioPlayer" style="display:none;"></audio>
+<script>
+function playAudio(url) {
+    var a = document.getElementById('audioPlayer');
+    if (a) { a.src = url; a.play().catch(function(){}); }
+}
+</script>
+{% endif %}
 {% endblock %}

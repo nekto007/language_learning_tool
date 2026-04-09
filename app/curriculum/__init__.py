@@ -48,6 +48,10 @@ def init_curriculum_module(app):
     from app.curriculum.routes.srs_api import srs_api_bp
     app.register_blueprint(srs_api_bp, url_prefix='/curriculum')
 
+    # Register public course catalog blueprint
+    from app.curriculum.routes.public import courses_bp
+    app.register_blueprint(courses_bp, url_prefix='/courses')
+
     # Warm cache on startup - try to warm cache immediately
     # Skip in testing mode - tests will handle their own setup
     if not app.config.get('TESTING', False):

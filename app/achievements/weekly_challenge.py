@@ -25,7 +25,40 @@ def get_weekly_challenge(user_id: int) -> dict[str, Any]:
 
     current = _count_progress(user_id, challenge['type'], week_start)
 
-    return {**challenge, 'current': current, 'week_start': week_start.isoformat()}
+    completed = current >= challenge['target']
+
+    # Send notification on first completion this week
+    if completed:
+        _notify_challenge_completed(user_id, challenge, week_start)
+
+    return {**challenge, 'current': current, 'completed': completed, 'week_start': week_start.isoformat()}
+
+
+def _notify_challenge_completed(user_id: int, challenge: dict, week_start: date) -> None:
+    """Send notification for weekly challenge completion (once per week)."""
+    try:
+        from app.notifications.models import Notification
+        # Check if already notified this week
+        week_start_utc = datetime(week_start.year, week_start.month, week_start.day, tzinfo=timezone.utc)
+        already = Notification.query.filter(
+            Notification.user_id == user_id,
+            Notification.type == 'weekly_challenge',
+            Notification.created_at >= week_start_utc,
+        ).first()
+        if already:
+            return
+
+        from app.notifications.services import create_notification
+        create_notification(
+            user_id, 'weekly_challenge',
+            title=f'Челлендж выполнен: {challenge["title"]}',
+            message='Отличная работа! Новый челлендж в понедельник.',
+            icon=challenge.get('icon', '🏆'),
+            link='/dashboard',
+        )
+        db.session.commit()
+    except Exception:
+        pass
 
 
 def _count_progress(user_id: int, challenge_type: str, week_start: date) -> int:

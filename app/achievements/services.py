@@ -224,6 +224,13 @@ class AchievementService:
                     db.session.add(user_achievement)
                     newly_awarded.append(achievement)
 
+                    # Send notification
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, achievement.name, achievement.icon)
+                    except Exception:
+                        pass
+
         if newly_awarded:
             db.session.commit()
             # Update badge statistics
@@ -272,6 +279,12 @@ class AchievementService:
                     )
                     db.session.add(user_achievement)
                     newly_awarded.append(achievement)
+
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, achievement.name, achievement.icon)
+                    except Exception:
+                        pass
 
         if newly_awarded:
             db.session.commit()

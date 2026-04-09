@@ -609,6 +609,17 @@
     </button>
   </div>
 
+  <!-- Share results -->
+  {% if results.score >= passing_score %}
+  <div style="margin-top: 1.5rem; text-align: center;">
+    <p style="font-size: .9rem; color: #64748b; margin-bottom: .75rem;">{{ _('Поделиться результатом:') }}</p>
+    {% set share_url = 'https://llt-english.com' %}
+    {% set share_text = 'Я прошёл финальный тест с результатом ' ~ results.score|int ~ '%! LLT English' %}
+    {% set share_compact = false %}
+    {% include 'components/share_buttons.html' %}
+  </div>
+  {% endif %}
+
   <!-- Detailed Review -->
   <div class="answers-review" id="answers-review" style="display: none;">
     <h3 class="review-title">{{ _('Разбор ответов') }}</h3>

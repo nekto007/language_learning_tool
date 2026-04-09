@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('Приглашения') }} | LLT English{% endblock %}
+
+{% block content %}
+<style>
+.ref-page {
+  --ref-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ref-primary: #2563eb;
+  --ref-gradient: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  --ref-surface: #ffffff;
+  --ref-surface-alt: #f8fafc;
+  --ref-text: #0f172a;
+  --ref-text-muted: #64748b;
+  --ref-border: #e2e8f0;
+  --ref-radius: 16px;
+  --ref-radius-sm: 10px;
+  --ref-success: #10b981;
+  font-family: var(--ref-font);
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+.ref-hero {
+  background: var(--ref-gradient); border-radius: var(--ref-radius);
+  padding: 2rem; margin-bottom: 1.5rem; color: #fff; text-align: center;
+  position: relative; overflow: hidden;
+}
+.ref-hero__title { font-size: 1.75rem; font-weight: 800; margin: 0 0 0.5rem; }
+.ref-hero__desc { font-size: 1rem; opacity: 0.9; margin: 0 0 1.5rem; }
+.ref-hero__reward {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 1rem; background: rgba(255,255,255,0.2); border-radius: 999px;
+  font-size: 0.9rem; font-weight: 600;
+}
+
+.ref-link-card {
+  background: var(--ref-surface); border: 1px solid var(--ref-border);
+  border-radius: var(--ref-radius); padding: 1.5rem; margin-bottom: 1.5rem;
+}
+.ref-link-card__label { font-size: 0.85rem; color: var(--ref-text-muted); margin-bottom: 0.5rem; font-weight: 500; }
+.ref-link-card__input {
+  display: flex; gap: 0.5rem;
+}
+.ref-link-card__url {
+  flex: 1; padding: 0.75rem 1rem; background: var(--ref-surface-alt);
+  border: 1px solid var(--ref-border); border-radius: var(--ref-radius-sm);
+  font-size: 0.85rem; color: var(--ref-text); font-family: monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ref-link-card__btn {
+  padding: 0.75rem 1.25rem; background: var(--ref-gradient); color: #fff;
+  border: none; border-radius: var(--ref-radius-sm); font-weight: 600;
+  font-size: 0.85rem; cursor: pointer; transition: all 0.2s; font-family: var(--ref-font);
+  white-space: nowrap;
+}
+.ref-link-card__btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+
+.ref-stats {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;
+}
+.ref-stat {
+  background: var(--ref-surface); border: 1px solid var(--ref-border);
+  border-radius: var(--ref-radius); padding: 1.25rem; text-align: center;
+}
+.ref-stat__value { font-size: 2rem; font-weight: 800; color: var(--ref-primary); }
+.ref-stat__label { font-size: 0.8rem; color: var(--ref-text-muted); margin-top: 0.25rem; }
+
+.ref-users {
+  background: var(--ref-surface); border: 1px solid var(--ref-border);
+  border-radius: var(--ref-radius); padding: 1.5rem;
+}
+.ref-users__title { font-size: 1.1rem; font-weight: 700; color: var(--ref-text); margin: 0 0 1rem; }
+.ref-users__empty { text-align: center; color: var(--ref-text-muted); font-size: 0.9rem; padding: 1.5rem 0; }
+.ref-user-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 0; border-top: 1px solid var(--ref-border);
+}
+.ref-user-row:first-child { border-top: none; }
+.ref-user__name { font-weight: 600; color: var(--ref-text); font-size: 0.9rem; }
+.ref-user__date { font-size: 0.8rem; color: var(--ref-text-muted); }
+
+/* Share buttons section */
+.ref-share { margin-top: 1rem; }
+.ref-share__label { font-size: 0.85rem; color: var(--ref-text-muted); margin-bottom: 0.5rem; font-weight: 500; }
+
+@media (max-width: 640px) {
+  .ref-hero { padding: 1.5rem; }
+  .ref-hero__title { font-size: 1.35rem; }
+  .ref-stats { grid-template-columns: 1fr; }
+}
+</style>
+
+<div class="ref-page">
+  <div class="ref-hero">
+    <h1 class="ref-hero__title">{{ _('Пригласи друга') }}</h1>
+    <p class="ref-hero__desc">{{ _('Поделись ссылкой и получи бонусные очки XP за каждого приглашённого друга') }}</p>
+    <div class="ref-hero__reward">+100 XP {{ _('за каждого друга') }}</div>
+  </div>
+
+  <div class="ref-link-card">
+    <div class="ref-link-card__label">{{ _('Ваша реферальная ссылка') }}</div>
+    <div class="ref-link-card__input">
+      <div class="ref-link-card__url" id="referral-url">{{ referral_link }}</div>
+      <button class="ref-link-card__btn" onclick="copyReferralLink()">{{ _('Копировать') }}</button>
+    </div>
+    <div class="ref-share">
+      <div class="ref-share__label">{{ _('Или поделитесь напрямую:') }}</div>
+      {% set share_url = referral_link %}
+      {% set share_text = 'Присоединяйся к LLT English — бесплатная платформа для изучения английского!' %}
+      {% set share_compact = false %}
+      {% include 'components/share_buttons.html' %}
+    </div>
+  </div>
+
+  <div class="ref-stats">
+    <div class="ref-stat">
+      <div class="ref-stat__value">{{ referral_count }}</div>
+      <div class="ref-stat__label">{{ _('Приглашённых') }}</div>
+    </div>
+    <div class="ref-stat">
+      <div class="ref-stat__value">{{ referral_count * 100 }}</div>
+      <div class="ref-stat__label">{{ _('Заработано XP') }}</div>
+    </div>
+  </div>
+
+  <div class="ref-users">
+    <h2 class="ref-users__title">{{ _('Приглашённые друзья') }}</h2>
+    {% if referred_users %}
+      {% for user in referred_users %}
+      <div class="ref-user-row">
+        <div class="ref-user__name">{{ user.username }}</div>
+        <div class="ref-user__date">{{ user.created_at.strftime('%d.%m.%Y') if user.created_at else '' }}</div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="ref-users__empty">
+        {{ _('Пока никто не зарегистрировался по вашей ссылке. Поделитесь ей с друзьями!') }}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function copyReferralLink() {
+    const url = document.getElementById('referral-url').textContent;
+    navigator.clipboard.writeText(url).then(function() {
+        const btn = document.querySelector('.ref-link-card__btn');
+        btn.textContent = 'Скопировано!';
+        setTimeout(function() { btn.textContent = 'Копировать'; }, 2000);
+    });
+}
+</script>
+{% endblock %}

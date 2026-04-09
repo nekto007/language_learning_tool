@@ -485,6 +485,10 @@ def format_weekly_report(report: dict[str, Any], site_url: str) -> str:
     if site_url:
         lines.append(f'\U0001f517 {site_url}/study')
 
+    # Invite prompt
+    lines.append('')
+    lines.append('👥 Учись с друзьями! Отправь /invite, чтобы получить ссылку для приглашения.')
+
     return '\n'.join(lines)
 
 

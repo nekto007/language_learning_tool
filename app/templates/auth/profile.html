@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('Профиль') }} | LLT English{% endblock %}
+
+{% block content %}
+<style>
+.profile-page {
+  --pf-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --pf-primary: #2563eb;
+  --pf-gradient: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  --pf-surface: #ffffff;
+  --pf-surface-alt: #f8fafc;
+  --pf-text: #0f172a;
+  --pf-text-muted: #64748b;
+  --pf-border: #e2e8f0;
+  --pf-radius: 16px;
+  --pf-radius-sm: 10px;
+  font-family: var(--pf-font);
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+.pf-card {
+  background: var(--pf-surface); border: 1px solid var(--pf-border);
+  border-radius: var(--pf-radius); padding: 1.5rem; margin-bottom: 1rem;
+}
+.pf-card__title { font-size: 1.1rem; font-weight: 700; color: var(--pf-text); margin: 0 0 1rem; }
+.pf-field { margin-bottom: 1rem; }
+.pf-field__label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--pf-text-muted); margin-bottom: 0.25rem; }
+.pf-field__value { font-size: 0.95rem; color: var(--pf-text); font-weight: 500; }
+.pf-link {
+  display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 1rem;
+  background: var(--pf-surface-alt); border: 1px solid var(--pf-border);
+  border-radius: var(--pf-radius-sm); text-decoration: none; color: var(--pf-text);
+  font-size: 0.9rem; font-weight: 500; transition: all 0.2s; margin-bottom: 0.5rem;
+}
+.pf-link:hover { border-color: var(--pf-primary); color: var(--pf-primary); }
+.pf-link__icon { font-size: 1.25rem; flex-shrink: 0; }
+.pf-link__arrow { margin-left: auto; color: var(--pf-text-muted); }
+.pf-url {
+  display: block; padding: 0.5rem 0.75rem; background: var(--pf-surface-alt);
+  border: 1px solid var(--pf-border); border-radius: 6px; font-family: monospace;
+  font-size: 0.8rem; color: var(--pf-text-muted); word-break: break-all; margin-top: 0.5rem;
+}
+</style>
+
+<div class="profile-page">
+  <div class="pf-card">
+    <h2 class="pf-card__title">Профиль</h2>
+    <div class="pf-field">
+      <span class="pf-field__label">Имя пользователя</span>
+      <span class="pf-field__value">{{ user.username }}</span>
+    </div>
+    <div class="pf-field">
+      <span class="pf-field__label">Email</span>
+      <span class="pf-field__value">{{ user.email or '—' }}</span>
+    </div>
+    <div class="pf-field">
+      <span class="pf-field__label">Зарегистрирован</span>
+      <span class="pf-field__value">{{ user.created_at.strftime('%d.%m.%Y') if user.created_at else '—' }}</span>
+    </div>
+  </div>
+
+  <div class="pf-card">
+    <h2 class="pf-card__title">Публичный профиль</h2>
+    <p style="font-size: 0.85rem; color: var(--pf-text-muted); margin: 0 0 0.75rem;">Ваша публичная страница с достижениями и статистикой:</p>
+    <div class="pf-url">https://llt-english.com/u/{{ user.username }}</div>
+    <div style="margin-top: 0.75rem;">
+      <a href="{{ url_for('auth.public_profile', username=user.username) }}" class="pf-link">
+        <span class="pf-link__icon">👤</span> Открыть публичный профиль
+        <span class="pf-link__arrow">&rsaquo;</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="pf-card">
+    <h2 class="pf-card__title">Ссылки</h2>
+    <a href="{{ url_for('auth.referrals') }}" class="pf-link">
+      <span class="pf-link__icon">👥</span> Пригласить друзей (+100 XP)
+      <span class="pf-link__arrow">&rsaquo;</span>
+    </a>
+    <a href="{{ url_for('auth.public_streak', username=user.username) }}" class="pf-link">
+      <span class="pf-link__icon">🔥</span> Страница стрика
+      <span class="pf-link__arrow">&rsaquo;</span>
+    </a>
+    <a href="{{ url_for('auth.change_password') }}" class="pf-link">
+      <span class="pf-link__icon">🔑</span> Изменить пароль
+      <span class="pf-link__arrow">&rsaquo;</span>
+    </a>
+  </div>
+</div>
+{% endblock %}

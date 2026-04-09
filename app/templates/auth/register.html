@@ -33,13 +33,17 @@
         </div>
         <h1 class="auth-card__title">Регистрация</h1>
         <p class="auth-card__subtitle">Создайте аккаунт для начала обучения</p>
+        {% if learner_count and learner_count > 0 %}
+        <p class="auth-card__social-proof" style="margin-top:0.5rem; font-size:0.85rem; opacity:0.85;">Присоединяйтесь к {{ learner_count }} ученикам</p>
+        {% endif %}
       </div>
     </div>
 
     <!-- Form -->
     <div class="auth-card__body">
-      <form method="POST" action="{{ url_for('auth.register') }}">
+      <form method="POST" action="{{ url_for('auth.register', level=level_param or '', ref=ref_param or '') }}">
         {{ form.hidden_tag() }}
+        {% if ref_param %}<input type="hidden" name="ref" value="{{ ref_param }}">{% endif %}
 
         <div class="auth-field">
           <label class="auth-field__label" for="{{ form.username.id }}">{{ form.username.label.text }}</label>

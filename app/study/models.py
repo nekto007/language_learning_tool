@@ -1013,9 +1013,17 @@ class UserXP(db.Model):
         return user_xp
 
     def add_xp(self, amount):
-        """Add XP and update timestamp"""
+        """Add XP, update timestamp, and notify on level-up."""
+        old_level = self.level
         self.total_xp += amount
         self.updated_at = datetime.now(timezone.utc)
+        new_level = self.level
+        if new_level > old_level and self.user_id:
+            try:
+                from app.notifications.services import notify_level_up
+                notify_level_up(self.user_id, new_level)
+            except Exception:
+                pass  # Don't break XP flow for notification errors
 
     def __repr__(self):
         return f'<UserXP user={self.user_id} xp={self.total_xp} level={self.level}>'

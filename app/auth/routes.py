@@ -15,6 +15,48 @@ from config.settings import Config
 auth = Blueprint('auth', __name__)
 
 
+def _check_referral_achievements(referrer_id: int) -> None:
+    """Check and award referral achievements based on referral count."""
+    from app.study.models import Achievement, UserAchievement
+    from app.notifications.services import notify_achievement
+
+    referral_count = User.query.filter_by(referred_by_id=referrer_id).count()
+
+    milestones = [
+        (1, 'first_referral', 'Первое приглашение', '👥', 50),
+        (5, 'referrals_5', '5 приглашений', '🤝', 200),
+        (10, 'referrals_10', '10 приглашений', '🌟', 500),
+    ]
+
+    for threshold, code, name, icon, xp_reward in milestones:
+        if referral_count < threshold:
+            continue
+
+        # Check if achievement exists, create if not
+        ach = Achievement.query.filter_by(code=code).first()
+        if not ach:
+            ach = Achievement(code=code, name=name, icon=icon, xp_reward=xp_reward, category='referral')
+            db.session.add(ach)
+            db.session.flush()
+
+        # Check if already awarded
+        already = UserAchievement.query.filter_by(user_id=referrer_id, achievement_id=ach.id).first()
+        if already:
+            continue
+
+        ua = UserAchievement(user_id=referrer_id, achievement_id=ach.id)
+        db.session.add(ua)
+
+        # Award XP
+        from app.study.models import UserXP
+        xp = UserXP.get_or_create(referrer_id)
+        xp.add_xp(xp_reward)
+
+        # Notify
+        notify_achievement(referrer_id, name, icon)
+
+
+def get_safe_redirect_url(next_url, fallback='words.dashboard'):
 def _default_fallback() -> str:
     """Return words.dashboard if user has the module, else landing page."""
     from app.modules.service import ModuleService
@@ -256,6 +298,11 @@ def register():
             return resp
 
         form = RegistrationForm()
+
+        # Capture query params
+        level_param = request.args.get('level', '')
+        ref_param = request.args.get('ref', '')
+
         if form.validate_on_submit():
             user = User(
                 username=form.username.data,
@@ -263,6 +310,17 @@ def register():
                 active=True  # Set user as active by default
             )
             user.set_password(form.password.data)
+
+            # Pre-fill onboarding level from param
+            if level_param:
+                user.onboarding_level = level_param.upper()
+
+            # Handle referral code
+            ref_code = ref_param or request.form.get('ref')
+            if ref_code:
+                referrer = User.query.filter_by(referral_code=ref_code).first()
+                if referrer:
+                    user.referred_by_id = referrer.id
 
             try:
                 db.session.add(user)
@@ -332,6 +390,14 @@ def register():
                 logging.getLogger(__name__).error(f"Registration failed: {e}")
                 flash('Регистрация не удалась. Попробуйте позже.', 'danger')
 
+        # Social proof
+        learner_count = User.query.filter_by(active=True).count()
+
+        return render_template('auth/register.html', form=form,
+                               learner_count=learner_count,
+                               level_param=level_param,
+                               ref_param=ref_param)
+    
         return render_template('auth/register.html', form=form)
 
     return _register()
@@ -397,3 +463,129 @@ def change_password():
                 flash('Ошибка при изменении пароля.', 'danger')
     
     return render_template('auth/change_password.html')
+
+
+@auth.route('/referrals')
+@login_required
+def referrals():
+    """Referral dashboard: shows user's referral code, link, and referred users."""
+    # Ensure user has a referral code
+    current_user.ensure_referral_code()
+
+    # Get referred users
+    referred_users = (
+        User.query
+        .filter_by(referred_by_id=current_user.id)
+        .order_by(User.created_at.desc())
+        .all()
+    )
+
+    referral_link = f'https://llt-english.com/register?ref={current_user.referral_code}'
+
+    return render_template(
+        'auth/referrals.html',
+        referral_code=current_user.referral_code,
+        referral_link=referral_link,
+        referred_users=referred_users,
+        referral_count=len(referred_users),
+    )
+
+
+@auth.route('/u/<username>')
+def public_profile(username: str):
+    """Public user achievement showcase — no login required."""
+    from flask import abort
+    from app.study.models import UserXP, UserAchievement, Achievement
+    from app.telegram.queries import get_current_streak
+    from app.curriculum.models import LessonProgress
+    from sqlalchemy import func
+
+    user = User.query.filter_by(username=username, active=True).first()
+    if not user:
+        abort(404)
+
+    # XP and level
+    user_xp = UserXP.query.filter_by(user_id=user.id).first()
+    level = user_xp.level if user_xp else 1
+    total_xp = user_xp.total_xp if user_xp else 0
+
+    # Streak
+    streak = get_current_streak(user.id)
+
+    # Achievements
+    achievements = (
+        db.session.query(Achievement, UserAchievement.earned_at)
+        .join(UserAchievement, UserAchievement.achievement_id == Achievement.id)
+        .filter(UserAchievement.user_id == user.id)
+        .order_by(UserAchievement.earned_at.desc())
+        .all()
+    )
+
+    # Lessons completed
+    lessons_completed = LessonProgress.query.filter_by(
+        user_id=user.id, status='completed'
+    ).count()
+
+    meta_description = (
+        f'{user.username} — Level {level}, '
+        f'{streak}-day streak on LLT English. '
+        f'{lessons_completed} lessons completed.'
+    )
+
+    return render_template(
+        'auth/public_profile.html',
+        profile_user=user,
+        level=level,
+        total_xp=total_xp,
+        streak=streak,
+        achievements=achievements,
+        lessons_completed=lessons_completed,
+        meta_description=meta_description,
+    )
+
+
+@auth.route('/streak/<username>')
+def public_streak(username: str):
+    """Public streak page with activity calendar."""
+    from flask import abort
+    from app.achievements.streak_service import get_streak_calendar
+
+    user = User.query.filter_by(username=username, active=True).first()
+    if not user:
+        abort(404)
+
+    calendar = get_streak_calendar(user.id, days=90)
+
+    meta_description = (
+        f'{user.username} имеет стрик {calendar["current_streak"]} дней '
+        f'на LLT English! Всего {calendar["total_active_days"]} дней активности.'
+    )
+
+    return render_template(
+        'achievements/public_streak.html',
+        profile_user=user,
+        calendar=calendar,
+        meta_description=meta_description,
+    )
+
+
+@auth.route('/unsubscribe')
+def unsubscribe():
+    """One-click email unsubscribe via token."""
+    token = request.args.get('token')
+    if not token:
+        flash('Неверная ссылка для отписки.', 'danger')
+        return redirect(url_for('landing.index'))
+
+    user = User.query.filter_by(email_unsubscribe_token=token).first()
+    if not user:
+        flash('Неверная ссылка для отписки.', 'danger')
+        return redirect(url_for('landing.index'))
+
+    # Mark user as unsubscribed permanently
+    user.email_unsubscribe_token = None
+    user.email_opted_out = True
+    db.session.commit()
+
+    flash('Вы отписаны от рассылки.', 'success')
+    return redirect(url_for('landing.index'))

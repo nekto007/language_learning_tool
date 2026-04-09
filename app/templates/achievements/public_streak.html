@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ profile_user.username }} — Стрик {{ calendar.current_streak }} дней | LLT English{% endblock %}
+
+{% block head_extra %}
+<meta name="description" content="{{ meta_description }}">
+<meta property="og:title" content="{{ profile_user.username }} — {{ calendar.current_streak }}-day streak | LLT English">
+<meta property="og:description" content="{{ meta_description }}">
+<meta property="og:type" content="profile">
+<link rel="canonical" href="https://llt-english.com/streak/{{ profile_user.username }}">
+{% endblock %}
+
+{% block content %}
+<style>
+.strk-page {
+  --strk-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --strk-primary: #2563eb;
+  --strk-gradient: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  --strk-surface: #ffffff;
+  --strk-surface-alt: #f8fafc;
+  --strk-text: #0f172a;
+  --strk-text-muted: #64748b;
+  --strk-border: #e2e8f0;
+  --strk-radius: 16px;
+  --strk-fire: #ef4444;
+  font-family: var(--strk-font);
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+.strk-hero {
+  background: var(--strk-gradient); border-radius: var(--strk-radius);
+  padding: 2rem; margin-bottom: 1.5rem; color: #fff; text-align: center;
+}
+.strk-hero__fire { font-size: 3rem; margin-bottom: 0.5rem; }
+.strk-hero__title { font-size: 1.75rem; font-weight: 800; margin: 0 0 0.25rem; }
+.strk-hero__sub { font-size: 1rem; opacity: 0.9; }
+
+.strk-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.5rem;
+}
+.strk-stat {
+  background: var(--strk-surface); border: 1px solid var(--strk-border);
+  border-radius: var(--strk-radius); padding: 1rem; text-align: center;
+}
+.strk-stat__value { font-size: 1.5rem; font-weight: 800; color: var(--strk-primary); }
+.strk-stat__label { font-size: 0.75rem; color: var(--strk-text-muted); margin-top: 0.25rem; }
+
+.strk-calendar {
+  background: var(--strk-surface); border: 1px solid var(--strk-border);
+  border-radius: var(--strk-radius); padding: 1.5rem; margin-bottom: 1.5rem;
+}
+.strk-calendar__title { font-size: 1rem; font-weight: 700; color: var(--strk-text); margin: 0 0 1rem; }
+.strk-grid {
+  display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px;
+}
+.strk-day {
+  width: 100%; aspect-ratio: 1; border-radius: 3px;
+  background: var(--strk-surface-alt); border: 1px solid var(--strk-border);
+}
+.strk-day--active { background: #22c55e; border-color: #16a34a; }
+
+.strk-share { text-align: center; margin-bottom: 1.5rem; }
+
+.strk-cta {
+  padding: 1.5rem; background: var(--strk-surface-alt); border: 1px solid var(--strk-border);
+  border-radius: var(--strk-radius); text-align: center;
+}
+.strk-cta__text { font-size: 0.95rem; color: var(--strk-text-muted); margin: 0 0 1rem; }
+.strk-cta__btn {
+  display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 2rem;
+  background: var(--strk-gradient); color: #fff; border-radius: 10px;
+  font-size: 0.95rem; font-weight: 700; text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .strk-stats { grid-template-columns: repeat(3, 1fr); }
+  .strk-grid { grid-template-columns: repeat(7, 1fr); }
+}
+</style>
+
+<div class="strk-page">
+  <div class="strk-hero">
+    <div class="strk-hero__fire">🔥</div>
+    <h1 class="strk-hero__title">{{ calendar.current_streak }} дней</h1>
+    <p class="strk-hero__sub">Текущий стрик {{ profile_user.username }}</p>
+  </div>
+
+  <div class="strk-stats">
+    <div class="strk-stat">
+      <div class="strk-stat__value">{{ calendar.current_streak }}</div>
+      <div class="strk-stat__label">Текущий стрик</div>
+    </div>
+    <div class="strk-stat">
+      <div class="strk-stat__value">{{ calendar.longest_streak }}</div>
+      <div class="strk-stat__label">Лучший стрик</div>
+    </div>
+    <div class="strk-stat">
+      <div class="strk-stat__value">{{ calendar.total_active_days }}</div>
+      <div class="strk-stat__label">Всего дней</div>
+    </div>
+  </div>
+
+  <div class="strk-calendar">
+    <h2 class="strk-calendar__title">Активность за 90 дней</h2>
+    <div class="strk-grid" id="streak-grid"></div>
+  </div>
+
+  <div class="strk-share">
+    {% set share_url = 'https://llt-english.com/streak/' ~ profile_user.username %}
+    {% set share_text = profile_user.username ~ ' — стрик ' ~ calendar.current_streak ~ ' дней на LLT English! 🔥' %}
+    {% include 'components/share_buttons.html' %}
+  </div>
+
+  {% if not current_user.is_authenticated %}
+  <div class="strk-cta">
+    <p class="strk-cta__text">Начни свой стрик и учи английский каждый день!</p>
+    <a href="{{ url_for('auth.register') }}" class="strk-cta__btn">Начать бесплатно</a>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+(function() {
+    var activeDates = {{ calendar.active_dates | tojson }};
+    var grid = document.getElementById('streak-grid');
+    var today = new Date();
+    for (var i = 89; i >= 0; i--) {
+        var d = new Date(today);
+        d.setDate(d.getDate() - i);
+        var iso = d.toISOString().slice(0, 10);
+        var el = document.createElement('div');
+        el.className = 'strk-day' + (activeDates.indexOf(iso) >= 0 ? ' strk-day--active' : '');
+        el.title = iso;
+        grid.appendChild(el);
+    }
+})();
+</script>
+{% endblock %}
