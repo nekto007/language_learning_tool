@@ -125,6 +125,9 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
             required_steps = streak_status.get('required_steps', 1)
             streak_repaired = True
 
+    # Check streak milestones and award bonus coins
+    milestone_reward = check_streak_milestone(user_id, streak_status.get('streak', 0))
+
     db.session.commit()
 
     return {
@@ -133,6 +136,124 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
         'streak_repaired': streak_repaired,
         'steps_done': steps_done,
         'steps_total': steps_total,
+        'milestone_reward': milestone_reward,
+    }
+
+
+STREAK_MILESTONES = {
+    7: 5,
+    14: 10,
+    30: 20,
+    60: 50,
+    100: 100,
+}
+
+
+def check_streak_milestone(user_id: int, current_streak: int) -> dict | None:
+    """Check if current streak hits a milestone and award bonus coins.
+
+    Returns milestone info dict if awarded, None otherwise.
+    """
+    if current_streak not in STREAK_MILESTONES:
+        return None
+
+    reward = STREAK_MILESTONES[current_streak]
+
+    # Check if already awarded for this milestone
+    already = StreakEvent.query.filter_by(
+        user_id=user_id,
+        event_type='milestone',
+    ).filter(
+        StreakEvent.details.contains({'streak': current_streak})
+        if hasattr(StreakEvent.details, 'contains')
+        else StreakEvent.event_type == 'milestone'  # fallback
+    ).first()
+
+    if already and already.details and already.details.get('streak') == current_streak:
+        return None
+
+    coins = get_or_create_coins(user_id)
+    coins.earn(reward)
+    db.session.add(StreakEvent(
+        user_id=user_id,
+        event_type='milestone',
+        coins_delta=reward,
+        event_date=date.today(),
+        details={'streak': current_streak, 'reward': reward},
+    ))
+
+    # Send notification
+    try:
+        from app.notifications.services import notify_streak_milestone
+        notify_streak_milestone(user_id, current_streak, reward)
+    except Exception:
+        pass  # Don't break streak flow for notification errors
+
+    return {'streak': current_streak, 'reward': reward}
+
+
+def get_milestone_history(user_id: int) -> list[dict]:
+    """Get all streak milestones earned by user."""
+    events = StreakEvent.query.filter_by(
+        user_id=user_id,
+        event_type='milestone',
+    ).order_by(StreakEvent.event_date.desc()).all()
+
+    return [
+        {
+            'streak': (e.details or {}).get('streak', 0),
+            'reward': (e.details or {}).get('reward', 0),
+            'date': e.event_date,
+        }
+        for e in events
+    ]
+
+
+def get_streak_calendar(user_id: int, days: int = 90) -> dict:
+    """Get streak calendar data for the last N days.
+
+    Returns dict with:
+      - active_dates: set of date strings (YYYY-MM-DD) where user was active
+      - total_active_days: total count
+      - longest_streak: longest consecutive run
+      - current_streak: current consecutive run
+    """
+    from_date = date.today() - timedelta(days=days)
+    events = StreakEvent.query.filter(
+        StreakEvent.user_id == user_id,
+        StreakEvent.event_type == 'earned_daily',
+        StreakEvent.event_date >= from_date,
+    ).order_by(StreakEvent.event_date).all()
+
+    active_dates = {e.event_date for e in events}
+    active_dates_str = sorted(d.isoformat() for d in active_dates)
+
+    # Calculate longest streak
+    sorted_dates = sorted(active_dates)
+    longest = 0
+    current = 0
+    prev = None
+    for d in sorted_dates:
+        if prev and (d - prev).days == 1:
+            current += 1
+        else:
+            current = 1
+        longest = max(longest, current)
+        prev = d
+
+    # Current streak (from today backwards)
+    today = date.today()
+    curr_streak = 0
+    check = today
+    while check in active_dates:
+        curr_streak += 1
+        check -= timedelta(days=1)
+
+    return {
+        'active_dates': active_dates_str,
+        'total_active_days': len(active_dates),
+        'longest_streak': longest,
+        'current_streak': curr_streak,
     }
 
 

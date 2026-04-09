@@ -1,0 +1,327 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ word.english_word }} — перевод, примеры | LLT English{% endblock %}
+
+{% block head_extra %}
+<meta name="description" content="{{ meta_description }}">
+<meta property="og:title" content="{{ word.english_word }} — перевод на русский | LLT English">
+<meta property="og:description" content="{{ meta_description }}">
+<meta property="og:type" content="article">
+<link rel="canonical" href="https://llt-english.com/dictionary/{{ word.english_word|lower|replace(' ', '-') }}">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "DefinedTerm",
+  "name": "{{ word.english_word }}",
+  "description": "{{ meta_description|e }}",
+  "inDefinedTermSet": {
+    "@type": "DefinedTermSet",
+    "name": "LLT English Dictionary"
+  },
+  "url": "https://llt-english.com/dictionary/{{ word.english_word|lower|replace(' ', '-') }}"
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<style>
+.pubw-page {
+  --pubw-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --pubw-primary: #2563eb;
+  --pubw-primary-dark: #1d4ed8;
+  --pubw-gradient: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  --pubw-surface: #ffffff;
+  --pubw-surface-alt: #f8fafc;
+  --pubw-text: #0f172a;
+  --pubw-text-muted: #64748b;
+  --pubw-text-light: #94a3b8;
+  --pubw-border: #e2e8f0;
+  --pubw-radius: 16px;
+  --pubw-radius-sm: 10px;
+  --pubw-radius-pill: 999px;
+  --pubw-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --pubw-success: #10b981;
+  --pubw-warning: #f59e0b;
+  font-family: var(--pubw-font);
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+@keyframes pubwSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pubw-animate { animation: pubwSlideUp 0.4s ease-out both; }
+.pubw-animate--d1 { animation-delay: 0.05s; }
+.pubw-animate--d2 { animation-delay: 0.10s; }
+.pubw-animate--d3 { animation-delay: 0.15s; }
+
+/* Breadcrumb */
+.pubw-breadcrumb {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin-bottom: 1rem; font-size: 0.8125rem; color: var(--pubw-text-muted);
+}
+.pubw-breadcrumb a { color: var(--pubw-text-muted); text-decoration: none; font-weight: 500; transition: color 0.2s; }
+.pubw-breadcrumb a:hover { color: var(--pubw-primary); }
+.pubw-breadcrumb__sep { color: var(--pubw-text-light); font-size: 0.75rem; }
+.pubw-breadcrumb__current { color: var(--pubw-text); font-weight: 600; }
+
+/* Hero */
+.pubw-hero {
+  position: relative; background: var(--pubw-gradient); border-radius: var(--pubw-radius);
+  padding: 2rem; margin-bottom: 1.5rem; overflow: hidden; color: #fff;
+}
+.pubw-hero__shapes { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.pubw-hero__circle { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.08); }
+.pubw-hero__circle--1 { width: 200px; height: 200px; top: -60px; right: -40px; }
+.pubw-hero__circle--2 { width: 120px; height: 120px; bottom: -40px; left: 8%; }
+.pubw-hero__content { position: relative; z-index: 1; }
+.pubw-hero__word { font-size: 2.5rem; font-weight: 800; margin: 0 0 0.25rem; line-height: 1.15; letter-spacing: -0.02em; }
+.pubw-hero__translation { font-size: 1.35rem; font-weight: 500; opacity: 0.9; margin: 0 0 1rem; }
+.pubw-hero__badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
+.pubw-badge {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  padding: 0.375rem 0.875rem; background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.2); border-radius: var(--pubw-radius-pill);
+  font-size: 0.8rem; font-weight: 600; backdrop-filter: blur(5px);
+}
+
+/* CTA */
+.pubw-cta {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.75rem 1.5rem; background: #fff; color: var(--pubw-primary);
+  border-radius: var(--pubw-radius-sm); font-size: 0.95rem; font-weight: 700;
+  text-decoration: none; transition: all 0.2s; border: none; cursor: pointer;
+}
+.pubw-cta:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); color: var(--pubw-primary-dark); }
+
+/* Cards */
+.pubw-card {
+  background: var(--pubw-surface); border: 1px solid var(--pubw-border);
+  border-radius: var(--pubw-radius); padding: 1.5rem;
+}
+.pubw-card + .pubw-card { margin-top: 1.25rem; }
+.pubw-card__header { display: flex; align-items: center; gap: 0.625rem; margin-bottom: 1.25rem; }
+.pubw-card__icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.pubw-card__icon--audio { background: #ede9fe; color: var(--pubw-primary); }
+.pubw-card__icon--examples { background: #fef3c7; color: var(--pubw-warning); }
+.pubw-card__icon--related { background: #dbeafe; color: #3b82f6; }
+.pubw-card__title { font-size: 1.05rem; font-weight: 700; color: var(--pubw-text); margin: 0; }
+
+/* Audio Player */
+.pubw-audio {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1rem; background: var(--pubw-surface-alt); border-radius: var(--pubw-radius-sm);
+}
+.pubw-audio__play {
+  width: 48px; height: 48px; border-radius: 50%; background: var(--pubw-gradient);
+  border: none; color: #fff; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+}
+.pubw-audio__play:hover { transform: scale(1.08); box-shadow: 0 4px 16px rgba(37,99,235,0.35); }
+.pubw-audio__info-word { font-weight: 600; color: var(--pubw-text); font-size: 0.95rem; }
+.pubw-audio__info-hint { font-size: 0.8rem; color: var(--pubw-text-muted); margin-top: 0.125rem; }
+
+/* Examples */
+.pubw-examples {
+  padding: 1.25rem; background: var(--pubw-surface-alt); border-radius: var(--pubw-radius-sm);
+  border-left: 3px solid var(--pubw-warning); font-size: 0.95rem; line-height: 1.7; color: var(--pubw-text);
+}
+.pubw-examples p { margin: 0; }
+
+/* Related Words Grid */
+.pubw-related-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.625rem; }
+.pubw-related {
+  display: block; padding: 0.875rem; border: 1px solid var(--pubw-border);
+  border-radius: var(--pubw-radius-sm); text-decoration: none; transition: all 0.2s;
+}
+.pubw-related:hover { border-color: var(--pubw-primary); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(37,99,235,0.1); }
+.pubw-related__en { font-weight: 600; color: var(--pubw-text); font-size: 0.95rem; }
+.pubw-related__ru { font-size: 0.8rem; color: var(--pubw-text-muted); margin-top: 0.125rem; }
+
+/* Bottom CTA Banner */
+.pubw-banner {
+  margin-top: 2rem; padding: 2rem; background: var(--pubw-surface-alt);
+  border: 1px solid var(--pubw-border); border-radius: var(--pubw-radius);
+  text-align: center;
+}
+.pubw-banner__title { font-size: 1.25rem; font-weight: 700; color: var(--pubw-text); margin: 0 0 0.5rem; }
+.pubw-banner__desc { font-size: 0.95rem; color: var(--pubw-text-muted); margin: 0 0 1.25rem; }
+.pubw-banner__btn {
+  display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 2rem;
+  background: var(--pubw-gradient); color: #fff; border-radius: var(--pubw-radius-sm);
+  font-size: 0.95rem; font-weight: 700; text-decoration: none; transition: all 0.2s;
+}
+.pubw-banner__btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(37,99,235,0.35); color: #fff; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pubw-hero__word { font-size: 2rem; }
+  .pubw-hero__translation { font-size: 1.1rem; }
+  .pubw-related-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .pubw-page { padding: 0 0.75rem 2rem; }
+  .pubw-hero { padding: 1.5rem; }
+  .pubw-hero__word { font-size: 1.75rem; }
+}
+</style>
+
+<div class="pubw-page">
+
+  <!-- Breadcrumb -->
+  <nav class="pubw-breadcrumb pubw-animate" aria-label="breadcrumb">
+    <a href="{{ url_for('landing.index') }}">{{ _('Главная') }}</a>
+    <span class="pubw-breadcrumb__sep">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+    <span class="pubw-breadcrumb__current">{{ word.english_word }}</span>
+  </nav>
+
+  <!-- Hero Section -->
+  <div class="pubw-hero pubw-animate pubw-animate--d1">
+    <div class="pubw-hero__shapes">
+      <div class="pubw-hero__circle pubw-hero__circle--1"></div>
+      <div class="pubw-hero__circle pubw-hero__circle--2"></div>
+    </div>
+
+    <div class="pubw-hero__content">
+      <h1 class="pubw-hero__word">{{ word.english_word }}</h1>
+      <p class="pubw-hero__translation">{{ word.russian_word }}</p>
+
+      <div class="pubw-hero__badges">
+        {% if word.level %}
+        <span class="pubw-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 4v16"/></svg>
+          {{ word.level }}
+        </span>
+        {% endif %}
+        {% if word.item_type == 'phrasal_verb' %}
+        <span class="pubw-badge">Phrasal verb</span>
+        {% endif %}
+      </div>
+
+      <a href="{{ url_for('auth.register') }}" class="pubw-cta">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        {{ _('Начни учить это слово') }}
+      </a>
+    </div>
+  </div>
+
+  <!-- Audio Section -->
+  {% if word.get_download and word.listening %}
+  <div class="pubw-card pubw-animate pubw-animate--d2">
+    <div class="pubw-card__header">
+      <div class="pubw-card__icon pubw-card__icon--audio">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+      </div>
+      <h2 class="pubw-card__title">{{ _('Произношение') }}</h2>
+    </div>
+    <div class="pubw-audio">
+      <button class="pubw-audio__play" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')" title="{{ _('Воспроизвести') }}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+      <div>
+        <div class="pubw-audio__info-word">{{ word.english_word }}</div>
+        <div class="pubw-audio__info-hint">{{ _('Нажмите для воспроизведения') }}</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Examples Section -->
+  {% if word.sentences %}
+  <div class="pubw-card pubw-animate pubw-animate--d2">
+    <div class="pubw-card__header">
+      <div class="pubw-card__icon pubw-card__icon--examples">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/></svg>
+      </div>
+      <h2 class="pubw-card__title">{{ _('Примеры использования') }}</h2>
+    </div>
+    <div class="pubw-examples">
+      {{ word.sentences|sanitize }}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Related Words -->
+  {% if related_words %}
+  <div class="pubw-card pubw-animate pubw-animate--d3">
+    <div class="pubw-card__header">
+      <div class="pubw-card__icon pubw-card__icon--related">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+      </div>
+      <h2 class="pubw-card__title">{{ _('Похожие слова') }}</h2>
+    </div>
+    <div class="pubw-related-grid">
+      {% for related in related_words %}
+      <a href="{{ url_for('words.public_word', word_slug=related.english_word|lower|replace(' ', '-')) }}" class="pubw-related">
+        <div class="pubw-related__en">{{ related.english_word }}</div>
+        <div class="pubw-related__ru">{{ related.russian_word }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Related Grammar Topics -->
+  {% if related_grammar %}
+  <div class="pubw-card pubw-animate pubw-animate--d3">
+    <div class="pubw-card__header">
+      <div class="pubw-card__icon pubw-card__icon--related">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+      </div>
+      <h2 class="pubw-card__title">{{ _('Грамматика уровня') }} {{ word.level }}</h2>
+    </div>
+    <div class="pubw-related-grid">
+      {% for gt in related_grammar %}
+      <a href="{{ url_for('grammar_lab.topic_detail', topic_id=gt.id) }}" class="pubw-related">
+        <div class="pubw-related__en">{{ gt.title }}</div>
+        <div class="pubw-related__ru">{{ gt.title_ru }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Continue Learning -->
+  <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; margin-bottom: 1rem;">
+    {% if word.level %}
+    <a href="{{ url_for('courses.level_detail', level_code=word.level) }}" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:#fff; border:1px solid #e2e8f0; border-radius:10px; text-decoration:none; font-size:0.85rem; color:#0f172a; font-weight:500; transition:all 0.2s;" onmouseover="this.style.borderColor='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0'">
+      <span style="font-size:1.25rem;">🎓</span> Курс {{ word.level }}
+    </a>
+    {% endif %}
+    <a href="{{ url_for('grammar_lab.index') }}" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:#fff; border:1px solid #e2e8f0; border-radius:10px; text-decoration:none; font-size:0.85rem; color:#0f172a; font-weight:500; transition:all 0.2s;" onmouseover="this.style.borderColor='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0'">
+      <span style="font-size:1.25rem;">🧠</span> Grammar Lab
+    </a>
+  </div>
+
+  <!-- Bottom CTA -->
+  <div class="pubw-banner pubw-animate pubw-animate--d3">
+    <h2 class="pubw-banner__title">{{ _('Хочешь выучить это слово?') }}</h2>
+    <p class="pubw-banner__desc">{{ _('Зарегистрируйся и начни учить английский с персональным планом') }}</p>
+    <a href="{{ url_for('auth.register') }}" class="pubw-banner__btn">
+      {{ _('Начать бесплатно') }}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+
+</div>
+
+<!-- Audio Element -->
+<audio id="audioPlayer" style="display:none;"></audio>
+
+<script>
+function playAudio(audioUrl) {
+    const audio = document.getElementById('audioPlayer');
+    if (!audio) return;
+    audio.src = audioUrl;
+    audio.play().catch(e => console.error('Audio playback failed:', e));
+}
+</script>
+{% endblock %}

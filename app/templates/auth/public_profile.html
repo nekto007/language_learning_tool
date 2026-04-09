@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ profile_user.username }} — LLT English{% endblock %}
+
+{% block head_extra %}
+<meta name="description" content="{{ meta_description }}">
+<meta property="og:title" content="{{ profile_user.username }} — Level {{ level }} | LLT English">
+<meta property="og:description" content="{{ meta_description }}">
+<meta property="og:type" content="profile">
+<link rel="canonical" href="https://llt-english.com/u/{{ profile_user.username }}">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProfilePage",
+  "mainEntity": {
+    "@type": "Person",
+    "name": "{{ profile_user.username }}",
+    "url": "https://llt-english.com/u/{{ profile_user.username }}"
+  }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<style>
+.prof-page {
+  --prof-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --prof-primary: #2563eb;
+  --prof-gradient: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  --prof-surface: #ffffff;
+  --prof-surface-alt: #f8fafc;
+  --prof-text: #0f172a;
+  --prof-text-muted: #64748b;
+  --prof-border: #e2e8f0;
+  --prof-radius: 16px;
+  --prof-radius-sm: 10px;
+  font-family: var(--prof-font);
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+.prof-hero {
+  background: var(--prof-gradient); border-radius: var(--prof-radius);
+  padding: 2rem; margin-bottom: 1.5rem; color: #fff; text-align: center;
+  position: relative; overflow: hidden;
+}
+.prof-hero__avatar {
+  width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; font-weight: 800; margin: 0 auto 1rem;
+  border: 3px solid rgba(255,255,255,0.3);
+}
+.prof-hero__name { font-size: 1.75rem; font-weight: 800; margin: 0 0 0.25rem; }
+.prof-hero__level { font-size: 1rem; opacity: 0.9; }
+
+.prof-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.5rem;
+}
+.prof-stat {
+  background: var(--prof-surface); border: 1px solid var(--prof-border);
+  border-radius: var(--prof-radius); padding: 1rem; text-align: center;
+}
+.prof-stat__value { font-size: 1.5rem; font-weight: 800; color: var(--prof-primary); }
+.prof-stat__label { font-size: 0.75rem; color: var(--prof-text-muted); margin-top: 0.25rem; }
+
+.prof-achievements {
+  background: var(--prof-surface); border: 1px solid var(--prof-border);
+  border-radius: var(--prof-radius); padding: 1.5rem; margin-bottom: 1.5rem;
+}
+.prof-achievements__title { font-size: 1.1rem; font-weight: 700; color: var(--prof-text); margin: 0 0 1rem; }
+.prof-badge-grid { display: flex; flex-wrap: wrap; gap: 0.625rem; }
+.prof-badge {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.875rem;
+  background: var(--prof-surface-alt); border: 1px solid var(--prof-border);
+  border-radius: 999px; font-size: 0.8125rem;
+}
+.prof-badge__icon { font-size: 1.25rem; }
+.prof-badge__name { font-weight: 600; color: var(--prof-text); }
+.prof-empty { text-align: center; color: var(--prof-text-muted); padding: 1rem 0; font-size: 0.9rem; }
+
+.prof-share { margin-top: 1rem; text-align: center; }
+
+.prof-cta {
+  margin-top: 1.5rem; padding: 1.5rem; background: var(--prof-surface-alt);
+  border: 1px solid var(--prof-border); border-radius: var(--prof-radius); text-align: center;
+}
+.prof-cta__text { font-size: 0.95rem; color: var(--prof-text-muted); margin: 0 0 1rem; }
+.prof-cta__btn {
+  display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 2rem;
+  background: var(--prof-gradient); color: #fff; border-radius: var(--prof-radius-sm);
+  font-size: 0.95rem; font-weight: 700; text-decoration: none; transition: all 0.2s;
+}
+.prof-cta__btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(37,99,235,0.35); color: #fff; }
+
+@media (max-width: 640px) {
+  .prof-stats { grid-template-columns: repeat(2, 1fr); }
+  .prof-hero__name { font-size: 1.35rem; }
+}
+</style>
+
+<div class="prof-page">
+  <div class="prof-hero">
+    <div class="prof-hero__avatar">{{ profile_user.username[0]|upper }}</div>
+    <h1 class="prof-hero__name">{{ profile_user.username }}</h1>
+    <p class="prof-hero__level">Level {{ level }} &middot; {{ total_xp }} XP</p>
+  </div>
+
+  <div class="prof-stats">
+    <div class="prof-stat">
+      <div class="prof-stat__value">{{ level }}</div>
+      <div class="prof-stat__label">Уровень</div>
+    </div>
+    <div class="prof-stat">
+      <div class="prof-stat__value">{{ total_xp }}</div>
+      <div class="prof-stat__label">XP</div>
+    </div>
+    <div class="prof-stat">
+      <div class="prof-stat__value">{{ streak }}</div>
+      <div class="prof-stat__label">Стрик</div>
+    </div>
+    <div class="prof-stat">
+      <div class="prof-stat__value">{{ lessons_completed }}</div>
+      <div class="prof-stat__label">Уроков</div>
+    </div>
+  </div>
+
+  <div class="prof-achievements">
+    <h2 class="prof-achievements__title">Достижения ({{ achievements|length }})</h2>
+    {% if achievements %}
+    <div class="prof-badge-grid">
+      {% for ach, earned_at in achievements %}
+      <div class="prof-badge">
+        <span class="prof-badge__icon">{{ ach.icon }}</span>
+        <span class="prof-badge__name">{{ ach.name }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="prof-empty">Пока нет достижений</div>
+    {% endif %}
+  </div>
+
+  <div class="prof-share">
+    {% set share_url = 'https://llt-english.com/u/' ~ profile_user.username %}
+    {% set share_text = profile_user.username ~ ' — Level ' ~ level ~ ', ' ~ streak ~ '-day streak на LLT English' %}
+    {% include 'components/share_buttons.html' %}
+  </div>
+
+  {% if not current_user.is_authenticated %}
+  <div class="prof-cta">
+    <p class="prof-cta__text">Присоединяйся и начни учить английский!</p>
+    <a href="{{ url_for('auth.register') }}" class="prof-cta__btn">Начать бесплатно</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

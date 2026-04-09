@@ -75,10 +75,31 @@ def topic_detail(topic_id):
     if topic.get('exercise_count'):
         meta_description += f' {topic["exercise_count"]} упражнений для практики.'
 
+    # Related topics (same level, excluding current)
+    related_topics = GrammarTopic.query.filter(
+        GrammarTopic.level == topic.get('level'),
+        GrammarTopic.id != topic_id,
+    ).order_by(GrammarTopic.order).limit(4).all()
+
+    # Related vocabulary words (same level, for cross-linking)
+    from app.words.models import CollectionWords
+    related_words = []
+    if topic.get('level'):
+        from sqlalchemy import func as sqla_func
+        related_words = (
+            CollectionWords.query
+            .filter(CollectionWords.level == topic['level'])
+            .order_by(sqla_func.random())
+            .limit(4)
+            .all()
+        )
+
     return render_template(
         'grammar_lab/topic_detail.html',
         topic=topic,
-        meta_description=meta_description
+        meta_description=meta_description,
+        related_topics=related_topics,
+        related_words=related_words,
     )
 
 

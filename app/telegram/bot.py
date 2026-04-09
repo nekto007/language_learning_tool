@@ -138,6 +138,7 @@ HELP_TEXT = (
     'Доступные команды:\n\n'
     '/plan — план на сегодня с чеклистом\n'
     '/stats — статистика: стрик, уроки, слова, книги\n'
+    '/invite — пригласить друга и получить +100 XP\n'
     '/settings — настройки уведомлений и часовой пояс\n'
     '/link — привязать аккаунт\n'
     '/unlink — отвязать аккаунт\n'
@@ -624,7 +625,46 @@ def _handle_stats(chat_id: int, telegram_id: int) -> None:
         lines.append(f'📖 {cards}')
         lines.append(f'📕 {site_url}/curriculum/book-courses')
 
+    # Referral stats
+    from app.auth.models import User
+    referral_count = User.query.filter_by(referred_by_id=tg_user.user_id).count()
+    if referral_count > 0:
+        lines.append(f'\n👥 Приглашено друзей: {referral_count}')
+
     _send_message(chat_id, '\n'.join(lines))
+
+
+def _handle_invite(chat_id: int, telegram_id: int) -> None:
+    """Handle /invite command — generate shareable invite message."""
+    tg_user = TelegramUser.query.filter_by(telegram_id=telegram_id).first()
+    if not tg_user:
+        _send_message(chat_id, 'Сначала привяжи аккаунт: /link XXXXXX')
+        return
+
+    from app.auth.models import User
+    user = User.query.get(tg_user.user_id)
+    if not user:
+        _send_message(chat_id, 'Ошибка: пользователь не найден.')
+        return
+
+    ref_code = user.ensure_referral_code()
+    invite_link = f'https://llt-english.com/register?ref={ref_code}'
+
+    referral_count = User.query.filter_by(referred_by_id=user.id).count()
+    stats_line = f'\n👥 Ты уже пригласил: {referral_count}' if referral_count > 0 else ''
+
+    message = (
+        '📨 Поделись этим сообщением с друзьями:\n\n'
+        '---\n'
+        'Привет! Я учу английский на LLT English — '
+        'бесплатная платформа с уроками, карточками и книгами.\n\n'
+        f'Присоединяйся: {invite_link}\n'
+        '---\n'
+        f'{stats_line}\n'
+        '💡 За каждого друга ты получишь +100 XP!'
+    )
+
+    _send_message(chat_id, message)
 
 
 # ── Main dispatcher ─────────────────────────────────────────────────
@@ -693,6 +733,8 @@ def handle_update(data: dict) -> None:
         _handle_plan(chat_id, telegram_id)
     elif text == '/stats':
         _handle_stats(chat_id, telegram_id)
+    elif text == '/invite':
+        _handle_invite(chat_id, telegram_id)
     elif text == '/help':
         _send_message(chat_id, HELP_TEXT)
     elif (PendingTelegramLink.is_pending(telegram_id)

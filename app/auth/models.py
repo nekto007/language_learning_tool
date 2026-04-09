@@ -25,18 +25,32 @@ class User(db.Model, UserMixin):
     # Default deck for adding words to study (null = "только в изучение")
     default_study_deck_id = Column(Integer, ForeignKey('quiz_decks.id', ondelete='SET NULL'), nullable=True)
 
-    # # Связь со словами теперь через UserWord
-    # words = relationship("CollectionWords",
-    #                      secondary="user_words",
-    #                      primaryjoin="User.id == UserWord.user_id",
-    #                      secondaryjoin="UserWord.word_id == CollectionWords.id",
-    #                      backref="users")
+    # Onboarding
+    onboarding_completed = Column(Boolean, default=False)
+    onboarding_level = Column(String(4), nullable=True)   # CEFR level: A0, A1, ...
+    onboarding_focus = Column(String(100), nullable=True)  # grammar, vocabulary, reading, etc.
 
+    # Email unsubscribe
+    email_unsubscribe_token = Column(String(64), nullable=True, unique=True)
+    email_opted_out = Column(Boolean, default=False, nullable=False)
+
+    # Referral system
+    referral_code = Column(String(16), unique=True, nullable=True, index=True)
+    referred_by_id = Column(Integer, ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+
+    referred_by = relationship('User', remote_side='User.id', foreign_keys=[referred_by_id])
 
     __table_args__ = (
         Index('idx_user_username', 'username'),
         Index('idx_user_email', 'email'),
     )
+
+    def ensure_referral_code(self) -> str:
+        """Generate a referral code if not set, and return it."""
+        if not self.referral_code:
+            self.referral_code = secrets.token_urlsafe(8)[:12]
+            db.session.commit()
+        return self.referral_code
 
     def set_password(self, password):
         self.salt = secrets.token_hex(16)

@@ -363,6 +363,7 @@ db_log.txt
 *.txt
 !requirements*.txt
 !app/templates/emails/*.txt
+!app/templates/emails/**/*.txt
 
 # Documentation folder (local only)
 docs/

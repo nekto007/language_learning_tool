@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ deck.title }} — Quiz | LLT English{% endblock %}
+
+{% block head_extra %}
+<meta name="description" content="{{ meta_description }}">
+<meta property="og:title" content="Quiz: {{ deck.title }} — {{ word_count }} слов{% if deck_level %}, {{ deck_level }}{% endif %} | LLT English">
+<meta property="og:description" content="{{ meta_description }}">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://llt-english.com/study/quiz/shared/{{ deck.share_code }}">
+{% endblock %}
+
+{% block content %}
+<style>
+.sqp-page {
+  --sqp-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  --sqp-primary: #2563eb;
+  --sqp-gradient: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  --sqp-surface: #ffffff;
+  --sqp-surface-alt: #f8fafc;
+  --sqp-text: #0f172a;
+  --sqp-text-muted: #64748b;
+  --sqp-border: #e2e8f0;
+  --sqp-radius: 16px;
+  --sqp-radius-sm: 10px;
+  font-family: var(--sqp-font);
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+.sqp-hero {
+  background: var(--sqp-gradient); border-radius: var(--sqp-radius);
+  padding: 2rem; margin-bottom: 1.5rem; color: #fff; text-align: center;
+  position: relative; overflow: hidden;
+}
+.sqp-hero__title { font-size: 1.75rem; font-weight: 800; margin: 0 0 0.5rem; }
+.sqp-hero__meta { font-size: 1rem; opacity: 0.9; }
+.sqp-hero__badges { display: flex; justify-content: center; gap: 0.5rem; margin-top: 1rem; }
+.sqp-badge {
+  padding: 0.375rem 0.875rem; background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.2); border-radius: 999px;
+  font-size: 0.8rem; font-weight: 600;
+}
+
+.sqp-preview {
+  background: var(--sqp-surface); border: 1px solid var(--sqp-border);
+  border-radius: var(--sqp-radius); padding: 1.5rem; margin-bottom: 1.5rem;
+}
+.sqp-preview__title { font-size: 1.1rem; font-weight: 700; color: var(--sqp-text); margin: 0 0 1rem; }
+.sqp-word-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.625rem 0; border-top: 1px solid var(--sqp-border);
+}
+.sqp-word-row:first-child { border-top: none; }
+.sqp-word__en { font-weight: 600; color: var(--sqp-text); }
+.sqp-word__ru { color: var(--sqp-text-muted); font-size: 0.9rem; }
+.sqp-more { text-align: center; color: var(--sqp-text-muted); font-size: 0.85rem; padding-top: 0.75rem; border-top: 1px solid var(--sqp-border); }
+
+.sqp-cta {
+  padding: 2rem; background: var(--sqp-surface-alt); border: 1px solid var(--sqp-border);
+  border-radius: var(--sqp-radius); text-align: center;
+}
+.sqp-cta__title { font-size: 1.25rem; font-weight: 700; color: var(--sqp-text); margin: 0 0 0.5rem; }
+.sqp-cta__desc { font-size: 0.95rem; color: var(--sqp-text-muted); margin: 0 0 1.25rem; }
+.sqp-cta__btn {
+  display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 2rem;
+  background: var(--sqp-gradient); color: #fff; border-radius: var(--sqp-radius-sm);
+  font-size: 0.95rem; font-weight: 700; text-decoration: none; transition: all 0.2s;
+}
+.sqp-cta__btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(37,99,235,0.35); color: #fff; }
+</style>
+
+<div class="sqp-page">
+  <div class="sqp-hero">
+    <h1 class="sqp-hero__title">{{ deck.title }}</h1>
+    <p class="sqp-hero__meta">{{ word_count }} слов{% if deck_level %} &middot; {{ deck_level }}{% endif %}</p>
+    <div class="sqp-hero__badges">
+      <span class="sqp-badge">{{ word_count }} слов</span>
+      {% if deck_level %}<span class="sqp-badge">{{ deck_level }}</span>{% endif %}
+    </div>
+  </div>
+
+  {% if preview_words %}
+  <div class="sqp-preview">
+    <h2 class="sqp-preview__title">Предпросмотр</h2>
+    {% for word in preview_words %}
+    <div class="sqp-word-row">
+      <span class="sqp-word__en">{{ word.english_word }}</span>
+      <span class="sqp-word__ru">{{ word.russian_word }}</span>
+    </div>
+    {% endfor %}
+    {% if word_count > 5 %}
+    <div class="sqp-more">+{{ word_count - 5 }} ещё</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="sqp-cta">
+    <h2 class="sqp-cta__title">Создай свою колоду</h2>
+    <p class="sqp-cta__desc">Зарегистрируйся, чтобы пройти этот квиз и создать свои колоды</p>
+    <a href="{{ url_for('auth.register') }}" class="sqp-cta__btn">
+      Начать бесплатно
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+</div>
+{% endblock %}

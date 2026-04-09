@@ -12,11 +12,104 @@ from app.modules.decorators import module_required
 words = Blueprint('words', __name__)
 
 
+@words.route('/dictionary/<path:word_slug>')
+def public_word(word_slug: str):
+    """Public word page for SEO — no login required."""
+    from flask import abort
+
+    # Normalize slug back to word (hyphens → spaces)
+    search_term = word_slug.replace('-', ' ').strip().lower()
+
+    word = CollectionWords.query.filter(
+        func.lower(CollectionWords.english_word) == search_term
+    ).first()
+
+    if not word:
+        abort(404)
+
+    # Related words (same level, limit 6)
+    related_words = []
+    if word.level:
+        related_words = (
+            CollectionWords.query
+            .filter(CollectionWords.id != word.id, CollectionWords.level == word.level)
+            .order_by(func.random())
+            .limit(6)
+            .all()
+        )
+
+    # Related grammar topics (same level)
+    related_grammar = []
+    if word.level:
+        from app.grammar_lab.models import GrammarTopic
+        related_grammar = (
+            GrammarTopic.query
+            .filter(GrammarTopic.level == word.level)
+            .order_by(GrammarTopic.order)
+            .limit(3)
+            .all()
+        )
+
+    meta_description = (
+        f'{word.english_word} — перевод: {word.russian_word}. '
+        f'Уровень {word.level or ""}. Примеры, произношение и упражнения.'
+    )
+
+    return render_template(
+        'words/public_word.html',
+        word=word,
+        related_words=related_words,
+        related_grammar=related_grammar,
+        meta_description=meta_description,
+    )
+
+
+def _process_referral_reward_on_first_visit(user) -> None:
+    """Award referral XP to referrer after the referred user completes onboarding.
+
+    Checks the explicit onboarding_completed flag so the reward is not
+    triggered before the user has actually finished the onboarding flow.
+    """
+    if not getattr(user, 'referred_by_id', None):
+        return
+
+    # Only award after onboarding is completed
+    if not getattr(user, 'onboarding_completed', False):
+        return
+
+    from app.notifications.models import Notification
+    # Check if reward already delivered (notification to referrer about this user)
+    already = Notification.query.filter_by(
+        user_id=user.referred_by_id,
+        type='referral',
+    ).filter(Notification.title.contains(user.username)).first()
+    if already:
+        return
+
+    try:
+        from app.study.models import UserXP
+        referrer_xp = UserXP.get_or_create(user.referred_by_id)
+        referrer_xp.add_xp(100)
+
+        from app.notifications.services import notify_referral
+        notify_referral(user.referred_by_id, user.username)
+
+        from app.auth.routes import _check_referral_achievements
+        _check_referral_achievements(user.referred_by_id)
+
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
 @words.route('/dashboard')
 @login_required
 @module_required('words')
 def dashboard():
     """Main dashboard with daily plan, streak and activity summary."""
+    # Process deferred referral reward on first visit
+    _process_referral_reward_on_first_visit(current_user)
+
     from app.study.models import UserWord, Achievement, UserAchievement
     from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
     from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
@@ -206,6 +299,9 @@ def dashboard():
         today_xp=today_xp,
         daily_xp_goal=daily_xp_goal,
         weekly_challenge=weekly_challenge,
+        # Personalization
+        onboarding_focus=getattr(current_user, 'onboarding_focus', None),
+        onboarding_level=getattr(current_user, 'onboarding_level', None),
     )
 
 

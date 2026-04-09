@@ -471,16 +471,49 @@ def quiz_deck(deck_id):
 
 
 @study.route('/quiz/shared/<code>')
-@login_required
-@module_required('study')
 def quiz_deck_shared(code):
-    """Access quiz deck via share code"""
-    from app.study.models import QuizDeck
+    """Public shared quiz deck page with preview — no login required."""
+    from flask import abort
+    from app.study.models import QuizDeck, QuizDeckWord
+    from app.words.models import CollectionWords
 
-    deck = QuizDeck.query.filter_by(share_code=code, is_public=True).first_or_404()
+    deck = QuizDeck.query.filter_by(share_code=code, is_public=True).first()
+    if not deck:
+        abort(404)
 
-    # Redirect to regular deck quiz
-    return redirect(url_for('study.quiz_deck', deck_id=deck.id))
+    # If authenticated, redirect to actual quiz
+    if current_user.is_authenticated:
+        return redirect(url_for('study.quiz_deck', deck_id=deck.id))
+
+    # Public preview: deck info + first 5 words
+    word_count = deck.words.count()
+    preview_words = (
+        db.session.query(CollectionWords)
+        .join(QuizDeckWord, QuizDeckWord.word_id == CollectionWords.id)
+        .filter(QuizDeckWord.deck_id == deck.id)
+        .limit(5)
+        .all()
+    )
+
+    # Determine most common level
+    deck_level = None
+    if preview_words:
+        levels = [w.level for w in preview_words if w.level]
+        if levels:
+            deck_level = max(set(levels), key=levels.count)
+
+    meta_description = f'Quiz: {deck.title} — {word_count} слов'
+    if deck_level:
+        meta_description += f', уровень {deck_level}'
+
+    return render_template(
+        'study/quiz_shared_public.html',
+        deck=deck,
+        word_count=word_count,
+        preview_words=preview_words,
+        deck_level=deck_level,
+        meta_description=meta_description,
+    )
 
 
 # API routes for AJAX calls from study interfaces
@@ -2627,4 +2660,77 @@ def api_add_phrase_to_deck():
     return jsonify({
         'success': True,
         'message': f'"{english}" added to your deck'
+    })
+
+
+@study.route('/api/celebrations')
+@login_required
+def check_celebrations():
+    """Check for pending celebrations: level-up, new achievements.
+
+    Returns JSON with celebration data to show modals/confetti.
+    The client stores the last seen level in localStorage and compares.
+    """
+    from app.study.models import UserXP, UserAchievement, Achievement
+
+    celebrations = []
+
+    # Current XP level
+    user_xp = UserXP.query.filter_by(user_id=current_user.id).first()
+    current_level = user_xp.level if user_xp else 1
+    current_total_xp = user_xp.total_xp if user_xp else 0
+
+    # Cutoff: use client-provided 'after' timestamp or fall back to 5 minutes
+    from datetime import timedelta
+    from dateutil.parser import isoparse
+    after_param = request.args.get('after')
+    if after_param:
+        try:
+            cutoff = isoparse(after_param).replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+    else:
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+    recent_achievements = (
+        db.session.query(UserAchievement, Achievement)
+        .join(Achievement, UserAchievement.achievement_id == Achievement.id)
+        .filter(
+            UserAchievement.user_id == current_user.id,
+            UserAchievement.earned_at >= cutoff,
+        )
+        .all()
+    )
+
+    for ua, ach in recent_achievements:
+        celebrations.append({
+            'type': 'achievement',
+            'title': ach.name,
+            'description': ach.description or '',
+            'icon': ach.icon,
+            'xp': ach.xp_reward,
+        })
+
+    # Recent streak milestones (last 5 minutes)
+    from app.achievements.models import StreakEvent
+    recent_milestones = StreakEvent.query.filter(
+        StreakEvent.user_id == current_user.id,
+        StreakEvent.event_type == 'milestone',
+        StreakEvent.created_at >= cutoff,
+    ).all()
+
+    for ms in recent_milestones:
+        details = ms.details or {}
+        celebrations.append({
+            'type': 'streak_milestone',
+            'title': f'Стрик {details.get("streak", 0)} дней!',
+            'description': f'+{details.get("reward", 0)} монет',
+            'icon': '🔥',
+            'coins': details.get('reward', 0),
+        })
+
+    return jsonify({
+        'success': True,
+        'level': current_level,
+        'total_xp': current_total_xp,
+        'celebrations': celebrations,
     })

@@ -35,6 +35,18 @@ learn_bp = Blueprint('learn', __name__)
 @login_required
 def learn_index():
     """Главная страница обучения - оптимизированная версия с eager loading"""
+    # Pre-select onboarding level on first visit
+    onboarding_level = getattr(current_user, 'onboarding_level', None)
+    if onboarding_level and not request.args.get('skip_redirect'):
+        # Check if user has any completed lessons
+        has_progress = LessonProgress.query.filter_by(
+            user_id=current_user.id, status='completed'
+        ).first()
+        if not has_progress:
+            level = CEFRLevel.query.filter_by(code=onboarding_level.upper()).first()
+            if level:
+                return redirect(url_for('learn.learn_level', level_code=level.code))
+
     try:
         from app.curriculum.services.curriculum_cache_service import CurriculumCacheService
 

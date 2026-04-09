@@ -71,6 +71,7 @@ def create_app(config_class=Config):
     from app.reminders import models as reminders_models
     from app.telegram import models as telegram_models
     from app.achievements import models as achievements_models
+    from app.notifications import models as notifications_models
 
     # Database initialization and seeding - MUST happen before any module that queries DB
     # Skip in testing mode - tests will handle their own data setup
@@ -169,6 +170,14 @@ def create_app(config_class=Config):
     # Register Telegram bot blueprint
     from app.telegram import telegram_bp
     app.register_blueprint(telegram_bp)
+
+    # Register SEO blueprint (sitemap, robots.txt)
+    from app.seo import seo_bp
+    app.register_blueprint(seo_bp)
+
+    # Register notifications blueprint
+    from app.notifications import notifications_bp
+    app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
 
     # Register uploads blueprint for secure file serving
     from app.uploads.routes import uploads as uploads_blueprint
@@ -271,5 +280,10 @@ def create_app(config_class=Config):
             print('🤖 Telegram polling started')
     elif not app.config.get('TESTING', False):
         print(f'🤖 Telegram bot disabled (token set: {has_token})')
+
+    # Start email re-engagement scheduler (skip in tests)
+    if not app.config.get('TESTING', False):
+        from app.email_scheduler import init_email_scheduler
+        init_email_scheduler(app)
 
     return app
