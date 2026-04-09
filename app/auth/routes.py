@@ -490,7 +490,7 @@ def referrals():
     )
 
 
-@auth.route('/u/<username>')
+@auth.route('/u/<username>', strict_slashes=False)
 def public_profile(username: str):
     """Public user achievement showcase — no login required."""
     from flask import abort
@@ -543,7 +543,7 @@ def public_profile(username: str):
     )
 
 
-@auth.route('/streak/<username>')
+@auth.route('/streak/<username>', strict_slashes=False)
 def public_streak(username: str):
     """Public streak page with activity calendar."""
     from flask import abort
