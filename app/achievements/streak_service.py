@@ -209,26 +209,49 @@ def get_milestone_history(user_id: int) -> list[dict]:
     ]
 
 
-def get_streak_calendar(user_id: int, days: int = 90) -> dict:
+def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow') -> dict:
     """Get streak calendar data for the last N days.
 
+    Uses the same real-activity check as get_current_streak so the data is
+    consistent with the dashboard streak counter.
+
     Returns dict with:
-      - active_dates: set of date strings (YYYY-MM-DD) where user was active
+      - active_dates: list of date strings (YYYY-MM-DD) where user was active
       - total_active_days: total count
       - longest_streak: longest consecutive run
-      - current_streak: current consecutive run
+      - current_streak: current consecutive run (from get_current_streak)
     """
-    from_date = date.today() - timedelta(days=days)
-    events = StreakEvent.query.filter(
-        StreakEvent.user_id == user_id,
-        StreakEvent.event_type == 'earned_daily',
-        StreakEvent.event_date >= from_date,
-    ).order_by(StreakEvent.event_date).all()
+    from app.telegram.queries import get_current_streak, _has_activity_in_range, _user_day_boundaries
 
-    active_dates = {e.event_date for e in events}
+    today = date.today()
+
+    # Also include StreakEvent dates (earned_daily + repairs) as supplementary source
+    from_date = today - timedelta(days=days)
+    event_dates = set()
+    for ev in StreakEvent.query.filter(
+        StreakEvent.user_id == user_id,
+        StreakEvent.event_type.in_(['earned_daily', 'free_repair', 'spent_repair']),
+        StreakEvent.event_date >= from_date,
+    ):
+        event_dates.add(ev.event_date)
+
+    # Check real activity for each day in the window
+    active_dates = set()
+    for offset in range(days):
+        check_date = today - timedelta(days=offset)
+        if check_date in event_dates:
+            active_dates.add(check_date)
+            continue
+        try:
+            day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
+            if _has_activity_in_range(user_id, day_start, day_end):
+                active_dates.add(check_date)
+        except Exception:
+            pass
+
     active_dates_str = sorted(d.isoformat() for d in active_dates)
 
-    # Calculate longest streak
+    # Calculate longest streak from active_dates
     sorted_dates = sorted(active_dates)
     longest = 0
     current = 0
@@ -241,18 +264,13 @@ def get_streak_calendar(user_id: int, days: int = 90) -> dict:
         longest = max(longest, current)
         prev = d
 
-    # Current streak (from today backwards)
-    today = date.today()
-    curr_streak = 0
-    check = today
-    while check in active_dates:
-        curr_streak += 1
-        check -= timedelta(days=1)
+    # Use the authoritative streak counter
+    curr_streak = get_current_streak(user_id, tz=tz)
 
     return {
         'active_dates': active_dates_str,
         'total_active_days': len(active_dates),
-        'longest_streak': longest,
+        'longest_streak': max(longest, curr_streak),
         'current_streak': curr_streak,
     }
 
