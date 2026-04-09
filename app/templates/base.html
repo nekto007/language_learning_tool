@@ -57,8 +57,13 @@
                     <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="LLT English">
                     LLT English
                 </span>
-                {% else %}
+                {% elif has_module('words') %}
                 <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('words.dashboard') }}">
+                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="LLT English">
+                    LLT English
+                </a>
+                {% else %}
+                <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('landing.index') }}">
                     <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="LLT English">
                     LLT English
                 </a>
@@ -289,10 +294,17 @@
     {% if current_user.is_authenticated %}
     <!-- Mobile Bottom Navigation -->
     <nav class="bottom-nav" aria-label="Мобильная навигация">
+        {% if has_module('words') %}
         <a href="{{ url_for('words.dashboard') }}" class="bottom-nav__item {% if request.endpoint == 'words.dashboard' %}bottom-nav__item--active{% endif %}">
             <span class="bottom-nav__icon"><i class="fas fa-home"></i></span>
             <span class="bottom-nav__label">Главная</span>
         </a>
+        {% else %}
+        <a href="{{ url_for('landing.index') }}" class="bottom-nav__item">
+            <span class="bottom-nav__icon"><i class="fas fa-home"></i></span>
+            <span class="bottom-nav__label">Главная</span>
+        </a>
+        {% endif %}
         {% if has_module('curriculum') %}
         <a href="/learn/" class="bottom-nav__item {% if request.endpoint and (request.endpoint.startswith('curriculum.') or request.endpoint.startswith('learn.') or request.endpoint.startswith('book_courses.')) %}bottom-nav__item--active{% endif %}">
             <span class="bottom-nav__icon"><i class="fas fa-book-open"></i></span>

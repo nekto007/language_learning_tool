@@ -15,7 +15,15 @@ from config.settings import Config
 auth = Blueprint('auth', __name__)
 
 
-def get_safe_redirect_url(next_url, fallback='words.dashboard'):
+def _default_fallback() -> str:
+    """Return words.dashboard if user has the module, else landing page."""
+    from app.modules.service import ModuleService
+    if current_user.is_authenticated and ModuleService.is_module_enabled_for_user(current_user.id, 'words'):
+        return 'words.dashboard'
+    return 'landing.index'
+
+
+def get_safe_redirect_url(next_url, fallback=None):
     """
     Get a safe redirect URL, checking for security issues.
 
@@ -23,6 +31,9 @@ def get_safe_redirect_url(next_url, fallback='words.dashboard'):
     Rejects absolute URLs, protocol-relative URLs (//evil.com),
     and any URL with a scheme or netloc to prevent open redirect attacks.
     """
+    if fallback is None:
+        fallback = _default_fallback()
+
     if not next_url:
         return url_for(fallback)
 
@@ -104,7 +115,7 @@ def reset_request():
     @limiter.limit("10 per minute")
     def _reset_request():
         if current_user.is_authenticated:
-            return redirect(url_for('words.dashboard'))
+            return redirect(url_for(_default_fallback()))
 
         form = RequestResetForm()
         if form.validate_on_submit():
@@ -142,7 +153,7 @@ def reset_request():
 @auth.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
     if current_user.is_authenticated:
-        return redirect(url_for('words.dashboard'))
+        return redirect(url_for(_default_fallback()))
 
     user_id = verify_reset_token(token)
     if user_id is None:
@@ -176,7 +187,7 @@ def login():
     @limiter.limit("10 per minute")
     def _login():
         if current_user.is_authenticated:
-            return redirect(url_for('words.dashboard'))
+            return redirect(url_for(_default_fallback()))
 
         form = LoginForm()
         if form.validate_on_submit():
@@ -234,7 +245,7 @@ def register():
     @limiter.limit("10 per minute")
     def _register():
         if current_user.is_authenticated:
-            return redirect(url_for('words.dashboard'))
+            return redirect(url_for(_default_fallback()))
 
         # Capture ?ref= parameter and store in cookie so it survives form submission
         ref_code = request.args.get('ref', '').strip()
@@ -274,11 +285,22 @@ def register():
 
                 # Grant default modules to the new user
                 from app.modules.service import ModuleService
+                modules_granted = False
                 try:
                     ModuleService.grant_default_modules_to_user(user.id)
-                except Exception as module_error:
-                    # Log the error but don't fail registration
-                    current_app.logger.warning("Module granting failed for user=%s", user.id, exc_info=True)
+                    modules_granted = True
+                except Exception:
+                    current_app.logger.warning("Module granting failed for user=%s, retrying", user.id, exc_info=True)
+                    db.session.rollback()
+                    user = db.session.merge(user)
+                    # Retry once after rollback
+                    try:
+                        ModuleService.grant_default_modules_to_user(user.id)
+                        modules_granted = True
+                    except Exception:
+                        current_app.logger.error("Module granting failed on retry for user=%s", user.id, exc_info=True)
+                        db.session.rollback()
+                        user = db.session.merge(user)
 
                 # Auto-login after registration
                 login_user(user)
@@ -287,7 +309,7 @@ def register():
 
                 # Send welcome email (may be slow if mail server is unresponsive)
                 try:
-                    dashboard_url = url_for('words.dashboard', _external=True)
+                    dashboard_url = url_for(_default_fallback(), _external=True)
                     email_sender.send_email(
                         subject="Добро пожаловать в Language Learning Tool!",
                         to_email=user.email,

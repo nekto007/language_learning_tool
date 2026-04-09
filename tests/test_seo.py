@@ -66,7 +66,7 @@ class TestRobots:
     def test_robots_disallows_admin(self, client):
         response = client.get('/robots.txt')
         text = response.data.decode('utf-8')
-        assert 'Disallow: /admin' in text
+        assert 'Disallow: /admin/' in text
 
     def test_robots_contains_sitemap(self, client, app):
         response = client.get('/robots.txt')
