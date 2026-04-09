@@ -180,9 +180,10 @@ def update_book_statistics():
                 logger.warning(f"Error updating stats for book {book.id}: {str(e)}")
                 continue
 
+        admin_name = current_user.username
         db.session.commit()
 
-        logger.info(f"Book statistics updated by {current_user.username}: {updated_count} books")
+        logger.info(f"Book statistics updated by {admin_name}: {updated_count} books")
 
         return jsonify({
             'success': True,

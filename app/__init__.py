@@ -30,6 +30,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'collection_admin.', 'topic_admin.', 'word_admin.',
     'system_admin.', 'grammar_lab_admin.', 'admin_curriculum.',
     'curriculum_admin.', 'reminders.',
+    'refresh_csrf_token',
 )
 
 csrf = CSRFProtect()
@@ -258,7 +259,12 @@ def create_app(config_class=Config):
         from flask_login import current_user
         from datetime import datetime, timezone, timedelta
 
-        if current_user.is_authenticated:
+        try:
+            is_auth = current_user.is_authenticated
+        except Exception:
+            is_auth = False
+
+        if is_auth:
             now = datetime.now(timezone.utc)
             # Update if last_login is None or older than 12 hours
             if current_user.last_login is None or \
