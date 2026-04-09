@@ -2,11 +2,15 @@
 
 {% block title %}LLT English — Платформа для изучения английского языка{% endblock %}
 
-{% block head_extra %}
-<meta name="description" content="Изучайте английский язык онлайн: грамматика с теорией и упражнениями, курсы по уровням A1–C1, карточки для запоминания слов, книги с переводом.">
+{% block og_tags %}
 <meta property="og:title" content="LLT English — Платформа для изучения английского языка">
 <meta property="og:description" content="Грамматика, курсы, карточки, книги — всё для изучения английского в одном месте.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="{{ request.base_url }}">
+{% endblock %}
+
+{% block head_extra %}
+<meta name="description" content="Изучайте английский язык онлайн: грамматика с теорией и упражнениями, курсы по уровням A1–C1, карточки для запоминания слов, книги с переводом.">
 <link rel="canonical" href="https://llt-english.com/">
 <script type="application/ld+json">
 {
@@ -582,6 +586,14 @@
             чтение адаптированных книг и отслеживание прогресса.
         </p>
         <div class="land-hero__actions land-anim land-anim--d3">
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('grammar_lab.topics') }}" class="land-btn land-btn--primary">
+                <svg class="land-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+                Открыть Grammar Lab
+            </a>
+            {% else %}
             <a href="{{ url_for('auth.register') }}" class="land-btn land-btn--primary">
                 <svg class="land-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -594,6 +606,7 @@
                 </svg>
                 Войти
             </a>
+            {% endif %}
         </div>
     </section>
 
@@ -832,12 +845,21 @@
         <div class="land-cta__circle land-cta__circle--2"></div>
         <h2 class="land-cta__title">Начните учить английский прямо сейчас</h2>
         <p class="land-cta__desc">Бесплатная регистрация. Без ограничений по времени.</p>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('grammar_lab.topics') }}" class="land-btn land-btn--primary">
+            <svg class="land-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+            Открыть Grammar Lab
+        </a>
+        {% else %}
         <a href="{{ url_for('auth.register') }}" class="land-btn land-btn--primary">
             <svg class="land-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7"/>
             </svg>
             Начать обучение
         </a>
+        {% endif %}
     </section>
 
 </div>

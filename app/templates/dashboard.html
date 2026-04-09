@@ -61,6 +61,11 @@
                         {% set milestones = {7: '🎯 Неделя!', 14: '💪 2 недели!', 30: '🏆 Месяц!', 60: '⭐ 2 месяца!', 100: '👑 100 дней!'} %}
                         {% if streak in milestones %}
                         <span class="dash-streak__milestone" id="milestone-badge">{{ milestones[streak] }}</span>
+                        {% if current_user.referral_code %}
+                        <button class="dash-streak__share-btn" onclick="shareVia('telegram', {{ ('Моя серия: ' ~ streak ~ ' дней подряд! ' ~ milestones[streak])|tojson }}, window.location.origin + '/register?ref=' + {{ current_user.referral_code|tojson }})" title="Поделиться">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                        </button>
+                        {% endif %}
                         {% endif %}
                     </div>
                     {% else %}
@@ -1212,6 +1217,25 @@
     100% { transform: scale(1); }
 }
 
+.dash-streak__share-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    cursor: pointer;
+    margin-left: 6px;
+    transition: background 0.2s;
+    vertical-align: middle;
+}
+.dash-streak__share-btn:hover {
+    background: rgba(255,255,255,0.35);
+}
+
 /* ============================================
    Weekly Challenge Card
    ============================================ */
@@ -1239,12 +1263,14 @@ async function repairStreak() {
     btn.disabled = true;
     btn.textContent = '...';
     try {
-        const token = localStorage.getItem('jwt_token') || '';
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfMeta ? csrfMeta.content : '';
         const resp = await fetch('/api/streak/repair', {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({tz: Intl.DateTimeFormat().resolvedOptions().timeZone})
         });
@@ -1281,3 +1307,4 @@ async function repairStreak() {
 })();
 </script>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/share.js') }}" defer></script>{% endblock %}

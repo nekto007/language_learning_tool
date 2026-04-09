@@ -201,7 +201,7 @@ def import_course(data: dict, dry_run: bool = False, force: bool = False) -> Non
             print(f"  {bv_ok}/{bv_total} block_vocabulary entries")
             return
 
-        # 3. Create course
+        # 3. Create course (preserve original ID if possible)
         course_insert_cols = [
             "book_id", "slug", "title", "description", "level",
             "difficulty_score", "estimated_duration_weeks", "total_modules",
@@ -209,6 +209,14 @@ def import_course(data: dict, dry_run: bool = False, force: bool = False) -> Non
             "cultural_context", "is_active", "is_featured",
             "requires_prerequisites", "prerequisites",
         ]
+        original_id = course_data.get("id")
+        if original_id and force:
+            # Check if original ID is free (was deleted by --force or never existed)
+            id_taken = db.session.execute(db.text(
+                "SELECT 1 FROM book_courses WHERE id = :id"
+            ), {"id": original_id}).fetchone()
+            if not id_taken:
+                course_insert_cols.insert(0, "id")
         params = {col: course_data.get(col) for col in course_insert_cols}
         params["book_id"] = book_id
         # JSON fields need explicit casting
@@ -221,6 +229,10 @@ def import_course(data: dict, dry_run: bool = False, force: bool = False) -> Non
         new_course_id = db.session.execute(db.text(f"""
             INSERT INTO book_courses ({cols_str}) VALUES ({vals_str}) RETURNING id
         """), params).scalar()
+        # Reset sequence to max(id) so next auto-ID doesn't conflict
+        db.session.execute(db.text(
+            "SELECT setval('book_courses_id_seq', (SELECT MAX(id) FROM book_courses))"
+        ))
         print(f"Created course: id={new_course_id}")
 
         # 4. Create blocks + modules

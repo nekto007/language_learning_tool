@@ -1,48 +1,66 @@
 /**
- * Share functionality for LLT English.
- * Used by components/share_buttons.html
+ * Share functionality with Web Share API fallback.
  */
-
-function shareVia(platform, url, text) {
-    const encodedUrl = encodeURIComponent(url);
-    const encodedText = encodeURIComponent(text);
-    let shareUrl;
-
+function shareVia(platform, text, url) {
     switch (platform) {
         case 'telegram':
-            shareUrl = `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`;
+            window.open(
+                'https://t.me/share/url?url=' + encodeURIComponent(url) + '&text=' + encodeURIComponent(text),
+                '_blank',
+                'width=600,height=400'
+            );
             break;
-        case 'whatsapp':
-            shareUrl = `https://wa.me/?text=${encodedText}%20${encodedUrl}`;
+
+        case 'linkedin':
+            window.open(
+                'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(url),
+                '_blank',
+                'width=600,height=400'
+            );
             break;
-        case 'twitter':
-            shareUrl = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedText}`;
+
+        case 'copy':
+            var fullText = text ? text + ' ' + url : url;
+            navigator.clipboard.writeText(fullText).then(function() {
+                // Find the button that was clicked and show feedback
+                var btns = document.querySelectorAll('.share-btn--copy');
+                btns.forEach(function(btn) {
+                    btn.classList.add('share-btn--copied');
+                    var label = btn.querySelector('.share-btn__label');
+                    if (label) {
+                        var orig = label.textContent;
+                        label.textContent = 'Скопировано!';
+                        setTimeout(function() {
+                            btn.classList.remove('share-btn--copied');
+                            label.textContent = orig;
+                        }, 2000);
+                    } else {
+                        setTimeout(function() {
+                            btn.classList.remove('share-btn--copied');
+                        }, 2000);
+                    }
+                });
+            }).catch(function() {
+                // Clipboard API may fail if page lacks focus or HTTPS — fallback to execCommand
+                try {
+                    var ta = document.createElement('textarea');
+                    ta.value = fullText;
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                } catch (_) {
+                    // Copy completely unsupported
+                }
+            });
             break;
+
         default:
-            return;
+            // Fallback to Web Share API if available
+            if (navigator.share) {
+                navigator.share({ title: text, url: url });
+            }
     }
-
-    window.open(shareUrl, '_blank', 'width=600,height=400,noopener,noreferrer');
-}
-
-function copyShareLink(url) {
-    navigator.clipboard.writeText(url).then(function() {
-        // Find the button that was clicked and update its label
-        const btns = document.querySelectorAll('.share-btn--copy .share-btn__copy-label');
-        btns.forEach(function(label) {
-            const original = label.textContent;
-            label.textContent = 'Скопировано!';
-            setTimeout(function() { label.textContent = original; }, 2000);
-        });
-    }).catch(function() {
-        // Fallback for older browsers
-        const textarea = document.createElement('textarea');
-        textarea.value = url;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-    });
 }

@@ -242,6 +242,11 @@ class Config:
     TELEGRAM_BOT_USERNAME = os.environ.get("TELEGRAM_BOT_USERNAME", "llt_englishbot")
     SITE_URL = os.environ.get("SITE_URL", "")
 
+    # Google Search Console / Webmaster verification
+    GOOGLE_SITE_VERIFICATION = os.environ.get("GOOGLE_SITE_VERIFICATION", "")
+    # Google Analytics (gtag.js) measurement ID, e.g. "G-XXXXXXXXXX"
+    GOOGLE_ANALYTICS_ID = os.environ.get("GOOGLE_ANALYTICS_ID", "")
+
     # Database Connection Pooling
     SQLALCHEMY_ENGINE_OPTIONS = DEFAULT_SQLALCHEMY_ENGINE_OPTIONS
 

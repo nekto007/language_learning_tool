@@ -92,6 +92,16 @@ MODULE_DESCRIPTIONS: dict[int, str] = {
     6: "Возвращение в Лондон. Развязка пари и счастливый финал.",
 }
 
+MODULE_GRAMMAR_TOPIC_SLUGS: dict[int, list[str]] = {
+    1: ["a1-10-present-simple-s-3", "a2-22-past-simple-ago-last"],
+    2: ["b1-1-past-simple", "a2-8-prepositions-of-movement"],
+    3: ["a1-14-can-can-t", "a2-6-have-to-don-t-have-to"],
+    4: ["a1-11-do-does-present-simple", "a1-8-at-on-in"],
+    5: ["a2-10-comparative-adjectives", "a2-11-superlatives",
+        "a2-21-first-conditional-if-present-simple-will"],
+    6: ["b1-13-present-perfect", "b1-14-present-perfect-for-since"],
+}
+
 LITERARY_ELEMENTS: dict[int, list[str]] = {
     1: ["Character introduction through daily routine", "Setting: Victorian London"],
     2: ["Plot catalyst: the bet", "Journey narrative structure"],
@@ -199,6 +209,7 @@ class Stats:
         self.a1_words_removed: int = 0
         self.day1_swaps: int = 0
         self.annotations_added: int = 0
+        self.grammar_links_set: int = 0
 
     def print_summary(self) -> None:
         print("\n=== Fix Summary ===")
@@ -216,6 +227,7 @@ class Stats:
         print(f"  P1: Module descriptions replaced:               {self.descriptions_set}")
         print(f"  P2: literary_elements filled:                   {self.literary_elements_set}")
         print(f"  P2: Annotations added to practice lessons:      {self.annotations_added}")
+        print(f"  P2: Grammar topic links set (language_focus):   {self.grammar_links_set}")
 
 
 # ---------------------------------------------------------------------------
@@ -376,6 +388,27 @@ def fill_literary_elements(data: dict[str, Any], stats: Stats) -> None:
             stats.literary_elements_set += 1
 
 
+def fix_linked_grammar_topic_ids(data: dict[str, Any], stats: Stats) -> None:
+    """P2: Set linked_grammar_topic_ids in language_focus task payloads."""
+    # Build module_id -> module_number mapping
+    id_to_num: dict[int, int] = {m["id"]: m["module_number"] for m in data["modules"]}
+
+    for lesson in data["lessons"]:
+        if lesson["lesson_type"] != "language_focus":
+            continue
+        task = lesson.get("_task")
+        if task is None:
+            continue
+        payload = task.get("payload")
+        if not isinstance(payload, dict):
+            continue
+        mod_num = id_to_num.get(lesson["book_course_module_id"])
+        if mod_num is None or mod_num not in MODULE_GRAMMAR_TOPIC_SLUGS:
+            continue
+        payload["linked_grammar_topic_ids"] = MODULE_GRAMMAR_TOPIC_SLUGS[mod_num]
+        stats.grammar_links_set += 1
+
+
 def add_annotations_to_practice_lessons(data: dict[str, Any], stats: Stats) -> None:
     """P2: Add annotations to practice lessons that currently have none."""
     for lesson in data["lessons"]:
@@ -508,6 +541,7 @@ def main() -> None:
     print("Applying P2 fixes (improvements)...")
     fill_literary_elements(data, stats)
     add_annotations_to_practice_lessons(data, stats)
+    fix_linked_grammar_topic_ids(data, stats)
 
     # --- Summary ---
     stats.print_summary()

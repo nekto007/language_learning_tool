@@ -1,183 +1,205 @@
-"""Tests for referral system: dashboard, rewards, referral code logic."""
-import pytest
+"""
+Tests for referral system:
+- referral_code generation on User creation
+- ReferralLog creation on registration with ?ref= param
+- Share URL formation
+"""
 import uuid
 from unittest.mock import patch
-from app import create_app
-from app.utils.db import db as _db
-from app.auth.models import User
-from config.settings import TestConfig
+
+import pytest
+
+from app.auth.models import ReferralLog, User
+from app.utils.db import db
 
 
-@pytest.fixture(scope='module')
-def app():
-    app = create_app(TestConfig)
-    with app.app_context():
-        from sqlalchemy import text, inspect
-        inspector = inspect(_db.engine)
-        columns = [c['name'] for c in inspector.get_columns('users')]
-        for col, typ in [('onboarding_completed', 'BOOLEAN DEFAULT false'),
-                         ('referral_code', 'VARCHAR(16) UNIQUE'),
-                         ('referred_by_id', 'INTEGER'),
-                         ('onboarding_level', 'VARCHAR(4)'),
-                         ('onboarding_focus', 'VARCHAR(100)'),
-                         ('email_unsubscribe_token', 'VARCHAR(64) UNIQUE'),
-                         ('email_opted_out', 'BOOLEAN DEFAULT false')]:
-            if col not in columns:
-                try:
-                    _db.session.execute(text(f'ALTER TABLE users ADD COLUMN {col} {typ}'))
-                    _db.session.commit()
-                except Exception:
-                    _db.session.rollback()
-        _db.create_all()
-        yield app
+class TestReferralCodeGeneration:
+    def test_user_gets_referral_code_on_create(self, db_session):
+        """New user should get a referral code automatically."""
+        unique = uuid.uuid4().hex[:8]
+        user = User(username=f'reftest_{unique}', email=f'reftest_{unique}@example.com', active=True)
+        user.set_password('TestPass123!')
+        db_session.add(user)
+        db_session.commit()
 
+        assert user.referral_code is not None
+        assert len(user.referral_code) == 8
 
-@pytest.fixture
-def client(app):
-    return app.test_client()
+    def test_referral_codes_are_unique(self, db_session):
+        """Two users should have different referral codes."""
+        users = []
+        for i in range(3):
+            unique = uuid.uuid4().hex[:8]
+            u = User(username=f'refuniq_{unique}', email=f'refuniq_{unique}@example.com', active=True)
+            u.set_password('TestPass123!')
+            db_session.add(u)
+            users.append(u)
+        db_session.commit()
 
-
-@pytest.fixture
-def db_session(app):
-    with app.app_context():
-        yield _db.session
-        _db.session.rollback()
-
-
-@pytest.fixture
-def referrer_user(app, db_session):
-    """Create a user who refers others."""
-    suffix = uuid.uuid4().hex[:8]
-    user = User(
-        username=f'referrer_{suffix}',
-        email=f'referrer_{suffix}@test.com',
-        active=True,
-    )
-    user.set_password('testpass123')
-    db_session.add(user)
-    db_session.commit()
-    user.ensure_referral_code()
-    yield user
-    from app.notifications.models import Notification
-    from app.study.models import UserXP
-    Notification.query.filter_by(user_id=user.id).delete()
-    UserXP.query.filter_by(user_id=user.id).delete()
-    db_session.delete(user)
-    db_session.commit()
-
-
-@pytest.fixture
-def referred_user(app, db_session, referrer_user):
-    """Create a user referred by referrer_user."""
-    suffix = uuid.uuid4().hex[:8]
-    user = User(
-        username=f'referred_{suffix}',
-        email=f'referred_{suffix}@test.com',
-        active=True,
-        referred_by_id=referrer_user.id,
-    )
-    user.set_password('testpass123')
-    db_session.add(user)
-    db_session.commit()
-    yield user
-    db_session.delete(user)
-    db_session.commit()
-
-
-@pytest.fixture
-def auth_client(app, client, referrer_user):
-    """Client authenticated as referrer_user."""
-    with client.session_transaction() as sess:
-        sess['_user_id'] = str(referrer_user.id)
-    return client
-
-
-class TestReferralCode:
-    """Test referral code generation."""
-
-    def test_ensure_referral_code_generates_code(self, app, referrer_user):
-        with app.app_context():
-            assert referrer_user.referral_code is not None
-            assert len(referrer_user.referral_code) > 0
-
-    def test_ensure_referral_code_idempotent(self, app, referrer_user):
-        with app.app_context():
-            code1 = referrer_user.referral_code
-            referrer_user.ensure_referral_code()
-            assert referrer_user.referral_code == code1
-
-
-class TestReferralDashboard:
-    """Test GET /referrals route."""
-
-    def test_referrals_requires_login(self, client):
-        response = client.get('/referrals')
-        assert response.status_code in (302, 401)
-
-    def test_referrals_returns_200(self, auth_client):
-        response = auth_client.get('/referrals')
-        assert response.status_code == 200
-
-    def test_referrals_shows_code(self, auth_client, referrer_user):
-        response = auth_client.get('/referrals')
-        html = response.data.decode()
-        assert referrer_user.referral_code in html
-
-    def test_referrals_shows_link(self, auth_client, referrer_user):
-        response = auth_client.get('/referrals')
-        html = response.data.decode()
-        assert f'ref={referrer_user.referral_code}' in html
-
-    def test_referrals_shows_referred_users(self, auth_client, referred_user):
-        response = auth_client.get('/referrals')
-        html = response.data.decode()
-        assert referred_user.username in html
-
-    def test_referrals_shows_count(self, auth_client, referred_user):
-        response = auth_client.get('/referrals')
-        html = response.data.decode()
-        # Count should be at least 1
-        assert '1' in html
+        codes = [u.referral_code for u in users]
+        assert len(set(codes)) == len(codes), "Referral codes must be unique"
 
 
 class TestReferralRegistration:
-    """Test that referral code is handled during registration."""
+    @patch('app.auth.routes.email_sender')
+    def test_register_with_ref_creates_referral_log(self, mock_email, client, db_session, test_user):
+        """Registration with ?ref= should create a ReferralLog entry."""
+        mock_email.send_email.return_value = True
 
-    def test_register_with_referral_code(self, app, client, referrer_user, db_session):
-        """New user registered with referral should have referred_by_id set."""
-        suffix = uuid.uuid4().hex[:8]
-        with app.app_context():
-            # We test the model logic directly since CSRF makes form submission complex
-            new_user = User(
-                username=f'newuser_{suffix}',
-                email=f'newuser_{suffix}@test.com',
-                active=True,
-                referred_by_id=referrer_user.id,
-            )
-            new_user.set_password('testpass123')
-            db_session.add(new_user)
+        # Ensure referrer has a code
+        if not test_user.referral_code:
+            test_user.referral_code = uuid.uuid4().hex[:8]
             db_session.commit()
 
-            assert new_user.referred_by_id == referrer_user.id
+        ref_code = test_user.referral_code
 
-            # Cleanup
-            db_session.delete(new_user)
+        # First GET with ?ref= to set the cookie
+        client.get(f'/register?ref={ref_code}')
+
+        # Then POST to register
+        unique = uuid.uuid4().hex[:8]
+        r = client.post('/register', data={
+            'username': f'referred_{unique}',
+            'email': f'referred_{unique}@example.com',
+            'password': 'Xk9$mP2vL!qw',
+            'password2': 'Xk9$mP2vL!qw',
+        }, follow_redirects=False)
+        assert r.status_code == 302
+
+        # Check ReferralLog was created
+        new_user = User.query.filter_by(username=f'referred_{unique}').first()
+        assert new_user is not None
+
+        log = ReferralLog.query.filter_by(referred_id=new_user.id).first()
+        assert log is not None
+        assert log.referrer_id == test_user.id
+
+    @patch('app.auth.routes.email_sender')
+    def test_register_without_ref_no_referral_log(self, mock_email, client, db_session):
+        """Normal registration without ?ref= should not create ReferralLog."""
+        mock_email.send_email.return_value = True
+
+        unique = uuid.uuid4().hex[:8]
+        r = client.post('/register', data={
+            'username': f'noreg_{unique}',
+            'email': f'noreg_{unique}@example.com',
+            'password': 'Xk9$mP2vL!qw',
+            'password2': 'Xk9$mP2vL!qw',
+        }, follow_redirects=False)
+        assert r.status_code == 302
+
+        new_user = User.query.filter_by(username=f'noreg_{unique}').first()
+        assert new_user is not None
+
+        log = ReferralLog.query.filter_by(referred_id=new_user.id).first()
+        assert log is None
+
+    @patch('app.auth.routes.email_sender')
+    def test_register_with_invalid_ref_no_referral_log(self, mock_email, client, db_session):
+        """Registration with an invalid ref code should not create ReferralLog."""
+        mock_email.send_email.return_value = True
+
+        client.get('/register?ref=nonexistent_code')
+
+        unique = uuid.uuid4().hex[:8]
+        r = client.post('/register', data={
+            'username': f'badref_{unique}',
+            'email': f'badref_{unique}@example.com',
+            'password': 'Xk9$mP2vL!qw',
+            'password2': 'Xk9$mP2vL!qw',
+        }, follow_redirects=False)
+        assert r.status_code == 302
+
+        new_user = User.query.filter_by(username=f'badref_{unique}').first()
+        assert new_user is not None
+
+        log = ReferralLog.query.filter_by(referred_id=new_user.id).first()
+        assert log is None
+
+    @patch('app.auth.routes.email_sender')
+    def test_ref_cookie_is_set_on_get(self, mock_email, client, db_session, test_user):
+        """GET /register?ref=CODE should set a ref cookie."""
+        if not test_user.referral_code:
+            test_user.referral_code = uuid.uuid4().hex[:8]
             db_session.commit()
 
-    def test_referral_xp_reward(self, app, db_session, referrer_user):
-        """Referrer should get XP when someone uses their code."""
-        from app.study.models import UserXP
-        from app.notifications.models import Notification
+        r = client.get(f'/register?ref={test_user.referral_code}')
+        assert r.status_code == 200
+        # The cookie should be set in the response
+        set_cookie_headers = [h for h in r.headers.getlist('Set-Cookie') if 'ref=' in h]
+        assert len(set_cookie_headers) > 0
+        assert test_user.referral_code in set_cookie_headers[0]
 
-        with app.app_context():
-            xp = UserXP.get_or_create(referrer_user.id)
-            initial_xp = xp.total_xp
-            xp.add_xp(100)
+
+class TestRefCodeValidation:
+    def test_ref_with_special_chars_not_stored(self, client):
+        """Ref codes with special characters should not set a cookie."""
+        r = client.get('/register?ref=abc!@%23def')
+        set_cookie_headers = [h for h in r.headers.getlist('Set-Cookie') if 'ref=' in h]
+        assert len(set_cookie_headers) == 0
+
+    def test_ref_too_long_not_stored(self, client):
+        """Ref codes longer than 16 chars should not set a cookie."""
+        r = client.get('/register?ref=aaaabbbbccccddddeeee')
+        set_cookie_headers = [h for h in r.headers.getlist('Set-Cookie') if 'ref=' in h]
+        assert len(set_cookie_headers) == 0
+
+
+class TestReferralLogModel:
+    def test_referral_log_relationships(self, db_session, test_user):
+        """ReferralLog should have referrer and referred relationships."""
+        unique = uuid.uuid4().hex[:8]
+        referred_user = User(username=f'refrel_{unique}', email=f'refrel_{unique}@example.com', active=True)
+        referred_user.set_password('TestPass123!')
+        db_session.add(referred_user)
+        db_session.commit()
+
+        log = ReferralLog(referrer_id=test_user.id, referred_id=referred_user.id)
+        db_session.add(log)
+        db_session.commit()
+
+        assert log.referrer.id == test_user.id
+        assert log.referred.id == referred_user.id
+        assert log in test_user.referrals_made
+
+    def test_referral_log_unique_referred(self, db_session, test_user):
+        """Each user can only be referred once."""
+        unique = uuid.uuid4().hex[:8]
+        referred_user = User(username=f'refdup_{unique}', email=f'refdup_{unique}@example.com', active=True)
+        referred_user.set_password('TestPass123!')
+        db_session.add(referred_user)
+        db_session.commit()
+
+        log1 = ReferralLog(referrer_id=test_user.id, referred_id=referred_user.id)
+        db_session.add(log1)
+        db_session.commit()
+
+        # Create a second referrer
+        unique2 = uuid.uuid4().hex[:8]
+        referrer2 = User(username=f'ref2_{unique2}', email=f'ref2_{unique2}@example.com', active=True)
+        referrer2.set_password('TestPass123!')
+        db_session.add(referrer2)
+        db_session.commit()
+
+        log2 = ReferralLog(referrer_id=referrer2.id, referred_id=referred_user.id)
+        db_session.add(log2)
+        with pytest.raises(Exception):  # IntegrityError
             db_session.commit()
+        db_session.rollback()
 
-            xp_after = UserXP.query.filter_by(user_id=referrer_user.id).first()
-            assert xp_after.total_xp == initial_xp + 100
 
-            # Clean up notifications created by add_xp level-up
-            Notification.query.filter_by(user_id=referrer_user.id).delete()
-            db_session.commit()
+class TestShareURL:
+    def test_share_buttons_on_achievements(self, authenticated_client):
+        """Achievements page should contain share buttons."""
+        r = authenticated_client.get('/study/achievements', follow_redirects=True)
+        assert r.status_code == 200
+        html = r.data.decode()
+        assert 'share-buttons' in html
+        assert 'shareVia' in html
+
+    def test_share_js_loaded_on_achievements(self, authenticated_client):
+        """Achievements page should load share.js."""
+        r = authenticated_client.get('/study/achievements', follow_redirects=True)
+        assert r.status_code == 200
+        html = r.data.decode()
+        assert 'share.js' in html

@@ -2,10 +2,14 @@
 
 {% block title %}Регистрация | LLT English{% endblock %}
 
-{% block head_extra %}
-<meta name="description" content="Зарегистрируйтесь бесплатно в LLT English: грамматика с упражнениями, курсы по уровням, карточки для запоминания слов.">
+{% block og_tags %}
 <meta property="og:title" content="Регистрация | LLT English">
 <meta property="og:description" content="Бесплатная регистрация для изучения английского: грамматика, курсы, карточки.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ request.url }}">
+{% endblock %}
+{% block head_extra %}
+<meta name="description" content="Зарегистрируйтесь бесплатно в LLT English: грамматика с упражнениями, курсы по уровням, карточки для запоминания слов.">
 <link rel="canonical" href="https://llt-english.com/register">
 {% endblock %}
 
@@ -175,4 +179,16 @@
   .auth-card__footer { padding: 1rem 1.5rem; }
 }
 </style>
+{% endblock %}
+
+{% block scripts %}
+{% if config.GOOGLE_ANALYTICS_ID %}
+<script>
+document.querySelector('form[action*="register"]').addEventListener('submit', function(e) {
+  if (typeof gtag === 'function') {
+    gtag('event', 'registration_attempt', { event_category: 'engagement' });
+  }
+});
+</script>
+{% endif %}
 {% endblock %}

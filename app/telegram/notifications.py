@@ -1,6 +1,7 @@
 """Format notification messages for Telegram bot."""
 from __future__ import annotations
 
+import re
 from typing import Any
 
 # Estimated minutes per lesson type
@@ -130,6 +131,8 @@ def format_morning_reminder(user_name: str, streak: int,
 
         lines.append(f'{step}) \U0001f9e0 Быстрый повтор грамматики (3\u20135 мин)')
         if summary:
+            # Replace HTML <br> tags with newlines — Telegram doesn't support <br>
+            summary = re.sub(r'<br\s*/?>', '\n', summary)
             lines.append(summary)
         lines.append(f'Хочешь потренировать: Grammar Lab \u2014 {gt["title"]} + quiz')
         if site_url and topic_id:

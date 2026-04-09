@@ -17,18 +17,28 @@
     <!-- Design System (unified CSS) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20251209">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta http-equiv="content-language" content="ru">
-    <link rel="alternate" hreflang="ru" href="https://llt-english.com{{ request.path }}">
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "LLT English",
-      "url": "https://llt-english.com",
-      "logo": "https://llt-english.com/static/favicon.ico",
-      "sameAs": ["https://t.me/llt_english_bot"]
-    }
+    <!-- OG defaults (override via head_extra block in child templates) -->
+    {% block og_tags %}
+    <meta property="og:title" content="LLT English — Платформа для изучения английского языка">
+    <meta property="og:description" content="Грамматика, курсы, карточки, книги — всё для изучения английского в одном месте.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    {% endblock %}
+    <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='img/og-default.png', _external=True) }}{% endblock %}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% if config.GOOGLE_SITE_VERIFICATION %}
+    <meta name="google-site-verification" content="{{ config.GOOGLE_SITE_VERIFICATION }}">
+    {% endif %}
+    {% if config.GOOGLE_ANALYTICS_ID %}
+    <!-- Google Analytics (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ config.GOOGLE_ANALYTICS_ID }}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', {{ config.GOOGLE_ANALYTICS_ID|tojson }});
     </script>
+    {% endif %}
     {% block styles %}{% endblock %}
     {% block extra_css %}{% endblock %}
     {% block head_extra %}{% endblock %}
@@ -47,8 +57,13 @@
                     <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="LLT English">
                     LLT English
                 </span>
-                {% else %}
+                {% elif has_module('words') %}
                 <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('words.dashboard') }}">
+                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="LLT English">
+                    LLT English
+                </a>
+                {% else %}
+                <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('landing.index') }}">
                     <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="LLT English">
                     LLT English
                 </a>
@@ -277,6 +292,8 @@
                 <span class="text-muted mx-2">•</span>
                 <span class="text-muted">Платформа для изучения английского</span>
                 <div class="mt-2">
+                    <a href="{{ url_for('legal.privacy') }}" class="text-muted footer-link" style="font-size: 0.8125rem; text-decoration: none;">Политика конфиденциальности</a>
+                    <span class="text-muted mx-2">&middot;</span>
                     <span class="text-muted footer-copyright">&copy; 2025</span>
                 </div>
             </div>
@@ -297,10 +314,17 @@
     {% if current_user.is_authenticated %}
     <!-- Mobile Bottom Navigation -->
     <nav class="bottom-nav" aria-label="Мобильная навигация">
+        {% if has_module('words') %}
         <a href="{{ url_for('words.dashboard') }}" class="bottom-nav__item {% if request.endpoint == 'words.dashboard' %}bottom-nav__item--active{% endif %}">
             <span class="bottom-nav__icon"><i class="fas fa-home"></i></span>
             <span class="bottom-nav__label">Главная</span>
         </a>
+        {% else %}
+        <a href="{{ url_for('landing.index') }}" class="bottom-nav__item">
+            <span class="bottom-nav__icon"><i class="fas fa-home"></i></span>
+            <span class="bottom-nav__label">Главная</span>
+        </a>
+        {% endif %}
         {% if has_module('curriculum') %}
         <a href="/learn/" class="bottom-nav__item {% if request.endpoint and (request.endpoint.startswith('curriculum.') or request.endpoint.startswith('learn.') or request.endpoint.startswith('book_courses.')) %}bottom-nav__item--active{% endif %}">
             <span class="bottom-nav__icon"><i class="fas fa-book-open"></i></span>

@@ -12,7 +12,9 @@ def index():
     Redirects authenticated users to dashboard.
     """
     if current_user.is_authenticated:
-        return redirect(url_for('words.dashboard'))
+        from app.modules.service import ModuleService
+        if ModuleService.is_module_enabled_for_user(current_user.id, 'words'):
+            return redirect(url_for('words.dashboard'))
 
     # Get platform statistics for social proof
     from app.auth.models import User
