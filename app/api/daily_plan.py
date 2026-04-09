@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity
 from zoneinfo import ZoneInfo
 
+from app import csrf
 from app.api.decorators import api_jwt_required
 from app.utils.db import db
 
@@ -129,6 +130,7 @@ def streak():
 
 
 @api_daily_plan.route('/streak/repair', methods=['POST'])
+@csrf.exempt
 @api_jwt_required
 def streak_repair():
     """Pay streak coins to repair a broken streak."""
