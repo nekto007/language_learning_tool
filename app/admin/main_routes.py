@@ -82,6 +82,77 @@ def get_dashboard_statistics():
     }
 
 
+@cache_result('daily_activity', timeout=300)
+def get_daily_activity_data(days: int = 30) -> dict:
+    """Получает данные активности по дням за последние N дней.
+
+    Returns:
+        dict with 'labels', 'registrations', 'logins', 'active_users' lists
+    """
+    from app.study.models import StudySession
+
+    today = datetime.now(timezone.utc).date()
+    start_date = today - timedelta(days=days - 1)
+
+    # Daily registrations
+    reg_rows = db.session.query(
+        func.date(User.created_at),
+        func.count(User.id)
+    ).filter(
+        func.date(User.created_at) >= start_date
+    ).group_by(func.date(User.created_at)).all()
+    reg_map = {row[0]: row[1] for row in reg_rows}
+
+    # Daily logins (last_login)
+    login_rows = db.session.query(
+        func.date(User.last_login),
+        func.count(distinct(User.id))
+    ).filter(
+        User.last_login.isnot(None),
+        func.date(User.last_login) >= start_date
+    ).group_by(func.date(User.last_login)).all()
+    login_map = {row[0]: row[1] for row in login_rows}
+
+    # Daily active users (users with LessonProgress or StudySession activity)
+    lp_rows = db.session.query(
+        func.date(LessonProgress.last_activity),
+        func.count(distinct(LessonProgress.user_id))
+    ).filter(
+        LessonProgress.last_activity.isnot(None),
+        func.date(LessonProgress.last_activity) >= start_date
+    ).group_by(func.date(LessonProgress.last_activity)).all()
+    lp_map = {row[0]: row[1] for row in lp_rows}
+
+    ss_rows = db.session.query(
+        func.date(StudySession.start_time),
+        func.count(distinct(StudySession.user_id))
+    ).filter(
+        func.date(StudySession.start_time) >= start_date
+    ).group_by(func.date(StudySession.start_time)).all()
+    ss_map = {row[0]: row[1] for row in ss_rows}
+
+    labels = []
+    registrations = []
+    logins = []
+    active_users = []
+
+    for i in range(days):
+        d = start_date + timedelta(days=i)
+        labels.append(d.strftime('%d.%m'))
+        registrations.append(reg_map.get(d, 0))
+        logins.append(login_map.get(d, 0))
+        # Approximate DAU: max of lesson-progress users and study-session users
+        # (union would be more accurate but this avoids complex query)
+        active_users.append(max(lp_map.get(d, 0), ss_map.get(d, 0)))
+
+    return {
+        'labels': labels,
+        'registrations': registrations,
+        'logins': logins,
+        'active_users': active_users,
+    }
+
+
 @admin.route('/')
 @admin_required
 def dashboard():
@@ -89,12 +160,16 @@ def dashboard():
     # Получаем кэшированную статистику
     stats = get_dashboard_statistics()
 
+    # Данные активности за 30 дней для графика
+    activity_data = get_daily_activity_data(30)
+
     # Последние пользователи не кэшируем, так как они часто меняются
     recent_users = User.query.order_by(desc(User.created_at)).limit(10).all()
 
     return render_template(
         'admin/dashboard.html',
         recent_users=recent_users,
+        activity_data=activity_data,
         **stats
     )
 

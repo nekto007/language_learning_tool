@@ -44,6 +44,7 @@
             <div class="card-body">
                 {{ quick_stats([
                     ('Всего книг', total_books, 'fa-book'),
+                    ('Уникальных слов в книгах', "{:,}".format(total_readings), 'fa-book-reader'),
                     ('Всего слов', "{:,}".format(words_total), 'fa-spell-check'),
                     ('Слов с аудио', "{:,}".format(words_with_audio), 'fa-volume-up'),
                     ('Всего уроков', total_lessons, 'fa-file-alt'),
@@ -134,24 +135,38 @@ const chartColors = {
     info: styles.getPropertyValue('--chart-info').trim()
 };
 
-// Activity Chart
+// Activity Chart — real data for last 30 days
+const activityLabels = {{ activity_data.labels | tojson }};
+const activityRegistrations = {{ activity_data.registrations | tojson }};
+const activityLogins = {{ activity_data.logins | tojson }};
+const activityActiveUsers = {{ activity_data.active_users | tojson }};
+
 const activityCtx = document.getElementById('activityChart').getContext('2d');
 new Chart(activityCtx, {
     type: 'line',
     data: {
-        labels: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+        labels: activityLabels,
         datasets: [{
-            label: 'Новые пользователи',
-            data: [12, 19, 3, 5, 2, 3, {{ new_users }}],
+            label: 'Регистрации',
+            data: activityRegistrations,
+            borderColor: chartColors.info,
+            backgroundColor: 'transparent',
+            tension: 0.4,
+            borderWidth: 2
+        }, {
+            label: 'Входы',
+            data: activityLogins,
             borderColor: chartColors.primary,
             backgroundColor: chartColors.primaryLight,
-            tension: 0.4
+            tension: 0.4,
+            fill: true
         }, {
-            label: 'Активные пользователи',
-            data: [30, 45, 28, 40, 35, 48, {{ active_recently }}],
+            label: 'Активные (уроки/карточки)',
+            data: activityActiveUsers,
             borderColor: chartColors.success,
             backgroundColor: chartColors.successLight,
-            tension: 0.4
+            tension: 0.4,
+            fill: true
         }]
     },
     options: {
