@@ -63,6 +63,7 @@
   <div class="ach-share">
     <span class="ach-share__label">Поделиться достижениями:</span>
     {% set share_text = "Я получил " ~ earned_count ~ " из " ~ total_achievements ~ " достижений и заработал " ~ earned_xp ~ " XP!" %}
+    {% set share_url = url_for('auth.register', _external=True) %}
     {% include 'components/share_buttons.html' with context %}
   </div>
 
