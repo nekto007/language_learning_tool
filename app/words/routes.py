@@ -116,7 +116,7 @@ def dashboard():
     from app.telegram.models import TelegramUser
     from app.telegram.queries import get_daily_plan_v2, get_current_streak, get_daily_summary
     from app.telegram.notifications import _lesson_minutes, _words_minutes
-    from app.study.insights_service import get_activity_heatmap
+    from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses
     from app.achievements.streak_service import get_streak_calendar
 
     # === DAILY PLAN & STREAK ===
@@ -171,6 +171,10 @@ def dashboard():
     tz = 'Europe/Moscow'
     activity_heatmap = get_activity_heatmap(current_user.id, days=90)
     streak_calendar = get_streak_calendar(current_user.id, days=90, tz=tz)
+
+    # === WORDS AT RISK & GRAMMAR WEAKNESSES ===
+    words_at_risk = get_words_at_risk(current_user.id, limit=5)
+    grammar_weaknesses = get_grammar_weaknesses(current_user.id, limit=5)
 
     # === WORDS STATS ===
     from app.srs.stats_service import srs_stats_service
@@ -312,6 +316,9 @@ def dashboard():
         # Activity heatmap
         activity_heatmap=activity_heatmap,
         streak_calendar=streak_calendar,
+        # Words at risk & grammar weaknesses
+        words_at_risk=words_at_risk,
+        grammar_weaknesses=grammar_weaknesses,
     )
 
 

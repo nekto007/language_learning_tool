@@ -516,6 +516,50 @@
     </div>
     {% endif %}
 
+    <!-- Words at Risk + Grammar Weaknesses -->
+    {% if words_at_risk or grammar_weaknesses %}
+    <div class="dash-alerts-row">
+        {% if words_at_risk %}
+        <div class="dash-risk">
+            <h3 class="dash-risk__heading">&#9888;&#65039; &#1057;&#1083;&#1086;&#1074;&#1072; &#1087;&#1086;&#1076; &#1091;&#1075;&#1088;&#1086;&#1079;&#1086;&#1081;</h3>
+            <div class="dash-risk__list">
+                {% for w in words_at_risk %}
+                <div class="dash-risk__item">
+                    <div class="dash-risk__word">
+                        <span class="dash-risk__term">{{ w.word }}</span>
+                        <span class="dash-risk__translation">{{ w.translation }}</span>
+                    </div>
+                    <span class="dash-risk__badge">{{ w.days_overdue }} &#1076;.</span>
+                </div>
+                {% endfor %}
+            </div>
+            <a href="{{ cards_url }}" class="dash-risk__action">&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;&#1080;&#1090;&#1100; &rarr;</a>
+        </div>
+        {% endif %}
+
+        {% if grammar_weaknesses %}
+        <div class="dash-weakness">
+            <h3 class="dash-weakness__heading">&#128200; &#1057;&#1083;&#1072;&#1073;&#1099;&#1077; &#1090;&#1077;&#1084;&#1099; &#1075;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1080;</h3>
+            <div class="dash-weakness__list">
+                {% for g in grammar_weaknesses %}
+                <div class="dash-weakness__item">
+                    <div class="dash-weakness__info">
+                        <span class="dash-weakness__title">{{ g.title }}</span>
+                        <span class="dash-weakness__attempts">{{ g.attempts }} &#1087;&#1086;&#1087;&#1099;&#1090;&#1086;&#1082;</span>
+                    </div>
+                    <div class="dash-weakness__bar-wrap">
+                        <div class="dash-weakness__bar" style="width: {{ g.accuracy }}%"></div>
+                    </div>
+                    <span class="dash-weakness__pct">{{ g.accuracy }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            <a href="{{ url_for('grammar_lab.index') }}" class="dash-weakness__action">&#1055;&#1088;&#1072;&#1082;&#1090;&#1080;&#1082;&#1072; &rarr;</a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Progress Overview -->
     <div class="dash-progress">
         <h3 class="dash-progress__heading">&#1052;&#1086;&#1081; &#1087;&#1088;&#1086;&#1075;&#1088;&#1077;&#1089;&#1089;</h3>
@@ -1000,6 +1044,162 @@
     .dash-heatmap__cell { width: 11px; height: 11px; }
     .dash-heatmap__days { grid-template-rows: repeat(7, 11px); gap: 2px; padding-top: 18px; }
     .dash-heatmap__months { grid-auto-columns: 14px; gap: 2px; height: 18px; }
+}
+
+/* ============================================
+   Words at Risk + Grammar Weaknesses
+   ============================================ */
+
+.dash-alerts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.dash-risk,
+.dash-weakness {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.25rem;
+    box-shadow: var(--dash-shadow);
+    animation: dashSlideUp 0.4s ease-out both;
+}
+
+.dash-risk__heading,
+.dash-weakness__heading {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--dash-text);
+    margin: 0 0 0.75rem;
+}
+
+.dash-risk__list,
+.dash-weakness__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dash-risk__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.625rem;
+    background: var(--dash-surface-alt);
+    border-radius: 8px;
+}
+
+.dash-risk__word {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+}
+
+.dash-risk__term {
+    font-weight: 600;
+    color: var(--dash-text);
+    font-size: 0.875rem;
+}
+
+.dash-risk__translation {
+    font-size: 0.75rem;
+    color: var(--dash-text-muted);
+}
+
+.dash-risk__badge {
+    flex-shrink: 0;
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    padding: 0.1875rem 0.5rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.dash-risk__action,
+.dash-weakness__action {
+    display: inline-block;
+    margin-top: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--dash-accent);
+    text-decoration: none;
+}
+
+.dash-risk__action:hover,
+.dash-weakness__action:hover {
+    text-decoration: underline;
+}
+
+.dash-weakness__item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.625rem;
+    background: var(--dash-surface-alt);
+    border-radius: 8px;
+}
+
+.dash-weakness__info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.dash-weakness__title {
+    font-weight: 600;
+    color: var(--dash-text);
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dash-weakness__attempts {
+    font-size: 0.6875rem;
+    color: var(--dash-text-muted);
+}
+
+.dash-weakness__bar-wrap {
+    flex: 1;
+    max-width: 80px;
+    height: 6px;
+    background: var(--dash-border);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.dash-weakness__bar {
+    height: 100%;
+    background: var(--dash-accent);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.dash-weakness__pct {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dash-text);
+    min-width: 2.5rem;
+    text-align: right;
+}
+
+@media (max-width: 640px) {
+    .dash-alerts-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .dash-risk,
+    .dash-weakness {
+        padding: 1rem;
+    }
 }
 
 /* ============================================

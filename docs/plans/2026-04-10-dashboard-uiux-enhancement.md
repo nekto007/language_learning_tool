@@ -51,12 +51,12 @@ Enrich the existing dashboard with new data-driven widgets that surface the app'
 - Modify: `app/templates/dashboard.html`
 - Modify: `app/static/css/design-system.css`
 
-- [ ] In route, add calls to `get_words_at_risk(user_id, limit=5)` and `get_grammar_weaknesses(user_id, limit=5)`
-- [ ] Create "Words at Risk" widget: list of overdue words with word, translation, days overdue badge, and "Review now" link to SRS
-- [ ] Create "Grammar Weaknesses" widget: list of weak topics with title, accuracy percentage bar, attempt count, and link to practice
-- [ ] Place both widgets side-by-side in a 2-column grid below the daily plan
-- [ ] Add CSS for `.dash-risk`, `.dash-risk__item`, `.dash-weakness`, `.dash-weakness__bar`
-- [ ] Write tests for route data (mock service calls, verify context variables)
+- [x] In route, add calls to `get_words_at_risk(user_id, limit=5)` and `get_grammar_weaknesses(user_id, limit=5)`
+- [x] Create "Words at Risk" widget: list of overdue words with word, translation, days overdue badge, and "Review now" link to SRS
+- [x] Create "Grammar Weaknesses" widget: list of weak topics with title, accuracy percentage bar, attempt count, and link to practice
+- [x] Place both widgets side-by-side in a 2-column grid below the daily plan
+- [x] Add CSS for `.dash-risk`, `.dash-risk__item`, `.dash-weakness`, `.dash-weakness__bar`
+- [x] Write tests for route data (mock service calls, verify context variables)
 
 ### Task 3: Best Study Time + Session Stats Widgets
 

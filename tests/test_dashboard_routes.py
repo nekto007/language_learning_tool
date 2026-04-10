@@ -205,3 +205,105 @@ class TestDashboardActivityHeatmap:
             html = response.data.decode('utf-8')
             assert '42' in html  # total_active_days
             assert '21' in html  # longest_streak
+
+
+class TestDashboardWordsAtRisk:
+    """Test words at risk widget data on dashboard"""
+
+    def test_dashboard_includes_words_at_risk_data(self, client, app, test_user, words_module_access):
+        """Dashboard should call get_words_at_risk and pass data to template"""
+        mock_words = [
+            {'word': 'abandon', 'translation': 'покидать', 'days_overdue': 5},
+            {'word': 'benevolent', 'translation': 'доброжелательный', 'days_overdue': 3},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_words_at_risk', return_value=mock_words) as mock_war:
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            mock_war.assert_called_once_with(test_user.id, limit=5)
+
+    def test_dashboard_renders_words_at_risk_widget(self, client, app, test_user, words_module_access):
+        """Dashboard should render words at risk widget when data exists"""
+        mock_words = [
+            {'word': 'abandon', 'translation': 'покидать', 'days_overdue': 5},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_words_at_risk', return_value=mock_words):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            assert 'dash-risk' in html
+            assert 'abandon' in html
+            # days_overdue badge rendered
+            assert 'dash-risk__badge' in html
+            assert '>5 ' in html
+
+    def test_dashboard_words_at_risk_empty_state(self, client, app, test_user, words_module_access):
+        """Dashboard should not render words at risk widget when no data"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_words_at_risk', return_value=[]), \
+             patch('app.study.insights_service.get_grammar_weaknesses', return_value=[]):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            # dash-alerts-row div should not be rendered when both lists are empty
+            assert 'dash-alerts-row"' not in html
+
+
+class TestDashboardGrammarWeaknesses:
+    """Test grammar weaknesses widget data on dashboard"""
+
+    def test_dashboard_includes_grammar_weaknesses_data(self, client, app, test_user, words_module_access):
+        """Dashboard should call get_grammar_weaknesses and pass data to template"""
+        mock_weaknesses = [
+            {'title': 'Present Perfect', 'accuracy': 45.2, 'attempts': 10},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_grammar_weaknesses', return_value=mock_weaknesses) as mock_gw:
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            mock_gw.assert_called_once_with(test_user.id, limit=5)
+
+    def test_dashboard_renders_grammar_weaknesses_widget(self, client, app, test_user, words_module_access):
+        """Dashboard should render grammar weaknesses widget when data exists"""
+        mock_weaknesses = [
+            {'title': 'Present Perfect', 'accuracy': 45.2, 'attempts': 10},
+            {'title': 'Conditionals', 'accuracy': 62.5, 'attempts': 8},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_grammar_weaknesses', return_value=mock_weaknesses):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            assert 'dash-weakness' in html
+            assert 'Present Perfect' in html
+            assert '45.2%' in html
+
+    def test_dashboard_grammar_weaknesses_empty_state(self, client, app, test_user, words_module_access):
+        """Dashboard should not render grammar weaknesses widget when no data"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_words_at_risk', return_value=[]), \
+             patch('app.study.insights_service.get_grammar_weaknesses', return_value=[]):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            # dash-alerts-row div should not be rendered when both lists are empty
+            assert 'dash-alerts-row"' not in html
