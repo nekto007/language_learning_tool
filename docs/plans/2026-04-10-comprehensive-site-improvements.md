@@ -231,13 +231,13 @@
 - Modify: `app/templates/grammar_lab/practice.html`
 - Modify: `app/grammar_lab/routes.py`
 
-- [ ] Add "Recommended next topic" card on grammar index based on user's level and completion
-- [ ] Add previous/next topic navigation on topic detail page
-- [ ] Add "Jump to exercises" anchor link on long theory pages
-- [ ] Show which topic current exercise belongs to during mixed practice
-- [ ] Add grammar mastery progress bar per level on index page
-- [ ] Write tests for topic recommendation logic and navigation
-- [ ] Run project test suite - must pass before task 13
+- [x] Add "Recommended next topic" card on grammar index based on user's level and completion
+- [x] Add previous/next topic navigation on topic detail page
+- [x] Add "Jump to exercises" anchor link on long theory pages
+- [x] Show which topic current exercise belongs to during mixed practice
+- [x] Add grammar mastery progress bar per level on index page
+- [x] Write tests for topic recommendation logic and navigation
+- [x] Run project test suite - must pass before task 13
 
 ### Task 13: Books & Reading UX Improvements
 

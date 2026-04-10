@@ -35,12 +35,16 @@ def index():
     levels = grammar_service.get_levels_summary(user_id)
     recommendations = grammar_service.get_recommendations(user_id, limit=5) if user_id else []
     stats = grammar_service.get_user_stats(user_id) if user_id else None
+    next_topic = grammar_service.get_next_recommended_topic(user_id) if user_id else None
+    level_mastery = grammar_service.get_level_mastery_stats(user_id) if user_id else {}
 
     return render_template(
         'grammar_lab/index.html',
         levels=levels,
         recommendations=recommendations,
-        stats=stats
+        stats=stats,
+        next_topic=next_topic,
+        level_mastery=level_mastery,
     )
 
 
@@ -75,6 +79,9 @@ def topic_detail(topic_id):
     if topic.get('exercise_count'):
         meta_description += f' {topic["exercise_count"]} упражнений для практики.'
 
+    # Previous/next topic navigation
+    adjacent = grammar_service.get_adjacent_topics(topic_id)
+
     # Related topics (same level, excluding current)
     related_topics = GrammarTopic.query.filter(
         GrammarTopic.level == topic.get('level'),
@@ -100,6 +107,8 @@ def topic_detail(topic_id):
         meta_description=meta_description,
         related_topics=related_topics,
         related_words=related_words,
+        prev_topic=adjacent['prev'],
+        next_topic=adjacent['next'],
     )
 
 
