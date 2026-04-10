@@ -247,3 +247,31 @@ class TestUserDetailRoute:
         """Export should not exceed MAX_EXPORT_ROWS."""
         from app.admin.utils.export_helpers import MAX_EXPORT_ROWS
         assert MAX_EXPORT_ROWS == 10000
+
+    def test_csv_route_sanitizes_dangerous_values(self, app, admin_client, db_session):
+        """Route-level: dangerous chars in username should be escaped in CSV output."""
+        u = _make_user(db_session, username=f'=cmd_{uuid.uuid4().hex[:6]}')
+        db_session.commit()
+
+        response = admin_client.get('/admin/users/export')
+        csv_text = response.get_data(as_text=True)
+
+        # The username starts with '=' so it must be prefixed with apostrophe in CSV
+        assert f"'={u.username[1:]}" in csv_text or f"\"'={u.username[1:]}\"" in csv_text
+
+    def test_csv_route_is_streaming(self, app, admin_client):
+        """Route should return a streaming response (generator), not buffered."""
+        response = admin_client.get('/admin/users/export')
+        # Flask streaming responses have is_streamed=True
+        assert response.is_streamed
+
+    def test_csv_route_row_count_within_limit(self, app, admin_client, db_session):
+        """CSV export should contain a header plus data rows, not exceeding limit."""
+        response = admin_client.get('/admin/users/export')
+        csv_text = response.get_data(as_text=True)
+        lines = [l for l in csv_text.strip().split('\n') if l]
+        # At least header + 1 data row (admin_user exists)
+        assert len(lines) >= 2
+        # Total lines (including header) should not exceed MAX_EXPORT_ROWS + 1
+        from app.admin.utils.export_helpers import MAX_EXPORT_ROWS
+        assert len(lines) <= MAX_EXPORT_ROWS + 1
