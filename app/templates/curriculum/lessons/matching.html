@@ -752,6 +752,8 @@ async function saveGameResults(score) {
     });
     
     if (response.ok) {
+      if (typeof showSaveToast === 'function') showSaveToast();
+      if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: Math.round(score) });
       showCompletionResults(score);
       showNavigationButtons();
     } else {

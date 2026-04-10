@@ -2157,7 +2157,9 @@ window.QuizApp = {
         })
       });
 
-      if (!response.ok) {
+      if (response.ok && typeof showSaveToast === 'function') {
+        showSaveToast();
+      } else if (!response.ok) {
         console.error('Failed to save progress');
       }
     } catch (error) {
