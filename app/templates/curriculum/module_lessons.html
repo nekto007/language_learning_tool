@@ -13,6 +13,16 @@
   {% endfor %}
   {% set progress_pct = ((counter.completed / lessons|length) * 100)|round|int if lessons|length > 0 else 0 %}
 
+  {% if module_lock_reason %}
+  <div style="background:#fef3c7; border:1px solid #fbbf24; border-radius:12px; padding:1rem 1.25rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.75rem;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/></svg>
+    <div>
+      <div style="font-weight:600; font-size:0.9rem; color:#92400e;">Модуль заблокирован</div>
+      <div style="font-size:0.8rem; color:#a16207;">Завершите модуль {{ module_lock_reason.prev_module_number }}: {{ module_lock_reason.prev_module_title }} ({{ module_lock_reason.current_pct }}% из {{ module_lock_reason.required_pct }}% нужных)</div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Hero Section -->
   <div class="ml-hero">
     <div class="ml-hero__bg-shapes">
@@ -201,6 +211,19 @@
                   </svg>
                   {{ user_lesson_progress[lesson.id].score|round }}%
                 </div>
+              {% elif is_in_progress and lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].data %}
+                {% set pdata = user_lesson_progress[lesson.id].data %}
+                {% if pdata.get('current_question') is not none and pdata.get('total_questions') %}
+                  <div class="ml-lesson__in-progress-hint">
+                    {{ _('Вопрос') }} {{ pdata.current_question + 1 }}/{{ pdata.total_questions }}
+                  </div>
+                {% elif pdata.get('cards_viewed') is not none and pdata.get('total_cards') %}
+                  <div class="ml-lesson__in-progress-hint">
+                    {{ _('Карточка') }} {{ pdata.cards_viewed }}/{{ pdata.total_cards }}
+                  </div>
+                {% else %}
+                  <div class="ml-lesson__in-progress-hint">{{ _('В процессе') }}</div>
+                {% endif %}
               {% endif %}
             </div>
 
@@ -220,10 +243,11 @@
                   </svg>
                 </a>
               {% else %}
-                <span class="ml-lesson__locked-label">
+                <span class="ml-lesson__locked-label" title="{{ _('Сначала завершите урок') }} {{ lessons[loop.index0 - 1].number }}: {{ lessons[loop.index0 - 1].title }}">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/>
                   </svg>
+                  <span class="ml-lesson__locked-reason">{{ _('Завершите урок') }} {{ lessons[loop.index0 - 1].number }}</span>
                 </span>
               {% endif %}
             </div>
@@ -769,10 +793,23 @@
 .ml-lesson__locked-label {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
+  gap: 0.375rem;
   color: #94a3b8;
+  cursor: help;
+}
+
+.ml-lesson__locked-reason {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.ml-lesson__in-progress-hint {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #f59e0b;
+  margin-top: 0.125rem;
 }
 
 /* ============================================

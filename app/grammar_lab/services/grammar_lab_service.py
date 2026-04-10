@@ -628,13 +628,24 @@ class GrammarLabService:
                 .subquery()
             )
 
-            new_topics = (
-                GrammarTopic.query
-                .filter(~GrammarTopic.id.in_(started_topic_ids))
-                .order_by(GrammarTopic.level, GrammarTopic.order)
-                .limit(limit - len(recommendations))
-                .all()
-            )
+            # Prefer topics matching user's level (onboarding or curriculum)
+            from app.auth.models import User
+            user = User.query.get(user_id)
+            user_level = getattr(user, 'onboarding_level', None) if user else None
+
+            new_q = GrammarTopic.query.filter(~GrammarTopic.id.in_(started_topic_ids))
+            if user_level:
+                # User-level topics first, then others
+                from sqlalchemy import case as sa_case
+                level_priority = sa_case(
+                    (GrammarTopic.level == user_level, 0),
+                    else_=1,
+                )
+                new_q = new_q.order_by(level_priority, GrammarTopic.level, GrammarTopic.order)
+            else:
+                new_q = new_q.order_by(GrammarTopic.level, GrammarTopic.order)
+
+            new_topics = new_q.limit(limit - len(recommendations)).all()
 
             for topic in new_topics:
                 recommendations.append({

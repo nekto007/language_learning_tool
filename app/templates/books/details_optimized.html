@@ -145,7 +145,7 @@
         <h3 class="mb-4">{{ _('Главы') }}</h3>
         <div class="chapters-list">
             {% for chapter in chapters %}
-            {% set reading_minutes = ((chapter.words or 0) / 150) | int %}
+            {% set reading_minutes = (((chapter.words or 0) + 149) / 150) | int %}
             {% set reading_minutes = reading_minutes if reading_minutes > 0 else 1 %}
             <div class="chapter-item d-flex justify-content-between align-items-center p-3 mb-2 bg-light rounded">
                 <div>
