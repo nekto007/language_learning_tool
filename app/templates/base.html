@@ -450,12 +450,29 @@ function loadNotifications() {
                 list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:1rem;font-size:0.85rem;">Нет уведомлений</div>';
                 return;
             }
-            list.innerHTML = data.notifications.map(function(n) {
-                return '<a href="' + (n.link || '#') + '" style="display:flex;gap:0.625rem;padding:0.625rem 1rem;text-decoration:none;transition:background 0.15s;' + (n.read ? '' : 'background:#f0f7ff;') + '" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'' + (n.read ? '' : '#f0f7ff') + '\'">' +
-                    '<span style="font-size:1.25rem;flex-shrink:0;">' + n.icon + '</span>' +
-                    '<div><div style="font-size:0.85rem;font-weight:' + (n.read ? '400' : '600') + ';color:#0f172a;">' + n.title + '</div>' +
-                    (n.message ? '<div style="font-size:0.75rem;color:#64748b;">' + n.message + '</div>' : '') + '</div></a>';
-            }).join('');
+            list.textContent = '';
+            data.notifications.forEach(function(n) {
+                var a = document.createElement('a');
+                a.href = n.link || '#';
+                a.style.cssText = 'display:flex;gap:0.625rem;padding:0.625rem 1rem;text-decoration:none;' + (n.read ? '' : 'background:#f0f7ff;');
+                var icon = document.createElement('span');
+                icon.style.cssText = 'font-size:1.25rem;flex-shrink:0;';
+                icon.textContent = n.icon;
+                a.appendChild(icon);
+                var body = document.createElement('div');
+                var title = document.createElement('div');
+                title.style.cssText = 'font-size:0.85rem;font-weight:' + (n.read ? '400' : '600') + ';color:#0f172a;';
+                title.textContent = n.title;
+                body.appendChild(title);
+                if (n.message) {
+                    var msg = document.createElement('div');
+                    msg.style.cssText = 'font-size:0.75rem;color:#64748b;';
+                    msg.textContent = n.message;
+                    body.appendChild(msg);
+                }
+                a.appendChild(body);
+                list.appendChild(a);
+            });
         }).catch(function() {});
 }
 function markAllRead() {

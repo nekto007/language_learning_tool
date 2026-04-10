@@ -198,7 +198,7 @@
   <div class="pf-card">
     <h2 class="pf-card__title">{{ _('Публичный профиль') }}</h2>
     <p style="font-size: 0.85rem; color: var(--pf-text-muted); margin: 0 0 0.75rem;">{{ _('Ваша публичная страница с достижениями и статистикой:') }}</p>
-    <div class="pf-url">https://llt-english.com/u/{{ user.username }}</div>
+    <div class="pf-url">{{ url_for('auth.public_profile', username=user.username, _external=True) }}</div>
     <div style="margin-top: 0.75rem;">
       <a href="{{ url_for('auth.public_profile', username=user.username) }}" class="pf-link">
         <span class="pf-link__icon">👤</span> {{ _('Открыть публичный профиль') }}

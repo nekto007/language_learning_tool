@@ -2,10 +2,37 @@
 from app.notifications.models import Notification
 from app.utils.db import db
 
+# Map notification types to User preference field names
+_PREF_MAP = {
+    'achievement': 'notify_in_app_achievements',
+    'level_up': 'notify_in_app_achievements',
+    'streak_milestone': 'notify_in_app_streaks',
+    'weekly_challenge': 'notify_in_app_weekly',
+    'referral': None,  # always send referral notifications
+}
+
+
+def _user_allows(user_id: int, notif_type: str) -> bool:
+    """Check whether user's notification preferences allow this type."""
+    pref_field = _PREF_MAP.get(notif_type)
+    if pref_field is None:
+        return True  # no preference gate for this type
+    try:
+        from app.auth.models import User
+        user = User.query.get(user_id)
+        if user is None:
+            return True
+        return getattr(user, pref_field, True)
+    except Exception:
+        return True  # fail open — don't break callers
+
 
 def create_notification(user_id: int, type: str, title: str,
-                        message: str = '', link: str = '', icon: str = '🔔') -> Notification:
-    """Create a notification for a user."""
+                        message: str = '', link: str = '', icon: str = '🔔') -> Notification | None:
+    """Create a notification for a user, respecting their preferences."""
+    if not _user_allows(user_id, type):
+        return None
+
     notif = Notification(
         user_id=user_id,
         type=type,

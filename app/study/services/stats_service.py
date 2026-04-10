@@ -64,10 +64,18 @@ class StatsService:
             **word_stats,
             'mastery_percentage': int((word_stats['mastered'] / word_stats['total'] * 100) if word_stats['total'] > 0 else 0),
             'recent_sessions': recent_sessions,
-            'study_streak': 0,  # TODO: implement streak calculation
+            'study_streak': StatsService._get_streak(user_id),
             'today_words_studied': today_words_studied,
             'today_time_spent': today_time_spent
         }
+
+    @staticmethod
+    def _get_streak(user_id: int) -> int:
+        try:
+            from app.telegram.queries import get_current_streak
+            return get_current_streak(user_id)
+        except Exception:
+            return 0
 
     @staticmethod
     def get_user_word_stats(user_id: int) -> Dict:

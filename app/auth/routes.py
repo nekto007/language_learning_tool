@@ -553,7 +553,7 @@ def referrals():
         .all()
     )
 
-    referral_link = f'https://llt-english.com/register?ref={current_user.referral_code}'
+    referral_link = url_for('auth.register', ref=current_user.referral_code, _external=True)
 
     # Active referred users: those who logged in within last 30 days
     thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
