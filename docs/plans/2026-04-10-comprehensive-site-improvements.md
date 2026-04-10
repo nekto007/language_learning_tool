@@ -263,25 +263,25 @@
 - Modify: `app/templates/curriculum/lessons/quiz.html`
 - Modify: `app/templates/curriculum/module_lessons.html`
 
-- [ ] Add progress save indicator (auto-save notification) in lesson templates
-- [ ] Add empty content validation before rendering lesson (show "Lesson content unavailable" instead of crash)
-- [ ] Add lesson completion confirmation with grade display and next lesson link
-- [ ] Show locked module reasons on module lessons page (prerequisite module name, required score)
-- [ ] Add "Continue where you left off" for in-progress lessons (use LessonProgress.data field)
-- [ ] Write tests for empty content handling and progress save
-- [ ] Run project test suite - must pass before task 15
+- [x] Add progress save indicator (auto-save notification) in lesson templates
+- [x] Add empty content validation before rendering lesson (show "Lesson content unavailable" instead of crash)
+- [x] Add lesson completion confirmation with grade display and next lesson link
+- [x] Show locked module reasons on module lessons page (prerequisite module name, required score)
+- [x] Add "Continue where you left off" for in-progress lessons (use LessonProgress.data field)
+- [x] Write tests for empty content handling and progress save
+- [x] Run project test suite - must pass before task 15
 
 ### Task 15: Verify acceptance criteria
 
-- [ ] Run full test suite (`pytest`)
-- [ ] Verify all admin dashboard charts show real data (no hardcoded values)
-- [ ] Verify DAU/WAU/MAU считаются по union activity tables, а не по last_login
-- [ ] Verify empty states render correctly across all modified pages
-- [ ] Verify navigation improvements (notification bell, badges, breadcrumbs) work
-- [ ] Verify CSV export escapes special characters
-- [ ] Run linter if configured
+- [x] Run full test suite (`pytest`)
+- [x] Verify all admin dashboard charts show real data (no hardcoded values)
+- [x] Verify DAU/WAU/MAU считаются по union activity tables, а не по last_login
+- [x] Verify empty states render correctly across all modified pages
+- [x] Verify navigation improvements (notification bell, badges, breadcrumbs) work
+- [x] Verify CSV export escapes special characters
+- [x] Run linter if configured
 
 ### Task 16: Update documentation
 
-- [ ] Update CLAUDE.md if internal patterns changed
-- [ ] Move this plan to `docs/plans/completed/`
+- [x] Update CLAUDE.md if internal patterns changed
+- [x] Move this plan to `docs/plans/completed/`
