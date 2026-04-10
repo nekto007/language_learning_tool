@@ -825,10 +825,193 @@ class TestDashboardGrammarLevels:
             sess['_user_id'] = str(test_user.id)
             sess['_fresh'] = True
 
-        with patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', return_value=mock_data), \
-             patch('app.study.insights_service.get_reading_speed_trend', return_value=[]):
+        with patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', return_value=mock_data):
             response = client.get('/dashboard')
             html = response.data.decode('utf-8')
             html_body = html.split('<style>')[0]
-            # When both widgets empty, the insights row should not render
-            assert 'dash-insights-row' not in html_body
+            # Grammar levels widget should not render when all levels have 0 topics
+            assert 'dash-grammar-levels__heading' not in html_body
+
+
+class TestDashboardLayoutSections:
+    """Test that all dashboard sections render correctly with proper layout structure"""
+
+    def test_dashboard_renders_all_sections_with_data(self, client, app, test_user, words_module_access):
+        """Dashboard should render all 9 layout sections when all data is present"""
+        mock_heatmap = [{'date': f'2026-04-{d:02d}', 'count': d % 4} for d in range(1, 11)]
+        mock_calendar = {
+            'active_dates': ['2026-04-09'],
+            'total_active_days': 10,
+            'longest_streak': 5,
+            'current_streak': 3,
+        }
+        mock_words_at_risk = [
+            {'word': 'test', 'translation': 'тест', 'days_overdue': 2},
+        ]
+        mock_grammar_weak = [
+            {'title': 'Conditionals', 'accuracy': 55.0, 'attempts': 6},
+        ]
+        mock_study_time = {'best_hour': 10, 'hourly_scores': {10: 90, 14: 50}}
+        mock_session_stats = {
+            'period_days': 7,
+            'total_sessions': 5,
+            'total_words_studied': 40,
+            'total_correct': 35,
+            'total_incorrect': 5,
+            'accuracy_percent': 87.5,
+            'total_time_seconds': 1800,
+            'avg_session_time_seconds': 360,
+        }
+        mock_leaderboard = [
+            type('U', (), {'id': test_user.id, 'username': 'testuser', 'total_xp': 500, 'level': 3})(),
+        ]
+        mock_achievements = {
+            'by_category': {
+                'vocabulary': [
+                    type('A', (), {
+                        'earned': True,
+                        'earned_at': datetime(2026, 4, 1),
+                        'achievement': type('Ach', (), {'icon': '🏆', 'name': 'Word Master'})(),
+                    })(),
+                ],
+            },
+            'earned_count': 1,
+            'total_achievements': 5,
+            'progress_percentage': 20,
+        }
+        mock_reading_speed = [
+            type('R', (), {'week': 'W1', 'avg_wpm': 120.0})(),
+            type('R', (), {'week': 'W2', 'avg_wpm': 135.0})(),
+        ]
+        mock_milestones = [
+            type('M', (), {'streak': 7, 'date': date(2026, 3, 15)})(),
+        ]
+        mock_grammar_levels = [
+            {'level': 'A1', 'topic_count': 5, 'exercises_total': 25, 'exercises_mastered': 15, 'progress_pct': 60.0},
+            {'level': 'A2', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_activity_heatmap', return_value=mock_heatmap), \
+             patch('app.achievements.streak_service.get_streak_calendar', return_value=mock_calendar), \
+             patch('app.study.insights_service.get_words_at_risk', return_value=mock_words_at_risk), \
+             patch('app.study.insights_service.get_grammar_weaknesses', return_value=mock_grammar_weak), \
+             patch('app.study.insights_service.get_best_study_time', return_value=mock_study_time), \
+             patch('app.study.services.session_service.SessionService.get_session_stats', return_value=mock_session_stats), \
+             patch('app.study.services.stats_service.StatsService.get_xp_leaderboard', return_value=mock_leaderboard), \
+             patch('app.study.services.stats_service.StatsService.get_user_xp_rank', return_value=1), \
+             patch('app.study.services.stats_service.StatsService.get_achievements_by_category', return_value=mock_achievements), \
+             patch('app.study.insights_service.get_reading_speed_trend', return_value=mock_reading_speed), \
+             patch('app.achievements.streak_service.get_milestone_history', return_value=mock_milestones), \
+             patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', return_value=mock_grammar_levels):
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            html = response.data.decode('utf-8')
+            html_body = html.split('<style>')[0]
+
+            # Section 1: Hero
+            assert 'dash-hero' in html_body
+            # Section 2: Daily Plan
+            assert 'dash-plan' in html_body
+            # Section 3: Activity Heatmap
+            assert 'dash-heatmap' in html_body
+            assert 'dash-section__heading">Активность' in html_body
+            # Section 4: Alerts row
+            assert 'dash-alerts-row' in html_body
+            assert 'dash-risk' in html_body
+            assert 'dash-weakness' in html_body
+            assert 'dash-section__heading">Внимание' in html_body
+            # Section 5: Stats row
+            assert 'dash-stats-row' in html_body
+            assert 'dash-study-time' in html_body
+            assert 'dash-week-stats' in html_body
+            assert 'dash-section__heading">Статистика' in html_body
+            # Section 6: Progress row
+            assert 'dash-progress-row' in html_body
+            assert 'dash-progress-overview' in html_body
+            assert 'dash-grammar-levels' in html_body
+            assert 'dash-section__heading">Прогресс' in html_body
+            # Section 7: Social row
+            assert 'dash-social-row' in html_body
+            assert 'dash-leaderboard' in html_body
+            assert 'dash-achievements' in html_body
+            assert 'dash-section__heading">Сообщество' in html_body
+            # Section 8: Insights row
+            assert 'dash-insights-row' in html_body
+            assert 'dash-reading-speed' in html_body
+            assert 'dash-milestones' in html_body
+            assert 'dash-section__heading">Аналитика' in html_body
+            # Section 9: Quick Actions
+            assert 'dash-quick' in html_body
+
+    def test_dashboard_section_dividers_present(self, client, app, test_user, words_module_access):
+        """Dashboard should render section dividers between widget groups"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        response = client.get('/dashboard')
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        html_body = html.split('<style>')[0]
+
+        # Each section should have a divider
+        divider_count = html_body.count('dash-section__divider')
+        assert divider_count >= 6  # sections 3-9 have dividers (section 9 has divider only)
+
+    def test_dashboard_empty_states_all_widgets(self, client, app, test_user, words_module_access):
+        """Dashboard should show friendly empty states when user has no activity data"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_activity_heatmap', return_value=[]), \
+             patch('app.achievements.streak_service.get_streak_calendar', return_value={}), \
+             patch('app.study.insights_service.get_words_at_risk', return_value=[]), \
+             patch('app.study.insights_service.get_grammar_weaknesses', return_value=[]), \
+             patch('app.study.insights_service.get_best_study_time', return_value={'best_hour': None, 'hourly_scores': {}}), \
+             patch('app.study.services.stats_service.StatsService.get_xp_leaderboard', return_value=[]), \
+             patch('app.study.services.stats_service.StatsService.get_user_xp_rank', return_value=None), \
+             patch('app.study.services.stats_service.StatsService.get_achievements_by_category', return_value={}), \
+             patch('app.study.insights_service.get_reading_speed_trend', return_value=[]), \
+             patch('app.achievements.streak_service.get_milestone_history', return_value=[]), \
+             patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', return_value=[]):
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            html = response.data.decode('utf-8')
+            html_body = html.split('<style>')[0]
+
+            # Empty states should be shown
+            empty_count = html_body.count('dash-empty')
+            assert empty_count >= 4  # heatmap, alerts, leaderboard, achievements, reading speed, milestones
+
+            # Data widgets should NOT render
+            assert 'dash-heatmap__grid' not in html_body
+            assert 'dash-risk__item' not in html_body
+            assert 'dash-leaderboard__row' not in html_body
+            assert 'dash-reading-speed__value' not in html_body
+            assert 'dash-milestones__timeline' not in html_body
+
+    def test_dashboard_responsive_css_classes(self, client, app, test_user, words_module_access):
+        """Dashboard should include responsive grid classes for 2-col layouts"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        response = client.get('/dashboard')
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+
+        # CSS should contain responsive rules for all 2-col rows
+        assert 'dash-alerts-row' in html
+        assert 'dash-stats-row' in html
+        assert 'dash-progress-row' in html
+        assert 'dash-social-row' in html
+        assert 'dash-insights-row' in html
+
+        # CSS should contain mobile breakpoint rules
+        style_section = html.split('<style>')[1].split('</style>')[0] if '<style>' in html else ''
+        assert 'max-width: 640px' in style_section

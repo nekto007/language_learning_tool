@@ -447,7 +447,11 @@
     </div>
     {% endif %}
 
-    <!-- Activity Heatmap -->
+    <!-- Section 3: Activity Heatmap -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+        <h2 class="dash-section__heading">Активность</h2>
+    </div>
     {% if activity_heatmap %}
     <div class="dash-heatmap">
         <h3 class="dash-heatmap__heading">Активность за 90 дней</h3>
@@ -514,9 +518,18 @@
         </div>
         {% endif %}
     </div>
+    {% else %}
+    <div class="dash-empty">
+        <span class="dash-empty__icon">&#128197;</span>
+        <span class="dash-empty__text">Начните заниматься, чтобы увидеть карту активности</span>
+    </div>
     {% endif %}
 
-    <!-- Words at Risk + Grammar Weaknesses -->
+    <!-- Section 4: Alerts row - Words at Risk + Grammar Weaknesses -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+        <h2 class="dash-section__heading">Внимание</h2>
+    </div>
     {% if words_at_risk or grammar_weaknesses %}
     <div class="dash-alerts-row">
         {% if words_at_risk %}
@@ -558,9 +571,18 @@
         </div>
         {% endif %}
     </div>
+    {% else %}
+    <div class="dash-empty">
+        <span class="dash-empty__icon">&#9989;</span>
+        <span class="dash-empty__text">Нет слов под угрозой и слабых тем — отличная работа!</span>
+    </div>
     {% endif %}
 
-    <!-- Best Study Time & This Week's Stats -->
+    <!-- Section 5: Stats row - Best Study Time + This Week's Stats -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+        <h2 class="dash-section__heading">Статистика</h2>
+    </div>
     <div class="dash-stats-row">
         <!-- Best Study Time -->
         <div class="dash-study-time">
@@ -611,156 +633,179 @@
         </div>
     </div>
 
-    <!-- Progress Overview -->
-    <div class="dash-progress">
-        <h3 class="dash-progress__heading">&#1052;&#1086;&#1081; &#1087;&#1088;&#1086;&#1075;&#1088;&#1077;&#1089;&#1089;</h3>
-        <div class="dash-progress__grid">
-            {# Reorder progress cards based on onboarding_focus #}
-            {% set cards = [] %}
-            {% set words_card %}
-            <a href="{{ url_for('study.index') }}" class="dash-progress__card dash-progress__card--words">
-                <div class="dash-progress__emoji">&#127183;</div>
-                <div class="dash-progress__data">
-                    <div class="dash-progress__value">{{ words_total }}</div>
-                    <div class="dash-progress__label">&#1089;&#1083;&#1086;&#1074; &#1074; &#1082;&#1086;&#1083;&#1083;&#1077;&#1082;&#1094;&#1080;&#1080;</div>
-                </div>
-                <div class="dash-progress__arrow">&rsaquo;</div>
-            </a>
-            {% endset %}
-            {% set grammar_card %}
-            <a href="{{ url_for('grammar_lab.index') }}" class="dash-progress__card dash-progress__card--grammar">
-                <div class="dash-progress__emoji">&#129504;</div>
-                <div class="dash-progress__data">
-                    <div class="dash-progress__value">{{ grammar_studied }}<span class="dash-progress__total">/{{ grammar_total }}</span></div>
-                    <div class="dash-progress__label">&#1090;&#1077;&#1084; &#1075;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1080;</div>
-                </div>
-                <div class="dash-progress__arrow">&rsaquo;</div>
-            </a>
-            {% endset %}
-            {% set courses_card %}
-            <a href="{{ url_for('book_courses.list_book_courses') }}" class="dash-progress__card dash-progress__card--courses">
-                <div class="dash-progress__emoji">&#127891;</div>
-                <div class="dash-progress__data">
-                    <div class="dash-progress__value">{% if active_course %}{{ active_course.progress_percentage | int }}%{% else %}{{ courses_enrolled }}{% endif %}</div>
-                    <div class="dash-progress__label">{% if active_course %}{{ active_course.course.title }}{% else %}&#1072;&#1082;&#1090;&#1080;&#1074;&#1085;&#1099;&#1093; &#1082;&#1091;&#1088;&#1089;&#1086;&#1074;{% endif %}</div>
-                </div>
-                <div class="dash-progress__arrow">&rsaquo;</div>
-            </a>
-            {% endset %}
-            {% set books_card %}
-            <a href="{{ url_for('books.book_list') }}" class="dash-progress__card dash-progress__card--books">
-                <div class="dash-progress__emoji">&#128218;</div>
-                <div class="dash-progress__data">
-                    <div class="dash-progress__value">{{ books_reading }}</div>
-                    <div class="dash-progress__label">{% if books_reading == 1 %}&#1082;&#1085;&#1080;&#1075;&#1072;{% elif books_reading < 5 %}&#1082;&#1085;&#1080;&#1075;&#1080;{% else %}&#1082;&#1085;&#1080;&#1075;{% endif %} &#1095;&#1080;&#1090;&#1072;&#1102;</div>
-                </div>
-                <div class="dash-progress__arrow">&rsaquo;</div>
-            </a>
-            {% endset %}
-
-            {% if onboarding_focus == 'grammar' %}
-                {{ grammar_card }}{{ words_card }}{{ courses_card }}{{ books_card }}
-            {% elif onboarding_focus == 'reading' %}
-                {{ books_card }}{{ words_card }}{{ grammar_card }}{{ courses_card }}
-            {% elif onboarding_focus == 'vocabulary' %}
-                {{ words_card }}{{ grammar_card }}{{ books_card }}{{ courses_card }}
-            {% else %}
-                {{ words_card }}{{ grammar_card }}{{ courses_card }}{{ books_card }}
-            {% endif %}
-        </div>
+    <!-- Section 6: Progress row - Progress Overview + Grammar Levels -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+        <h2 class="dash-section__heading">Прогресс</h2>
     </div>
+    {% set has_grammar_levels = grammar_levels_summary and grammar_levels_summary|selectattr('topic_count', 'greaterthan', 0)|list %}
+    <div class="dash-progress-row">
+        <div class="dash-progress-overview">
+            <h3 class="dash-progress-overview__heading">&#1052;&#1086;&#1081; &#1087;&#1088;&#1086;&#1075;&#1088;&#1077;&#1089;&#1089;</h3>
+            <div class="dash-progress-overview__grid">
+                {# Reorder progress cards based on onboarding_focus #}
+                {% set cards = [] %}
+                {% set words_card %}
+                <a href="{{ url_for('study.index') }}" class="dash-progress__card dash-progress__card--words">
+                    <div class="dash-progress__emoji">&#127183;</div>
+                    <div class="dash-progress__data">
+                        <div class="dash-progress__value">{{ words_total }}</div>
+                        <div class="dash-progress__label">&#1089;&#1083;&#1086;&#1074; &#1074; &#1082;&#1086;&#1083;&#1083;&#1077;&#1082;&#1094;&#1080;&#1080;</div>
+                    </div>
+                    <div class="dash-progress__arrow">&rsaquo;</div>
+                </a>
+                {% endset %}
+                {% set grammar_card %}
+                <a href="{{ url_for('grammar_lab.index') }}" class="dash-progress__card dash-progress__card--grammar">
+                    <div class="dash-progress__emoji">&#129504;</div>
+                    <div class="dash-progress__data">
+                        <div class="dash-progress__value">{{ grammar_studied }}<span class="dash-progress__total">/{{ grammar_total }}</span></div>
+                        <div class="dash-progress__label">&#1090;&#1077;&#1084; &#1075;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1080;</div>
+                    </div>
+                    <div class="dash-progress__arrow">&rsaquo;</div>
+                </a>
+                {% endset %}
+                {% set courses_card %}
+                <a href="{{ url_for('book_courses.list_book_courses') }}" class="dash-progress__card dash-progress__card--courses">
+                    <div class="dash-progress__emoji">&#127891;</div>
+                    <div class="dash-progress__data">
+                        <div class="dash-progress__value">{% if active_course %}{{ active_course.progress_percentage | int }}%{% else %}{{ courses_enrolled }}{% endif %}</div>
+                        <div class="dash-progress__label">{% if active_course %}{{ active_course.course.title }}{% else %}&#1072;&#1082;&#1090;&#1080;&#1074;&#1085;&#1099;&#1093; &#1082;&#1091;&#1088;&#1089;&#1086;&#1074;{% endif %}</div>
+                    </div>
+                    <div class="dash-progress__arrow">&rsaquo;</div>
+                </a>
+                {% endset %}
+                {% set books_card %}
+                <a href="{{ url_for('books.book_list') }}" class="dash-progress__card dash-progress__card--books">
+                    <div class="dash-progress__emoji">&#128218;</div>
+                    <div class="dash-progress__data">
+                        <div class="dash-progress__value">{{ books_reading }}</div>
+                        <div class="dash-progress__label">{% if books_reading == 1 %}&#1082;&#1085;&#1080;&#1075;&#1072;{% elif books_reading < 5 %}&#1082;&#1085;&#1080;&#1075;&#1080;{% else %}&#1082;&#1085;&#1080;&#1075;{% endif %} &#1095;&#1080;&#1090;&#1072;&#1102;</div>
+                    </div>
+                    <div class="dash-progress__arrow">&rsaquo;</div>
+                </a>
+                {% endset %}
 
-    <!-- Leaderboard -->
-    {% if xp_leaderboard %}
-    <div class="dash-leaderboard">
-        <h3 class="dash-leaderboard__heading">&#127942; Лидеры по XP</h3>
-        <div class="dash-leaderboard__list">
-            {% for entry in xp_leaderboard %}
-            <div class="dash-leaderboard__row{% if entry.id == current_user.id %} dash-leaderboard__highlight{% endif %}">
-                <span class="dash-leaderboard__rank">{{ loop.index }}</span>
-                <span class="dash-leaderboard__avatar">{{ entry.username[:1]|upper }}</span>
-                <span class="dash-leaderboard__name">{{ entry.username }}</span>
-                <span class="dash-leaderboard__xp">{{ entry.total_xp }} XP</span>
-                <span class="dash-leaderboard__level">Ур.&nbsp;{{ entry.level }}</span>
-            </div>
-            {% endfor %}
-        </div>
-        {% if user_xp_rank and user_xp_rank > 5 %}
-        <div class="dash-leaderboard__you">Вы на {{ user_xp_rank }}-м месте</div>
-        {% endif %}
-        <a href="{{ url_for('study.leaderboard') }}" class="dash-leaderboard__link">Полный рейтинг &rarr;</a>
-    </div>
-    {% endif %}
-
-    <!-- Achievements & Milestones -->
-    {% if achievements_by_category and achievements_by_category.by_category %}
-    <div class="dash-achievements">
-        <h3 class="dash-achievements__heading">&#127941; Достижения</h3>
-        <div class="dash-achievements__summary">
-            <span class="dash-achievements__count">{{ achievements_by_category.earned_count }} / {{ achievements_by_category.total_achievements }}</span>
-            <span class="dash-achievements__pct">{{ achievements_by_category.progress_percentage }}%</span>
-        </div>
-        <div class="dash-achievements__categories">
-            {% for category, items in achievements_by_category.by_category.items() %}
-            {% set earned_in_cat = items|selectattr('earned')|list|length %}
-            {% set total_in_cat = items|length %}
-            {% set pct = (earned_in_cat / total_in_cat * 100)|round|int if total_in_cat > 0 else 0 %}
-            <div class="dash-achievements__cat">
-                <div class="dash-achievements__ring" style="--pct: {{ pct }}">
-                    <svg viewBox="0 0 36 36" class="dash-achievements__svg">
-                        <circle cx="18" cy="18" r="15.9" class="dash-achievements__track"></circle>
-                        <circle cx="18" cy="18" r="15.9" class="dash-achievements__fill" stroke-dasharray="{{ pct }}, 100"></circle>
-                    </svg>
-                    <span class="dash-achievements__ring-text">{{ earned_in_cat }}/{{ total_in_cat }}</span>
-                </div>
-                <span class="dash-achievements__cat-name">{{ category }}</span>
-            </div>
-            {% endfor %}
-        </div>
-        {% set recent_unlocks = [] %}
-        {% for category, items in achievements_by_category.by_category.items() %}
-            {% for item in items if item.earned and item.earned_at %}
-                {% if recent_unlocks.append(item) %}{% endif %}
-            {% endfor %}
-        {% endfor %}
-        {% if recent_unlocks %}
-        <div class="dash-achievements__recent">
-            <h4 class="dash-achievements__recent-title">Недавние</h4>
-            {% for item in recent_unlocks|sort(attribute='earned_at', reverse=true)|batch(3)|first %}
-            <div class="dash-achievements__unlock">
-                <span class="dash-achievements__unlock-icon">{{ item.achievement.icon if item.achievement.icon else '&#127942;' }}</span>
-                <span class="dash-achievements__unlock-name">{{ item.achievement.name }}</span>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    {% if milestone_history %}
-    <div class="dash-milestones">
-        <h3 class="dash-milestones__heading">&#128293; Вехи серии</h3>
-        <div class="dash-milestones__timeline">
-            {% set milestone_targets = [7, 14, 30, 60, 100] %}
-            {% set earned_streaks = milestone_history|map(attribute='streak')|list %}
-            {% for target in milestone_targets %}
-            {% set earned_milestone = milestone_history|selectattr('streak', 'equalto', target)|list %}
-            <div class="dash-milestones__item{% if earned_milestone %} dash-milestones__item--earned{% elif target == milestone_targets|select('greaterthan', earned_streaks|max|default(0))|first|default(0) %} dash-milestones__item--next{% endif %}">
-                <span class="dash-milestones__days">{{ target }}д</span>
-                {% if earned_milestone %}
-                <span class="dash-milestones__date">{{ earned_milestone[0].date.strftime('%d.%m') if earned_milestone[0].date else '' }}</span>
+                {% if onboarding_focus == 'grammar' %}
+                    {{ grammar_card }}{{ words_card }}{{ courses_card }}{{ books_card }}
+                {% elif onboarding_focus == 'reading' %}
+                    {{ books_card }}{{ words_card }}{{ grammar_card }}{{ courses_card }}
+                {% elif onboarding_focus == 'vocabulary' %}
+                    {{ words_card }}{{ grammar_card }}{{ books_card }}{{ courses_card }}
                 {% else %}
-                <span class="dash-milestones__pending">&#8212;</span>
+                    {{ words_card }}{{ grammar_card }}{{ courses_card }}{{ books_card }}
                 {% endif %}
             </div>
-            {% endfor %}
         </div>
-    </div>
-    {% endif %}
 
-    <!-- Reading Speed Trend & Grammar by Level -->
-    {% set has_grammar_levels = grammar_levels_summary and grammar_levels_summary|selectattr('topic_count', 'greaterthan', 0)|list %}
-    {% if reading_speed_trend or has_grammar_levels %}
+        {% if has_grammar_levels %}
+        <div class="dash-grammar-levels">
+            <h3 class="dash-grammar-levels__heading">&#128218; Грамматика по уровням</h3>
+            <div class="dash-grammar-levels__list">
+                {% for lvl in grammar_levels_summary %}
+                {% if lvl.topic_count > 0 %}
+                <div class="dash-grammar-levels__row">
+                    <span class="dash-grammar-levels__label">{{ lvl.level }}</span>
+                    <div class="dash-grammar-levels__bar">
+                        <div class="dash-grammar-levels__fill" style="width: {{ lvl.progress_pct }}%"></div>
+                    </div>
+                    <span class="dash-grammar-levels__count">{{ lvl.exercises_mastered }}/{{ lvl.exercises_total }}</span>
+                    <span class="dash-grammar-levels__pct">{{ lvl.progress_pct }}%</span>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Section 7: Social row - Leaderboard + Achievements -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+        <h2 class="dash-section__heading">Сообщество</h2>
+    </div>
+    <div class="dash-social-row">
+        {% if xp_leaderboard %}
+        <div class="dash-leaderboard">
+            <h3 class="dash-leaderboard__heading">&#127942; Лидеры по XP</h3>
+            <div class="dash-leaderboard__list">
+                {% for entry in xp_leaderboard %}
+                <div class="dash-leaderboard__row{% if entry.id == current_user.id %} dash-leaderboard__highlight{% endif %}">
+                    <span class="dash-leaderboard__rank">{{ loop.index }}</span>
+                    <span class="dash-leaderboard__avatar">{{ entry.username[:1]|upper }}</span>
+                    <span class="dash-leaderboard__name">{{ entry.username }}</span>
+                    <span class="dash-leaderboard__xp">{{ entry.total_xp }} XP</span>
+                    <span class="dash-leaderboard__level">Ур.&nbsp;{{ entry.level }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% if user_xp_rank and user_xp_rank > 5 %}
+            <div class="dash-leaderboard__you">Вы на {{ user_xp_rank }}-м месте</div>
+            {% endif %}
+            <a href="{{ url_for('study.leaderboard') }}" class="dash-leaderboard__link">Полный рейтинг &rarr;</a>
+        </div>
+        {% else %}
+        <div class="dash-empty">
+            <span class="dash-empty__icon">&#127942;</span>
+            <span class="dash-empty__text">Лидерборд пока пуст. Зарабатывайте XP!</span>
+        </div>
+        {% endif %}
+
+        {% if achievements_by_category and achievements_by_category.by_category %}
+        <div class="dash-achievements">
+            <h3 class="dash-achievements__heading">&#127941; Достижения</h3>
+            <div class="dash-achievements__summary">
+                <span class="dash-achievements__count">{{ achievements_by_category.earned_count }} / {{ achievements_by_category.total_achievements }}</span>
+                <span class="dash-achievements__pct">{{ achievements_by_category.progress_percentage }}%</span>
+            </div>
+            <div class="dash-achievements__categories">
+                {% for category, items in achievements_by_category.by_category.items() %}
+                {% set earned_in_cat = items|selectattr('earned')|list|length %}
+                {% set total_in_cat = items|length %}
+                {% set pct = (earned_in_cat / total_in_cat * 100)|round|int if total_in_cat > 0 else 0 %}
+                <div class="dash-achievements__cat">
+                    <div class="dash-achievements__ring" style="--pct: {{ pct }}">
+                        <svg viewBox="0 0 36 36" class="dash-achievements__svg">
+                            <circle cx="18" cy="18" r="15.9" class="dash-achievements__track"></circle>
+                            <circle cx="18" cy="18" r="15.9" class="dash-achievements__fill" stroke-dasharray="{{ pct }}, 100"></circle>
+                        </svg>
+                        <span class="dash-achievements__ring-text">{{ earned_in_cat }}/{{ total_in_cat }}</span>
+                    </div>
+                    <span class="dash-achievements__cat-name">{{ category }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% set recent_unlocks = [] %}
+            {% for category, items in achievements_by_category.by_category.items() %}
+                {% for item in items if item.earned and item.earned_at %}
+                    {% if recent_unlocks.append(item) %}{% endif %}
+                {% endfor %}
+            {% endfor %}
+            {% if recent_unlocks %}
+            <div class="dash-achievements__recent">
+                <h4 class="dash-achievements__recent-title">Недавние</h4>
+                {% for item in recent_unlocks|sort(attribute='earned_at', reverse=true)|batch(3)|first %}
+                <div class="dash-achievements__unlock">
+                    <span class="dash-achievements__unlock-icon">{{ item.achievement.icon if item.achievement.icon else '&#127942;' }}</span>
+                    <span class="dash-achievements__unlock-name">{{ item.achievement.name }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="dash-empty">
+            <span class="dash-empty__icon">&#127941;</span>
+            <span class="dash-empty__text">Достижения появятся по мере обучения</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Section 8: Insights row - Reading Speed + Streak Milestones -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+        <h2 class="dash-section__heading">Аналитика</h2>
+    </div>
     <div class="dash-insights-row">
         {% if reading_speed_trend %}
         <div class="dash-reading-speed">
@@ -790,31 +835,44 @@
                 <span>{{ reading_speed_trend[-1].week }}</span>
             </div>
         </div>
+        {% else %}
+        <div class="dash-empty">
+            <span class="dash-empty__icon">&#128214;</span>
+            <span class="dash-empty__text">Читайте книги, чтобы отслеживать скорость чтения</span>
+        </div>
         {% endif %}
 
-        {% if has_grammar_levels %}
-        <div class="dash-grammar-levels">
-            <h3 class="dash-grammar-levels__heading">&#128218; Грамматика по уровням</h3>
-            <div class="dash-grammar-levels__list">
-                {% for lvl in grammar_levels_summary %}
-                {% if lvl.topic_count > 0 %}
-                <div class="dash-grammar-levels__row">
-                    <span class="dash-grammar-levels__label">{{ lvl.level }}</span>
-                    <div class="dash-grammar-levels__bar">
-                        <div class="dash-grammar-levels__fill" style="width: {{ lvl.progress_pct }}%"></div>
-                    </div>
-                    <span class="dash-grammar-levels__count">{{ lvl.exercises_mastered }}/{{ lvl.exercises_total }}</span>
-                    <span class="dash-grammar-levels__pct">{{ lvl.progress_pct }}%</span>
+        {% if milestone_history %}
+        <div class="dash-milestones">
+            <h3 class="dash-milestones__heading">&#128293; Вехи серии</h3>
+            <div class="dash-milestones__timeline">
+                {% set milestone_targets = [7, 14, 30, 60, 100] %}
+                {% set earned_streaks = milestone_history|map(attribute='streak')|list %}
+                {% for target in milestone_targets %}
+                {% set earned_milestone = milestone_history|selectattr('streak', 'equalto', target)|list %}
+                <div class="dash-milestones__item{% if earned_milestone %} dash-milestones__item--earned{% elif target == milestone_targets|select('greaterthan', earned_streaks|max|default(0))|first|default(0) %} dash-milestones__item--next{% endif %}">
+                    <span class="dash-milestones__days">{{ target }}д</span>
+                    {% if earned_milestone %}
+                    <span class="dash-milestones__date">{{ earned_milestone[0].date.strftime('%d.%m') if earned_milestone[0].date else '' }}</span>
+                    {% else %}
+                    <span class="dash-milestones__pending">&#8212;</span>
+                    {% endif %}
                 </div>
-                {% endif %}
                 {% endfor %}
             </div>
         </div>
+        {% else %}
+        <div class="dash-empty">
+            <span class="dash-empty__icon">&#128293;</span>
+            <span class="dash-empty__text">Занимайтесь каждый день для достижения вех серии</span>
+        </div>
         {% endif %}
     </div>
-    {% endif %}
 
-    <!-- Quick Actions -->
+    <!-- Section 9: Quick Actions -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+    </div>
     <div class="dash-quick">
         <h3 class="dash-quick__title">&#1041;&#1099;&#1089;&#1090;&#1088;&#1099;&#1077; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1103;</h3>
         <div class="dash-quick__grid">
@@ -1525,13 +1583,12 @@
    Progress Overview
    ============================================ */
 
-.dash-progress {
-    margin-bottom: 1.5rem;
+.dash-progress-overview {
     animation: dashSlideUp 0.45s ease-out both;
     animation-delay: 0.2s;
 }
 
-.dash-progress__heading {
+.dash-progress-overview__heading {
     font-size: 0.75rem;
     font-weight: 700;
     color: var(--dash-text-muted);
@@ -1540,7 +1597,7 @@
     margin: 0 0 0.75rem;
 }
 
-.dash-progress__grid {
+.dash-progress-overview__grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
@@ -1628,10 +1685,7 @@
     border: 1px solid var(--dash-border);
     border-radius: var(--dash-radius);
     padding: 1.25rem 1.5rem;
-    margin-bottom: 1.5rem;
     box-shadow: var(--dash-shadow);
-    animation: dashSlideUp 0.45s ease-out both;
-    animation-delay: 0.25s;
 }
 
 .dash-leaderboard__heading {
@@ -1768,9 +1822,7 @@
     border: 1px solid var(--dash-border);
     border-radius: var(--dash-radius);
     padding: 1.25rem 1.5rem;
-    margin-bottom: 1.25rem;
-    animation: dashSlideUp 0.5s ease-out both;
-    animation-delay: 0.25s;
+    box-shadow: var(--dash-shadow);
 }
 
 .dash-achievements__heading {
@@ -1895,9 +1947,7 @@
     border: 1px solid var(--dash-border);
     border-radius: var(--dash-radius);
     padding: 1.25rem 1.5rem;
-    margin-bottom: 1.25rem;
-    animation: dashSlideUp 0.5s ease-out both;
-    animation-delay: 0.25s;
+    box-shadow: var(--dash-shadow);
 }
 
 .dash-milestones__heading {
@@ -1998,6 +2048,103 @@
 }
 
 /* ============================================
+   Section Dividers & Headings
+   ============================================ */
+
+.dash-section {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.dash-section__divider {
+    height: 1px;
+    background: var(--dash-border);
+    margin-bottom: 0.75rem;
+}
+
+.dash-section__heading {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0;
+}
+
+/* ============================================
+   Progress Row (Progress + Grammar Levels)
+   ============================================ */
+
+.dash-progress-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+    animation: dashSlideUp 0.45s ease-out both;
+    animation-delay: 0.2s;
+}
+
+@media (max-width: 640px) {
+    .dash-progress-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+/* ============================================
+   Social Row (Leaderboard + Achievements)
+   ============================================ */
+
+.dash-social-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+    animation: dashSlideUp 0.45s ease-out both;
+    animation-delay: 0.25s;
+}
+
+@media (max-width: 640px) {
+    .dash-social-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+
+.dash-empty {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    box-shadow: var(--dash-shadow);
+    margin-bottom: 1.5rem;
+}
+
+.dash-empty__icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.dash-empty__text {
+    font-size: 0.875rem;
+    color: var(--dash-text-muted);
+    line-height: 1.4;
+}
+
+.dash-social-row > .dash-empty,
+.dash-insights-row > .dash-empty {
+    margin-bottom: 0;
+}
+
+/* ============================================
    Quick Actions
    ============================================ */
 
@@ -2090,7 +2237,7 @@
 
     .dash-summary__grid { gap: 1rem; }
 
-    .dash-progress__grid { grid-template-columns: 1fr; }
+    .dash-progress-overview__grid { grid-template-columns: 1fr; }
     .dash-quick__grid { grid-template-columns: repeat(2, 1fr); }
 }
 

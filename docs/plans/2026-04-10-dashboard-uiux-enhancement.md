@@ -116,7 +116,7 @@ Enrich the existing dashboard with new data-driven widgets that surface the app'
 - Modify: `app/templates/dashboard.html`
 - Modify: `app/static/css/design-system.css`
 
-- [ ] Reorganize the full dashboard layout into logical sections with clear visual hierarchy:
+- [x] Reorganize the full dashboard layout into logical sections with clear visual hierarchy:
   - Section 1: Hero (greeting, streak, XP) - keep existing
   - Section 2: Daily Plan - keep existing
   - Section 3: Activity Heatmap (full width)
@@ -126,10 +126,10 @@ Enrich the existing dashboard with new data-driven widgets that surface the app'
   - Section 7: Social row - Leaderboard + Achievements (2-col)
   - Section 8: Insights row - Reading Speed + Streak Milestones (2-col)
   - Section 9: Quick Actions - keep existing
-- [ ] Add section headings with subtle dividers between groups
-- [ ] Ensure responsive layout: 2-col sections collapse to 1-col on mobile (<=640px)
-- [ ] Handle empty states gracefully for all new widgets (no data = friendly message, not broken UI)
-- [ ] Write template rendering tests (authenticated client GET, verify all sections render)
+- [x] Add section headings with subtle dividers between groups
+- [x] Ensure responsive layout: 2-col sections collapse to 1-col on mobile (<=640px)
+- [x] Handle empty states gracefully for all new widgets (no data = friendly message, not broken UI)
+- [x] Write template rendering tests (authenticated client GET, verify all sections render)
 
 ### Task 8: Performance Optimization
 
