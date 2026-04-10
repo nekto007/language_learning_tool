@@ -65,7 +65,11 @@
                         {% if streak in milestones %}
                         <span class="dash-streak__milestone" id="milestone-badge">{{ milestones[streak] }}</span>
                         {% if current_user.referral_code %}
-                        <button class="dash-streak__share-btn" onclick="shareVia('telegram', {{ ('Моя серия: ' ~ streak ~ ' дней подряд! ' ~ milestones[streak])|tojson }}, window.location.origin + '/register?ref=' + {{ current_user.referral_code|tojson }})" title="Поделиться">
+                        <button class="dash-streak__share-btn"
+                                data-share-text="{{ ('Моя серия: ' ~ streak ~ ' дней подряд! ' ~ milestones[streak])|e }}"
+                                data-share-ref="{{ current_user.referral_code|e }}"
+                                onclick="shareVia('telegram', this.dataset.shareText, window.location.origin + '/register?ref=' + this.dataset.shareRef)"
+                                title="Поделиться">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
                         </button>
                         {% endif %}
