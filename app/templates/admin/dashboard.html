@@ -6,638 +6,372 @@
 {% block content %}
 {{ page_header('Панель управления', 'Добро пожаловать! Вот что происходит на вашей платформе.', show_date=true, date_str=now().strftime('%d %B %Y')) }}
 
-<!-- Stats Cards -->
-<div class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Всего пользователей', total_users, 'fa-users', 'primary') }}
+<!-- Top-level KPIs (always visible) -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-xl-3">
+        {{ stat_card('Пользователей', total_users, 'fa-users', 'primary') }}
     </div>
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Активных', active_users, 'fa-user-check', 'success') }}
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Новых (7 дней)', new_users, 'fa-user-plus', 'info') }}
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Недавно активных', active_recently, 'fa-clock', 'warning') }}
-    </div>
-</div>
-
-<!-- Engagement Metrics: DAU / WAU / MAU -->
-<div class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-4">
-        {{ stat_card('DAU (сегодня)', engagement.dau, 'fa-user-clock', 'info',
+    <div class="col-6 col-xl-3">
+        {{ stat_card('DAU', engagement.dau, 'fa-user-clock', 'info',
                       trend=engagement.dau_trend, trend_value=engagement.dau_trend_value) }}
     </div>
-    <div class="col-sm-6 col-xl-4">
-        {{ stat_card('WAU (7 дней)', engagement.wau, 'fa-calendar-week', 'primary',
+    <div class="col-6 col-xl-3">
+        {{ stat_card('WAU', engagement.wau, 'fa-calendar-week', 'primary',
                       trend=engagement.wau_trend, trend_value=engagement.wau_trend_value) }}
     </div>
-    <div class="col-sm-6 col-xl-4">
-        {{ stat_card('MAU (30 дней)', engagement.mau, 'fa-calendar-alt', 'success',
+    <div class="col-6 col-xl-3">
+        {{ stat_card('MAU', engagement.mau, 'fa-calendar-alt', 'success',
                       trend=engagement.mau_trend, trend_value=engagement.mau_trend_value) }}
     </div>
 </div>
 
-<!-- Learning Metrics -->
-<div class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Уроков сегодня', learning.lessons_today, 'fa-graduation-cap', 'success') }}
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Уроков за неделю', learning.lessons_week, 'fa-book-open', 'primary') }}
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Средний балл', learning.avg_lesson_score, 'fa-star', 'warning') }}
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Сессий сегодня', learning.sessions_today, 'fa-play-circle', 'info') }}
-    </div>
+<!-- System Health bar (compact, always visible) -->
+<div class="d-flex align-items-center gap-3 mb-3 small text-muted">
+    <span><i class="fas fa-heartbeat me-1"></i>БД: {% if system_health.db_status == 'ok' %}<span class="text-success">OK</span>{% else %}<span class="text-danger">Ошибка</span>{% endif %}</span>
+    <span>Uptime: {{ (system_health.uptime_seconds // 3600) }}ч {{ (system_health.uptime_seconds % 3600 // 60) }}м</span>
+    <span>5xx: <span class="{% if system_health.errors_5xx > 0 %}text-danger fw-bold{% endif %}">{{ system_health.errors_5xx }}</span></span>
+    {% if content_alerts %}<span class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>{{ content_alerts|length }} оповещений</span>{% endif %}
 </div>
 
-<div class="row g-4">
-    <!-- User Activity Chart -->
-    <div class="col-lg-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-chart-line me-2 text-muted"></i>Активность пользователей</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="activityChart" height="100"></canvas>
-            </div>
-        </div>
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-3" role="tablist">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-overview" role="tab">Обзор</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-content" role="tab">Контент</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-users" role="tab">Пользователи</a></li>
+</ul>
+
+<div class="tab-content">
+
+<!-- ═══════════════ TAB: Overview ═══════════════ -->
+<div class="tab-pane fade show active" id="tab-overview" role="tabpanel">
+
+    <!-- Learning Metrics -->
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-xl-3">{{ stat_card('Уроков сегодня', learning.lessons_today, 'fa-graduation-cap', 'success') }}</div>
+        <div class="col-6 col-xl-3">{{ stat_card('Уроков за неделю', learning.lessons_week, 'fa-book-open', 'primary') }}</div>
+        <div class="col-6 col-xl-3">{{ stat_card('Средний балл', learning.avg_lesson_score, 'fa-star', 'warning') }}</div>
+        <div class="col-6 col-xl-3">{{ stat_card('Сессий сегодня', learning.sessions_today, 'fa-play-circle', 'info') }}</div>
     </div>
 
-    <!-- Platform Stats -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-chart-pie me-2 text-muted"></i>Статистика платформы</h5>
-            </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('Всего книг', total_books, 'fa-book'),
-                    ('Уникальных слов в книгах', "{:,}".format(total_readings), 'fa-book-reader'),
-                    ('Всего слов', "{:,}".format(words_total), 'fa-spell-check'),
-                    ('Слов с аудио', "{:,}".format(words_with_audio), 'fa-volume-up'),
-                    ('Всего уроков', total_lessons, 'fa-file-alt'),
-                    ('Активных уроков', active_lessons, 'fa-check-circle')
-                ]) }}
-
-                <hr class="my-3">
-
-                <canvas id="progressChart" height="200"></canvas>
+    <div class="row g-4">
+        <!-- Chart -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-chart-line me-2 text-muted"></i>Активность (30 дней)</h5></div>
+                <div class="card-body"><canvas id="activityChart" height="100"></canvas></div>
             </div>
         </div>
-    </div>
-</div>
-
-<!-- Content & SRS Metrics -->
-<div class="row g-4 mt-2">
-    <!-- Content Metrics -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-cubes me-2 text-muted"></i>Контент</h5>
-            </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('Грамматических тем', content.grammar_topics_count, 'fa-language'),
-                    ('Книжных курсов', content.book_courses_count, 'fa-book'),
-                    ('Записей на курсы', content.enrollments_count, 'fa-user-graduate'),
-                    ('Колод карточек', content.active_decks, 'fa-layer-group')
-                ]) }}
-            </div>
-        </div>
-    </div>
-
-    <!-- SRS Health: Words -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-spell-check me-2 text-muted"></i>SRS: Слова ({{ srs_health.words_srs.total }})</h5>
-            </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('Новые', srs_health.words_srs.new, 'fa-plus-circle'),
-                    ('Изучаемые', srs_health.words_srs.learning, 'fa-spinner'),
-                    ('Повторяемые', srs_health.words_srs.review, 'fa-redo'),
-                    ('Выучены', srs_health.words_srs.mastered, 'fa-check-double')
-                ]) }}
-                {% if srs_health.words_srs.total > 0 %}
-                <div class="progress mt-3" style="height: 8px;">
-                    <div class="progress-bar bg-secondary" style="width: {{ (srs_health.words_srs.new / srs_health.words_srs.total * 100) | round(1) }}%" title="Новые"></div>
-                    <div class="progress-bar bg-warning" style="width: {{ (srs_health.words_srs.learning / srs_health.words_srs.total * 100) | round(1) }}%" title="Изучаемые"></div>
-                    <div class="progress-bar bg-info" style="width: {{ (srs_health.words_srs.review / srs_health.words_srs.total * 100) | round(1) }}%" title="Повторяемые"></div>
-                    <div class="progress-bar bg-success" style="width: {{ (srs_health.words_srs.mastered / srs_health.words_srs.total * 100) | round(1) }}%" title="Выучены"></div>
+        <!-- Platform Stats -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-chart-pie me-2 text-muted"></i>Платформа</h5></div>
+                <div class="card-body">
+                    {{ quick_stats([
+                        ('Книг', total_books, 'fa-book'),
+                        ('Слов', "{:,}".format(words_total), 'fa-spell-check'),
+                        ('Слов с аудио', "{:,}".format(words_with_audio), 'fa-volume-up'),
+                        ('Уроков', total_lessons, 'fa-file-alt')
+                    ]) }}
+                    <canvas id="progressChart" height="160" class="mt-3"></canvas>
                 </div>
-                {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- SRS Health: Grammar -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-language me-2 text-muted"></i>SRS: Грамматика ({{ srs_health.grammar_srs.total }})</h5>
-            </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('Новые', srs_health.grammar_srs.new, 'fa-plus-circle'),
-                    ('Изучаемые', srs_health.grammar_srs.learning, 'fa-spinner'),
-                    ('Повторяемые', srs_health.grammar_srs.review, 'fa-redo'),
-                    ('Выучены', srs_health.grammar_srs.mastered, 'fa-check-double')
-                ]) }}
-                {% if srs_health.grammar_srs.total > 0 %}
-                <div class="progress mt-3" style="height: 8px;">
-                    <div class="progress-bar bg-secondary" style="width: {{ (srs_health.grammar_srs.new / srs_health.grammar_srs.total * 100) | round(1) }}%" title="Новые"></div>
-                    <div class="progress-bar bg-warning" style="width: {{ (srs_health.grammar_srs.learning / srs_health.grammar_srs.total * 100) | round(1) }}%" title="Изучаемые"></div>
-                    <div class="progress-bar bg-info" style="width: {{ (srs_health.grammar_srs.review / srs_health.grammar_srs.total * 100) | round(1) }}%" title="Повторяемые"></div>
-                    <div class="progress-bar bg-success" style="width: {{ (srs_health.grammar_srs.mastered / srs_health.grammar_srs.total * 100) | round(1) }}%" title="Выучены"></div>
+</div>
+
+<!-- ═══════════════ TAB: Content ═══════════════ -->
+<div class="tab-pane fade" id="tab-content" role="tabpanel">
+
+    <!-- Content + SRS -->
+    <div class="row g-3 mb-3">
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-cubes me-2 text-muted"></i>Контент</h5></div>
+                <div class="card-body">
+                    {{ quick_stats([
+                        ('Грамм. тем', content.grammar_topics_count, 'fa-language'),
+                        ('Книж. курсов', content.book_courses_count, 'fa-book'),
+                        ('Записей', content.enrollments_count, 'fa-user-graduate'),
+                        ('Колод', content.active_decks, 'fa-layer-group')
+                    ]) }}
                 </div>
-                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-spell-check me-2 text-muted"></i>SRS: Слова ({{ srs_health.words_srs.total }})</h5></div>
+                <div class="card-body">
+                    {{ quick_stats([('Новые', srs_health.words_srs.new, 'fa-plus-circle'), ('Изуч.', srs_health.words_srs.learning, 'fa-spinner'), ('Повт.', srs_health.words_srs.review, 'fa-redo'), ('Выуч.', srs_health.words_srs.mastered, 'fa-check-double')]) }}
+                    {% if srs_health.words_srs.total > 0 %}
+                    <div class="progress mt-2" style="height: 6px;">
+                        <div class="progress-bar bg-secondary" style="width: {{ (srs_health.words_srs.new / srs_health.words_srs.total * 100)|round(1) }}%"></div>
+                        <div class="progress-bar bg-warning" style="width: {{ (srs_health.words_srs.learning / srs_health.words_srs.total * 100)|round(1) }}%"></div>
+                        <div class="progress-bar bg-info" style="width: {{ (srs_health.words_srs.review / srs_health.words_srs.total * 100)|round(1) }}%"></div>
+                        <div class="progress-bar bg-success" style="width: {{ (srs_health.words_srs.mastered / srs_health.words_srs.total * 100)|round(1) }}%"></div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-language me-2 text-muted"></i>SRS: Грамматика ({{ srs_health.grammar_srs.total }})</h5></div>
+                <div class="card-body">
+                    {{ quick_stats([('Новые', srs_health.grammar_srs.new, 'fa-plus-circle'), ('Изуч.', srs_health.grammar_srs.learning, 'fa-spinner'), ('Повт.', srs_health.grammar_srs.review, 'fa-redo'), ('Выуч.', srs_health.grammar_srs.mastered, 'fa-check-double')]) }}
+                    {% if srs_health.grammar_srs.total > 0 %}
+                    <div class="progress mt-2" style="height: 6px;">
+                        <div class="progress-bar bg-secondary" style="width: {{ (srs_health.grammar_srs.new / srs_health.grammar_srs.total * 100)|round(1) }}%"></div>
+                        <div class="progress-bar bg-warning" style="width: {{ (srs_health.grammar_srs.learning / srs_health.grammar_srs.total * 100)|round(1) }}%"></div>
+                        <div class="progress-bar bg-info" style="width: {{ (srs_health.grammar_srs.review / srs_health.grammar_srs.total * 100)|round(1) }}%"></div>
+                        <div class="progress-bar bg-success" style="width: {{ (srs_health.grammar_srs.mastered / srs_health.grammar_srs.total * 100)|round(1) }}%"></div>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Quality + Alerts + Problem Lessons -->
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-clipboard-check me-2 text-muted"></i>Качество</h5></div>
+                <div class="card-body">
+                    {{ quick_stats([
+                        ('Низкий % прох.', content_quality.low_pass_count, 'fa-exclamation-circle'),
+                        ('Без завершений', content_quality.zero_completions_count, 'fa-times-circle'),
+                        ('Без упражнений', content_quality.zero_exercises_count, 'fa-question-circle')
+                    ]) }}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-bug me-2 text-muted"></i>Проблемные уроки</h5></div>
+                <div class="card-body p-0">
+                    {% if content_quality.low_pass_lessons %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead><tr><th>ID</th><th>Модуль</th><th>Тип</th><th>Прох.%</th><th>Попыток</th><th>Балл</th></tr></thead>
+                            <tbody>
+                                {% for lesson in content_quality.low_pass_lessons[:10] %}
+                                <tr>
+                                    <td>#{{ lesson.lesson_id }}</td>
+                                    <td>{{ lesson.module_id }}</td>
+                                    <td><span class="badge bg-secondary">{{ lesson.type }}</span></td>
+                                    <td><span class="text-danger fw-bold">{{ lesson.pass_rate }}%</span></td>
+                                    <td>{{ lesson.attempts }}</td>
+                                    <td>{{ lesson.avg_score }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}<div class="p-3 text-muted">Нет проблемных уроков</div>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if content_alerts %}
+    <div class="card mt-3 border-warning">
+        <div class="card-header bg-warning bg-opacity-10"><h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2 text-warning"></i>Оповещения ({{ content_alerts|length }})</h5></div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                {% for alert in content_alerts %}
+                <div class="list-group-item py-2">
+                    {% if alert.severity == 'high' %}<span class="badge bg-danger me-2">!</span>{% elif alert.severity == 'medium' %}<span class="badge bg-warning me-2">!</span>{% else %}<span class="badge bg-info me-2">i</span>{% endif %}
+                    <strong>{{ alert.message }}</strong> <small class="text-muted ms-1">{{ alert.action }}</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 
-<!-- Retention & Streaks -->
-<div class="row g-4 mt-2">
-    <!-- Retention Rates -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-user-clock me-2 text-muted"></i>Удержание</h5>
+<!-- ═══════════════ TAB: Users ═══════════════ -->
+<div class="tab-pane fade" id="tab-users" role="tabpanel">
+
+    <!-- Retention + Streaks + Coins -->
+    <div class="row g-3 mb-3">
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-user-clock me-2 text-muted"></i>Удержание</h5></div>
+                <div class="card-body">
+                    {{ quick_stats([('День 1', retention.d1|string + '%', 'fa-calendar-day'), ('День 7', retention.d7|string + '%', 'fa-calendar-week'), ('День 30', retention.d30|string + '%', 'fa-calendar-alt')]) }}
+                </div>
             </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('День 1', retention.d1|string + '%', 'fa-calendar-day'),
-                    ('День 7', retention.d7|string + '%', 'fa-calendar-week'),
-                    ('День 30', retention.d30|string + '%', 'fa-calendar-alt')
-                ]) }}
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-fire me-2 text-muted"></i>Серии</h5></div>
+                <div class="card-body">
+                    {{ quick_stats([('Активных', streaks.active_streaks, 'fa-fire-alt'), ('Средняя', streaks.avg_streak, 'fa-chart-bar'), ('Рекорд', streaks.longest_overall, 'fa-trophy')]) }}
+                    {% if streaks.distribution %}<canvas id="streakDistChart" height="120" class="mt-2"></canvas>{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-coins me-2 text-muted"></i>Монеты</h5></div>
+                <div class="card-body">
+                    {{ quick_stats([('В обращении', coins.total_balance, 'fa-wallet'), ('Заработано', coins.total_earned, 'fa-arrow-up'), ('Потрачено', coins.total_spent, 'fa-arrow-down'), ('С монетами', coins.users_with_coins, 'fa-user-tag')]) }}
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Streak Analytics -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-fire me-2 text-muted"></i>Серии (Streaks)</h5>
+    <!-- Referrals -->
+    <div class="row g-3 mb-3">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-user-friends me-2 text-muted"></i>Рефералы</h5></div>
+                <div class="card-body">
+                    {{ quick_stats([('Всего', referrals.total_referrals, 'fa-share-alt'), ('Приглашённых', referrals.referred_count, 'fa-user-plus'), ('Прошли онбординг', referrals.converted, 'fa-check-circle'), ('Конверсия', referrals.conversion_rate|string + '%', 'fa-percentage')]) }}
+                </div>
             </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('Активных серий', streaks.active_streaks, 'fa-fire-alt'),
-                    ('Средняя длина', streaks.avg_streak, 'fa-chart-bar'),
-                    ('Рекорд', streaks.longest_overall, 'fa-trophy')
-                ]) }}
-                {% if streaks.distribution %}
-                <canvas id="streakDistChart" height="150" class="mt-3"></canvas>
-                {% endif %}
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-medal me-2 text-muted"></i>Топ рефереров</h5></div>
+                <div class="card-body">
+                    {% if referrals.top_referrers %}
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>#</th><th>Пользователь</th><th>Рефералов</th></tr></thead>
+                        <tbody>
+                            {% for ref in referrals.top_referrers %}<tr><td>{{ loop.index }}</td><td>{{ ref.username }}</td><td><span class="badge bg-primary">{{ ref.count }}</span></td></tr>{% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}<p class="text-muted mb-0">Нет рефералов</p>{% endif %}
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Coin Economy -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-coins me-2 text-muted"></i>Экономика монет</h5>
-            </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('В обращении', coins.total_balance, 'fa-wallet'),
-                    ('Всего заработано', coins.total_earned, 'fa-arrow-up'),
-                    ('Всего потрачено', coins.total_spent, 'fa-arrow-down'),
-                    ('Пользователей с монетами', coins.users_with_coins, 'fa-user-tag')
-                ]) }}
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Referral Analytics -->
-<div class="row g-4 mt-2">
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-user-friends me-2 text-muted"></i>Рефералы</h5>
-            </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('Всего рефералов', referrals.total_referrals, 'fa-share-alt'),
-                    ('Приглашённых', referrals.referred_count, 'fa-user-plus'),
-                    ('Прошли онбординг', referrals.converted, 'fa-check-circle'),
-                    ('Конверсия', referrals.conversion_rate|string + '%', 'fa-percentage')
-                ]) }}
-            </div>
+    <!-- Search + At-Risk + Recent Users -->
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <form method="GET" action="{{ url_for('user_admin.users') }}" class="row g-2 align-items-center">
+                <div class="col-auto"><i class="fas fa-search text-muted"></i></div>
+                <div class="col"><input type="text" class="form-control form-control-sm" name="search" placeholder="Поиск по имени или email..."></div>
+                <div class="col-auto"><button type="submit" class="btn btn-sm btn-primary">Найти</button></div>
+            </form>
         </div>
     </div>
 
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-medal me-2 text-muted"></i>Топ рефереров</h5>
-            </div>
-            <div class="card-body">
-                {% if referrals.top_referrers %}
-                <table class="table table-sm mb-0">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Пользователь</th>
-                            <th>Рефералов</th>
-                        </tr>
-                    </thead>
+    {% if at_risk_users %}
+    <div class="card mb-3 border-warning">
+        <div class="card-header bg-warning bg-opacity-10 py-2">
+            <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-1 text-warning"></i>В зоне риска ({{ at_risk_users|length }})</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead><tr><th>Имя</th><th>Последний вход</th><th>Макс. серия</th><th>Тек. серия</th><th></th></tr></thead>
                     <tbody>
-                        {% for ref in referrals.top_referrers %}
+                        {% for u in at_risk_users %}
                         <tr>
-                            <td>{{ loop.index }}</td>
-                            <td>{{ ref.username }}</td>
-                            <td><span class="badge bg-primary">{{ ref.count }}</span></td>
+                            <td><a href="{{ url_for('user_admin.user_detail', user_id=u.id) }}"><strong>{{ u.username }}</strong></a></td>
+                            <td>{% if u.last_login %}{{ u.last_login.strftime('%d %b') }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                            <td><span class="badge bg-info">{{ u.longest_streak }}д</span></td>
+                            <td><span class="badge bg-{{ 'success' if u.current_streak > 0 else 'secondary' }}">{{ u.current_streak }}д</span></td>
+                            <td><a href="{{ url_for('user_admin.user_detail', user_id=u.id) }}" class="btn btn-sm btn-outline-primary py-0"><i class="fas fa-eye"></i></a></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-                {% else %}
-                <p class="text-muted mb-0">Нет рефералов</p>
-                {% endif %}
             </div>
         </div>
     </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center py-2">
+            <h6 class="mb-0"><i class="fas fa-users me-2 text-muted"></i>Последние пользователи</h6>
+            <a href="{{ url_for('user_admin.users') }}" class="btn btn-sm btn-outline-primary py-0">Все <i class="fas fa-arrow-right ms-1"></i></a>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead><tr><th>ID</th><th>Имя</th><th>Email</th><th>Регистрация</th><th>Посл. вход</th><th>Статус</th><th></th></tr></thead>
+                    <tbody>
+                        {% for user in recent_users[:5] %}
+                        <tr>
+                            <td class="text-muted">#{{ user.id }}</td>
+                            <td><a href="{{ url_for('user_admin.user_detail', user_id=user.id) }}"><strong>{{ user.username }}</strong></a></td>
+                            <td>{{ user.email or '-' }}</td>
+                            <td>{{ user.created_at.strftime('%d %b') }}</td>
+                            <td>{% if user.last_login %}{{ user.last_login.strftime('%d %b') }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                            <td>{{ status_badge('Активен' if user.active else 'Неакт.', 'success' if user.active else 'danger') }}{% if user.is_admin %} {{ status_badge('Админ', 'info') }}{% endif %}</td>
+                            <td>
+                                <a href="{{ url_for('user_admin.user_detail', user_id=user.id) }}" class="btn btn-sm btn-outline-primary py-0"><i class="fas fa-eye"></i></a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
 </div>
 
-<!-- Content Alerts -->
-{% if content_alerts %}
-<div class="row g-4 mt-2">
-    <div class="col-12">
-        <div class="card border-warning">
-            <div class="card-header bg-warning bg-opacity-10">
-                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2 text-warning"></i>Оповещения ({{ content_alerts|length }})</h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="list-group list-group-flush">
-                    {% for alert in content_alerts %}
-                    <div class="list-group-item">
-                        <div class="d-flex align-items-center">
-                            {% if alert.severity == 'high' %}
-                            <span class="badge bg-danger me-2">Высокий</span>
-                            {% elif alert.severity == 'medium' %}
-                            <span class="badge bg-warning me-2">Средний</span>
-                            {% else %}
-                            <span class="badge bg-info me-2">Низкий</span>
-                            {% endif %}
-                            <div>
-                                <strong>{{ alert.message }}</strong>
-                                <br><small class="text-muted">{{ alert.action }}</small>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!-- Content Quality & System Health -->
-<div class="row g-4 mt-2">
-    <!-- Content Quality Summary -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-clipboard-check me-2 text-muted"></i>Качество контента</h5>
-            </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('Уроков с низким % прохождения', content_quality.low_pass_count, 'fa-exclamation-circle'),
-                    ('Уроков без завершений', content_quality.zero_completions_count, 'fa-times-circle'),
-                    ('Грамм. тем без упражнений', content_quality.zero_exercises_count, 'fa-question-circle')
-                ]) }}
-            </div>
-        </div>
-    </div>
-
-    <!-- System Health -->
-    <div class="col-lg-2">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-heartbeat me-2 text-muted"></i>Система</h5>
-            </div>
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="me-2">БД:</span>
-                    {% if system_health.db_status == 'ok' %}
-                    <span class="badge bg-success">OK</span>
-                    {% else %}
-                    <span class="badge bg-danger">Ошибка</span>
-                    {% endif %}
-                </div>
-                <div class="d-flex align-items-center mb-2">
-                    <span class="me-2">Uptime:</span>
-                    <span class="text-muted">{{ (system_health.uptime_seconds // 3600) }}ч {{ (system_health.uptime_seconds % 3600 // 60) }}м</span>
-                </div>
-                <div class="d-flex align-items-center">
-                    <span class="me-2">5xx:</span>
-                    <span class="{% if system_health.errors_5xx > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">{{ system_health.errors_5xx }} <small class="text-muted">(worker)</small></span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Problem Lessons Table -->
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-bug me-2 text-muted"></i>Проблемные уроки (прохождение &lt;50%)</h5>
-            </div>
-            <div class="card-body p-0">
-                {% if content_quality.low_pass_lessons %}
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Модуль</th>
-                                <th>Тип</th>
-                                <th>Прох. %</th>
-                                <th>Попыток</th>
-                                <th>Ср. балл</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for lesson in content_quality.low_pass_lessons[:10] %}
-                            <tr>
-                                <td>#{{ lesson.lesson_id }}</td>
-                                <td>{{ lesson.module_id }}</td>
-                                <td><span class="badge bg-secondary">{{ lesson.type }}</span></td>
-                                <td><span class="text-danger fw-bold">{{ lesson.pass_rate }}%</span></td>
-                                <td>{{ lesson.attempts }}</td>
-                                <td>{{ lesson.avg_score }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="p-3 text-muted">Нет проблемных уроков</div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- User Search -->
-<div class="card mt-4 mb-4">
-    <div class="card-body">
-        <form method="GET" action="{{ url_for('user_admin.users') }}" class="row g-2 align-items-center">
-            <div class="col-auto">
-                <i class="fas fa-search text-muted"></i>
-            </div>
-            <div class="col">
-                <input type="text" class="form-control" name="search" placeholder="Быстрый поиск по имени или email...">
-            </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-primary">Найти</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- At-Risk Users -->
-{% if at_risk_users %}
-<div class="card mt-2 mb-4 border-warning">
-    <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2 text-warning"></i>Пользователи в зоне риска ({{ at_risk_users|length }})</h5>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Имя</th>
-                        <th>Email</th>
-                        <th>Последний вход</th>
-                        <th>Макс. серия</th>
-                        <th>Текущая серия</th>
-                        <th>Действия</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for u in at_risk_users %}
-                    <tr>
-                        <td>
-                            <a href="{{ url_for('user_admin.user_detail', user_id=u.id) }}">
-                                <strong>{{ u.username }}</strong>
-                            </a>
-                        </td>
-                        <td>{{ u.email or '-' }}</td>
-                        <td>
-                            {% if u.last_login %}
-                                {{ u.last_login.strftime('%d %b %Y') }}
-                            {% else %}
-                                <span class="text-muted">Никогда</span>
-                            {% endif %}
-                        </td>
-                        <td><span class="badge bg-info">{{ u.longest_streak }} дн.</span></td>
-                        <td><span class="badge bg-{{ 'success' if u.current_streak > 0 else 'secondary' }}">{{ u.current_streak }} дн.</span></td>
-                        <td>
-                            <a href="{{ url_for('user_admin.user_detail', user_id=u.id) }}" class="btn btn-sm btn-outline-primary" title="Подробнее">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-{% endif %}
-
-<!-- Recent Users Table -->
-<div class="card mt-2">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="fas fa-users me-2 text-muted"></i>Последние пользователи</h5>
-        <a href="{{ url_for('user_admin.users') }}" class="btn btn-sm btn-primary">
-            <i class="fas fa-arrow-right me-1"></i>Все
-        </a>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Имя</th>
-                        <th>Email</th>
-                        <th>Регистрация</th>
-                        <th>Последний вход</th>
-                        <th>Статус</th>
-                        <th>Действия</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in recent_users[:5] %}
-                    <tr>
-                        <td><span class="text-muted">#</span>{{ user.id }}</td>
-                        <td>
-                            <a href="{{ url_for('user_admin.user_detail', user_id=user.id) }}">
-                                <strong>{{ user.username }}</strong>
-                            </a>
-                        </td>
-                        <td>{{ user.email or '-' }}</td>
-                        <td>{{ user.created_at.strftime('%d %b %Y') }}</td>
-                        <td>
-                            {% if user.last_login %}
-                                {{ user.last_login.strftime('%d %b %Y') }}
-                            {% else %}
-                                <span class="text-muted">Никогда</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {{ status_badge('Активен' if user.active else 'Неактивен', 'success' if user.active else 'danger') }}
-                            {% if user.is_admin %}
-                                {{ status_badge('Админ', 'info') }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="{{ url_for('user_admin.user_detail', user_id=user.id) }}" class="btn btn-outline-primary" title="Подробнее">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                {% call action_group() %}
-                                    {{ action_btn(
-                                        'Деактивировать' if user.active else 'Активировать',
-                                        'fa-ban' if user.active else 'fa-check',
-                                        url_for('user_admin.toggle_user_status', user_id=user.id),
-                                        'outline-danger' if user.active else 'outline-success',
-                                        'sm',
-                                        'POST'
-                                    ) }}
-                                {% endcall %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+</div><!-- /tab-content -->
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Get CSS variables for chart colors
 const styles = getComputedStyle(document.documentElement);
-const chartColors = {
+const C = {
     primary: styles.getPropertyValue('--chart-primary').trim(),
-    primaryLight: styles.getPropertyValue('--chart-primary-light').trim(),
+    primaryL: styles.getPropertyValue('--chart-primary-light').trim(),
     success: styles.getPropertyValue('--chart-success').trim(),
-    successLight: styles.getPropertyValue('--chart-success-light').trim(),
+    successL: styles.getPropertyValue('--chart-success-light').trim(),
     danger: styles.getPropertyValue('--chart-danger').trim(),
     info: styles.getPropertyValue('--chart-info').trim()
 };
 
-// Activity Chart — real data for last 30 days
-const activityLabels = {{ activity_data.labels | tojson }};
-const activityRegistrations = {{ activity_data.registrations | tojson }};
-const activityLogins = {{ activity_data.logins | tojson }};
-const activityActiveUsers = {{ activity_data.active_users | tojson }};
-
-const activityCtx = document.getElementById('activityChart').getContext('2d');
-new Chart(activityCtx, {
+// Activity Chart
+new Chart(document.getElementById('activityChart').getContext('2d'), {
     type: 'line',
     data: {
-        labels: activityLabels,
-        datasets: [{
-            label: 'Регистрации',
-            data: activityRegistrations,
-            borderColor: chartColors.info,
-            backgroundColor: 'transparent',
-            tension: 0.4,
-            borderWidth: 2
-        }, {
-            label: 'Входы',
-            data: activityLogins,
-            borderColor: chartColors.primary,
-            backgroundColor: chartColors.primaryLight,
-            tension: 0.4,
-            fill: true
-        }, {
-            label: 'Учебная активность',
-            data: activityActiveUsers,
-            borderColor: chartColors.success,
-            backgroundColor: chartColors.successLight,
-            tension: 0.4,
-            fill: true
-        }]
+        labels: {{ activity_data.labels | tojson }},
+        datasets: [
+            {label:'Регистрации', data:{{ activity_data.registrations|tojson }}, borderColor:C.info, backgroundColor:'transparent', tension:.4, borderWidth:2},
+            {label:'Входы', data:{{ activity_data.logins|tojson }}, borderColor:C.primary, backgroundColor:C.primaryL, tension:.4, fill:true},
+            {label:'Учебная активность', data:{{ activity_data.active_users|tojson }}, borderColor:C.success, backgroundColor:C.successL, tension:.4, fill:true}
+        ]
     },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom',
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true
-            }
-        }
-    }
+    options: {responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}}}
 });
 
-// Streak Distribution Chart
-{% if streaks.distribution %}
-const streakCtx = document.getElementById('streakDistChart');
-if (streakCtx) {
-    const streakDist = {{ streaks.distribution | tojson }};
-    new Chart(streakCtx.getContext('2d'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(streakDist),
-            datasets: [{
-                label: 'Пользователей',
-                data: Object.values(streakDist),
-                backgroundColor: [chartColors.info, chartColors.primary, chartColors.success, '#ffc107', chartColors.danger],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-        }
-    });
-}
-{% endif %}
-
-// Progress Chart (Doughnut)
-const progressCtx = document.getElementById('progressChart').getContext('2d');
-new Chart(progressCtx, {
+// Progress Doughnut
+new Chart(document.getElementById('progressChart').getContext('2d'), {
     type: 'doughnut',
     data: {
-        labels: ['Активные', 'Неактивные', 'Новые'],
-        datasets: [{
-            data: [{{ active_users }}, {{ total_users - active_users - new_users }}, {{ new_users }}],
-            backgroundColor: [chartColors.success, chartColors.danger, chartColors.info],
-            borderWidth: 0
-        }]
+        labels: ['Активные','Неактивные','Новые'],
+        datasets: [{data:[{{ active_users }},{{ total_users - active_users - new_users }},{{ new_users }}], backgroundColor:[C.success,C.danger,C.info], borderWidth:0}]
     },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom',
-            }
-        }
+    options: {responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}}
+});
+
+// Streak Distribution (lazy init on tab show)
+{% if streaks.distribution %}
+document.querySelector('[href="#tab-users"]').addEventListener('shown.bs.tab', function() {
+    var el = document.getElementById('streakDistChart');
+    if (el && !el._chartDone) {
+        el._chartDone = true;
+        var d = {{ streaks.distribution|tojson }};
+        new Chart(el.getContext('2d'), {
+            type:'bar',
+            data:{labels:Object.keys(d), datasets:[{label:'Польз.',data:Object.values(d),backgroundColor:[C.info,C.primary,C.success,'#ffc107',C.danger],borderWidth:0}]},
+            options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}
+        });
     }
 });
+{% endif %}
 </script>
 {% endblock %}
