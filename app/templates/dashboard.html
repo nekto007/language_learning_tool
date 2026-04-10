@@ -670,6 +670,28 @@
         </div>
     </div>
 
+    <!-- Leaderboard -->
+    {% if xp_leaderboard %}
+    <div class="dash-leaderboard">
+        <h3 class="dash-leaderboard__heading">&#127942; Лидеры по XP</h3>
+        <div class="dash-leaderboard__list">
+            {% for entry in xp_leaderboard %}
+            <div class="dash-leaderboard__row{% if entry.id == current_user.id %} dash-leaderboard__highlight{% endif %}">
+                <span class="dash-leaderboard__rank">{{ loop.index }}</span>
+                <span class="dash-leaderboard__avatar">{{ entry.username[:1]|upper }}</span>
+                <span class="dash-leaderboard__name">{{ entry.username }}</span>
+                <span class="dash-leaderboard__xp">{{ entry.total_xp }} XP</span>
+                <span class="dash-leaderboard__level">Ур.&nbsp;{{ entry.level }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% if user_xp_rank and user_xp_rank > 5 %}
+        <div class="dash-leaderboard__you">Вы на {{ user_xp_rank }}-м месте</div>
+        {% endif %}
+        <a href="{{ url_for('study.leaderboard') }}" class="dash-leaderboard__link">Полный рейтинг &rarr;</a>
+    </div>
+    {% endif %}
+
     <!-- Quick Actions -->
     <div class="dash-quick">
         <h3 class="dash-quick__title">&#1041;&#1099;&#1089;&#1090;&#1088;&#1099;&#1077; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1103;</h3>
@@ -1473,6 +1495,146 @@
 .dash-progress__card:hover .dash-progress__arrow {
     color: var(--dash-accent);
     transform: translateX(2px);
+}
+
+/* ============================================
+   Leaderboard
+   ============================================ */
+
+.dash-leaderboard {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--dash-shadow);
+    animation: dashSlideUp 0.45s ease-out both;
+    animation-delay: 0.25s;
+}
+
+.dash-leaderboard__heading {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 1rem;
+}
+
+.dash-leaderboard__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dash-leaderboard__row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: var(--dash-radius-sm);
+    background: var(--dash-bg);
+    border: 1px solid var(--dash-border);
+    transition: background 0.15s;
+}
+
+.dash-leaderboard__row:hover {
+    background: var(--dash-surface-alt);
+}
+
+.dash-leaderboard__highlight {
+    background: var(--dash-accent-soft);
+    border-color: var(--dash-accent);
+}
+
+.dash-leaderboard__highlight:hover {
+    background: var(--dash-accent-medium);
+}
+
+.dash-leaderboard__rank {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--dash-text-muted);
+    min-width: 1.5rem;
+    text-align: center;
+}
+
+.dash-leaderboard__highlight .dash-leaderboard__rank {
+    color: var(--dash-accent);
+}
+
+.dash-leaderboard__avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: var(--dash-accent-soft);
+    color: var(--dash-accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.dash-leaderboard__name {
+    flex: 1;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--dash-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dash-leaderboard__xp {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--dash-accent);
+}
+
+.dash-leaderboard__level {
+    font-size: 0.7rem;
+    color: var(--dash-text-muted);
+    background: var(--dash-bg);
+    border: 1px solid var(--dash-border);
+    border-radius: 0.75rem;
+    padding: 0.125rem 0.5rem;
+    white-space: nowrap;
+}
+
+.dash-leaderboard__you {
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--dash-accent);
+    margin-top: 0.75rem;
+    padding: 0.5rem;
+    background: var(--dash-accent-soft);
+    border-radius: var(--dash-radius-sm);
+}
+
+.dash-leaderboard__link {
+    display: block;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--dash-text-muted);
+    text-decoration: none;
+    margin-top: 0.75rem;
+    transition: color 0.15s;
+}
+
+.dash-leaderboard__link:hover {
+    color: var(--dash-accent);
+}
+
+@media (max-width: 640px) {
+    .dash-leaderboard {
+        padding: 1rem;
+    }
+    .dash-leaderboard__name {
+        max-width: 8rem;
+    }
 }
 
 /* ============================================

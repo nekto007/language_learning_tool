@@ -118,6 +118,7 @@ def dashboard():
     from app.telegram.notifications import _lesson_minutes, _words_minutes
     from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses, get_best_study_time
     from app.study.services.session_service import SessionService
+    from app.study.services.stats_service import StatsService
     from app.achievements.streak_service import get_streak_calendar
 
     # === DAILY PLAN & STREAK ===
@@ -180,6 +181,10 @@ def dashboard():
     # === BEST STUDY TIME & SESSION STATS ===
     best_study_time = get_best_study_time(current_user.id)
     session_stats = SessionService.get_session_stats(current_user.id, days=7)
+
+    # === LEADERBOARD & XP RANK ===
+    xp_leaderboard = StatsService.get_xp_leaderboard(limit=5)
+    user_xp_rank = StatsService.get_user_xp_rank(current_user.id)
 
     # === WORDS STATS ===
     from app.srs.stats_service import srs_stats_service
@@ -327,6 +332,9 @@ def dashboard():
         # Best study time & session stats
         best_study_time=best_study_time,
         session_stats=session_stats,
+        # Leaderboard
+        xp_leaderboard=xp_leaderboard,
+        user_xp_rank=user_xp_rank,
     )
 
 

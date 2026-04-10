@@ -406,3 +406,95 @@ class TestDashboardSessionStats:
             assert '>85<' in html  # total_words_studied
             assert '82.4%' in html  # accuracy
             assert '60 ' in html  # 3600 seconds = 60 min
+
+
+class TestDashboardLeaderboard:
+    """Test leaderboard and XP rank widget data on dashboard"""
+
+    def test_dashboard_includes_leaderboard_data(self, client, app, test_user, words_module_access):
+        """Dashboard should call StatsService.get_xp_leaderboard and get_user_xp_rank"""
+        mock_leaderboard = [
+            {'id': 1, 'username': 'alice', 'total_xp': 500, 'level': 5},
+            {'id': 2, 'username': 'bob', 'total_xp': 400, 'level': 4},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.services.stats_service.StatsService.get_xp_leaderboard', return_value=mock_leaderboard) as mock_lb, \
+             patch('app.study.services.stats_service.StatsService.get_user_xp_rank', return_value=8) as mock_rank:
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            mock_lb.assert_called_once_with(limit=5)
+            mock_rank.assert_called_once_with(test_user.id)
+
+    def test_dashboard_renders_leaderboard_widget(self, client, app, test_user, words_module_access):
+        """Dashboard should render leaderboard with user entries"""
+        mock_leaderboard = [
+            {'id': 1, 'username': 'alice', 'total_xp': 500, 'level': 5},
+            {'id': test_user.id, 'username': test_user.username, 'total_xp': 300, 'level': 3},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.services.stats_service.StatsService.get_xp_leaderboard', return_value=mock_leaderboard), \
+             patch('app.study.services.stats_service.StatsService.get_user_xp_rank', return_value=2):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            assert 'dash-leaderboard' in html
+            assert 'alice' in html
+            assert '500 XP' in html
+            # Current user row should be highlighted
+            assert 'dash-leaderboard__highlight' in html
+
+    def test_dashboard_leaderboard_shows_rank_when_not_in_top5(self, client, app, test_user, words_module_access):
+        """Dashboard should show user rank badge when user is not in top 5"""
+        mock_leaderboard = [
+            {'id': i, 'username': f'user{i}', 'total_xp': 1000 - i * 100, 'level': 10 - i}
+            for i in range(1, 6)
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.services.stats_service.StatsService.get_xp_leaderboard', return_value=mock_leaderboard), \
+             patch('app.study.services.stats_service.StatsService.get_user_xp_rank', return_value=12):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            assert 'dash-leaderboard__you' in html
+            assert '12' in html
+
+    def test_dashboard_leaderboard_hides_rank_when_in_top5(self, client, app, test_user, words_module_access):
+        """Dashboard should not show rank badge when user is already in the leaderboard"""
+        mock_leaderboard = [
+            {'id': test_user.id, 'username': test_user.username, 'total_xp': 500, 'level': 5},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.services.stats_service.StatsService.get_xp_leaderboard', return_value=mock_leaderboard), \
+             patch('app.study.services.stats_service.StatsService.get_user_xp_rank', return_value=1):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            # Check only the HTML body (before <style>) to avoid matching CSS class definitions
+            html_body = html.split('<style>')[0]
+            assert 'dash-leaderboard__you' not in html_body
+
+    def test_dashboard_leaderboard_empty_state(self, client, app, test_user, words_module_access):
+        """Dashboard should not render leaderboard widget when no data"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.services.stats_service.StatsService.get_xp_leaderboard', return_value=[]), \
+             patch('app.study.services.stats_service.StatsService.get_user_xp_rank', return_value=None):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            # Leaderboard HTML element should not appear (CSS class will be in <style>)
+            assert 'dash-leaderboard__heading' not in html.split('<style>')[0]

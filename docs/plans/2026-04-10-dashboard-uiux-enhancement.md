@@ -78,11 +78,11 @@ Enrich the existing dashboard with new data-driven widgets that surface the app'
 - Modify: `app/templates/dashboard.html`
 - Modify: `app/static/css/design-system.css`
 
-- [ ] In route, add calls to `StatsService.get_xp_leaderboard(limit=5)`, `StatsService.get_user_xp_rank(user_id)`
-- [ ] Create compact leaderboard widget: top 5 users with avatar placeholder, username, XP, level. Highlight current user's position
-- [ ] Show user's rank badge if not in top 5 ("You are #12")
-- [ ] Add CSS for `.dash-leaderboard`, `.dash-leaderboard__row`, `.dash-leaderboard__rank`, `.dash-leaderboard__highlight`
-- [ ] Write tests for route data
+- [x] In route, add calls to `StatsService.get_xp_leaderboard(limit=5)`, `StatsService.get_user_xp_rank(user_id)`
+- [x] Create compact leaderboard widget: top 5 users with avatar placeholder, username, XP, level. Highlight current user's position
+- [x] Show user's rank badge if not in top 5 ("You are #12")
+- [x] Add CSS for `.dash-leaderboard`, `.dash-leaderboard__row`, `.dash-leaderboard__rank`, `.dash-leaderboard__highlight`
+- [x] Write tests for route data
 
 ### Task 5: Achievement Progress + Streak Milestones Widget
 
