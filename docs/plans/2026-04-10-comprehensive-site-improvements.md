@@ -103,12 +103,12 @@
 - Modify: `app/templates/dashboard.html`
 - Modify: `app/words/routes.py`
 
-- [ ] Add "This Week" mini-analytics: words reviewed, lessons completed, time spent, accuracy rate (from StudySession and LessonAttempt data)
-- [ ] Add words SRS distribution mini-chart (new/learning/review/mastered as horizontal stacked bar)
-- [ ] Add "Continue where you left off" card showing last incomplete lesson with direct link
-- [ ] Add grammar progress summary: topics started/mastered with percentage
-- [ ] Write tests for weekly analytics aggregation
-- [ ] Run project test suite - must pass before task 8
+- [x] Add "This Week" mini-analytics: words reviewed, lessons completed, time spent, accuracy rate (from StudySession and LessonAttempt data)
+- [x] Add words SRS distribution mini-chart (new/learning/review/mastered as horizontal stacked bar)
+- [x] Add "Continue where you left off" card showing last incomplete lesson with direct link
+- [x] Add grammar progress summary: topics started/mastered with percentage
+- [x] Write tests for weekly analytics aggregation
+- [x] Run project test suite - must pass before task 8
 
 ### Task 8: Empty States Across the App
 

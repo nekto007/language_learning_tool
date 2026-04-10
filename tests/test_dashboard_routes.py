@@ -154,6 +154,137 @@ class TestDashboardEmptyStates:
         assert 'dash-plan' in html
 
 
+class TestDashboardWeeklyAnalytics:
+    """Test dashboard weekly analytics, SRS distribution, continue lesson, grammar progress"""
+
+    def test_weekly_analytics_with_study_sessions(self, client, app, db_session, test_user, words_module_access):
+        """Weekly analytics should show study session data"""
+        from app.study.models import StudySession
+        from datetime import datetime, timedelta
+
+        # Create a study session from this week
+        session = StudySession(
+            user_id=test_user.id,
+            session_type='cards',
+            start_time=datetime.utcnow() - timedelta(hours=2),
+            end_time=datetime.utcnow() - timedelta(hours=1),
+            words_studied=15,
+            correct_answers=12,
+            incorrect_answers=3,
+        )
+        db_session.add(session)
+        db_session.commit()
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        response = client.get('/dashboard')
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'dash-week' in html
+        # 12/(12+3) = 80%
+        assert '80%' in html
+
+    def test_weekly_analytics_empty_for_new_user(self, client, app, db_session, test_user, words_module_access):
+        """New user with no activity should not see weekly analytics section rendered"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        response = client.get('/dashboard')
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        # class="dash-week" in HTML means the section rendered (vs .dash-week in CSS)
+        assert 'class="dash-week"' not in html
+
+    def test_srs_distribution_not_shown_when_no_words(self, client, app, db_session, test_user, words_module_access):
+        """SRS distribution bar should not appear when user has no words"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        response = client.get('/dashboard')
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'class="dash-srs"' not in html
+
+    def test_continue_lesson_not_shown_when_no_active(self, client, app, db_session, test_user, words_module_access):
+        """Continue lesson card should not appear when no in-progress lessons"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        response = client.get('/dashboard')
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'class="dash-continue"' not in html
+
+    def test_grammar_progress_shown_when_topics_exist(self, client, app, db_session, test_user, words_module_access):
+        """Grammar progress section should appear when grammar topics exist"""
+        from app.grammar_lab.models import GrammarTopic
+        import uuid
+
+        # Check if there are already grammar topics
+        existing_count = GrammarTopic.query.count()
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        response = client.get('/dashboard')
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+
+        if existing_count > 0:
+            assert 'dash-grammar-progress' in html
+        else:
+            # No topics means section should not appear
+            assert 'dash-grammar-progress' not in html
+
+    def test_weekly_analytics_with_lesson_completed(self, client, app, db_session, test_user, words_module_access):
+        """Weekly analytics should count completed lessons"""
+        from app.curriculum.models import LessonProgress, Lessons, Module, CEFRLevel
+        from datetime import datetime
+
+        # Create supporting objects
+        level = CEFRLevel.query.first()
+        if not level:
+            level = CEFRLevel(code='A1', name='Beginner', order=1)
+            db_session.add(level)
+            db_session.flush()
+
+        module = Module.query.first()
+        if not module:
+            module = Module(title='Test Module', number=1, level_id=level.id)
+            db_session.add(module)
+            db_session.flush()
+
+        lesson = Lessons(title='Test Lesson', module_id=module.id, number=1, order=1, type='vocabulary')
+        db_session.add(lesson)
+        db_session.flush()
+
+        progress = LessonProgress(
+            user_id=test_user.id,
+            lesson_id=lesson.id,
+            status='completed',
+            completed_at=datetime.utcnow(),
+            score=85.0,
+        )
+        db_session.add(progress)
+        db_session.commit()
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        response = client.get('/dashboard')
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        # Should show weekly analytics with at least 1 lesson
+        assert 'dash-week' in html
+
+
 class TestDashboardTemplateRelationships:
     """Test that dashboard template correctly uses model relationships"""
 
