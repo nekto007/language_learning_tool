@@ -72,3 +72,36 @@ class TestWordTranslatorSafety:
     def test_form_info_uses_textcontent(self):
         src = _read_js("word-translator.js")
         assert "els.formInfo.textContent" in src
+
+
+class TestReaderSafety:
+    """reader.js must use DOM methods for bookmark and form data."""
+
+    def test_form_info_uses_dom(self):
+        src = _read_js("reader.js")
+        # form_text/base_form should use textContent, not innerHTML
+        assert "em.textContent" in src or "createElement('em')" in src
+
+    def test_bookmark_name_uses_textcontent(self):
+        src = _read_js("reader.js")
+        assert "span.textContent = bookmark.name" in src or "textContent = bookmark.name" in src
+
+    def test_bookmark_context_uses_title_attr(self):
+        src = _read_js("reader.js")
+        assert "span.title = bookmark.context" in src or ".title = bookmark.context" in src
+
+
+class TestMobileReaderSafety:
+    """mobile-reader.js must use DOM methods for bookmark data."""
+
+    def test_bookmarks_use_textcontent(self):
+        src = _read_js("mobile-reader.js")
+        assert "title.textContent = bookmark.name" in src
+        assert "ctx.textContent = bookmark.context" in src
+
+    def test_no_bookmark_innerhtml(self):
+        """Bookmark rendering should not use innerHTML with bookmark data."""
+        src = _read_js("mobile-reader.js")
+        for line in src.splitlines():
+            if "innerHTML" in line and "bookmark." in line:
+                assert False, f"Unsafe innerHTML with bookmark data: {line.strip()}"

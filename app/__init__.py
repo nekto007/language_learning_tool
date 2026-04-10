@@ -248,11 +248,8 @@ def create_app(config_class=Config):
             db.session.execute(db.text('SELECT 1'))
             return jsonify({'status': 'healthy', 'database': 'connected'}), 200
         except Exception as e:
-            from sqlalchemy.exc import OperationalError, DatabaseError
             logger.error('Health check failed: %s', e)
-            if isinstance(e, (OperationalError, DatabaseError)):
-                return jsonify({'status': 'unhealthy', 'db': 'error', 'error': str(e)}), 503
-            return jsonify({'status': 'unhealthy', 'error': 'app_error', 'detail': str(e)}), 503
+            return jsonify({'status': 'unhealthy', 'db': 'error'}), 503
 
     csrf.exempt(app.view_functions['health_check'])
 

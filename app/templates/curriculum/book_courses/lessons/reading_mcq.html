@@ -246,12 +246,21 @@ function showQuestion(index) {
   // Render options
   const optionsList = document.getElementById('options-list');
   if (optionsList) {
-    optionsList.innerHTML = q.options.map((opt, i) => `
-      <div class="option ${answers[index] === i ? 'selected' : ''}" onclick="selectOption(${i})">
-        <span class="option-letter">${String.fromCharCode(65 + i)}</span>
-        <span class="option-text">${opt}</span>
-      </div>
-    `).join('');
+    optionsList.textContent = '';
+    q.options.forEach(function(opt, i) {
+      var div = document.createElement('div');
+      div.className = 'option' + (answers[index] === i ? ' selected' : '');
+      div.onclick = function() { selectOption(i); };
+      var letter = document.createElement('span');
+      letter.className = 'option-letter';
+      letter.textContent = String.fromCharCode(65 + i);
+      div.appendChild(letter);
+      var text = document.createElement('span');
+      text.className = 'option-text';
+      text.textContent = opt;
+      div.appendChild(text);
+      optionsList.appendChild(div);
+    });
   }
 
   // Update nav button

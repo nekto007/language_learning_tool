@@ -835,15 +835,26 @@ class MobileReader {
             return;
         }
         
-        this.bookmarksList.innerHTML = this.bookmarks.map(bookmark => `
-            <div class="bookmark-item" data-position="${bookmark.position}">
-                <div class="bookmark-title">${bookmark.name}</div>
-                <div class="bookmark-context">${bookmark.context}</div>
-                <button class="btn-delete-bookmark" data-id="${bookmark.id}">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        `).join('');
+        this.bookmarksList.textContent = '';
+        this.bookmarks.forEach(bookmark => {
+            var item = document.createElement('div');
+            item.className = 'bookmark-item';
+            item.dataset.position = bookmark.position || '';
+            var title = document.createElement('div');
+            title.className = 'bookmark-title';
+            title.textContent = bookmark.name || '';
+            item.appendChild(title);
+            var ctx = document.createElement('div');
+            ctx.className = 'bookmark-context';
+            ctx.textContent = bookmark.context || '';
+            item.appendChild(ctx);
+            var btn = document.createElement('button');
+            btn.className = 'btn-delete-bookmark';
+            btn.dataset.id = bookmark.id || '';
+            btn.innerHTML = '<i class="fas fa-trash"></i>';
+            item.appendChild(btn);
+            this.bookmarksList.appendChild(item);
+        });
         
         // Add click handlers
         this.bookmarksList.querySelectorAll('.bookmark-item').forEach(item => {

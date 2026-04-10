@@ -118,28 +118,21 @@ class TestEmailExceptionLogging:
                     assert mock_logger.exception.called, "send_email must log the exception, not silently swallow"
 
 
-class TestProfileSettingsExceptionLogging:
-    """Verify profile settings save failure is logged."""
+class TestEmailUtilsHasLogging:
+    """Verify email_utils exception handler includes logging, not bare return False."""
 
-    def test_profile_save_failure_logged(self, app, db_session):
-        """When db.session.commit fails in profile save, exception must be logged."""
-        import uuid
-        from app.auth.models import User
-        with app.app_context():
-            user = User(username=f'logtest_{uuid.uuid4().hex[:6]}', email=f'logtest@t.com', active=True)
-            user.set_password('test')
-            db_session.add(user)
-            db_session.commit()
-
-            with app.test_client() as c:
-                with c.session_transaction() as sess:
-                    sess['_user_id'] = str(user.id)
-                # Even if we can't easily trigger commit failure in test,
-                # verify the logger.exception call exists in source code
-                import inspect
-                from app.auth import routes
-                source = inspect.getsource(routes)
-                assert 'logger.exception' in source, "auth routes must use logger.exception for error handling"
-
-            db_session.delete(user)
-            db_session.commit()
+    def test_email_utils_except_block_has_logger(self):
+        """The except block in send_email must call logger, not just return False."""
+        import inspect
+        from app.utils import email_utils
+        source = inspect.getsource(email_utils.EmailSender.send_email)
+        # The except block must contain logger call
+        assert 'logger.exception' in source, "send_email except block must call logger.exception"
+        # Must NOT have bare "return False" without logging
+        lines = source.split('\n')
+        for i, line in enumerate(lines):
+            if 'return False' in line and i > 0:
+                # Check that previous non-empty line contains logger
+                prev_lines = [l.strip() for l in lines[max(0,i-3):i] if l.strip()]
+                assert any('logger' in l for l in prev_lines), \
+                    f"return False at line {i} without preceding logger call"
