@@ -89,13 +89,13 @@
 - Modify: `app/templates/dashboard.html`
 - Modify: `app/words/routes.py`
 
-- [ ] Add proper empty state for new users with no modules: show welcome card with "Start learning" CTA linking to onboarding or level selection
-- [ ] Add empty state for daily plan when no steps configured: explain what daily plan is and how to activate it
-- [ ] Add contextual tooltips for gamification elements (XP, coins, streak) using title attributes or info icons
-- [ ] Show "0 coins" state for streak repair with explanation of how to earn coins
-- [ ] Handle null weekly_challenge gracefully in template (show "No active challenge" card)
-- [ ] Write tests for dashboard rendering with empty/null data scenarios
-- [ ] Run project test suite - must pass before task 7
+- [x] Add proper empty state for new users with no modules: show welcome card with "Start learning" CTA linking to onboarding or level selection
+- [x] Add empty state for daily plan when no steps configured: explain what daily plan is and how to activate it
+- [x] Add contextual tooltips for gamification elements (XP, coins, streak) using title attributes or info icons
+- [x] Show "0 coins" state for streak repair with explanation of how to earn coins
+- [x] Handle null weekly_challenge gracefully in template (show "No active challenge" card)
+- [x] Write tests for dashboard rendering with empty/null data scenarios
+- [x] Run project test suite - must pass before task 7
 
 ### Task 7: User Dashboard - Progress Analytics Section
 

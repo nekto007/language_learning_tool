@@ -18,18 +18,18 @@
                     <h1 class="dash-hero__title">{{ greeting|default('Привет') }}, {{ current_user.username }}!</h1>
                     {% if streak_repaired %}
                     <div class="dash-streak dash-streak--restored">
-                        <span class="dash-streak__fire">&#128293;</span>
+                        <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
                         <span class="dash-streak__text">{{ streak }}
                             {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance }}</span>
+                        <span class="dash-streak__coins" title="Coins — внутренняя валюта. Копите за серию, тратьте на восстановление">&#128176; {{ streak_status.coins_balance }}</span>
                         <span class="dash-streak__restored">Серия восстановлена!</span>
                     </div>
                     {% elif streak_status and streak_status.can_repair and streak > 0 %}
                     <div class="dash-streak">
-                        <span class="dash-streak__fire">&#128293;</span>
+                        <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
                         <span class="dash-streak__text">{{ streak }}
                             {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance }}</span>
+                        <span class="dash-streak__coins" title="Coins — внутренняя валюта. Копите за серию, тратьте на восстановление">&#128176; {{ streak_status.coins_balance }}</span>
                     </div>
                     {% elif streak_status and streak_status.can_repair %}
                     <div class="dash-streak-recovery">
@@ -49,15 +49,18 @@
                                     Восстановить
                                 </button>
                                 <span class="dash-streak-recovery__balance">Баланс: {{ streak_status.coins_balance }}</span>
+                                {% if streak_status.coins_balance == 0 %}
+                                <div class="dash-streak-recovery__hint">Coins начисляются за каждый день серии. Продолжайте заниматься, чтобы накопить!</div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                     {% elif streak > 0 %}
                     <div class="dash-streak">
-                        <span class="dash-streak__fire">&#128293;</span>
+                        <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
                         <span class="dash-streak__text">{{ streak }}
                             {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
+                        <span class="dash-streak__coins" title="Coins — внутренняя валюта. Копите за серию, тратьте на восстановление">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
                         {% set milestones = {7: '🎯 Неделя!', 14: '💪 2 недели!', 30: '🏆 Месяц!', 60: '⭐ 2 месяца!', 100: '👑 100 дней!'} %}
                         {% if streak in milestones %}
                         <span class="dash-streak__milestone" id="milestone-badge">{{ milestones[streak] }}</span>
@@ -80,7 +83,7 @@
                     </div>
                     {% endif %}
                     {% if today_xp is defined %}
-                    <div class="dash-xp-bar">
+                    <div class="dash-xp-bar" title="Опыт за сегодня. Зарабатывайте XP за уроки, грамматику и повторение слов">
                         <span class="dash-xp-bar__text">&#9889; {{ today_xp|default(0) }}/{{ daily_xp_goal|default(100) }} XP</span>
                         <div class="dash-xp-bar__track">
                             <div class="dash-xp-bar__fill" style="width: {{ [today_xp|default(0) / daily_xp_goal|default(100) * 100, 100] | min }}%"></div>
@@ -91,6 +94,18 @@
             </div>
         </div>
     </div>
+
+    <!-- Welcome Card for New Users -->
+    {% if words_total == 0 and grammar_studied == 0 and books_reading == 0 and courses_enrolled == 0 %}
+    <div class="dash-welcome">
+        <div class="dash-welcome__icon">&#127891;</div>
+        <div class="dash-welcome__content">
+            <h2 class="dash-welcome__title">Добро пожаловать в LLT English!</h2>
+            <p class="dash-welcome__text">Начните обучение: пройдите первый урок, добавьте слова в колоду или изучите грамматику. Прогресс появится здесь.</p>
+            <a href="{{ url_for('learn.learn_index') }}" class="dash-welcome__btn">Начать обучение</a>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Daily Plan -->
     <div class="dash-plan">
@@ -366,14 +381,13 @@
         </div><!-- /dash-timeline -->
 
         {% if ns.step_num == 1 %}
-        <div class="dash-step dash-step--done">
-            <div class="dash-step__body">
-                <div class="dash-step__icon">&#10024;</div>
-                <div class="dash-step__info">
-                    <div class="dash-step__title">Всё на сегодня сделано!</div>
-                    <div class="dash-step__meta">Продолжай завтра</div>
-                </div>
+        <div class="dash-plan-empty">
+            <div class="dash-plan-empty__icon">&#128221;</div>
+            <div class="dash-plan-empty__text">
+                <div class="dash-plan-empty__title">План ещё не настроен</div>
+                <div class="dash-plan-empty__desc">Начните изучать уроки, слова или грамматику — и план на день сформируется автоматически</div>
             </div>
+            <a href="{{ url_for('learn.learn_index') }}" class="dash-step__btn">Начать обучение</a>
         </div>
         {% endif %}
     </div>
@@ -389,6 +403,14 @@
         <div class="dash-challenge__bar">
             <div class="dash-challenge__fill" style="width: {{ [weekly_challenge.current / weekly_challenge.target * 100, 100] | min }}%"></div>
         </div>
+    </div>
+    {% else %}
+    <div class="dash-challenge dash-challenge--empty">
+        <div class="dash-challenge__header">
+            <span>&#127942; Челлендж недели</span>
+        </div>
+        <div class="dash-challenge__title">Нет активного челленджа</div>
+        <div class="dash-challenge__desc">Новый челлендж появится в начале следующей недели</div>
     </div>
     {% endif %}
 
@@ -1254,6 +1276,73 @@
 .dash-challenge__bar { height: 8px; background: #e5e7eb; border-radius: 4px; margin-top: 8px; overflow: hidden; }
 .dash-challenge__fill { height: 100%; background: linear-gradient(90deg, #5046e5, #7c3aed); border-radius: 4px; transition: width 0.5s; }
 .dash-challenge__progress-text { font-weight: 700; color: #5046e5; }
+.dash-challenge--empty { opacity: 0.7; }
+.dash-challenge__desc { font-size: 0.8125rem; color: #9ca3af; margin-top: 4px; }
+
+/* ============================================
+   Welcome Card (New Users)
+   ============================================ */
+.dash-welcome {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border: 1px solid #93c5fd;
+    border-radius: var(--dash-radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    animation: dashSlideUp 0.5s ease-out;
+}
+.dash-welcome__icon { font-size: 2.5rem; flex-shrink: 0; }
+.dash-welcome__content { flex: 1; }
+.dash-welcome__title { font-size: 1.125rem; font-weight: 700; color: #1e3a5f; margin: 0 0 0.375rem; }
+.dash-welcome__text { font-size: 0.875rem; color: #3b6fa0; margin: 0; line-height: 1.4; }
+.dash-welcome__btn {
+    display: inline-block;
+    margin-top: 0.75rem;
+    padding: 0.5rem 1.25rem;
+    background: #2563eb;
+    color: white;
+    border-radius: var(--dash-radius-sm);
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+.dash-welcome__btn:hover { background: #1d4ed8; color: white; }
+
+/* ============================================
+   Empty Daily Plan
+   ============================================ */
+.dash-plan-empty {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: var(--dash-surface-alt);
+    border: 1px dashed var(--dash-border);
+    border-radius: var(--dash-radius-sm);
+}
+.dash-plan-empty__icon { font-size: 1.75rem; flex-shrink: 0; }
+.dash-plan-empty__text { flex: 1; }
+.dash-plan-empty__title { font-size: 0.9375rem; font-weight: 600; color: var(--dash-text); }
+.dash-plan-empty__desc { font-size: 0.8125rem; color: var(--dash-text-muted); margin-top: 0.25rem; }
+
+/* ============================================
+   Streak Recovery Hint
+   ============================================ */
+.dash-streak-recovery__hint {
+    width: 100%;
+    font-size: 0.8125rem;
+    color: #856404;
+    margin-top: 6px;
+    font-style: italic;
+}
+
+@media (max-width: 640px) {
+    .dash-welcome { flex-direction: column; text-align: center; gap: 0.75rem; padding: 1.25rem; }
+    .dash-plan-empty { flex-direction: column; text-align: center; }
+}
 </style>
 
 <script>
