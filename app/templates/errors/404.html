@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 — Страница не найдена</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/design-system.css">
+    <style>
+        .error-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; text-align: center; padding: 2rem; }
+        .error-code { font-size: 6rem; font-weight: 700; color: var(--primary-color, #4f46e5); margin-bottom: 0.5rem; line-height: 1; }
+        .error-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; }
+        .error-message { color: var(--text-secondary, #6b7280); margin-bottom: 2rem; max-width: 400px; }
+    </style>
+</head>
+<body>
+    <div class="error-page">
+        <div>
+            <div class="error-code">404</div>
+            <div class="error-title">Страница не найдена</div>
+            <p class="error-message">Запрашиваемая страница не существует или была перемещена.</p>
+            <a href="/" class="btn btn-primary">На главную</a>
+        </div>
+    </div>
+</body>
+</html>

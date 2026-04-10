@@ -1,8 +1,12 @@
 import copy
 import datetime
+import logging
 import re
 
 from flask import request
+
+logger = logging.getLogger(__name__)
+
 try:
     from markupsafe import Markup
 except ImportError:
@@ -213,7 +217,7 @@ def init_template_utils(app):
                         'current_module': enrollment.current_module
                     }
             except Exception:
-                pass
+                logger.exception("Failed to get active book course for navbar")
             return None
 
         def get_active_curriculum_lesson():
@@ -237,7 +241,7 @@ def init_template_utils(app):
                             'url': f'/learn/{lesson.id}/'
                         }
             except Exception:
-                pass
+                logger.exception("Failed to get active curriculum lesson for navbar")
             return None
 
         def get_active_grammar_topic():
@@ -256,7 +260,7 @@ def init_template_utils(app):
                     if topic:
                         return topic
             except Exception:
-                pass
+                logger.exception("Failed to get active grammar topic for navbar")
             return None
 
         def get_words_due_count() -> int:
@@ -266,7 +270,7 @@ def init_template_utils(app):
                 return 0
             try:
                 from app.study.models import UserCardDirection, UserWord
-                from app.extensions import db
+                from app.utils.db import db
                 from sqlalchemy import func, or_
                 from datetime import datetime, timezone
                 now = datetime.now(timezone.utc)
@@ -293,7 +297,7 @@ def init_template_utils(app):
                 return 0
             try:
                 from app.grammar_lab.models import UserGrammarExercise
-                from app.extensions import db
+                from app.utils.db import db
                 from sqlalchemy import func, or_
                 from datetime import datetime, timezone
                 now = datetime.now(timezone.utc)
