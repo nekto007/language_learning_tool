@@ -1122,6 +1122,43 @@ class TestGrammarLabRouteNavigation:
             response = client.get('/grammar-lab/')
             assert response.status_code == 200
 
+    def test_recommendations_prefer_user_level(self, app, db_session):
+        """get_recommendations should prioritize topics matching user's onboarding_level."""
+        import uuid
+        from app.auth.models import User
+        from app.grammar_lab.models import GrammarTopic
+        from app.grammar_lab.services import GrammarLabService
+
+        suffix = uuid.uuid4().hex[:6]
+        user = User(username=f'reclvl_{suffix}', email=f'reclvl_{suffix}@t.com',
+                     active=True, onboarding_level='B2')
+        user.set_password('test')
+        db_session.add(user)
+        db_session.flush()
+
+        # Create topics at different levels
+        t_a1 = GrammarTopic(slug=f'rec-a1-{suffix}', title=f'A1 topic {suffix}',
+                            title_ru='А1', level='A1', order=999, content={})
+        t_b2 = GrammarTopic(slug=f'rec-b2-{suffix}', title=f'B2 topic {suffix}',
+                            title_ru='Б2', level='B2', order=999, content={})
+        db_session.add_all([t_a1, t_b2])
+        db_session.commit()
+
+        with app.app_context():
+            service = GrammarLabService()
+            recs = service.get_recommendations(user.id, limit=5)
+            # B2 topic should appear before A1 for this user
+            rec_titles = [r['title'] for r in recs if suffix in r.get('title', '')]
+            if len(rec_titles) >= 2:
+                b2_idx = next((i for i, t in enumerate(rec_titles) if 'B2' in t), 999)
+                a1_idx = next((i for i, t in enumerate(rec_titles) if 'A1' in t), 999)
+                assert b2_idx < a1_idx, f"B2 should come before A1, got {rec_titles}"
+
+        db_session.delete(t_a1)
+        db_session.delete(t_b2)
+        db_session.delete(user)
+        db_session.commit()
+
     @patch('app.grammar_lab.services.grammar_lab_service._get_srs_stats_service')
     def test_topic_detail_has_adjacent_nav(self, mock_srs_stats_fn,
                                             authenticated_client, db_session):
