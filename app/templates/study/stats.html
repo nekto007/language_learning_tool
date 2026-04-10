@@ -82,6 +82,54 @@
         </div>
     </div>
 
+    <!-- Charts Section -->
+    {% if accuracy_trend or mastered_over_time or study_heatmap.data %}
+    <div class="stats-charts slideUp" style="animation-delay: .15s">
+        <!-- Accuracy Trend Chart -->
+        {% if accuracy_trend %}
+        <div class="stats-chart-card">
+            <h3 class="stats-chart-card__title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                {{ _('Точность за 30 дней') }}
+            </h3>
+            <div class="stats-chart-card__canvas-wrap">
+                <canvas id="accuracy-trend-chart"></canvas>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Mastered Over Time Chart -->
+        {% if mastered_over_time %}
+        <div class="stats-chart-card">
+            <h3 class="stats-chart-card__title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                {{ _('Выученные слова') }}
+            </h3>
+            <div class="stats-chart-card__canvas-wrap">
+                <canvas id="mastered-over-time-chart"></canvas>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Study Heatmap -->
+        {% if study_heatmap.data %}
+        <div class="stats-chart-card stats-chart-card--wide">
+            <h3 class="stats-chart-card__title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                {{ _('Время занятий по дням недели') }}
+            </h3>
+            <div class="stats-heatmap" id="study-heatmap"></div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Recent Sessions -->
     <div class="stats-sessions slideUp" style="animation-delay: .2s">
         <div class="stats-sessions__header">
@@ -874,5 +922,215 @@
         padding: 1.25rem;
     }
 }
+
+/* === Charts Section === */
+.stats-charts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.stats-chart-card {
+    background: var(--stats-surface);
+    border: 1px solid var(--stats-border);
+    border-radius: var(--stats-radius);
+    padding: 1.25rem;
+}
+
+.stats-chart-card--wide {
+    grid-column: 1 / -1;
+}
+
+.stats-chart-card__title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--stats-text);
+    margin: 0 0 1rem;
+}
+
+.stats-chart-card__canvas-wrap {
+    position: relative;
+    height: 200px;
+}
+
+.stats-chart-card__canvas-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Heatmap */
+.stats-heatmap {
+    display: grid;
+    grid-template-columns: 40px repeat(24, 1fr);
+    gap: 2px;
+    font-size: 0.6875rem;
+}
+
+.stats-heatmap__label {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 6px;
+    color: var(--stats-text-muted);
+    font-weight: 600;
+}
+
+.stats-heatmap__hour-label {
+    text-align: center;
+    color: var(--stats-text-muted);
+    font-size: 0.625rem;
+}
+
+.stats-heatmap__cell {
+    aspect-ratio: 1;
+    border-radius: 3px;
+    min-height: 16px;
+}
+
+@media (max-width: 640px) {
+    .stats-charts {
+        grid-template-columns: 1fr;
+    }
+}
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chartFont = "'Onest', -apple-system, BlinkMacSystemFont, sans-serif";
+    Chart.defaults.font.family = chartFont;
+
+    // Accuracy Trend Chart
+    {% if accuracy_trend %}
+    const accuracyCtx = document.getElementById('accuracy-trend-chart');
+    if (accuracyCtx) {
+        const accuracyData = {{ accuracy_trend | tojson }};
+        new Chart(accuracyCtx, {
+            type: 'line',
+            data: {
+                labels: accuracyData.map(d => {
+                    const date = new Date(d.date);
+                    return date.toLocaleDateString('ru-RU', {day: 'numeric', month: 'short'});
+                }),
+                datasets: [{
+                    label: 'Точность %',
+                    data: accuracyData.map(d => d.accuracy),
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {display: false},
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                const d = accuracyData[ctx.dataIndex];
+                                return `Точность: ${d.accuracy}% (${d.total} ответов)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {min: 0, max: 100, ticks: {callback: v => v + '%'}},
+                    x: {ticks: {maxTicksLimit: 8}}
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    // Mastered Over Time Chart
+    {% if mastered_over_time %}
+    const masteredCtx = document.getElementById('mastered-over-time-chart');
+    if (masteredCtx) {
+        const masteredData = {{ mastered_over_time | tojson }};
+        // Calculate cumulative
+        let cumulative = 0;
+        const cumulativeData = masteredData.map(d => {
+            cumulative += d.count;
+            return cumulative;
+        });
+        new Chart(masteredCtx, {
+            type: 'bar',
+            data: {
+                labels: masteredData.map(d => {
+                    const date = new Date(d.date);
+                    return date.toLocaleDateString('ru-RU', {day: 'numeric', month: 'short'});
+                }),
+                datasets: [{
+                    label: 'Выучено за день',
+                    data: masteredData.map(d => d.count),
+                    backgroundColor: '#10b981',
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {legend: {display: false}},
+                scales: {
+                    y: {beginAtZero: true, ticks: {stepSize: 1}},
+                    x: {ticks: {maxTicksLimit: 8}}
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    // Study Heatmap (pure HTML/CSS, no Chart.js needed)
+    {% if study_heatmap.data %}
+    const heatmapEl = document.getElementById('study-heatmap');
+    if (heatmapEl) {
+        const heatmapData = {{ study_heatmap | tojson }};
+        const dayNames = heatmapData.day_names;
+        const points = heatmapData.data;
+        const maxVal = Math.max(...points.map(p => p.v), 1);
+
+        // Hour labels row
+        const emptyLabel = document.createElement('div');
+        heatmapEl.appendChild(emptyLabel);
+        for (let h = 0; h < 24; h++) {
+            const hourLabel = document.createElement('div');
+            hourLabel.className = 'stats-heatmap__hour-label';
+            hourLabel.textContent = h % 3 === 0 ? h + ':00' : '';
+            heatmapEl.appendChild(hourLabel);
+        }
+
+        // Data rows
+        for (let dow = 0; dow < 7; dow++) {
+            const label = document.createElement('div');
+            label.className = 'stats-heatmap__label';
+            label.textContent = dayNames[dow];
+            heatmapEl.appendChild(label);
+
+            for (let h = 0; h < 24; h++) {
+                const cell = document.createElement('div');
+                cell.className = 'stats-heatmap__cell';
+                const point = points.find(p => p.x === h && p.y === dow);
+                const val = point ? point.v : 0;
+                const intensity = val / maxVal;
+                if (val > 0) {
+                    cell.style.background = `rgba(245, 158, 11, ${0.15 + intensity * 0.85})`;
+                    cell.title = `${dayNames[dow]} ${h}:00 — ${val} сессий`;
+                } else {
+                    cell.style.background = '#f1f5f9';
+                }
+                heatmapEl.appendChild(cell);
+            }
+        }
+    }
+    {% endif %}
+});
+</script>
 {% endblock %}

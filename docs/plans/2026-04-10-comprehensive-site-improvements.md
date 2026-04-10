@@ -215,13 +215,13 @@
 - Modify: `app/templates/study/stats.html`
 - Modify: `app/study/routes.py`
 
-- [ ] Add "Study Now" prominent button on study dashboard for most urgent deck (highest due count)
-- [ ] Show auto-deck vs custom deck visual distinction (icon/badge)
-- [ ] Add daily limit explanation when limit reached in flashcards: show current limit, link to settings to adjust
-- [ ] Improve study stats page: add accuracy trend chart (last 30 days), add words mastered over time chart, add study time heatmap (days of week)
-- [ ] Add session summary after flashcard session: cards reviewed, accuracy, XP earned, streak status
-- [ ] Write tests for study stats data aggregation
-- [ ] Run project test suite - must pass before task 12
+- [x] Add "Study Now" prominent button on study dashboard for most urgent deck (highest due count)
+- [x] Show auto-deck vs custom deck visual distinction (icon/badge)
+- [x] Add daily limit explanation when limit reached in flashcards: show current limit, link to settings to adjust
+- [x] Improve study stats page: add accuracy trend chart (last 30 days), add words mastered over time chart, add study time heatmap (days of week)
+- [x] Add session summary after flashcard session: cards reviewed, accuracy, XP earned, streak status
+- [x] Write tests for study stats data aggregation
+- [x] Run project test suite - must pass before task 12
 
 ### Task 12: Grammar Lab UX Improvements
 
