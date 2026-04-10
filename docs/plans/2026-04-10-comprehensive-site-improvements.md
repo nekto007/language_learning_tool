@@ -49,12 +49,12 @@
 - Modify: `app/admin/main_routes.py`
 - Modify: `app/templates/admin/dashboard.html`
 
-- [ ] Add retention section: Day 1, Day 7, Day 30 retention rates (users who returned after registration)
-- [ ] Add streak analytics: users with active streaks, average streak length, streak distribution chart
-- [ ] Add referral dashboard section: total referrals, top 5 referrers, referral conversion rate (registered -> completed first lesson)
-- [ ] Add coin economy summary: total coins in circulation, earned vs spent ratio
-- [ ] Write tests for retention and referral calculations
-- [ ] Run project test suite - must pass before task 4
+- [x] Add retention section: Day 1, Day 7, Day 30 retention rates (users who returned after registration)
+- [x] Add streak analytics: users with active streaks, average streak length, streak distribution chart
+- [x] Add referral dashboard section: total referrals, top 5 referrers, referral conversion rate (registered -> completed first lesson)
+- [x] Add coin economy summary: total coins in circulation, earned vs spent ratio
+- [x] Write tests for retention and referral calculations
+- [x] Run project test suite - must pass before task 4
 
 ### Task 4: Admin Dashboard - Content Quality & Alerts
 

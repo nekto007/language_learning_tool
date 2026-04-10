@@ -161,6 +161,112 @@
     </div>
 </div>
 
+<!-- Retention & Streaks -->
+<div class="row g-4 mt-2">
+    <!-- Retention Rates -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-user-clock me-2 text-muted"></i>Удержание</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('День 1', retention.d1|string + '%', 'fa-calendar-day'),
+                    ('День 7', retention.d7|string + '%', 'fa-calendar-week'),
+                    ('День 30', retention.d30|string + '%', 'fa-calendar-alt')
+                ]) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Streak Analytics -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-fire me-2 text-muted"></i>Серии (Streaks)</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('Активных серий', streaks.active_streaks, 'fa-fire-alt'),
+                    ('Средняя длина', streaks.avg_streak, 'fa-chart-bar'),
+                    ('Рекорд', streaks.longest_overall, 'fa-trophy')
+                ]) }}
+                {% if streaks.distribution %}
+                <canvas id="streakDistChart" height="150" class="mt-3"></canvas>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Coin Economy -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-coins me-2 text-muted"></i>Экономика монет</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('В обращении', coins.total_balance, 'fa-wallet'),
+                    ('Всего заработано', coins.total_earned, 'fa-arrow-up'),
+                    ('Всего потрачено', coins.total_spent, 'fa-arrow-down'),
+                    ('Пользователей с монетами', coins.users_with_coins, 'fa-user-tag')
+                ]) }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Referral Analytics -->
+<div class="row g-4 mt-2">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-user-friends me-2 text-muted"></i>Рефералы</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('Всего рефералов', referrals.total_referrals, 'fa-share-alt'),
+                    ('Приглашённых', referrals.referred_count, 'fa-user-plus'),
+                    ('Прошли урок', referrals.converted, 'fa-check-circle'),
+                    ('Конверсия', referrals.conversion_rate|string + '%', 'fa-percentage')
+                ]) }}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-medal me-2 text-muted"></i>Топ рефереров</h5>
+            </div>
+            <div class="card-body">
+                {% if referrals.top_referrers %}
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Пользователь</th>
+                            <th>Рефералов</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ref in referrals.top_referrers %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ ref.username }}</td>
+                            <td><span class="badge bg-primary">{{ ref.count }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted mb-0">Нет рефералов</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Recent Users Table -->
 <div class="card mt-4">
     <div class="card-header d-flex justify-content-between align-items-center">
@@ -286,6 +392,32 @@ new Chart(activityCtx, {
         }
     }
 });
+
+// Streak Distribution Chart
+{% if streaks.distribution %}
+const streakCtx = document.getElementById('streakDistChart');
+if (streakCtx) {
+    const streakDist = {{ streaks.distribution | tojson }};
+    new Chart(streakCtx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(streakDist),
+            datasets: [{
+                label: 'Пользователей',
+                data: Object.values(streakDist),
+                backgroundColor: [chartColors.info, chartColors.primary, chartColors.success, '#ffc107', chartColors.danger],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+}
+{% endif %}
 
 // Progress Chart (Doughnut)
 const progressCtx = document.getElementById('progressChart').getContext('2d');

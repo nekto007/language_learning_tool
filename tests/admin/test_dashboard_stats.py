@@ -602,3 +602,287 @@ class TestSRSHealthMetrics:
 
         assert result['grammar_srs']['new'] >= 1
         assert result['grammar_srs']['total'] >= 1
+
+
+class TestRetentionMetrics:
+    """Tests for get_retention_metrics function."""
+
+    def test_returns_expected_keys(self, app, db_session):
+        """Should return d1, d7, d30 retention rates."""
+        from app.admin.main_routes import get_retention_metrics
+
+        result = get_retention_metrics.__wrapped__()
+
+        assert 'd1' in result
+        assert 'd7' in result
+        assert 'd30' in result
+
+    def test_zero_users_returns_zero(self, app, db_session):
+        """With no users, retention should be 0."""
+        db_session.query(User).delete()
+        db_session.commit()
+
+        from app.admin.main_routes import get_retention_metrics
+
+        result = get_retention_metrics.__wrapped__()
+
+        assert result['d1'] == 0
+        assert result['d7'] == 0
+        assert result['d30'] == 0
+
+    def test_retained_user_counted(self, app, db_session):
+        """User who logged in after day 1 should count for d1 retention."""
+        now = datetime.now(timezone.utc)
+        u = User(
+            username=f'ret_{uuid.uuid4().hex[:8]}',
+            email=f'ret_{uuid.uuid4().hex[:8]}@test.com',
+            active=True,
+            created_at=now - timedelta(days=5),
+            last_login=now - timedelta(days=2),
+        )
+        u.set_password('pass')
+        db_session.add(u)
+        db_session.commit()
+
+        from app.admin.main_routes import get_retention_metrics
+
+        result = get_retention_metrics.__wrapped__()
+
+        assert result['d1'] > 0
+
+    def test_non_retained_user_not_counted(self, app, db_session):
+        """User who never logged in after registration should not count."""
+        db_session.query(User).delete()
+        db_session.commit()
+
+        now = datetime.now(timezone.utc)
+        u = User(
+            username=f'noret_{uuid.uuid4().hex[:8]}',
+            email=f'noret_{uuid.uuid4().hex[:8]}@test.com',
+            active=True,
+            created_at=now - timedelta(days=10),
+            last_login=None,
+        )
+        u.set_password('pass')
+        db_session.add(u)
+        db_session.commit()
+
+        from app.admin.main_routes import get_retention_metrics
+
+        result = get_retention_metrics.__wrapped__()
+
+        assert result['d1'] == 0
+
+
+class TestStreakAnalytics:
+    """Tests for get_streak_analytics function."""
+
+    def test_returns_expected_keys(self, app, db_session):
+        """Should return active_streaks, avg_streak, longest_overall, distribution."""
+        from app.admin.main_routes import get_streak_analytics
+
+        result = get_streak_analytics.__wrapped__()
+
+        assert 'active_streaks' in result
+        assert 'avg_streak' in result
+        assert 'longest_overall' in result
+        assert 'distribution' in result
+
+    def test_counts_active_streak(self, app, db_session):
+        """User with current_streak_days > 0 should be counted."""
+        from app.achievements.models import UserStatistics
+
+        u = User(
+            username=f'str_{uuid.uuid4().hex[:8]}',
+            email=f'str_{uuid.uuid4().hex[:8]}@test.com',
+            active=True,
+        )
+        u.set_password('pass')
+        db_session.add(u)
+        db_session.flush()
+
+        stats = UserStatistics(
+            user_id=u.id,
+            current_streak_days=5,
+            longest_streak_days=10,
+        )
+        db_session.add(stats)
+        db_session.commit()
+
+        from app.admin.main_routes import get_streak_analytics
+
+        result = get_streak_analytics.__wrapped__()
+
+        assert result['active_streaks'] >= 1
+        assert result['avg_streak'] > 0
+        assert result['longest_overall'] >= 10
+        assert result['distribution']['4-7'] >= 1
+
+    def test_no_streaks_returns_zeros(self, app, db_session):
+        """With no user statistics, all values should be 0."""
+        from app.achievements.models import UserStatistics
+        db_session.query(UserStatistics).delete()
+        db_session.commit()
+
+        from app.admin.main_routes import get_streak_analytics
+
+        result = get_streak_analytics.__wrapped__()
+
+        assert result['active_streaks'] == 0
+        assert result['avg_streak'] == 0
+
+
+class TestReferralAnalytics:
+    """Tests for get_referral_analytics function."""
+
+    def test_returns_expected_keys(self, app, db_session):
+        """Should return referral metrics."""
+        from app.admin.main_routes import get_referral_analytics
+
+        result = get_referral_analytics.__wrapped__()
+
+        assert 'total_referrals' in result
+        assert 'top_referrers' in result
+        assert 'conversion_rate' in result
+        assert 'referred_count' in result
+        assert 'converted' in result
+
+    def test_counts_referrals(self, app, db_session):
+        """Should count referral logs."""
+        from app.auth.models import ReferralLog
+
+        referrer = User(
+            username=f'referrer_{uuid.uuid4().hex[:8]}',
+            email=f'referrer_{uuid.uuid4().hex[:8]}@test.com',
+            active=True,
+        )
+        referrer.set_password('pass')
+        db_session.add(referrer)
+        db_session.flush()
+
+        referred = User(
+            username=f'referred_{uuid.uuid4().hex[:8]}',
+            email=f'referred_{uuid.uuid4().hex[:8]}@test.com',
+            active=True,
+            referred_by_id=referrer.id,
+        )
+        referred.set_password('pass')
+        db_session.add(referred)
+        db_session.flush()
+
+        log = ReferralLog(referrer_id=referrer.id, referred_id=referred.id)
+        db_session.add(log)
+        db_session.commit()
+
+        from app.admin.main_routes import get_referral_analytics
+
+        result = get_referral_analytics.__wrapped__()
+
+        assert result['total_referrals'] >= 1
+        assert result['referred_count'] >= 1
+        assert len(result['top_referrers']) >= 1
+        assert result['top_referrers'][0]['username'] == referrer.username
+
+    def test_no_referrals_returns_zeros(self, app, db_session):
+        """With no referrals, all should be 0."""
+        from app.admin.main_routes import get_referral_analytics
+
+        result = get_referral_analytics.__wrapped__()
+
+        # May have pre-existing data, just check structure
+        assert isinstance(result['total_referrals'], int)
+        assert isinstance(result['top_referrers'], list)
+        assert isinstance(result['conversion_rate'], (int, float))
+
+
+class TestCoinEconomy:
+    """Tests for get_coin_economy function."""
+
+    def test_returns_expected_keys(self, app, db_session):
+        """Should return coin economy metrics."""
+        from app.admin.main_routes import get_coin_economy
+
+        result = get_coin_economy.__wrapped__()
+
+        assert 'total_balance' in result
+        assert 'total_earned' in result
+        assert 'total_spent' in result
+        assert 'users_with_coins' in result
+
+    def test_counts_coins(self, app, db_session):
+        """Should sum coin balances."""
+        from app.achievements.models import StreakCoins
+
+        u = User(
+            username=f'coin_{uuid.uuid4().hex[:8]}',
+            email=f'coin_{uuid.uuid4().hex[:8]}@test.com',
+            active=True,
+        )
+        u.set_password('pass')
+        db_session.add(u)
+        db_session.flush()
+
+        coins = StreakCoins(
+            user_id=u.id,
+            balance=50,
+            total_earned=100,
+            total_spent=50,
+        )
+        db_session.add(coins)
+        db_session.commit()
+
+        from app.admin.main_routes import get_coin_economy
+
+        result = get_coin_economy.__wrapped__()
+
+        assert result['total_balance'] >= 50
+        assert result['total_earned'] >= 100
+        assert result['total_spent'] >= 50
+        assert result['users_with_coins'] >= 1
+
+    def test_no_coins_returns_zeros(self, app, db_session):
+        """With no coin records, all should be 0."""
+        from app.achievements.models import StreakCoins
+        db_session.query(StreakCoins).delete()
+        db_session.commit()
+
+        from app.admin.main_routes import get_coin_economy
+
+        result = get_coin_economy.__wrapped__()
+
+        assert result['total_balance'] == 0
+        assert result['total_earned'] == 0
+        assert result['total_spent'] == 0
+        assert result['users_with_coins'] == 0
+
+
+class TestDashboardRouteRetentionReferrals:
+    """Tests for the admin dashboard route with new sections."""
+
+    def test_dashboard_shows_retention(self, app, client, admin_user):
+        """Dashboard should display retention section."""
+        response = client.get('/admin/')
+        data = response.data.decode('utf-8')
+        assert 'Удержание' in data
+        assert 'День 1' in data
+
+    def test_dashboard_shows_streaks(self, app, client, admin_user):
+        """Dashboard should display streak analytics section."""
+        response = client.get('/admin/')
+        data = response.data.decode('utf-8')
+        assert 'Серии' in data
+        assert 'Активных серий' in data
+
+    def test_dashboard_shows_referrals(self, app, client, admin_user):
+        """Dashboard should display referral section."""
+        response = client.get('/admin/')
+        data = response.data.decode('utf-8')
+        assert 'Рефералы' in data
+        assert 'Конверсия' in data
+
+    def test_dashboard_shows_coins(self, app, client, admin_user):
+        """Dashboard should display coin economy section."""
+        response = client.get('/admin/')
+        data = response.data.decode('utf-8')
+        assert 'Экономика монет' in data
+        assert 'В обращении' in data

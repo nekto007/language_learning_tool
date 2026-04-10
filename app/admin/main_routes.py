@@ -331,6 +331,148 @@ def get_srs_health_metrics() -> dict:
     }
 
 
+@cache_result('retention_metrics', timeout=300)
+def get_retention_metrics() -> dict:
+    """Day 1, Day 7, Day 30 retention rates."""
+    now = datetime.now(timezone.utc)
+    today = now.date()
+
+    def _retention_rate(day_offset: int) -> float:
+        """Percentage of users who were active day_offset days after registration."""
+        # Users who registered at least day_offset days ago
+        cutoff = today - timedelta(days=day_offset)
+        cohort_count = db.session.query(func.count(User.id)).filter(
+            func.date(User.created_at) <= cutoff,
+        ).scalar() or 0
+        if cohort_count == 0:
+            return 0.0
+
+        # Of those, how many had last_login on or after their registration + day_offset
+        retained = db.session.query(func.count(User.id)).filter(
+            func.date(User.created_at) <= cutoff,
+            User.last_login.isnot(None),
+            func.date(User.last_login) >= func.date(User.created_at) + day_offset,
+        ).scalar() or 0
+
+        return round(retained / cohort_count * 100, 1)
+
+    return {
+        'd1': _retention_rate(1),
+        'd7': _retention_rate(7),
+        'd30': _retention_rate(30),
+    }
+
+
+@cache_result('streak_analytics', timeout=300)
+def get_streak_analytics() -> dict:
+    """Streak analytics: active streaks, average length, distribution."""
+    from app.achievements.models import UserStatistics
+
+    active_streaks = db.session.query(func.count(UserStatistics.id)).filter(
+        UserStatistics.current_streak_days > 0,
+    ).scalar() or 0
+
+    avg_streak = db.session.query(func.avg(UserStatistics.current_streak_days)).filter(
+        UserStatistics.current_streak_days > 0,
+    ).scalar()
+    avg_streak = round(avg_streak, 1) if avg_streak else 0
+
+    longest_overall = db.session.query(func.max(UserStatistics.longest_streak_days)).scalar() or 0
+
+    # Streak distribution buckets: 1-3, 4-7, 8-14, 15-30, 31+
+    buckets = [
+        ('1-3', 1, 3),
+        ('4-7', 4, 7),
+        ('8-14', 8, 14),
+        ('15-30', 15, 30),
+        ('31+', 31, 99999),
+    ]
+    distribution = {}
+    for label, low, high in buckets:
+        cnt = db.session.query(func.count(UserStatistics.id)).filter(
+            UserStatistics.current_streak_days >= low,
+            UserStatistics.current_streak_days <= high,
+        ).scalar() or 0
+        distribution[label] = cnt
+
+    return {
+        'active_streaks': active_streaks,
+        'avg_streak': avg_streak,
+        'longest_overall': longest_overall,
+        'distribution': distribution,
+    }
+
+
+@cache_result('referral_analytics', timeout=300)
+def get_referral_analytics() -> dict:
+    """Referral dashboard: total referrals, top referrers, conversion rate."""
+    from app.auth.models import ReferralLog
+
+    total_referrals = db.session.query(func.count(ReferralLog.id)).scalar() or 0
+
+    # Top 5 referrers
+    top_referrers_rows = db.session.query(
+        User.username,
+        func.count(ReferralLog.id).label('cnt'),
+    ).join(ReferralLog, User.id == ReferralLog.referrer_id).group_by(
+        User.id, User.username,
+    ).order_by(func.count(ReferralLog.id).desc()).limit(5).all()
+
+    top_referrers = [{'username': row[0], 'count': row[1]} for row in top_referrers_rows]
+
+    # Conversion rate: referred users who completed at least one lesson
+    referred_count = db.session.query(func.count(User.id)).filter(
+        User.referred_by_id.isnot(None),
+    ).scalar() or 0
+
+    if referred_count > 0:
+        converted = db.session.query(func.count(distinct(LessonProgress.user_id))).filter(
+            LessonProgress.status == 'completed',
+            LessonProgress.user_id.in_(
+                db.session.query(User.id).filter(User.referred_by_id.isnot(None))
+            ),
+        ).scalar() or 0
+        conversion_rate = round(converted / referred_count * 100, 1)
+    else:
+        converted = 0
+        conversion_rate = 0
+
+    return {
+        'total_referrals': total_referrals,
+        'top_referrers': top_referrers,
+        'referred_count': referred_count,
+        'converted': converted,
+        'conversion_rate': conversion_rate,
+    }
+
+
+@cache_result('coin_economy', timeout=300)
+def get_coin_economy() -> dict:
+    """Coin economy summary: total in circulation, earned vs spent."""
+    from app.achievements.models import StreakCoins
+
+    totals = db.session.query(
+        func.sum(StreakCoins.balance),
+        func.sum(StreakCoins.total_earned),
+        func.sum(StreakCoins.total_spent),
+    ).first()
+
+    total_balance = totals[0] or 0
+    total_earned = totals[1] or 0
+    total_spent = totals[2] or 0
+
+    users_with_coins = db.session.query(func.count(StreakCoins.id)).filter(
+        StreakCoins.balance > 0,
+    ).scalar() or 0
+
+    return {
+        'total_balance': total_balance,
+        'total_earned': total_earned,
+        'total_spent': total_spent,
+        'users_with_coins': users_with_coins,
+    }
+
+
 @admin.route('/')
 @admin_required
 def dashboard():
@@ -347,6 +489,12 @@ def dashboard():
     content = get_content_metrics()
     srs_health = get_srs_health_metrics()
 
+    # Retention, streaks, referrals, coins
+    retention = get_retention_metrics()
+    streaks = get_streak_analytics()
+    referrals = get_referral_analytics()
+    coins = get_coin_economy()
+
     # Последние пользователи не кэшируем, так как они часто меняются
     recent_users = User.query.order_by(desc(User.created_at)).limit(10).all()
 
@@ -358,6 +506,10 @@ def dashboard():
         learning=learning,
         content=content,
         srs_health=srs_health,
+        retention=retention,
+        streaks=streaks,
+        referrals=referrals,
+        coins=coins,
         **stats
     )
 
