@@ -8,6 +8,13 @@
 (function() {
   'use strict';
 
+  // Escape HTML special characters to prevent XSS
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+  }
+
   // Only activate if user came from daily plan
   var params = new URLSearchParams(window.location.search);
   if (params.get('from') !== 'daily_plan') return;
@@ -78,11 +85,11 @@
         if (container) {
           if (data.has_next) {
             container.innerHTML =
-              '<a href="' + data.step_url + '" class="daily-next-banner">' +
-                '<span class="daily-next-banner__icon">' + data.step_icon + '</span>' +
+              '<a href="' + escapeHtml(data.step_url) + '" class="daily-next-banner">' +
+                '<span class="daily-next-banner__icon">' + escapeHtml(data.step_icon) + '</span>' +
                 '<span class="daily-next-banner__text">' +
-                  '\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433: ' + data.step_title +
-                  '<div class="daily-next-banner__progress">' + data.steps_done + ' \u0438\u0437 ' + data.steps_total + ' \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u043e</div>' +
+                  '\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433: ' + escapeHtml(data.step_title) +
+                  '<div class="daily-next-banner__progress">' + escapeHtml(data.steps_done) + ' \u0438\u0437 ' + escapeHtml(data.steps_total) + ' \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u043e</div>' +
                 '</span>' +
                 '<span class="daily-next-banner__arrow">\u2192</span>' +
               '</a>';
@@ -92,7 +99,7 @@
                 '<span class="daily-next-banner__icon">\u2728</span>' +
                 '<span class="daily-next-banner__text">' +
                   '\u041f\u043b\u0430\u043d \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d!' +
-                  '<div class="daily-next-banner__progress">' + data.steps_done + ' \u0438\u0437 ' + data.steps_total + ' \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u043e</div>' +
+                  '<div class="daily-next-banner__progress">' + escapeHtml(data.steps_done) + ' \u0438\u0437 ' + escapeHtml(data.steps_total) + ' \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u043e</div>' +
                 '</span>' +
               '</a>';
           }
@@ -120,7 +127,7 @@
         '<div class="dp-modal">' +
           '<div class="dp-modal__icon">\uD83C\uDF89</div>' +
           '<div class="dp-modal__title">\u041f\u043b\u0430\u043d \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d!</div>' +
-          '<div class="dp-modal__countdown">' + data.steps_done + ' \u0438\u0437 ' + data.steps_total + ' \u0448\u0430\u0433\u043e\u0432 \u0441\u0434\u0435\u043b\u0430\u043d\u043e</div>' +
+          '<div class="dp-modal__countdown">' + escapeHtml(data.steps_done) + ' \u0438\u0437 ' + escapeHtml(data.steps_total) + ' \u0448\u0430\u0433\u043e\u0432 \u0441\u0434\u0435\u043b\u0430\u043d\u043e</div>' +
           '<a href="/dashboard" class="dp-modal__btn dp-modal__btn--done">\uD83C\uDFE0 \u041d\u0430 \u0433\u043b\u0430\u0432\u043d\u0443\u044e</a>' +
           '<button class="dp-modal__cancel" id="dp-modal-cancel">\u041e\u0441\u0442\u0430\u0442\u044c\u0441\u044f \u043d\u0430 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435</button>' +
         '</div>';
@@ -144,7 +151,7 @@
         '<div class="dp-modal__icon">\u2705</div>' +
         '<div class="dp-modal__title">\u0428\u0430\u0433 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d!</div>' +
         '<div class="dp-modal__countdown" id="dp-modal-countdown">\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433 \u0447\u0435\u0440\u0435\u0437 ' + countdownSeconds + '...</div>' +
-        '<a href="' + nextUrl + '" class="dp-modal__btn" id="dp-modal-go">\u2192 ' + data.step_title + '</a>' +
+        '<a href="' + escapeHtml(nextUrl) + '" class="dp-modal__btn" id="dp-modal-go">\u2192 ' + escapeHtml(data.step_title) + '</a>' +
         '<button class="dp-modal__cancel" id="dp-modal-cancel">\u041e\u0441\u0442\u0430\u0442\u044c\u0441\u044f \u043d\u0430 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435</button>' +
       '</div>';
 

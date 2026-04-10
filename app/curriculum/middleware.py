@@ -142,7 +142,8 @@ def curriculum_error_handler(f):
                 }), 400
             else:
                 flash('Неверные данные. Попробуйте еще раз.', 'error')
-                return redirect(request.referrer or url_for('curriculum.index'))
+                from app.auth.routes import get_safe_redirect_url
+                return redirect(get_safe_redirect_url(request.referrer, fallback='curriculum.index'))
 
         except PermissionError as e:
             logger.warning(f"Permission denied in {f.__name__}: {str(e)}")
