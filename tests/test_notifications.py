@@ -149,3 +149,60 @@ class TestNotificationBell:
         response = client.get('/')
         html = response.data.decode()
         assert 'notif-bell' not in html
+
+    def test_bell_does_not_use_innerhtml(self, auth_client):
+        """Notification dropdown must use safe DOM API, not innerHTML for user data."""
+        response = auth_client.get('/grammar-lab/')
+        html = response.data.decode()
+        # The notification rendering JS should use textContent/createElement, not innerHTML for notifications
+        assert 'list.textContent' in html or 'document.createElement' in html
+        # Should NOT contain the old innerHTML pattern for notification items
+        assert "n.title + '</div>'" not in html
+
+
+class TestNotificationPreferences:
+    """Test that notification preferences gate creation."""
+
+    def test_achievement_blocked_when_pref_off(self, app, test_user, db_session):
+        """If user disables achievement notifications, none should be created."""
+        with app.app_context():
+            test_user.notify_in_app_achievements = False
+            db_session.commit()
+
+            from app.notifications.services import notify_achievement
+            result = notify_achievement(test_user.id, 'Test Badge')
+            assert result is None
+
+            # Restore
+            test_user.notify_in_app_achievements = True
+            db_session.commit()
+
+    def test_streak_blocked_when_pref_off(self, app, test_user, db_session):
+        with app.app_context():
+            test_user.notify_in_app_streaks = False
+            db_session.commit()
+
+            from app.notifications.services import notify_streak_milestone
+            result = notify_streak_milestone(test_user.id, 7, 5)
+            assert result is None
+
+            test_user.notify_in_app_streaks = True
+            db_session.commit()
+
+    def test_referral_always_sent(self, app, test_user, db_session):
+        """Referral notifications have no preference gate — always created."""
+        with app.app_context():
+            from app.notifications.services import notify_referral
+            result = notify_referral(test_user.id, 'friend123')
+            db_session.commit()
+            assert result is not None
+
+    def test_achievement_sent_when_pref_on(self, app, test_user, db_session):
+        with app.app_context():
+            test_user.notify_in_app_achievements = True
+            db_session.commit()
+
+            from app.notifications.services import notify_achievement
+            result = notify_achievement(test_user.id, 'Enabled Badge')
+            db_session.commit()
+            assert result is not None
