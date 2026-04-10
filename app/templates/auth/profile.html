@@ -146,6 +146,7 @@
   <div class="pf-card">
     <h2 class="pf-card__title">{{ _('Настройки') }}</h2>
     <form method="POST" action="{{ url_for('auth.profile_update') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="section" value="settings">
       <div class="pf-field">
         <label class="pf-field__label" for="timezone">{{ _('Часовой пояс') }}</label>
@@ -169,6 +170,7 @@
   <div class="pf-card">
     <h2 class="pf-card__title">{{ _('Уведомления') }}</h2>
     <form method="POST" action="{{ url_for('auth.profile_update') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="section" value="notifications">
       <div class="pf-toggle">
         <label class="pf-toggle__label" for="notify_email_reminders">{{ _('Email-напоминания') }}</label>
