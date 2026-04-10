@@ -50,9 +50,9 @@
 **Files:**
 - Modify: `app/utils/email_utils.py`
 
-- [ ] Change `server.set_debuglevel(1)` to `server.set_debuglevel(0)` (or make configurable via env var, default off)
-- [ ] Write test: verify debug level is 0 in production config
-- [ ] Run project test suite - must pass before task 4
+- [x] Change `server.set_debuglevel(1)` to `server.set_debuglevel(0)` (or make configurable via env var, default off)
+- [x] Write test: verify debug level is 0 in production config
+- [x] Run project test suite - must pass before task 4
 
 ### Task 4: Add Health Check Endpoint
 
