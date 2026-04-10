@@ -510,6 +510,7 @@ def profile_update():
         db.session.commit()
         flash('Настройки сохранены.', 'success')
     except Exception:
+        logger.exception("Failed to save profile settings for user %s", current_user.id)
         db.session.rollback()
         flash('Ошибка при сохранении настроек.', 'danger')
 
