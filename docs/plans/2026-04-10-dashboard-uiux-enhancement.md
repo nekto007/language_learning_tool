@@ -65,11 +65,11 @@ Enrich the existing dashboard with new data-driven widgets that surface the app'
 - Modify: `app/templates/dashboard.html`
 - Modify: `app/static/css/design-system.css`
 
-- [ ] In route, add calls to `get_best_study_time(user_id)` and `SessionService.get_session_stats(user_id, days=7)`
-- [ ] Create "Best Study Time" widget: clock icon with recommended hour, 24-hour mini bar chart showing hourly activity scores
-- [ ] Create "This Week's Stats" widget: cards showing total sessions, words studied, accuracy percentage, total study time
-- [ ] Add CSS for `.dash-study-time`, `.dash-study-time__chart`, `.dash-week-stats`
-- [ ] Write tests for route data
+- [x] In route, add calls to `get_best_study_time(user_id)` and `SessionService.get_session_stats(user_id, days=7)`
+- [x] Create "Best Study Time" widget: clock icon with recommended hour, 24-hour mini bar chart showing hourly activity scores
+- [x] Create "This Week's Stats" widget: cards showing total sessions, words studied, accuracy percentage, total study time
+- [x] Add CSS for `.dash-study-time`, `.dash-study-time__chart`, `.dash-week-stats`
+- [x] Write tests for route data
 
 ### Task 4: Leaderboard + XP Rank Widget
 

@@ -560,6 +560,57 @@
     </div>
     {% endif %}
 
+    <!-- Best Study Time & This Week's Stats -->
+    <div class="dash-stats-row">
+        <!-- Best Study Time -->
+        <div class="dash-study-time">
+            <h3 class="dash-study-time__heading">&#128336; &#1051;&#1091;&#1095;&#1096;&#1077;&#1077; &#1074;&#1088;&#1077;&#1084;&#1103; &#1076;&#1083;&#1103; &#1091;&#1095;&#1105;&#1073;&#1099;</h3>
+            {% if best_study_time and best_study_time.best_hour is not none %}
+            <div class="dash-study-time__hero">
+                <span class="dash-study-time__hour">{{ '%02d:00'|format(best_study_time.best_hour) }}</span>
+                <span class="dash-study-time__hint">&#1042;&#1099; &#1091;&#1095;&#1080;&#1090;&#1077;&#1089;&#1100; &#1101;&#1092;&#1092;&#1077;&#1082;&#1090;&#1080;&#1074;&#1085;&#1077;&#1077; &#1074;&#1089;&#1077;&#1075;&#1086;</span>
+            </div>
+            <div class="dash-study-time__chart">
+                {% set max_score = best_study_time.hourly_scores.values()|list|max if best_study_time.hourly_scores else 1 %}
+                {% for h in range(24) %}
+                {% set score = best_study_time.hourly_scores.get(h, 0) %}
+                <div class="dash-study-time__bar{% if h == best_study_time.best_hour %} dash-study-time__bar--best{% endif %}"
+                     style="height: {{ (score / max_score * 100)|int if max_score else 0 }}%"
+                     title="{{ '%02d:00'|format(h) }} &mdash; {{ score }}"></div>
+                {% endfor %}
+            </div>
+            <div class="dash-study-time__labels">
+                <span>00</span><span>06</span><span>12</span><span>18</span><span>23</span>
+            </div>
+            {% else %}
+            <div class="dash-study-time__empty">&#1053;&#1077;&#1076;&#1086;&#1089;&#1090;&#1072;&#1090;&#1086;&#1095;&#1085;&#1086; &#1076;&#1072;&#1085;&#1085;&#1099;&#1093;. &#1055;&#1088;&#1086;&#1076;&#1086;&#1083;&#1078;&#1072;&#1081;&#1090;&#1077; &#1079;&#1072;&#1085;&#1080;&#1084;&#1072;&#1090;&#1100;&#1089;&#1103;!</div>
+            {% endif %}
+        </div>
+
+        <!-- This Week's Stats -->
+        <div class="dash-week-stats">
+            <h3 class="dash-week-stats__heading">&#128202; &#1057;&#1090;&#1072;&#1090;&#1080;&#1089;&#1090;&#1080;&#1082;&#1072; &#1079;&#1072; &#1085;&#1077;&#1076;&#1077;&#1083;&#1102;</h3>
+            <div class="dash-week-stats__grid">
+                <div class="dash-week-stats__card">
+                    <div class="dash-week-stats__value">{{ session_stats.total_sessions }}</div>
+                    <div class="dash-week-stats__label">&#1089;&#1077;&#1089;&#1089;&#1080;&#1081;</div>
+                </div>
+                <div class="dash-week-stats__card">
+                    <div class="dash-week-stats__value">{{ session_stats.total_words_studied }}</div>
+                    <div class="dash-week-stats__label">&#1089;&#1083;&#1086;&#1074;</div>
+                </div>
+                <div class="dash-week-stats__card">
+                    <div class="dash-week-stats__value">{{ session_stats.accuracy_percent }}%</div>
+                    <div class="dash-week-stats__label">&#1090;&#1086;&#1095;&#1085;&#1086;&#1089;&#1090;&#1100;</div>
+                </div>
+                <div class="dash-week-stats__card">
+                    <div class="dash-week-stats__value">{{ (session_stats.total_time_seconds / 60)|int }} &#1084;&#1080;&#1085;</div>
+                    <div class="dash-week-stats__label">&#1074;&#1088;&#1077;&#1084;&#1103;</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Progress Overview -->
     <div class="dash-progress">
         <h3 class="dash-progress__heading">&#1052;&#1086;&#1081; &#1087;&#1088;&#1086;&#1075;&#1088;&#1077;&#1089;&#1089;</h3>
@@ -1198,6 +1249,130 @@
     }
     .dash-risk,
     .dash-weakness {
+        padding: 1rem;
+    }
+}
+
+/* ============================================
+   Best Study Time & This Week's Stats
+   ============================================ */
+
+.dash-stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+    animation: dashSlideUp 0.4s ease-out both;
+    animation-delay: 0.15s;
+}
+
+.dash-study-time,
+.dash-week-stats {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius-sm);
+    box-shadow: var(--dash-shadow);
+    padding: 1.25rem;
+}
+
+.dash-study-time__heading,
+.dash-week-stats__heading {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 1rem;
+}
+
+.dash-study-time__hero {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.dash-study-time__hour {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--dash-accent);
+}
+
+.dash-study-time__hint {
+    font-size: 0.8rem;
+    color: var(--dash-text-muted);
+}
+
+.dash-study-time__chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 60px;
+    padding: 0;
+}
+
+.dash-study-time__bar {
+    flex: 1;
+    min-height: 2px;
+    background: var(--dash-border);
+    border-radius: 2px 2px 0 0;
+    transition: background 0.2s;
+}
+
+.dash-study-time__bar--best {
+    background: var(--dash-accent);
+}
+
+.dash-study-time__labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    color: var(--dash-text-muted);
+    margin-top: 0.25rem;
+}
+
+.dash-study-time__empty {
+    color: var(--dash-text-muted);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 1.5rem 0;
+}
+
+.dash-week-stats__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.dash-week-stats__card {
+    background: var(--dash-bg);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius-sm);
+    padding: 0.875rem;
+    text-align: center;
+}
+
+.dash-week-stats__value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--dash-text);
+}
+
+.dash-week-stats__label {
+    font-size: 0.7rem;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 0.25rem;
+}
+
+@media (max-width: 640px) {
+    .dash-stats-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .dash-study-time,
+    .dash-week-stats {
         padding: 1rem;
     }
 }

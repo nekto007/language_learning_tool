@@ -307,3 +307,102 @@ class TestDashboardGrammarWeaknesses:
             html = response.data.decode('utf-8')
             # dash-alerts-row div should not be rendered when both lists are empty
             assert 'dash-alerts-row"' not in html
+
+
+class TestDashboardBestStudyTime:
+    """Test best study time widget data on dashboard"""
+
+    def test_dashboard_includes_best_study_time_data(self, client, app, test_user, words_module_access):
+        """Dashboard should call get_best_study_time and pass data to template"""
+        mock_data = {'best_hour': 14, 'hourly_scores': {14: 85.5, 15: 72.0}}
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_best_study_time', return_value=mock_data) as mock_bst:
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            mock_bst.assert_called_once_with(test_user.id)
+
+    def test_dashboard_renders_best_study_time_widget(self, client, app, test_user, words_module_access):
+        """Dashboard should render best study time widget with hour and chart"""
+        mock_data = {'best_hour': 14, 'hourly_scores': {14: 85.5, 10: 60.0}}
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_best_study_time', return_value=mock_data):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            assert 'dash-study-time' in html
+            assert '14:00' in html
+            assert 'dash-study-time__bar--best' in html
+
+    def test_dashboard_best_study_time_empty_state(self, client, app, test_user, words_module_access):
+        """Dashboard should show empty state when no study time data"""
+        mock_data = {'best_hour': None, 'hourly_scores': {}}
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_best_study_time', return_value=mock_data):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            assert 'dash-study-time__empty' in html
+            # Chart div should not be rendered (class appears in CSS but not as HTML element)
+            assert 'class="dash-study-time__chart"' not in html
+
+
+class TestDashboardSessionStats:
+    """Test session stats widget data on dashboard"""
+
+    def test_dashboard_includes_session_stats_data(self, client, app, test_user, words_module_access):
+        """Dashboard should call SessionService.get_session_stats and pass data to template"""
+        mock_stats = {
+            'period_days': 7,
+            'total_sessions': 12,
+            'total_words_studied': 85,
+            'total_correct': 70,
+            'total_incorrect': 15,
+            'accuracy_percent': 82.4,
+            'total_time_seconds': 3600,
+            'avg_session_time_seconds': 300,
+        }
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.services.session_service.SessionService.get_session_stats', return_value=mock_stats) as mock_ss:
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            mock_ss.assert_called_once_with(test_user.id, days=7)
+
+    def test_dashboard_renders_session_stats_widget(self, client, app, test_user, words_module_access):
+        """Dashboard should render weekly stats cards"""
+        mock_stats = {
+            'period_days': 7,
+            'total_sessions': 12,
+            'total_words_studied': 85,
+            'total_correct': 70,
+            'total_incorrect': 15,
+            'accuracy_percent': 82.4,
+            'total_time_seconds': 3600,
+            'avg_session_time_seconds': 300,
+        }
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.services.session_service.SessionService.get_session_stats', return_value=mock_stats):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            assert 'dash-week-stats' in html
+            assert '>12<' in html  # total_sessions
+            assert '>85<' in html  # total_words_studied
+            assert '82.4%' in html  # accuracy
+            assert '60 ' in html  # 3600 seconds = 60 min

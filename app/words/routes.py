@@ -116,7 +116,8 @@ def dashboard():
     from app.telegram.models import TelegramUser
     from app.telegram.queries import get_daily_plan_v2, get_current_streak, get_daily_summary
     from app.telegram.notifications import _lesson_minutes, _words_minutes
-    from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses
+    from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses, get_best_study_time
+    from app.study.services.session_service import SessionService
     from app.achievements.streak_service import get_streak_calendar
 
     # === DAILY PLAN & STREAK ===
@@ -175,6 +176,10 @@ def dashboard():
     # === WORDS AT RISK & GRAMMAR WEAKNESSES ===
     words_at_risk = get_words_at_risk(current_user.id, limit=5)
     grammar_weaknesses = get_grammar_weaknesses(current_user.id, limit=5)
+
+    # === BEST STUDY TIME & SESSION STATS ===
+    best_study_time = get_best_study_time(current_user.id)
+    session_stats = SessionService.get_session_stats(current_user.id, days=7)
 
     # === WORDS STATS ===
     from app.srs.stats_service import srs_stats_service
@@ -319,6 +324,9 @@ def dashboard():
         # Words at risk & grammar weaknesses
         words_at_risk=words_at_risk,
         grammar_weaknesses=grammar_weaknesses,
+        # Best study time & session stats
+        best_study_time=best_study_time,
+        session_stats=session_stats,
     )
 
 
