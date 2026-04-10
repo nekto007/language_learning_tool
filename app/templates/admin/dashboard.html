@@ -267,6 +267,117 @@
     </div>
 </div>
 
+<!-- Content Alerts -->
+{% if content_alerts %}
+<div class="row g-4 mt-2">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning bg-opacity-10">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2 text-warning"></i>Оповещения ({{ content_alerts|length }})</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for alert in content_alerts %}
+                    <div class="list-group-item">
+                        <div class="d-flex align-items-center">
+                            {% if alert.severity == 'high' %}
+                            <span class="badge bg-danger me-2">Высокий</span>
+                            {% elif alert.severity == 'medium' %}
+                            <span class="badge bg-warning me-2">Средний</span>
+                            {% else %}
+                            <span class="badge bg-info me-2">Низкий</span>
+                            {% endif %}
+                            <div>
+                                <strong>{{ alert.message }}</strong>
+                                <br><small class="text-muted">{{ alert.action }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Content Quality & System Health -->
+<div class="row g-4 mt-2">
+    <!-- Content Quality Summary -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-clipboard-check me-2 text-muted"></i>Качество контента</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('Уроков с низким % прохождения', content_quality.low_pass_count, 'fa-exclamation-circle'),
+                    ('Уроков без завершений', content_quality.zero_completions_count, 'fa-times-circle'),
+                    ('Грамм. тем без упражнений', content_quality.zero_exercises_count, 'fa-question-circle')
+                ]) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- System Health -->
+    <div class="col-lg-2">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-heartbeat me-2 text-muted"></i>Система</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-2">
+                    <span class="me-2">БД:</span>
+                    {% if system_health.db_status == 'ok' %}
+                    <span class="badge bg-success">OK</span>
+                    {% else %}
+                    <span class="badge bg-danger">Ошибка</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Problem Lessons Table -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bug me-2 text-muted"></i>Проблемные уроки (прохождение &lt;50%)</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if content_quality.low_pass_lessons %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Тип</th>
+                                <th>Прох. %</th>
+                                <th>Попыток</th>
+                                <th>Ср. балл</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lesson in content_quality.low_pass_lessons[:10] %}
+                            <tr>
+                                <td>#{{ lesson.lesson_id }}</td>
+                                <td><span class="badge bg-secondary">{{ lesson.type }}</span></td>
+                                <td><span class="text-danger fw-bold">{{ lesson.pass_rate }}%</span></td>
+                                <td>{{ lesson.attempts }}</td>
+                                <td>{{ lesson.avg_score }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-3 text-muted">Нет проблемных уроков</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Recent Users Table -->
 <div class="card mt-4">
     <div class="card-header d-flex justify-content-between align-items-center">

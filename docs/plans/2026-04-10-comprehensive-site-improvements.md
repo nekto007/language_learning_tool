@@ -62,12 +62,12 @@
 - Modify: `app/admin/main_routes.py`
 - Modify: `app/templates/admin/dashboard.html`
 
-- [ ] Integrate `lesson_analytics_service.generate_alerts()` on admin dashboard - show top 5 alerts (low pass rate lessons, high abandonment)
-- [ ] Add content quality section: lessons with <50% pass rate, lessons with 0 completions, grammar topics with 0 exercises
-- [ ] Add "problem lessons" table showing lesson_id, type, pass_rate, attempts, module for bottom 10 lessons
-- [ ] Add system health mini-widget: DB connection status, total errors today (if logging available)
-- [ ] Write tests for alert generation and content quality queries
-- [ ] Run project test suite - must pass before task 5
+- [x] Integrate `lesson_analytics_service.generate_alerts()` on admin dashboard - show top 5 alerts (low pass rate lessons, high abandonment)
+- [x] Add content quality section: lessons with <50% pass rate, lessons with 0 completions, grammar topics with 0 exercises
+- [x] Add "problem lessons" table showing lesson_id, type, pass_rate, attempts, module for bottom 10 lessons
+- [x] Add system health mini-widget: DB connection status, total errors today (if logging available)
+- [x] Write tests for alert generation and content quality queries
+- [x] Run project test suite - must pass before task 5
 
 ### Task 5: Admin - User Management Improvements
 

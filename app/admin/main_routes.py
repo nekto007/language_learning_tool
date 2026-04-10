@@ -11,7 +11,7 @@ from functools import wraps
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
-from sqlalchemy import desc, distinct, func
+from sqlalchemy import case, desc, distinct, func
 
 from app import csrf
 from app.auth.models import User
@@ -473,6 +473,96 @@ def get_coin_economy() -> dict:
     }
 
 
+@cache_result('content_quality', timeout=300)
+def get_content_quality() -> dict:
+    """Content quality metrics: low pass rate lessons, zero completions, grammar topics without exercises."""
+    from app.grammar_lab.models import GrammarExercise, GrammarTopic
+
+    # Lessons with <50% pass rate (at least 5 attempts in last 30 days)
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+
+    lesson_stats_rows = db.session.query(
+        LessonAttempt.lesson_id,
+        func.count(LessonAttempt.id).label('attempts'),
+        func.sum(case((LessonAttempt.passed == True, 1), else_=0)).label('passed'),
+        func.avg(LessonAttempt.score).label('avg_score'),
+    ).filter(
+        LessonAttempt.completed_at.isnot(None),
+        LessonAttempt.started_at >= thirty_days_ago,
+    ).group_by(LessonAttempt.lesson_id).having(
+        func.count(LessonAttempt.id) >= 5,
+    ).all()
+
+    low_pass_lessons = []
+    for row in lesson_stats_rows:
+        pass_rate = (row.passed / row.attempts * 100) if row.attempts > 0 else 0
+        if pass_rate < 50:
+            lesson = Lessons.query.get(row.lesson_id)
+            if lesson:
+                low_pass_lessons.append({
+                    'lesson_id': row.lesson_id,
+                    'title': lesson.title,
+                    'type': lesson.type,
+                    'module_id': lesson.module_id,
+                    'pass_rate': round(pass_rate, 1),
+                    'attempts': row.attempts,
+                    'avg_score': round(row.avg_score or 0, 1),
+                })
+
+    low_pass_lessons.sort(key=lambda x: x['pass_rate'])
+
+    # Lessons with 0 completions (exist in DB but no one completed them)
+    completed_lesson_ids = db.session.query(
+        distinct(LessonProgress.lesson_id)
+    ).filter(LessonProgress.status == 'completed').subquery()
+
+    zero_completions_count = db.session.query(func.count(Lessons.id)).filter(
+        ~Lessons.id.in_(db.session.query(completed_lesson_ids))
+    ).scalar() or 0
+
+    # Grammar topics with 0 exercises
+    topics_with_exercises = db.session.query(
+        distinct(GrammarExercise.topic_id)
+    ).subquery()
+
+    zero_exercises_count = db.session.query(func.count(GrammarTopic.id)).filter(
+        ~GrammarTopic.id.in_(db.session.query(topics_with_exercises))
+    ).scalar() or 0
+
+    return {
+        'low_pass_lessons': low_pass_lessons[:10],
+        'low_pass_count': len(low_pass_lessons),
+        'zero_completions_count': zero_completions_count,
+        'zero_exercises_count': zero_exercises_count,
+    }
+
+
+@cache_result('content_alerts', timeout=300)
+def get_content_alerts() -> list:
+    """Generate content alerts using LessonAnalyticsService."""
+    from app.curriculum.services.lesson_analytics_service import LessonAnalyticsService
+
+    try:
+        alerts = LessonAnalyticsService.generate_alerts()
+        return alerts[:5]
+    except Exception as e:
+        logger.warning(f"Error generating content alerts: {e}")
+        return []
+
+
+@cache_result('system_health', timeout=60)
+def get_system_health() -> dict:
+    """System health: DB connection status, basic error check."""
+    health = {'db_status': 'ok', 'db_error': None}
+    try:
+        db.session.execute(db.text('SELECT 1'))
+    except Exception as e:
+        health['db_status'] = 'error'
+        health['db_error'] = str(e)
+
+    return health
+
+
 @admin.route('/')
 @admin_required
 def dashboard():
@@ -495,6 +585,11 @@ def dashboard():
     referrals = get_referral_analytics()
     coins = get_coin_economy()
 
+    # Content quality & alerts
+    content_quality = get_content_quality()
+    content_alerts = get_content_alerts()
+    system_health = get_system_health()
+
     # Последние пользователи не кэшируем, так как они часто меняются
     recent_users = User.query.order_by(desc(User.created_at)).limit(10).all()
 
@@ -510,6 +605,9 @@ def dashboard():
         streaks=streaks,
         referrals=referrals,
         coins=coins,
+        content_quality=content_quality,
+        content_alerts=content_alerts,
+        system_health=system_health,
         **stats
     )
 

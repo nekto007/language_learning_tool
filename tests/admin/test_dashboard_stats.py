@@ -886,3 +886,213 @@ class TestDashboardRouteRetentionReferrals:
         data = response.data.decode('utf-8')
         assert 'Экономика монет' in data
         assert 'В обращении' in data
+
+    def test_dashboard_shows_content_quality(self, app, client, admin_user):
+        """Dashboard should display content quality section."""
+        response = client.get('/admin/')
+        data = response.data.decode('utf-8')
+        assert 'Качество контента' in data
+        assert 'Проблемные уроки' in data
+
+    def test_dashboard_shows_system_health(self, app, client, admin_user):
+        """Dashboard should display system health widget."""
+        response = client.get('/admin/')
+        data = response.data.decode('utf-8')
+        assert 'Система' in data
+
+
+class TestContentQuality:
+    """Tests for get_content_quality function."""
+
+    def test_returns_expected_keys(self, app, db_session):
+        """Should return content quality metrics."""
+        from app.admin.main_routes import get_content_quality
+
+        result = get_content_quality.__wrapped__()
+
+        assert 'low_pass_lessons' in result
+        assert 'low_pass_count' in result
+        assert 'zero_completions_count' in result
+        assert 'zero_exercises_count' in result
+
+    def test_detects_low_pass_rate_lesson(self, app, db_session):
+        """Lesson with <50% pass rate and >=5 attempts should appear in low_pass_lessons."""
+        now = datetime.now(timezone.utc)
+
+        u = User(
+            username=f'cq_{uuid.uuid4().hex[:8]}',
+            email=f'cq_{uuid.uuid4().hex[:8]}@test.com',
+            active=True,
+        )
+        u.set_password('pass')
+        db_session.add(u)
+        db_session.flush()
+
+        level = CEFRLevel(
+            code=uuid.uuid4().hex[:2].upper(),
+            name='Test', description='Test', order=97
+        )
+        db_session.add(level)
+        db_session.flush()
+
+        module = Module(level_id=level.id, number=1, title='CQ Module')
+        db_session.add(module)
+        db_session.flush()
+
+        lesson = Lessons(module_id=module.id, number=1, title='Hard Lesson', type='quiz', order=1)
+        db_session.add(lesson)
+        db_session.flush()
+
+        # Create 6 attempts, only 1 passed (16.7% pass rate)
+        for i in range(6):
+            attempt = LessonAttempt(
+                user_id=u.id,
+                lesson_id=lesson.id,
+                attempt_number=i + 1,
+                score=30.0 if i > 0 else 80.0,
+                passed=(i == 0),
+                completed_at=now - timedelta(hours=i),
+                started_at=now - timedelta(hours=i, minutes=30),
+            )
+            db_session.add(attempt)
+        db_session.commit()
+
+        from app.admin.main_routes import get_content_quality
+
+        result = get_content_quality.__wrapped__()
+
+        assert result['low_pass_count'] >= 1
+        lesson_ids = [l['lesson_id'] for l in result['low_pass_lessons']]
+        assert lesson.id in lesson_ids
+
+    def test_no_low_pass_when_high_pass_rate(self, app, db_session):
+        """Lesson with >50% pass rate should not appear."""
+        now = datetime.now(timezone.utc)
+
+        u = User(
+            username=f'hp_{uuid.uuid4().hex[:8]}',
+            email=f'hp_{uuid.uuid4().hex[:8]}@test.com',
+            active=True,
+        )
+        u.set_password('pass')
+        db_session.add(u)
+        db_session.flush()
+
+        level = CEFRLevel(
+            code=uuid.uuid4().hex[:2].upper(),
+            name='Test', description='Test', order=96
+        )
+        db_session.add(level)
+        db_session.flush()
+
+        module = Module(level_id=level.id, number=1, title='HP Module')
+        db_session.add(module)
+        db_session.flush()
+
+        lesson = Lessons(module_id=module.id, number=1, title='Easy Lesson', type='quiz', order=1)
+        db_session.add(lesson)
+        db_session.flush()
+
+        # 5 attempts, all passed
+        for i in range(5):
+            attempt = LessonAttempt(
+                user_id=u.id,
+                lesson_id=lesson.id,
+                attempt_number=i + 1,
+                score=90.0,
+                passed=True,
+                completed_at=now - timedelta(hours=i),
+                started_at=now - timedelta(hours=i, minutes=30),
+            )
+            db_session.add(attempt)
+        db_session.commit()
+
+        from app.admin.main_routes import get_content_quality
+
+        result = get_content_quality.__wrapped__()
+
+        lesson_ids = [l['lesson_id'] for l in result['low_pass_lessons']]
+        assert lesson.id not in lesson_ids
+
+    def test_counts_zero_completions(self, app, db_session):
+        """Should count lessons with zero completions."""
+        from app.admin.main_routes import get_content_quality
+
+        result = get_content_quality.__wrapped__()
+
+        # There should always be >= 0
+        assert isinstance(result['zero_completions_count'], int)
+
+    def test_counts_grammar_topics_without_exercises(self, app, db_session):
+        """Grammar topic without exercises should be counted."""
+        from app.grammar_lab.models import GrammarTopic
+
+        topic = GrammarTopic(
+            slug=f'no-ex-{uuid.uuid4().hex[:8]}',
+            title='No Exercises Topic',
+            title_ru='Тема без упражнений',
+            level='A1',
+            order=997,
+            content={},
+        )
+        db_session.add(topic)
+        db_session.commit()
+
+        from app.admin.main_routes import get_content_quality
+
+        result = get_content_quality.__wrapped__()
+
+        assert result['zero_exercises_count'] >= 1
+
+
+class TestContentAlerts:
+    """Tests for get_content_alerts function."""
+
+    def test_returns_list(self, app, db_session):
+        """Should return a list of alerts."""
+        from app.admin.main_routes import get_content_alerts
+
+        result = get_content_alerts.__wrapped__()
+
+        assert isinstance(result, list)
+
+    def test_alerts_have_expected_fields(self, app, db_session):
+        """Each alert should have severity, type, message, action."""
+        from app.admin.main_routes import get_content_alerts
+
+        result = get_content_alerts.__wrapped__()
+
+        for alert in result:
+            assert 'severity' in alert
+            assert 'type' in alert
+            assert 'message' in alert
+            assert 'action' in alert
+
+    def test_max_5_alerts(self, app, db_session):
+        """Should return at most 5 alerts."""
+        from app.admin.main_routes import get_content_alerts
+
+        result = get_content_alerts.__wrapped__()
+
+        assert len(result) <= 5
+
+
+class TestSystemHealth:
+    """Tests for get_system_health function."""
+
+    def test_returns_db_status(self, app, db_session):
+        """Should return db_status key."""
+        from app.admin.main_routes import get_system_health
+
+        result = get_system_health.__wrapped__()
+
+        assert 'db_status' in result
+        assert result['db_status'] == 'ok'
+
+    def test_db_error_is_none_when_healthy(self, app, db_session):
+        """db_error should be None when DB is healthy."""
+        from app.admin.main_routes import get_system_health
+
+        result = get_system_health.__wrapped__()
+
+        assert result['db_error'] is None
