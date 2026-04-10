@@ -199,13 +199,13 @@
 - Modify: `app/templates/auth/profile.html`
 - Modify: `app/templates/auth/referrals.html`
 
-- [ ] Enhance profile page: add learning stats summary (total words learned, lessons completed, streak record, XP level), add timezone setting, add daily goal setting
-- [ ] Add notification preferences section: toggle email reminders, toggle in-app notifications by type
-- [ ] Add "Copy to clipboard" button for referral link on referrals page
-- [ ] Add referral stats: total referred, active referred users, total XP earned from referrals
-- [ ] Add account section: last login date, registration date, account age
-- [ ] Write tests for profile stats aggregation and settings save
-- [ ] Run project test suite - must pass before task 11
+- [x] Enhance profile page: add learning stats summary (total words learned, lessons completed, streak record, XP level), add timezone setting, add daily goal setting
+- [x] Add notification preferences section: toggle email reminders, toggle in-app notifications by type
+- [x] Add "Copy to clipboard" button for referral link on referrals page
+- [x] Add referral stats: total referred, active referred users, total XP earned from referrals
+- [x] Add account section: last login date, registration date, account age
+- [x] Write tests for profile stats aggregation and settings save
+- [x] Run project test suite - must pass before task 11
 
 ### Task 11: Study Section UX Improvements
 

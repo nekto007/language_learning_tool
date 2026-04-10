@@ -58,7 +58,7 @@
 .ref-link-card__btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
 
 .ref-stats {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;
 }
 .ref-stat {
   background: var(--ref-surface); border: 1px solid var(--ref-border);
@@ -120,7 +120,11 @@
       <div class="ref-stat__label">{{ _('Приглашённых') }}</div>
     </div>
     <div class="ref-stat">
-      <div class="ref-stat__value">{{ referral_count * 100 }}</div>
+      <div class="ref-stat__value">{{ active_referred }}</div>
+      <div class="ref-stat__label">{{ _('Активных (30 дн.)') }}</div>
+    </div>
+    <div class="ref-stat">
+      <div class="ref-stat__value">{{ total_referral_xp }}</div>
       <div class="ref-stat__label">{{ _('Заработано XP') }}</div>
     </div>
   </div>
