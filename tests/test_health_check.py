@@ -1,5 +1,5 @@
 """Tests for the /health endpoint."""
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from sqlalchemy.exc import OperationalError
 
 
@@ -24,13 +24,14 @@ class TestHealthCheck:
                 assert response.status_code == 503
                 data = response.get_json()
                 assert data['status'] == 'unhealthy'
-                assert data['database'] == 'disconnected'
+                assert data['db'] == 'error'
+                # Must NOT leak exception details
+                assert 'connection refused' not in str(data)
 
     def test_health_no_auth_required(self, client):
         """Health endpoint must work without authentication."""
         response = client.get('/health')
         assert response.status_code == 200
-        # Should not redirect to login
         assert response.status_code != 302
 
     def test_health_no_csrf_required(self, client):

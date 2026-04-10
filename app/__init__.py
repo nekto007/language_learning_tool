@@ -249,7 +249,7 @@ def create_app(config_class=Config):
             return jsonify({'status': 'healthy', 'database': 'connected'}), 200
         except Exception as e:
             logger.error('Health check failed: %s', e)
-            return jsonify({'status': 'unhealthy', 'database': 'disconnected'}), 503
+            return jsonify({'status': 'unhealthy', 'db': 'error'}), 503
 
     csrf.exempt(app.view_functions['health_check'])
 

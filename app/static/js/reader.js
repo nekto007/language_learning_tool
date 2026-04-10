@@ -250,7 +250,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.is_form && data.form_text && data.base_form) {
                         const formInfo = document.createElement('div');
                         formInfo.className = 'word-form-info';
-                        formInfo.innerHTML = `<em>${data.form_text} "${data.base_form}"</em>`;
+                        var em = document.createElement('em');
+                        em.textContent = data.form_text + ' "' + data.base_form + '"';
+                        formInfo.appendChild(em);
                         tooltip.appendChild(formInfo);
                     }
 
@@ -747,12 +749,16 @@ document.addEventListener('DOMContentLoaded', function() {
         bookmarks.forEach((bookmark, index) => {
             const bookmarkItem = document.createElement('li');
             bookmarkItem.className = 'dropdown-item d-flex justify-content-between align-items-center';
-            bookmarkItem.innerHTML = `
-                <span class="bookmark-text" title="${bookmark.context}">${bookmark.name}</span>
-                <button class="btn btn-sm btn-link text-danger remove-bookmark p-0 ms-2" data-index="${index}">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
+            var span = document.createElement('span');
+            span.className = 'bookmark-text';
+            span.title = bookmark.context || '';
+            span.textContent = bookmark.name || '';
+            bookmarkItem.appendChild(span);
+            var btn = document.createElement('button');
+            btn.className = 'btn btn-sm btn-link text-danger remove-bookmark p-0 ms-2';
+            btn.dataset.index = index;
+            btn.innerHTML = '<i class="fas fa-times"></i>';
+            bookmarkItem.appendChild(btn);
 
             // Обработчик клика по закладке
             bookmarkItem.addEventListener('click', function(e) {

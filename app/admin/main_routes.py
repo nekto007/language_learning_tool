@@ -658,6 +658,10 @@ def increment_5xx_counter():
 @admin_required
 def dashboard():
     """Главная страница административной панели"""
+    # Periodic cache cleanup on dashboard access
+    from app.admin.utils.cache import cleanup_expired
+    cleanup_expired(timeout=300)
+
     # Получаем кэшированную статистику
     stats = get_dashboard_statistics()
 

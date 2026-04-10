@@ -101,54 +101,38 @@ class TestCurriculumServiceExceptionLogging:
                 assert 'XP service' in mock_logger.warning.call_args[0][0]
 
 
-class TestStudyRoutesExceptionLogging:
-    """Verify coin award failures are logged."""
+class TestEmailExceptionLogging:
+    """Verify email_utils.send_email logs SMTP failures (not silent swallow)."""
 
-    def test_earn_daily_coin_failure_logged(self, app, db_session):
-        """The except block in study routes logs coin failures."""
+    def test_send_email_logs_smtp_failure(self, app):
+        """When SMTP fails, send_email should log the exception, not silently return False."""
         with app.app_context():
-            with patch('app.study.routes.logger') as mock_logger:
-                with patch('app.achievements.streak_service.earn_daily_coin',
-                           side_effect=Exception("Coin error")):
-                    try:
-                        from app.achievements.streak_service import earn_daily_coin
-                        earn_daily_coin(1)
-                    except Exception:
-                        mock_logger.exception(
-                            "Failed to award daily coin for user %s", 1
-                        )
-                    assert mock_logger.exception.called
+            with patch('app.utils.email_utils.logger') as mock_logger:
+                with patch('app.utils.email_utils.smtplib.SMTP', side_effect=Exception("SMTP down")):
+                    from app.utils.email_utils import email_sender
+                    # Force email_host to trigger SMTP attempt
+                    email_sender.email_host = 'localhost'
+                    email_sender.default_from_email = 'test@test.com'
+                    result = email_sender.send_email('Test', 'to@test.com', 'password_reset', {'reset_url': '#'})
+                    assert result is False
+                    assert mock_logger.exception.called, "send_email must log the exception, not silently swallow"
 
 
-class TestAdminDecoratorExceptionLogging:
-    """Verify DB rollback failures are logged in admin decorator."""
+class TestEmailUtilsHasLogging:
+    """Verify email_utils exception handler includes logging, not bare return False."""
 
-    def test_rollback_failure_logged(self, app):
-        with app.app_context():
-            with patch('app.admin.utils.decorators.logger') as mock_logger:
-                with patch('app.admin.utils.decorators.db.session.rollback',
-                           side_effect=Exception("Rollback failed")):
-                    try:
-                        from app.admin.utils.decorators import db
-                        db.session.rollback()
-                    except Exception:
-                        mock_logger.exception(
-                            "Failed to rollback DB session in %s", "test_func"
-                        )
-                    assert mock_logger.exception.called
-
-
-class TestFileCleanupExceptionLogging:
-    """Verify file cleanup operations log failures."""
-
-    def test_anki_temp_file_cleanup_logged(self, app):
-        """Verify anki export temp file cleanup failures are logged."""
-        with app.app_context():
-            import os
-            with patch('app.api.anki.logger') as mock_logger:
-                with patch('os.unlink', side_effect=OSError("Permission denied")):
-                    try:
-                        os.unlink('/tmp/test.apkg')
-                    except Exception:
-                        mock_logger.exception("Failed to clean up temp file: %s", '/tmp/test.apkg')
-                    assert mock_logger.exception.called
+    def test_email_utils_except_block_has_logger(self):
+        """The except block in send_email must call logger, not just return False."""
+        import inspect
+        from app.utils import email_utils
+        source = inspect.getsource(email_utils.EmailSender.send_email)
+        # The except block must contain logger call
+        assert 'logger.exception' in source, "send_email except block must call logger.exception"
+        # Must NOT have bare "return False" without logging
+        lines = source.split('\n')
+        for i, line in enumerate(lines):
+            if 'return False' in line and i > 0:
+                # Check that previous non-empty line contains logger
+                prev_lines = [l.strip() for l in lines[max(0,i-3):i] if l.strip()]
+                assert any('logger' in l for l in prev_lines), \
+                    f"return False at line {i} without preceding logger call"
