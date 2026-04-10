@@ -58,7 +58,7 @@
         <div class="col-lg-8">
             <div class="card">
                 <div class="card-header"><h5 class="mb-0"><i class="fas fa-chart-line me-2 text-muted"></i>Активность (30 дней)</h5></div>
-                <div class="card-body"><canvas id="activityChart" height="100"></canvas></div>
+                <div class="card-body"><div style="position:relative;height:280px;"><canvas id="activityChart"></canvas></div></div>
             </div>
         </div>
         <!-- Platform Stats -->
@@ -72,7 +72,7 @@
                         ('Слов с аудио', "{:,}".format(words_with_audio), 'fa-volume-up'),
                         ('Уроков', total_lessons, 'fa-file-alt')
                     ]) }}
-                    <canvas id="progressChart" height="160" class="mt-3"></canvas>
+                    <div style="position:relative;height:180px;" class="mt-3"><canvas id="progressChart"></canvas></div>
                 </div>
             </div>
         </div>
@@ -210,7 +210,7 @@
                 <div class="card-header"><h5 class="mb-0"><i class="fas fa-fire me-2 text-muted"></i>Серии</h5></div>
                 <div class="card-body">
                     {{ quick_stats([('Активных', streaks.active_streaks, 'fa-fire-alt'), ('Средняя', streaks.avg_streak, 'fa-chart-bar'), ('Рекорд', streaks.longest_overall, 'fa-trophy')]) }}
-                    {% if streaks.distribution %}<canvas id="streakDistChart" height="120" class="mt-2"></canvas>{% endif %}
+                    {% if streaks.distribution %}<div style="position:relative;height:140px;" class="mt-2"><canvas id="streakDistChart"></canvas></div>{% endif %}
                 </div>
             </div>
         </div>
