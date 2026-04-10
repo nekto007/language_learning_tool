@@ -20,6 +20,16 @@
         <span>Все курсы</span>
       </a>
 
+      <nav class="ml-hero__breadcrumb" aria-label="{{ _('Навигация') }}">
+        <ol role="list">
+          <li><a href="/learn/">{{ _('Курсы') }}</a></li>
+          <li aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </li>
+          <li aria-current="page">{{ level.code }}</li>
+        </ol>
+      </nav>
+
       <div class="level-hero__main">
         <div class="level-hero__badge">
           <span class="level-hero__badge-code">{{ level.code }}</span>
@@ -197,6 +207,39 @@
   max-width: 900px;
   margin: 0 auto;
   padding: 0 1rem 3rem;
+}
+
+/* Breadcrumb */
+.ml-hero__breadcrumb ol {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0.75rem;
+  font-size: 0.8125rem;
+}
+.ml-hero__breadcrumb li {
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.7);
+}
+.ml-hero__breadcrumb a {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.ml-hero__breadcrumb a:hover {
+  color: #fff;
+}
+.ml-hero__breadcrumb li[aria-current="page"] {
+  color: #fff;
+  font-weight: 600;
+}
+.ml-hero__breadcrumb li[aria-hidden="true"] {
+  margin: 0 0.25rem;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* Hero Section */

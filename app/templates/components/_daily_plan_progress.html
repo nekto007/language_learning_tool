@@ -1,9 +1,11 @@
 {% if request.args.get('from') == 'daily_plan' %}
 <div id="daily-plan-bar" style="display:none;">
-    <div class="dp-bar__progress">
-        <!-- dots filled dynamically -->
-    </div>
-    <span class="dp-bar__text"></span>
+    <a href="{{ url_for('words.dashboard') }}" class="dp-bar__link">
+        <div class="dp-bar__progress">
+            <!-- dots filled dynamically -->
+        </div>
+        <span class="dp-bar__text"></span>
+    </a>
     <a id="dp-bar__next" class="dp-bar__btn" href="#">→ Следующий шаг</a>
 </div>
 <style>
@@ -26,6 +28,19 @@
     font-size: 0.875rem;
     font-weight: 500;
     box-shadow: 0 2px 8px rgba(80, 70, 229, 0.3);
+}
+.dp-bar__link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+    text-decoration: none;
+    transition: opacity 0.15s;
+}
+.dp-bar__link:hover {
+    opacity: 0.85;
+    color: #fff;
+    text-decoration: none;
 }
 .dp-bar__progress {
     display: flex;
