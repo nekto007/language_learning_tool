@@ -102,7 +102,7 @@
         <div class="dash-welcome__content">
             <h2 class="dash-welcome__title">Добро пожаловать в LLT English!</h2>
             <p class="dash-welcome__text">Начните обучение: пройдите первый урок, добавьте слова в колоду или изучите грамматику. Прогресс появится здесь.</p>
-            <a href="{{ url_for('learn.learn_index') }}" class="dash-welcome__btn">Начать обучение</a>
+            <a href="{% if not current_user.onboarding_completed %}{{ url_for('onboarding.wizard') }}{% else %}{{ url_for('courses.catalog') }}{% endif %}" class="dash-welcome__btn">Начать обучение</a>
         </div>
     </div>
     {% endif %}
@@ -387,7 +387,7 @@
                 <div class="dash-plan-empty__title">План ещё не настроен</div>
                 <div class="dash-plan-empty__desc">Начните изучать уроки, слова или грамматику — и план на день сформируется автоматически</div>
             </div>
-            <a href="{{ url_for('learn.learn_index') }}" class="dash-step__btn">Начать обучение</a>
+            <a href="{% if not current_user.onboarding_completed %}{{ url_for('onboarding.wizard') }}{% else %}{{ url_for('courses.catalog') }}{% endif %}" class="dash-step__btn">Начать обучение</a>
         </div>
         {% endif %}
     </div>

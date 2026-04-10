@@ -26,8 +26,91 @@ admin = Blueprint('admin', __name__, url_prefix='/admin')
 # Настройка логирования
 logger = logging.getLogger(__name__)
 
+# 5xx error counter (per worker, resets on restart)
+import time as _time
+_app_start_time = _time.time()
+_error_5xx_count = 0
+
 # Импорт декоратора из единого места
 from app.admin.utils.decorators import admin_required, cache_result
+
+
+def _active_user_ids_for_date(target_date):
+    """UNION DISTINCT user_id across all 6 activity tables for a single date.
+
+    This is the single source of truth for DAU — used by chart, DAU/WAU/MAU,
+    and retention calculations. See Key Definitions in plan.
+    """
+    from app.study.models import StudySession
+    from app.grammar_lab.models import UserGrammarExercise
+    from app.books.models import UserChapterProgress
+    from app.curriculum.book_courses import BookCourseEnrollment
+
+    q1 = db.session.query(LessonProgress.user_id).filter(
+        LessonProgress.last_activity.isnot(None),
+        func.date(LessonProgress.last_activity) == target_date,
+    )
+    q2 = db.session.query(StudySession.user_id).filter(
+        func.date(StudySession.start_time) == target_date,
+    )
+    q3 = db.session.query(UserGrammarExercise.user_id).filter(
+        UserGrammarExercise.last_reviewed.isnot(None),
+        func.date(UserGrammarExercise.last_reviewed) == target_date,
+    )
+    q4 = db.session.query(UserChapterProgress.user_id).filter(
+        UserChapterProgress.updated_at.isnot(None),
+        func.date(UserChapterProgress.updated_at) == target_date,
+    )
+    q5 = db.session.query(BookCourseEnrollment.user_id).filter(
+        BookCourseEnrollment.last_activity.isnot(None),
+        func.date(BookCourseEnrollment.last_activity) == target_date,
+    )
+    q6 = db.session.query(LessonAttempt.user_id).filter(
+        func.date(LessonAttempt.started_at) == target_date,
+    )
+    return q1.union(q2, q3, q4, q5, q6)
+
+
+def _count_active_users_in_range(start_date, end_date) -> int:
+    """Count distinct active users in a date range using all 6 activity tables.
+
+    Does NOT use User.last_login — that's visitor data, not learning activity.
+    """
+    from app.study.models import StudySession
+    from app.grammar_lab.models import UserGrammarExercise
+    from app.books.models import UserChapterProgress
+    from app.curriculum.book_courses import BookCourseEnrollment
+
+    q1 = db.session.query(LessonProgress.user_id).filter(
+        LessonProgress.last_activity.isnot(None),
+        func.date(LessonProgress.last_activity) >= start_date,
+        func.date(LessonProgress.last_activity) <= end_date,
+    )
+    q2 = db.session.query(StudySession.user_id).filter(
+        func.date(StudySession.start_time) >= start_date,
+        func.date(StudySession.start_time) <= end_date,
+    )
+    q3 = db.session.query(UserGrammarExercise.user_id).filter(
+        UserGrammarExercise.last_reviewed.isnot(None),
+        func.date(UserGrammarExercise.last_reviewed) >= start_date,
+        func.date(UserGrammarExercise.last_reviewed) <= end_date,
+    )
+    q4 = db.session.query(UserChapterProgress.user_id).filter(
+        UserChapterProgress.updated_at.isnot(None),
+        func.date(UserChapterProgress.updated_at) >= start_date,
+        func.date(UserChapterProgress.updated_at) <= end_date,
+    )
+    q5 = db.session.query(BookCourseEnrollment.user_id).filter(
+        BookCourseEnrollment.last_activity.isnot(None),
+        func.date(BookCourseEnrollment.last_activity) >= start_date,
+        func.date(BookCourseEnrollment.last_activity) <= end_date,
+    )
+    q6 = db.session.query(LessonAttempt.user_id).filter(
+        func.date(LessonAttempt.started_at) >= start_date,
+        func.date(LessonAttempt.started_at) <= end_date,
+    )
+    union_q = q1.union(q2, q3, q4, q5, q6).subquery()
+    return db.session.query(func.count()).select_from(union_q).scalar() or 0
 
 
 @cache_result('dashboard_stats', timeout=180)  # Кэш на 3 минуты
@@ -113,23 +196,13 @@ def get_daily_activity_data(days: int = 30) -> dict:
     ).group_by(func.date(User.last_login)).all()
     login_map = {row[0]: row[1] for row in login_rows}
 
-    # Daily active users (users with LessonProgress or StudySession activity)
-    lp_rows = db.session.query(
-        func.date(LessonProgress.last_activity),
-        func.count(distinct(LessonProgress.user_id))
-    ).filter(
-        LessonProgress.last_activity.isnot(None),
-        func.date(LessonProgress.last_activity) >= start_date
-    ).group_by(func.date(LessonProgress.last_activity)).all()
-    lp_map = {row[0]: row[1] for row in lp_rows}
-
-    ss_rows = db.session.query(
-        func.date(StudySession.start_time),
-        func.count(distinct(StudySession.user_id))
-    ).filter(
-        func.date(StudySession.start_time) >= start_date
-    ).group_by(func.date(StudySession.start_time)).all()
-    ss_map = {row[0]: row[1] for row in ss_rows}
+    # Daily active users (UNION of all 6 activity tables per Key Definitions)
+    # Pre-compute per-day counts to avoid N queries
+    dau_map = {}
+    for i in range(days):
+        d = start_date + timedelta(days=i)
+        union_q = _active_user_ids_for_date(d).subquery()
+        dau_map[d] = db.session.query(func.count()).select_from(union_q).scalar() or 0
 
     labels = []
     registrations = []
@@ -141,9 +214,7 @@ def get_daily_activity_data(days: int = 30) -> dict:
         labels.append(d.strftime('%d.%m'))
         registrations.append(reg_map.get(d, 0))
         logins.append(login_map.get(d, 0))
-        # Approximate DAU: max of lesson-progress users and study-session users
-        # (union would be more accurate but this avoids complex query)
-        active_users.append(max(lp_map.get(d, 0), ss_map.get(d, 0)))
+        active_users.append(dau_map.get(d, 0))
 
     return {
         'labels': labels,
@@ -155,40 +226,23 @@ def get_daily_activity_data(days: int = 30) -> dict:
 
 @cache_result('engagement_metrics', timeout=300)
 def get_engagement_metrics() -> dict:
-    """DAU/WAU/MAU counts with trend arrows vs previous period."""
-    from app.study.models import StudySession
+    """DAU/WAU/MAU counts with trend arrows vs previous period.
 
+    Uses _count_active_users_in_range (UNION of 6 activity tables).
+    Does NOT use User.last_login — see Key Definitions in plan.
+    """
     now = datetime.now(timezone.utc)
     today = now.date()
 
-    def _active_users_in_range(start_date, end_date):
-        """Count distinct users with login, lesson progress or study session activity."""
-        login_ids = db.session.query(User.id).filter(
-            User.last_login.isnot(None),
-            func.date(User.last_login) >= start_date,
-            func.date(User.last_login) <= end_date,
-        )
-        lp_ids = db.session.query(LessonProgress.user_id).filter(
-            LessonProgress.last_activity.isnot(None),
-            func.date(LessonProgress.last_activity) >= start_date,
-            func.date(LessonProgress.last_activity) <= end_date,
-        )
-        ss_ids = db.session.query(StudySession.user_id).filter(
-            func.date(StudySession.start_time) >= start_date,
-            func.date(StudySession.start_time) <= end_date,
-        )
-        union_q = login_ids.union(lp_ids, ss_ids).subquery()
-        return db.session.query(func.count()).select_from(union_q).scalar() or 0
-
     # Current periods
-    dau = _active_users_in_range(today, today)
-    wau = _active_users_in_range(today - timedelta(days=6), today)
-    mau = _active_users_in_range(today - timedelta(days=29), today)
+    dau = _count_active_users_in_range(today, today)
+    wau = _count_active_users_in_range(today - timedelta(days=6), today)
+    mau = _count_active_users_in_range(today - timedelta(days=29), today)
 
     # Previous periods for trend
-    prev_dau = _active_users_in_range(today - timedelta(days=1), today - timedelta(days=1))
-    prev_wau = _active_users_in_range(today - timedelta(days=13), today - timedelta(days=7))
-    prev_mau = _active_users_in_range(today - timedelta(days=59), today - timedelta(days=30))
+    prev_dau = _count_active_users_in_range(today - timedelta(days=1), today - timedelta(days=1))
+    prev_wau = _count_active_users_in_range(today - timedelta(days=13), today - timedelta(days=7))
+    prev_mau = _count_active_users_in_range(today - timedelta(days=59), today - timedelta(days=30))
 
     def _trend(current: int, previous: int) -> tuple:
         if previous == 0:
@@ -338,20 +392,24 @@ def get_retention_metrics() -> dict:
     today = now.date()
 
     def _retention_rate(day_offset: int) -> float:
-        """Percentage of users who were active day_offset days after registration."""
-        # Users who registered at least day_offset days ago
-        cutoff = today - timedelta(days=day_offset)
-        cohort_count = db.session.query(func.count(User.id)).filter(
-            func.date(User.created_at) <= cutoff,
-        ).scalar() or 0
+        """Percentage of users who had learning activity day_offset days after reg.
+
+        Uses _count_active_users_in_range (UNION of 6 activity tables), NOT last_login.
+        Simplified: users registered exactly N days ago who were active on day N.
+        """
+        target_reg_date = today - timedelta(days=day_offset)
+        # Cohort: users registered on target_reg_date
+        cohort_ids = db.session.query(User.id).filter(
+            func.date(User.created_at) == target_reg_date,
+        ).subquery()
+        cohort_count = db.session.query(func.count()).select_from(cohort_ids).scalar() or 0
         if cohort_count == 0:
             return 0.0
 
-        # Of those, how many had last_login on or after their registration + day_offset
-        retained = db.session.query(func.count(User.id)).filter(
-            func.date(User.created_at) <= cutoff,
-            User.last_login.isnot(None),
-            func.date(User.last_login) >= func.date(User.created_at) + day_offset,
+        # Of those, who had activity today (= day_offset days after registration)
+        active_today = _active_user_ids_for_date(today).subquery()
+        retained = db.session.query(func.count(distinct(active_today.c.user_id))).filter(
+            active_today.c.user_id.in_(db.session.query(cohort_ids.c.id)),
         ).scalar() or 0
 
         return round(retained / cohort_count * 100, 1)
@@ -420,17 +478,15 @@ def get_referral_analytics() -> dict:
 
     top_referrers = [{'username': row[0], 'count': row[1]} for row in top_referrers_rows]
 
-    # Conversion rate: referred users who completed at least one lesson
+    # Conversion rate: referred users who completed onboarding (Key Definitions)
     referred_count = db.session.query(func.count(User.id)).filter(
         User.referred_by_id.isnot(None),
     ).scalar() or 0
 
     if referred_count > 0:
-        converted = db.session.query(func.count(distinct(LessonProgress.user_id))).filter(
-            LessonProgress.status == 'completed',
-            LessonProgress.user_id.in_(
-                db.session.query(User.id).filter(User.referred_by_id.isnot(None))
-            ),
+        converted = db.session.query(func.count(User.id)).filter(
+            User.referred_by_id.isnot(None),
+            User.onboarding_completed == True,
         ).scalar() or 0
         conversion_rate = round(converted / referred_count * 100, 1)
     else:
@@ -552,8 +608,13 @@ def get_content_alerts() -> list:
 
 @cache_result('system_health', timeout=60)
 def get_system_health() -> dict:
-    """System health: DB connection status, basic error check."""
-    health = {'db_status': 'ok', 'db_error': None}
+    """System health: DB connection, uptime, 5xx error count (per worker)."""
+    health = {
+        'db_status': 'ok',
+        'db_error': None,
+        'uptime_seconds': int(_time.time() - _app_start_time),
+        'errors_5xx': _error_5xx_count,
+    }
     try:
         db.session.execute(db.text('SELECT 1'))
     except Exception as e:
@@ -561,6 +622,12 @@ def get_system_health() -> dict:
         health['db_error'] = str(e)
 
     return health
+
+
+def increment_5xx_counter():
+    """Call from Flask 500 errorhandler to track 5xx errors."""
+    global _error_5xx_count
+    _error_5xx_count += 1
 
 
 @admin.route('/')

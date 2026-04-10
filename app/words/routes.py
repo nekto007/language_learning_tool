@@ -229,61 +229,15 @@ def dashboard():
         + daily_summary.get('book_course_lessons_today', 0) * 30
     )
 
-    # === WEEKLY ANALYTICS ===
-    from datetime import datetime as _dt, timedelta
-    from app.study.models import StudySession
-    from app.curriculum.models import LessonProgress, LessonAttempt
-
-    week_ago = _dt.utcnow() - timedelta(days=7)
-
-    # Words reviewed this week (from StudySession)
-    week_words_row = db.session.query(
-        func.coalesce(func.sum(StudySession.words_studied), 0),
-        func.coalesce(func.sum(StudySession.correct_answers), 0),
-        func.coalesce(func.sum(StudySession.incorrect_answers), 0),
-    ).filter(
-        StudySession.user_id == current_user.id,
-        StudySession.start_time >= week_ago,
-    ).one()
-    week_words_reviewed = int(week_words_row[0])
-    week_correct = int(week_words_row[1])
-    week_incorrect = int(week_words_row[2])
-    week_accuracy = round(week_correct / (week_correct + week_incorrect) * 100) if (week_correct + week_incorrect) > 0 else 0
-
-    # Lessons completed this week
-    week_lessons_completed = LessonProgress.query.filter(
-        LessonProgress.user_id == current_user.id,
-        LessonProgress.status == 'completed',
-        LessonProgress.completed_at >= week_ago,
-    ).count()
-
-    # Time spent this week (from LessonAttempt.time_spent_seconds + StudySession duration)
-    week_lesson_time = db.session.query(
-        func.coalesce(func.sum(LessonAttempt.time_spent_seconds), 0)
-    ).filter(
-        LessonAttempt.user_id == current_user.id,
-        LessonAttempt.started_at >= week_ago,
-    ).scalar()
-
-    week_study_seconds = db.session.query(
-        func.coalesce(
-            func.sum(
-                func.extract('epoch', StudySession.end_time) - func.extract('epoch', StudySession.start_time)
-            ), 0
-        )
-    ).filter(
-        StudySession.user_id == current_user.id,
-        StudySession.start_time >= week_ago,
-        StudySession.end_time.isnot(None),
-    ).scalar()
-
-    week_time_minutes = round((int(week_lesson_time) + int(week_study_seconds)) / 60)
+    # === WEEKLY ANALYTICS (via insights_service — single source of truth) ===
+    from app.study.insights_service import get_learning_summary
+    _summary = get_learning_summary(current_user.id)
 
     weekly_analytics = {
-        'words_reviewed': week_words_reviewed,
-        'lessons_completed': week_lessons_completed,
-        'time_minutes': week_time_minutes,
-        'accuracy': week_accuracy,
+        'words_reviewed': _summary.get('total_words_learned', 0),
+        'lessons_completed': _summary.get('total_lessons', 0) + _summary.get('total_book_lessons', 0),
+        'time_minutes': round(_summary.get('total_hours', 0) * 60),
+        'accuracy': 0,  # accuracy requires per-session data, shown in study stats
     }
 
     # === CONTINUE WHERE YOU LEFT OFF ===

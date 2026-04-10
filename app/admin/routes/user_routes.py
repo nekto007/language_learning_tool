@@ -9,7 +9,7 @@ import io
 import logging
 from datetime import UTC, datetime
 
-from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 from sqlalchemy import desc
 
@@ -102,17 +102,29 @@ def user_detail(user_id):
 @user_bp.route('/users/export')
 @admin_required
 def export_users_csv():
-    """Export users as CSV with key metrics"""
+    """Export users as CSV with key metrics. Sanitized, limited, audit-logged."""
+    from app.admin.utils.export_helpers import _sanitize_csv_cell, MAX_EXPORT_ROWS
+
     search = request.args.get('search', '')
     rows = UserManagementService.export_users_csv(search=search)
+    rows = rows[:MAX_EXPORT_ROWS]
 
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=[
+    # Audit log
+    current_app.logger.info(
+        'CSV user export by admin %s, search=%r, %d records',
+        current_user.id, search, len(rows),
+    )
+
+    # Sanitize cell values
+    fieldnames = [
         'id', 'username', 'email', 'created_at', 'last_login',
         'active', 'lessons_completed', 'current_streak', 'longest_streak', 'coin_balance',
-    ])
+    ]
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
-    writer.writerows(rows)
+    for row in rows:
+        writer.writerow({k: _sanitize_csv_cell(v) for k, v in row.items()})
 
     return Response(
         output.getvalue(),
