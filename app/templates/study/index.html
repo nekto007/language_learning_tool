@@ -81,10 +81,18 @@
                     <h2 class="decks-welcome__title">Начните изучать слова</h2>
                     <p class="decks-welcome__subtitle">Создайте свою первую колоду из слов, которые хотите выучить</p>
                 </div>
-                <a href="{{ url_for('study.create_deck') }}" class="decks-welcome__btn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-                    <span>Создать колоду</span>
-                </a>
+                <div class="decks-welcome__actions">
+                    <a href="{{ url_for('study.create_deck') }}" class="decks-welcome__btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                        <span>Создать колоду</span>
+                    </a>
+                    {% if public_decks %}
+                    <a href="#public-decks" class="decks-welcome__btn decks-welcome__btn--secondary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
+                        <span>Публичные колоды</span>
+                    </a>
+                    {% endif %}
+                </div>
             </div>
             <div class="decks-welcome__steps">
                 <div class="decks-welcome__step">
@@ -263,7 +271,7 @@
 
     <!-- Public Decks Section -->
     {% if public_decks %}
-    <div class="decks-section slideUp" style="animation-delay: .25s">
+    <div id="public-decks" class="decks-section slideUp" style="animation-delay: .25s">
         <div class="decks-section__header">
             <div class="decks-section__title-row">
                 <h2 class="decks-section__title">
@@ -697,6 +705,23 @@
     transform: translateY(-1px);
     box-shadow: 0 4px 14px rgba(245,158,11,.3);
     color: #fff;
+}
+
+.decks-welcome__btn--secondary {
+    background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.25);
+    backdrop-filter: blur(5px);
+}
+
+.decks-welcome__btn--secondary:hover {
+    background: rgba(255,255,255,.25);
+    box-shadow: 0 4px 14px rgba(0,0,0,.1);
+}
+
+.decks-welcome__actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
 }
 
 .decks-welcome__steps {

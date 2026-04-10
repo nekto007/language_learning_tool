@@ -159,8 +159,13 @@
             <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
           </svg>
         </div>
-        <h4>Учебные материалы не найдены</h4>
-        <p>Обратитесь к администратору для настройки курса</p>
+        <h4>Начните своё путешествие!</h4>
+        <p>Пока нет доступных уровней. Выберите свой уровень, чтобы начать обучение.</p>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('onboarding.wizard') }}" class="learn-empty__btn">Выбрать уровень</a>
+        {% else %}
+        <a href="{{ url_for('auth.register') }}" class="learn-empty__btn">Зарегистрироваться</a>
+        {% endif %}
       </div>
     {% endif %}
   </div>
@@ -745,7 +750,27 @@
 
 .learn-empty p {
   font-size: 0.875rem;
-  margin: 0;
+  margin: 0 0 1.25rem;
+}
+
+.learn-empty__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.5rem;
+  background: linear-gradient(135deg, var(--learn-primary) 0%, var(--learn-primary-dark) 100%);
+  color: white;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.learn-empty__btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  color: white;
 }
 
 /* ============================================

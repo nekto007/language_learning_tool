@@ -124,17 +124,17 @@
 - Modify: `app/templates/grammar_lab/practice.html`
 - Modify: `app/templates/books/read_selection.html`
 
-- [ ] Learn hub (`curriculum/index.html`): show "Start your journey" card when levels_data is empty instead of empty divs
-- [ ] Study dashboard: improve welcome block for new users with actionable steps (create deck, explore public decks)
-- [ ] Flashcards (`study/cards.html`): add "Nothing to study right now" message with next review time and suggestion to add new words
-- [ ] Achievements: add "No achievements yet" state with closest achievable badges listed
-- [ ] Leaderboard: add "Not ranked yet" state with explanation of how to get ranked
-- [ ] Grammar lab index: handle 0/0 levels gracefully, show "Start with basics" CTA
-- [ ] Grammar topics: show "No topics for this level" with link to available levels
-- [ ] Grammar practice: show "No exercises available" when topic has zero exercises
-- [ ] Books selection: show "No books available for your level" with level filter suggestion
-- [ ] Write template rendering tests for empty state scenarios
-- [ ] Run project test suite - must pass before task 9
+- [x] Learn hub (`curriculum/index.html`): show "Start your journey" card when levels_data is empty instead of empty divs
+- [x] Study dashboard: improve welcome block for new users with actionable steps (create deck, explore public decks)
+- [x] Flashcards (`study/cards.html`): add "Nothing to study right now" message with next review time and suggestion to add new words
+- [x] Achievements: add "No achievements yet" state with closest achievable badges listed
+- [x] Leaderboard: add "Not ranked yet" state with explanation of how to get ranked
+- [x] Grammar lab index: handle 0/0 levels gracefully, show "Start with basics" CTA
+- [x] Grammar topics: show "No topics for this level" with link to available levels
+- [x] Grammar practice: show "No exercises available" when topic has zero exercises
+- [x] Books selection: show "No books available for your level" with level filter suggestion
+- [x] Write template rendering tests for empty state scenarios
+- [x] Run project test suite - must pass before task 9
 
 ### Task 9: Navigation & Information Architecture Improvements
 
