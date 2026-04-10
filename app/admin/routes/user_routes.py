@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 def users():
     """Управление пользователями"""
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    per_page = min(request.args.get('per_page', 20, type=int), 50)
     search = request.args.get('search', '')
 
     # Build query with search
@@ -115,19 +115,25 @@ def export_users_csv():
         current_user.id, search, len(rows),
     )
 
-    # Sanitize cell values
+    # Streaming CSV response with sanitized cells
     fieldnames = [
         'id', 'username', 'email', 'created_at', 'last_login',
         'active', 'lessons_completed', 'current_streak', 'longest_streak', 'coin_balance',
     ]
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
-    writer.writeheader()
-    for row in rows:
-        writer.writerow({k: _sanitize_csv_cell(v) for k, v in row.items()})
+
+    def generate():
+        buf = io.StringIO()
+        writer = csv.DictWriter(buf, fieldnames=fieldnames)
+        writer.writeheader()
+        yield buf.getvalue()
+        for row in rows:
+            buf = io.StringIO()
+            writer = csv.DictWriter(buf, fieldnames=fieldnames)
+            writer.writerow({k: _sanitize_csv_cell(v) for k, v in row.items()})
+            yield buf.getvalue()
 
     return Response(
-        output.getvalue(),
+        generate(),
         mimetype='text/csv',
         headers={'Content-Disposition': f'attachment; filename=users_export_{datetime.now(UTC).strftime("%Y-%m-%d")}.csv'},
     )

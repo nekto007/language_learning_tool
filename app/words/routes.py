@@ -229,16 +229,9 @@ def dashboard():
         + daily_summary.get('book_course_lessons_today', 0) * 30
     )
 
-    # === WEEKLY ANALYTICS (via insights_service — single source of truth) ===
-    from app.study.insights_service import get_learning_summary
-    _summary = get_learning_summary(current_user.id)
-
-    weekly_analytics = {
-        'words_reviewed': _summary.get('total_words_learned', 0),
-        'lessons_completed': _summary.get('total_lessons', 0) + _summary.get('total_book_lessons', 0),
-        'time_minutes': round(_summary.get('total_hours', 0) * 60),
-        'accuracy': 0,  # accuracy requires per-session data, shown in study stats
-    }
+    # === WEEKLY ANALYTICS (via insights_service — week-to-date, not lifetime) ===
+    from app.study.insights_service import get_weekly_summary
+    weekly_analytics = get_weekly_summary(current_user.id)
 
     # === CONTINUE WHERE YOU LEFT OFF ===
     from app.curriculum.service import get_user_active_lessons

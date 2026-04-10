@@ -47,8 +47,9 @@ def _active_user_ids_for_date(target_date):
     from app.curriculum.book_courses import BookCourseEnrollment
 
     q1 = db.session.query(LessonProgress.user_id).filter(
-        LessonProgress.last_activity.isnot(None),
-        func.date(LessonProgress.last_activity) == target_date,
+        LessonProgress.status == 'completed',
+        LessonProgress.completed_at.isnot(None),
+        func.date(LessonProgress.completed_at) == target_date,
     )
     q2 = db.session.query(StudySession.user_id).filter(
         func.date(StudySession.start_time) == target_date,
@@ -82,9 +83,10 @@ def _count_active_users_in_range(start_date, end_date) -> int:
     from app.curriculum.book_courses import BookCourseEnrollment
 
     q1 = db.session.query(LessonProgress.user_id).filter(
-        LessonProgress.last_activity.isnot(None),
-        func.date(LessonProgress.last_activity) >= start_date,
-        func.date(LessonProgress.last_activity) <= end_date,
+        LessonProgress.status == 'completed',
+        LessonProgress.completed_at.isnot(None),
+        func.date(LessonProgress.completed_at) >= start_date,
+        func.date(LessonProgress.completed_at) <= end_date,
     )
     q2 = db.session.query(StudySession.user_id).filter(
         func.date(StudySession.start_time) >= start_date,
@@ -392,27 +394,49 @@ def get_retention_metrics() -> dict:
     today = now.date()
 
     def _retention_rate(day_offset: int) -> float:
-        """Percentage of users who had learning activity day_offset days after reg.
+        """Aggregated Day-N retention across all eligible cohorts (last 90 days).
 
-        Uses _count_active_users_in_range (UNION of 6 activity tables), NOT last_login.
-        Simplified: users registered exactly N days ago who were active on day N.
+        For each registration date D (from 90 days ago to today - day_offset):
+          cohort = users registered on D
+          retained = users from cohort who had activity on D + day_offset
+        Result = sum(retained) / sum(cohort_size) across all dates.
         """
-        target_reg_date = today - timedelta(days=day_offset)
-        # Cohort: users registered on target_reg_date
-        cohort_ids = db.session.query(User.id).filter(
-            func.date(User.created_at) == target_reg_date,
-        ).subquery()
-        cohort_count = db.session.query(func.count()).select_from(cohort_ids).scalar() or 0
-        if cohort_count == 0:
+        earliest = today - timedelta(days=90)
+        latest = today - timedelta(days=day_offset)
+        if latest < earliest:
             return 0.0
 
-        # Of those, who had activity today (= day_offset days after registration)
-        active_today = _active_user_ids_for_date(today).subquery()
-        retained = db.session.query(func.count(distinct(active_today.c.user_id))).filter(
-            active_today.c.user_id.in_(db.session.query(cohort_ids.c.id)),
-        ).scalar() or 0
+        total_cohort = 0
+        total_retained = 0
 
-        return round(retained / cohort_count * 100, 1)
+        # Get registration counts per date
+        reg_dates = db.session.query(
+            func.date(User.created_at).label('reg_date'),
+            func.count(User.id).label('cnt'),
+        ).filter(
+            func.date(User.created_at) >= earliest,
+            func.date(User.created_at) <= latest,
+        ).group_by(func.date(User.created_at)).all()
+
+        for reg_date, cnt in reg_dates:
+            target_date = reg_date + timedelta(days=day_offset)
+            if target_date > today:
+                continue
+            total_cohort += cnt
+
+            # Users registered on reg_date who were active on target_date
+            cohort_ids = db.session.query(User.id).filter(
+                func.date(User.created_at) == reg_date,
+            )
+            active_q = _active_user_ids_for_date(target_date).subquery()
+            retained = db.session.query(func.count()).filter(
+                active_q.c.user_id.in_(cohort_ids),
+            ).scalar() or 0
+            total_retained += retained
+
+        if total_cohort == 0:
+            return 0.0
+        return round(total_retained / total_cohort * 100, 1)
 
     return {
         'd1': _retention_rate(1),

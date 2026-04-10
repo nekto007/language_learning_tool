@@ -255,16 +255,21 @@ class TestEngagementMetrics:
             assert f'{key}_trend_value' in result
 
     def test_counts_active_user(self, app, db_session):
-        """User who logged in today should count as DAU."""
+        """User with learning activity today should count as DAU (not just login)."""
+        from app.study.models import StudySession
         now = datetime.now(timezone.utc)
         u = User(
             username=f'dau_{uuid.uuid4().hex[:8]}',
             email=f'dau_{uuid.uuid4().hex[:8]}@test.com',
             active=True,
-            last_login=now,
         )
         u.set_password('pass')
         db_session.add(u)
+        db_session.flush()
+
+        # Create actual learning activity (StudySession)
+        ss = StudySession(user_id=u.id, start_time=now, words_studied=5)
+        db_session.add(ss)
         db_session.commit()
 
         from app.admin.main_routes import get_engagement_metrics
@@ -631,17 +636,23 @@ class TestRetentionMetrics:
         assert result['d30'] == 0
 
     def test_retained_user_counted(self, app, db_session):
-        """User who logged in after day 1 should count for d1 retention."""
+        """User with learning activity N days after registration counts for retention."""
+        from app.study.models import StudySession
         now = datetime.now(timezone.utc)
+        # Register user 1 day ago, with activity today
         u = User(
             username=f'ret_{uuid.uuid4().hex[:8]}',
             email=f'ret_{uuid.uuid4().hex[:8]}@test.com',
             active=True,
-            created_at=now - timedelta(days=5),
-            last_login=now - timedelta(days=2),
+            created_at=now - timedelta(days=1),
         )
         u.set_password('pass')
         db_session.add(u)
+        db_session.flush()
+
+        # Activity today (= day 1 after registration)
+        ss = StudySession(user_id=u.id, start_time=now, words_studied=1)
+        db_session.add(ss)
         db_session.commit()
 
         from app.admin.main_routes import get_retention_metrics

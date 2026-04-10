@@ -227,7 +227,7 @@
                 {{ quick_stats([
                     ('Всего рефералов', referrals.total_referrals, 'fa-share-alt'),
                     ('Приглашённых', referrals.referred_count, 'fa-user-plus'),
-                    ('Прошли урок', referrals.converted, 'fa-check-circle'),
+                    ('Прошли онбординг', referrals.converted, 'fa-check-circle'),
                     ('Конверсия', referrals.conversion_rate|string + '%', 'fa-percentage')
                 ]) }}
             </div>
@@ -334,6 +334,14 @@
                     <span class="badge bg-danger">Ошибка</span>
                     {% endif %}
                 </div>
+                <div class="d-flex align-items-center mb-2">
+                    <span class="me-2">Uptime:</span>
+                    <span class="text-muted">{{ (system_health.uptime_seconds // 3600) }}ч {{ (system_health.uptime_seconds % 3600 // 60) }}м</span>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="me-2">5xx:</span>
+                    <span class="{% if system_health.errors_5xx > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">{{ system_health.errors_5xx }} <small class="text-muted">(worker)</small></span>
+                </div>
             </div>
         </div>
     </div>
@@ -351,6 +359,7 @@
                         <thead>
                             <tr>
                                 <th>ID</th>
+                                <th>Модуль</th>
                                 <th>Тип</th>
                                 <th>Прох. %</th>
                                 <th>Попыток</th>
@@ -361,6 +370,7 @@
                             {% for lesson in content_quality.low_pass_lessons[:10] %}
                             <tr>
                                 <td>#{{ lesson.lesson_id }}</td>
+                                <td>{{ lesson.module_id }}</td>
                                 <td><span class="badge bg-secondary">{{ lesson.type }}</span></td>
                                 <td><span class="text-danger fw-bold">{{ lesson.pass_rate }}%</span></td>
                                 <td>{{ lesson.attempts }}</td>
