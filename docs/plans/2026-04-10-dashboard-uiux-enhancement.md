@@ -104,11 +104,11 @@ Enrich the existing dashboard with new data-driven widgets that surface the app'
 - Modify: `app/templates/dashboard.html`
 - Modify: `app/static/css/design-system.css`
 
-- [ ] In route, add calls to `get_reading_speed_trend(user_id)` and `GrammarLabService.get_levels_summary(user_id)`
-- [ ] Create "Reading Speed" widget: sparkline trend (CSS-only, using inline bar chart) showing weekly WPM with current vs. starting comparison
-- [ ] Create "Grammar by Level" widget: horizontal stacked bars for each CEFR level (A1-C2) showing studied/total topics per level
-- [ ] Add CSS for `.dash-reading-speed`, `.dash-sparkline`, `.dash-grammar-levels`, `.dash-grammar-levels__bar`
-- [ ] Write tests for route data
+- [x] In route, add calls to `get_reading_speed_trend(user_id)` and `GrammarLabService.get_levels_summary(user_id)`
+- [x] Create "Reading Speed" widget: sparkline trend (CSS-only, using inline bar chart) showing weekly WPM with current vs. starting comparison
+- [x] Create "Grammar by Level" widget: horizontal stacked bars for each CEFR level (A1-C2) showing studied/total topics per level
+- [x] Add CSS for `.dash-reading-speed`, `.dash-sparkline`, `.dash-grammar-levels`, `.dash-grammar-levels__bar`
+- [x] Write tests for route data
 
 ### Task 7: Dashboard Layout Reorganization
 

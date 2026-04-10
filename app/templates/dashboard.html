@@ -758,6 +758,62 @@
     </div>
     {% endif %}
 
+    <!-- Reading Speed Trend & Grammar by Level -->
+    {% set has_grammar_levels = grammar_levels_summary and grammar_levels_summary|selectattr('topic_count', 'greaterthan', 0)|list %}
+    {% if reading_speed_trend or has_grammar_levels %}
+    <div class="dash-insights-row">
+        {% if reading_speed_trend %}
+        <div class="dash-reading-speed">
+            <h3 class="dash-reading-speed__heading">&#128214; Скорость чтения</h3>
+            {% set current_wpm = reading_speed_trend[-1].avg_wpm %}
+            {% set start_wpm = reading_speed_trend[0].avg_wpm %}
+            {% set max_wpm = reading_speed_trend|map(attribute='avg_wpm')|max %}
+            <div class="dash-reading-speed__summary">
+                <div class="dash-reading-speed__current">
+                    <span class="dash-reading-speed__value">{{ current_wpm|round(0)|int }}</span>
+                    <span class="dash-reading-speed__unit">сл/мин</span>
+                </div>
+                {% if reading_speed_trend|length > 1 %}
+                {% set diff = current_wpm - start_wpm %}
+                <div class="dash-reading-speed__change {% if diff > 0 %}dash-reading-speed__change--up{% elif diff < 0 %}dash-reading-speed__change--down{% endif %}">
+                    {% if diff > 0 %}+{% endif %}{{ diff|round(0)|int }} сл/мин
+                </div>
+                {% endif %}
+            </div>
+            <div class="dash-sparkline">
+                {% for point in reading_speed_trend %}
+                <div class="dash-sparkline__bar{% if loop.last %} dash-sparkline__bar--current{% endif %}" style="height: {{ (point.avg_wpm / max_wpm * 100)|round(0)|int }}%" title="{{ point.week }}: {{ point.avg_wpm|round(1) }} сл/мин"></div>
+                {% endfor %}
+            </div>
+            <div class="dash-reading-speed__labels">
+                <span>{{ reading_speed_trend[0].week }}</span>
+                <span>{{ reading_speed_trend[-1].week }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if has_grammar_levels %}
+        <div class="dash-grammar-levels">
+            <h3 class="dash-grammar-levels__heading">&#128218; Грамматика по уровням</h3>
+            <div class="dash-grammar-levels__list">
+                {% for lvl in grammar_levels_summary %}
+                {% if lvl.topic_count > 0 %}
+                <div class="dash-grammar-levels__row">
+                    <span class="dash-grammar-levels__label">{{ lvl.level }}</span>
+                    <div class="dash-grammar-levels__bar">
+                        <div class="dash-grammar-levels__fill" style="width: {{ lvl.progress_pct }}%"></div>
+                    </div>
+                    <span class="dash-grammar-levels__count">{{ lvl.exercises_mastered }}/{{ lvl.exercises_total }}</span>
+                    <span class="dash-grammar-levels__pct">{{ lvl.progress_pct }}%</span>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Quick Actions -->
     <div class="dash-quick">
         <h3 class="dash-quick__title">&#1041;&#1099;&#1089;&#1090;&#1088;&#1099;&#1077; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1103;</h3>
@@ -2306,6 +2362,163 @@
 .dash-challenge__bar { height: 8px; background: #e5e7eb; border-radius: 4px; margin-top: 8px; overflow: hidden; }
 .dash-challenge__fill { height: 100%; background: linear-gradient(90deg, #5046e5, #7c3aed); border-radius: 4px; transition: width 0.5s; }
 .dash-challenge__progress-text { font-weight: 700; color: #5046e5; }
+
+/* ============================================
+   Insights Row (Reading Speed + Grammar Levels)
+   ============================================ */
+.dash-insights-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    animation: dashSlideUp 0.5s ease-out both;
+    animation-delay: 0.45s;
+}
+@media (max-width: 640px) {
+    .dash-insights-row { grid-template-columns: 1fr; }
+}
+
+/* ---- Reading Speed Widget ---- */
+.dash-reading-speed {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.25rem;
+    box-shadow: var(--dash-shadow);
+}
+.dash-reading-speed__heading {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    margin: 0 0 0.75rem;
+    color: var(--dash-text);
+}
+.dash-reading-speed__summary {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+.dash-reading-speed__current {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+}
+.dash-reading-speed__value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--dash-accent);
+    line-height: 1;
+}
+.dash-reading-speed__unit {
+    font-size: 0.75rem;
+    color: var(--dash-text-muted);
+    font-weight: 500;
+}
+.dash-reading-speed__change {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--dash-text-muted);
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: #f1f5f9;
+}
+.dash-reading-speed__change--up {
+    color: var(--dash-success);
+    background: rgba(16, 185, 129, 0.08);
+}
+.dash-reading-speed__change--down {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+}
+
+/* Sparkline bar chart */
+.dash-sparkline {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 60px;
+    padding: 0;
+}
+.dash-sparkline__bar {
+    flex: 1;
+    min-width: 0;
+    background: var(--dash-accent-soft);
+    border-radius: 3px 3px 0 0;
+    min-height: 4px;
+    transition: background 0.2s;
+}
+.dash-sparkline__bar--current {
+    background: var(--dash-accent);
+}
+.dash-sparkline__bar:hover {
+    background: var(--dash-accent-medium);
+}
+.dash-sparkline__bar--current:hover {
+    background: var(--dash-accent);
+    opacity: 0.85;
+}
+.dash-reading-speed__labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6875rem;
+    color: var(--dash-text-muted);
+    margin-top: 4px;
+}
+
+/* ---- Grammar by Level Widget ---- */
+.dash-grammar-levels {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.25rem;
+    box-shadow: var(--dash-shadow);
+}
+.dash-grammar-levels__heading {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    margin: 0 0 0.75rem;
+    color: var(--dash-text);
+}
+.dash-grammar-levels__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.dash-grammar-levels__row {
+    display: grid;
+    grid-template-columns: 28px 1fr 50px 40px;
+    gap: 0.5rem;
+    align-items: center;
+}
+.dash-grammar-levels__label {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--dash-text);
+}
+.dash-grammar-levels__bar {
+    height: 10px;
+    background: #f1f5f9;
+    border-radius: 5px;
+    overflow: hidden;
+}
+.dash-grammar-levels__fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--dash-accent), #7c3aed);
+    border-radius: 5px;
+    transition: width 0.5s;
+    min-width: 0;
+}
+.dash-grammar-levels__count {
+    font-size: 0.75rem;
+    color: var(--dash-text-muted);
+    text-align: right;
+}
+.dash-grammar-levels__pct {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--dash-accent);
+    text-align: right;
+}
 </style>
 
 <script>

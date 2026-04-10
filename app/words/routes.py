@@ -116,7 +116,8 @@ def dashboard():
     from app.telegram.models import TelegramUser
     from app.telegram.queries import get_daily_plan_v2, get_current_streak, get_daily_summary
     from app.telegram.notifications import _lesson_minutes, _words_minutes
-    from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses, get_best_study_time
+    from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses, get_best_study_time, get_reading_speed_trend
+    from app.grammar_lab.services.grammar_lab_service import GrammarLabService
     from app.study.services.session_service import SessionService
     from app.study.services.stats_service import StatsService
     from app.achievements.streak_service import get_streak_calendar, get_milestone_history
@@ -189,6 +190,10 @@ def dashboard():
     # === ACHIEVEMENTS BY CATEGORY & MILESTONES ===
     achievements_by_category = StatsService.get_achievements_by_category(current_user.id)
     milestone_history = get_milestone_history(current_user.id)
+
+    # === READING SPEED TREND & GRAMMAR BY LEVEL ===
+    reading_speed_trend = get_reading_speed_trend(current_user.id)
+    grammar_levels_summary = GrammarLabService().get_levels_summary(user_id=current_user.id)
 
     # === WORDS STATS ===
     from app.srs.stats_service import srs_stats_service
@@ -342,6 +347,9 @@ def dashboard():
         # Achievements by category & milestones
         achievements_by_category=achievements_by_category,
         milestone_history=milestone_history,
+        # Reading speed trend & grammar by level
+        reading_speed_trend=reading_speed_trend,
+        grammar_levels_summary=grammar_levels_summary,
     )
 
 

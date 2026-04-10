@@ -682,3 +682,153 @@ class TestDashboardMilestoneHistory:
             html = response.data.decode('utf-8')
             html_body = html.split('<style>')[0]
             assert 'dash-milestones__heading' not in html_body
+
+
+class TestDashboardReadingSpeedTrend:
+    """Test reading speed trend widget data on dashboard"""
+
+    def test_dashboard_includes_reading_speed_data(self, client, app, test_user, words_module_access):
+        """Dashboard should call get_reading_speed_trend and pass data to template"""
+        mock_data = [
+            {'week': '2026-W12', 'avg_wpm': 120.5},
+            {'week': '2026-W13', 'avg_wpm': 135.0},
+            {'week': '2026-W14', 'avg_wpm': 142.3},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_reading_speed_trend', return_value=mock_data) as mock_rst:
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            mock_rst.assert_called_once_with(test_user.id)
+
+    def test_dashboard_renders_reading_speed_widget(self, client, app, test_user, words_module_access):
+        """Dashboard should render reading speed widget with sparkline and comparison"""
+        mock_data = [
+            {'week': '2026-W12', 'avg_wpm': 120.5},
+            {'week': '2026-W13', 'avg_wpm': 135.0},
+            {'week': '2026-W14', 'avg_wpm': 142.3},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_reading_speed_trend', return_value=mock_data):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            html_body = html.split('<style>')[0]
+            assert 'dash-reading-speed' in html_body
+            assert 'dash-sparkline' in html_body
+            assert '142' in html_body  # current WPM rounded
+            assert '+22' in html_body  # diff: 142.3 - 120.5 = 21.8 -> +22
+            assert '2026-W12' in html_body  # start week label
+            assert '2026-W14' in html_body  # end week label
+
+    def test_dashboard_reading_speed_empty_state(self, client, app, test_user, words_module_access):
+        """Dashboard should not render reading speed widget when no data"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_reading_speed_trend', return_value=[]):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            html_body = html.split('<style>')[0]
+            assert 'dash-reading-speed__heading' not in html_body
+
+    def test_dashboard_reading_speed_single_point(self, client, app, test_user, words_module_access):
+        """Dashboard should render without change indicator for single data point"""
+        mock_data = [
+            {'week': '2026-W14', 'avg_wpm': 130.0},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_reading_speed_trend', return_value=mock_data):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            html_body = html.split('<style>')[0]
+            assert 'dash-reading-speed' in html_body
+            assert '130' in html_body
+            # No change indicator for single point
+            assert 'dash-reading-speed__change' not in html_body
+
+
+class TestDashboardGrammarLevels:
+    """Test grammar by level widget data on dashboard"""
+
+    def test_dashboard_includes_grammar_levels_data(self, client, app, test_user, words_module_access):
+        """Dashboard should call GrammarLabService.get_levels_summary and pass data to template"""
+        mock_data = [
+            {'level': 'A1', 'topic_count': 10, 'exercises_total': 50, 'exercises_mastered': 30, 'progress_pct': 60.0},
+            {'level': 'A2', 'topic_count': 8, 'exercises_total': 40, 'exercises_mastered': 10, 'progress_pct': 25.0},
+            {'level': 'B1', 'topic_count': 12, 'exercises_total': 60, 'exercises_mastered': 0, 'progress_pct': 0},
+            {'level': 'B2', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
+            {'level': 'C1', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
+            {'level': 'C2', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', return_value=mock_data) as mock_gls:
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            mock_gls.assert_called_once_with(user_id=test_user.id)
+
+    def test_dashboard_renders_grammar_levels_widget(self, client, app, test_user, words_module_access):
+        """Dashboard should render grammar levels widget with bars per level"""
+        mock_data = [
+            {'level': 'A1', 'topic_count': 10, 'exercises_total': 50, 'exercises_mastered': 30, 'progress_pct': 60.0},
+            {'level': 'A2', 'topic_count': 8, 'exercises_total': 40, 'exercises_mastered': 10, 'progress_pct': 25.0},
+            {'level': 'B1', 'topic_count': 12, 'exercises_total': 60, 'exercises_mastered': 0, 'progress_pct': 0},
+            {'level': 'B2', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
+            {'level': 'C1', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
+            {'level': 'C2', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', return_value=mock_data):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            html_body = html.split('<style>')[0]
+            assert 'dash-grammar-levels' in html_body
+            assert 'dash-grammar-levels__bar' in html_body
+            # Levels with topics should appear
+            assert '>A1<' in html_body
+            assert '>A2<' in html_body
+            assert '>B1<' in html_body
+            # Levels without topics should NOT appear
+            assert '>B2<' not in html_body
+            assert '>C1<' not in html_body
+            # Progress info
+            assert '30/50' in html_body
+            assert '60.0%' in html_body
+
+    def test_dashboard_grammar_levels_empty_state(self, client, app, test_user, words_module_access):
+        """Dashboard should not render grammar levels widget when all levels have 0 topics"""
+        mock_data = [
+            {'level': lvl, 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0}
+            for lvl in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', return_value=mock_data), \
+             patch('app.study.insights_service.get_reading_speed_trend', return_value=[]):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            html_body = html.split('<style>')[0]
+            # When both widgets empty, the insights row should not render
+            assert 'dash-insights-row' not in html_body
