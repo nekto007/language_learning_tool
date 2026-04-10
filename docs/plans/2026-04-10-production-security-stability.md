@@ -59,10 +59,10 @@
 **Files:**
 - Modify: `app/__init__.py` or create route in appropriate blueprint
 
-- [ ] Add `/health` endpoint that checks DB connectivity and returns JSON status
-- [ ] Exempt from authentication and CSRF
-- [ ] Write tests: verify endpoint returns 200 with DB up, appropriate error structure
-- [ ] Run project test suite - must pass before task 5
+- [x] Add `/health` endpoint that checks DB connectivity and returns JSON status
+- [x] Exempt from authentication and CSRF
+- [x] Write tests: verify endpoint returns 200 with DB up, appropriate error structure
+- [x] Run project test suite - must pass before task 5
 
 ### Task 5: Fix Unsafe innerHTML in JavaScript
 
