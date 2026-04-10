@@ -61,7 +61,8 @@
 
 - [x] Add `/health` endpoint that checks DB connectivity and returns JSON status
 - [x] Exempt from authentication and CSRF
-- [x] Write tests: verify endpoint returns 200 with DB up, appropriate error structure
+- [x] **Failure path:** `/health` MUST return HTTP 503 (not 200) when DB is unavailable, with `{"status": "unhealthy", "db": "error", "error": "..."}`. Tests must cover both success (200) AND failure (503) cases
+- [x] Write tests: verify 200 with DB up, 503 with DB down (mock DB failure)
 - [x] Run project test suite - must pass before task 5
 
 ### Task 5: Fix Unsafe innerHTML in JavaScript
@@ -82,8 +83,9 @@
 - Multiple files (74 files, 326 occurrences of `except Exception`)
 
 - [x] Audit top-priority files: routes, services, middleware - identify cases that silently swallow errors (pass/continue without logging)
-- [x] Add `logger.exception()` or `logger.error()` to silent handlers (do NOT change control flow, only add logging)
-- [x] Write tests: verify that exceptions in critical paths are logged
+- [x] Add `logger.exception()` or `logger.error()` to silent handlers
+- [x] **Where appropriate, change control flow to fail closed:** exceptions in security-critical paths (auth, access control, CSRF) must re-raise or return error, not silently continue. Logging alone is insufficient for security/stability handlers
+- [x] Write tests: verify that exceptions in critical paths are logged AND that security-critical handlers fail closed
 
 
 ### Task 7: Bound the Admin Cache
@@ -91,16 +93,25 @@
 **Files:**
 - Modify: `app/admin/utils/cache.py`
 
-- [ ] Add max_size limit (e.g. 100 entries) with LRU eviction
-- [ ] Add periodic cleanup of expired entries (not just on access)
-- [ ] Write tests: verify cache eviction works when max_size exceeded
+- [x] Add max_size limit (e.g. 100 entries) with LRU eviction
+- [x] Add periodic cleanup of expired entries (not just on access)
+- [x] Write tests: verify cache eviction works when max_size exceeded
 
 
 ### Task 8: Verify Acceptance Criteria
 
 - [ ] Run full test suite: `pytest`
 - [ ] Verify no new security warnings in test output
-- [ ] Manual checklist: hit /nonexistent (404), /health (200), verify no SMTP debug in logs
+- [ ] **Full hardening verification checklist:**
+  - [ ] Hit /nonexistent → 404 page with correct template
+  - [ ] Hit /health → 200 JSON with `"status": "healthy"`
+  - [ ] Simulate DB failure on /health → 503 JSON (not 200)
+  - [ ] Verify no SMTP debug output in logs during email send
+  - [ ] Verify open redirect: POST to login with `next=//evil.com` → redirects to dashboard, not evil.com
+  - [ ] Verify notification bell does NOT use innerHTML for user data (textContent/DOM API)
+  - [ ] Verify `tojson` is not used inside HTML attributes (`onclick="..."` etc.)
+  - [ ] Verify exception logging: trigger error in service, check log output contains traceback
+  - [ ] Verify cache bounded: insert >100 entries, check oldest evicted
 
 ### Task 9: Update Documentation
 
