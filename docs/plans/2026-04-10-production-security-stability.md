@@ -71,10 +71,10 @@
 - Modify: `app/static/js/word-translator.js`
 - Audit: other JS files with innerHTML
 
-- [ ] Audit all innerHTML assignments - identify which receive user-controlled data
-- [ ] Replace unsafe innerHTML with textContent/DOM methods or add escapeHtml() where HTML is needed
-- [ ] Write tests: verify escaping works for special characters in relevant templates
-- [ ] Run project test suite - must pass before task 6
+- [x] Audit all innerHTML assignments - identify which receive user-controlled data
+- [x] Replace unsafe innerHTML with textContent/DOM methods or add escapeHtml() where HTML is needed
+- [x] Write tests: verify escaping works for special characters in relevant templates
+- [x] Run project test suite - must pass before task 6
 
 ### Task 6: Audit and Fix Silent Exception Swallowing
 
