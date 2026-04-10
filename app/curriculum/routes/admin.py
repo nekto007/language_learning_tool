@@ -430,14 +430,16 @@ def delete_lesson(lesson_id):
                 'error'
             )
             # Возвращаемся туда, откуда пришли, или на список уроков по умолчанию
-            return redirect(request.referrer or url_for('curriculum_admin.admin_lessons'))
+            from app.auth.routes import get_safe_redirect_url
+            return redirect(get_safe_redirect_url(request.referrer, fallback='curriculum_admin.admin_lessons'))
 
         db.session.delete(lesson)
         db.session.commit()
 
         flash('Урок успешно удален', 'success')
         # Возвращаемся туда, откуда пришли, или на список уроков по умолчанию
-        return redirect(request.referrer or url_for('curriculum_admin.admin_lessons'))
+        from app.auth.routes import get_safe_redirect_url
+        return redirect(get_safe_redirect_url(request.referrer, fallback='curriculum_admin.admin_lessons'))
 
     except Exception as e:
         db.session.rollback()
