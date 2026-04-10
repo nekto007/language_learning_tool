@@ -4764,17 +4764,19 @@ body.dark-theme #translationPopup {
     scrollbar-color: var(--gray-600) transparent;
 }
 
-.admin-sidebar::-webkit-scrollbar {
-    width: 6px;
-}
+@supports selector(.admin-sidebar::-webkit-scrollbar) {
+    .admin-sidebar::-webkit-scrollbar {
+        width: 6px;
+    }
 
-.admin-sidebar::-webkit-scrollbar-track {
-    background: transparent;
-}
+    .admin-sidebar::-webkit-scrollbar-track {
+        background: transparent;
+    }
 
-.admin-sidebar::-webkit-scrollbar-thumb {
-    background-color: var(--gray-600);
-    border-radius: 3px;
+    .admin-sidebar::-webkit-scrollbar-thumb {
+        background-color: var(--gray-600);
+        border-radius: 3px;
+    }
 }
 
 .sidebar-nav {
@@ -8544,7 +8546,7 @@ textarea:focus-visible,
 }
 
 /* High contrast mode support */
-@media (prefers-contrast: high) {
+@media (prefers-contrast: more) {
     :root {
         --border-light: var(--gray-400);
         --border-medium: var(--gray-500);
@@ -10739,21 +10741,23 @@ footer .col-md-4 {
     scrollbar-color: var(--gray-300) transparent;
 }
 
-.admin-scrollable::-webkit-scrollbar {
-    width: 6px;
-}
+@supports selector(.admin-scrollable::-webkit-scrollbar) {
+    .admin-scrollable::-webkit-scrollbar {
+        width: 6px;
+    }
 
-.admin-scrollable::-webkit-scrollbar-track {
-    background: transparent;
-}
+    .admin-scrollable::-webkit-scrollbar-track {
+        background: transparent;
+    }
 
-.admin-scrollable::-webkit-scrollbar-thumb {
-    background-color: var(--gray-300);
-    border-radius: 3px;
-}
+    .admin-scrollable::-webkit-scrollbar-thumb {
+        background-color: var(--gray-300);
+        border-radius: 3px;
+    }
 
-.admin-scrollable::-webkit-scrollbar-thumb:hover {
-    background-color: var(--gray-400);
+    .admin-scrollable::-webkit-scrollbar-thumb:hover {
+        background-color: var(--gray-400);
+    }
 }
 
 /* Conditional Display (for Jinja templates) */
@@ -11349,22 +11353,24 @@ footer .col-md-4 {
     padding: var(--space-2) 0;
 }
 
-.deck-list::-webkit-scrollbar {
-    width: 6px;
-}
+@supports selector(.deck-list::-webkit-scrollbar) {
+    .deck-list::-webkit-scrollbar {
+        width: 6px;
+    }
 
-.deck-list::-webkit-scrollbar-track {
-    background: var(--gray-100);
-    border-radius: 3px;
-}
+    .deck-list::-webkit-scrollbar-track {
+        background: var(--gray-100);
+        border-radius: 3px;
+    }
 
-.deck-list::-webkit-scrollbar-thumb {
-    background: var(--gray-300);
-    border-radius: 3px;
-}
+    .deck-list::-webkit-scrollbar-thumb {
+        background: var(--gray-300);
+        border-radius: 3px;
+    }
 
-.deck-list::-webkit-scrollbar-thumb:hover {
-    background: var(--gray-400);
+    .deck-list::-webkit-scrollbar-thumb:hover {
+        background: var(--gray-400);
+    }
 }
 
 .deck-list-loading,
