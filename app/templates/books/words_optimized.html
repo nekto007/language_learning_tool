@@ -132,7 +132,7 @@
                     <th class="book-words-col-english">{{ _('Английское слово') }}</th>
                     <th class="book-words-col-russian">{{ _('Перевод') }}</th>
                     <th class="book-words-col-level">{{ _('Уровень') }}</th>
-                    <th class="book-words-col-book">{{ _('Книга') }}</th>
+                    <th class="book-words-col-book">{{ _('Частота') }}</th>
                     <th class="book-words-col-audio">{{ _('Аудио') }}</th>
                     <th class="book-words-col-actions">{{ _('Действия') }}</th>
                 </tr>
@@ -162,8 +162,8 @@
                         {% endif %}
                     </td>
                     <td>
-                        <span class="text-muted small">
-                            <i class="fas fa-book me-1"></i>{{ book.title[:15] }}...
+                        <span class="text-muted small" title="{{ _('Встречается в книге %(n)s раз', n=frequency) }}">
+                            <i class="fas fa-hashtag me-1"></i>{{ frequency }}
                         </span>
                     </td>
                     <td>

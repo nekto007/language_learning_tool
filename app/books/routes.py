@@ -309,26 +309,69 @@ def read_selection():
     """
     Page for selecting a book to read
     """
-    # Get user's recent reading progress from chapters
     from app.books.models import UserChapterProgress
-    recent_chapter_progress = UserChapterProgress.query.filter_by(
-        user_id=current_user.id
-    ).join(Chapter).join(Book).order_by(
-        UserChapterProgress.updated_at.desc()
-    ).limit(10).all()
 
     # Get all books with chapters
     all_books = Book.query.join(Chapter).distinct().order_by(Book.title).all()
 
+    # Get all user chapter progress for books
+    user_progress = db.session.query(
+        UserChapterProgress, Chapter
+    ).join(
+        Chapter, UserChapterProgress.chapter_id == Chapter.id
+    ).filter(
+        UserChapterProgress.user_id == current_user.id
+    ).all()
+
+    # Build per-book progress data: {book_id: {progress_pct, last_chapter_num, last_read}}
+    book_progress_map = {}
+    # Count chapters per book for percentage calculation
+    book_chapter_counts = {}
+    for book in all_books:
+        book_chapter_counts[book.id] = book.chapters_cnt or len(book.chapters)
+
+    for ucp, chapter in user_progress:
+        bid = chapter.book_id
+        if bid not in book_progress_map:
+            book_progress_map[bid] = {
+                'total_offset': 0.0,
+                'chapter_count': 0,
+                'last_chapter_num': chapter.chap_num,
+                'last_read': ucp.updated_at,
+            }
+        entry = book_progress_map[bid]
+        entry['total_offset'] += ucp.offset_pct
+        entry['chapter_count'] += 1
+        if ucp.updated_at and (entry['last_read'] is None or ucp.updated_at > entry['last_read']):
+            entry['last_read'] = ucp.updated_at
+            entry['last_chapter_num'] = chapter.chap_num
+
+    # Compute final percentages
+    book_progress = {}
+    for bid, entry in book_progress_map.items():
+        total_chapters = book_chapter_counts.get(bid, 1) or 1
+        pct = int((entry['total_offset'] / total_chapters) * 100)
+        book_progress[bid] = {
+            'progress_pct': min(pct, 100),
+            'last_chapter_num': entry['last_chapter_num'],
+            'last_read': entry['last_read'],
+        }
+
+    # Build recent books list: books with progress, sorted by last_read desc
+    recent_books = []
+    for book in all_books:
+        if book.id in book_progress:
+            recent_books.append((book, book_progress[book.id]))
+    recent_books.sort(key=lambda x: x[1]['last_read'] or datetime.min, reverse=True)
+
     # Get reading statistics
-    books_started = db.session.query(Book.id).join(Chapter).join(
-        UserChapterProgress
-    ).filter(UserChapterProgress.user_id == current_user.id).distinct().count()
+    books_started = len(book_progress)
 
     return render_template('books/read_selection.html',
-                           recent_books=recent_chapter_progress,
+                           recent_books=recent_books,
                            all_books=all_books,
-                           books_started=books_started)
+                           books_started=books_started,
+                           book_progress=book_progress)
 
 
 @books.route('/read/<int:book_id>')
@@ -1494,6 +1537,7 @@ def book_details(book_id):
     # Get total chapters for the book
     total_chapters = Chapter.query.filter_by(book_id=book_id).count()
     reading_progress = 0
+    last_read_chapter = None
 
     if total_chapters > 0:
         # Get all user's progress for this book's chapters
@@ -1509,10 +1553,15 @@ def book_details(book_id):
         if user_chapters:
             # Calculate overall reading progress
             total_progress = 0
+            latest_updated = None
             for progress_record, chapter in user_chapters:
                 # Each chapter contributes 1/total_chapters to overall progress
                 chapter_contribution = progress_record.offset_pct / total_chapters
                 total_progress += chapter_contribution
+                # Track last read chapter
+                if latest_updated is None or (progress_record.updated_at and progress_record.updated_at > latest_updated):
+                    latest_updated = progress_record.updated_at
+                    last_read_chapter = chapter.chap_num
 
             reading_progress = int(total_progress * 100)
 
@@ -1566,7 +1615,8 @@ def book_details(book_id):
         word_progress=word_progress,
         frequent_words=frequent_words,
         word_statuses=word_statuses,
-        chapters=chapters
+        chapters=chapters,
+        last_read_chapter=last_read_chapter
     )
 
 

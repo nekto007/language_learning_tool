@@ -247,13 +247,13 @@
 - Modify: `app/templates/books/details_optimized.html`
 - Modify: `app/books/routes.py`
 
-- [ ] Add reading progress indicator on book selection page (% completed per book)
-- [ ] Add "Continue reading" button linking to last read chapter (using UserChapterProgress)
-- [ ] Add word frequency info on book words page (how many times word appears)
-- [ ] Add fallback icon when book cover image fails to load
-- [ ] Add estimated reading time per chapter based on word count
-- [ ] Write tests for reading progress calculation and continue-reading logic
-- [ ] Run project test suite - must pass before task 14
+- [x] Add reading progress indicator on book selection page (% completed per book)
+- [x] Add "Continue reading" button linking to last read chapter (using UserChapterProgress)
+- [x] Add word frequency info on book words page (how many times word appears)
+- [x] Add fallback icon when book cover image fails to load
+- [x] Add estimated reading time per chapter based on word count
+- [x] Write tests for reading progress calculation and continue-reading logic
+- [x] Run project test suite - must pass before task 14
 
 ### Task 14: Lesson UX Improvements
 

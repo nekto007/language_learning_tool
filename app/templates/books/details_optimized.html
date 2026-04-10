@@ -11,7 +11,11 @@
                 {% if book.cover_image %}
                 <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}"
                      alt="{{ book.title }}"
-                     class="book-cover-hero">
+                     class="book-cover-hero"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div class="book-cover-hero bg-secondary d-flex align-items-center justify-content-center" style="display:none;">
+                    <i class="fas fa-book fa-3x text-white-50"></i>
+                </div>
                 {% else %}
                 <div class="book-cover-hero bg-secondary d-flex align-items-center justify-content-center">
                     <i class="fas fa-book fa-3x text-white-50"></i>
@@ -42,11 +46,19 @@
                 </div>
                 
                 <div class="action-buttons mt-1">
-                    <a href="{{ url_for('books.read_book', book_id=book.id) }}" 
+                    {% if last_read_chapter %}
+                    <a href="{{ url_for('books.read_book_chapters', book_id=book.id, chapter=last_read_chapter) }}"
+                       class="btn-action btn-primary-gradient">
+                        <i class="fas fa-play"></i>
+                        {{ _('Продолжить чтение') }}
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('books.read_book', book_id=book.id) }}"
                        class="btn-action btn-primary-gradient">
                         <i class="fas fa-book-reader"></i>
                         {{ _('Начать чтение') }}
                     </a>
+                    {% endif %}
                     <a href="{{ url_for('books.book_words', book_id=book.id) }}" 
                        class="btn-action btn-success-gradient">
                         <i class="fas fa-list"></i>
@@ -133,12 +145,17 @@
         <h3 class="mb-4">{{ _('Главы') }}</h3>
         <div class="chapters-list">
             {% for chapter in chapters %}
+            {% set reading_minutes = ((chapter.words or 0) / 150) | int %}
+            {% set reading_minutes = reading_minutes if reading_minutes > 0 else 1 %}
             <div class="chapter-item d-flex justify-content-between align-items-center p-3 mb-2 bg-light rounded">
                 <div>
                     <h5 class="mb-1">{{ _('Глава') }} {{ chapter.chap_num }}: {{ chapter.title }}</h5>
-                    <small class="text-muted">{{ chapter.words }} {{ _('слов') }}</small>
+                    <small class="text-muted">
+                        {{ chapter.words }} {{ _('слов') }}
+                        <span class="ms-2"><i class="fas fa-clock me-1"></i>~{{ reading_minutes }} {{ _('мин') }}</span>
+                    </small>
                 </div>
-                <a href="{{ url_for('books.read_book_chapters', book_id=book.id, chapter=chapter.chap_num) }}" 
+                <a href="{{ url_for('books.read_book_chapters', book_id=book.id, chapter=chapter.chap_num) }}"
                    class="btn btn-sm btn-primary">
                     <i class="fas fa-book-reader"></i> {{ _('Читать') }}
                 </a>
