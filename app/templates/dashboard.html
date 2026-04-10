@@ -18,18 +18,18 @@
                     <h1 class="dash-hero__title">{{ greeting|default('Привет') }}, {{ current_user.username }}!</h1>
                     {% if streak_repaired %}
                     <div class="dash-streak dash-streak--restored">
-                        <span class="dash-streak__fire">&#128293;</span>
+                        <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
                         <span class="dash-streak__text">{{ streak }}
                             {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance }}</span>
+                        <span class="dash-streak__coins" title="Coins — внутренняя валюта. Копите за серию, тратьте на восстановление">&#128176; {{ streak_status.coins_balance }}</span>
                         <span class="dash-streak__restored">Серия восстановлена!</span>
                     </div>
                     {% elif streak_status and streak_status.can_repair and streak > 0 %}
                     <div class="dash-streak">
-                        <span class="dash-streak__fire">&#128293;</span>
+                        <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
                         <span class="dash-streak__text">{{ streak }}
                             {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance }}</span>
+                        <span class="dash-streak__coins" title="Coins — внутренняя валюта. Копите за серию, тратьте на восстановление">&#128176; {{ streak_status.coins_balance }}</span>
                     </div>
                     {% elif streak_status and streak_status.can_repair %}
                     <div class="dash-streak-recovery">
@@ -49,15 +49,18 @@
                                     Восстановить
                                 </button>
                                 <span class="dash-streak-recovery__balance">Баланс: {{ streak_status.coins_balance }}</span>
+                                {% if streak_status.coins_balance == 0 %}
+                                <div class="dash-streak-recovery__hint">Coins начисляются за каждый день серии. Продолжайте заниматься, чтобы накопить!</div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                     {% elif streak > 0 %}
                     <div class="dash-streak">
-                        <span class="dash-streak__fire">&#128293;</span>
+                        <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
                         <span class="dash-streak__text">{{ streak }}
                             {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
+                        <span class="dash-streak__coins" title="Coins — внутренняя валюта. Копите за серию, тратьте на восстановление">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
                         {% set milestones = {7: '🎯 Неделя!', 14: '💪 2 недели!', 30: '🏆 Месяц!', 60: '⭐ 2 месяца!', 100: '👑 100 дней!'} %}
                         {% if streak in milestones %}
                         <span class="dash-streak__milestone" id="milestone-badge">{{ milestones[streak] }}</span>
@@ -80,7 +83,7 @@
                     </div>
                     {% endif %}
                     {% if today_xp is defined %}
-                    <div class="dash-xp-bar">
+                    <div class="dash-xp-bar" title="Опыт за сегодня. Зарабатывайте XP за уроки, грамматику и повторение слов">
                         <span class="dash-xp-bar__text">&#9889; {{ today_xp|default(0) }}/{{ daily_xp_goal|default(100) }} XP</span>
                         <div class="dash-xp-bar__track">
                             <div class="dash-xp-bar__fill" style="width: {{ [today_xp|default(0) / daily_xp_goal|default(100) * 100, 100] | min }}%"></div>
@@ -91,6 +94,18 @@
             </div>
         </div>
     </div>
+
+    <!-- Welcome Card for New Users -->
+    {% if words_total == 0 and grammar_studied == 0 and books_reading == 0 and courses_enrolled == 0 %}
+    <div class="dash-welcome">
+        <div class="dash-welcome__icon">&#127891;</div>
+        <div class="dash-welcome__content">
+            <h2 class="dash-welcome__title">Добро пожаловать в LLT English!</h2>
+            <p class="dash-welcome__text">Начните обучение: пройдите первый урок, добавьте слова в колоду или изучите грамматику. Прогресс появится здесь.</p>
+            <a href="{% if not current_user.onboarding_completed %}{{ url_for('onboarding.wizard') }}{% else %}{{ url_for('courses.catalog') }}{% endif %}" class="dash-welcome__btn">Начать обучение</a>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Daily Plan -->
     <div class="dash-plan">
@@ -366,14 +381,13 @@
         </div><!-- /dash-timeline -->
 
         {% if ns.step_num == 1 %}
-        <div class="dash-step dash-step--done">
-            <div class="dash-step__body">
-                <div class="dash-step__icon">&#10024;</div>
-                <div class="dash-step__info">
-                    <div class="dash-step__title">Всё на сегодня сделано!</div>
-                    <div class="dash-step__meta">Продолжай завтра</div>
-                </div>
+        <div class="dash-plan-empty">
+            <div class="dash-plan-empty__icon">&#128221;</div>
+            <div class="dash-plan-empty__text">
+                <div class="dash-plan-empty__title">План ещё не настроен</div>
+                <div class="dash-plan-empty__desc">Начните изучать уроки, слова или грамматику — и план на день сформируется автоматически</div>
             </div>
+            <a href="{% if not current_user.onboarding_completed %}{{ url_for('onboarding.wizard') }}{% else %}{{ url_for('courses.catalog') }}{% endif %}" class="dash-step__btn">Начать обучение</a>
         </div>
         {% endif %}
     </div>
@@ -389,6 +403,14 @@
         <div class="dash-challenge__bar">
             <div class="dash-challenge__fill" style="width: {{ [weekly_challenge.current / weekly_challenge.target * 100, 100] | min }}%"></div>
         </div>
+    </div>
+    {% else %}
+    <div class="dash-challenge dash-challenge--empty">
+        <div class="dash-challenge__header">
+            <span>&#127942; Челлендж недели</span>
+        </div>
+        <div class="dash-challenge__title">Нет активного челленджа</div>
+        <div class="dash-challenge__desc">Новый челлендж появится в начале следующей недели</div>
     </div>
     {% endif %}
 
@@ -422,6 +444,106 @@
             </div>
             {% endif %}
         </div>
+    </div>
+    {% endif %}
+
+    <!-- Weekly Analytics -->
+    {% if weekly_analytics is defined and weekly_analytics %}
+    {% set wa = weekly_analytics %}
+    {% if wa.words_reviewed > 0 or wa.lessons_completed > 0 or wa.time_minutes > 0 %}
+    <div class="dash-week">
+        <h3 class="dash-week__heading">&#1069;&#1090;&#1072; &#1085;&#1077;&#1076;&#1077;&#1083;&#1103;</h3>
+        <div class="dash-week__grid">
+            <div class="dash-week__item">
+                <div class="dash-week__value">{{ wa.words_reviewed }}</div>
+                <div class="dash-week__label">&#1089;&#1083;&#1086;&#1074; &#1087;&#1086;&#1074;&#1090;&#1086;&#1088;&#1077;&#1085;&#1086;</div>
+            </div>
+            <div class="dash-week__item">
+                <div class="dash-week__value">{{ wa.lessons_completed }}</div>
+                <div class="dash-week__label">&#1091;&#1088;&#1086;&#1082;&#1086;&#1074;</div>
+            </div>
+            <div class="dash-week__item">
+                <div class="dash-week__value">{{ wa.time_minutes }}</div>
+                <div class="dash-week__label">&#1084;&#1080;&#1085;&#1091;&#1090;</div>
+            </div>
+            <div class="dash-week__item">
+                <div class="dash-week__value">{{ wa.accuracy }}%</div>
+                <div class="dash-week__label">&#1090;&#1086;&#1095;&#1085;&#1086;&#1089;&#1090;&#1100;</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <!-- Words SRS Distribution -->
+    {% if words_total > 0 %}
+    <div class="dash-srs">
+        <h3 class="dash-srs__heading">&#1057;&#1083;&#1086;&#1074;&#1072; SRS</h3>
+        <div class="dash-srs__bar">
+            {% set srs_total = words_stats.new + words_stats.learning + words_stats.review + words_stats.mastered %}
+            {% if srs_total > 0 %}
+            {% set pct_new = (words_stats.new / srs_total * 100) %}
+            {% set pct_learn = (words_stats.learning / srs_total * 100) %}
+            {% set pct_review = (words_stats.review / srs_total * 100) %}
+            {% set pct_mastered = (words_stats.mastered / srs_total * 100) %}
+            {% if words_stats.new > 0 %}<div class="dash-srs__seg dash-srs__seg--new" style="width:{{ pct_new }}%" title="&#1053;&#1086;&#1074;&#1099;&#1077;: {{ words_stats.new }}"></div>{% endif %}
+            {% if words_stats.learning > 0 %}<div class="dash-srs__seg dash-srs__seg--learning" style="width:{{ pct_learn }}%" title="&#1048;&#1079;&#1091;&#1095;&#1072;&#1102;: {{ words_stats.learning }}"></div>{% endif %}
+            {% if words_stats.review > 0 %}<div class="dash-srs__seg dash-srs__seg--review" style="width:{{ pct_review }}%" title="&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;: {{ words_stats.review }}"></div>{% endif %}
+            {% if words_stats.mastered > 0 %}<div class="dash-srs__seg dash-srs__seg--mastered" style="width:{{ pct_mastered }}%" title="&#1047;&#1072;&#1082;&#1088;&#1077;&#1087;&#1083;&#1077;&#1085;&#1086;: {{ words_stats.mastered }}"></div>{% endif %}
+            {% endif %}
+        </div>
+        <div class="dash-srs__legend">
+            <span class="dash-srs__legend-item"><span class="dash-srs__dot dash-srs__dot--new"></span>&#1053;&#1086;&#1074;&#1099;&#1077; {{ words_stats.new }}</span>
+            <span class="dash-srs__legend-item"><span class="dash-srs__dot dash-srs__dot--learning"></span>&#1048;&#1079;&#1091;&#1095;&#1072;&#1102; {{ words_stats.learning }}</span>
+            <span class="dash-srs__legend-item"><span class="dash-srs__dot dash-srs__dot--review"></span>&#1055;&#1086;&#1074;&#1090;&#1086;&#1088; {{ words_stats.review }}</span>
+            <span class="dash-srs__legend-item"><span class="dash-srs__dot dash-srs__dot--mastered"></span>&#1047;&#1072;&#1082;&#1088;&#1077;&#1087;&#1083;&#1077;&#1085;&#1086; {{ words_stats.mastered }}</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Continue Where You Left Off -->
+    {% if continue_lesson is defined and continue_lesson %}
+    <div class="dash-continue">
+        <div class="dash-continue__icon">&#128218;</div>
+        <div class="dash-continue__info">
+            <div class="dash-continue__title">&#1055;&#1088;&#1086;&#1076;&#1086;&#1083;&#1078;&#1080;&#1090;&#1100; &#1091;&#1088;&#1086;&#1082;</div>
+            <div class="dash-continue__lesson">{{ continue_lesson.level.code if continue_lesson.level else '' }} / &#1052;&#1086;&#1076;&#1091;&#1083;&#1100; {{ continue_lesson.module.number if continue_lesson.module else '' }} &mdash; {{ continue_lesson.lesson.title }}</div>
+        </div>
+        <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=continue_lesson.lesson.id) }}" class="dash-continue__btn">&#1055;&#1088;&#1086;&#1076;&#1086;&#1083;&#1078;&#1080;&#1090;&#1100;</a>
+    </div>
+    {% endif %}
+
+    <!-- Grammar Progress Summary -->
+    {% if grammar_user_stats is defined and grammar_user_stats and grammar_user_stats.total_topics > 0 %}
+    <div class="dash-grammar-progress">
+        <h3 class="dash-grammar-progress__heading">&#1043;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1072;</h3>
+        <div class="dash-grammar-progress__stats">
+            <div class="dash-grammar-progress__stat">
+                <span class="dash-grammar-progress__num">{{ grammar_user_stats.topics_started }}</span>
+                <span class="dash-grammar-progress__lbl">&#1085;&#1072;&#1095;&#1072;&#1090;&#1086;</span>
+            </div>
+            <div class="dash-grammar-progress__stat">
+                <span class="dash-grammar-progress__num">{{ grammar_user_stats.topics_mastered }}</span>
+                <span class="dash-grammar-progress__lbl">&#1086;&#1089;&#1074;&#1086;&#1077;&#1085;&#1086;</span>
+            </div>
+            {% if grammar_user_stats.total_topics > 0 %}
+            <div class="dash-grammar-progress__stat">
+                <span class="dash-grammar-progress__num">{{ (grammar_user_stats.topics_started / grammar_user_stats.total_topics * 100) | int }}%</span>
+                <span class="dash-grammar-progress__lbl">&#1087;&#1088;&#1086;&#1075;&#1088;&#1077;&#1089;&#1089;</span>
+            </div>
+            {% endif %}
+            {% if grammar_user_stats.overall_accuracy > 0 %}
+            <div class="dash-grammar-progress__stat">
+                <span class="dash-grammar-progress__num">{{ grammar_user_stats.overall_accuracy | int }}%</span>
+                <span class="dash-grammar-progress__lbl">&#1090;&#1086;&#1095;&#1085;&#1086;&#1089;&#1090;&#1100;</span>
+            </div>
+            {% endif %}
+        </div>
+        {% if grammar_user_stats.topics_started > 0 %}
+        <div class="dash-grammar-progress__bar">
+            <div class="dash-grammar-progress__fill" style="width: {{ (grammar_user_stats.topics_started / grammar_user_stats.total_topics * 100) | int }}%"></div>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 
@@ -1254,6 +1376,290 @@
 .dash-challenge__bar { height: 8px; background: #e5e7eb; border-radius: 4px; margin-top: 8px; overflow: hidden; }
 .dash-challenge__fill { height: 100%; background: linear-gradient(90deg, #5046e5, #7c3aed); border-radius: 4px; transition: width 0.5s; }
 .dash-challenge__progress-text { font-weight: 700; color: #5046e5; }
+.dash-challenge--empty { opacity: 0.7; }
+.dash-challenge__desc { font-size: 0.8125rem; color: #9ca3af; margin-top: 4px; }
+
+/* ============================================
+   Welcome Card (New Users)
+   ============================================ */
+.dash-welcome {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border: 1px solid #93c5fd;
+    border-radius: var(--dash-radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    animation: dashSlideUp 0.5s ease-out;
+}
+.dash-welcome__icon { font-size: 2.5rem; flex-shrink: 0; }
+.dash-welcome__content { flex: 1; }
+.dash-welcome__title { font-size: 1.125rem; font-weight: 700; color: #1e3a5f; margin: 0 0 0.375rem; }
+.dash-welcome__text { font-size: 0.875rem; color: #3b6fa0; margin: 0; line-height: 1.4; }
+.dash-welcome__btn {
+    display: inline-block;
+    margin-top: 0.75rem;
+    padding: 0.5rem 1.25rem;
+    background: #2563eb;
+    color: white;
+    border-radius: var(--dash-radius-sm);
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+.dash-welcome__btn:hover { background: #1d4ed8; color: white; }
+
+/* ============================================
+   Empty Daily Plan
+   ============================================ */
+.dash-plan-empty {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: var(--dash-surface-alt);
+    border: 1px dashed var(--dash-border);
+    border-radius: var(--dash-radius-sm);
+}
+.dash-plan-empty__icon { font-size: 1.75rem; flex-shrink: 0; }
+.dash-plan-empty__text { flex: 1; }
+.dash-plan-empty__title { font-size: 0.9375rem; font-weight: 600; color: var(--dash-text); }
+.dash-plan-empty__desc { font-size: 0.8125rem; color: var(--dash-text-muted); margin-top: 0.25rem; }
+
+/* ============================================
+   Streak Recovery Hint
+   ============================================ */
+.dash-streak-recovery__hint {
+    width: 100%;
+    font-size: 0.8125rem;
+    color: #856404;
+    margin-top: 6px;
+    font-style: italic;
+}
+
+@media (max-width: 640px) {
+    .dash-welcome { flex-direction: column; text-align: center; gap: 0.75rem; padding: 1.25rem; }
+    .dash-plan-empty { flex-direction: column; text-align: center; }
+}
+
+/* ============================================
+   Weekly Analytics
+   ============================================ */
+.dash-week {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--dash-shadow);
+    animation: dashSlideUp 0.45s ease-out both;
+    animation-delay: 0.15s;
+}
+.dash-week__heading {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.75rem;
+}
+.dash-week__grid {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+.dash-week__item { text-align: center; flex: 1; min-width: 60px; }
+.dash-week__value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--dash-text);
+    line-height: 1;
+}
+.dash-week__label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.25rem;
+}
+
+/* ============================================
+   SRS Distribution Bar
+   ============================================ */
+.dash-srs {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--dash-shadow);
+    animation: dashSlideUp 0.45s ease-out both;
+    animation-delay: 0.18s;
+}
+.dash-srs__heading {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.75rem;
+}
+.dash-srs__bar {
+    display: flex;
+    height: 12px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--dash-border);
+}
+.dash-srs__seg { transition: width 0.5s ease; }
+.dash-srs__seg--new { background: #94a3b8; }
+.dash-srs__seg--learning { background: #f59e0b; }
+.dash-srs__seg--review { background: #3b82f6; }
+.dash-srs__seg--mastered { background: #10b981; }
+.dash-srs__legend {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+}
+.dash-srs__legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--dash-text-muted);
+    font-weight: 500;
+}
+.dash-srs__dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+.dash-srs__dot--new { background: #94a3b8; }
+.dash-srs__dot--learning { background: #f59e0b; }
+.dash-srs__dot--review { background: #3b82f6; }
+.dash-srs__dot--mastered { background: #10b981; }
+
+/* ============================================
+   Continue Where You Left Off
+   ============================================ */
+.dash-continue {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border: 1px solid #fcd34d;
+    border-radius: var(--dash-radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--dash-shadow);
+    animation: dashSlideUp 0.45s ease-out both;
+    animation-delay: 0.2s;
+}
+.dash-continue__icon { font-size: 1.5rem; flex-shrink: 0; }
+.dash-continue__info { flex: 1; min-width: 0; }
+.dash-continue__title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #92400e;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.dash-continue__lesson {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #78350f;
+    margin-top: 0.125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dash-continue__btn {
+    flex-shrink: 0;
+    padding: 0.5rem 1.25rem;
+    background: #f59e0b;
+    color: white;
+    border-radius: var(--dash-radius-sm);
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+.dash-continue__btn:hover {
+    background: #d97706;
+    color: white;
+    transform: scale(1.03);
+}
+
+/* ============================================
+   Grammar Progress Summary
+   ============================================ */
+.dash-grammar-progress {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--dash-shadow);
+    animation: dashSlideUp 0.45s ease-out both;
+    animation-delay: 0.22s;
+}
+.dash-grammar-progress__heading {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.75rem;
+}
+.dash-grammar-progress__stats {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+.dash-grammar-progress__stat {
+    text-align: center;
+    flex: 1;
+    min-width: 50px;
+}
+.dash-grammar-progress__num {
+    display: block;
+    font-size: 1.375rem;
+    font-weight: 800;
+    color: var(--dash-text);
+    line-height: 1;
+}
+.dash-grammar-progress__lbl {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.25rem;
+}
+.dash-grammar-progress__bar {
+    height: 6px;
+    background: var(--dash-border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 0.75rem;
+}
+.dash-grammar-progress__fill {
+    height: 100%;
+    background: linear-gradient(90deg, #06b6d4, #0891b2);
+    border-radius: 3px;
+    transition: width 0.5s;
+}
+
+@media (max-width: 640px) {
+    .dash-continue { flex-direction: column; text-align: center; gap: 0.75rem; }
+    .dash-continue__lesson { white-space: normal; }
+}
 </style>
 
 <script>

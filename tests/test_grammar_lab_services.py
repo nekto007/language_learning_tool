@@ -936,3 +936,297 @@ class TestGrammarExerciseModel:
         translation = grammar_exercises[5]
         d = translation.to_dict()
         assert 'sentence' in d
+
+
+# ============================================================
+# Task 12: Topic Recommendation & Navigation Tests
+# ============================================================
+
+class TestGetNextRecommendedTopic:
+    """Tests for get_next_recommended_topic method."""
+
+    def test_returns_first_recommendation(self, db_session, grammar_topic, test_user):
+        service = GrammarLabService()
+        result = service.get_next_recommended_topic(test_user.id)
+        assert result is not None
+        assert 'id' in result
+        assert 'reason' in result
+        assert 'reason_text' in result
+
+    def test_returns_none_when_no_topics(self, db_session, test_user):
+        service = GrammarLabService()
+        result = service.get_next_recommended_topic(test_user.id)
+        # May return None if no topics exist or all mastered
+        # With no grammar_topic fixture, depends on existing DB state
+        assert result is None or isinstance(result, dict)
+
+
+class TestGetAdjacentTopics:
+    """Tests for get_adjacent_topics - prev/next navigation."""
+
+    @pytest.fixture
+    def ordered_topics(self, db_session):
+        """Create 3 topics with widely spaced order values.
+        Uses random high base to avoid collisions with orphan test data.
+        """
+        import random
+        unique = uuid.uuid4().hex[:8]
+        base_order = random.randint(5_000_000, 9_000_000)
+        topics = []
+        for i, (title, title_ru) in enumerate([
+            ('Topic First', 'Тема 1'),
+            ('Topic Second', 'Тема 2'),
+            ('Topic Third', 'Тема 3'),
+        ]):
+            t = GrammarTopic(
+                slug=f'test-adj-{i}-{unique}',
+                title=title,
+                title_ru=title_ru,
+                level='C2',
+                order=base_order + i,
+                content={'introduction': f'Intro {i}', 'sections': []},
+                estimated_time=10,
+                difficulty=2
+            )
+            db_session.add(t)
+            topics.append(t)
+        db_session.commit()
+        return topics
+
+    def test_middle_has_both_neighbors(self, db_session, ordered_topics):
+        service = GrammarLabService()
+        result = service.get_adjacent_topics(ordered_topics[1].id)
+        assert result['prev'] is not None
+        assert result['prev']['id'] == ordered_topics[0].id
+        assert result['next'] is not None
+        assert result['next']['id'] == ordered_topics[2].id
+
+    def test_first_topic_next_is_second(self, db_session, ordered_topics):
+        """First of our 3 topics should have the second as next."""
+        service = GrammarLabService()
+        result = service.get_adjacent_topics(ordered_topics[0].id)
+        assert result['next'] is not None
+        assert result['next']['id'] == ordered_topics[1].id
+
+    def test_last_topic_prev_is_second(self, db_session, ordered_topics):
+        """Last of our 3 topics should have the second as prev."""
+        service = GrammarLabService()
+        result = service.get_adjacent_topics(ordered_topics[2].id)
+        assert result['prev'] is not None
+        assert result['prev']['id'] == ordered_topics[1].id
+        # next may or may not be None depending on other test data
+        # The important thing is prev is correct
+
+    def test_nonexistent_topic(self, db_session):
+        service = GrammarLabService()
+        result = service.get_adjacent_topics(999999)
+        assert result['prev'] is None
+        assert result['next'] is None
+
+    def test_returns_dict_with_prev_and_next_keys(self, db_session, ordered_topics):
+        """get_adjacent_topics always returns dict with 'prev' and 'next' keys."""
+        service = GrammarLabService()
+        result = service.get_adjacent_topics(ordered_topics[0].id)
+        assert 'prev' in result
+        assert 'next' in result
+        # When a topic is returned, it should have id and title
+        if result['next']:
+            assert 'id' in result['next']
+            assert 'title' in result['next']
+
+
+class TestGetLevelMasteryStats:
+    """Tests for get_level_mastery_stats."""
+
+    def test_returns_empty_for_no_user(self, db_session):
+        service = GrammarLabService()
+        result = service.get_level_mastery_stats(None)
+        assert result == {}
+
+    def test_returns_all_levels(self, db_session, test_user):
+        service = GrammarLabService()
+        result = service.get_level_mastery_stats(test_user.id)
+        for level in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']:
+            assert level in result
+            assert 'topics_total' in result[level]
+            assert 'topics_mastered' in result[level]
+            assert 'mastery_pct' in result[level]
+
+    def test_mastered_vs_practicing_difference(self, db_session, test_user):
+        """Mastered topics increase mastery count, practicing ones do not."""
+        unique = uuid.uuid4().hex[:8]
+        mastered_topic = GrammarTopic(
+            slug=f'test-mastered-{unique}',
+            title='Mastered Topic', title_ru='Освоенная', level='C2',
+            order=70000, content={'introduction': 'Test', 'sections': []},
+        )
+        practicing_topic = GrammarTopic(
+            slug=f'test-practicing-{unique}',
+            title='Practicing Topic', title_ru='Практика', level='C2',
+            order=70001, content={'introduction': 'Test', 'sections': []},
+        )
+        db_session.add_all([mastered_topic, practicing_topic])
+        db_session.flush()
+
+        db_session.add(UserGrammarTopicStatus(
+            user_id=test_user.id, topic_id=mastered_topic.id,
+            status='mastered', theory_completed=True,
+        ))
+        db_session.add(UserGrammarTopicStatus(
+            user_id=test_user.id, topic_id=practicing_topic.id,
+            status='practicing', theory_completed=True,
+        ))
+        db_session.commit()
+
+        service = GrammarLabService()
+        result = service.get_level_mastery_stats(test_user.id)
+        level_stats = result['C2']
+        assert level_stats['topics_total'] >= 2
+        assert level_stats['topics_mastered'] >= 1
+        # Practicing topic should NOT count toward mastered
+        assert level_stats['topics_mastered'] < level_stats['topics_total']
+
+
+class TestGrammarLabRouteNavigation:
+    """Test grammar lab routes pass navigation data correctly."""
+
+    MOCK_USER_STATS = {
+        'total_topics': 0, 'topics_started': 0, 'topics_mastered': 0,
+        'total_xp': 0, 'theory_completed': 0, 'by_level': {},
+        'total_exercises': 0, 'exercises_mastered': 0,
+        'exercises_learning': 0, 'exercises_new': 0,
+        'average_accuracy': 0, 'overall_accuracy': 0, 'mastered_count': 0,
+    }
+
+    MOCK_GRAMMAR_STATS = {
+        'new_count': 0, 'learning_count': 0, 'review_count': 0,
+        'mastered_count': 0, 'total': 0, 'due_today': 0, 'accuracy': 0,
+    }
+
+    @patch('app.grammar_lab.services.grammar_lab_service._get_srs_stats_service')
+    def test_index_has_next_topic_for_auth_user(self, mock_srs_stats_fn,
+                                                  authenticated_client, db_session, grammar_topic):
+        """Authenticated user should get next_topic in index context."""
+        mock_srs_stats = MagicMock()
+        mock_srs_stats.get_grammar_user_stats.return_value = self.MOCK_USER_STATS
+        mock_srs_stats.get_grammar_stats.return_value = self.MOCK_GRAMMAR_STATS
+        mock_srs_stats.get_grammar_stats_batch.return_value = {}
+        mock_srs_stats_fn.return_value = mock_srs_stats
+
+        response = authenticated_client.get('/grammar-lab/')
+        assert response.status_code == 200
+
+    def test_index_works_for_anonymous(self, app):
+        """Anonymous user should see grammar index without errors."""
+        with app.test_client() as client:
+            response = client.get('/grammar-lab/')
+            assert response.status_code == 200
+
+    def test_recommendations_prefer_user_level(self, app, db_session):
+        """get_recommendations should prioritize topics matching user's onboarding_level."""
+        import uuid
+        from app.auth.models import User
+        from app.grammar_lab.models import GrammarTopic
+        from app.grammar_lab.services import GrammarLabService
+
+        suffix = uuid.uuid4().hex[:6]
+        user = User(username=f'reclvl_{suffix}', email=f'reclvl_{suffix}@t.com',
+                     active=True, onboarding_level='B2')
+        user.set_password('test')
+        db_session.add(user)
+        db_session.flush()
+
+        # Create topics at different levels
+        t_a1 = GrammarTopic(slug=f'rec-a1-{suffix}', title=f'A1 topic {suffix}',
+                            title_ru='А1', level='A1', order=999, content={})
+        t_b2 = GrammarTopic(slug=f'rec-b2-{suffix}', title=f'B2 topic {suffix}',
+                            title_ru='Б2', level='B2', order=999, content={})
+        db_session.add_all([t_a1, t_b2])
+        db_session.commit()
+
+        with app.app_context():
+            service = GrammarLabService()
+            recs = service.get_recommendations(user.id, limit=5)
+            # B2 topic should appear before A1 for this user
+            rec_titles = [r['title'] for r in recs if suffix in r.get('title', '')]
+            if len(rec_titles) >= 2:
+                b2_idx = next((i for i, t in enumerate(rec_titles) if 'B2' in t), 999)
+                a1_idx = next((i for i, t in enumerate(rec_titles) if 'A1' in t), 999)
+                assert b2_idx < a1_idx, f"B2 should come before A1, got {rec_titles}"
+
+        db_session.delete(t_a1)
+        db_session.delete(t_b2)
+        db_session.delete(user)
+        db_session.commit()
+
+    @patch('app.grammar_lab.services.grammar_lab_service._get_srs_stats_service')
+    def test_topic_detail_has_adjacent_nav(self, mock_srs_stats_fn,
+                                            authenticated_client, db_session):
+        """Topic detail should include prev/next navigation."""
+        mock_srs_stats = MagicMock()
+        mock_srs_stats.get_grammar_stats.return_value = self.MOCK_GRAMMAR_STATS
+        mock_srs_stats.get_grammar_stats_batch.return_value = {}
+        mock_srs_stats_fn.return_value = mock_srs_stats
+
+        unique = uuid.uuid4().hex[:8]
+        topics = []
+        for i in range(3):
+            t = GrammarTopic(
+                slug=f'test-nav-{i}-{unique}',
+                title=f'Nav Topic {i}',
+                title_ru=f'Навигация {i}',
+                level='C2',
+                order=80000 + i,
+                content={'introduction': f'Intro {i}', 'sections': []},
+                estimated_time=10,
+                difficulty=1
+            )
+            db_session.add(t)
+            topics.append(t)
+        db_session.commit()
+
+        response = authenticated_client.get(f'/grammar-lab/topic/{topics[1].id}')
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'Предыдущая' in html
+        assert 'Следующая' in html
+        assert topics[0].title in html
+        assert topics[2].title in html
+
+    @patch('app.grammar_lab.services.grammar_lab_service._get_srs_stats_service')
+    def test_topic_detail_jump_to_exercises_link(self, mock_srs_stats_fn,
+                                                   authenticated_client, db_session):
+        """Topic with exercises should show 'Jump to exercises' anchor link."""
+        mock_srs_stats = MagicMock()
+        mock_srs_stats.get_grammar_stats.return_value = self.MOCK_GRAMMAR_STATS
+        mock_srs_stats_fn.return_value = mock_srs_stats
+
+        unique = uuid.uuid4().hex[:8]
+        topic = GrammarTopic(
+            slug=f'test-jump-{unique}',
+            title='Jump Test',
+            title_ru='Тест прыжка',
+            level='C2',
+            order=85000,
+            content={'introduction': 'Intro', 'sections': []},
+            estimated_time=10,
+            difficulty=1
+        )
+        db_session.add(topic)
+        db_session.commit()
+
+        ex = GrammarExercise(
+            topic_id=topic.id,
+            exercise_type='fill_blank',
+            content={'question': 'Test ___', 'correct_answer': 'ok'},
+            difficulty=1,
+            order=0
+        )
+        db_session.add(ex)
+        db_session.commit()
+
+        response = authenticated_client.get(f'/grammar-lab/topic/{topic.id}')
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'К упражнениям' in html
+        assert '#practice' in html

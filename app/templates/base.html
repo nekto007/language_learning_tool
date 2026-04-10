@@ -86,8 +86,9 @@
                     <!-- Слова -->
                     {% if has_module('words') or has_module('study') %}
                     <li class="nav-item dropdown">
+                        {% set _words_due = get_words_due_count() %}
                         <a class="nav-link dropdown-toggle {% if request.endpoint == 'words.word_list' or request.endpoint.startswith('study.collections') or request.endpoint.startswith('study.topics') %}active{% endif %}" href="#" id="wordsDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-spell-check me-1"></i>Слова
+                            <i class="fas fa-spell-check me-1"></i>Слова{% if _words_due %} <span class="badge bg-primary rounded-pill ms-1" style="font-size:0.65rem;">{{ _words_due }}</span>{% endif %}
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="wordsDropdown">
                             {% if has_module('words') %}
@@ -179,8 +180,11 @@
 
                     <!-- Grammar Lab — always visible -->
                     <li class="nav-item dropdown">
+                        {% if current_user.is_authenticated %}
+                        {% set _grammar_due = get_grammar_due_count() %}
+                        {% endif %}
                         <a class="nav-link dropdown-toggle {% if request.endpoint and request.endpoint.startswith('grammar_lab.') %}active{% endif %}" href="#" id="grammarDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-flask me-1"></i>Грамматика
+                            <i class="fas fa-flask me-1"></i>Грамматика{% if current_user.is_authenticated and _grammar_due %} <span class="badge bg-success rounded-pill ms-1" style="font-size:0.65rem;">{{ _grammar_due }}</span>{% endif %}
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="grammarDropdown">
                             {% if current_user.is_authenticated %}
@@ -218,6 +222,22 @@
                                 <div style="text-align:center; color:#94a3b8; padding:1rem; font-size:0.85rem;">Загрузка...</div>
                             </div>
                         </div>
+                    </li>
+                    <!-- Quick Actions -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="quickActionsDropdown" role="button" data-bs-toggle="dropdown" title="Быстрые действия">
+                            <i class="fas fa-bolt"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="quickActionsDropdown">
+                            {% if has_module('study') %}
+                            <li><a class="dropdown-item" href="{{ url_for('study.index') }}"><i class="fas fa-redo me-2 text-primary"></i>Начать повторение</a></li>
+                            {% endif %}
+                            {% set _continue_lesson = get_active_curriculum_lesson() %}
+                            {% if _continue_lesson %}
+                            <li><a class="dropdown-item" href="{{ _continue_lesson.url }}"><i class="fas fa-play-circle me-2 text-success"></i>Продолжить урок</a></li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="{{ url_for('grammar_lab.practice') }}"><i class="fas fa-dumbbell me-2 text-warning"></i>Практика грамматики</a></li>
+                        </ul>
                     </li>
                     <!-- User Menu -->
                     <li class="nav-item dropdown">
@@ -430,12 +450,29 @@ function loadNotifications() {
                 list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:1rem;font-size:0.85rem;">Нет уведомлений</div>';
                 return;
             }
-            list.innerHTML = data.notifications.map(function(n) {
-                return '<a href="' + (n.link || '#') + '" style="display:flex;gap:0.625rem;padding:0.625rem 1rem;text-decoration:none;transition:background 0.15s;' + (n.read ? '' : 'background:#f0f7ff;') + '" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'' + (n.read ? '' : '#f0f7ff') + '\'">' +
-                    '<span style="font-size:1.25rem;flex-shrink:0;">' + n.icon + '</span>' +
-                    '<div><div style="font-size:0.85rem;font-weight:' + (n.read ? '400' : '600') + ';color:#0f172a;">' + n.title + '</div>' +
-                    (n.message ? '<div style="font-size:0.75rem;color:#64748b;">' + n.message + '</div>' : '') + '</div></a>';
-            }).join('');
+            list.textContent = '';
+            data.notifications.forEach(function(n) {
+                var a = document.createElement('a');
+                a.href = n.link || '#';
+                a.style.cssText = 'display:flex;gap:0.625rem;padding:0.625rem 1rem;text-decoration:none;' + (n.read ? '' : 'background:#f0f7ff;');
+                var icon = document.createElement('span');
+                icon.style.cssText = 'font-size:1.25rem;flex-shrink:0;';
+                icon.textContent = n.icon;
+                a.appendChild(icon);
+                var body = document.createElement('div');
+                var title = document.createElement('div');
+                title.style.cssText = 'font-size:0.85rem;font-weight:' + (n.read ? '400' : '600') + ';color:#0f172a;';
+                title.textContent = n.title;
+                body.appendChild(title);
+                if (n.message) {
+                    var msg = document.createElement('div');
+                    msg.style.cssText = 'font-size:0.75rem;color:#64748b;';
+                    msg.textContent = n.message;
+                    body.appendChild(msg);
+                }
+                a.appendChild(body);
+                list.appendChild(a);
+            });
         }).catch(function() {});
 }
 function markAllRead() {

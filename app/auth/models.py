@@ -42,6 +42,16 @@ class User(db.Model, UserMixin):
     email_unsubscribe_token = Column(String(64), nullable=True, unique=True)
     email_opted_out = Column(Boolean, default=False, nullable=False)
 
+    # Profile settings
+    timezone = Column(String(50), nullable=True, default='Europe/Moscow')
+    daily_goal_minutes = Column(Integer, nullable=True, default=15)
+
+    # Notification preferences
+    notify_email_reminders = Column(Boolean, default=True, nullable=False, server_default='true')
+    notify_in_app_achievements = Column(Boolean, default=True, nullable=False, server_default='true')
+    notify_in_app_streaks = Column(Boolean, default=True, nullable=False, server_default='true')
+    notify_in_app_weekly = Column(Boolean, default=True, nullable=False, server_default='true')
+
     referred_by = relationship('User', remote_side='User.id', foreign_keys=[referred_by_id])
 
     __table_args__ = (

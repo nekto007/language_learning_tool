@@ -247,6 +247,18 @@
     text-decoration: underline;
 }
 
+.cards-empty__desc--hint {
+    font-size: 0.875rem;
+    opacity: 0.8;
+    font-style: italic;
+}
+
+.cards-empty__settings-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
 .cards-empty__actions {
     display: flex;
     gap: 0.75rem;
@@ -365,8 +377,24 @@
 .cards-daily-limit__desc {
     font-size: 0.9375rem;
     color: var(--cards-text-muted);
-    margin: 0 0 1.5rem;
+    margin: 0 0 0.75rem;
     line-height: 1.6;
+}
+
+.cards-daily-limit__hint {
+    font-size: 0.85rem;
+    color: var(--cards-text-muted);
+    margin: 0 0 1.5rem;
+}
+
+.cards-daily-limit__hint a {
+    color: var(--cards-primary-dark);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.cards-daily-limit__hint a:hover {
+    text-decoration: underline;
 }
 
 .cards-daily-limit__stats {
@@ -734,6 +762,32 @@
     font-size: 0.8125rem;
     color: #6b7280;
     font-weight: 500;
+}
+
+/* Streak status */
+.celebration-streak {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.5rem 1rem;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    color: #92400e;
+    animation: fadeSlideUp 0.5s ease-out 0.8s forwards;
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.celebration-streak__icon {
+    font-size: 1.25rem;
+}
+
+.celebration-streak__text strong {
+    font-weight: 700;
 }
 
 /* Action buttons */

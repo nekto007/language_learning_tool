@@ -92,6 +92,45 @@
       'levels': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
   } %}
 
+  {% if earned_count == 0 %}
+  <div class="ach-empty-state">
+    <div class="ach-empty-state__icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 9H4.5a2.5 2.5 0 010-5C7 4 7 7 7 7"/>
+        <path d="M18 9h1.5a2.5 2.5 0 000-5C17 4 17 7 17 7"/>
+        <path d="M4 22h16"/>
+        <path d="M10 22V8a2 2 0 00-2-2H6a2 2 0 00-2 2v14"/>
+        <path d="M14 22V8a2 2 0 012-2h2a2 2 0 012 2v14"/>
+      </svg>
+    </div>
+    <h3 class="ach-empty-state__title">Пока нет достижений</h3>
+    <p class="ach-empty-state__desc">Выполняйте уроки, изучайте слова и проходите квизы, чтобы получить свои первые награды!</p>
+
+    {% set closest = [] %}
+    {% for category, achs in achievements_by_category.items() %}
+      {% for item in achs %}
+        {% if not item.earned and closest|length < 3 %}
+          {% if closest.append(item) %}{% endif %}
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+    {% if closest %}
+    <div class="ach-empty-state__closest">
+      <p class="ach-empty-state__closest-label">Ближайшие достижения:</p>
+      <div class="ach-empty-state__closest-list">
+        {% for item in closest %}
+        <div class="ach-empty-state__badge">
+          <span class="ach-empty-state__badge-icon">{{ item.achievement.icon }}</span>
+          <span class="ach-empty-state__badge-name">{{ item.achievement.name }}</span>
+          <span class="ach-empty-state__badge-xp">+{{ item.achievement.xp_reward }} XP</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   {% for category, achievements in achievements_by_category.items() %}
   <div class="ach-category">
     <div class="ach-category__header">
@@ -564,6 +603,79 @@
   font-size: 0.75rem;
   color: #94a3b8;
   margin-top: 0.625rem;
+}
+
+/* ═══════════════════════════════════════
+   Empty State
+   ═══════════════════════════════════════ */
+.ach-empty-state {
+  background: var(--ach-surface);
+  border: 1px solid var(--ach-border);
+  border-radius: var(--ach-radius);
+  padding: 3rem 2rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.ach-empty-state__icon {
+  color: var(--ach-border);
+  margin-bottom: 1rem;
+}
+
+.ach-empty-state__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ach-text);
+  margin: 0 0 0.5rem;
+}
+
+.ach-empty-state__desc {
+  font-size: 0.875rem;
+  color: var(--ach-text-muted);
+  margin: 0 0 1.5rem;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ach-empty-state__closest-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ach-text-muted);
+  margin: 0 0 0.75rem;
+}
+
+.ach-empty-state__closest-list {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ach-empty-state__badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--ach-surface-alt);
+  border: 1px solid var(--ach-border);
+  border-radius: var(--ach-radius-sm);
+}
+
+.ach-empty-state__badge-icon {
+  font-size: 1.25rem;
+}
+
+.ach-empty-state__badge-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ach-text);
+}
+
+.ach-empty-state__badge-xp {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ach-primary);
 }
 
 /* ═══════════════════════════════════════

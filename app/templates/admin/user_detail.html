@@ -1,0 +1,171 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb, stat_card, quick_stats, status_badge %}
+
+{% block title %}Пользователь: {{ detail.username }}{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Панель управления', url_for('admin.dashboard')),
+    ('Пользователи', url_for('user_admin.users')),
+    (detail.username, '')
+]) }}
+{% endblock %}
+
+{% block content %}
+{{ page_header('Профиль: ' + detail.username, detail.email or 'Email не указан') }}
+
+<!-- User Info -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        {{ stat_card('Статус', 'Активен' if detail.active else 'Неактивен', 'fa-user-check' if detail.active else 'fa-user-times', 'success' if detail.active else 'danger') }}
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        {{ stat_card('Регистрация', detail.created_at.strftime('%d %b %Y') if detail.created_at else '-', 'fa-calendar-plus', 'info') }}
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        {{ stat_card('Последний вход', detail.last_login.strftime('%d %b %Y') if detail.last_login else 'Никогда', 'fa-sign-in-alt', 'primary') }}
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        {{ stat_card('Роль', 'Администратор' if detail.is_admin else 'Пользователь', 'fa-user-shield' if detail.is_admin else 'fa-user', 'warning' if detail.is_admin else 'secondary') }}
+    </div>
+</div>
+
+<!-- Learning Progress -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        {{ stat_card('Уроков завершено', detail.lessons.completed, 'fa-graduation-cap', 'success') }}
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        {{ stat_card('Уроков в процессе', detail.lessons.in_progress, 'fa-spinner', 'warning') }}
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        {{ stat_card('Всего слов', detail.words.total, 'fa-spell-check', 'primary') }}
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        {{ stat_card('Модулей', detail.modules_enabled, 'fa-cubes', 'info') }}
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Word SRS Distribution -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-spell-check me-2 text-muted"></i>Слова ({{ detail.words.total }})</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('Новые', detail.words.new, 'fa-plus-circle'),
+                    ('Изучаемые', detail.words.learning, 'fa-spinner'),
+                    ('На повторении', detail.words.review, 'fa-redo'),
+                    ('Выучены', detail.words.mastered, 'fa-check-double')
+                ]) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Streak & Achievements -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-fire me-2 text-muted"></i>Серии и достижения</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('Текущая серия', detail.streak.current, 'fa-fire-alt'),
+                    ('Рекорд серии', detail.streak.longest, 'fa-trophy'),
+                    ('Всего бейджей', detail.streak.total_badges, 'fa-medal'),
+                    ('Очки бейджей', detail.streak.badge_points, 'fa-star')
+                ]) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Coins -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-coins me-2 text-muted"></i>Монеты</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('Баланс', detail.coins.balance, 'fa-wallet'),
+                    ('Заработано', detail.coins.total_earned, 'fa-arrow-up'),
+                    ('Потрачено', detail.coins.total_spent, 'fa-arrow-down')
+                ]) }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2">
+    <!-- Grammar Progress -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-language me-2 text-muted"></i>Грамматика</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('Тем начато', detail.grammar.started, 'fa-book-open'),
+                    ('Тем освоено', detail.grammar.mastered, 'fa-check-double')
+                ]) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Grades -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-star me-2 text-muted"></i>Оценки за уроки</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('A', detail.grades.get('A', 0), 'fa-star'),
+                    ('B', detail.grades.get('B', 0), 'fa-star-half-alt'),
+                    ('C', detail.grades.get('C', 0), 'fa-star'),
+                    ('D/F', (detail.grades.get('D', 0) + detail.grades.get('F', 0)), 'fa-times')
+                ]) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Referrals & Modules -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-user-friends me-2 text-muted"></i>Рефералы и модули</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('Приглашено', detail.referrals_made, 'fa-share-alt')
+                ]) }}
+                {% if detail.module_names %}
+                <hr class="my-3">
+                <h6 class="text-muted mb-2">Активные модули:</h6>
+                {% for name in detail.module_names %}
+                    <span class="badge bg-primary me-1 mb-1">{{ name }}</span>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="card mt-4">
+    <div class="card-body">
+        <a href="{{ url_for('user_admin.users') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>К списку
+        </a>
+        <form action="{{ url_for('user_admin.toggle_user_status', user_id=detail.user_id) }}" method="POST" class="d-inline ms-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-{{ 'danger' if detail.active else 'success' }}">
+                <i class="fas fa-{{ 'ban' if detail.active else 'check' }} me-1"></i>
+                {{ 'Деактивировать' if detail.active else 'Активировать' }}
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

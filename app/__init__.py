@@ -252,6 +252,12 @@ def create_app(config_class=Config):
             return jsonify({'success': False, 'error': 'CSRF token expired. Please refresh the page.', 'csrf_expired': True}), 400
         return e.description, 400
 
+    @app.errorhandler(500)
+    def handle_500_error(e):
+        from app.admin.main_routes import increment_5xx_counter
+        increment_5xx_counter()
+        return 'Internal Server Error', 500
+
     @login_manager.user_loader
     def load_user(user_id):
         from app.auth.models import User

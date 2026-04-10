@@ -135,7 +135,9 @@
 
     if (!data.has_next) return;
 
-    var nextUrl = data.step_url || '/dashboard';
+    var dashboardUrl = document.querySelector('[data-dashboard-url]');
+    var fallbackUrl = dashboardUrl ? dashboardUrl.getAttribute('data-dashboard-url') : '/dashboard';
+    var nextUrl = data.step_url || fallbackUrl;
 
     overlay.innerHTML =
       '<div class="dp-modal">' +

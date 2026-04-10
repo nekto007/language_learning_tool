@@ -150,12 +150,26 @@
     </div>
     <h3 class="topics-empty__title">
       {% if current_level %}
-        Темы для уровня {{ current_level }} пока не добавлены
+        Нет тем для уровня {{ current_level }}
       {% else %}
         Темы грамматики пока не добавлены
       {% endif %}
     </h3>
-    <p class="topics-empty__desc">Импортируйте темы из модулей в панели администратора</p>
+    {% if current_level %}
+    <p class="topics-empty__desc">Попробуйте другой уровень:</p>
+    <div class="topics-empty__levels">
+      {% for level in levels %}
+        {% if level.topic_count > 0 %}
+        <a href="{{ url_for('grammar_lab.topics', level=level.level) }}" class="topics-empty__level-link">
+          {{ level.level }} ({{ level.topic_count }})
+        </a>
+        {% endif %}
+      {% endfor %}
+      <a href="{{ url_for('grammar_lab.topics') }}" class="topics-empty__level-link topics-empty__level-link--all">Все темы</a>
+    </div>
+    {% else %}
+    <p class="topics-empty__desc">Скоро здесь появятся грамматические темы для изучения.</p>
+    {% endif %}
   </div>
   {% endif %}
 </div>
@@ -587,7 +601,44 @@
 .topics-empty__desc {
   font-size: 0.875rem;
   color: var(--grammar-text-muted);
-  margin: 0;
+  margin: 0 0 1rem;
+}
+
+.topics-empty__levels {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.topics-empty__level-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: var(--grammar-surface-alt);
+  border: 1px solid var(--grammar-border);
+  border-radius: 8px;
+  color: var(--grammar-primary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.topics-empty__level-link:hover {
+  border-color: var(--grammar-primary);
+  background: rgba(139, 92, 246, 0.06);
+}
+
+.topics-empty__level-link--all {
+  background: var(--grammar-primary);
+  border-color: var(--grammar-primary);
+  color: white;
+}
+
+.topics-empty__level-link--all:hover {
+  background: var(--grammar-primary-dark);
+  color: white;
 }
 
 /* Animations */
