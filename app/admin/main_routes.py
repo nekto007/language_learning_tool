@@ -16,7 +16,7 @@ from sqlalchemy import desc, distinct, func
 from app import csrf
 from app.auth.models import User
 from app.books.models import Book, Chapter
-from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
+from app.curriculum.models import CEFRLevel, LessonAttempt, LessonProgress, Lessons, Module
 from app.utils.db import db
 from app.words.forms import CollectionForm, TopicForm
 from app.words.models import Collection, CollectionWordLink, CollectionWords, Topic, TopicWord
@@ -153,6 +153,184 @@ def get_daily_activity_data(days: int = 30) -> dict:
     }
 
 
+@cache_result('engagement_metrics', timeout=300)
+def get_engagement_metrics() -> dict:
+    """DAU/WAU/MAU counts with trend arrows vs previous period."""
+    from app.study.models import StudySession
+
+    now = datetime.now(timezone.utc)
+    today = now.date()
+
+    def _active_users_in_range(start_date, end_date):
+        """Count distinct users with login, lesson progress or study session activity."""
+        login_ids = db.session.query(User.id).filter(
+            User.last_login.isnot(None),
+            func.date(User.last_login) >= start_date,
+            func.date(User.last_login) <= end_date,
+        )
+        lp_ids = db.session.query(LessonProgress.user_id).filter(
+            LessonProgress.last_activity.isnot(None),
+            func.date(LessonProgress.last_activity) >= start_date,
+            func.date(LessonProgress.last_activity) <= end_date,
+        )
+        ss_ids = db.session.query(StudySession.user_id).filter(
+            func.date(StudySession.start_time) >= start_date,
+            func.date(StudySession.start_time) <= end_date,
+        )
+        union_q = login_ids.union(lp_ids, ss_ids).subquery()
+        return db.session.query(func.count()).select_from(union_q).scalar() or 0
+
+    # Current periods
+    dau = _active_users_in_range(today, today)
+    wau = _active_users_in_range(today - timedelta(days=6), today)
+    mau = _active_users_in_range(today - timedelta(days=29), today)
+
+    # Previous periods for trend
+    prev_dau = _active_users_in_range(today - timedelta(days=1), today - timedelta(days=1))
+    prev_wau = _active_users_in_range(today - timedelta(days=13), today - timedelta(days=7))
+    prev_mau = _active_users_in_range(today - timedelta(days=59), today - timedelta(days=30))
+
+    def _trend(current: int, previous: int) -> tuple:
+        if previous == 0:
+            return ('up', '+100%') if current > 0 else ('', '')
+        diff = current - previous
+        pct = round(abs(diff) / previous * 100)
+        if diff > 0:
+            return ('up', f'+{pct}%')
+        elif diff < 0:
+            return ('down', f'-{pct}%')
+        return ('', '0%')
+
+    dau_trend, dau_trend_val = _trend(dau, prev_dau)
+    wau_trend, wau_trend_val = _trend(wau, prev_wau)
+    mau_trend, mau_trend_val = _trend(mau, prev_mau)
+
+    return {
+        'dau': dau, 'dau_trend': dau_trend, 'dau_trend_value': dau_trend_val,
+        'wau': wau, 'wau_trend': wau_trend, 'wau_trend_value': wau_trend_val,
+        'mau': mau, 'mau_trend': mau_trend, 'mau_trend_value': mau_trend_val,
+    }
+
+
+@cache_result('learning_metrics', timeout=300)
+def get_learning_metrics() -> dict:
+    """Lessons completed today/week, average lesson score, study sessions today."""
+    from app.study.models import StudySession
+
+    now = datetime.now(timezone.utc)
+    today = now.date()
+    week_ago = today - timedelta(days=6)
+
+    lessons_today = db.session.query(func.count(LessonProgress.id)).filter(
+        LessonProgress.status == 'completed',
+        func.date(LessonProgress.completed_at) == today,
+    ).scalar() or 0
+
+    lessons_week = db.session.query(func.count(LessonProgress.id)).filter(
+        LessonProgress.status == 'completed',
+        func.date(LessonProgress.completed_at) >= week_ago,
+    ).scalar() or 0
+
+    avg_score = db.session.query(func.avg(LessonAttempt.score)).filter(
+        LessonAttempt.score.isnot(None),
+        func.date(LessonAttempt.completed_at) >= week_ago,
+    ).scalar()
+    avg_score = round(avg_score, 1) if avg_score else 0
+
+    sessions_today = db.session.query(func.count(StudySession.id)).filter(
+        func.date(StudySession.start_time) == today,
+    ).scalar() or 0
+
+    return {
+        'lessons_today': lessons_today,
+        'lessons_week': lessons_week,
+        'avg_lesson_score': avg_score,
+        'sessions_today': sessions_today,
+    }
+
+
+@cache_result('content_metrics', timeout=300)
+def get_content_metrics() -> dict:
+    """Grammar topics count, book courses with enrollments, active quiz decks."""
+    from app.grammar_lab.models import GrammarTopic
+    from app.study.models import QuizDeck
+
+    try:
+        from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
+        book_courses_count = db.session.query(func.count(BookCourse.id)).scalar() or 0
+        enrollments_count = db.session.query(func.count(BookCourseEnrollment.id)).scalar() or 0
+    except Exception:
+        book_courses_count = 0
+        enrollments_count = 0
+
+    grammar_topics_count = db.session.query(func.count(GrammarTopic.id)).scalar() or 0
+    active_decks = db.session.query(func.count(QuizDeck.id)).scalar() or 0
+
+    return {
+        'grammar_topics_count': grammar_topics_count,
+        'book_courses_count': book_courses_count,
+        'enrollments_count': enrollments_count,
+        'active_decks': active_decks,
+    }
+
+
+@cache_result('srs_health_metrics', timeout=300)
+def get_srs_health_metrics() -> dict:
+    """SRS distribution: new/learning/review/mastered for words and grammar."""
+    from app.study.models import UserCardDirection
+    from app.grammar_lab.models import UserGrammarExercise
+
+    # Word SRS via UserCardDirection (the actual SRS tracking entity)
+    word_states = db.session.query(
+        UserCardDirection.state,
+        func.count(UserCardDirection.id),
+    ).group_by(UserCardDirection.state).all()
+    word_map = {row[0]: row[1] for row in word_states}
+
+    # For mastered, we need interval >= 180 days among 'review' state
+    mastered_words = db.session.query(func.count(UserCardDirection.id)).filter(
+        UserCardDirection.state == 'review',
+        UserCardDirection.interval >= 180,
+    ).scalar() or 0
+
+    words_new = word_map.get('new', 0)
+    words_learning = word_map.get('learning', 0) + word_map.get('relearning', 0)
+    words_review = word_map.get('review', 0) - mastered_words
+    words_mastered = mastered_words
+    words_total = words_new + words_learning + words_review + words_mastered
+
+    # Grammar SRS via UserGrammarExercise
+    grammar_states = db.session.query(
+        UserGrammarExercise.state,
+        func.count(UserGrammarExercise.id),
+    ).group_by(UserGrammarExercise.state).all()
+    grammar_map = {row[0]: row[1] for row in grammar_states}
+
+    mastered_grammar = db.session.query(func.count(UserGrammarExercise.id)).filter(
+        UserGrammarExercise.state == 'review',
+        UserGrammarExercise.interval >= 180,
+    ).scalar() or 0
+
+    grammar_new = grammar_map.get('new', 0)
+    grammar_learning = grammar_map.get('learning', 0) + grammar_map.get('relearning', 0)
+    grammar_review = grammar_map.get('review', 0) - mastered_grammar
+    grammar_mastered = mastered_grammar
+    grammar_total = grammar_new + grammar_learning + grammar_review + grammar_mastered
+
+    return {
+        'words_srs': {
+            'new': words_new, 'learning': words_learning,
+            'review': words_review, 'mastered': words_mastered,
+            'total': words_total,
+        },
+        'grammar_srs': {
+            'new': grammar_new, 'learning': grammar_learning,
+            'review': grammar_review, 'mastered': grammar_mastered,
+            'total': grammar_total,
+        },
+    }
+
+
 @admin.route('/')
 @admin_required
 def dashboard():
@@ -163,6 +341,12 @@ def dashboard():
     # Данные активности за 30 дней для графика
     activity_data = get_daily_activity_data(30)
 
+    # Engagement & learning metrics
+    engagement = get_engagement_metrics()
+    learning = get_learning_metrics()
+    content = get_content_metrics()
+    srs_health = get_srs_health_metrics()
+
     # Последние пользователи не кэшируем, так как они часто меняются
     recent_users = User.query.order_by(desc(User.created_at)).limit(10).all()
 
@@ -170,6 +354,10 @@ def dashboard():
         'admin/dashboard.html',
         recent_users=recent_users,
         activity_data=activity_data,
+        engagement=engagement,
+        learning=learning,
+        content=content,
+        srs_health=srs_health,
         **stats
     )
 

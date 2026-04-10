@@ -22,6 +22,38 @@
     </div>
 </div>
 
+<!-- Engagement Metrics: DAU / WAU / MAU -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-4">
+        {{ stat_card('DAU (сегодня)', engagement.dau, 'fa-user-clock', 'info',
+                      trend=engagement.dau_trend, trend_value=engagement.dau_trend_value) }}
+    </div>
+    <div class="col-sm-6 col-xl-4">
+        {{ stat_card('WAU (7 дней)', engagement.wau, 'fa-calendar-week', 'primary',
+                      trend=engagement.wau_trend, trend_value=engagement.wau_trend_value) }}
+    </div>
+    <div class="col-sm-6 col-xl-4">
+        {{ stat_card('MAU (30 дней)', engagement.mau, 'fa-calendar-alt', 'success',
+                      trend=engagement.mau_trend, trend_value=engagement.mau_trend_value) }}
+    </div>
+</div>
+
+<!-- Learning Metrics -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        {{ stat_card('Уроков сегодня', learning.lessons_today, 'fa-graduation-cap', 'success') }}
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        {{ stat_card('Уроков за неделю', learning.lessons_week, 'fa-book-open', 'primary') }}
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        {{ stat_card('Средний балл', learning.avg_lesson_score, 'fa-star', 'warning') }}
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        {{ stat_card('Сессий сегодня', learning.sessions_today, 'fa-play-circle', 'info') }}
+    </div>
+</div>
+
 <div class="row g-4">
     <!-- User Activity Chart -->
     <div class="col-lg-8">
@@ -54,6 +86,76 @@
                 <hr class="my-3">
 
                 <canvas id="progressChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Content & SRS Metrics -->
+<div class="row g-4 mt-2">
+    <!-- Content Metrics -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cubes me-2 text-muted"></i>Контент</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('Грамматических тем', content.grammar_topics_count, 'fa-language'),
+                    ('Книжных курсов', content.book_courses_count, 'fa-book'),
+                    ('Записей на курсы', content.enrollments_count, 'fa-user-graduate'),
+                    ('Колод карточек', content.active_decks, 'fa-layer-group')
+                ]) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- SRS Health: Words -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-spell-check me-2 text-muted"></i>SRS: Слова ({{ srs_health.words_srs.total }})</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('Новые', srs_health.words_srs.new, 'fa-plus-circle'),
+                    ('Изучаемые', srs_health.words_srs.learning, 'fa-spinner'),
+                    ('Повторяемые', srs_health.words_srs.review, 'fa-redo'),
+                    ('Выучены', srs_health.words_srs.mastered, 'fa-check-double')
+                ]) }}
+                {% if srs_health.words_srs.total > 0 %}
+                <div class="progress mt-3" style="height: 8px;">
+                    <div class="progress-bar bg-secondary" style="width: {{ (srs_health.words_srs.new / srs_health.words_srs.total * 100) | round(1) }}%" title="Новые"></div>
+                    <div class="progress-bar bg-warning" style="width: {{ (srs_health.words_srs.learning / srs_health.words_srs.total * 100) | round(1) }}%" title="Изучаемые"></div>
+                    <div class="progress-bar bg-info" style="width: {{ (srs_health.words_srs.review / srs_health.words_srs.total * 100) | round(1) }}%" title="Повторяемые"></div>
+                    <div class="progress-bar bg-success" style="width: {{ (srs_health.words_srs.mastered / srs_health.words_srs.total * 100) | round(1) }}%" title="Выучены"></div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- SRS Health: Grammar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-language me-2 text-muted"></i>SRS: Грамматика ({{ srs_health.grammar_srs.total }})</h5>
+            </div>
+            <div class="card-body">
+                {{ quick_stats([
+                    ('Новые', srs_health.grammar_srs.new, 'fa-plus-circle'),
+                    ('Изучаемые', srs_health.grammar_srs.learning, 'fa-spinner'),
+                    ('Повторяемые', srs_health.grammar_srs.review, 'fa-redo'),
+                    ('Выучены', srs_health.grammar_srs.mastered, 'fa-check-double')
+                ]) }}
+                {% if srs_health.grammar_srs.total > 0 %}
+                <div class="progress mt-3" style="height: 8px;">
+                    <div class="progress-bar bg-secondary" style="width: {{ (srs_health.grammar_srs.new / srs_health.grammar_srs.total * 100) | round(1) }}%" title="Новые"></div>
+                    <div class="progress-bar bg-warning" style="width: {{ (srs_health.grammar_srs.learning / srs_health.grammar_srs.total * 100) | round(1) }}%" title="Изучаемые"></div>
+                    <div class="progress-bar bg-info" style="width: {{ (srs_health.grammar_srs.review / srs_health.grammar_srs.total * 100) | round(1) }}%" title="Повторяемые"></div>
+                    <div class="progress-bar bg-success" style="width: {{ (srs_health.grammar_srs.mastered / srs_health.grammar_srs.total * 100) | round(1) }}%" title="Выучены"></div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

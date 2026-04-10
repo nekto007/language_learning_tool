@@ -35,13 +35,13 @@
 - Modify: `app/admin/main_routes.py`
 - Modify: `app/templates/admin/dashboard.html`
 
-- [ ] Add engagement metrics section: DAU/WAU/MAU counts with trend arrows (vs previous period)
-- [ ] Add learning metrics: total lessons completed today/week, average lesson score, total study sessions today
-- [ ] Add content metrics: grammar topics count, book courses count with enrollments, active quiz decks
-- [ ] Add SRS health metrics: total words in SRS (new/learning/review/mastered distribution), total grammar exercises in SRS
-- [ ] Cache all new metrics with existing `cache_result` decorator (5 min TTL)
-- [ ] Write tests for engagement/learning metric calculations
-- [ ] Run project test suite - must pass before task 3
+- [x] Add engagement metrics section: DAU/WAU/MAU counts with trend arrows (vs previous period)
+- [x] Add learning metrics: total lessons completed today/week, average lesson score, total study sessions today
+- [x] Add content metrics: grammar topics count, book courses count with enrollments, active quiz decks
+- [x] Add SRS health metrics: total words in SRS (new/learning/review/mastered distribution), total grammar exercises in SRS
+- [x] Cache all new metrics with existing `cache_result` decorator (5 min TTL)
+- [x] Write tests for engagement/learning metric calculations
+- [x] Run project test suite - must pass before task 3
 
 ### Task 3: Admin Dashboard - Retention & Referral Analytics
 
