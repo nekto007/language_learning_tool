@@ -3,6 +3,7 @@ Tests for the main dashboard route
 Ensures template rendering works correctly with all expected data
 """
 import pytest
+from datetime import date, datetime
 from unittest.mock import patch
 
 
@@ -498,3 +499,186 @@ class TestDashboardLeaderboard:
             html = response.data.decode('utf-8')
             # Leaderboard HTML element should not appear (CSS class will be in <style>)
             assert 'dash-leaderboard__heading' not in html.split('<style>')[0]
+
+
+class TestDashboardAchievementsByCategory:
+    """Test achievements by category widget data on dashboard"""
+
+    def test_dashboard_includes_achievements_by_category_data(self, client, app, test_user, words_module_access):
+        """Dashboard should call StatsService.get_achievements_by_category and pass data to template"""
+        mock_data = {
+            'by_category': {
+                'vocabulary': [
+                    {'achievement': type('A', (), {'id': 1, 'name': 'Word Learner', 'icon': '📚', 'category': 'vocabulary'})(),
+                     'earned': True, 'earned_at': datetime(2026, 4, 1)},
+                ],
+                'grammar': [
+                    {'achievement': type('A', (), {'id': 2, 'name': 'Grammar Pro', 'icon': '✏️', 'category': 'grammar'})(),
+                     'earned': False, 'earned_at': None},
+                ],
+            },
+            'total_achievements': 2,
+            'earned_count': 1,
+            'progress_percentage': 50,
+            'total_xp_earned': 100,
+        }
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.services.stats_service.StatsService.get_achievements_by_category', return_value=mock_data) as mock_abc:
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            mock_abc.assert_called_once_with(test_user.id)
+
+    def test_dashboard_renders_achievements_widget(self, client, app, test_user, words_module_access):
+        """Dashboard should render achievements widget with category rings"""
+        mock_data = {
+            'by_category': {
+                'vocabulary': [
+                    {'achievement': type('A', (), {'id': 1, 'name': 'Word Learner', 'icon': '📚', 'category': 'vocabulary'})(),
+                     'earned': True, 'earned_at': datetime(2026, 4, 1)},
+                    {'achievement': type('A', (), {'id': 2, 'name': 'Word Master', 'icon': '🏆', 'category': 'vocabulary'})(),
+                     'earned': False, 'earned_at': None},
+                ],
+            },
+            'total_achievements': 2,
+            'earned_count': 1,
+            'progress_percentage': 50,
+            'total_xp_earned': 100,
+        }
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.services.stats_service.StatsService.get_achievements_by_category', return_value=mock_data):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            html_body = html.split('<style>')[0]
+            assert 'dash-achievements' in html_body
+            assert 'dash-achievements__ring' in html_body
+            assert '1 / 2' in html_body
+            assert '50%' in html_body
+            assert 'vocabulary' in html_body
+
+    def test_dashboard_renders_recent_unlocks(self, client, app, test_user, words_module_access):
+        """Dashboard should show recently unlocked achievements"""
+        mock_data = {
+            'by_category': {
+                'vocabulary': [
+                    {'achievement': type('A', (), {'id': 1, 'name': 'Word Learner', 'icon': '📚', 'category': 'vocabulary'})(),
+                     'earned': True, 'earned_at': datetime(2026, 4, 1)},
+                ],
+            },
+            'total_achievements': 1,
+            'earned_count': 1,
+            'progress_percentage': 100,
+            'total_xp_earned': 50,
+        }
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.services.stats_service.StatsService.get_achievements_by_category', return_value=mock_data):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            html_body = html.split('<style>')[0]
+            assert 'dash-achievements__recent' in html_body
+            assert 'Word Learner' in html_body
+
+    def test_dashboard_achievements_empty_state(self, client, app, test_user, words_module_access):
+        """Dashboard should not render achievements widget when no data"""
+        mock_data = {
+            'by_category': {},
+            'total_achievements': 0,
+            'earned_count': 0,
+            'progress_percentage': 0,
+            'total_xp_earned': 0,
+        }
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.services.stats_service.StatsService.get_achievements_by_category', return_value=mock_data):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            html_body = html.split('<style>')[0]
+            assert 'dash-achievements__heading' not in html_body
+
+
+class TestDashboardMilestoneHistory:
+    """Test streak milestones widget data on dashboard"""
+
+    def test_dashboard_includes_milestone_history_data(self, client, app, test_user, words_module_access):
+        """Dashboard should call get_milestone_history and pass data to template"""
+        mock_milestones = [
+            {'streak': 30, 'reward': 150, 'date': date(2026, 3, 15)},
+            {'streak': 14, 'reward': 75, 'date': date(2026, 2, 28)},
+            {'streak': 7, 'reward': 50, 'date': date(2026, 2, 21)},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.achievements.streak_service.get_milestone_history', return_value=mock_milestones) as mock_mh:
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            mock_mh.assert_called_once_with(test_user.id)
+
+    def test_dashboard_renders_milestones_widget(self, client, app, test_user, words_module_access):
+        """Dashboard should render milestones timeline with earned and pending items"""
+        mock_milestones = [
+            {'streak': 14, 'reward': 75, 'date': date(2026, 3, 1)},
+            {'streak': 7, 'reward': 50, 'date': date(2026, 2, 15)},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.achievements.streak_service.get_milestone_history', return_value=mock_milestones):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            html_body = html.split('<style>')[0]
+            assert 'dash-milestones' in html_body
+            assert 'dash-milestones__timeline' in html_body
+            # Earned milestones should have --earned class
+            assert 'dash-milestones__item--earned' in html_body
+            # 7 and 14 day milestones earned
+            assert '15.02' in html_body  # date for 7-day milestone
+            assert '01.03' in html_body  # date for 14-day milestone
+
+    def test_dashboard_milestones_shows_all_targets(self, client, app, test_user, words_module_access):
+        """Dashboard should show all milestone targets (7, 14, 30, 60, 100)"""
+        mock_milestones = [
+            {'streak': 7, 'reward': 50, 'date': date(2026, 2, 15)},
+        ]
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.achievements.streak_service.get_milestone_history', return_value=mock_milestones):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            html_body = html.split('<style>')[0]
+            # All 5 milestone targets should be shown
+            for target in ['7д', '14д', '30д', '60д', '100д']:
+                assert target in html_body
+
+    def test_dashboard_milestones_empty_state(self, client, app, test_user, words_module_access):
+        """Dashboard should not render milestones widget when no history"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.achievements.streak_service.get_milestone_history', return_value=[]):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            html_body = html.split('<style>')[0]
+            assert 'dash-milestones__heading' not in html_body

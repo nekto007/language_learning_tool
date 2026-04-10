@@ -119,7 +119,7 @@ def dashboard():
     from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses, get_best_study_time
     from app.study.services.session_service import SessionService
     from app.study.services.stats_service import StatsService
-    from app.achievements.streak_service import get_streak_calendar
+    from app.achievements.streak_service import get_streak_calendar, get_milestone_history
 
     # === DAILY PLAN & STREAK ===
     streak = get_current_streak(current_user.id)
@@ -185,6 +185,10 @@ def dashboard():
     # === LEADERBOARD & XP RANK ===
     xp_leaderboard = StatsService.get_xp_leaderboard(limit=5)
     user_xp_rank = StatsService.get_user_xp_rank(current_user.id)
+
+    # === ACHIEVEMENTS BY CATEGORY & MILESTONES ===
+    achievements_by_category = StatsService.get_achievements_by_category(current_user.id)
+    milestone_history = get_milestone_history(current_user.id)
 
     # === WORDS STATS ===
     from app.srs.stats_service import srs_stats_service
@@ -335,6 +339,9 @@ def dashboard():
         # Leaderboard
         xp_leaderboard=xp_leaderboard,
         user_xp_rank=user_xp_rank,
+        # Achievements by category & milestones
+        achievements_by_category=achievements_by_category,
+        milestone_history=milestone_history,
     )
 
 

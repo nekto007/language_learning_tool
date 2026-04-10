@@ -91,11 +91,11 @@ Enrich the existing dashboard with new data-driven widgets that surface the app'
 - Modify: `app/templates/dashboard.html`
 - Modify: `app/static/css/design-system.css`
 
-- [ ] In route, add calls to `StatsService.get_achievements_by_category(user_id)` and `get_milestone_history(user_id)`
-- [ ] Create "Achievements" widget: progress rings per category (e.g., vocabulary, grammar, streak, reading) showing earned/total, with recent unlocks list
-- [ ] Create "Streak Milestones" widget: timeline showing past milestones (7, 14, 30, 60, 100 days) with earned dates, and next upcoming milestone highlighted
-- [ ] Add CSS for `.dash-achievements`, `.dash-achievements__ring`, `.dash-milestones`, `.dash-milestones__item`
-- [ ] Write tests for route data
+- [x] In route, add calls to `StatsService.get_achievements_by_category(user_id)` and `get_milestone_history(user_id)`
+- [x] Create "Achievements" widget: progress rings per category (e.g., vocabulary, grammar, streak, reading) showing earned/total, with recent unlocks list
+- [x] Create "Streak Milestones" widget: timeline showing past milestones (7, 14, 30, 60, 100 days) with earned dates, and next upcoming milestone highlighted
+- [x] Add CSS for `.dash-achievements`, `.dash-achievements__ring`, `.dash-milestones`, `.dash-milestones__item`
+- [x] Write tests for route data
 
 ### Task 6: Reading Speed Trend + Grammar by Level Widget
 
