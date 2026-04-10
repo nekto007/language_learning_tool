@@ -593,6 +593,10 @@ def dashboard():
     # Последние пользователи не кэшируем, так как они часто меняются
     recent_users = User.query.order_by(desc(User.created_at)).limit(10).all()
 
+    # At-risk users
+    from app.admin.services import UserManagementService
+    at_risk_users = UserManagementService.get_at_risk_users()
+
     return render_template(
         'admin/dashboard.html',
         recent_users=recent_users,
@@ -608,6 +612,7 @@ def dashboard():
         content_quality=content_quality,
         content_alerts=content_alerts,
         system_health=system_health,
+        at_risk_users=at_risk_users,
         **stats
     )
 

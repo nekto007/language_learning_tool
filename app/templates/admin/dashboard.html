@@ -378,8 +378,76 @@
     </div>
 </div>
 
+<!-- User Search -->
+<div class="card mt-4 mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('user_admin.users') }}" class="row g-2 align-items-center">
+            <div class="col-auto">
+                <i class="fas fa-search text-muted"></i>
+            </div>
+            <div class="col">
+                <input type="text" class="form-control" name="search" placeholder="Быстрый поиск по имени или email...">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Найти</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- At-Risk Users -->
+{% if at_risk_users %}
+<div class="card mt-2 mb-4 border-warning">
+    <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2 text-warning"></i>Пользователи в зоне риска ({{ at_risk_users|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Имя</th>
+                        <th>Email</th>
+                        <th>Последний вход</th>
+                        <th>Макс. серия</th>
+                        <th>Текущая серия</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in at_risk_users %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('user_admin.user_detail', user_id=u.id) }}">
+                                <strong>{{ u.username }}</strong>
+                            </a>
+                        </td>
+                        <td>{{ u.email or '-' }}</td>
+                        <td>
+                            {% if u.last_login %}
+                                {{ u.last_login.strftime('%d %b %Y') }}
+                            {% else %}
+                                <span class="text-muted">Никогда</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-info">{{ u.longest_streak }} дн.</span></td>
+                        <td><span class="badge bg-{{ 'success' if u.current_streak > 0 else 'secondary' }}">{{ u.current_streak }} дн.</span></td>
+                        <td>
+                            <a href="{{ url_for('user_admin.user_detail', user_id=u.id) }}" class="btn btn-sm btn-outline-primary" title="Подробнее">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Recent Users Table -->
-<div class="card mt-4">
+<div class="card mt-2">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-users me-2 text-muted"></i>Последние пользователи</h5>
         <a href="{{ url_for('user_admin.users') }}" class="btn btn-sm btn-primary">
@@ -404,7 +472,11 @@
                     {% for user in recent_users[:5] %}
                     <tr>
                         <td><span class="text-muted">#</span>{{ user.id }}</td>
-                        <td><strong>{{ user.username }}</strong></td>
+                        <td>
+                            <a href="{{ url_for('user_admin.user_detail', user_id=user.id) }}">
+                                <strong>{{ user.username }}</strong>
+                            </a>
+                        </td>
                         <td>{{ user.email or '-' }}</td>
                         <td>{{ user.created_at.strftime('%d %b %Y') }}</td>
                         <td>
@@ -421,16 +493,21 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% call action_group() %}
-                                {{ action_btn(
-                                    'Деактивировать' if user.active else 'Активировать',
-                                    'fa-ban' if user.active else 'fa-check',
-                                    url_for('user_admin.toggle_user_status', user_id=user.id),
-                                    'outline-danger' if user.active else 'outline-success',
-                                    'sm',
-                                    'POST'
-                                ) }}
-                            {% endcall %}
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('user_admin.user_detail', user_id=user.id) }}" class="btn btn-outline-primary" title="Подробнее">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% call action_group() %}
+                                    {{ action_btn(
+                                        'Деактивировать' if user.active else 'Активировать',
+                                        'fa-ban' if user.active else 'fa-check',
+                                        url_for('user_admin.toggle_user_status', user_id=user.id),
+                                        'outline-danger' if user.active else 'outline-success',
+                                        'sm',
+                                        'POST'
+                                    ) }}
+                                {% endcall %}
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}

@@ -76,12 +76,12 @@
 - Modify: `app/templates/admin/users.html`
 - Modify: `app/templates/admin/dashboard.html`
 
-- [ ] Add user detail page link from dashboard "last registered" table showing full user profile: modules, lessons completed, words learned, grammar progress, streak, achievements, referrals made
-- [ ] Add "at risk" users section on dashboard: users inactive 7+ days who previously had 3+ day streaks
-- [ ] Add user search to admin dashboard (quick search by username/email)
-- [ ] Add bulk user export (CSV) with key metrics
-- [ ] Write tests for user detail aggregation and at-risk query
-- [ ] Run project test suite - must pass before task 6
+- [x] Add user detail page link from dashboard "last registered" table showing full user profile: modules, lessons completed, words learned, grammar progress, streak, achievements, referrals made
+- [x] Add "at risk" users section on dashboard: users inactive 7+ days who previously had 3+ day streaks
+- [x] Add user search to admin dashboard (quick search by username/email)
+- [x] Add bulk user export (CSV) with key metrics
+- [x] Write tests for user detail aggregation and at-risk query
+- [x] Run project test suite - must pass before task 6
 
 ### Task 6: User Dashboard - Empty States & First-Time UX
 

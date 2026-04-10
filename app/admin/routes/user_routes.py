@@ -4,10 +4,12 @@
 User Management Routes для административной панели
 Маршруты для управления пользователями и статистикой
 """
+import csv
+import io
 import logging
 from datetime import UTC, datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 from sqlalchemy import desc
 
@@ -83,6 +85,40 @@ def toggle_admin_status(user_id):
         flash(message, 'danger')
 
     return redirect(url_for('user_admin.users'))
+
+
+@user_bp.route('/users/<int:user_id>')
+@admin_required
+def user_detail(user_id):
+    """Детальная страница пользователя"""
+    detail = UserManagementService.get_user_detail(user_id)
+    if not detail:
+        flash('Пользователь не найден.', 'danger')
+        return redirect(url_for('user_admin.users'))
+
+    return render_template('admin/user_detail.html', detail=detail)
+
+
+@user_bp.route('/users/export')
+@admin_required
+def export_users_csv():
+    """Export users as CSV with key metrics"""
+    search = request.args.get('search', '')
+    rows = UserManagementService.export_users_csv(search=search)
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=[
+        'id', 'username', 'email', 'created_at', 'last_login',
+        'active', 'lessons_completed', 'current_streak', 'longest_streak', 'coin_balance',
+    ])
+    writer.writeheader()
+    writer.writerows(rows)
+
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename=users_export_{datetime.now(UTC).strftime("%Y-%m-%d")}.csv'},
+    )
 
 
 @user_bp.route('/stats')
