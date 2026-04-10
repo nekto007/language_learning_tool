@@ -116,6 +116,8 @@ def dashboard():
     from app.telegram.models import TelegramUser
     from app.telegram.queries import get_daily_plan_v2, get_current_streak, get_daily_summary
     from app.telegram.notifications import _lesson_minutes, _words_minutes
+    from app.study.insights_service import get_activity_heatmap
+    from app.achievements.streak_service import get_streak_calendar
 
     # === DAILY PLAN & STREAK ===
     streak = get_current_streak(current_user.id)
@@ -164,6 +166,11 @@ def dashboard():
         lesson_minutes = _lesson_minutes(daily_plan['next_lesson'].get('lesson_type'))
 
     words_minutes = _words_minutes(daily_plan.get('words_due', 0))
+
+    # === ACTIVITY HEATMAP & STREAK CALENDAR ===
+    tz = 'Europe/Moscow'
+    activity_heatmap = get_activity_heatmap(current_user.id, days=90)
+    streak_calendar = get_streak_calendar(current_user.id, days=90, tz=tz)
 
     # === WORDS STATS ===
     from app.srs.stats_service import srs_stats_service
@@ -302,6 +309,9 @@ def dashboard():
         # Personalization
         onboarding_focus=getattr(current_user, 'onboarding_focus', None),
         onboarding_level=getattr(current_user, 'onboarding_level', None),
+        # Activity heatmap
+        activity_heatmap=activity_heatmap,
+        streak_calendar=streak_calendar,
     )
 
 

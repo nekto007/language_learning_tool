@@ -9,7 +9,7 @@ All functions accept user_id and return dicts/lists safe for JSON serialization.
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import Date, cast, func, extract
+from sqlalchemy import Date, cast, func, extract, literal
 
 from app.utils.db import db
 
@@ -44,7 +44,7 @@ def get_activity_heatmap(user_id: int, days: int = 90) -> list[dict[str, Any]]:
     q1 = (
         db.session.query(
             cast(LessonProgress.completed_at, Date).label('d'),
-            func.literal('lesson').label('src'),
+            literal('lesson').label('src'),
         )
         .filter(
             LessonProgress.user_id == user_id,
@@ -58,7 +58,7 @@ def get_activity_heatmap(user_id: int, days: int = 90) -> list[dict[str, Any]]:
     q2 = (
         db.session.query(
             cast(UserGrammarExercise.last_reviewed, Date).label('d'),
-            func.literal('grammar').label('src'),
+            literal('grammar').label('src'),
         )
         .filter(
             UserGrammarExercise.user_id == user_id,
@@ -74,7 +74,7 @@ def get_activity_heatmap(user_id: int, days: int = 90) -> list[dict[str, Any]]:
     q3 = (
         db.session.query(
             cast(UserCardDirection.last_reviewed, Date).label('d'),
-            func.literal('cards').label('src'),
+            literal('cards').label('src'),
         )
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
@@ -89,7 +89,7 @@ def get_activity_heatmap(user_id: int, days: int = 90) -> list[dict[str, Any]]:
     q4 = (
         db.session.query(
             cast(UserChapterProgress.updated_at, Date).label('d'),
-            func.literal('book').label('src'),
+            literal('book').label('src'),
         )
         .filter(
             UserChapterProgress.user_id == user_id,
@@ -103,7 +103,7 @@ def get_activity_heatmap(user_id: int, days: int = 90) -> list[dict[str, Any]]:
     q5 = (
         db.session.query(
             cast(UserLessonProgress.completed_at, Date).label('d'),
-            func.literal('daily').label('src'),
+            literal('daily').label('src'),
         )
         .filter(
             UserLessonProgress.user_id == user_id,

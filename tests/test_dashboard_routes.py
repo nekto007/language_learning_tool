@@ -3,6 +3,7 @@ Tests for the main dashboard route
 Ensures template rendering works correctly with all expected data
 """
 import pytest
+from unittest.mock import patch
 
 
 @pytest.fixture
@@ -118,3 +119,89 @@ class TestDashboardTemplateRelationships:
         response = client.get('/dashboard')
         assert response.status_code == 200
         # Template should handle None recent_book gracefully
+
+
+class TestDashboardActivityHeatmap:
+    """Test activity heatmap and streak calendar data on dashboard"""
+
+    def test_dashboard_includes_heatmap_data(self, client, app, test_user, words_module_access):
+        """Dashboard should call get_activity_heatmap and pass data to template"""
+        mock_heatmap = [
+            {'date': '2026-04-09', 'count': 3},
+            {'date': '2026-04-10', 'count': 0},
+        ]
+        mock_calendar = {
+            'active_dates': ['2026-04-09'],
+            'total_active_days': 1,
+            'longest_streak': 1,
+            'current_streak': 1,
+        }
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_activity_heatmap', return_value=mock_heatmap) as mock_hm, \
+             patch('app.achievements.streak_service.get_streak_calendar', return_value=mock_calendar) as mock_sc:
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            mock_hm.assert_called_once_with(test_user.id, days=90)
+            mock_sc.assert_called_once_with(test_user.id, days=90, tz='Europe/Moscow')
+
+    def test_dashboard_renders_heatmap_widget(self, client, app, test_user, words_module_access):
+        """Dashboard should render the heatmap section when data exists"""
+        mock_heatmap = [{'date': f'2026-04-{d:02d}', 'count': d % 4} for d in range(1, 11)]
+        mock_calendar = {
+            'active_dates': ['2026-04-05'],
+            'total_active_days': 15,
+            'longest_streak': 7,
+            'current_streak': 3,
+        }
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_activity_heatmap', return_value=mock_heatmap), \
+             patch('app.achievements.streak_service.get_streak_calendar', return_value=mock_calendar):
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            html = response.data.decode('utf-8')
+            assert 'dash-heatmap' in html
+            assert 'dash-heatmap__grid' in html
+            assert 'dash-heatmap__stats' in html
+
+    def test_dashboard_heatmap_empty_state(self, client, app, test_user, words_module_access):
+        """Dashboard should not render heatmap section when data is empty"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_activity_heatmap', return_value=[]), \
+             patch('app.achievements.streak_service.get_streak_calendar', return_value={}):
+            response = client.get('/dashboard')
+            assert response.status_code == 200
+            html = response.data.decode('utf-8')
+            # The CSS class will exist in <style>, but the HTML element should not
+            assert 'dash-heatmap__heading' not in html.split('<style>')[0]
+
+    def test_dashboard_streak_stats_rendered(self, client, app, test_user, words_module_access):
+        """Dashboard should show streak stats from streak_calendar data"""
+        mock_heatmap = [{'date': '2026-04-10', 'count': 2}]
+        mock_calendar = {
+            'active_dates': ['2026-04-10'],
+            'total_active_days': 42,
+            'longest_streak': 21,
+            'current_streak': 5,
+        }
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.study.insights_service.get_activity_heatmap', return_value=mock_heatmap), \
+             patch('app.achievements.streak_service.get_streak_calendar', return_value=mock_calendar):
+            response = client.get('/dashboard')
+            html = response.data.decode('utf-8')
+            assert '42' in html  # total_active_days
+            assert '21' in html  # longest_streak
