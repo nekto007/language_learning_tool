@@ -425,13 +425,13 @@ def get_retention_metrics() -> dict:
             total_cohort += cnt
 
             # Users registered on reg_date who were active on target_date
-            cohort_ids = db.session.query(User.id).filter(
+            cohort_ids = [r[0] for r in db.session.query(User.id).filter(
                 func.date(User.created_at) == reg_date,
-            )
-            active_q = _active_user_ids_for_date(target_date).subquery()
-            retained = db.session.query(func.count()).filter(
-                active_q.c.user_id.in_(cohort_ids),
-            ).scalar() or 0
+            ).all()]
+            if not cohort_ids:
+                continue
+            active_ids = {r[0] for r in _active_user_ids_for_date(target_date).all()}
+            retained = len(active_ids.intersection(cohort_ids))
             total_retained += retained
 
         if total_cohort == 0:
