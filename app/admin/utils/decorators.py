@@ -57,7 +57,7 @@ def handle_admin_errors(return_json=True):
                 try:
                     db.session.rollback()
                 except Exception:
-                    pass
+                    logger.exception("Failed to rollback DB session in %s", func.__name__)
 
                 if return_json:
                     return jsonify({

@@ -106,7 +106,7 @@ def _build_cards_for_words(word_objects: list, user_id: int) -> list[dict]:
                         example_en = first_sentence.get('en', '')
                         example_ru = first_sentence.get('ru', '')
             except Exception:
-                pass
+                logger.exception("Failed to parse word sentences for word %s", word.id)
 
         for dir_obj in directions_by_word.get(word.id, []):
             if dir_obj.direction == 'eng-rus':
@@ -880,7 +880,7 @@ def render_card_lesson(lesson):
                             if isinstance(card, dict) and 'word_id' in card:
                                 word_ids.append(card['word_id'])
                 except Exception:
-                    pass
+                    logger.exception("Failed to parse lesson content for word_ids")
 
         word_ids = list(set(word_ids))
 
@@ -2246,7 +2246,7 @@ def card_lesson(lesson_id):
                             if isinstance(card, dict) and 'word_id' in card:
                                 word_ids.append(card['word_id'])
                 except Exception:
-                    pass
+                    logger.exception("Failed to parse lesson content for word_ids")
 
         word_ids = list(set(word_ids))
 

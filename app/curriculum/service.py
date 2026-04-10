@@ -1,5 +1,5 @@
 # app/curriculum/service.py
-
+import logging
 from datetime import datetime, UTC
 
 from sqlalchemy import Date, cast, func
@@ -10,6 +10,8 @@ from app.utils.audio import normalize_listening
 from app.utils.db import db
 from app.utils.normalization import normalize_text
 from app.words.models import CollectionWords
+
+logger = logging.getLogger(__name__)
 
 
 def get_audio_filename(word):
@@ -251,7 +253,7 @@ def complete_lesson(user_id, lesson_id, score=100.0):
             xp_breakdown = XPService.calculate_lesson_xp()
             XPService.award_xp(user_id, xp_breakdown['total_xp'])
         except (ImportError, AttributeError):
-            pass  # XP service not available, skip
+            logger.warning("XP service not available, skipping XP award")
 
         return progress
     except Exception as e:

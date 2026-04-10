@@ -1,6 +1,9 @@
 """Notification creation service."""
+import logging
 from app.notifications.models import Notification
 from app.utils.db import db
+
+logger = logging.getLogger(__name__)
 
 # Map notification types to User preference field names
 _PREF_MAP = {
@@ -24,6 +27,7 @@ def _user_allows(user_id: int, notif_type: str) -> bool:
             return True
         return getattr(user, pref_field, True)
     except Exception:
+        logger.exception("Failed to check notification preference for user %s", user_id)
         return True  # fail open — don't break callers
 
 

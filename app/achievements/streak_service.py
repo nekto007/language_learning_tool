@@ -1,10 +1,13 @@
 """Streak recovery service — coin earning, free/paid repair, progressive requirements."""
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime, timedelta, timezone
 
 from app.utils.db import db
 from app.achievements.models import StreakCoins, StreakEvent
+
+logger = logging.getLogger(__name__)
 
 
 def get_required_steps(streak_length: int, steps_total: int) -> int:
@@ -247,7 +250,7 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow')
             if _has_activity_in_range(user_id, day_start, day_end):
                 active_dates.add(check_date)
         except Exception:
-            pass
+            logger.exception("Failed to check activity for user %s on day offset %s", user_id, offset)
 
     active_dates_str = sorted(d.isoformat() for d in active_dates)
 

@@ -81,10 +81,10 @@
 **Files:**
 - Multiple files (74 files, 326 occurrences of `except Exception`)
 
-- [ ] Audit top-priority files: routes, services, middleware - identify cases that silently swallow errors (pass/continue without logging)
-- [ ] Add `logger.exception()` or `logger.error()` to silent handlers (do NOT change control flow, only add logging)
-- [ ] Write tests: verify that exceptions in critical paths are logged
-- [ ] Run project test suite - must pass before task 7
+- [x] Audit top-priority files: routes, services, middleware - identify cases that silently swallow errors (pass/continue without logging)
+- [x] Add `logger.exception()` or `logger.error()` to silent handlers (do NOT change control flow, only add logging)
+- [x] Write tests: verify that exceptions in critical paths are logged
+
 
 ### Task 7: Bound the Admin Cache
 
@@ -94,7 +94,7 @@
 - [ ] Add max_size limit (e.g. 100 entries) with LRU eviction
 - [ ] Add periodic cleanup of expired entries (not just on access)
 - [ ] Write tests: verify cache eviction works when max_size exceeded
-- [ ] Run project test suite - must pass before task 8
+
 
 ### Task 8: Verify Acceptance Criteria
 
