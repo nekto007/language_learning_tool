@@ -1073,7 +1073,7 @@ def update_study_item():
         from app.achievements.streak_service import earn_daily_coin
         earn_daily_coin(current_user.id)
     except Exception:
-        pass  # don't fail card grading if coin logic errors
+        logger.exception("Failed to award daily coin for user %s", current_user.id)
 
     db.session.commit()
 

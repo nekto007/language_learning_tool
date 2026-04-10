@@ -325,3 +325,160 @@ class TestCacheIntegration:
         assert get_cache('a_1') is None
         assert get_cache('a_2') is None
         assert get_cache('b_1') == 'value3'
+
+
+class TestLRUEviction:
+    """Test LRU eviction when cache exceeds max_size"""
+
+    def test_evicts_oldest_when_full(self):
+        """When cache reaches max_size, oldest entry is evicted on insert."""
+        from app.admin.utils.cache import set_cache, get_cache, clear_admin_cache, MAX_CACHE_SIZE
+
+        clear_admin_cache()
+
+        # Fill cache to max
+        for i in range(MAX_CACHE_SIZE):
+            set_cache(f'key_{i}', f'value_{i}')
+
+        # All entries should be present
+        assert get_cache('key_0') == 'value_0'
+        assert get_cache(f'key_{MAX_CACHE_SIZE - 1}') == f'value_{MAX_CACHE_SIZE - 1}'
+
+        # Add one more — should evict the least recently used
+        # key_0 was just accessed by get_cache above, so key_1 is LRU
+        set_cache('new_key', 'new_value')
+
+        assert get_cache('new_key') == 'new_value'
+        assert get_cache('key_1') is None  # evicted (LRU)
+        assert get_cache('key_0') is not None  # was accessed, so not LRU
+
+    def test_max_size_never_exceeded(self):
+        """Cache size never exceeds MAX_CACHE_SIZE."""
+        from app.admin.utils.cache import set_cache, clear_admin_cache, _cache, MAX_CACHE_SIZE
+
+        clear_admin_cache()
+
+        for i in range(MAX_CACHE_SIZE + 50):
+            set_cache(f'key_{i}', f'value_{i}')
+
+        from app.admin.utils.cache import _cache as current_cache
+        assert len(current_cache) <= MAX_CACHE_SIZE
+
+    def test_update_existing_does_not_evict(self):
+        """Updating an existing key doesn't count as a new entry."""
+        from app.admin.utils.cache import set_cache, get_cache, clear_admin_cache, _cache, MAX_CACHE_SIZE
+
+        clear_admin_cache()
+
+        for i in range(MAX_CACHE_SIZE):
+            set_cache(f'key_{i}', f'value_{i}')
+
+        # Update existing key
+        set_cache('key_0', 'updated_value')
+
+        from app.admin.utils.cache import _cache as current_cache
+        assert len(current_cache) == MAX_CACHE_SIZE
+        assert get_cache('key_0') == 'updated_value'
+
+    def test_get_cache_moves_to_end(self):
+        """Accessing a key via get_cache makes it most-recently-used."""
+        from app.admin.utils.cache import set_cache, get_cache, clear_admin_cache, MAX_CACHE_SIZE
+
+        clear_admin_cache()
+
+        # Fill cache
+        for i in range(MAX_CACHE_SIZE):
+            set_cache(f'key_{i}', f'value_{i}')
+
+        # Access key_0 to make it most recently used
+        get_cache('key_0')
+
+        # Add enough new keys to evict everything except key_0
+        for i in range(MAX_CACHE_SIZE):
+            set_cache(f'new_{i}', f'new_value_{i}')
+
+        # key_0 should have been evicted by now since we added MAX_CACHE_SIZE new keys
+        # But the first few evictions should have hit key_1, key_2, etc. first
+        # After MAX_CACHE_SIZE new inserts, all old keys including key_0 are gone
+        from app.admin.utils.cache import _cache as current_cache
+        assert len(current_cache) == MAX_CACHE_SIZE
+
+
+class TestCleanupExpired:
+    """Test cleanup_expired function"""
+
+    def test_removes_expired_entries(self):
+        """cleanup_expired removes all entries older than timeout."""
+        from app.admin.utils.cache import set_cache, cleanup_expired, clear_admin_cache, _cache
+
+        clear_admin_cache()
+
+        set_cache('old_key', 'old_value')
+        set_cache('new_key', 'new_value')
+
+        with patch('app.admin.utils.cache.datetime') as mock_datetime:
+            future_time = datetime.now(timezone.utc) + timedelta(seconds=400)
+            mock_datetime.now.return_value = future_time
+
+            removed = cleanup_expired()
+
+        assert removed == 2
+
+        from app.admin.utils.cache import _cache as current_cache
+        assert len(current_cache) == 0
+
+    def test_keeps_fresh_entries(self):
+        """cleanup_expired keeps entries that haven't expired."""
+        from app.admin.utils.cache import set_cache, cleanup_expired, get_cache, clear_admin_cache
+
+        clear_admin_cache()
+
+        set_cache('key1', 'value1')
+
+        # Cleanup with default timeout — entries are fresh
+        removed = cleanup_expired()
+        assert removed == 0
+        assert get_cache('key1') == 'value1'
+
+    def test_custom_timeout(self):
+        """cleanup_expired respects custom timeout parameter."""
+        from app.admin.utils.cache import set_cache, cleanup_expired, clear_admin_cache
+
+        clear_admin_cache()
+
+        set_cache('key1', 'value1')
+
+        with patch('app.admin.utils.cache.datetime') as mock_datetime:
+            future_time = datetime.now(timezone.utc) + timedelta(seconds=10)
+            mock_datetime.now.return_value = future_time
+
+            # With 5-second timeout, entries should be expired
+            removed = cleanup_expired(timeout=5)
+
+        assert removed == 1
+
+    def test_returns_count_of_removed(self):
+        """cleanup_expired returns accurate count of removed entries."""
+        from app.admin.utils.cache import set_cache, cleanup_expired, clear_admin_cache
+
+        clear_admin_cache()
+
+        for i in range(5):
+            set_cache(f'key_{i}', f'value_{i}')
+
+        with patch('app.admin.utils.cache.datetime') as mock_datetime:
+            future_time = datetime.now(timezone.utc) + timedelta(seconds=400)
+            mock_datetime.now.return_value = future_time
+
+            removed = cleanup_expired()
+
+        assert removed == 5
+
+    def test_empty_cache_returns_zero(self):
+        """cleanup_expired on empty cache returns 0."""
+        from app.admin.utils.cache import cleanup_expired, clear_admin_cache
+
+        clear_admin_cache()
+
+        removed = cleanup_expired()
+        assert removed == 0

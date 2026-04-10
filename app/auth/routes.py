@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import datetime, timezone
 from flask_babel import lazy_gettext as _l
@@ -11,6 +12,8 @@ from app.auth.models import User, ReferralLog
 from app.utils.db import db
 from app.utils.email_utils import email_sender
 from config.settings import Config
+
+logger = logging.getLogger(__name__)
 
 auth = Blueprint('auth', __name__)
 
@@ -130,6 +133,7 @@ def verify_reset_token(token: str, expiration: int = 3600):
             # loads with any salt just to extract the payload — we re-verify below
             user_id = s.loads_unsafe(token)[1]
         except Exception:
+            logger.exception("Failed to decode password reset token")
             return None
 
     if not isinstance(user_id, int):
@@ -144,6 +148,7 @@ def verify_reset_token(token: str, expiration: int = 3600):
         verified_id = serializer.loads(token, salt=_get_reset_salt(user), max_age=expiration)
         return verified_id
     except Exception:
+        logger.exception("Failed to verify password reset token for user %s", user_id)
         return None
 
 
@@ -505,6 +510,7 @@ def profile_update():
         db.session.commit()
         flash('Настройки сохранены.', 'success')
     except Exception:
+        logger.exception("Failed to save profile settings for user %s", current_user.id)
         db.session.rollback()
         flash('Ошибка при сохранении настроек.', 'danger')
 

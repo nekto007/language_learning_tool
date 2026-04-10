@@ -82,7 +82,7 @@ def import_curriculum():
         try:
             db.session.rollback()
         except Exception:
-            pass
+            logger.exception("Failed to rollback DB session after import")
 
         # 4. Flash summary
         success = [r for r in results if r[2] is None]
