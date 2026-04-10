@@ -281,17 +281,21 @@ class TestEngagementMetrics:
         assert result['mau'] >= 1
 
     def test_trend_up_when_current_greater(self, app, db_session):
-        """Trend should be 'up' when current period has more users than previous."""
+        """Trend should be 'up' when current period has more active users than previous."""
+        from app.study.models import StudySession
         now = datetime.now(timezone.utc)
-        # Create user active today but not yesterday
         u = User(
             username=f'trend_{uuid.uuid4().hex[:8]}',
             email=f'trend_{uuid.uuid4().hex[:8]}@test.com',
             active=True,
-            last_login=now,
         )
         u.set_password('pass')
         db_session.add(u)
+        db_session.flush()
+
+        # Real learning activity today (not just login)
+        ss = StudySession(user_id=u.id, start_time=now, words_studied=3)
+        db_session.add(ss)
         db_session.commit()
 
         from app.admin.main_routes import get_engagement_metrics

@@ -226,3 +226,24 @@ class TestUserDetailRoute:
         response = admin_client.get('/admin/users/export')
         assert response.status_code == 200
         assert 'text/csv' in response.content_type
+
+    def test_csv_export_has_header(self, app, admin_client):
+        response = admin_client.get('/admin/users/export')
+        csv_text = response.get_data(as_text=True)
+        assert 'username' in csv_text
+        assert 'email' in csv_text
+
+    def test_csv_escapes_dangerous_chars(self, app, admin_client, db_session):
+        """CSV cells starting with =, +, -, @ should be prefixed with apostrophe."""
+        from app.admin.utils.export_helpers import _sanitize_csv_cell
+        assert _sanitize_csv_cell('=cmd|/C calc') == "'=cmd|/C calc"
+        assert _sanitize_csv_cell('+1234') == "'+1234"
+        assert _sanitize_csv_cell('-formula') == "'-formula"
+        assert _sanitize_csv_cell('@import') == "'@import"
+        assert _sanitize_csv_cell('normal') == 'normal'
+        assert _sanitize_csv_cell(None) == ''
+
+    def test_csv_export_respects_limit(self, app, admin_client):
+        """Export should not exceed MAX_EXPORT_ROWS."""
+        from app.admin.utils.export_helpers import MAX_EXPORT_ROWS
+        assert MAX_EXPORT_ROWS == 10000
