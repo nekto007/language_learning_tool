@@ -31,7 +31,7 @@ def get_cache(key, timeout=_cache_timeout):
     """
     if key in _cache:
         cached_data, cached_time = _cache[key]
-        if (datetime.now(timezone.utc) - cached_time).seconds < timeout:
+        if (datetime.now(timezone.utc) - cached_time).total_seconds() < timeout:
             # Move to end (most recently used)
             _cache.move_to_end(key)
             return cached_data
@@ -77,7 +77,7 @@ def cleanup_expired(timeout=_cache_timeout):
     now = datetime.now(timezone.utc)
     expired_keys = [
         key for key, (_, cached_time) in _cache.items()
-        if (now - cached_time).seconds >= timeout
+        if (now - cached_time).total_seconds() >= timeout
     ]
     for key in expired_keys:
         del _cache[key]

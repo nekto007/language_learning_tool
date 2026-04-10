@@ -1417,17 +1417,19 @@ window.FinalTestApp = {
         }
       }
 
+      function esc(s) { var d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
+
       textEl.innerHTML = `<strong>{{ _("Неправильно") }}</strong><br>`;
 
       const hideUserAnswer = ['reorder'].includes(question.type);
 
       if (userText && !hideUserAnswer) {
-        textEl.innerHTML += `{{ _("Ваш ответ:") }} <strong>${userText}</strong><br>`;
+        textEl.innerHTML += `{{ _("Ваш ответ:") }} <strong>${esc(userText)}</strong><br>`;
       }
-      textEl.innerHTML += `{{ _("Правильный ответ:") }} <strong>${correctText}</strong>`;
+      textEl.innerHTML += `{{ _("Правильный ответ:") }} <strong>${esc(correctText)}</strong>`;
 
       if (question.explanation) {
-        textEl.innerHTML += `<br><br><strong>{{ _("Объяснение:") }}</strong> ${question.explanation}`;
+        textEl.innerHTML += `<br><br><strong>{{ _("Объяснение:") }}</strong> ${esc(question.explanation)}`;
       }
     }
 

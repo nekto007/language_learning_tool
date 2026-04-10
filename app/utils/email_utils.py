@@ -1,8 +1,11 @@
+import logging
 import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from flask import render_template
+
+logger = logging.getLogger(__name__)
 
 
 class EmailSender:
@@ -61,7 +64,8 @@ class EmailSender:
                     server.login(self.email_user, self.email_password)
                 server.send_message(msg)
             return True
-        except Exception as e:
+        except Exception:
+            logger.exception("Failed to send email to %s (subject: %s)", to_email, subject)
             return False
 
 
