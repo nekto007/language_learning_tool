@@ -118,6 +118,7 @@ def _safe_widget_call(name: str, fn, *args, default=None, **kwargs):
         return fn(*args, **kwargs)
     except Exception:
         logger.exception("Dashboard widget '%s' failed", name)
+        db.session.rollback()
         return default
 
 
