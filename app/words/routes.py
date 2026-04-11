@@ -213,10 +213,13 @@ def dashboard():
     # Grid rows: 0=Sun, 1=Mon, ..., 6=Sat. Python weekday: 0=Mon, ..., 6=Sun.
     heatmap_pad = 0
     if activity_heatmap:
-        from datetime import date as _date
-        first_date = _date.fromisoformat(activity_heatmap[0]['date'])
-        # Convert Python weekday (Mon=0) to grid row (Sun=0): (wd + 1) % 7
-        heatmap_pad = (first_date.weekday() + 1) % 7
+        try:
+            from datetime import date as _date
+            first_date = _date.fromisoformat(activity_heatmap[0]['date'])
+            # Convert Python weekday (Mon=0) to grid row (Sun=0): (wd + 1) % 7
+            heatmap_pad = (first_date.weekday() + 1) % 7
+        except (ValueError, KeyError, IndexError):
+            heatmap_pad = 0
     streak_calendar = _safe_widget_call(
         'streak_calendar', get_streak_calendar, current_user.id, days=90, tz=tz, default={})
 
