@@ -209,6 +209,9 @@ def dashboard():
     tz = 'Europe/Moscow'
     activity_heatmap = _safe_widget_call(
         'activity_heatmap', get_activity_heatmap, current_user.id, days=90, tz=tz, default=[])
+    # Show empty state if user has no activity (all counts zero)
+    if activity_heatmap and not any(d.get('count', 0) > 0 for d in activity_heatmap):
+        activity_heatmap = []
     # Pad heatmap so first day aligns to correct weekday row.
     # Grid rows: 0=Sun, 1=Mon, ..., 6=Sat. Python weekday: 0=Mon, ..., 6=Sun.
     heatmap_pad = 0
@@ -775,7 +778,7 @@ def daily_plan_next_step() -> tuple:
     })
 
 
-@words.route('/api/streak/repair', methods=['POST'])
+@words.route('/api/streak/repair-web', methods=['POST'])
 @login_required
 def streak_repair_web():
     """Session-based streak repair for web dashboard."""

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 
+from sqlalchemy.exc import IntegrityError
+
 from app.utils.db import db
 from app.achievements.models import StreakCoins, StreakEvent
 
@@ -99,22 +101,36 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     Call this from any entry point (dashboard, API, bot).
     Returns dict with streak info and whether repair happened.
     """
-    from app.telegram.queries import get_current_streak
+    import pytz
+    from app.telegram.queries import get_current_streak, has_activity_today
 
-    # Save daily completion
-    if steps_total > 0:
-        save_daily_completion(user_id, steps_done, steps_total)
+    # Compute the user's local "today" so that earned_daily rows are keyed
+    # to the correct date regardless of the server's timezone.
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone('Europe/Moscow')
+    user_today = datetime.now(tz_obj).date()
 
-    # Award daily coin if user has any activity
-    if steps_done > 0:
-        earn_daily_coin(user_id, steps_done=steps_done, steps_total=steps_total)
+    # Only award coins and record completion when the user has genuine
+    # activity in one of the authoritative tables (lessons, grammar,
+    # words, books, book-courses).  steps_done can be positive from
+    # auto-completed plan steps (e.g. words 'all_reviewed' when nothing
+    # is due), which should not count as real study.
+    real_activity = has_activity_today(user_id, tz=tz)
+
+    if steps_done > 0 and real_activity:
+        earn_daily_coin(user_id, for_date=user_today,
+                        steps_done=steps_done, steps_total=steps_total)
+        save_daily_completion(user_id, steps_done, steps_total,
+                              for_date=user_today)
 
     streak_status = get_streak_status(user_id, tz=tz, steps_total=max(steps_total, 1))
     required_steps = streak_status.get('required_steps', 1)
     streak_repaired = False
 
-    # Attempt free repair if enough steps done
-    if steps_total > 0 and steps_done >= required_steps:
+    # Attempt free repair if enough steps done AND user has real activity
+    if steps_total > 0 and steps_done >= required_steps and real_activity:
         missed = find_missed_date(user_id, tz=tz)
         if missed:
             apply_free_repair(user_id, missed, steps_done, steps_total)
@@ -308,7 +324,7 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow')
 
     active_dates_str = sorted(d.isoformat() for d in all_active)
 
-    # Calculate longest streak from all_active
+    # Calculate longest streak and current streak from all_active
     sorted_dates = sorted(all_active)
     longest = 0
     current = 0
@@ -321,18 +337,24 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow')
         longest = max(longest, current)
         prev = d
 
-    # Compute current streak from the merged dates (no separate query)
+    # Compute current streak by walking backward from today through all_active.
+    # This reuses the batched calendar data instead of issuing per-day queries.
     curr_streak = 0
-    check = local_today
-    while check in all_active:
-        curr_streak += 1
-        check -= timedelta(days=1)
-    if curr_streak == 0:
-        # Allow streak to continue from yesterday
-        check = local_today - timedelta(days=1)
-        while check in all_active:
+    for offset in range(days):
+        check_date = local_today - timedelta(days=offset)
+        if check_date in all_active:
             curr_streak += 1
-            check -= timedelta(days=1)
+        elif offset == 0:
+            # No activity today — streak may still be alive (today isn't over)
+            continue
+        else:
+            break
+
+    # If the streak reaches the edge of the calendar window, it may extend
+    # further back. Fall back to the authoritative day-by-day walk only then.
+    if curr_streak >= days - 1:
+        from app.telegram.queries import get_current_streak
+        curr_streak = get_current_streak(user_id, tz=tz)
 
     return {
         'active_dates': active_dates_str,
@@ -377,8 +399,27 @@ def save_daily_completion(user_id: int, steps_done: int, steps_total: int,
 def earn_daily_coin(user_id: int, for_date: date | None = None,
                     steps_done: int | None = None,
                     steps_total: int | None = None) -> bool:
-    """Award 1 streak coin for daily activity. Returns True if awarded."""
+    """Award 1 streak coin for daily activity. Returns True if awarded.
+
+    Uses FOR UPDATE on the StreakCoins row to serialize concurrent
+    requests for the same user, preventing duplicate earned_daily rows.
+    """
     today = for_date or date.today()
+
+    # Lock user's coin row first to serialize concurrent attempts
+    coins = StreakCoins.query.filter_by(user_id=user_id).with_for_update().first()
+    if not coins:
+        try:
+            with db.session.begin_nested():
+                coins = StreakCoins(user_id=user_id)
+                db.session.add(coins)
+                db.session.flush()
+        except IntegrityError:
+            # Concurrent request already created the row — the context
+            # manager rolled back the savepoint, leaving the outer
+            # transaction intact.
+            coins = StreakCoins.query.filter_by(user_id=user_id).with_for_update().first()
+
     already = StreakEvent.query.filter_by(
         user_id=user_id, event_type='earned_daily', event_date=today
     ).first()
@@ -390,7 +431,6 @@ def earn_daily_coin(user_id: int, for_date: date | None = None,
             already.steps_total = steps_total
         return False
 
-    coins = get_or_create_coins(user_id)
     coins.earn(1)
     db.session.add(StreakEvent(
         user_id=user_id, event_type='earned_daily',

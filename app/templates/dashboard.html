@@ -2681,7 +2681,7 @@ async function repairStreak() {
     try {
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfMeta ? csrfMeta.content : '';
-        const resp = await fetch('/api/streak/repair', {
+        const resp = await fetch('/api/streak/repair-web', {
             method: 'POST',
             credentials: 'same-origin',
             headers: {
