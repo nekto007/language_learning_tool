@@ -151,5 +151,5 @@ Enrich the existing dashboard with new data-driven widgets that surface the app'
 
 ### Task 10: Update documentation
 
-- [ ] Update CLAUDE.md if internal patterns changed
-- [ ] Move this plan to `docs/plans/completed/`
+- [x] Update CLAUDE.md if internal patterns changed
+- [x] Move this plan to `docs/plans/completed/`
