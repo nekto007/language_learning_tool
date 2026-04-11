@@ -113,23 +113,30 @@ def _process_referral_reward_on_first_visit(user) -> None:
 
 
 def _safe_widget_call(name: str, fn, *args, default=None, **kwargs):
-    """Call a widget data function safely, returning default on failure."""
+    """Call a widget data function safely, returning default on failure.
+
+    Uses a savepoint so that a widget failure only rolls back its own
+    queries, leaving the outer transaction (and already-loaded objects
+    like current_user) intact.
+    """
     try:
-        return fn(*args, **kwargs)
+        with db.session.begin_nested():
+            return fn(*args, **kwargs)
     except Exception:
         logger.exception("Dashboard widget '%s' failed", name)
-        db.session.rollback()
         return default
 
 
 def _get_cached_leaderboard(stats_service_cls, limit: int = 5):
     """Return leaderboard data with 5-minute TTL cache."""
     cache = _leaderboard_cache
+    now = time.time()
     with cache['lock']:
-        now = time.time()
         if cache['data'] is not None and now < cache['expires']:
             return cache['data']
-        data = stats_service_cls.get_xp_leaderboard(limit=limit)
+    # Query outside the lock to avoid serializing all dashboard requests
+    data = stats_service_cls.get_xp_leaderboard(limit=limit)
+    with cache['lock']:
         cache['data'] = data
         cache['expires'] = time.time() + 300  # 5 minutes
     return data

@@ -142,7 +142,8 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
             streak_repaired = True
 
     # Check streak milestones and award bonus coins
-    milestone_reward = check_streak_milestone(user_id, streak_status.get('streak', 0))
+    milestone_reward = check_streak_milestone(
+        user_id, streak_status.get('streak', 0), for_date=user_today)
 
     db.session.commit()
 
@@ -165,7 +166,8 @@ STREAK_MILESTONES = {
 }
 
 
-def check_streak_milestone(user_id: int, current_streak: int) -> dict | None:
+def check_streak_milestone(user_id: int, current_streak: int,
+                           for_date: date | None = None) -> dict | None:
     """Check if current streak hits a milestone and award bonus coins.
 
     Returns milestone info dict if awarded, None otherwise.
@@ -188,13 +190,14 @@ def check_streak_milestone(user_id: int, current_streak: int) -> dict | None:
     if already and already.details and already.details.get('streak') == current_streak:
         return None
 
+    today = for_date or date.today()
     coins = get_or_create_coins(user_id)
     coins.earn(reward)
     db.session.add(StreakEvent(
         user_id=user_id,
         event_type='milestone',
         coins_delta=reward,
-        event_date=date.today(),
+        event_date=today,
         details={'streak': current_streak, 'reward': reward},
     ))
 
@@ -419,6 +422,9 @@ def earn_daily_coin(user_id: int, for_date: date | None = None,
             # manager rolled back the savepoint, leaving the outer
             # transaction intact.
             coins = StreakCoins.query.filter_by(user_id=user_id).with_for_update().first()
+
+    if coins is None:
+        coins = get_or_create_coins(user_id)
 
     already = StreakEvent.query.filter_by(
         user_id=user_id, event_type='earned_daily', event_date=today
