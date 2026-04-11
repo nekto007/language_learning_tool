@@ -64,10 +64,18 @@ class StatsService:
             **word_stats,
             'mastery_percentage': int((word_stats['mastered'] / word_stats['total'] * 100) if word_stats['total'] > 0 else 0),
             'recent_sessions': recent_sessions,
-            'study_streak': 0,  # TODO: implement streak calculation
+            'study_streak': StatsService._get_streak(user_id),
             'today_words_studied': today_words_studied,
             'today_time_spent': today_time_spent
         }
+
+    @staticmethod
+    def _get_streak(user_id: int) -> int:
+        try:
+            from app.telegram.queries import get_current_streak
+            return get_current_streak(user_id)
+        except Exception:
+            return 0
 
     @staticmethod
     def get_user_word_stats(user_id: int) -> Dict:
@@ -81,6 +89,85 @@ class StatsService:
             'mastered': stats['mastered_count'],
             'total': stats['total'],
         }
+
+    @staticmethod
+    def get_accuracy_trend(user_id: int, days: int = 30) -> List[Dict]:
+        """Get daily accuracy (correct/total) for the last N days."""
+        start_date = datetime.now(timezone.utc) - timedelta(days=days)
+        sessions = StudySession.query.filter(
+            StudySession.user_id == user_id,
+            StudySession.start_time >= start_date,
+            StudySession.words_studied > 0,
+        ).order_by(StudySession.start_time).all()
+
+        daily: Dict[str, Dict] = {}
+        for s in sessions:
+            day = s.start_time.strftime('%Y-%m-%d')
+            if day not in daily:
+                daily[day] = {'correct': 0, 'total': 0}
+            daily[day]['correct'] += (s.correct_answers or 0)
+            daily[day]['total'] += (s.correct_answers or 0) + (s.incorrect_answers or 0)
+
+        result = []
+        for day_str in sorted(daily.keys()):
+            d = daily[day_str]
+            pct = round(d['correct'] / d['total'] * 100) if d['total'] > 0 else 0
+            result.append({'date': day_str, 'accuracy': pct, 'total': d['total']})
+        return result
+
+    @staticmethod
+    def get_mastered_over_time(user_id: int, days: int = 30) -> List[Dict]:
+        """Get cumulative mastered words count per day for the last N days."""
+        start_date = datetime.now(timezone.utc) - timedelta(days=days)
+
+        # Get cards that reached mastery (review state with interval >= threshold)
+        mastered_cards = db.session.query(
+            func.date(UserCardDirection.last_reviewed).label('day'),
+            func.count(UserCardDirection.id)
+        ).join(
+            UserWord, UserCardDirection.user_word_id == UserWord.id
+        ).filter(
+            UserWord.user_id == user_id,
+            UserCardDirection.state == 'review',
+            UserCardDirection.interval >= UserWord.MASTERED_THRESHOLD_DAYS,
+            UserCardDirection.last_reviewed >= start_date,
+            UserCardDirection.last_reviewed.isnot(None),
+        ).group_by(func.date(UserCardDirection.last_reviewed)).all()
+
+        result = []
+        for day, count in mastered_cards:
+            result.append({'date': str(day), 'count': count})
+        return sorted(result, key=lambda x: x['date'])
+
+    @staticmethod
+    def get_study_heatmap(user_id: int, days: int = 30) -> Dict:
+        """Get study session counts by day of week and hour."""
+        start_date = datetime.now(timezone.utc) - timedelta(days=days)
+        sessions = StudySession.query.filter(
+            StudySession.user_id == user_id,
+            StudySession.start_time >= start_date,
+        ).all()
+
+        # day_of_week: 0=Monday, 6=Sunday
+        heatmap: Dict[int, Dict[int, int]] = {}
+        for dow in range(7):
+            heatmap[dow] = {}
+
+        for s in sessions:
+            dow = s.start_time.weekday()
+            hour = s.start_time.hour
+            heatmap[dow][hour] = heatmap[dow].get(hour, 0) + 1
+
+        # Convert to list format for Chart.js
+        day_names = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+        data_points = []
+        for dow in range(7):
+            for hour in range(24):
+                count = heatmap[dow].get(hour, 0)
+                if count > 0:
+                    data_points.append({'x': hour, 'y': dow, 'v': count})
+
+        return {'day_names': day_names, 'data': data_points}
 
     @staticmethod
     def get_leaderboard(game_type: str = 'all', period_days: int = 30, limit: int = 10) -> List[Dict]:

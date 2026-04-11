@@ -738,17 +738,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 fetch(`{{ url_for('admin.search_words_api') }}?q=${encodeURIComponent(query)}&book_id={{ course.book_id }}`)
                     .then(response => response.json())
                     .then(words => {
+                        function esc(s) { var d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
                         if (words.length === 0) {
                             searchResults.innerHTML = '<div class="search-result-item"><span style="color: #9ca3af;">Ничего не найдено</span></div>';
                         } else {
                             searchResults.innerHTML = words.map(w => `
-                                <div class="search-result-item" onclick="addWord(${w.id})">
+                                <div class="search-result-item" onclick="addWord(${parseInt(w.id) || 0})">
                                     <div>
-                                        <span class="search-word-english">${w.english}</span>
-                                        <span class="search-word-russian">${w.russian || ''}</span>
-                                        ${w.frequency ? `<span style="color: #9ca3af; font-size: 0.75rem; margin-left: 0.5rem;">(${w.frequency}x)</span>` : ''}
+                                        <span class="search-word-english">${esc(w.english)}</span>
+                                        <span class="search-word-russian">${esc(w.russian)}</span>
+                                        ${w.frequency ? `<span style="color: #9ca3af; font-size: 0.75rem; margin-left: 0.5rem;">(${parseInt(w.frequency) || 0}x)</span>` : ''}
                                     </div>
-                                    <span class="search-word-level">${w.level || ''}</span>
+                                    <span class="search-word-level">${esc(w.level)}</span>
                                 </div>
                             `).join('');
                         }

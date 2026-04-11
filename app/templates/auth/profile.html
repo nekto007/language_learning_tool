@@ -15,6 +15,7 @@
   --pf-border: #e2e8f0;
   --pf-radius: 16px;
   --pf-radius-sm: 10px;
+  --pf-success: #10b981;
   font-family: var(--pf-font);
   max-width: 600px;
   margin: 0 auto;
@@ -42,49 +43,185 @@
   border: 1px solid var(--pf-border); border-radius: 6px; font-family: monospace;
   font-size: 0.8rem; color: var(--pf-text-muted); word-break: break-all; margin-top: 0.5rem;
 }
+
+/* Stats grid */
+.pf-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 0.5rem;
+}
+.pf-stat {
+  text-align: center; padding: 1rem 0.5rem;
+  background: var(--pf-surface-alt); border-radius: var(--pf-radius-sm);
+}
+.pf-stat__value { font-size: 1.5rem; font-weight: 800; color: var(--pf-primary); }
+.pf-stat__label { font-size: 0.7rem; color: var(--pf-text-muted); margin-top: 0.15rem; }
+
+/* Form elements */
+.pf-select, .pf-input {
+  width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--pf-border);
+  border-radius: var(--pf-radius-sm); font-size: 0.9rem; font-family: var(--pf-font);
+  background: var(--pf-surface); color: var(--pf-text);
+}
+.pf-select:focus, .pf-input:focus { outline: none; border-color: var(--pf-primary); }
+.pf-btn {
+  display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem;
+  background: var(--pf-gradient); color: #fff; border: none; border-radius: var(--pf-radius-sm);
+  font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: var(--pf-font);
+  transition: all 0.2s; margin-top: 0.75rem;
+}
+.pf-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+
+/* Checkbox toggle */
+.pf-toggle { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0; }
+.pf-toggle__label { font-size: 0.9rem; color: var(--pf-text); flex: 1; }
+.pf-toggle input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--pf-primary); }
+
+@media (max-width: 480px) {
+  .pf-stats { grid-template-columns: repeat(2, 1fr); }
+}
 </style>
 
 <div class="profile-page">
+  {# Learning Stats #}
   <div class="pf-card">
-    <h2 class="pf-card__title">Профиль</h2>
-    <div class="pf-field">
-      <span class="pf-field__label">Имя пользователя</span>
-      <span class="pf-field__value">{{ user.username }}</span>
-    </div>
-    <div class="pf-field">
-      <span class="pf-field__label">Email</span>
-      <span class="pf-field__value">{{ user.email or '—' }}</span>
-    </div>
-    <div class="pf-field">
-      <span class="pf-field__label">Зарегистрирован</span>
-      <span class="pf-field__value">{{ user.created_at.strftime('%d.%m.%Y') if user.created_at else '—' }}</span>
+    <h2 class="pf-card__title">{{ _('Статистика обучения') }}</h2>
+    <div class="pf-stats">
+      <div class="pf-stat">
+        <div class="pf-stat__value">{{ stats.total_words }}</div>
+        <div class="pf-stat__label">{{ _('Слов изучено') }}</div>
+      </div>
+      <div class="pf-stat">
+        <div class="pf-stat__value">{{ stats.lessons_completed }}</div>
+        <div class="pf-stat__label">{{ _('Уроков пройдено') }}</div>
+      </div>
+      <div class="pf-stat">
+        <div class="pf-stat__value">{{ stats.current_streak }}</div>
+        <div class="pf-stat__label">{{ _('Дней подряд') }}</div>
+      </div>
+      <div class="pf-stat">
+        <div class="pf-stat__value">{{ stats.longest_streak }}</div>
+        <div class="pf-stat__label">{{ _('Рекорд стрика') }}</div>
+      </div>
+      <div class="pf-stat">
+        <div class="pf-stat__value">{{ stats.xp_level }}</div>
+        <div class="pf-stat__label">{{ _('Уровень XP') }}</div>
+      </div>
+      <div class="pf-stat">
+        <div class="pf-stat__value">{{ stats.total_xp }}</div>
+        <div class="pf-stat__label">{{ _('Всего XP') }}</div>
+      </div>
     </div>
   </div>
 
+  {# Profile Info #}
   <div class="pf-card">
-    <h2 class="pf-card__title">Публичный профиль</h2>
-    <p style="font-size: 0.85rem; color: var(--pf-text-muted); margin: 0 0 0.75rem;">Ваша публичная страница с достижениями и статистикой:</p>
-    <div class="pf-url">https://llt-english.com/u/{{ user.username }}</div>
+    <h2 class="pf-card__title">{{ _('Профиль') }}</h2>
+    <div class="pf-field">
+      <span class="pf-field__label">{{ _('Имя пользователя') }}</span>
+      <span class="pf-field__value">{{ user.username }}</span>
+    </div>
+    <div class="pf-field">
+      <span class="pf-field__label">{{ _('Email') }}</span>
+      <span class="pf-field__value">{{ user.email or '—' }}</span>
+    </div>
+  </div>
+
+  {# Account Info #}
+  <div class="pf-card">
+    <h2 class="pf-card__title">{{ _('Аккаунт') }}</h2>
+    <div class="pf-field">
+      <span class="pf-field__label">{{ _('Дата регистрации') }}</span>
+      <span class="pf-field__value">{{ user.created_at.strftime('%d.%m.%Y') if user.created_at else '—' }}</span>
+    </div>
+    <div class="pf-field">
+      <span class="pf-field__label">{{ _('Последний вход') }}</span>
+      <span class="pf-field__value">{{ user.last_login.strftime('%d.%m.%Y %H:%M') if user.last_login else '—' }}</span>
+    </div>
+    <div class="pf-field">
+      <span class="pf-field__label">{{ _('Возраст аккаунта') }}</span>
+      <span class="pf-field__value">{{ account_age_days }} {{ _('дней') }}</span>
+    </div>
+  </div>
+
+  {# Settings: Timezone & Daily Goal #}
+  <div class="pf-card">
+    <h2 class="pf-card__title">{{ _('Настройки') }}</h2>
+    <form method="POST" action="{{ url_for('auth.profile_update') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="section" value="settings">
+      <div class="pf-field">
+        <label class="pf-field__label" for="timezone">{{ _('Часовой пояс') }}</label>
+        <select name="timezone" id="timezone" class="pf-select">
+          {% for tz in timezone_choices %}
+          <option value="{{ tz }}" {% if user.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="pf-field">
+        <label class="pf-field__label" for="daily_goal_minutes">{{ _('Ежедневная цель (минут)') }}</label>
+        <input type="number" name="daily_goal_minutes" id="daily_goal_minutes"
+               class="pf-input" min="5" max="120" step="5"
+               value="{{ user.daily_goal_minutes or 15 }}">
+      </div>
+      <button type="submit" class="pf-btn">{{ _('Сохранить') }}</button>
+    </form>
+  </div>
+
+  {# Notification Preferences #}
+  <div class="pf-card">
+    <h2 class="pf-card__title">{{ _('Уведомления') }}</h2>
+    <form method="POST" action="{{ url_for('auth.profile_update') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="section" value="notifications">
+      <div class="pf-toggle">
+        <label class="pf-toggle__label" for="notify_email_reminders">{{ _('Email-напоминания') }}</label>
+        <input type="checkbox" name="notify_email_reminders" id="notify_email_reminders"
+               {% if user.notify_email_reminders %}checked{% endif %}>
+      </div>
+      <div class="pf-toggle">
+        <label class="pf-toggle__label" for="notify_in_app_achievements">{{ _('Достижения') }}</label>
+        <input type="checkbox" name="notify_in_app_achievements" id="notify_in_app_achievements"
+               {% if user.notify_in_app_achievements %}checked{% endif %}>
+      </div>
+      <div class="pf-toggle">
+        <label class="pf-toggle__label" for="notify_in_app_streaks">{{ _('Стрик-уведомления') }}</label>
+        <input type="checkbox" name="notify_in_app_streaks" id="notify_in_app_streaks"
+               {% if user.notify_in_app_streaks %}checked{% endif %}>
+      </div>
+      <div class="pf-toggle">
+        <label class="pf-toggle__label" for="notify_in_app_weekly">{{ _('Еженедельный отчёт') }}</label>
+        <input type="checkbox" name="notify_in_app_weekly" id="notify_in_app_weekly"
+               {% if user.notify_in_app_weekly %}checked{% endif %}>
+      </div>
+      <button type="submit" class="pf-btn">{{ _('Сохранить') }}</button>
+    </form>
+  </div>
+
+  {# Public Profile #}
+  <div class="pf-card">
+    <h2 class="pf-card__title">{{ _('Публичный профиль') }}</h2>
+    <p style="font-size: 0.85rem; color: var(--pf-text-muted); margin: 0 0 0.75rem;">{{ _('Ваша публичная страница с достижениями и статистикой:') }}</p>
+    <div class="pf-url">{{ url_for('auth.public_profile', username=user.username, _external=True) }}</div>
     <div style="margin-top: 0.75rem;">
       <a href="{{ url_for('auth.public_profile', username=user.username) }}" class="pf-link">
-        <span class="pf-link__icon">👤</span> Открыть публичный профиль
+        <span class="pf-link__icon">👤</span> {{ _('Открыть публичный профиль') }}
         <span class="pf-link__arrow">&rsaquo;</span>
       </a>
     </div>
   </div>
 
+  {# Links #}
   <div class="pf-card">
-    <h2 class="pf-card__title">Ссылки</h2>
+    <h2 class="pf-card__title">{{ _('Ссылки') }}</h2>
     <a href="{{ url_for('auth.referrals') }}" class="pf-link">
-      <span class="pf-link__icon">👥</span> Пригласить друзей (+100 XP)
+      <span class="pf-link__icon">👥</span> {{ _('Пригласить друзей (+100 XP)') }}
       <span class="pf-link__arrow">&rsaquo;</span>
     </a>
     <a href="{{ url_for('auth.public_streak', username=user.username) }}" class="pf-link">
-      <span class="pf-link__icon">🔥</span> Страница стрика
+      <span class="pf-link__icon">🔥</span> {{ _('Страница стрика') }}
       <span class="pf-link__arrow">&rsaquo;</span>
     </a>
     <a href="{{ url_for('auth.change_password') }}" class="pf-link">
-      <span class="pf-link__icon">🔑</span> Изменить пароль
+      <span class="pf-link__icon">🔑</span> {{ _('Изменить пароль') }}
       <span class="pf-link__arrow">&rsaquo;</span>
     </a>
   </div>

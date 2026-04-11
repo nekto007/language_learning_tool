@@ -57,6 +57,38 @@
     <span>{{ topic.title }}</span>
   </nav>
 
+  <!-- Previous/Next Navigation -->
+  {% if prev_topic or next_topic %}
+  <div class="topic-nav-adjacent">
+    {% if prev_topic %}
+    <a href="{{ url_for('grammar_lab.topic_detail', topic_id=prev_topic.id) }}" class="topic-nav-adjacent__link topic-nav-adjacent__link--prev">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      <span class="topic-nav-adjacent__text">
+        <span class="topic-nav-adjacent__label">Предыдущая</span>
+        <span class="topic-nav-adjacent__title">{{ prev_topic.title }}</span>
+      </span>
+    </a>
+    {% else %}
+    <div></div>
+    {% endif %}
+    {% if next_topic %}
+    <a href="{{ url_for('grammar_lab.topic_detail', topic_id=next_topic.id) }}" class="topic-nav-adjacent__link topic-nav-adjacent__link--next">
+      <span class="topic-nav-adjacent__text">
+        <span class="topic-nav-adjacent__label">Следующая</span>
+        <span class="topic-nav-adjacent__title">{{ next_topic.title }}</span>
+      </span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </a>
+    {% else %}
+    <div></div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <!-- Hero -->
   <div class="topic-hero topic-hero--{{ topic.level[0]|lower }}">
     <div class="topic-hero__bg-shapes">
@@ -136,6 +168,14 @@
             </svg>
             Изучено
           </span>
+          {% endif %}
+          {% if topic.exercise_count and topic.exercise_count > 0 %}
+          <a href="#practice" class="topic-card__jump-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M7 13l5 5 5-5M7 6l5 5 5-5"/>
+            </svg>
+            К упражнениям
+          </a>
           {% endif %}
         </div>
 
@@ -1551,7 +1591,104 @@
     gap: 0.75rem;
   }
 
-  
+
+}
+
+/* ============================================
+   Previous/Next Topic Navigation
+   ============================================ */
+
+.topic-nav-adjacent {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.topic-nav-adjacent__link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--grammar-surface);
+  border: 1px solid var(--grammar-border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--grammar-text);
+  transition: all 0.2s;
+  max-width: 48%;
+}
+
+.topic-nav-adjacent__link:hover {
+  border-color: var(--grammar-primary);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.1);
+}
+
+.topic-nav-adjacent__link--next {
+  margin-left: auto;
+  text-align: right;
+}
+
+.topic-nav-adjacent__link svg {
+  color: var(--grammar-primary);
+  flex-shrink: 0;
+}
+
+.topic-nav-adjacent__text {
+  min-width: 0;
+}
+
+.topic-nav-adjacent__label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--grammar-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.topic-nav-adjacent__title {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--grammar-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Jump to exercises link */
+.topic-card__jump-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--grammar-primary);
+  text-decoration: none;
+  font-weight: 500;
+  margin-left: 0.75rem;
+  transition: all 0.2s;
+}
+
+.topic-card__jump-link:hover {
+  text-decoration: underline;
+  color: var(--grammar-primary-dark);
+}
+
+@media (max-width: 600px) {
+  .topic-nav-adjacent {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .topic-nav-adjacent__link {
+    max-width: 100%;
+  }
+
+  .topic-nav-adjacent__link--next {
+    text-align: left;
+    flex-direction: row-reverse;
+  }
 }
 </style>
 {% endblock %}

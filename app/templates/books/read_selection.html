@@ -46,7 +46,12 @@
           {% if book.cover_image %}
           <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}"
                alt="{{ book.title }}"
-               class="rs-card__cover-img">
+               class="rs-card__cover-img"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+          <div class="rs-card__cover-placeholder" style="display:none;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
+            <span>{{ _('Нет обложки') }}</span>
+          </div>
           {% else %}
           <div class="rs-card__cover-placeholder">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
@@ -63,15 +68,15 @@
 
           <div class="rs-card__progress">
             <div class="rs-card__progress-bar">
-              <div class="rs-card__progress-fill" style="width: {{ (progress.position / 1000) }}%"></div>
+              <div class="rs-card__progress-fill" style="width: {{ progress.progress_pct }}%"></div>
             </div>
             <div class="rs-card__progress-info">
-              <span>{{ _('Прогресс') }}</span>
-              <span>{{ progress.last_read.strftime('%b %d') }}</span>
+              <span>{{ progress.progress_pct }}%</span>
+              <span>{{ progress.last_read.strftime('%b %d') if progress.last_read else '' }}</span>
             </div>
           </div>
 
-          <a href="{{ url_for('books.read_book', book_id=book.id) }}"
+          <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}{% if progress.last_chapter_num %}?chapter={{ progress.last_chapter_num }}{% endif %}"
              class="rs-card__btn rs-card__btn--continue">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             {{ _('Продолжить') }}
@@ -102,6 +107,7 @@
     {% if all_books %}
     <div class="rs-grid" id="booksGrid">
       {% for book in all_books %}
+      {% set bp = book_progress.get(book.id) if book_progress else None %}
       <div class="rs-card book-item"
            data-title="{{ book.title.lower() }}"
            data-author="{{ book.author.lower() if book.author else '' }}">
@@ -109,7 +115,12 @@
           {% if book.cover_image %}
           <img src="{{ url_for('uploads.serve_cover', filename=book.cover_image.split('/')[-1]) }}"
                alt="{{ book.title }}"
-               class="rs-card__cover-img">
+               class="rs-card__cover-img"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+          <div class="rs-card__cover-placeholder" style="display:none;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
+            <span>{{ _('Нет обложки') }}</span>
+          </div>
           {% else %}
           <div class="rs-card__cover-placeholder">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
@@ -128,11 +139,28 @@
           <span class="rs-card__level">{{ book.level }}</span>
           {% endif %}
 
+          {% if bp %}
+          <div class="rs-card__progress">
+            <div class="rs-card__progress-bar">
+              <div class="rs-card__progress-fill" style="width: {{ bp.progress_pct }}%"></div>
+            </div>
+            <div class="rs-card__progress-info">
+              <span>{{ bp.progress_pct }}%</span>
+              <span>{{ bp.last_read.strftime('%b %d') if bp.last_read else '' }}</span>
+            </div>
+          </div>
+          <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}{% if bp.last_chapter_num %}?chapter={{ bp.last_chapter_num }}{% endif %}"
+             class="rs-card__btn rs-card__btn--continue">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            {{ _('Продолжить') }}
+          </a>
+          {% else %}
           <a href="{{ url_for('books.read_book', book_id=book.id) }}"
              class="rs-card__btn rs-card__btn--read">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
             {{ _('Начать чтение') }}
           </a>
+          {% endif %}
         </div>
       </div>
       {% endfor %}
@@ -142,8 +170,8 @@
       <div class="rs-empty__icon">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
       </div>
-      <h3 class="rs-empty__title">{{ _('Нет доступных книг') }}</h3>
-      <p class="rs-empty__desc">{{ _('Книги с содержимым появятся здесь.') }}</p>
+      <h3 class="rs-empty__title">{{ _('Нет доступных книг для вашего уровня') }}</h3>
+      <p class="rs-empty__desc">{{ _('Попробуйте изменить фильтр уровня или воспользуйтесь поиском выше.') }}</p>
     </div>
     {% endif %}
   </section>

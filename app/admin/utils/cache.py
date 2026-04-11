@@ -2,15 +2,20 @@
 
 """
 Кэширование для административной панели LLT English
+
+Bounded in-memory cache with LRU eviction and periodic expired-entry cleanup.
 """
 import logging
+from collections import OrderedDict
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-# Простое in-memory кэширование для статистики
-_cache = {}
+MAX_CACHE_SIZE = 100
 _cache_timeout = 300  # 5 минут (по умолчанию)
+
+# OrderedDict for LRU ordering: most-recently-used entries move to the end
+_cache: OrderedDict = OrderedDict()
 
 
 def get_cache(key, timeout=_cache_timeout):
@@ -26,7 +31,9 @@ def get_cache(key, timeout=_cache_timeout):
     """
     if key in _cache:
         cached_data, cached_time = _cache[key]
-        if (datetime.now(timezone.utc) - cached_time).seconds < timeout:
+        if (datetime.now(timezone.utc) - cached_time).total_seconds() < timeout:
+            # Move to end (most recently used)
+            _cache.move_to_end(key)
             return cached_data
         else:
             # Удаляем устаревший кэш
@@ -36,18 +43,51 @@ def get_cache(key, timeout=_cache_timeout):
 
 def set_cache(key, value):
     """
-    Сохраняет значение в кэш
+    Сохраняет значение в кэш с LRU eviction when max_size exceeded.
 
     Args:
         key: Ключ кэша
         value: Значение для сохранения
     """
-    _cache[key] = (value, datetime.now(timezone.utc))
+    if key in _cache:
+        # Update existing: move to end
+        _cache[key] = (value, datetime.now(timezone.utc))
+        _cache.move_to_end(key)
+    else:
+        # Evict oldest entries if at capacity
+        while len(_cache) >= MAX_CACHE_SIZE:
+            evicted_key, _ = _cache.popitem(last=False)
+            logger.debug("Cache evicted key: %s (max_size=%d)", evicted_key, MAX_CACHE_SIZE)
+        _cache[key] = (value, datetime.now(timezone.utc))
+
+
+def cleanup_expired(timeout=_cache_timeout):
+    """
+    Удаляет все просроченные записи из кэша.
+
+    Вызывается периодически или вручную для предотвращения накопления
+    устаревших данных в памяти.
+
+    Args:
+        timeout: Время жизни записей в секундах
+
+    Returns:
+        Количество удалённых записей
+    """
+    now = datetime.now(timezone.utc)
+    expired_keys = [
+        key for key, (_, cached_time) in _cache.items()
+        if (now - cached_time).total_seconds() >= timeout
+    ]
+    for key in expired_keys:
+        del _cache[key]
+    if expired_keys:
+        logger.debug("Cleaned up %d expired cache entries", len(expired_keys))
+    return len(expired_keys)
 
 
 def clear_admin_cache():
     """Очищает административный кэш"""
-    global _cache
     _cache.clear()
     logger.info("Admin cache cleared")
 

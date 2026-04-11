@@ -236,6 +236,19 @@ def index():
         user_id=current_user.id, is_active=True
     ).first() is not None
 
+    # Find the most urgent deck (highest due count = learning + review)
+    most_urgent_deck = None
+    if my_decks:
+        best_due = -1
+        for deck in my_decks:
+            due = deck.learning_count + deck.review_count
+            if due > best_due:
+                best_due = due
+                most_urgent_deck = deck
+        # Only show if there are actually cards due
+        if best_due <= 0:
+            most_urgent_deck = None
+
     return render_template(
         'study/index.html',
         due_items_count=due_items_count,
@@ -247,6 +260,7 @@ def index():
         my_decks=my_decks,
         public_decks=public_decks,
         telegram_linked=telegram_linked,
+        most_urgent_deck=most_urgent_deck,
     )
 
 
@@ -1059,7 +1073,7 @@ def update_study_item():
         from app.achievements.streak_service import earn_daily_coin
         earn_daily_coin(current_user.id)
     except Exception:
-        pass  # don't fail card grading if coin logic errors
+        logger.exception("Failed to award daily coin for user %s", current_user.id)
 
     db.session.commit()
 
@@ -1131,6 +1145,11 @@ def complete_session():
         )
         user_xp = XPService.award_xp(current_user.id, xp_breakdown['total_xp'])
 
+        # Get streak info
+        from app.achievements.models import UserStatistics
+        user_stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
+        current_streak = user_stats.current_streak_days if user_stats else 0
+
         return jsonify({
             'success': True,
             'stats': {
@@ -1142,7 +1161,8 @@ def complete_session():
             },
             'xp_earned': xp_breakdown['total_xp'],
             'total_xp': user_xp.total_xp,
-            'level': user_xp.level
+            'level': user_xp.level,
+            'streak': current_streak,
         })
 
     return jsonify({'success': False, 'message': 'Invalid session'})
@@ -1154,6 +1174,11 @@ def complete_session():
 def stats():
     """Study statistics page"""
     stats = StatsService.get_user_stats(current_user.id)
+
+    # Charts data
+    accuracy_trend = StatsService.get_accuracy_trend(current_user.id)
+    mastered_over_time = StatsService.get_mastered_over_time(current_user.id)
+    study_heatmap = StatsService.get_study_heatmap(current_user.id)
 
     from app.telegram.models import TelegramUser
     telegram_linked = TelegramUser.query.filter_by(
@@ -1173,6 +1198,9 @@ def stats():
         learning_words=stats['learning'],
         mastered_words=stats['mastered'],
         telegram_linked=telegram_linked,
+        accuracy_trend=accuracy_trend,
+        mastered_over_time=mastered_over_time,
+        study_heatmap=study_heatmap,
     )
 
 

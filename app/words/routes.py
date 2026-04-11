@@ -328,6 +328,18 @@ def dashboard():
         + daily_summary.get('book_course_lessons_today', 0) * 30
     )
 
+    # === WEEKLY ANALYTICS (via insights_service — week-to-date, not lifetime) ===
+    from app.study.insights_service import get_weekly_summary
+    weekly_analytics = get_weekly_summary(current_user.id)
+
+    # === CONTINUE WHERE YOU LEFT OFF ===
+    from app.curriculum.service import get_user_active_lessons
+    active_lessons = get_user_active_lessons(current_user.id, limit=1)
+    continue_lesson = active_lessons[0] if active_lessons else None
+
+    # === GRAMMAR PROGRESS SUMMARY ===
+    grammar_user_stats = srs_stats_service.get_grammar_user_stats(current_user.id)
+
     # === WEEKLY CHALLENGE ===
     from app.achievements.weekly_challenge import get_weekly_challenge
     weekly_challenge = get_weekly_challenge(current_user.id)

@@ -133,7 +133,7 @@ def edit_topic(topic_id):
             try:
                 topic.content = json.loads(content_json) if content_json else {}
             except json.JSONDecodeError:
-                pass  # Keep existing content
+                logger.warning("Invalid JSON in grammar topic content, keeping existing")
 
             db.session.commit()
             flash('Topic updated successfully!', 'success')

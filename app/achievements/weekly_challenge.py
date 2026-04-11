@@ -1,8 +1,11 @@
 """Weekly challenge -- rotates every Monday, computed from existing data."""
+import logging
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from app.utils.db import db
+
+logger = logging.getLogger(__name__)
 
 
 def get_weekly_challenge(user_id: int) -> dict[str, Any]:
@@ -58,7 +61,7 @@ def _notify_challenge_completed(user_id: int, challenge: dict, week_start: date)
         )
         db.session.commit()
     except Exception:
-        pass
+        logger.exception("Failed to commit weekly challenge completion for user %s", user_id)
 
 
 def _count_progress(user_id: int, challenge_type: str, week_start: date) -> int:

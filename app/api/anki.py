@@ -84,7 +84,7 @@ def export_anki():
             try:
                 os.unlink(temp_path)
             except Exception:
-                pass
+                logger.exception("Failed to clean up temp file: %s", temp_path)
 
         logger.error(f'Anki export error: {e}', exc_info=True)
         return jsonify({

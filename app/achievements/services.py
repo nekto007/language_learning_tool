@@ -2,7 +2,7 @@
 """
 Service for managing lesson grades, user statistics, and achievement tracking
 """
-
+import logging
 from datetime import date, datetime, timezone
 from typing import Optional, Dict, List
 
@@ -11,6 +11,8 @@ from sqlalchemy import func
 from app.achievements.models import LessonGrade, UserStatistics
 from app.study.models import Achievement, UserAchievement, UserXP
 from app.utils.db import db
+
+logger = logging.getLogger(__name__)
 
 
 class GradingService:
@@ -229,7 +231,7 @@ class AchievementService:
                         from app.notifications.services import notify_achievement
                         notify_achievement(user_id, achievement.name, achievement.icon)
                     except Exception:
-                        pass
+                        logger.exception("Failed to send achievement notification for user %s", user_id)
 
         if newly_awarded:
             db.session.commit()
@@ -284,7 +286,7 @@ class AchievementService:
                         from app.notifications.services import notify_achievement
                         notify_achievement(user_id, achievement.name, achievement.icon)
                     except Exception:
-                        pass
+                        logger.exception("Failed to send streak achievement notification for user %s", user_id)
 
         if newly_awarded:
             db.session.commit()

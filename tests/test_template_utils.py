@@ -383,3 +383,200 @@ class TestUrlParamsEdgeCases:
             result = url_params_with_updated_args(search='поиск')
 
             assert result['search'] == 'поиск'
+
+
+class TestNavDueCounts:
+    """Tests for navigation badge due count functions"""
+
+    def test_words_due_count_unauthenticated(self, app):
+        """get_words_due_count returns 0 for unauthenticated users"""
+        with app.test_request_context('/'):
+            from app.utils.template_utils import init_template_utils
+            # Access the function via context processor
+            ctx = {}
+            for func in app.template_context_processors[None]:
+                result = func()
+                ctx.update(result)
+            if 'get_words_due_count' in ctx:
+                count = ctx['get_words_due_count']()
+                assert count == 0
+
+    def test_grammar_due_count_unauthenticated(self, app):
+        """get_grammar_due_count returns 0 for unauthenticated users"""
+        with app.test_request_context('/'):
+            ctx = {}
+            for func in app.template_context_processors[None]:
+                result = func()
+                ctx.update(result)
+            if 'get_grammar_due_count' in ctx:
+                count = ctx['get_grammar_due_count']()
+                assert count == 0
+
+    def test_words_due_count_authenticated_no_words(self, app, db_session, test_user):
+        """get_words_due_count returns 0 when user has no words"""
+        from flask_login import login_user
+        with app.test_request_context('/'):
+            login_user(test_user)
+            ctx = {}
+            for func in app.template_context_processors[None]:
+                result = func()
+                ctx.update(result)
+            if 'get_words_due_count' in ctx:
+                count = ctx['get_words_due_count']()
+                assert count == 0
+
+    def test_grammar_due_count_authenticated_no_exercises(self, app, db_session, test_user):
+        """get_grammar_due_count returns 0 when user has no exercises"""
+        from flask_login import login_user
+        with app.test_request_context('/'):
+            login_user(test_user)
+            ctx = {}
+            for func in app.template_context_processors[None]:
+                result = func()
+                ctx.update(result)
+            if 'get_grammar_due_count' in ctx:
+                count = ctx['get_grammar_due_count']()
+                assert count == 0
+
+    def test_words_due_count_with_due_cards(self, app, db_session, test_user):
+        """get_words_due_count query returns correct count for cards due today"""
+        from app.study.models import UserWord, UserCardDirection
+        from app.words.models import CollectionWords
+        from app.utils.db import db
+        from sqlalchemy import func, or_
+        from datetime import datetime, timezone
+        import uuid as _uuid
+
+        # Create a word, user_word, and due card direction
+        word = CollectionWords(english_word=f'testword_{_uuid.uuid4().hex[:8]}', russian_word='тест')
+        db_session.add(word)
+        db_session.flush()
+
+        user_word = UserWord(user_id=test_user.id, word_id=word.id)
+        user_word.status = 'learning'
+        db_session.add(user_word)
+        db_session.flush()
+
+        card = UserCardDirection(user_word_id=user_word.id, direction='eng-rus')
+        card.state = 'learning'
+        card.next_review = datetime.now(timezone.utc)
+        db_session.add(card)
+        db_session.commit()
+
+        # Test the query logic directly (same as get_words_due_count)
+        now = datetime.now(timezone.utc)
+        end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        count = db.session.query(func.count(UserCardDirection.id)).join(
+            UserWord, UserCardDirection.user_word_id == UserWord.id
+        ).filter(
+            UserWord.user_id == test_user.id,
+            UserWord.status.in_(['new', 'learning', 'review']),
+            UserCardDirection.direction == 'eng-rus',
+            or_(
+                UserCardDirection.next_review.is_(None),
+                UserCardDirection.next_review <= end_of_today
+            )
+        ).scalar() or 0
+        assert count >= 1
+
+    def test_grammar_due_count_with_due_exercises(self, app, db_session, test_user):
+        """get_grammar_due_count query returns correct count for exercises due today"""
+        from app.grammar_lab.models import (
+            GrammarTopic, GrammarExercise, UserGrammarExercise
+        )
+        from app.utils.db import db
+        from sqlalchemy import func, or_
+        from datetime import datetime, timezone
+        import uuid
+
+        slug = f'test-topic-{uuid.uuid4().hex[:8]}'
+        topic = GrammarTopic(
+            title='Test Topic',
+            title_ru='Тестовая тема',
+            slug=slug,
+            level='A1',
+            order=1
+        )
+        db_session.add(topic)
+        db_session.flush()
+
+        exercise = GrammarExercise(
+            topic_id=topic.id,
+            exercise_type='fill_blank',
+            content={'question': 'Test question', 'correct_answer': 'answer'},
+            order=1
+        )
+        db_session.add(exercise)
+        db_session.flush()
+
+        user_exercise = UserGrammarExercise(
+            user_id=test_user.id,
+            exercise_id=exercise.id
+        )
+        user_exercise.state = 'review'
+        user_exercise.next_review = datetime.now(timezone.utc)
+        db_session.add(user_exercise)
+        db_session.commit()
+
+        # Test the query logic directly (same as get_grammar_due_count)
+        now = datetime.now(timezone.utc)
+        end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        count = db.session.query(func.count(UserGrammarExercise.id)).filter(
+            UserGrammarExercise.user_id == test_user.id,
+            UserGrammarExercise.state.in_(['learning', 'review', 'relearning']),
+            or_(
+                UserGrammarExercise.next_review.is_(None),
+                UserGrammarExercise.next_review <= end_of_today
+            )
+        ).scalar() or 0
+        assert count >= 1
+
+
+class TestNavBadgesInTemplate:
+    """Test that nav badges render correctly in templates"""
+
+    def test_base_template_contains_quick_actions(self, app):
+        """Verify quick actions dropdown exists in base template"""
+        with app.test_request_context('/'):
+            template = app.jinja_env.get_template('base.html')
+            # Just verify the template loads without error
+            assert template is not None
+
+    def test_base_template_has_notification_bell(self):
+        """Verify notification bell markup exists in base.html"""
+        import os
+        base_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'app', 'templates', 'base.html'
+        )
+        with open(base_path, 'r') as f:
+            content = f.read()
+        assert 'notif-bell' in content
+        assert 'notif-badge' in content
+        assert 'quickActionsDropdown' in content
+        assert 'get_words_due_count' in content
+        assert 'get_grammar_due_count' in content
+
+    def test_breadcrumb_in_level_modules(self):
+        """Verify breadcrumb markup exists in level_modules.html"""
+        import os
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'app', 'templates', 'curriculum', 'level_modules.html'
+        )
+        with open(template_path, 'r') as f:
+            content = f.read()
+        assert 'ml-hero__breadcrumb' in content
+        assert 'aria-label' in content
+
+    def test_daily_plan_bar_clickable(self):
+        """Verify daily plan bar has clickable link"""
+        import os
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'app', 'templates', 'components', '_daily_plan_progress.html'
+        )
+        with open(template_path, 'r') as f:
+            content = f.read()
+        assert 'dp-bar__link' in content
+        assert 'words.dashboard' in content

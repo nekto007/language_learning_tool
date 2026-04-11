@@ -10,6 +10,22 @@ from datetime import datetime, timezone
 
 from flask import make_response
 
+MAX_EXPORT_ROWS = 10000
+
+
+def _sanitize_csv_cell(value) -> str:
+    """Prevent CSV injection by prefixing dangerous characters with apostrophe.
+
+    Characters =, +, -, @, \\t, \\r at the start of a cell can trigger
+    formula execution in Excel/Google Sheets.
+    """
+    if value is None:
+        return ''
+    s = str(value)
+    if s and s[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + s
+    return s
+
 
 # =============================================================================
 # Экспорт слов (Words)
@@ -44,7 +60,8 @@ def export_words_json(words, status=None):
 
 
 def export_words_csv(words, status=None):
-    """Экспорт слов в формате CSV"""
+    """Экспорт слов в формате CSV с защитой от CSV injection."""
+    words = words[:MAX_EXPORT_ROWS]  # Enforce limit
     output = io.StringIO()
     writer = csv.writer(output)
 
@@ -54,11 +71,15 @@ def export_words_csv(words, status=None):
         headers.append('Status')
     writer.writerow(headers)
 
-    # Данные
+    # Данные (sanitized)
     for word in words:
-        row = [word.english_word, word.russian_word, word.level if hasattr(word, 'level') else '']
+        row = [
+            _sanitize_csv_cell(word.english_word),
+            _sanitize_csv_cell(word.russian_word),
+            _sanitize_csv_cell(word.level if hasattr(word, 'level') else ''),
+        ]
         if hasattr(word, 'status'):
-            row.append(word.status)
+            row.append(_sanitize_csv_cell(word.status))
         writer.writerow(row)
 
     response = make_response(output.getvalue())
@@ -130,10 +151,10 @@ def export_audio_list_csv(words, pattern=None):
     # Заголовки
     writer.writerow(['English Word', 'Forvo URL'])
 
-    # Данные
-    for word in words:
+    # Данные (sanitized)
+    for word in words[:MAX_EXPORT_ROWS]:
         forvo_url = f"https://forvo.com/word/{word}/#en"
-        writer.writerow([word, forvo_url])
+        writer.writerow([_sanitize_csv_cell(word), forvo_url])
 
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'text/csv; charset=utf-8'

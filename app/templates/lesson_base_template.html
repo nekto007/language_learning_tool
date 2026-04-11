@@ -255,6 +255,73 @@
   border-color: #cbd5e1;
 }
 
+/* ── Auto-save Toast ── */
+.lsn-save-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--lsn-success);
+  color: #fff;
+  border-radius: var(--lsn-radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.lsn-save-toast--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Lesson Completion Confirmation ── */
+.lsn-completion {
+  text-align: center;
+  padding: 2rem 1rem;
+  animation: lsnSlideUp 0.5s ease-out;
+}
+
+.lsn-completion__icon {
+  color: var(--lsn-success);
+  margin-bottom: 1rem;
+}
+
+.lsn-completion__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--lsn-text);
+  margin: 0 0 0.75rem;
+}
+
+.lsn-completion__grade {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--lsn-primary);
+  margin-bottom: 0.25rem;
+}
+
+.lsn-completion__score {
+  font-size: 0.9375rem;
+  color: var(--lsn-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.lsn-completion__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 /* ── Responsive ── */
 @media (max-width: 640px) {
   .lsn-page {
@@ -352,6 +419,36 @@
     {% block lesson_content %}{% endblock %}
   </div>
 
+  <!-- Auto-save Toast -->
+  <div class="lsn-save-toast" id="save-toast" aria-live="polite" aria-atomic="true">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    <span>{{ _('Прогресс сохранён') }}</span>
+  </div>
+
+  <!-- Lesson Completion Confirmation -->
+  <div class="lsn-completion" id="lesson-completion" style="display: none;">
+    <div class="lsn-completion__icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+    </div>
+    <h3 class="lsn-completion__title">{{ _('Урок завершён!') }}</h3>
+    <div class="lsn-completion__grade" id="completion-grade"></div>
+    <div class="lsn-completion__score" id="completion-score"></div>
+    <div class="lsn-completion__actions" id="completion-actions">
+      {% if next_lesson %}
+        <a href="/learn/{{ next_lesson.id }}/" class="lsn-btn lsn-btn--primary">
+          {{ _('Следующий урок') }}
+          <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      {% endif %}
+      <a href="/learn/" class="lsn-btn lsn-btn--outline">
+        {{ _('К урокам') }}
+      </a>
+    </div>
+  </div>
+
   <!-- Daily Plan Next Step (after content, before footer) -->
   <div id="daily-plan-next-step" style="max-width:800px;margin:0.75rem auto 0;padding:0 1rem;"></div>
 
@@ -396,6 +493,35 @@
 
 <!-- CSRF Token Meta -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
+<script>
+// Auto-save toast helper
+window.showSaveToast = function() {
+  var toast = document.getElementById('save-toast');
+  if (!toast) return;
+  toast.classList.add('lsn-save-toast--visible');
+  clearTimeout(window._saveToastTimer);
+  window._saveToastTimer = setTimeout(function() {
+    toast.classList.remove('lsn-save-toast--visible');
+  }, 2000);
+};
+
+// Lesson completion confirmation helper
+window.showLessonCompletion = function(opts) {
+  opts = opts || {};
+  var el = document.getElementById('lesson-completion');
+  if (!el) return;
+  var gradeEl = document.getElementById('completion-grade');
+  var scoreEl = document.getElementById('completion-score');
+  if (gradeEl && opts.grade_name) {
+    gradeEl.textContent = opts.grade_name;
+  }
+  if (scoreEl && opts.score !== undefined) {
+    scoreEl.textContent = Math.round(opts.score) + '%';
+  }
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+</script>
 <script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>
 <script>
 // Dispatch daily plan event when lesson completion buttons become visible

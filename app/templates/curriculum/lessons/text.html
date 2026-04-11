@@ -1024,9 +1024,12 @@ function initReadingProgress() {
         if (response.ok) {
           const responseData = await response.json();
           if (responseData.success) {
+            if (typeof showSaveToast === 'function') showSaveToast();
+            if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: 100 });
+
             // Показываем результаты завершения
             showCompletionResults();
-            
+
             // Показываем кнопки навигации в lesson-footer
             const nextBtn = document.getElementById('complete-exercise');
             const completeModuleBtn = document.getElementById('complete-module');
