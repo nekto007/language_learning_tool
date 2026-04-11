@@ -830,7 +830,7 @@
             </div>
             <div class="dash-sparkline">
                 {% for point in reading_speed_trend %}
-                <div class="dash-sparkline__bar{% if loop.last %} dash-sparkline__bar--current{% endif %}" style="height: {{ (point.avg_wpm / max_wpm * 100)|round(0)|int }}%" title="{{ point.week }}: {{ point.avg_wpm|round(1) }} сл/мин"></div>
+                <div class="dash-sparkline__bar{% if loop.last %} dash-sparkline__bar--current{% endif %}" style="height: {{ (point.avg_wpm / max_wpm * 100)|round(0)|int if max_wpm else 0 }}%" title="{{ point.week }}: {{ point.avg_wpm|round(1) }} сл/мин"></div>
                 {% endfor %}
             </div>
             <div class="dash-reading-speed__labels">
