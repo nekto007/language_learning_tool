@@ -471,7 +471,7 @@
                     {%- set ns = namespace(last_month='') -%}
                     {%- for day in activity_heatmap -%}
                         {%- set month_name = day.date[5:7] -%}
-                        {%- if month_name != ns.last_month and (loop.index0 + heatmap_pad|default(0)) % 7 == 0 -%}
+                        {%- if month_name != ns.last_month -%}
                             <span style="grid-column: {{ ((loop.index0 + heatmap_pad|default(0)) // 7) + 1 }}">{{ month_names[month_name] }}</span>
                             {%- set ns.last_month = month_name -%}
                         {%- endif -%}

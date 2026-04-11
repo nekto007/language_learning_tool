@@ -1064,7 +1064,8 @@ class TestDashboardPerformance:
              patch('app.study.services.session_service.SessionService.get_session_stats', side_effect=Exception("session error")), \
              patch('app.study.services.stats_service.StatsService.get_xp_leaderboard', side_effect=Exception("leaderboard error")), \
              patch('app.study.services.stats_service.StatsService.get_user_xp_rank', side_effect=Exception("rank error")), \
-             patch('app.study.services.stats_service.StatsService.get_achievements_by_category', side_effect=Exception("achievements error")):
+             patch('app.study.services.stats_service.StatsService.get_achievements_by_category', side_effect=Exception("achievements error")), \
+             patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', side_effect=Exception("grammar levels error")):
             response = client.get('/dashboard')
             # Dashboard should still render even with all widget failures
             assert response.status_code == 200
