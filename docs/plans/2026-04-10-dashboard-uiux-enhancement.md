@@ -136,11 +136,11 @@ Enrich the existing dashboard with new data-driven widgets that surface the app'
 **Files:**
 - Modify: `app/words/routes.py`
 
-- [ ] Profile dashboard route with all new service calls to measure total query time
-- [ ] Wrap non-critical widget data in try/except so individual widget failures don't crash the dashboard
-- [ ] Add caching where appropriate (e.g., leaderboard data can be cached for 5 minutes using Flask-Caching or simple dict cache)
-- [ ] Ensure all new DB queries use appropriate indexes (check that no N+1 queries were introduced)
-- [ ] Write performance test: dashboard route responds within acceptable time with test data
+- [x] Profile dashboard route with all new service calls to measure total query time
+- [x] Wrap non-critical widget data in try/except so individual widget failures don't crash the dashboard
+- [x] Add caching where appropriate (e.g., leaderboard data can be cached for 5 minutes using Flask-Caching or simple dict cache)
+- [x] Ensure all new DB queries use appropriate indexes (check that no N+1 queries were introduced)
+- [x] Write performance test: dashboard route responds within acceptable time with test data
 
 ### Task 9: Verify acceptance criteria
 

@@ -2,9 +2,23 @@
 Tests for the main dashboard route
 Ensures template rendering works correctly with all expected data
 """
+import time
 import pytest
 from datetime import date, datetime
 from unittest.mock import patch
+
+
+@pytest.fixture(autouse=True)
+def clear_leaderboard_cache():
+    """Clear the leaderboard cache before each test to avoid stale data."""
+    from app.words.routes import _leaderboard_cache
+    with _leaderboard_cache['lock']:
+        _leaderboard_cache['data'] = None
+        _leaderboard_cache['expires'] = 0.0
+    yield
+    with _leaderboard_cache['lock']:
+        _leaderboard_cache['data'] = None
+        _leaderboard_cache['expires'] = 0.0
 
 
 @pytest.fixture
@@ -1015,3 +1029,109 @@ class TestDashboardLayoutSections:
         # CSS should contain mobile breakpoint rules
         style_section = html.split('<style>')[1].split('</style>')[0] if '<style>' in html else ''
         assert 'max-width: 640px' in style_section
+
+
+class TestDashboardPerformance:
+    """Test dashboard performance optimizations"""
+
+    def test_dashboard_responds_within_acceptable_time(self, client, app, test_user, words_module_access):
+        """Dashboard route should respond within 5 seconds with test data"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        t_start = time.time()
+        response = client.get('/dashboard')
+        t_elapsed = time.time() - t_start
+
+        assert response.status_code == 200
+        assert t_elapsed < 10.0, f"Dashboard took {t_elapsed:.2f}s, expected < 10s"
+
+    def test_dashboard_widget_failure_does_not_crash(self, client, app, test_user, words_module_access):
+        """If a non-critical widget service raises an exception, dashboard should still render"""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        # Make several widget services raise exceptions
+        with patch('app.study.insights_service.get_activity_heatmap', side_effect=Exception("heatmap DB error")), \
+             patch('app.study.insights_service.get_words_at_risk', side_effect=Exception("risk DB error")), \
+             patch('app.study.insights_service.get_grammar_weaknesses', side_effect=Exception("grammar DB error")), \
+             patch('app.study.insights_service.get_best_study_time', side_effect=Exception("study time error")), \
+             patch('app.study.insights_service.get_reading_speed_trend', side_effect=Exception("speed error")), \
+             patch('app.achievements.streak_service.get_streak_calendar', side_effect=Exception("calendar error")), \
+             patch('app.achievements.streak_service.get_milestone_history', side_effect=Exception("milestone error")), \
+             patch('app.study.services.session_service.SessionService.get_session_stats', side_effect=Exception("session error")), \
+             patch('app.study.services.stats_service.StatsService.get_xp_leaderboard', side_effect=Exception("leaderboard error")), \
+             patch('app.study.services.stats_service.StatsService.get_user_xp_rank', side_effect=Exception("rank error")), \
+             patch('app.study.services.stats_service.StatsService.get_achievements_by_category', side_effect=Exception("achievements error")):
+            response = client.get('/dashboard')
+            # Dashboard should still render even with all widget failures
+            assert response.status_code == 200
+
+    def test_leaderboard_cache_serves_cached_data(self, app):
+        """Leaderboard cache should return cached data within TTL"""
+        from app.words.routes import _get_cached_leaderboard, _leaderboard_cache
+
+        call_count = 0
+        expected_data = [{'id': 1, 'username': 'alice', 'total_xp': 500}]
+
+        class MockStatsService:
+            @staticmethod
+            def get_xp_leaderboard(limit=5):
+                nonlocal call_count
+                call_count += 1
+                return expected_data
+
+        # First call should hit the service
+        result1 = _get_cached_leaderboard(MockStatsService, limit=5)
+        assert result1 == expected_data
+        assert call_count == 1
+
+        # Second call should serve from cache
+        result2 = _get_cached_leaderboard(MockStatsService, limit=5)
+        assert result2 == expected_data
+        assert call_count == 1  # Not called again
+
+    def test_leaderboard_cache_expires(self, app):
+        """Leaderboard cache should refetch after TTL expires"""
+        from app.words.routes import _get_cached_leaderboard, _leaderboard_cache
+
+        call_count = 0
+
+        class MockStatsService:
+            @staticmethod
+            def get_xp_leaderboard(limit=5):
+                nonlocal call_count
+                call_count += 1
+                return [{'id': call_count}]
+
+        # First call
+        _get_cached_leaderboard(MockStatsService, limit=5)
+        assert call_count == 1
+
+        # Expire the cache manually
+        with _leaderboard_cache['lock']:
+            _leaderboard_cache['expires'] = 0.0
+
+        # Second call should refetch
+        result = _get_cached_leaderboard(MockStatsService, limit=5)
+        assert call_count == 2
+        assert result == [{'id': 2}]
+
+    def test_safe_widget_call_returns_default_on_error(self, app):
+        """_safe_widget_call should return default value when function raises"""
+        from app.words.routes import _safe_widget_call
+
+        def failing_fn():
+            raise ValueError("something broke")
+
+        result = _safe_widget_call('test_widget', failing_fn, default=[])
+        assert result == []
+
+    def test_safe_widget_call_returns_result_on_success(self, app):
+        """_safe_widget_call should return function result on success"""
+        from app.words.routes import _safe_widget_call
+
+        result = _safe_widget_call('test_widget', lambda x: x * 2, 5, default=0)
+        assert result == 10

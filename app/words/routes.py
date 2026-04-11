@@ -1,3 +1,7 @@
+import logging
+import time
+import threading
+
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
@@ -8,6 +12,12 @@ from app.utils.db import db
 from app.words.forms import WordFilterForm, WordSearchForm
 from app.words.models import CollectionWords, Topic
 from app.modules.decorators import module_required
+
+logger = logging.getLogger(__name__)
+
+
+# Simple TTL cache for leaderboard data (shared across requests)
+_leaderboard_cache: dict = {'data': None, 'expires': 0.0, 'lock': threading.Lock()}
 
 words = Blueprint('words', __name__)
 
@@ -102,11 +112,37 @@ def _process_referral_reward_on_first_visit(user) -> None:
         db.session.rollback()
 
 
+def _safe_widget_call(name: str, fn, *args, default=None, **kwargs):
+    """Call a widget data function safely, returning default on failure."""
+    try:
+        return fn(*args, **kwargs)
+    except Exception:
+        logger.exception("Dashboard widget '%s' failed", name)
+        return default
+
+
+def _get_cached_leaderboard(stats_service_cls, limit: int = 5):
+    """Return leaderboard data with 5-minute TTL cache."""
+    now = time.time()
+    cache = _leaderboard_cache
+    with cache['lock']:
+        if cache['data'] is not None and now < cache['expires']:
+            return cache['data']
+    # Fetch outside lock to avoid holding it during DB query
+    data = stats_service_cls.get_xp_leaderboard(limit=limit)
+    with cache['lock']:
+        cache['data'] = data
+        cache['expires'] = now + 300  # 5 minutes
+    return data
+
+
 @words.route('/dashboard')
 @login_required
 @module_required('words')
 def dashboard():
     """Main dashboard with daily plan, streak and activity summary."""
+    t_start = time.time()
+
     # Process deferred referral reward on first visit
     _process_referral_reward_on_first_visit(current_user)
 
@@ -172,28 +208,48 @@ def dashboard():
 
     # === ACTIVITY HEATMAP & STREAK CALENDAR ===
     tz = 'Europe/Moscow'
-    activity_heatmap = get_activity_heatmap(current_user.id, days=90)
-    streak_calendar = get_streak_calendar(current_user.id, days=90, tz=tz)
+    activity_heatmap = _safe_widget_call(
+        'activity_heatmap', get_activity_heatmap, current_user.id, days=90, default=[])
+    streak_calendar = _safe_widget_call(
+        'streak_calendar', get_streak_calendar, current_user.id, days=90, tz=tz, default={})
 
     # === WORDS AT RISK & GRAMMAR WEAKNESSES ===
-    words_at_risk = get_words_at_risk(current_user.id, limit=5)
-    grammar_weaknesses = get_grammar_weaknesses(current_user.id, limit=5)
+    words_at_risk = _safe_widget_call(
+        'words_at_risk', get_words_at_risk, current_user.id, limit=5, default=[])
+    grammar_weaknesses = _safe_widget_call(
+        'grammar_weaknesses', get_grammar_weaknesses, current_user.id, limit=5, default=[])
 
     # === BEST STUDY TIME & SESSION STATS ===
-    best_study_time = get_best_study_time(current_user.id)
-    session_stats = SessionService.get_session_stats(current_user.id, days=7)
+    best_study_time = _safe_widget_call(
+        'best_study_time', get_best_study_time, current_user.id,
+        default={'best_hour': None, 'hourly_scores': {}})
+    _empty_session_stats = {
+        'period_days': 7, 'total_sessions': 0, 'total_words_studied': 0,
+        'total_correct': 0, 'total_incorrect': 0, 'accuracy_percent': 0,
+        'total_time_seconds': 0, 'avg_session_time_seconds': 0,
+    }
+    session_stats = _safe_widget_call(
+        'session_stats', SessionService.get_session_stats, current_user.id, days=7,
+        default=_empty_session_stats)
 
-    # === LEADERBOARD & XP RANK ===
-    xp_leaderboard = StatsService.get_xp_leaderboard(limit=5)
-    user_xp_rank = StatsService.get_user_xp_rank(current_user.id)
+    # === LEADERBOARD & XP RANK (leaderboard cached for 5 min) ===
+    xp_leaderboard = _safe_widget_call(
+        'xp_leaderboard', _get_cached_leaderboard, StatsService, limit=5, default=[])
+    user_xp_rank = _safe_widget_call(
+        'user_xp_rank', StatsService.get_user_xp_rank, current_user.id, default=None)
 
     # === ACHIEVEMENTS BY CATEGORY & MILESTONES ===
-    achievements_by_category = StatsService.get_achievements_by_category(current_user.id)
-    milestone_history = get_milestone_history(current_user.id)
+    achievements_by_category = _safe_widget_call(
+        'achievements_by_category', StatsService.get_achievements_by_category, current_user.id, default=[])
+    milestone_history = _safe_widget_call(
+        'milestone_history', get_milestone_history, current_user.id, default=[])
 
     # === READING SPEED TREND & GRAMMAR BY LEVEL ===
-    reading_speed_trend = get_reading_speed_trend(current_user.id)
-    grammar_levels_summary = GrammarLabService().get_levels_summary(user_id=current_user.id)
+    reading_speed_trend = _safe_widget_call(
+        'reading_speed_trend', get_reading_speed_trend, current_user.id, default=[])
+    grammar_levels_summary = _safe_widget_call(
+        'grammar_levels_summary', lambda uid: GrammarLabService().get_levels_summary(user_id=uid),
+        current_user.id, default=[])
 
     # === WORDS STATS ===
     from app.srs.stats_service import srs_stats_service
@@ -285,6 +341,10 @@ def dashboard():
             user_id=current_user.id, is_active=True
         ).exists()
     ).scalar()
+
+    # === PERFORMANCE LOGGING ===
+    t_elapsed = time.time() - t_start
+    logger.info("Dashboard data loaded in %.3fs for user_id=%s", t_elapsed, current_user.id)
 
     return render_template('dashboard.html',
         # Daily plan
