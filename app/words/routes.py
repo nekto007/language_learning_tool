@@ -1,3 +1,7 @@
+import logging
+import time
+import threading
+
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
@@ -8,6 +12,12 @@ from app.utils.db import db
 from app.words.forms import WordFilterForm, WordSearchForm
 from app.words.models import CollectionWords, Topic
 from app.modules.decorators import module_required
+
+logger = logging.getLogger(__name__)
+
+
+# Simple TTL cache for leaderboard data (shared across requests)
+_leaderboard_cache: dict = {'data': None, 'expires': 0.0, 'lock': threading.Lock()}
 
 words = Blueprint('words', __name__)
 
@@ -102,11 +112,36 @@ def _process_referral_reward_on_first_visit(user) -> None:
         db.session.rollback()
 
 
+def _safe_widget_call(name: str, fn, *args, default=None, **kwargs):
+    """Call a widget data function safely, returning default on failure."""
+    try:
+        return fn(*args, **kwargs)
+    except Exception:
+        logger.exception("Dashboard widget '%s' failed", name)
+        db.session.rollback()
+        return default
+
+
+def _get_cached_leaderboard(stats_service_cls, limit: int = 5):
+    """Return leaderboard data with 5-minute TTL cache."""
+    cache = _leaderboard_cache
+    with cache['lock']:
+        now = time.time()
+        if cache['data'] is not None and now < cache['expires']:
+            return cache['data']
+        data = stats_service_cls.get_xp_leaderboard(limit=limit)
+        cache['data'] = data
+        cache['expires'] = time.time() + 300  # 5 minutes
+    return data
+
+
 @words.route('/dashboard')
 @login_required
 @module_required('words')
 def dashboard():
     """Main dashboard with daily plan, streak and activity summary."""
+    t_start = time.time()
+
     # Process deferred referral reward on first visit
     _process_referral_reward_on_first_visit(current_user)
 
@@ -116,6 +151,11 @@ def dashboard():
     from app.telegram.models import TelegramUser
     from app.telegram.queries import get_daily_plan_v2, get_current_streak, get_daily_summary
     from app.telegram.notifications import _lesson_minutes, _words_minutes
+    from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses, get_best_study_time, get_reading_speed_trend
+    from app.grammar_lab.services.grammar_lab_service import GrammarLabService
+    from app.study.services.session_service import SessionService
+    from app.study.services.stats_service import StatsService
+    from app.achievements.streak_service import get_streak_calendar, get_milestone_history
 
     # === DAILY PLAN & STREAK ===
     streak = get_current_streak(current_user.id)
@@ -164,6 +204,65 @@ def dashboard():
         lesson_minutes = _lesson_minutes(daily_plan['next_lesson'].get('lesson_type'))
 
     words_minutes = _words_minutes(daily_plan.get('words_due', 0))
+
+    # === ACTIVITY HEATMAP & STREAK CALENDAR ===
+    tz = 'Europe/Moscow'
+    activity_heatmap = _safe_widget_call(
+        'activity_heatmap', get_activity_heatmap, current_user.id, days=90, tz=tz, default=[])
+    # Show empty state if user has no activity (all counts zero)
+    if activity_heatmap and not any(d.get('count', 0) > 0 for d in activity_heatmap):
+        activity_heatmap = []
+    # Pad heatmap so first day aligns to correct weekday row.
+    # Grid rows: 0=Sun, 1=Mon, ..., 6=Sat. Python weekday: 0=Mon, ..., 6=Sun.
+    heatmap_pad = 0
+    if activity_heatmap:
+        try:
+            from datetime import date as _date
+            first_date = _date.fromisoformat(activity_heatmap[0]['date'])
+            # Convert Python weekday (Mon=0) to grid row (Sun=0): (wd + 1) % 7
+            heatmap_pad = (first_date.weekday() + 1) % 7
+        except (ValueError, KeyError, IndexError):
+            heatmap_pad = 0
+    streak_calendar = _safe_widget_call(
+        'streak_calendar', get_streak_calendar, current_user.id, days=90, tz=tz, default={})
+
+    # === WORDS AT RISK & GRAMMAR WEAKNESSES ===
+    words_at_risk = _safe_widget_call(
+        'words_at_risk', get_words_at_risk, current_user.id, limit=5, default=[])
+    grammar_weaknesses = _safe_widget_call(
+        'grammar_weaknesses', get_grammar_weaknesses, current_user.id, limit=5, default=[])
+
+    # === BEST STUDY TIME & SESSION STATS ===
+    best_study_time = _safe_widget_call(
+        'best_study_time', get_best_study_time, current_user.id, tz=tz,
+        default={'best_hour': None, 'hourly_scores': {}})
+    _empty_session_stats = {
+        'period_days': 7, 'total_sessions': 0, 'total_words_studied': 0,
+        'total_correct': 0, 'total_incorrect': 0, 'accuracy_percent': 0,
+        'total_time_seconds': 0, 'avg_session_time_seconds': 0,
+    }
+    session_stats = _safe_widget_call(
+        'session_stats', SessionService.get_session_stats, current_user.id, days=7,
+        default=_empty_session_stats)
+
+    # === LEADERBOARD & XP RANK (leaderboard cached for 5 min) ===
+    xp_leaderboard = _safe_widget_call(
+        'xp_leaderboard', _get_cached_leaderboard, StatsService, limit=5, default=[])
+    user_xp_rank = _safe_widget_call(
+        'user_xp_rank', StatsService.get_user_xp_rank, current_user.id, default=None)
+
+    # === ACHIEVEMENTS BY CATEGORY & MILESTONES ===
+    achievements_by_category = _safe_widget_call(
+        'achievements_by_category', StatsService.get_achievements_by_category, current_user.id, default={})
+    milestone_history = _safe_widget_call(
+        'milestone_history', get_milestone_history, current_user.id, default=[])
+
+    # === READING SPEED TREND & GRAMMAR BY LEVEL ===
+    reading_speed_trend = _safe_widget_call(
+        'reading_speed_trend', get_reading_speed_trend, current_user.id, default=[])
+    grammar_levels_summary = _safe_widget_call(
+        'grammar_levels_summary', lambda uid: GrammarLabService().get_levels_summary(user_id=uid),
+        current_user.id, default=[])
 
     # === WORDS STATS ===
     from app.srs.stats_service import srs_stats_service
@@ -268,6 +367,10 @@ def dashboard():
         ).exists()
     ).scalar()
 
+    # === PERFORMANCE LOGGING ===
+    t_elapsed = time.time() - t_start
+    logger.info("Dashboard data loaded in %.3fs for user_id=%s", t_elapsed, current_user.id)
+
     return render_template('dashboard.html',
         # Daily plan
         greeting=greeting,
@@ -314,10 +417,25 @@ def dashboard():
         # Personalization
         onboarding_focus=getattr(current_user, 'onboarding_focus', None),
         onboarding_level=getattr(current_user, 'onboarding_level', None),
-        # Weekly analytics
-        weekly_analytics=weekly_analytics,
-        continue_lesson=continue_lesson,
-        grammar_user_stats=grammar_user_stats,
+        # Activity heatmap
+        activity_heatmap=activity_heatmap,
+        heatmap_pad=heatmap_pad,
+        streak_calendar=streak_calendar,
+        # Words at risk & grammar weaknesses
+        words_at_risk=words_at_risk,
+        grammar_weaknesses=grammar_weaknesses,
+        # Best study time & session stats
+        best_study_time=best_study_time,
+        session_stats=session_stats,
+        # Leaderboard
+        xp_leaderboard=xp_leaderboard,
+        user_xp_rank=user_xp_rank,
+        # Achievements by category & milestones
+        achievements_by_category=achievements_by_category,
+        milestone_history=milestone_history,
+        # Reading speed trend & grammar by level
+        reading_speed_trend=reading_speed_trend,
+        grammar_levels_summary=grammar_levels_summary,
     )
 
 
@@ -672,7 +790,7 @@ def daily_plan_next_step() -> tuple:
     })
 
 
-@words.route('/api/streak/repair', methods=['POST'])
+@words.route('/api/streak/repair-web', methods=['POST'])
 @login_required
 def streak_repair_web():
     """Session-based streak repair for web dashboard."""

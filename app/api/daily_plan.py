@@ -91,14 +91,20 @@ def daily_summary():
         tz (str): User timezone. Default: 'Europe/Moscow'.
 
     Returns JSON:
-        lessons_completed: Number of lessons completed today
+        lessons_count: Number of lessons completed today
         lesson_types: Types of completed lessons
         words_reviewed: Number of words reviewed today
-        new_words_learned: Number of new words learned today
+        srs_words_reviewed: Total SRS words reviewed
+        srs_new_reviewed: New SRS words reviewed
+        srs_review_reviewed: Review SRS words reviewed
         grammar_exercises: Number of grammar exercises done today
-        chapters_read: Number of book chapters read today
-        streak: Current learning streak in days
-        book_course_lessons: Number of book course lessons completed today
+        grammar_correct: Number of correct grammar exercises
+        books_read: List of book titles read today
+        book_course_lessons_today: Number of book course lessons completed today
+        lesson_score: Latest lesson score
+        lesson_title: Latest lesson title
+        grammar_topic_title: Latest grammar topic title
+        book_chapter_title: Latest book chapter title
     """
     from app.telegram.queries import get_daily_summary
 

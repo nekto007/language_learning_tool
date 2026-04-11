@@ -28,8 +28,8 @@
                     <div class="dash-streak">
                         <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
                         <span class="dash-streak__text">{{ streak }}
-                            {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Coins — внутренняя валюта. Копите за серию, тратьте на восстановление">&#128176; {{ streak_status.coins_balance }}</span>
+                            {% set _s10 = streak % 10 %}{% set _s100 = streak % 100 %}{% if _s10 == 1 and _s100 != 11 %}день{% elif _s10 in [2,3,4] and _s100 not in [12,13,14] %}дня{% else %}дней{% endif %} подряд</span>
+                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance }}</span>
                     </div>
                     {% elif streak_status and streak_status.can_repair %}
                     <div class="dash-streak-recovery">
@@ -59,8 +59,8 @@
                     <div class="dash-streak">
                         <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
                         <span class="dash-streak__text">{{ streak }}
-                            {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Coins — внутренняя валюта. Копите за серию, тратьте на восстановление">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
+                            {% set _s10 = streak % 10 %}{% set _s100 = streak % 100 %}{% if _s10 == 1 and _s100 != 11 %}день{% elif _s10 in [2,3,4] and _s100 not in [12,13,14] %}дня{% else %}дней{% endif %} подряд</span>
+                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
                         {% set milestones = {7: '🎯 Неделя!', 14: '💪 2 недели!', 30: '🏆 Месяц!', 60: '⭐ 2 месяца!', 100: '👑 100 дней!'} %}
                         {% if streak in milestones %}
                         <span class="dash-streak__milestone" id="milestone-badge">{{ milestones[streak] }}</span>
@@ -573,66 +573,435 @@
     </div>
     {% endif %}
 
-    <!-- Progress Overview -->
-    <div class="dash-progress">
-        <h3 class="dash-progress__heading">&#1052;&#1086;&#1081; &#1087;&#1088;&#1086;&#1075;&#1088;&#1077;&#1089;&#1089;</h3>
-        <div class="dash-progress__grid">
-            {# Reorder progress cards based on onboarding_focus #}
-            {% set cards = [] %}
-            {% set words_card %}
-            <a href="{{ url_for('study.index') }}" class="dash-progress__card dash-progress__card--words">
-                <div class="dash-progress__emoji">&#127183;</div>
-                <div class="dash-progress__data">
-                    <div class="dash-progress__value">{{ words_total }}</div>
-                    <div class="dash-progress__label">&#1089;&#1083;&#1086;&#1074; &#1074; &#1082;&#1086;&#1083;&#1083;&#1077;&#1082;&#1094;&#1080;&#1080;</div>
+    <!-- Section 3: Activity Heatmap -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+        <h2 class="dash-section__heading">Активность</h2>
+    </div>
+    {% if activity_heatmap %}
+    <div class="dash-heatmap">
+        <h3 class="dash-heatmap__heading">Активность за 90 дней</h3>
+        <div class="dash-heatmap__container">
+            <div class="dash-heatmap__days">
+                <span></span>
+                <span>Пн</span>
+                <span></span>
+                <span>Ср</span>
+                <span></span>
+                <span>Пт</span>
+                <span></span>
+            </div>
+            <div class="dash-heatmap__scroll">
+                {%- set month_names = {'01':'Янв','02':'Фев','03':'Мар','04':'Апр','05':'Май','06':'Июн','07':'Июл','08':'Авг','09':'Сен','10':'Окт','11':'Ноя','12':'Дек'} -%}
+                <div class="dash-heatmap__months">
+                    {%- set ns = namespace(last_month='') -%}
+                    {%- for day in activity_heatmap -%}
+                        {%- set month_name = day.date[5:7] -%}
+                        {%- if month_name != ns.last_month -%}
+                            <span style="grid-column: {{ ((loop.index0 + heatmap_pad|default(0)) // 7) + 1 }}">{{ month_names[month_name] }}</span>
+                            {%- set ns.last_month = month_name -%}
+                        {%- endif -%}
+                    {%- endfor -%}
                 </div>
-                <div class="dash-progress__arrow">&rsaquo;</div>
-            </a>
-            {% endset %}
-            {% set grammar_card %}
-            <a href="{{ url_for('grammar_lab.index') }}" class="dash-progress__card dash-progress__card--grammar">
-                <div class="dash-progress__emoji">&#129504;</div>
-                <div class="dash-progress__data">
-                    <div class="dash-progress__value">{{ grammar_studied }}<span class="dash-progress__total">/{{ grammar_total }}</span></div>
-                    <div class="dash-progress__label">&#1090;&#1077;&#1084; &#1075;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1080;</div>
+                <div class="dash-heatmap__grid">
+                    {%- for _ in range(heatmap_pad|default(0)) -%}
+                        <div class="dash-heatmap__cell dash-heatmap__cell--empty"></div>
+                    {%- endfor -%}
+                    {%- for day in activity_heatmap -%}
+                        {%- if day.count == 0 -%}
+                            {%- set level = 0 -%}
+                        {%- elif day.count <= 2 -%}
+                            {%- set level = 1 -%}
+                        {%- elif day.count <= 5 -%}
+                            {%- set level = 2 -%}
+                        {%- else -%}
+                            {%- set level = 3 -%}
+                        {%- endif -%}
+                        <div class="dash-heatmap__cell dash-heatmap__cell--{{ level }}" title="{{ day.date }}: {{ day.count }} {{ 'занятие' if day.count % 10 == 1 and day.count % 100 != 11 else 'занятия' if day.count % 10 in [2,3,4] and day.count % 100 not in [12,13,14] else 'занятий' }}"></div>
+                    {%- endfor -%}
                 </div>
-                <div class="dash-progress__arrow">&rsaquo;</div>
-            </a>
-            {% endset %}
-            {% set courses_card %}
-            <a href="{{ url_for('book_courses.list_book_courses') }}" class="dash-progress__card dash-progress__card--courses">
-                <div class="dash-progress__emoji">&#127891;</div>
-                <div class="dash-progress__data">
-                    <div class="dash-progress__value">{% if active_course %}{{ active_course.progress_percentage | int }}%{% else %}{{ courses_enrolled }}{% endif %}</div>
-                    <div class="dash-progress__label">{% if active_course %}{{ active_course.course.title }}{% else %}&#1072;&#1082;&#1090;&#1080;&#1074;&#1085;&#1099;&#1093; &#1082;&#1091;&#1088;&#1089;&#1086;&#1074;{% endif %}</div>
-                </div>
-                <div class="dash-progress__arrow">&rsaquo;</div>
-            </a>
-            {% endset %}
-            {% set books_card %}
-            <a href="{{ url_for('books.book_list') }}" class="dash-progress__card dash-progress__card--books">
-                <div class="dash-progress__emoji">&#128218;</div>
-                <div class="dash-progress__data">
-                    <div class="dash-progress__value">{{ books_reading }}</div>
-                    <div class="dash-progress__label">{% if books_reading == 1 %}&#1082;&#1085;&#1080;&#1075;&#1072;{% elif books_reading < 5 %}&#1082;&#1085;&#1080;&#1075;&#1080;{% else %}&#1082;&#1085;&#1080;&#1075;{% endif %} &#1095;&#1080;&#1090;&#1072;&#1102;</div>
-                </div>
-                <div class="dash-progress__arrow">&rsaquo;</div>
-            </a>
-            {% endset %}
+            </div>
+        </div>
+        <div class="dash-heatmap__legend">
+            <span class="dash-heatmap__legend-label">Меньше</span>
+            <div class="dash-heatmap__cell dash-heatmap__cell--0"></div>
+            <div class="dash-heatmap__cell dash-heatmap__cell--1"></div>
+            <div class="dash-heatmap__cell dash-heatmap__cell--2"></div>
+            <div class="dash-heatmap__cell dash-heatmap__cell--3"></div>
+            <span class="dash-heatmap__legend-label">Больше</span>
+        </div>
+        {% if streak_calendar %}
+        <div class="dash-heatmap__stats">
+            <div class="dash-heatmap__stat">
+                <div class="dash-heatmap__stat-value">{{ streak_calendar.current_streak }}</div>
+                <div class="dash-heatmap__stat-label">текущая серия</div>
+            </div>
+            <div class="dash-heatmap__stat">
+                <div class="dash-heatmap__stat-value">{{ streak_calendar.longest_streak }}</div>
+                <div class="dash-heatmap__stat-label">лучшая серия</div>
+            </div>
+            <div class="dash-heatmap__stat">
+                <div class="dash-heatmap__stat-value">{{ streak_calendar.total_active_days }}</div>
+                <div class="dash-heatmap__stat-label">активных дней</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="dash-empty">
+        <span class="dash-empty__icon">&#128197;</span>
+        <span class="dash-empty__text">Начните заниматься, чтобы увидеть карту активности</span>
+    </div>
+    {% endif %}
 
-            {% if onboarding_focus == 'grammar' %}
-                {{ grammar_card }}{{ words_card }}{{ courses_card }}{{ books_card }}
-            {% elif onboarding_focus == 'reading' %}
-                {{ books_card }}{{ words_card }}{{ grammar_card }}{{ courses_card }}
-            {% elif onboarding_focus == 'vocabulary' %}
-                {{ words_card }}{{ grammar_card }}{{ books_card }}{{ courses_card }}
+    <!-- Section 4: Alerts row - Words at Risk + Grammar Weaknesses -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+        <h2 class="dash-section__heading">Внимание</h2>
+    </div>
+    {% if words_at_risk or grammar_weaknesses %}
+    <div class="dash-alerts-row">
+        {% if words_at_risk %}
+        <div class="dash-risk">
+            <h3 class="dash-risk__heading">&#9888;&#65039; &#1057;&#1083;&#1086;&#1074;&#1072; &#1087;&#1086;&#1076; &#1091;&#1075;&#1088;&#1086;&#1079;&#1086;&#1081;</h3>
+            <div class="dash-risk__list">
+                {% for w in words_at_risk %}
+                <div class="dash-risk__item">
+                    <div class="dash-risk__word">
+                        <span class="dash-risk__term">{{ w.word }}</span>
+                        <span class="dash-risk__translation">{{ w.translation }}</span>
+                    </div>
+                    <span class="dash-risk__badge">{{ w.days_overdue }} &#1076;.</span>
+                </div>
+                {% endfor %}
+            </div>
+            <a href="{{ cards_url }}" class="dash-risk__action">&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;&#1080;&#1090;&#1100; &rarr;</a>
+        </div>
+        {% endif %}
+
+        {% if grammar_weaknesses %}
+        <div class="dash-weakness">
+            <h3 class="dash-weakness__heading">&#128200; &#1057;&#1083;&#1072;&#1073;&#1099;&#1077; &#1090;&#1077;&#1084;&#1099; &#1075;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1080;</h3>
+            <div class="dash-weakness__list">
+                {% for g in grammar_weaknesses %}
+                <div class="dash-weakness__item">
+                    <div class="dash-weakness__info">
+                        <span class="dash-weakness__title">{{ g.title }}</span>
+                        <span class="dash-weakness__attempts">{{ g.attempts }} &#1087;&#1086;&#1087;&#1099;&#1090;&#1086;&#1082;</span>
+                    </div>
+                    <div class="dash-weakness__bar-wrap">
+                        <div class="dash-weakness__bar" style="width: {{ g.accuracy }}%"></div>
+                    </div>
+                    <span class="dash-weakness__pct">{{ g.accuracy }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            <a href="{{ url_for('grammar_lab.index') }}" class="dash-weakness__action">&#1055;&#1088;&#1072;&#1082;&#1090;&#1080;&#1082;&#1072; &rarr;</a>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="dash-empty">
+        <span class="dash-empty__icon">&#9989;</span>
+        <span class="dash-empty__text">Нет слов под угрозой и слабых тем — отличная работа!</span>
+    </div>
+    {% endif %}
+
+    <!-- Section 5: Stats row - Best Study Time + This Week's Stats -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+        <h2 class="dash-section__heading">Статистика</h2>
+    </div>
+    <div class="dash-stats-row">
+        <!-- Best Study Time -->
+        <div class="dash-study-time">
+            <h3 class="dash-study-time__heading">&#128336; &#1051;&#1091;&#1095;&#1096;&#1077;&#1077; &#1074;&#1088;&#1077;&#1084;&#1103; &#1076;&#1083;&#1103; &#1091;&#1095;&#1105;&#1073;&#1099;</h3>
+            {% if best_study_time and best_study_time.best_hour is not none %}
+            <div class="dash-study-time__hero">
+                <span class="dash-study-time__hour">{{ '%02d:00'|format(best_study_time.best_hour) }}</span>
+                <span class="dash-study-time__hint">&#1042;&#1099; &#1091;&#1095;&#1080;&#1090;&#1077;&#1089;&#1100; &#1101;&#1092;&#1092;&#1077;&#1082;&#1090;&#1080;&#1074;&#1085;&#1077;&#1077; &#1074;&#1089;&#1077;&#1075;&#1086;</span>
+            </div>
+            <div class="dash-study-time__chart">
+                {% set max_score = best_study_time.hourly_scores.values()|list|max if best_study_time.hourly_scores else 1 %}
+                {% for h in range(24) %}
+                {% set score = best_study_time.hourly_scores.get(h, 0) %}
+                <div class="dash-study-time__bar{% if h == best_study_time.best_hour %} dash-study-time__bar--best{% endif %}"
+                     style="height: {{ (score / max_score * 100)|int if max_score else 0 }}%"
+                     title="{{ '%02d:00'|format(h) }} &mdash; {{ score }}"></div>
+                {% endfor %}
+            </div>
+            <div class="dash-study-time__labels">
+                <span>00</span><span>06</span><span>12</span><span>18</span><span>23</span>
+            </div>
             {% else %}
-                {{ words_card }}{{ grammar_card }}{{ courses_card }}{{ books_card }}
+            <div class="dash-study-time__empty">&#1053;&#1077;&#1076;&#1086;&#1089;&#1090;&#1072;&#1090;&#1086;&#1095;&#1085;&#1086; &#1076;&#1072;&#1085;&#1085;&#1099;&#1093;. &#1055;&#1088;&#1086;&#1076;&#1086;&#1083;&#1078;&#1072;&#1081;&#1090;&#1077; &#1079;&#1072;&#1085;&#1080;&#1084;&#1072;&#1090;&#1100;&#1089;&#1103;!</div>
             {% endif %}
+        </div>
+
+        <!-- This Week's Stats -->
+        <div class="dash-week-stats">
+            <h3 class="dash-week-stats__heading">&#128202; &#1057;&#1090;&#1072;&#1090;&#1080;&#1089;&#1090;&#1080;&#1082;&#1072; &#1079;&#1072; &#1085;&#1077;&#1076;&#1077;&#1083;&#1102;</h3>
+            <div class="dash-week-stats__grid">
+                <div class="dash-week-stats__card">
+                    <div class="dash-week-stats__value">{{ session_stats.total_sessions }}</div>
+                    <div class="dash-week-stats__label">&#1089;&#1077;&#1089;&#1089;&#1080;&#1081;</div>
+                </div>
+                <div class="dash-week-stats__card">
+                    <div class="dash-week-stats__value">{{ session_stats.total_words_studied }}</div>
+                    <div class="dash-week-stats__label">&#1089;&#1083;&#1086;&#1074;</div>
+                </div>
+                <div class="dash-week-stats__card">
+                    <div class="dash-week-stats__value">{{ session_stats.accuracy_percent }}%</div>
+                    <div class="dash-week-stats__label">&#1090;&#1086;&#1095;&#1085;&#1086;&#1089;&#1090;&#1100;</div>
+                </div>
+                <div class="dash-week-stats__card">
+                    <div class="dash-week-stats__value">{{ (session_stats.total_time_seconds / 60)|int }} &#1084;&#1080;&#1085;</div>
+                    <div class="dash-week-stats__label">&#1074;&#1088;&#1077;&#1084;&#1103;</div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Quick Actions -->
+    <!-- Section 6: Progress row - Progress Overview + Grammar Levels -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+        <h2 class="dash-section__heading">Прогресс</h2>
+    </div>
+    {% set has_grammar_levels = grammar_levels_summary and grammar_levels_summary|selectattr('topic_count', 'greaterthan', 0)|list %}
+    <div class="dash-progress-row">
+        <div class="dash-progress-overview">
+            <h3 class="dash-progress-overview__heading">&#1052;&#1086;&#1081; &#1087;&#1088;&#1086;&#1075;&#1088;&#1077;&#1089;&#1089;</h3>
+            <div class="dash-progress-overview__grid">
+                {# Reorder progress cards based on onboarding_focus #}
+                {% set cards = [] %}
+                {% set words_card %}
+                <a href="{{ url_for('study.index') }}" class="dash-progress__card dash-progress__card--words">
+                    <div class="dash-progress__emoji">&#127183;</div>
+                    <div class="dash-progress__data">
+                        <div class="dash-progress__value">{{ words_total }}</div>
+                        <div class="dash-progress__label">&#1089;&#1083;&#1086;&#1074; &#1074; &#1082;&#1086;&#1083;&#1083;&#1077;&#1082;&#1094;&#1080;&#1080;</div>
+                    </div>
+                    <div class="dash-progress__arrow">&rsaquo;</div>
+                </a>
+                {% endset %}
+                {% set grammar_card %}
+                <a href="{{ url_for('grammar_lab.index') }}" class="dash-progress__card dash-progress__card--grammar">
+                    <div class="dash-progress__emoji">&#129504;</div>
+                    <div class="dash-progress__data">
+                        <div class="dash-progress__value">{{ grammar_studied }}<span class="dash-progress__total">/{{ grammar_total }}</span></div>
+                        <div class="dash-progress__label">&#1090;&#1077;&#1084; &#1075;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1080;</div>
+                    </div>
+                    <div class="dash-progress__arrow">&rsaquo;</div>
+                </a>
+                {% endset %}
+                {% set courses_card %}
+                <a href="{{ url_for('book_courses.list_book_courses') }}" class="dash-progress__card dash-progress__card--courses">
+                    <div class="dash-progress__emoji">&#127891;</div>
+                    <div class="dash-progress__data">
+                        <div class="dash-progress__value">{% if active_course %}{{ active_course.progress_percentage | int }}%{% else %}{{ courses_enrolled }}{% endif %}</div>
+                        <div class="dash-progress__label">{% if active_course %}{{ active_course.course.title }}{% else %}&#1072;&#1082;&#1090;&#1080;&#1074;&#1085;&#1099;&#1093; &#1082;&#1091;&#1088;&#1089;&#1086;&#1074;{% endif %}</div>
+                    </div>
+                    <div class="dash-progress__arrow">&rsaquo;</div>
+                </a>
+                {% endset %}
+                {% set books_card %}
+                <a href="{{ url_for('books.book_list') }}" class="dash-progress__card dash-progress__card--books">
+                    <div class="dash-progress__emoji">&#128218;</div>
+                    <div class="dash-progress__data">
+                        <div class="dash-progress__value">{{ books_reading }}</div>
+                        <div class="dash-progress__label">{% if books_reading == 1 %}&#1082;&#1085;&#1080;&#1075;&#1072;{% elif books_reading < 5 %}&#1082;&#1085;&#1080;&#1075;&#1080;{% else %}&#1082;&#1085;&#1080;&#1075;{% endif %} &#1095;&#1080;&#1090;&#1072;&#1102;</div>
+                    </div>
+                    <div class="dash-progress__arrow">&rsaquo;</div>
+                </a>
+                {% endset %}
+
+                {% if onboarding_focus == 'grammar' %}
+                    {{ grammar_card }}{{ words_card }}{{ courses_card }}{{ books_card }}
+                {% elif onboarding_focus == 'reading' %}
+                    {{ books_card }}{{ words_card }}{{ grammar_card }}{{ courses_card }}
+                {% elif onboarding_focus == 'vocabulary' %}
+                    {{ words_card }}{{ grammar_card }}{{ books_card }}{{ courses_card }}
+                {% else %}
+                    {{ words_card }}{{ grammar_card }}{{ courses_card }}{{ books_card }}
+                {% endif %}
+            </div>
+        </div>
+
+        {% if has_grammar_levels %}
+        <div class="dash-grammar-levels">
+            <h3 class="dash-grammar-levels__heading">&#128218; Грамматика по уровням</h3>
+            <div class="dash-grammar-levels__list">
+                {% for lvl in grammar_levels_summary %}
+                {% if lvl.topic_count > 0 %}
+                <div class="dash-grammar-levels__row">
+                    <span class="dash-grammar-levels__label">{{ lvl.level }}</span>
+                    <div class="dash-grammar-levels__bar">
+                        <div class="dash-grammar-levels__fill" style="width: {{ lvl.progress_pct }}%"></div>
+                    </div>
+                    <span class="dash-grammar-levels__count">{{ lvl.exercises_mastered }}/{{ lvl.exercises_total }}</span>
+                    <span class="dash-grammar-levels__pct">{{ lvl.progress_pct }}%</span>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Section 7: Social row - Leaderboard + Achievements -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+        <h2 class="dash-section__heading">Сообщество</h2>
+    </div>
+    <div class="dash-social-row">
+        {% if xp_leaderboard %}
+        <div class="dash-leaderboard">
+            <h3 class="dash-leaderboard__heading">&#127942; Лидеры по XP</h3>
+            <div class="dash-leaderboard__list">
+                {% for entry in xp_leaderboard %}
+                <div class="dash-leaderboard__row{% if entry.id == current_user.id %} dash-leaderboard__highlight{% endif %}">
+                    <span class="dash-leaderboard__rank">{{ loop.index }}</span>
+                    <span class="dash-leaderboard__avatar">{{ entry.username[:1]|upper }}</span>
+                    <span class="dash-leaderboard__name">{{ entry.username }}</span>
+                    <span class="dash-leaderboard__xp">{{ entry.total_xp }} XP</span>
+                    <span class="dash-leaderboard__level">Ур.&nbsp;{{ entry.level }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% if user_xp_rank and user_xp_rank > 5 %}
+            <div class="dash-leaderboard__you">Вы на {{ user_xp_rank }}-м месте</div>
+            {% endif %}
+            <a href="{{ url_for('study.leaderboard') }}" class="dash-leaderboard__link">Полный рейтинг &rarr;</a>
+        </div>
+        {% else %}
+        <div class="dash-empty">
+            <span class="dash-empty__icon">&#127942;</span>
+            <span class="dash-empty__text">Лидерборд пока пуст. Зарабатывайте XP!</span>
+        </div>
+        {% endif %}
+
+        {% if achievements_by_category and achievements_by_category.by_category %}
+        <div class="dash-achievements">
+            <h3 class="dash-achievements__heading">&#127941; Достижения</h3>
+            <div class="dash-achievements__summary">
+                <span class="dash-achievements__count">{{ achievements_by_category.earned_count }} / {{ achievements_by_category.total_achievements }}</span>
+                <span class="dash-achievements__pct">{{ achievements_by_category.progress_percentage }}%</span>
+            </div>
+            <div class="dash-achievements__categories">
+                {% for category, items in achievements_by_category.by_category.items() %}
+                {% set earned_in_cat = items|selectattr('earned')|list|length %}
+                {% set total_in_cat = items|length %}
+                {% set pct = (earned_in_cat / total_in_cat * 100)|round|int if total_in_cat > 0 else 0 %}
+                <div class="dash-achievements__cat">
+                    <div class="dash-achievements__ring" style="--pct: {{ pct }}">
+                        <svg viewBox="0 0 36 36" class="dash-achievements__svg">
+                            <circle cx="18" cy="18" r="15.9" class="dash-achievements__track"></circle>
+                            <circle cx="18" cy="18" r="15.9" class="dash-achievements__fill" stroke-dasharray="{{ pct }}, 100"></circle>
+                        </svg>
+                        <span class="dash-achievements__ring-text">{{ earned_in_cat }}/{{ total_in_cat }}</span>
+                    </div>
+                    <span class="dash-achievements__cat-name">{{ category }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% set recent_unlocks = [] %}
+            {% for category, items in achievements_by_category.by_category.items() %}
+                {% for item in items if item.earned and item.earned_at %}
+                    {% if recent_unlocks.append(item) %}{% endif %}
+                {% endfor %}
+            {% endfor %}
+            {% if recent_unlocks %}
+            <div class="dash-achievements__recent">
+                <h4 class="dash-achievements__recent-title">Недавние</h4>
+                {% for item in recent_unlocks|sort(attribute='earned_at', reverse=true)|batch(3)|first %}
+                <div class="dash-achievements__unlock">
+                    <span class="dash-achievements__unlock-icon">{{ item.achievement.icon if item.achievement.icon else '&#127942;' }}</span>
+                    <span class="dash-achievements__unlock-name">{{ item.achievement.name }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="dash-empty">
+            <span class="dash-empty__icon">&#127941;</span>
+            <span class="dash-empty__text">Достижения появятся по мере обучения</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Section 8: Insights row - Reading Speed + Streak Milestones -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+        <h2 class="dash-section__heading">Аналитика</h2>
+    </div>
+    <div class="dash-insights-row">
+        {% if reading_speed_trend %}
+        <div class="dash-reading-speed">
+            <h3 class="dash-reading-speed__heading">&#128214; Скорость чтения</h3>
+            {% set current_wpm = reading_speed_trend[-1].avg_wpm %}
+            {% set start_wpm = reading_speed_trend[0].avg_wpm %}
+            {% set max_wpm = reading_speed_trend|map(attribute='avg_wpm')|max %}
+            <div class="dash-reading-speed__summary">
+                <div class="dash-reading-speed__current">
+                    <span class="dash-reading-speed__value">{{ current_wpm|round(0)|int }}</span>
+                    <span class="dash-reading-speed__unit">сл/мин</span>
+                </div>
+                {% if reading_speed_trend|length > 1 %}
+                {% set diff = current_wpm - start_wpm %}
+                <div class="dash-reading-speed__change {% if diff > 0 %}dash-reading-speed__change--up{% elif diff < 0 %}dash-reading-speed__change--down{% endif %}">
+                    {% if diff > 0 %}+{% endif %}{{ diff|round(0)|int }} сл/мин
+                </div>
+                {% endif %}
+            </div>
+            <div class="dash-sparkline">
+                {% for point in reading_speed_trend %}
+                <div class="dash-sparkline__bar{% if loop.last %} dash-sparkline__bar--current{% endif %}" style="height: {{ (point.avg_wpm / max_wpm * 100)|round(0)|int if max_wpm else 0 }}%" title="{{ point.week }}: {{ point.avg_wpm|round(1) }} сл/мин"></div>
+                {% endfor %}
+            </div>
+            <div class="dash-reading-speed__labels">
+                <span>{{ reading_speed_trend[0].week }}</span>
+                <span>{{ reading_speed_trend[-1].week }}</span>
+            </div>
+        </div>
+        {% else %}
+        <div class="dash-empty">
+            <span class="dash-empty__icon">&#128214;</span>
+            <span class="dash-empty__text">Читайте книги, чтобы отслеживать скорость чтения</span>
+        </div>
+        {% endif %}
+
+        {% if milestone_history %}
+        <div class="dash-milestones">
+            <h3 class="dash-milestones__heading">&#128293; Вехи серии</h3>
+            <div class="dash-milestones__timeline">
+                {% set milestone_targets = [7, 14, 30, 60, 100] %}
+                {% set earned_streaks = milestone_history|map(attribute='streak')|list %}
+                {% for target in milestone_targets %}
+                {% set earned_milestone = milestone_history|selectattr('streak', 'equalto', target)|list %}
+                <div class="dash-milestones__item{% if earned_milestone %} dash-milestones__item--earned{% elif target == milestone_targets|select('greaterthan', earned_streaks|max|default(0))|first|default(0) %} dash-milestones__item--next{% endif %}">
+                    <span class="dash-milestones__days">{{ target }}д</span>
+                    {% if earned_milestone %}
+                    <span class="dash-milestones__date">{{ earned_milestone[0].date.strftime('%d.%m') if earned_milestone[0].date else '' }}</span>
+                    {% else %}
+                    <span class="dash-milestones__pending">&#8212;</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="dash-empty">
+            <span class="dash-empty__icon">&#128293;</span>
+            <span class="dash-empty__text">Занимайтесь каждый день для достижения вех серии</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Section 9: Quick Actions -->
+    <div class="dash-section">
+        <div class="dash-section__divider"></div>
+    </div>
     <div class="dash-quick">
         <h3 class="dash-quick__title">&#1041;&#1099;&#1089;&#1090;&#1088;&#1099;&#1077; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1103;</h3>
         <div class="dash-quick__grid">
@@ -918,16 +1287,438 @@
 }
 
 /* ============================================
+   Activity Heatmap
+   ============================================ */
+
+.dash-heatmap {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--dash-shadow);
+    animation: dashSlideUp 0.4s ease-out both;
+}
+
+.dash-heatmap__heading {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--dash-text);
+    margin: 0 0 1rem;
+}
+
+.dash-heatmap__container {
+    display: flex;
+    gap: 0.375rem;
+}
+
+.dash-heatmap__days {
+    display: grid;
+    grid-template-rows: repeat(7, 13px);
+    gap: 3px;
+    padding-top: 20px;
+    font-size: 0.625rem;
+    color: var(--dash-text-muted);
+}
+
+.dash-heatmap__days span {
+    display: flex;
+    align-items: center;
+    height: 13px;
+    line-height: 1;
+}
+
+.dash-heatmap__scroll {
+    overflow-x: auto;
+    flex: 1;
+    min-width: 0;
+}
+
+.dash-heatmap__months {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 16px;
+    gap: 3px;
+    height: 20px;
+    font-size: 0.625rem;
+    color: var(--dash-text-muted);
+    margin-bottom: 2px;
+}
+
+.dash-heatmap__months span {
+    white-space: nowrap;
+}
+
+.dash-heatmap__grid {
+    display: grid;
+    grid-template-rows: repeat(7, 13px);
+    grid-auto-flow: column;
+    grid-auto-columns: 13px;
+    gap: 3px;
+}
+
+.dash-heatmap__cell {
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
+    transition: opacity 0.15s;
+}
+
+.dash-heatmap__cell:hover {
+    opacity: 0.8;
+}
+
+.dash-heatmap__cell--empty { visibility: hidden; }
+.dash-heatmap__cell--0 { background: var(--dash-surface-alt); border: 1px solid var(--dash-border); }
+.dash-heatmap__cell--1 { background: rgba(80, 70, 229, 0.2); }
+.dash-heatmap__cell--2 { background: rgba(80, 70, 229, 0.45); }
+.dash-heatmap__cell--3 { background: rgba(80, 70, 229, 0.75); }
+
+.dash-heatmap__legend {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    justify-content: flex-end;
+    margin-top: 0.75rem;
+}
+
+.dash-heatmap__legend .dash-heatmap__cell {
+    width: 11px;
+    height: 11px;
+}
+
+.dash-heatmap__legend-label {
+    font-size: 0.625rem;
+    color: var(--dash-text-muted);
+}
+
+.dash-heatmap__stats {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--dash-border);
+}
+
+.dash-heatmap__stat {
+    text-align: center;
+}
+
+.dash-heatmap__stat-value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--dash-accent);
+    line-height: 1;
+}
+
+.dash-heatmap__stat-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.25rem;
+}
+
+@media (max-width: 640px) {
+    .dash-heatmap { padding: 1rem; }
+    .dash-heatmap__stats { gap: 1rem; }
+    .dash-heatmap__grid { grid-auto-columns: 11px; gap: 2px; }
+    .dash-heatmap__cell { width: 11px; height: 11px; }
+    .dash-heatmap__days { grid-template-rows: repeat(7, 11px); gap: 2px; padding-top: 18px; }
+    .dash-heatmap__months { grid-auto-columns: 14px; gap: 2px; height: 18px; }
+}
+
+/* ============================================
+   Words at Risk + Grammar Weaknesses
+   ============================================ */
+
+.dash-alerts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.dash-risk,
+.dash-weakness {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.25rem;
+    box-shadow: var(--dash-shadow);
+    animation: dashSlideUp 0.4s ease-out both;
+}
+
+.dash-risk__heading,
+.dash-weakness__heading {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--dash-text);
+    margin: 0 0 0.75rem;
+}
+
+.dash-risk__list,
+.dash-weakness__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dash-risk__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.625rem;
+    background: var(--dash-surface-alt);
+    border-radius: 8px;
+}
+
+.dash-risk__word {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+}
+
+.dash-risk__term {
+    font-weight: 600;
+    color: var(--dash-text);
+    font-size: 0.875rem;
+}
+
+.dash-risk__translation {
+    font-size: 0.75rem;
+    color: var(--dash-text-muted);
+}
+
+.dash-risk__badge {
+    flex-shrink: 0;
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    padding: 0.1875rem 0.5rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.dash-risk__action,
+.dash-weakness__action {
+    display: inline-block;
+    margin-top: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--dash-accent);
+    text-decoration: none;
+}
+
+.dash-risk__action:hover,
+.dash-weakness__action:hover {
+    text-decoration: underline;
+}
+
+.dash-weakness__item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.625rem;
+    background: var(--dash-surface-alt);
+    border-radius: 8px;
+}
+
+.dash-weakness__info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.dash-weakness__title {
+    font-weight: 600;
+    color: var(--dash-text);
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dash-weakness__attempts {
+    font-size: 0.6875rem;
+    color: var(--dash-text-muted);
+}
+
+.dash-weakness__bar-wrap {
+    flex: 1;
+    max-width: 80px;
+    height: 6px;
+    background: var(--dash-border);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.dash-weakness__bar {
+    height: 100%;
+    background: var(--dash-accent);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.dash-weakness__pct {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dash-text);
+    min-width: 2.5rem;
+    text-align: right;
+}
+
+@media (max-width: 640px) {
+    .dash-alerts-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .dash-risk,
+    .dash-weakness {
+        padding: 1rem;
+    }
+}
+
+/* ============================================
+   Best Study Time & This Week's Stats
+   ============================================ */
+
+.dash-stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+    animation: dashSlideUp 0.4s ease-out both;
+    animation-delay: 0.15s;
+}
+
+.dash-study-time,
+.dash-week-stats {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius-sm);
+    box-shadow: var(--dash-shadow);
+    padding: 1.25rem;
+}
+
+.dash-study-time__heading,
+.dash-week-stats__heading {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 1rem;
+}
+
+.dash-study-time__hero {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.dash-study-time__hour {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--dash-accent);
+}
+
+.dash-study-time__hint {
+    font-size: 0.8rem;
+    color: var(--dash-text-muted);
+}
+
+.dash-study-time__chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 60px;
+    padding: 0;
+}
+
+.dash-study-time__bar {
+    flex: 1;
+    min-height: 2px;
+    background: var(--dash-border);
+    border-radius: 2px 2px 0 0;
+    transition: background 0.2s;
+}
+
+.dash-study-time__bar--best {
+    background: var(--dash-accent);
+}
+
+.dash-study-time__labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    color: var(--dash-text-muted);
+    margin-top: 0.25rem;
+}
+
+.dash-study-time__empty {
+    color: var(--dash-text-muted);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 1.5rem 0;
+}
+
+.dash-week-stats__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.dash-week-stats__card {
+    background: var(--dash-bg);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius-sm);
+    padding: 0.875rem;
+    text-align: center;
+}
+
+.dash-week-stats__value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--dash-text);
+}
+
+.dash-week-stats__label {
+    font-size: 0.7rem;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 0.25rem;
+}
+
+@media (max-width: 640px) {
+    .dash-stats-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .dash-study-time,
+    .dash-week-stats {
+        padding: 1rem;
+    }
+}
+
+/* ============================================
    Progress Overview
    ============================================ */
 
-.dash-progress {
-    margin-bottom: 1.5rem;
+.dash-progress-overview {
     animation: dashSlideUp 0.45s ease-out both;
     animation-delay: 0.2s;
 }
 
-.dash-progress__heading {
+.dash-progress-overview__heading {
     font-size: 0.75rem;
     font-weight: 700;
     color: var(--dash-text-muted);
@@ -936,7 +1727,7 @@
     margin: 0 0 0.75rem;
 }
 
-.dash-progress__grid {
+.dash-progress-overview__grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
@@ -1013,6 +1804,474 @@
 .dash-progress__card:hover .dash-progress__arrow {
     color: var(--dash-accent);
     transform: translateX(2px);
+}
+
+/* ============================================
+   Leaderboard
+   ============================================ */
+
+.dash-leaderboard {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--dash-shadow);
+}
+
+.dash-leaderboard__heading {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 1rem;
+}
+
+.dash-leaderboard__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dash-leaderboard__row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: var(--dash-radius-sm);
+    background: var(--dash-bg);
+    border: 1px solid var(--dash-border);
+    transition: background 0.15s;
+}
+
+.dash-leaderboard__row:hover {
+    background: var(--dash-surface-alt);
+}
+
+.dash-leaderboard__highlight {
+    background: var(--dash-accent-soft);
+    border-color: var(--dash-accent);
+}
+
+.dash-leaderboard__highlight:hover {
+    background: var(--dash-accent-medium);
+}
+
+.dash-leaderboard__rank {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--dash-text-muted);
+    min-width: 1.5rem;
+    text-align: center;
+}
+
+.dash-leaderboard__highlight .dash-leaderboard__rank {
+    color: var(--dash-accent);
+}
+
+.dash-leaderboard__avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: var(--dash-accent-soft);
+    color: var(--dash-accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.dash-leaderboard__name {
+    flex: 1;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--dash-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dash-leaderboard__xp {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--dash-accent);
+}
+
+.dash-leaderboard__level {
+    font-size: 0.7rem;
+    color: var(--dash-text-muted);
+    background: var(--dash-bg);
+    border: 1px solid var(--dash-border);
+    border-radius: 0.75rem;
+    padding: 0.125rem 0.5rem;
+    white-space: nowrap;
+}
+
+.dash-leaderboard__you {
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--dash-accent);
+    margin-top: 0.75rem;
+    padding: 0.5rem;
+    background: var(--dash-accent-soft);
+    border-radius: var(--dash-radius-sm);
+}
+
+.dash-leaderboard__link {
+    display: block;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--dash-text-muted);
+    text-decoration: none;
+    margin-top: 0.75rem;
+    transition: color 0.15s;
+}
+
+.dash-leaderboard__link:hover {
+    color: var(--dash-accent);
+}
+
+@media (max-width: 640px) {
+    .dash-leaderboard {
+        padding: 1rem;
+    }
+    .dash-leaderboard__name {
+        max-width: 8rem;
+    }
+}
+
+/* ============================================
+   Achievements Widget
+   ============================================ */
+
+.dash-achievements {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--dash-shadow);
+}
+
+.dash-achievements__heading {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--dash-text);
+    margin: 0 0 1rem;
+}
+
+.dash-achievements__summary {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.dash-achievements__count {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--dash-text);
+}
+
+.dash-achievements__pct {
+    font-size: 0.875rem;
+    color: var(--dash-text-muted);
+}
+
+.dash-achievements__categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.dash-achievements__cat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    min-width: 4.5rem;
+}
+
+.dash-achievements__ring {
+    position: relative;
+    width: 56px;
+    height: 56px;
+}
+
+.dash-achievements__svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.dash-achievements__track {
+    fill: none;
+    stroke: var(--dash-border);
+    stroke-width: 2.8;
+}
+
+.dash-achievements__fill {
+    fill: none;
+    stroke: var(--dash-accent, #6366f1);
+    stroke-width: 2.8;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.6s ease;
+}
+
+.dash-achievements__ring-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--dash-text);
+}
+
+.dash-achievements__cat-name {
+    font-size: 0.7rem;
+    color: var(--dash-text-muted);
+    text-align: center;
+    text-transform: capitalize;
+}
+
+.dash-achievements__recent {
+    border-top: 1px solid var(--dash-border);
+    padding-top: 0.75rem;
+}
+
+.dash-achievements__recent-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--dash-text-muted);
+    margin: 0 0 0.5rem;
+}
+
+.dash-achievements__unlock {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    font-size: 0.85rem;
+    color: var(--dash-text);
+}
+
+.dash-achievements__unlock-icon {
+    font-size: 1.1rem;
+}
+
+.dash-achievements__unlock-name {
+    font-weight: 500;
+}
+
+/* ============================================
+   Streak Milestones Widget
+   ============================================ */
+
+.dash-milestones {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--dash-shadow);
+}
+
+.dash-milestones__heading {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--dash-text);
+    margin: 0 0 1rem;
+}
+
+.dash-milestones__timeline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+    padding: 0.5rem 0;
+}
+
+.dash-milestones__timeline::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--dash-border);
+    transform: translateY(-50%);
+    z-index: 0;
+}
+
+.dash-milestones__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    position: relative;
+    z-index: 1;
+    background: var(--dash-surface);
+    padding: 0.375rem 0.625rem;
+    border: 2px solid var(--dash-border);
+    border-radius: var(--dash-radius-sm);
+}
+
+.dash-milestones__item--earned {
+    border-color: var(--dash-success, #22c55e);
+    background: #f0fdf4;
+}
+
+.dash-milestones__item--next {
+    border-color: var(--dash-accent, #6366f1);
+    background: #eef2ff;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.dash-milestones__days {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--dash-text);
+}
+
+.dash-milestones__item--earned .dash-milestones__days {
+    color: var(--dash-success, #22c55e);
+}
+
+.dash-milestones__item--next .dash-milestones__days {
+    color: var(--dash-accent, #6366f1);
+}
+
+.dash-milestones__date {
+    font-size: 0.65rem;
+    color: var(--dash-text-muted);
+}
+
+.dash-milestones__pending {
+    font-size: 0.65rem;
+    color: var(--dash-text-muted);
+}
+
+@media (max-width: 640px) {
+    .dash-achievements {
+        padding: 1rem;
+    }
+    .dash-achievements__categories {
+        gap: 0.75rem;
+    }
+    .dash-milestones {
+        padding: 1rem;
+    }
+    .dash-milestones__timeline {
+        gap: 0.25rem;
+    }
+    .dash-milestones__item {
+        padding: 0.25rem 0.375rem;
+    }
+    .dash-milestones__days {
+        font-size: 0.75rem;
+    }
+}
+
+/* ============================================
+   Section Dividers & Headings
+   ============================================ */
+
+.dash-section {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.dash-section__divider {
+    height: 1px;
+    background: var(--dash-border);
+    margin-bottom: 0.75rem;
+}
+
+.dash-section__heading {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0;
+}
+
+/* ============================================
+   Progress Row (Progress + Grammar Levels)
+   ============================================ */
+
+.dash-progress-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+    animation: dashSlideUp 0.45s ease-out both;
+    animation-delay: 0.2s;
+}
+
+@media (max-width: 640px) {
+    .dash-progress-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+/* ============================================
+   Social Row (Leaderboard + Achievements)
+   ============================================ */
+
+.dash-social-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+    animation: dashSlideUp 0.45s ease-out both;
+    animation-delay: 0.25s;
+}
+
+@media (max-width: 640px) {
+    .dash-social-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+
+.dash-empty {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    box-shadow: var(--dash-shadow);
+    margin-bottom: 1.5rem;
+}
+
+.dash-empty__icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.dash-empty__text {
+    font-size: 0.875rem;
+    color: var(--dash-text-muted);
+    line-height: 1.4;
+}
+
+.dash-social-row > .dash-empty,
+.dash-insights-row > .dash-empty {
+    margin-bottom: 0;
 }
 
 /* ============================================
@@ -1108,7 +2367,7 @@
 
     .dash-summary__grid { gap: 1rem; }
 
-    .dash-progress__grid { grid-template-columns: 1fr; }
+    .dash-progress-overview__grid { grid-template-columns: 1fr; }
     .dash-quick__grid { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -1380,289 +2639,162 @@
 .dash-challenge__bar { height: 8px; background: #e5e7eb; border-radius: 4px; margin-top: 8px; overflow: hidden; }
 .dash-challenge__fill { height: 100%; background: linear-gradient(90deg, #5046e5, #7c3aed); border-radius: 4px; transition: width 0.5s; }
 .dash-challenge__progress-text { font-weight: 700; color: #5046e5; }
-.dash-challenge--empty { opacity: 0.7; }
-.dash-challenge__desc { font-size: 0.8125rem; color: #9ca3af; margin-top: 4px; }
 
 /* ============================================
-   Welcome Card (New Users)
+   Insights Row (Reading Speed + Grammar Levels)
    ============================================ */
-.dash-welcome {
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border: 1px solid #93c5fd;
-    border-radius: var(--dash-radius);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    animation: dashSlideUp 0.5s ease-out;
-}
-.dash-welcome__icon { font-size: 2.5rem; flex-shrink: 0; }
-.dash-welcome__content { flex: 1; }
-.dash-welcome__title { font-size: 1.125rem; font-weight: 700; color: #1e3a5f; margin: 0 0 0.375rem; }
-.dash-welcome__text { font-size: 0.875rem; color: #3b6fa0; margin: 0; line-height: 1.4; }
-.dash-welcome__btn {
-    display: inline-block;
-    margin-top: 0.75rem;
-    padding: 0.5rem 1.25rem;
-    background: #2563eb;
-    color: white;
-    border-radius: var(--dash-radius-sm);
-    font-weight: 600;
-    font-size: 0.875rem;
-    text-decoration: none;
-    transition: background 0.2s;
-}
-.dash-welcome__btn:hover { background: #1d4ed8; color: white; }
-
-/* ============================================
-   Empty Daily Plan
-   ============================================ */
-.dash-plan-empty {
-    display: flex;
-    align-items: center;
+.dash-insights-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 1rem;
-    padding: 1.25rem;
-    background: var(--dash-surface-alt);
-    border: 1px dashed var(--dash-border);
-    border-radius: var(--dash-radius-sm);
+    margin-bottom: 1.5rem;
+    animation: dashSlideUp 0.5s ease-out both;
+    animation-delay: 0.45s;
 }
-.dash-plan-empty__icon { font-size: 1.75rem; flex-shrink: 0; }
-.dash-plan-empty__text { flex: 1; }
-.dash-plan-empty__title { font-size: 0.9375rem; font-weight: 600; color: var(--dash-text); }
-.dash-plan-empty__desc { font-size: 0.8125rem; color: var(--dash-text-muted); margin-top: 0.25rem; }
-
-/* ============================================
-   Streak Recovery Hint
-   ============================================ */
-.dash-streak-recovery__hint {
-    width: 100%;
-    font-size: 0.8125rem;
-    color: #856404;
-    margin-top: 6px;
-    font-style: italic;
-}
-
 @media (max-width: 640px) {
-    .dash-welcome { flex-direction: column; text-align: center; gap: 0.75rem; padding: 1.25rem; }
-    .dash-plan-empty { flex-direction: column; text-align: center; }
+    .dash-insights-row { grid-template-columns: 1fr; }
 }
 
-/* ============================================
-   Weekly Analytics
-   ============================================ */
-.dash-week {
+/* ---- Reading Speed Widget ---- */
+.dash-reading-speed {
     background: var(--dash-surface);
     border: 1px solid var(--dash-border);
     border-radius: var(--dash-radius);
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1.5rem;
+    padding: 1.25rem;
     box-shadow: var(--dash-shadow);
-    animation: dashSlideUp 0.45s ease-out both;
-    animation-delay: 0.15s;
 }
-.dash-week__heading {
-    font-size: 0.75rem;
+.dash-reading-speed__heading {
+    font-size: 0.9375rem;
     font-weight: 700;
-    color: var(--dash-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
     margin: 0 0 0.75rem;
-}
-.dash-week__grid {
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-}
-.dash-week__item { text-align: center; flex: 1; min-width: 60px; }
-.dash-week__value {
-    font-size: 1.5rem;
-    font-weight: 800;
     color: var(--dash-text);
+}
+.dash-reading-speed__summary {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+.dash-reading-speed__current {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+}
+.dash-reading-speed__value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--dash-accent);
     line-height: 1;
 }
-.dash-week__label {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    color: var(--dash-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 0.25rem;
-}
-
-/* ============================================
-   SRS Distribution Bar
-   ============================================ */
-.dash-srs {
-    background: var(--dash-surface);
-    border: 1px solid var(--dash-border);
-    border-radius: var(--dash-radius);
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: var(--dash-shadow);
-    animation: dashSlideUp 0.45s ease-out both;
-    animation-delay: 0.18s;
-}
-.dash-srs__heading {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--dash-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin: 0 0 0.75rem;
-}
-.dash-srs__bar {
-    display: flex;
-    height: 12px;
-    border-radius: 6px;
-    overflow: hidden;
-    background: var(--dash-border);
-}
-.dash-srs__seg { transition: width 0.5s ease; }
-.dash-srs__seg--new { background: #94a3b8; }
-.dash-srs__seg--learning { background: #f59e0b; }
-.dash-srs__seg--review { background: #3b82f6; }
-.dash-srs__seg--mastered { background: #10b981; }
-.dash-srs__legend {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    margin-top: 0.5rem;
-}
-.dash-srs__legend-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
+.dash-reading-speed__unit {
     font-size: 0.75rem;
     color: var(--dash-text-muted);
     font-weight: 500;
 }
-.dash-srs__dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
+.dash-reading-speed__change {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--dash-text-muted);
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: #f1f5f9;
 }
-.dash-srs__dot--new { background: #94a3b8; }
-.dash-srs__dot--learning { background: #f59e0b; }
-.dash-srs__dot--review { background: #3b82f6; }
-.dash-srs__dot--mastered { background: #10b981; }
+.dash-reading-speed__change--up {
+    color: var(--dash-success);
+    background: rgba(16, 185, 129, 0.08);
+}
+.dash-reading-speed__change--down {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+}
 
-/* ============================================
-   Continue Where You Left Off
-   ============================================ */
-.dash-continue {
+/* Sparkline bar chart */
+.dash-sparkline {
     display: flex;
-    align-items: center;
-    gap: 1rem;
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-    border: 1px solid #fcd34d;
-    border-radius: var(--dash-radius);
-    padding: 1rem 1.25rem;
-    margin-bottom: 1.5rem;
-    box-shadow: var(--dash-shadow);
-    animation: dashSlideUp 0.45s ease-out both;
-    animation-delay: 0.2s;
+    align-items: flex-end;
+    gap: 3px;
+    height: 60px;
+    padding: 0;
 }
-.dash-continue__icon { font-size: 1.5rem; flex-shrink: 0; }
-.dash-continue__info { flex: 1; min-width: 0; }
-.dash-continue__title {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: #92400e;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+.dash-sparkline__bar {
+    flex: 1;
+    min-width: 0;
+    background: var(--dash-accent-soft);
+    border-radius: 3px 3px 0 0;
+    min-height: 4px;
+    transition: background 0.2s;
 }
-.dash-continue__lesson {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: #78350f;
-    margin-top: 0.125rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.dash-sparkline__bar--current {
+    background: var(--dash-accent);
 }
-.dash-continue__btn {
-    flex-shrink: 0;
-    padding: 0.5rem 1.25rem;
-    background: #f59e0b;
-    color: white;
-    border-radius: var(--dash-radius-sm);
-    font-weight: 600;
-    font-size: 0.875rem;
-    text-decoration: none;
-    transition: all 0.2s;
+.dash-sparkline__bar:hover {
+    background: var(--dash-accent-medium);
 }
-.dash-continue__btn:hover {
-    background: #d97706;
-    color: white;
-    transform: scale(1.03);
+.dash-sparkline__bar--current:hover {
+    background: var(--dash-accent);
+    opacity: 0.85;
+}
+.dash-reading-speed__labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6875rem;
+    color: var(--dash-text-muted);
+    margin-top: 4px;
 }
 
-/* ============================================
-   Grammar Progress Summary
-   ============================================ */
-.dash-grammar-progress {
+/* ---- Grammar by Level Widget ---- */
+.dash-grammar-levels {
     background: var(--dash-surface);
     border: 1px solid var(--dash-border);
     border-radius: var(--dash-radius);
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1.5rem;
+    padding: 1.25rem;
     box-shadow: var(--dash-shadow);
-    animation: dashSlideUp 0.45s ease-out both;
-    animation-delay: 0.22s;
 }
-.dash-grammar-progress__heading {
-    font-size: 0.75rem;
+.dash-grammar-levels__heading {
+    font-size: 0.9375rem;
     font-weight: 700;
-    color: var(--dash-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
     margin: 0 0 0.75rem;
-}
-.dash-grammar-progress__stats {
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-}
-.dash-grammar-progress__stat {
-    text-align: center;
-    flex: 1;
-    min-width: 50px;
-}
-.dash-grammar-progress__num {
-    display: block;
-    font-size: 1.375rem;
-    font-weight: 800;
     color: var(--dash-text);
-    line-height: 1;
 }
-.dash-grammar-progress__lbl {
-    display: block;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    color: var(--dash-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 0.25rem;
+.dash-grammar-levels__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
-.dash-grammar-progress__bar {
-    height: 6px;
-    background: var(--dash-border);
-    border-radius: 3px;
+.dash-grammar-levels__row {
+    display: grid;
+    grid-template-columns: 28px 1fr 50px 40px;
+    gap: 0.5rem;
+    align-items: center;
+}
+.dash-grammar-levels__label {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--dash-text);
+}
+.dash-grammar-levels__bar {
+    height: 10px;
+    background: #f1f5f9;
+    border-radius: 5px;
     overflow: hidden;
-    margin-top: 0.75rem;
 }
-.dash-grammar-progress__fill {
+.dash-grammar-levels__fill {
     height: 100%;
-    background: linear-gradient(90deg, #06b6d4, #0891b2);
-    border-radius: 3px;
+    background: linear-gradient(90deg, var(--dash-accent), #7c3aed);
+    border-radius: 5px;
     transition: width 0.5s;
+    min-width: 0;
 }
-
-@media (max-width: 640px) {
-    .dash-continue { flex-direction: column; text-align: center; gap: 0.75rem; }
-    .dash-continue__lesson { white-space: normal; }
+.dash-grammar-levels__count {
+    font-size: 0.75rem;
+    color: var(--dash-text-muted);
+    text-align: right;
+}
+.dash-grammar-levels__pct {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--dash-accent);
+    text-align: right;
 }
 </style>
 
@@ -1675,7 +2807,7 @@ async function repairStreak() {
     try {
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfMeta ? csrfMeta.content : '';
-        const resp = await fetch('/api/streak/repair', {
+        const resp = await fetch('/api/streak/repair-web', {
             method: 'POST',
             credentials: 'same-origin',
             headers: {

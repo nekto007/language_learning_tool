@@ -214,20 +214,25 @@ class TestStatisticsService:
 
     def test_update_badge_stats(self, db_session, test_user):
         """Тест обновления статистики значков"""
-        # Создаем достижения
-        achievement1 = Achievement(
-            code='test_achievement_1',
-            name='Test 1',
-            description='Test',
-            xp_reward=100
-        )
-        achievement2 = Achievement(
-            code='test_achievement_2',
-            name='Test 2',
-            description='Test',
-            xp_reward=150
-        )
-        db_session.add_all([achievement1, achievement2])
+        # Создаем достижения (get-or-create to avoid UniqueViolation)
+        achievement1 = Achievement.query.filter_by(code='test_achievement_1').first()
+        if not achievement1:
+            achievement1 = Achievement(
+                code='test_achievement_1',
+                name='Test 1',
+                description='Test',
+                xp_reward=100
+            )
+            db_session.add(achievement1)
+        achievement2 = Achievement.query.filter_by(code='test_achievement_2').first()
+        if not achievement2:
+            achievement2 = Achievement(
+                code='test_achievement_2',
+                name='Test 2',
+                description='Test',
+                xp_reward=150
+            )
+            db_session.add(achievement2)
         db_session.flush()
 
         # Присваиваем пользователю
@@ -255,15 +260,17 @@ class TestAchievementService:
 
     def test_check_grade_achievements_first_a(self, db_session, test_user):
         """Тест присвоения достижения за первую оценку A"""
-        # Создаем достижение
-        achievement = Achievement(
-            code='first_perfect',
-            name='First Perfect',
-            description='First A grade',
-            xp_reward=50
-        )
-        db_session.add(achievement)
-        db_session.flush()
+        # Создаем достижение (get-or-create to avoid UniqueViolation)
+        achievement = Achievement.query.filter_by(code='first_perfect').first()
+        if not achievement:
+            achievement = Achievement(
+                code='first_perfect',
+                name='First Perfect',
+                description='First A grade',
+                xp_reward=50
+            )
+            db_session.add(achievement)
+            db_session.flush()
 
         # Создаем статистику с 1 оценкой A
         stats = UserStatistics(
@@ -288,15 +295,17 @@ class TestAchievementService:
 
     def test_check_grade_achievements_not_duplicate(self, db_session, test_user):
         """Тест что достижение не присваивается повторно"""
-        # Используем  уникальный код для этого теста
-        achievement = Achievement(
-            code='test_no_duplicate_unique',
-            name='First Perfect',
-            description='First A grade',
-            xp_reward=50
-        )
-        db_session.add(achievement)
-        db_session.flush()
+        # Используем уникальный код для этого теста (get-or-create)
+        achievement = Achievement.query.filter_by(code='test_no_duplicate_unique').first()
+        if not achievement:
+            achievement = Achievement(
+                code='test_no_duplicate_unique',
+                name='First Perfect',
+                description='First A grade',
+                xp_reward=50
+            )
+            db_session.add(achievement)
+            db_session.flush()
 
         # Уже присвоенное достижение
         user_achievement = UserAchievement(
@@ -373,10 +382,15 @@ class TestAchievementService:
 
     def test_check_streak_achievements(self, db_session, test_user):
         """Тест достижений за серии"""
-        # Создаем достижения за серии
-        achievement3 = Achievement(code='streak_3', name='Streak 3', description='3 days', xp_reward=30)
-        achievement7 = Achievement(code='streak_7', name='Streak 7', description='7 days', xp_reward=70)
-        db_session.add_all([achievement3, achievement7])
+        # Создаем достижения за серии (get-or-create to avoid UniqueViolation)
+        achievement3 = Achievement.query.filter_by(code='streak_3').first()
+        if not achievement3:
+            achievement3 = Achievement(code='streak_3', name='Streak 3', description='3 days', xp_reward=30)
+            db_session.add(achievement3)
+        achievement7 = Achievement.query.filter_by(code='streak_7').first()
+        if not achievement7:
+            achievement7 = Achievement(code='streak_7', name='Streak 7', description='7 days', xp_reward=70)
+            db_session.add(achievement7)
         db_session.flush()
 
         stats = UserStatistics(
