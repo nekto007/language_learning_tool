@@ -440,7 +440,7 @@ def cleanup_books():
                             os.remove(os.path.join(temp_dir, filename))
                             removed_files += 1
                         except Exception:
-                            pass
+                            logger.exception("Failed to remove temp file: %s", filename)
                 results['details'].append(f"Удалено {removed_files} временных файлов")
 
             results['message'] = 'Очистка выполнена успешно'

@@ -146,6 +146,16 @@
           {{ "{:,}".format(user['total_xp']).replace(',', ' ') }} XP
         </div>
       </div>
+      {% else %}
+      <div class="lb-empty">
+        <div class="lb-empty__icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+        </div>
+        <p class="lb-empty__title">Пока нет участников</p>
+        <p class="lb-empty__desc">Зарабатывайте XP, выполняя уроки и квизы, чтобы попасть в рейтинг!</p>
+      </div>
       {% endfor %}
     </div>
   </div>
@@ -208,6 +218,20 @@
           </svg>
           {{ user['achievement_count'] }}
         </div>
+      </div>
+      {% else %}
+      <div class="lb-empty">
+        <div class="lb-empty__icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 010-5C7 4 7 7 7 7"/>
+            <path d="M18 9h1.5a2.5 2.5 0 000-5C17 4 17 7 17 7"/>
+            <path d="M4 22h16"/>
+            <path d="M10 22V8a2 2 0 00-2-2H6a2 2 0 00-2 2v14"/>
+            <path d="M14 22V8a2 2 0 012-2h2a2 2 0 012 2v14"/>
+          </svg>
+        </div>
+        <p class="lb-empty__title">Пока нет участников</p>
+        <p class="lb-empty__desc">Получайте достижения за успехи в обучении, чтобы попасть в рейтинг!</p>
       </div>
       {% endfor %}
     </div>
@@ -627,6 +651,30 @@
 
 .lb-row__value--achievement {
   color: #ef4444;
+}
+
+/* ---- Empty State ---- */
+.lb-empty {
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.lb-empty__icon {
+  color: var(--lb-border);
+  margin-bottom: 0.75rem;
+}
+
+.lb-empty__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--lb-text);
+  margin: 0 0 0.375rem;
+}
+
+.lb-empty__desc {
+  font-size: 0.8125rem;
+  color: var(--lb-text-muted);
+  margin: 0;
 }
 
 /* ---- Info ---- */

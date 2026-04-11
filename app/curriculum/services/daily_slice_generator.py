@@ -1059,7 +1059,7 @@ class DailySliceGenerator:
             if daily_lesson.module and daily_lesson.module.course:
                 return daily_lesson.module.course.book_id
         except Exception:
-            pass
+            logger.exception("Failed to get book_id from daily lesson")
         return None
 
     def _get_words_from_book_in_text(self, book_id: int, text: str,

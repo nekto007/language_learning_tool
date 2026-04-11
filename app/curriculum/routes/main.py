@@ -206,11 +206,33 @@ def learn_by_module(level_code, module_number):
     # Создаём словарь прогресса
     user_lesson_progress = {p.lesson_id: p for p in user_progress}
 
+    # Module-level access info (prerequisite module name + required score)
+    module_lock_reason = None
+    if module.number > 1:
+        prev_module = Module.query.filter_by(
+            level_id=module.level_id, number=module.number - 1
+        ).first()
+        if prev_module:
+            from app.curriculum.security import check_module_access
+            if not check_module_access(module.id):
+                total = Lessons.query.filter_by(module_id=prev_module.id).count()
+                completed = LessonProgress.query.filter_by(
+                    user_id=current_user.id, status='completed'
+                ).join(Lessons).filter(Lessons.module_id == prev_module.id).count()
+                pct = round(completed / total * 100) if total > 0 else 0
+                module_lock_reason = {
+                    'prev_module_title': prev_module.title,
+                    'prev_module_number': prev_module.number,
+                    'required_pct': 80,
+                    'current_pct': pct,
+                }
+
     return render_template(
         'curriculum/module_lessons.html',
         module=module,
         lessons=sorted_lessons,
-        user_lesson_progress=user_lesson_progress
+        user_lesson_progress=user_lesson_progress,
+        module_lock_reason=module_lock_reason,
     )
 
 
@@ -275,10 +297,19 @@ def lesson_by_id(lesson_id):
     }
 
     render_func = render_map.get(lesson.type)
-    if render_func:
-        return render_func(lesson)
-    else:
+    if not render_func:
         flash(f'Неизвестный тип урока: {lesson.type}', 'error')
         return redirect('/learn/')
+
+    # Validate that lesson has content before rendering (card lessons may use collection_id)
+    content_required_types = {'vocabulary', 'flashcards', 'grammar', 'matching', 'text',
+                              'reading', 'listening_immersion', 'quiz', 'ordering_quiz',
+                              'translation_quiz', 'listening_quiz', 'dialogue_completion_quiz',
+                              'listening_immersion_quiz', 'final_test'}
+    if lesson.type in content_required_types and not lesson.content:
+        logger.warning(f"Lesson {lesson.id} ({lesson.type}) has no content")
+        return render_template('curriculum/lessons/empty_content.html', lesson=lesson)
+
+    return render_func(lesson)
 
 

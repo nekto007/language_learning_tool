@@ -1,8 +1,11 @@
+import logging
 import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from flask import render_template
+
+logger = logging.getLogger(__name__)
 
 
 class EmailSender:
@@ -13,6 +16,7 @@ class EmailSender:
         self.email_password = os.environ.get('EMAIL_HOST_PASSWORD')
         self.use_tls = os.environ.get('EMAIL_USE_TLS', 'False').lower() == 'true'
         self.default_from_email = os.environ.get('DEFAULT_FROM_EMAIL')
+        self.smtp_debug_level = int(os.environ.get('SMTP_DEBUG_LEVEL', 0))
 
     def send_email(self, subject, to_email, template_name, context=None):
         """
@@ -53,14 +57,15 @@ class EmailSender:
 
             # Подключение к SMTP-серверу
             with smtplib.SMTP(self.email_host, self.email_port) as server:
-                server.set_debuglevel(1)  # Включаем отладку SMTP
+                server.set_debuglevel(self.smtp_debug_level)
                 if self.use_tls:
                     server.starttls()
                 if self.email_user and self.email_password:
                     server.login(self.email_user, self.email_password)
                 server.send_message(msg)
             return True
-        except Exception as e:
+        except Exception:
+            logger.exception("Failed to send email to %s (subject: %s)", to_email, subject)
             return False
 
 

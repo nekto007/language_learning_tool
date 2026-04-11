@@ -31,6 +31,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'system_admin.', 'grammar_lab_admin.', 'admin_curriculum.',
     'curriculum_admin.', 'reminders.',
     'refresh_csrf_token',
+    'health_check',
 )
 
 csrf = CSRFProtect()
@@ -237,6 +238,21 @@ def create_app(config_class=Config):
         from flask_wtf.csrf import generate_csrf
         return _jsonify({'csrf_token': generate_csrf()})
 
+    # Health check endpoint (no auth, no CSRF)
+    @app.route('/health', methods=['GET'])
+    def health_check():
+        import logging
+        from flask import jsonify
+        logger = logging.getLogger(__name__)
+        try:
+            db.session.execute(db.text('SELECT 1'))
+            return jsonify({'status': 'healthy', 'database': 'connected'}), 200
+        except Exception as e:
+            logger.error('Health check failed: %s', e)
+            return jsonify({'status': 'unhealthy', 'db': 'error'}), 503
+
+    csrf.exempt(app.view_functions['health_check'])
+
     # Add CSRF error handler for AJAX requests
     from flask_wtf.csrf import CSRFError
 
@@ -251,6 +267,38 @@ def create_app(config_class=Config):
         if is_ajax or is_api or accepts_json:
             return jsonify({'success': False, 'error': 'CSRF token expired. Please refresh the page.', 'csrf_expired': True}), 400
         return e.description, 400
+
+    def _wants_json():
+        """Check if the client prefers a JSON response."""
+        from flask import request
+        return (
+            request.path.startswith('/api/')
+            or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or 'application/json' in request.headers.get('Accept', '')
+        )
+
+    @app.errorhandler(403)
+    def handle_403_error(e):
+        from flask import jsonify, render_template
+        if _wants_json():
+            return jsonify({'success': False, 'error': 'Forbidden'}), 403
+        return render_template('errors/403.html'), 403
+
+    @app.errorhandler(404)
+    def handle_404_error(e):
+        from flask import jsonify, render_template
+        if _wants_json():
+            return jsonify({'success': False, 'error': 'Not found'}), 404
+        return render_template('errors/404.html'), 404
+
+    @app.errorhandler(500)
+    def handle_500_error(e):
+        from flask import jsonify, render_template
+        from app.admin.main_routes import increment_5xx_counter
+        increment_5xx_counter()
+        if _wants_json():
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
+        return render_template('errors/500.html'), 500
 
     @login_manager.user_loader
     def load_user(user_id):

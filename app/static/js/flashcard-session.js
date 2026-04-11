@@ -867,7 +867,7 @@ class FlashcardSession {
                 percentage: this.sessionStats.total > 0
                     ? Math.round(((this.sessionStats.total - this.sessionStats.incorrect) / this.sessionStats.total) * 100)
                     : 0
-            }, 0, 1, 0);
+            }, 0, 1, 0, 0);
 
             // Mark lesson complete if URL provided
             if (this.config.markLessonCompleteUrl) {
@@ -908,7 +908,8 @@ class FlashcardSession {
                     stats,
                     data.xp_earned || 0,
                     data.level || 1,
-                    data.total_xp || 0
+                    data.total_xp || 0,
+                    data.streak || 0
                 );
 
                 // Show extra study button if more cards available
@@ -962,7 +963,7 @@ class FlashcardSession {
     /**
      * Show celebration/completion screen.
      */
-    _showCelebration(stats, xpEarned, level, totalXp) {
+    _showCelebration(stats, xpEarned, level, totalXp, streak) {
         // Hide progress bar and cards
         if (this.els.progressSection) this.els.progressSection.style.display = 'none';
         if (this.els.cardFront) this.els.cardFront.style.display = 'none';
@@ -1008,6 +1009,16 @@ class FlashcardSession {
         if (levelEl) levelEl.textContent = level;
         const totalXpEl = document.getElementById('total-xp');
         if (totalXpEl) totalXpEl.textContent = totalXp;
+
+        // Show streak status
+        if (streak > 0) {
+            const streakEl = document.getElementById('streak-status');
+            const streakDaysEl = document.getElementById('streak-days');
+            if (streakEl && streakDaysEl) {
+                streakDaysEl.textContent = streak;
+                streakEl.style.display = 'flex';
+            }
+        }
 
         // Update action buttons
         const continueBtn = document.getElementById('fc-continue-btn');

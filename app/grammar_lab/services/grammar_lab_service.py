@@ -628,13 +628,24 @@ class GrammarLabService:
                 .subquery()
             )
 
-            new_topics = (
-                GrammarTopic.query
-                .filter(~GrammarTopic.id.in_(started_topic_ids))
-                .order_by(GrammarTopic.level, GrammarTopic.order)
-                .limit(limit - len(recommendations))
-                .all()
-            )
+            # Prefer topics matching user's level (onboarding or curriculum)
+            from app.auth.models import User
+            user = User.query.get(user_id)
+            user_level = getattr(user, 'onboarding_level', None) if user else None
+
+            new_q = GrammarTopic.query.filter(~GrammarTopic.id.in_(started_topic_ids))
+            if user_level:
+                # User-level topics first, then others
+                from sqlalchemy import case as sa_case
+                level_priority = sa_case(
+                    (GrammarTopic.level == user_level, 0),
+                    else_=1,
+                )
+                new_q = new_q.order_by(level_priority, GrammarTopic.level, GrammarTopic.order)
+            else:
+                new_q = new_q.order_by(GrammarTopic.level, GrammarTopic.order)
+
+            new_topics = new_q.limit(limit - len(recommendations)).all()
 
             for topic in new_topics:
                 recommendations.append({
@@ -644,3 +655,79 @@ class GrammarLabService:
                 })
 
         return recommendations[:limit]
+
+    def get_next_recommended_topic(self, user_id: int) -> Optional[Dict]:
+        """Get the single best next topic for the user to study.
+
+        Priority: due for review > in progress > next new topic by level/order.
+        """
+        recommendations = self.get_recommendations(user_id, limit=1)
+        return recommendations[0] if recommendations else None
+
+    def get_adjacent_topics(self, topic_id: int) -> Dict[str, Optional[Dict]]:
+        """Get previous and next topics within the same level, ordered by `order`.
+
+        Returns {'prev': {...} or None, 'next': {...} or None}.
+        """
+        topic = GrammarTopic.query.get(topic_id)
+        if not topic:
+            return {'prev': None, 'next': None}
+
+        prev_topic = (
+            GrammarTopic.query
+            .filter(
+                GrammarTopic.level == topic.level,
+                GrammarTopic.order < topic.order
+            )
+            .order_by(GrammarTopic.order.desc())
+            .first()
+        )
+
+        next_topic = (
+            GrammarTopic.query
+            .filter(
+                GrammarTopic.level == topic.level,
+                GrammarTopic.order > topic.order
+            )
+            .order_by(GrammarTopic.order.asc())
+            .first()
+        )
+
+        return {
+            'prev': prev_topic.to_dict() if prev_topic else None,
+            'next': next_topic.to_dict() if next_topic else None,
+        }
+
+    def get_level_mastery_stats(self, user_id: int) -> Dict[str, Dict]:
+        """Get mastery stats per level for the index page progress bars.
+
+        Returns dict keyed by level with topics_total, topics_mastered, mastery_pct.
+        """
+        if not user_id:
+            return {}
+
+        levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+        result = {}
+
+        for level in levels:
+            topics = GrammarTopic.query.filter_by(level=level).all()
+            topic_count = len(topics)
+
+            if topic_count == 0:
+                result[level] = {'topics_total': 0, 'topics_mastered': 0, 'mastery_pct': 0}
+                continue
+
+            topic_ids = [t.id for t in topics]
+            mastered_count = UserGrammarTopicStatus.query.filter(
+                UserGrammarTopicStatus.user_id == user_id,
+                UserGrammarTopicStatus.topic_id.in_(topic_ids),
+                UserGrammarTopicStatus.status == 'mastered'
+            ).count()
+
+            result[level] = {
+                'topics_total': topic_count,
+                'topics_mastered': mastered_count,
+                'mastery_pct': round((mastered_count / topic_count) * 100, 1) if topic_count > 0 else 0,
+            }
+
+        return result

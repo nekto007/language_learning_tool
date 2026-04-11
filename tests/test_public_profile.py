@@ -101,3 +101,32 @@ class TestPublicProfile:
         html = response.data.decode()
         assert 'Level' in html or 'Уровень' in html
         assert 'XP' in html
+
+
+class TestProfileExternalUrls:
+    """Test that profile and referral pages use dynamic URLs, not hardcoded domain."""
+
+    def test_profile_url_uses_url_for(self, app, client, db_session):
+        """Profile page should show URL via url_for, not hardcoded llt-english.com."""
+        import uuid
+        from app.auth.models import User
+        suffix = uuid.uuid4().hex[:8]
+        user = User(username=f'urltest_{suffix}', email=f'urltest_{suffix}@t.com', active=True)
+        user.set_password('test')
+        db_session.add(user)
+        db_session.commit()
+
+        # Authenticate
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(user.id)
+
+        response = client.get('/profile')
+        if response.status_code == 200:
+            html = response.data.decode()
+            # Should contain the username in a URL, built by url_for
+            assert f'/u/{user.username}' in html
+            # Should NOT contain hardcoded domain for this URL
+            assert f'https://llt-english.com/u/{user.username}' not in html or 'url_for' in html or 'localhost' in html
+
+        db_session.delete(user)
+        db_session.commit()

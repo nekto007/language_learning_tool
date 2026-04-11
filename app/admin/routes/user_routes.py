@@ -4,10 +4,12 @@
 User Management Routes для административной панели
 Маршруты для управления пользователями и статистикой
 """
+import csv
+import io
 import logging
 from datetime import UTC, datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 from sqlalchemy import desc
 
@@ -26,7 +28,7 @@ logger = logging.getLogger(__name__)
 def users():
     """Управление пользователями"""
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    per_page = min(request.args.get('per_page', 20, type=int), 50)
     search = request.args.get('search', '')
 
     # Build query with search
@@ -83,6 +85,58 @@ def toggle_admin_status(user_id):
         flash(message, 'danger')
 
     return redirect(url_for('user_admin.users'))
+
+
+@user_bp.route('/users/<int:user_id>')
+@admin_required
+def user_detail(user_id):
+    """Детальная страница пользователя"""
+    detail = UserManagementService.get_user_detail(user_id)
+    if not detail:
+        flash('Пользователь не найден.', 'danger')
+        return redirect(url_for('user_admin.users'))
+
+    return render_template('admin/user_detail.html', detail=detail)
+
+
+@user_bp.route('/users/export')
+@admin_required
+def export_users_csv():
+    """Export users as CSV with key metrics. Sanitized, limited, audit-logged."""
+    from app.admin.utils.export_helpers import _sanitize_csv_cell, MAX_EXPORT_ROWS
+
+    search = request.args.get('search', '')
+    rows = UserManagementService.export_users_csv(search=search)
+    rows = rows[:MAX_EXPORT_ROWS]
+
+    # Audit log
+    current_app.logger.info(
+        'CSV user export by admin %s, search=%r, %d records',
+        current_user.id, search, len(rows),
+    )
+
+    # Streaming CSV response with sanitized cells
+    fieldnames = [
+        'id', 'username', 'email', 'created_at', 'last_login',
+        'active', 'lessons_completed', 'current_streak', 'longest_streak', 'coin_balance',
+    ]
+
+    def generate():
+        buf = io.StringIO()
+        writer = csv.DictWriter(buf, fieldnames=fieldnames)
+        writer.writeheader()
+        yield buf.getvalue()
+        for row in rows:
+            buf = io.StringIO()
+            writer = csv.DictWriter(buf, fieldnames=fieldnames)
+            writer.writerow({k: _sanitize_csv_cell(v) for k, v in row.items()})
+            yield buf.getvalue()
+
+    return Response(
+        generate(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename=users_export_{datetime.now(UTC).strftime("%Y-%m-%d")}.csv'},
+    )
 
 
 @user_bp.route('/stats')

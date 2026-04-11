@@ -231,7 +231,11 @@ class WordTranslator {
 
             const data = await resp.json();
             if (data.success) {
-                this.els.learnBtn.innerHTML = '<i class="fas fa-check"></i> Добавлено';
+                this.els.learnBtn.textContent = '';
+                var icon = document.createElement('i');
+                icon.className = 'fas fa-check';
+                this.els.learnBtn.appendChild(icon);
+                this.els.learnBtn.appendChild(document.createTextNode(' Добавлено'));
                 this.els.learnBtn.disabled = true;
                 this.els.learnBtn.classList.add('wt-popup__learn-btn--done');
             }

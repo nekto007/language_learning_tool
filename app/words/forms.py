@@ -1,7 +1,10 @@
+import logging
 from flask_babel import lazy_gettext as _l
 from flask_wtf import FlaskForm
 from wtforms import BooleanField, HiddenField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class WordSearchForm(FlaskForm):
@@ -41,7 +44,7 @@ class WordFilterForm(FlaskForm):
             ).scalars().all()
             books.extend([(b.id, b.title) for b in all_books])
         except Exception:
-            pass
+            logger.exception("Failed to load book choices for word filter form")
 
         self.book_id.choices = books
 
@@ -87,7 +90,7 @@ class CollectionFilterForm(FlaskForm):
             topics = Topic.query.order_by(Topic.name).all()
             choices.extend([(str(t.id), t.name) for t in topics])
         except Exception:
-            pass
+            logger.exception("Failed to load topic choices for collection filter form")
         self.topic.choices = choices
 
 

@@ -8,10 +8,10 @@ Responsibilities:
 """
 from typing import List, Dict, Optional
 from datetime import UTC, datetime, timedelta
-from sqlalchemy import func
+from sqlalchemy import func, distinct
 
 from app.utils.db import db
-from app.auth.models import User
+from app.auth.models import User, ReferralLog
 from app.study.models import UserWord
 from app.curriculum.models import LessonProgress
 from app.modules.models import UserModule
@@ -94,6 +94,162 @@ class UserManagementService:
             },
             'modules_enabled': module_count
         }
+
+    @classmethod
+    def get_user_detail(cls, user_id: int) -> Optional[Dict]:
+        """Get comprehensive user profile for admin detail page."""
+        user = User.query.get(user_id)
+        if not user:
+            return None
+
+        from app.achievements.models import UserStatistics, StreakCoins, LessonGrade
+        from app.grammar_lab.models import UserGrammarTopicStatus
+
+        # Basic stats from get_user_statistics
+        base_stats = cls.get_user_statistics(user_id)
+
+        # Streak and achievements
+        user_stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        streak_info = {
+            'current': user_stats.current_streak_days if user_stats else 0,
+            'longest': user_stats.longest_streak_days if user_stats else 0,
+            'total_lessons': user_stats.total_lessons_completed if user_stats else 0,
+            'total_badges': user_stats.total_badges if user_stats else 0,
+            'badge_points': user_stats.total_badge_points if user_stats else 0,
+        }
+
+        # Coins
+        coins = StreakCoins.query.filter_by(user_id=user_id).first()
+        coins_info = {
+            'balance': coins.balance if coins else 0,
+            'total_earned': coins.total_earned if coins else 0,
+            'total_spent': coins.total_spent if coins else 0,
+        }
+
+        # Grammar progress
+        grammar_started = UserGrammarTopicStatus.query.filter_by(user_id=user_id).count()
+        grammar_mastered = UserGrammarTopicStatus.query.filter_by(
+            user_id=user_id, status='mastered'
+        ).count()
+
+        # Lesson grades
+        grades = db.session.query(
+            LessonGrade.grade,
+            func.count(LessonGrade.id)
+        ).filter(
+            LessonGrade.user_id == user_id
+        ).group_by(LessonGrade.grade).all()
+        grade_counts = {g: c for g, c in grades}
+
+        # Referrals made
+        referrals_made = ReferralLog.query.filter_by(referrer_id=user_id).count()
+
+        # Module access details
+        user_modules = UserModule.query.filter_by(user_id=user_id, is_enabled=True).all()
+        module_names = []
+        for um in user_modules:
+            from app.modules.models import SystemModule
+            sm = SystemModule.query.get(um.module_id)
+            if sm:
+                module_names.append(sm.name)
+
+        return {
+            **base_stats,
+            'user': user,
+            'streak': streak_info,
+            'coins': coins_info,
+            'grammar': {
+                'started': grammar_started,
+                'mastered': grammar_mastered,
+            },
+            'grades': grade_counts,
+            'referrals_made': referrals_made,
+            'module_names': module_names,
+            'last_login': user.last_login,
+            'active': user.active,
+            'is_admin': user.is_admin,
+        }
+
+    @classmethod
+    def get_at_risk_users(cls, inactive_days: int = 7, min_streak: int = 3, limit: int = 10) -> List[Dict]:
+        """Get users inactive 7+ days who previously had 3+ day streaks."""
+        from app.achievements.models import UserStatistics
+
+        cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=inactive_days)
+
+        rows = db.session.query(
+            User.id,
+            User.username,
+            User.email,
+            User.last_login,
+            UserStatistics.longest_streak_days,
+            UserStatistics.current_streak_days,
+        ).join(
+            UserStatistics, User.id == UserStatistics.user_id
+        ).filter(
+            User.active == True,
+            UserStatistics.longest_streak_days >= min_streak,
+            db.or_(
+                User.last_login.is_(None),
+                User.last_login < cutoff,
+            ),
+        ).order_by(
+            UserStatistics.longest_streak_days.desc()
+        ).limit(limit).all()
+
+        return [{
+            'id': r.id,
+            'username': r.username,
+            'email': r.email,
+            'last_login': r.last_login,
+            'longest_streak': r.longest_streak_days,
+            'current_streak': r.current_streak_days,
+        } for r in rows]
+
+    @classmethod
+    def export_users_csv(cls, search: str = '') -> List[Dict]:
+        """Export users with key metrics for CSV download."""
+        from app.achievements.models import UserStatistics, StreakCoins
+
+        query = db.session.query(
+            User.id,
+            User.username,
+            User.email,
+            User.created_at,
+            User.last_login,
+            User.active,
+            UserStatistics.total_lessons_completed,
+            UserStatistics.current_streak_days,
+            UserStatistics.longest_streak_days,
+            StreakCoins.balance.label('coin_balance'),
+        ).outerjoin(
+            UserStatistics, User.id == UserStatistics.user_id
+        ).outerjoin(
+            StreakCoins, User.id == StreakCoins.user_id
+        )
+
+        if search:
+            query = query.filter(
+                db.or_(
+                    User.username.ilike(f'%{search}%'),
+                    User.email.ilike(f'%{search}%'),
+                )
+            )
+
+        rows = query.order_by(User.created_at.desc()).all()
+
+        return [{
+            'id': r.id,
+            'username': r.username,
+            'email': r.email or '',
+            'created_at': r.created_at.strftime('%Y-%m-%d') if r.created_at else '',
+            'last_login': r.last_login.strftime('%Y-%m-%d') if r.last_login else '',
+            'active': 'Да' if r.active else 'Нет',
+            'lessons_completed': r.total_lessons_completed or 0,
+            'current_streak': r.current_streak_days or 0,
+            'longest_streak': r.longest_streak_days or 0,
+            'coin_balance': r.coin_balance or 0,
+        } for r in rows]
 
     @classmethod
     def toggle_user_module_access(cls, user_id: int, module_code: str, enabled: bool) -> bool:

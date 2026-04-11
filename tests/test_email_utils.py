@@ -85,7 +85,7 @@ class TestSendEmail:
 
         # Verify SMTP calls
         mock_smtp.assert_called_once_with('smtp.example.com', 587)
-        mock_server.set_debuglevel.assert_called_once_with(1)
+        mock_server.set_debuglevel.assert_called_once_with(0)
         mock_server.starttls.assert_called_once()
         mock_server.login.assert_called_once_with('user@example.com', 'password123')
         mock_server.send_message.assert_called_once()
@@ -195,6 +195,56 @@ class TestSendEmail:
             )
 
         assert result is False
+
+
+class TestSmtpDebugLevel:
+    """Test SMTP debug level configuration"""
+
+    @patch.dict('os.environ', {
+        'EMAIL_HOST': 'smtp.example.com',
+        'DEFAULT_FROM_EMAIL': 'noreply@example.com'
+    }, clear=True)
+    def test_smtp_debug_level_defaults_to_zero(self):
+        """Test that SMTP debug level is 0 by default (no debug logging)"""
+        sender = EmailSender()
+        assert sender.smtp_debug_level == 0
+
+    @patch.dict('os.environ', {
+        'EMAIL_HOST': 'smtp.example.com',
+        'DEFAULT_FROM_EMAIL': 'noreply@example.com',
+        'SMTP_DEBUG_LEVEL': '1'
+    }, clear=True)
+    def test_smtp_debug_level_configurable_via_env(self):
+        """Test that SMTP debug level can be set via environment variable"""
+        sender = EmailSender()
+        assert sender.smtp_debug_level == 1
+
+    @patch.dict('os.environ', {
+        'EMAIL_HOST': 'smtp.example.com',
+        'EMAIL_PORT': '587',
+        'EMAIL_HOST_USER': 'user@example.com',
+        'EMAIL_HOST_PASSWORD': 'password123',
+        'DEFAULT_FROM_EMAIL': 'noreply@example.com',
+        'SMTP_DEBUG_LEVEL': '2'
+    })
+    @patch('app.utils.email_utils.smtplib.SMTP')
+    @patch('app.utils.email_utils.render_template')
+    def test_smtp_debug_level_passed_to_server(self, mock_render, mock_smtp, app):
+        """Test that configured debug level is passed to SMTP server"""
+        mock_render.side_effect = lambda template, **context: f"Rendered {template}"
+        mock_server = MagicMock()
+        mock_smtp.return_value.__enter__.return_value = mock_server
+
+        sender = EmailSender()
+
+        with app.app_context():
+            sender.send_email(
+                subject='Test',
+                to_email='test@example.com',
+                template_name='test'
+            )
+
+        mock_server.set_debuglevel.assert_called_once_with(2)
 
 
 class TestEmailSenderInstance:

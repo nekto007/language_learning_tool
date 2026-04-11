@@ -117,7 +117,7 @@
       <!-- Exercise Content -->
       <div id="exercise-screen" style="display: none;">
         <div class="practice-exercise">
-          <div class="practice-exercise__topic" id="topic-badge"></div>
+          <a href="#" class="practice-exercise__topic" id="topic-badge"></a>
           <div class="practice-exercise__question" id="question-area"></div>
           <div class="practice-exercise__feedback" id="feedback-area" style="display: none;"></div>
           <div class="practice-exercise__actions">
@@ -230,8 +230,8 @@
         <path d="M22 4L12 14.01l-3-3"/>
       </svg>
     </div>
-    <h2 class="practice-empty__title">Всё повторено!</h2>
-    <p class="practice-empty__desc">Нет упражнений для практики. Изучите новые темы или дождитесь времени повторения.</p>
+    <h2 class="practice-empty__title">Нет доступных упражнений</h2>
+    <p class="practice-empty__desc">Упражнения для этой практики отсутствуют. Изучите новые грамматические темы, чтобы открыть упражнения, или вернитесь позже для повторения.</p>
     <div class="practice-empty__actions">
       <a href="{{ url_for('grammar_lab.topics') }}" class="practice-btn practice-btn--primary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -555,6 +555,17 @@
   font-size: 0.75rem;
   font-weight: 600;
   margin-bottom: 1rem;
+  text-decoration: none;
+}
+
+.practice-exercise__topic--linked {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.practice-exercise__topic--linked:hover {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(168, 85, 247, 0.2) 100%);
+  text-decoration: underline;
 }
 
 .practice-exercise__question {
@@ -1257,8 +1268,16 @@ function showExercise(index) {
   document.getElementById('progress-text').textContent = `${index} / ${exercises.length}`;
   document.getElementById('progress-bar').style.width = `${(index / exercises.length) * 100}%`;
 
-  // Set topic badge
-  document.getElementById('topic-badge').textContent = exercise.topic_title || 'Grammar';
+  // Set topic badge with link to topic
+  const topicBadge = document.getElementById('topic-badge');
+  topicBadge.textContent = exercise.topic_title || 'Grammar';
+  if (exercise.topic_id) {
+    topicBadge.href = '/grammar-lab/topic/' + exercise.topic_id;
+    topicBadge.classList.add('practice-exercise__topic--linked');
+  } else {
+    topicBadge.removeAttribute('href');
+    topicBadge.classList.remove('practice-exercise__topic--linked');
+  }
 
   // Render question
   const questionArea = document.getElementById('question-area');

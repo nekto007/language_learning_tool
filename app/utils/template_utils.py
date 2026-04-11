@@ -1,8 +1,12 @@
 import copy
 import datetime
+import logging
 import re
 
 from flask import request
+
+logger = logging.getLogger(__name__)
+
 try:
     from markupsafe import Markup
 except ImportError:
@@ -213,7 +217,7 @@ def init_template_utils(app):
                         'current_module': enrollment.current_module
                     }
             except Exception:
-                pass
+                logger.exception("Failed to get active book course for navbar")
             return None
 
         def get_active_curriculum_lesson():
@@ -237,7 +241,7 @@ def init_template_utils(app):
                             'url': f'/learn/{lesson.id}/'
                         }
             except Exception:
-                pass
+                logger.exception("Failed to get active curriculum lesson for navbar")
             return None
 
         def get_active_grammar_topic():
@@ -256,8 +260,59 @@ def init_template_utils(app):
                     if topic:
                         return topic
             except Exception:
-                pass
+                logger.exception("Failed to get active grammar topic for navbar")
             return None
+
+        def get_words_due_count() -> int:
+            """Return count of word cards due for review (for nav badge)."""
+            from flask_login import current_user
+            if not current_user.is_authenticated:
+                return 0
+            try:
+                from app.study.models import UserCardDirection, UserWord
+                from app.utils.db import db
+                from sqlalchemy import func, or_
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+                count = db.session.query(func.count(UserCardDirection.id)).join(
+                    UserWord, UserCardDirection.user_word_id == UserWord.id
+                ).filter(
+                    UserWord.user_id == current_user.id,
+                    UserWord.status.in_(['new', 'learning', 'review']),
+                    UserCardDirection.direction == 'eng-rus',
+                    or_(
+                        UserCardDirection.next_review.is_(None),
+                        UserCardDirection.next_review <= end_of_today
+                    )
+                ).scalar() or 0
+                return count
+            except Exception:
+                return 0
+
+        def get_grammar_due_count() -> int:
+            """Return count of grammar exercises due for review (for nav badge)."""
+            from flask_login import current_user
+            if not current_user.is_authenticated:
+                return 0
+            try:
+                from app.grammar_lab.models import UserGrammarExercise
+                from app.utils.db import db
+                from sqlalchemy import func, or_
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+                count = db.session.query(func.count(UserGrammarExercise.id)).filter(
+                    UserGrammarExercise.user_id == current_user.id,
+                    UserGrammarExercise.state.in_(['learning', 'review', 'relearning']),
+                    or_(
+                        UserGrammarExercise.next_review.is_(None),
+                        UserGrammarExercise.next_review <= end_of_today
+                    )
+                ).scalar() or 0
+                return count
+            except Exception:
+                return 0
 
         return dict(
             get_cefr_levels=get_cefr_levels,
@@ -267,7 +322,9 @@ def init_template_utils(app):
             get_lesson_url=get_lesson_url,
             get_active_book_course=get_active_book_course,
             get_active_curriculum_lesson=get_active_curriculum_lesson,
-            get_active_grammar_topic=get_active_grammar_topic
+            get_active_grammar_topic=get_active_grammar_topic,
+            get_words_due_count=get_words_due_count,
+            get_grammar_due_count=get_grammar_due_count
         )
 
     @app.context_processor

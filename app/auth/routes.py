@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import datetime, timezone
 from flask_babel import lazy_gettext as _l
@@ -11,6 +12,8 @@ from app.auth.models import User, ReferralLog
 from app.utils.db import db
 from app.utils.email_utils import email_sender
 from config.settings import Config
+
+logger = logging.getLogger(__name__)
 
 auth = Blueprint('auth', __name__)
 
@@ -130,6 +133,7 @@ def verify_reset_token(token: str, expiration: int = 3600):
             # loads with any salt just to extract the payload — we re-verify below
             user_id = s.loads_unsafe(token)[1]
         except Exception:
+            logger.exception("Failed to decode password reset token")
             return None
 
     if not isinstance(user_id, int):
@@ -144,6 +148,7 @@ def verify_reset_token(token: str, expiration: int = 3600):
         verified_id = serializer.loads(token, salt=_get_reset_salt(user), max_age=expiration)
         return verified_id
     except Exception:
+        logger.exception("Failed to verify password reset token for user %s", user_id)
         return None
 
 
@@ -410,33 +415,106 @@ def logout():
     return redirect(url_for('auth.login'))
 
 
+def _get_profile_stats(user_id: int) -> dict:
+    """Gather learning stats for profile page."""
+    from app.study.models import UserWord, UserXP
+    from app.curriculum.models import LessonProgress
+    from app.achievements.models import UserStatistics
+    from app.telegram.queries import get_current_streak
+    from sqlalchemy import func
+
+    # Words learned (any status means user is studying it)
+    total_words = UserWord.query.filter_by(user_id=user_id).count()
+
+    # Lessons completed
+    lessons_completed = LessonProgress.query.filter_by(
+        user_id=user_id, status='completed'
+    ).count()
+
+    # XP and level
+    user_xp = UserXP.query.filter_by(user_id=user_id).first()
+    xp_level = user_xp.level if user_xp else 1
+    total_xp = user_xp.total_xp if user_xp else 0
+
+    # Streak
+    current_streak = get_current_streak(user_id)
+
+    # Streak record from UserStatistics
+    user_stats = UserStatistics.query.filter_by(user_id=user_id).first()
+    longest_streak = user_stats.longest_streak_days if user_stats else current_streak
+
+    return {
+        'total_words': total_words,
+        'lessons_completed': lessons_completed,
+        'xp_level': xp_level,
+        'total_xp': total_xp,
+        'current_streak': current_streak,
+        'longest_streak': max(longest_streak, current_streak),
+    }
+
+
+# Valid timezone choices for the settings form
+TIMEZONE_CHOICES = [
+    'Europe/Moscow', 'Europe/London', 'Europe/Berlin', 'Europe/Paris',
+    'America/New_York', 'America/Chicago', 'America/Los_Angeles',
+    'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Dubai', 'Asia/Kolkata',
+    'Australia/Sydney', 'Pacific/Auckland', 'UTC',
+]
+
+
 @auth.route('/profile')
 @login_required
 def profile():
-    """Basic profile view"""
-    return render_template('auth/profile.html', user=current_user)
+    """Profile view with learning stats and settings."""
+    stats = _get_profile_stats(current_user.id)
+
+    # Account age in days
+    account_age_days = 0
+    if current_user.created_at:
+        delta = datetime.now(timezone.utc) - current_user.created_at.replace(tzinfo=timezone.utc) if current_user.created_at.tzinfo is None else datetime.now(timezone.utc) - current_user.created_at
+        account_age_days = delta.days
+
+    return render_template(
+        'auth/profile.html',
+        user=current_user,
+        stats=stats,
+        account_age_days=account_age_days,
+        timezone_choices=TIMEZONE_CHOICES,
+    )
 
 
 @auth.route('/profile', methods=['POST'])
-@login_required  
+@login_required
 def profile_update():
-    """Basic profile update"""
-    username_or_email = request.form.get('username_or_email')
-    email = request.form.get('email')
-    
-    if username_or_email:
-        current_user.username = username_or_email
-    if email:
-        current_user.email = email
-        
+    """Save profile settings: timezone, daily goal, notification preferences."""
+    section = request.form.get('section', '')
+
+    if section == 'settings':
+        tz = request.form.get('timezone', '').strip()
+        if tz in TIMEZONE_CHOICES:
+            current_user.timezone = tz
+
+        goal = request.form.get('daily_goal_minutes', '')
+        if goal.isdigit():
+            val = int(goal)
+            if 5 <= val <= 120:
+                current_user.daily_goal_minutes = val
+
+    elif section == 'notifications':
+        current_user.notify_email_reminders = 'notify_email_reminders' in request.form
+        current_user.notify_in_app_achievements = 'notify_in_app_achievements' in request.form
+        current_user.notify_in_app_streaks = 'notify_in_app_streaks' in request.form
+        current_user.notify_in_app_weekly = 'notify_in_app_weekly' in request.form
+
     try:
         db.session.commit()
-        flash('Профиль обновлен успешно.', 'success')
-    except Exception as e:
+        flash('Настройки сохранены.', 'success')
+    except Exception:
+        logger.exception("Failed to save profile settings for user %s", current_user.id)
         db.session.rollback()
-        flash('Ошибка при обновлении профиля.', 'danger')
-    
-    return render_template('auth/profile.html', user=current_user)
+        flash('Ошибка при сохранении настроек.', 'danger')
+
+    return redirect(url_for('auth.profile'))
 
 
 @auth.route('/change-password', methods=['GET', 'POST'])
@@ -468,6 +546,8 @@ def change_password():
 @login_required
 def referrals():
     """Referral dashboard: shows user's referral code, link, and referred users."""
+    from datetime import timedelta
+
     # Ensure user has a referral code
     current_user.ensure_referral_code()
 
@@ -479,7 +559,19 @@ def referrals():
         .all()
     )
 
-    referral_link = f'https://llt-english.com/register?ref={current_user.referral_code}'
+    referral_link = url_for('auth.register', ref=current_user.referral_code, _external=True)
+
+    # Active referred users: those who logged in within last 30 days
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    active_referred = 0
+    for u in referred_users:
+        if u.last_login:
+            login_dt = u.last_login if u.last_login.tzinfo else u.last_login.replace(tzinfo=timezone.utc)
+            if login_dt > thirty_days_ago:
+                active_referred += 1
+
+    # XP earned from referrals (100 XP per referred user)
+    total_referral_xp = len(referred_users) * 100
 
     return render_template(
         'auth/referrals.html',
@@ -487,6 +579,8 @@ def referrals():
         referral_link=referral_link,
         referred_users=referred_users,
         referral_count=len(referred_users),
+        active_referred=active_referred,
+        total_referral_xp=total_referral_xp,
     )
 
 

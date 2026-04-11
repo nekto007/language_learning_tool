@@ -4,7 +4,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Dict, Any, List, Optional
 
-from sqlalchemy import func, and_, desc
+from sqlalchemy import case, func, and_, desc
 
 from app.curriculum.models import LessonAttempt, Lessons, Module, CEFRLevel, LessonProgress
 from app.utils.db import db
@@ -38,7 +38,7 @@ class LessonAnalyticsService:
                 func.count(func.distinct(LessonAttempt.user_id)).label('unique_users'),
                 func.avg(LessonAttempt.score).label('avg_score'),
                 func.avg(LessonAttempt.time_spent_seconds).label('avg_time'),
-                func.count(func.case((LessonAttempt.passed == True, 1))).label('passed_count')
+                func.count(case((LessonAttempt.passed == True, 1))).label('passed_count')
             ).filter(
                 LessonAttempt.lesson_id == lesson_id,
                 LessonAttempt.completed_at.isnot(None)
@@ -290,7 +290,7 @@ class LessonAnalyticsService:
                 func.count(LessonAttempt.id).label('total'),
                 func.count(func.distinct(LessonAttempt.user_id)).label('active_users'),
                 func.avg(LessonAttempt.score).label('avg_score'),
-                func.count(func.case((LessonAttempt.passed == True, 1))).label('passed')
+                func.count(case((LessonAttempt.passed == True, 1))).label('passed')
             ).filter(
                 LessonAttempt.started_at >= week_ago
             ).first()
@@ -303,7 +303,7 @@ class LessonAnalyticsService:
                 LessonAttempt.lesson_id,
                 func.count(LessonAttempt.id).label('attempts'),
                 func.avg(LessonAttempt.score).label('avg_score'),
-                func.count(func.case((LessonAttempt.passed == True, 1))).label('passed')
+                func.count(case((LessonAttempt.passed == True, 1))).label('passed')
             ).filter(
                 LessonAttempt.started_at >= week_ago,
                 LessonAttempt.completed_at.isnot(None)

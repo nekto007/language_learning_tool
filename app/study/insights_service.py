@@ -513,3 +513,73 @@ def _compute_current_streak(user_id: int) -> int:
         check -= timedelta(days=1)
 
     return streak
+
+
+# ---------------------------------------------------------------------------
+# Weekly summary (week-to-date, NOT lifetime)
+# ---------------------------------------------------------------------------
+
+def get_weekly_summary(user_id: int) -> dict[str, Any]:
+    """Week-to-date learning stats for the dashboard 'This Week' card.
+
+    Returns words_reviewed, lessons_completed, time_minutes, accuracy.
+    """
+    from app.study.models import StudySession
+    from app.curriculum.models import LessonProgress, LessonAttempt
+
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+
+    # Words reviewed this week (from StudySession)
+    row = (
+        db.session.query(
+            func.coalesce(func.sum(StudySession.words_studied), 0),
+            func.coalesce(func.sum(StudySession.correct_answers), 0),
+            func.coalesce(func.sum(StudySession.incorrect_answers), 0),
+        )
+        .filter(StudySession.user_id == user_id, StudySession.start_time >= week_ago)
+        .one()
+    )
+    words_reviewed = int(row[0])
+    correct = int(row[1])
+    incorrect = int(row[2])
+    accuracy = round(correct / (correct + incorrect) * 100) if (correct + incorrect) > 0 else 0
+
+    # Lessons completed this week
+    lessons_completed = (
+        LessonProgress.query
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+            LessonProgress.completed_at >= week_ago,
+        )
+        .count()
+    )
+
+    # Time spent (lesson attempts + study sessions)
+    lesson_time = (
+        db.session.query(func.coalesce(func.sum(LessonAttempt.time_spent_seconds), 0))
+        .filter(LessonAttempt.user_id == user_id, LessonAttempt.started_at >= week_ago)
+        .scalar()
+    )
+    study_time = (
+        db.session.query(
+            func.coalesce(
+                func.sum(func.extract('epoch', StudySession.end_time) - func.extract('epoch', StudySession.start_time)),
+                0,
+            )
+        )
+        .filter(
+            StudySession.user_id == user_id,
+            StudySession.start_time >= week_ago,
+            StudySession.end_time.isnot(None),
+        )
+        .scalar()
+    )
+    time_minutes = round((int(lesson_time) + int(study_time)) / 60)
+
+    return {
+        'words_reviewed': words_reviewed,
+        'lessons_completed': lessons_completed,
+        'time_minutes': time_minutes,
+        'accuracy': accuracy,
+    }
