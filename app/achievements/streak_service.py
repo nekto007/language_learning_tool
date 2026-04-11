@@ -236,6 +236,7 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow')
         tz_obj = pytz.timezone(tz)
     except pytz.UnknownTimeZoneError:
         tz_obj = pytz.timezone('Europe/Moscow')
+    tz = tz_obj.zone
 
     local_today = datetime.now(tz_obj).date()
     from_date = local_today - timedelta(days=days)
