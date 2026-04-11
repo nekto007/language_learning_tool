@@ -123,16 +123,14 @@ def _safe_widget_call(name: str, fn, *args, default=None, **kwargs):
 
 def _get_cached_leaderboard(stats_service_cls, limit: int = 5):
     """Return leaderboard data with 5-minute TTL cache."""
-    now = time.time()
     cache = _leaderboard_cache
     with cache['lock']:
+        now = time.time()
         if cache['data'] is not None and now < cache['expires']:
             return cache['data']
-    # Fetch outside lock to avoid holding it during DB query
-    data = stats_service_cls.get_xp_leaderboard(limit=limit)
-    with cache['lock']:
+        data = stats_service_cls.get_xp_leaderboard(limit=limit)
         cache['data'] = data
-        cache['expires'] = now + 300  # 5 minutes
+        cache['expires'] = time.time() + 300  # 5 minutes
     return data
 
 
@@ -210,6 +208,14 @@ def dashboard():
     tz = 'Europe/Moscow'
     activity_heatmap = _safe_widget_call(
         'activity_heatmap', get_activity_heatmap, current_user.id, days=90, default=[])
+    # Pad heatmap so first day aligns to correct weekday row.
+    # Grid rows: 0=Sun, 1=Mon, ..., 6=Sat. Python weekday: 0=Mon, ..., 6=Sun.
+    heatmap_pad = 0
+    if activity_heatmap:
+        from datetime import date as _date
+        first_date = _date.fromisoformat(activity_heatmap[0]['date'])
+        # Convert Python weekday (Mon=0) to grid row (Sun=0): (wd + 1) % 7
+        heatmap_pad = (first_date.weekday() + 1) % 7
     streak_calendar = _safe_widget_call(
         'streak_calendar', get_streak_calendar, current_user.id, days=90, tz=tz, default={})
 
@@ -240,7 +246,7 @@ def dashboard():
 
     # === ACHIEVEMENTS BY CATEGORY & MILESTONES ===
     achievements_by_category = _safe_widget_call(
-        'achievements_by_category', StatsService.get_achievements_by_category, current_user.id, default=[])
+        'achievements_by_category', StatsService.get_achievements_by_category, current_user.id, default={})
     milestone_history = _safe_widget_call(
         'milestone_history', get_milestone_history, current_user.id, default=[])
 
@@ -394,6 +400,7 @@ def dashboard():
         onboarding_level=getattr(current_user, 'onboarding_level', None),
         # Activity heatmap
         activity_heatmap=activity_heatmap,
+        heatmap_pad=heatmap_pad,
         streak_calendar=streak_calendar,
         # Words at risk & grammar weaknesses
         words_at_risk=words_at_risk,

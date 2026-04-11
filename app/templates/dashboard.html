@@ -466,18 +466,21 @@
                 <span></span>
             </div>
             <div class="dash-heatmap__scroll">
+                {%- set month_names = {'01':'Янв','02':'Фев','03':'Мар','04':'Апр','05':'Май','06':'Июн','07':'Июл','08':'Авг','09':'Сен','10':'Окт','11':'Ноя','12':'Дек'} -%}
                 <div class="dash-heatmap__months">
                     {%- set ns = namespace(last_month='') -%}
                     {%- for day in activity_heatmap -%}
                         {%- set month_name = day.date[5:7] -%}
-                        {%- set month_names = {'01':'Янв','02':'Фев','03':'Мар','04':'Апр','05':'Май','06':'Июн','07':'Июл','08':'Авг','09':'Сен','10':'Окт','11':'Ноя','12':'Дек'} -%}
-                        {%- if month_name != ns.last_month and loop.index0 % 7 == 0 -%}
-                            <span style="grid-column: {{ (loop.index0 // 7) + 1 }}">{{ month_names[month_name] }}</span>
+                        {%- if month_name != ns.last_month and (loop.index0 + heatmap_pad|default(0)) % 7 == 0 -%}
+                            <span style="grid-column: {{ ((loop.index0 + heatmap_pad|default(0)) // 7) + 1 }}">{{ month_names[month_name] }}</span>
                             {%- set ns.last_month = month_name -%}
                         {%- endif -%}
                     {%- endfor -%}
                 </div>
                 <div class="dash-heatmap__grid">
+                    {%- for _ in range(heatmap_pad|default(0)) -%}
+                        <div class="dash-heatmap__cell dash-heatmap__cell--empty"></div>
+                    {%- endfor -%}
                     {%- for day in activity_heatmap -%}
                         {%- if day.count == 0 -%}
                             {%- set level = 0 -%}
@@ -1239,6 +1242,7 @@
     opacity: 0.8;
 }
 
+.dash-heatmap__cell--empty { visibility: hidden; }
 .dash-heatmap__cell--0 { background: var(--dash-surface-alt); border: 1px solid var(--dash-border); }
 .dash-heatmap__cell--1 { background: rgba(80, 70, 229, 0.2); }
 .dash-heatmap__cell--2 { background: rgba(80, 70, 229, 0.45); }
