@@ -160,7 +160,7 @@ class TestDashboardActivityHeatmap:
              patch('app.achievements.streak_service.get_streak_calendar', return_value=mock_calendar) as mock_sc:
             response = client.get('/dashboard')
             assert response.status_code == 200
-            mock_hm.assert_called_once_with(test_user.id, days=90)
+            mock_hm.assert_called_once_with(test_user.id, days=90, tz='Europe/Moscow')
             mock_sc.assert_called_once_with(test_user.id, days=90, tz='Europe/Moscow')
 
     def test_dashboard_renders_heatmap_widget(self, client, app, test_user, words_module_access):
@@ -218,8 +218,9 @@ class TestDashboardActivityHeatmap:
              patch('app.achievements.streak_service.get_streak_calendar', return_value=mock_calendar):
             response = client.get('/dashboard')
             html = response.data.decode('utf-8')
-            assert '42' in html  # total_active_days
-            assert '21' in html  # longest_streak
+            html_body = html.split('<style>')[0] if '<style>' in html else html
+            assert '>42<' in html_body  # total_active_days
+            assert '>21<' in html_body  # longest_streak
 
 
 class TestDashboardWordsAtRisk:
@@ -338,7 +339,7 @@ class TestDashboardBestStudyTime:
         with patch('app.study.insights_service.get_best_study_time', return_value=mock_data) as mock_bst:
             response = client.get('/dashboard')
             assert response.status_code == 200
-            mock_bst.assert_called_once_with(test_user.id)
+            mock_bst.assert_called_once_with(test_user.id, tz='Europe/Moscow')
 
     def test_dashboard_renders_best_study_time_widget(self, client, app, test_user, words_module_access):
         """Dashboard should render best study time widget with hour and chart"""
@@ -420,7 +421,8 @@ class TestDashboardSessionStats:
             assert '>12<' in html  # total_sessions
             assert '>85<' in html  # total_words_studied
             assert '82.4%' in html  # accuracy
-            assert '60 ' in html  # 3600 seconds = 60 min
+            html_body = html.split('<style>')[0] if '<style>' in html else html
+            assert '>60<' in html_body or '>60 ' in html_body  # 3600 seconds = 60 min
 
 
 class TestDashboardLeaderboard:
@@ -480,8 +482,9 @@ class TestDashboardLeaderboard:
              patch('app.study.services.stats_service.StatsService.get_user_xp_rank', return_value=12):
             response = client.get('/dashboard')
             html = response.data.decode('utf-8')
-            assert 'dash-leaderboard__you' in html
-            assert '12' in html
+            html_body = html.split('<style>')[0] if '<style>' in html else html
+            assert 'dash-leaderboard__you' in html_body
+            assert '12-м месте' in html_body
 
     def test_dashboard_leaderboard_hides_rank_when_in_top5(self, client, app, test_user, words_module_access):
         """Dashboard should not show rank badge when user is already in the leaderboard"""
@@ -1045,7 +1048,7 @@ class TestDashboardPerformance:
         t_elapsed = time.time() - t_start
 
         assert response.status_code == 200
-        assert t_elapsed < 10.0, f"Dashboard took {t_elapsed:.2f}s, expected < 10s"
+        assert t_elapsed < 8.0, f"Dashboard took {t_elapsed:.2f}s, expected < 8s"
 
     def test_dashboard_widget_failure_does_not_crash(self, client, app, test_user, words_module_access):
         """If a non-critical widget service raises an exception, dashboard should still render"""

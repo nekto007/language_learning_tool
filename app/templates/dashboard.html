@@ -484,14 +484,14 @@
                     {%- for day in activity_heatmap -%}
                         {%- if day.count == 0 -%}
                             {%- set level = 0 -%}
-                        {%- elif day.count <= 1 -%}
+                        {%- elif day.count <= 2 -%}
                             {%- set level = 1 -%}
-                        {%- elif day.count <= 3 -%}
+                        {%- elif day.count <= 5 -%}
                             {%- set level = 2 -%}
                         {%- else -%}
                             {%- set level = 3 -%}
                         {%- endif -%}
-                        <div class="dash-heatmap__cell dash-heatmap__cell--{{ level }}" title="{{ day.date }}: {{ day.count }} активностей"></div>
+                        <div class="dash-heatmap__cell dash-heatmap__cell--{{ level }}" title="{{ day.date }}: {{ day.count }} {{ 'занятие' if day.count % 10 == 1 and day.count % 100 != 11 else 'занятия' if day.count % 10 in [2,3,4] and day.count % 100 not in [12,13,14] else 'занятий' }}"></div>
                     {%- endfor -%}
                 </div>
             </div>

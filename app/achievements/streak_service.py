@@ -212,22 +212,37 @@ def get_milestone_history(user_id: int) -> list[dict]:
 def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow') -> dict:
     """Get streak calendar data for the last N days.
 
-    Uses the same real-activity check as get_current_streak so the data is
-    consistent with the dashboard streak counter.
+    Uses a single batched UNION query to find all active dates (same 5
+    activity sources as the per-day streak checker), then merges with
+    StreakEvent dates.  Replaces the previous per-day loop that could
+    generate hundreds of queries.
 
     Returns dict with:
       - active_dates: list of date strings (YYYY-MM-DD) where user was active
       - total_active_days: total count
       - longest_streak: longest consecutive run
-      - current_streak: current consecutive run (from get_current_streak)
+      - current_streak: current consecutive run
     """
-    from app.telegram.queries import get_current_streak, _has_activity_in_range, _user_day_boundaries
+    import pytz
+    from sqlalchemy import Date, cast, func
 
-    today = date.today()
+    from app.curriculum.models import LessonProgress
+    from app.grammar_lab.models import UserGrammarExercise
+    from app.study.models import UserCardDirection, UserWord
+    from app.books.models import UserChapterProgress
+    from app.curriculum.daily_lessons import UserLessonProgress
 
-    # Also include StreakEvent dates (earned_daily + repairs) as supplementary source
-    from_date = today - timedelta(days=days)
-    event_dates = set()
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone('Europe/Moscow')
+
+    local_today = datetime.now(tz_obj).date()
+    from_date = local_today - timedelta(days=days)
+    start_utc = datetime.now(timezone.utc) - timedelta(days=days + 1)
+
+    # --- StreakEvent dates (earned_daily + repairs) ---
+    event_dates: set[date] = set()
     for ev in StreakEvent.query.filter(
         StreakEvent.user_id == user_id,
         StreakEvent.event_type.in_(['earned_daily', 'free_repair', 'spent_repair']),
@@ -235,24 +250,65 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow')
     ):
         event_dates.add(ev.event_date)
 
-    # Check real activity for each day in the window
-    active_dates = set()
-    for offset in range(days):
-        check_date = today - timedelta(days=offset)
-        if check_date in event_dates:
-            active_dates.add(check_date)
-            continue
-        try:
-            day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
-            if _has_activity_in_range(user_id, day_start, day_end):
-                active_dates.add(check_date)
-        except Exception:
-            pass
+    # --- Batched activity query: same 5 sources as _has_activity_in_range ---
+    def _local_date(col):
+        return cast(func.timezone(tz, func.timezone('UTC', col)), Date)
 
-    active_dates_str = sorted(d.isoformat() for d in active_dates)
+    q1 = (
+        db.session.query(_local_date(LessonProgress.last_activity).label('d'))
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.last_activity >= start_utc,
+            LessonProgress.last_activity.isnot(None),
+        )
+    )
+    q2 = (
+        db.session.query(_local_date(UserGrammarExercise.last_reviewed).label('d'))
+        .filter(
+            UserGrammarExercise.user_id == user_id,
+            UserGrammarExercise.last_reviewed >= start_utc,
+            UserGrammarExercise.last_reviewed.isnot(None),
+        )
+    )
+    q3 = (
+        db.session.query(_local_date(UserCardDirection.last_reviewed).label('d'))
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(
+            UserWord.user_id == user_id,
+            UserCardDirection.last_reviewed >= start_utc,
+            UserCardDirection.last_reviewed.isnot(None),
+        )
+    )
+    q4 = (
+        db.session.query(_local_date(UserChapterProgress.updated_at).label('d'))
+        .filter(
+            UserChapterProgress.user_id == user_id,
+            UserChapterProgress.updated_at >= start_utc,
+            UserChapterProgress.updated_at.isnot(None),
+        )
+    )
+    q5 = (
+        db.session.query(_local_date(UserLessonProgress.completed_at).label('d'))
+        .filter(
+            UserLessonProgress.user_id == user_id,
+            UserLessonProgress.completed_at >= start_utc,
+            UserLessonProgress.completed_at.isnot(None),
+        )
+    )
 
-    # Calculate longest streak from active_dates
-    sorted_dates = sorted(active_dates)
+    union = q1.union(q2, q3, q4, q5).subquery()
+    activity_rows = db.session.query(union.c.d).distinct().all()
+    activity_dates: set[date] = {row[0] for row in activity_rows if row[0] is not None}
+
+    # Merge activity dates with streak events
+    all_active = (activity_dates | event_dates) & {
+        local_today - timedelta(days=i) for i in range(days)
+    }
+
+    active_dates_str = sorted(d.isoformat() for d in all_active)
+
+    # Calculate longest streak from all_active
+    sorted_dates = sorted(all_active)
     longest = 0
     current = 0
     prev = None
@@ -264,12 +320,22 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow')
         longest = max(longest, current)
         prev = d
 
-    # Use the authoritative streak counter
-    curr_streak = get_current_streak(user_id, tz=tz)
+    # Compute current streak from the merged dates (no separate query)
+    curr_streak = 0
+    check = local_today
+    while check in all_active:
+        curr_streak += 1
+        check -= timedelta(days=1)
+    if curr_streak == 0:
+        # Allow streak to continue from yesterday
+        check = local_today - timedelta(days=1)
+        while check in all_active:
+            curr_streak += 1
+            check -= timedelta(days=1)
 
     return {
         'active_dates': active_dates_str,
-        'total_active_days': len(active_dates),
+        'total_active_days': len(all_active),
         'longest_streak': max(longest, curr_streak),
         'current_streak': curr_streak,
     }

@@ -9,7 +9,7 @@ All functions accept user_id and return dicts/lists safe for JSON serialization.
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import Date, cast, func, extract, literal
+from sqlalchemy import Date, cast, func, extract
 
 from app.utils.db import db
 
@@ -18,11 +18,13 @@ from app.utils.db import db
 # 1. Activity heatmap
 # ---------------------------------------------------------------------------
 
-def get_activity_heatmap(user_id: int, days: int = 90) -> list[dict[str, Any]]:
+def get_activity_heatmap(user_id: int, days: int = 90,
+                         tz: str = 'Europe/Moscow') -> list[dict[str, Any]]:
     """
     Return list of ``{date: "2026-03-27", count: N}`` for the last *days* days.
 
-    ``count`` = number of distinct activity *sources* recorded that day:
+    ``count`` = total number of activity records across all sources that day
+    (timezone-adjusted to *tz*):
       - curriculum lesson completion  (LessonProgress.completed_at)
       - grammar SRS review            (UserGrammarExercise.last_reviewed)
       - flashcard review               (UserCardDirection.last_reviewed)
@@ -35,37 +37,41 @@ def get_activity_heatmap(user_id: int, days: int = 90) -> list[dict[str, Any]]:
     from app.books.models import UserChapterProgress
     from app.curriculum.daily_lessons import UserLessonProgress
 
-    start_date = datetime.now(timezone.utc) - timedelta(days=days)
+    # Add +1 day buffer so timezone-ahead users don't lose boundary-day data.
+    start_date = datetime.now(timezone.utc) - timedelta(days=days + 1)
 
-    # Each sub-query returns (date, literal_label) rows for days with activity.
-    sources: list[tuple] = []
+    def _local_date(col):
+        """Cast a UTC timestamp column to a local date in the target tz."""
+        return cast(func.timezone(tz, func.timezone('UTC', col)), Date)
+
+    # Each sub-query returns (local_date, record_count) per day.
 
     # -- curriculum lessons --
     q1 = (
         db.session.query(
-            cast(LessonProgress.completed_at, Date).label('d'),
-            literal('lesson').label('src'),
+            _local_date(LessonProgress.completed_at).label('d'),
+            func.count().label('cnt'),
         )
         .filter(
             LessonProgress.user_id == user_id,
             LessonProgress.completed_at >= start_date,
             LessonProgress.completed_at.isnot(None),
         )
-        .group_by(cast(LessonProgress.completed_at, Date))
+        .group_by(_local_date(LessonProgress.completed_at))
     )
 
     # -- grammar SRS --
     q2 = (
         db.session.query(
-            cast(UserGrammarExercise.last_reviewed, Date).label('d'),
-            literal('grammar').label('src'),
+            _local_date(UserGrammarExercise.last_reviewed).label('d'),
+            func.count().label('cnt'),
         )
         .filter(
             UserGrammarExercise.user_id == user_id,
             UserGrammarExercise.last_reviewed >= start_date,
             UserGrammarExercise.last_reviewed.isnot(None),
         )
-        .group_by(cast(UserGrammarExercise.last_reviewed, Date))
+        .group_by(_local_date(UserGrammarExercise.last_reviewed))
     )
 
     # -- flashcards --
@@ -73,8 +79,8 @@ def get_activity_heatmap(user_id: int, days: int = 90) -> list[dict[str, Any]]:
 
     q3 = (
         db.session.query(
-            cast(UserCardDirection.last_reviewed, Date).label('d'),
-            literal('cards').label('src'),
+            _local_date(UserCardDirection.last_reviewed).label('d'),
+            func.count().label('cnt'),
         )
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
@@ -82,53 +88,58 @@ def get_activity_heatmap(user_id: int, days: int = 90) -> list[dict[str, Any]]:
             UserCardDirection.last_reviewed >= start_date,
             UserCardDirection.last_reviewed.isnot(None),
         )
-        .group_by(cast(UserCardDirection.last_reviewed, Date))
+        .group_by(_local_date(UserCardDirection.last_reviewed))
     )
 
     # -- book chapter progress --
     q4 = (
         db.session.query(
-            cast(UserChapterProgress.updated_at, Date).label('d'),
-            literal('book').label('src'),
+            _local_date(UserChapterProgress.updated_at).label('d'),
+            func.count().label('cnt'),
         )
         .filter(
             UserChapterProgress.user_id == user_id,
             UserChapterProgress.updated_at >= start_date,
             UserChapterProgress.updated_at.isnot(None),
         )
-        .group_by(cast(UserChapterProgress.updated_at, Date))
+        .group_by(_local_date(UserChapterProgress.updated_at))
     )
 
     # -- daily lesson progress --
     q5 = (
         db.session.query(
-            cast(UserLessonProgress.completed_at, Date).label('d'),
-            literal('daily').label('src'),
+            _local_date(UserLessonProgress.completed_at).label('d'),
+            func.count().label('cnt'),
         )
         .filter(
             UserLessonProgress.user_id == user_id,
             UserLessonProgress.completed_at >= start_date,
             UserLessonProgress.completed_at.isnot(None),
         )
-        .group_by(cast(UserLessonProgress.completed_at, Date))
+        .group_by(_local_date(UserLessonProgress.completed_at))
     )
 
-    # UNION ALL, then count distinct sources per day.
+    # UNION ALL, then sum record counts per day.
     union = q1.union_all(q2, q3, q4, q5).subquery()
 
     rows = (
         db.session.query(
             union.c.d,
-            func.count(func.distinct(union.c.src)),
+            func.sum(union.c.cnt),
         )
         .group_by(union.c.d)
         .all()
     )
 
-    counts_by_date: dict[date, int] = {row[0]: row[1] for row in rows}
+    counts_by_date: dict[date, int] = {row[0]: int(row[1]) for row in rows}
 
     # Build the full range so the frontend always gets every day.
-    today = date.today()
+    # Use timezone-aware "today" so dates align with the DB grouping.
+    import pytz as _pytz
+    try:
+        today = datetime.now(_pytz.timezone(tz)).date()
+    except Exception:
+        today = date.today()
     result: list[dict[str, Any]] = []
     for offset in range(days):
         d = today - timedelta(days=days - 1 - offset)
@@ -144,18 +155,22 @@ def get_activity_heatmap(user_id: int, days: int = 90) -> list[dict[str, Any]]:
 # 2. Best study time
 # ---------------------------------------------------------------------------
 
-def get_best_study_time(user_id: int) -> dict[str, Any]:
+def get_best_study_time(user_id: int,
+                        tz: str = 'Europe/Moscow') -> dict[str, Any]:
     """
     Return ``{best_hour: 14, hourly_scores: {9: 82.5, 14: 91.2, ...}}``.
 
     Based on LessonProgress where score is not null, grouped by hour of
-    ``completed_at``.
+    ``completed_at`` converted to the user's timezone *tz*.
     """
     from app.curriculum.models import LessonProgress
 
+    # Convert UTC timestamp to local timezone before extracting hour
+    local_completed = func.timezone(tz, func.timezone('UTC', LessonProgress.completed_at))
+
     rows = (
         db.session.query(
-            extract('hour', LessonProgress.completed_at).label('hour'),
+            extract('hour', local_completed).label('hour'),
             func.avg(LessonProgress.score).label('avg_score'),
         )
         .filter(
@@ -163,7 +178,7 @@ def get_best_study_time(user_id: int) -> dict[str, Any]:
             LessonProgress.score.isnot(None),
             LessonProgress.completed_at.isnot(None),
         )
-        .group_by(extract('hour', LessonProgress.completed_at))
+        .group_by(extract('hour', local_completed))
         .all()
     )
 

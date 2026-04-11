@@ -208,7 +208,7 @@ def dashboard():
     # === ACTIVITY HEATMAP & STREAK CALENDAR ===
     tz = 'Europe/Moscow'
     activity_heatmap = _safe_widget_call(
-        'activity_heatmap', get_activity_heatmap, current_user.id, days=90, default=[])
+        'activity_heatmap', get_activity_heatmap, current_user.id, days=90, tz=tz, default=[])
     # Pad heatmap so first day aligns to correct weekday row.
     # Grid rows: 0=Sun, 1=Mon, ..., 6=Sat. Python weekday: 0=Mon, ..., 6=Sun.
     heatmap_pad = 0
@@ -228,7 +228,7 @@ def dashboard():
 
     # === BEST STUDY TIME & SESSION STATS ===
     best_study_time = _safe_widget_call(
-        'best_study_time', get_best_study_time, current_user.id,
+        'best_study_time', get_best_study_time, current_user.id, tz=tz,
         default={'best_hour': None, 'hourly_scores': {}})
     _empty_session_stats = {
         'period_days': 7, 'total_sessions': 0, 'total_words_studied': 0,
