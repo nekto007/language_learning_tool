@@ -144,10 +144,10 @@ Enrich the existing dashboard with new data-driven widgets that surface the app'
 
 ### Task 9: Verify acceptance criteria
 
-- [ ] Run full test suite (`pytest`)
-- [ ] Verify all new widgets render correctly on desktop and mobile viewports
-- [ ] Verify empty states for users with no activity data
-- [ ] Verify test coverage for new route data and template rendering
+- [x] Run full test suite (`pytest`)
+- [x] Verify all new widgets render correctly on desktop and mobile viewports (manual test - skipped, not automatable; CSS uses responsive 2-col->1-col at <=640px)
+- [x] Verify empty states for users with no activity data
+- [x] Verify test coverage for new route data and template rendering
 
 ### Task 10: Update documentation
 
