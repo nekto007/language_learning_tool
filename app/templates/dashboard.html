@@ -484,9 +484,9 @@
                     {%- for day in activity_heatmap -%}
                         {%- if day.count == 0 -%}
                             {%- set level = 0 -%}
-                        {%- elif day.count <= 2 -%}
+                        {%- elif day.count <= 1 -%}
                             {%- set level = 1 -%}
-                        {%- elif day.count <= 5 -%}
+                        {%- elif day.count <= 3 -%}
                             {%- set level = 2 -%}
                         {%- else -%}
                             {%- set level = 3 -%}
