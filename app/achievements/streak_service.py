@@ -368,7 +368,7 @@ def save_daily_completion(user_id: int, steps_done: int, steps_total: int,
         event.steps_total = steps_total
     else:
         db.session.add(StreakEvent(
-            user_id=user_id, event_type='daily_completion',
+            user_id=user_id, event_type='earned_daily',
             coins_delta=0, event_date=today,
             steps_done=steps_done, steps_total=steps_total,
         ))

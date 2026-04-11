@@ -20,7 +20,7 @@
                     <div class="dash-streak dash-streak--restored">
                         <span class="dash-streak__fire">&#128293;</span>
                         <span class="dash-streak__text">{{ streak }}
-                            {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
+                            {% set _s10 = streak % 10 %}{% set _s100 = streak % 100 %}{% if _s10 == 1 and _s100 != 11 %}день{% elif _s10 in [2,3,4] and _s100 not in [12,13,14] %}дня{% else %}дней{% endif %} подряд</span>
                         <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance }}</span>
                         <span class="dash-streak__restored">Серия восстановлена!</span>
                     </div>
@@ -28,7 +28,7 @@
                     <div class="dash-streak">
                         <span class="dash-streak__fire">&#128293;</span>
                         <span class="dash-streak__text">{{ streak }}
-                            {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
+                            {% set _s10 = streak % 10 %}{% set _s100 = streak % 100 %}{% if _s10 == 1 and _s100 != 11 %}день{% elif _s10 in [2,3,4] and _s100 not in [12,13,14] %}дня{% else %}дней{% endif %} подряд</span>
                         <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance }}</span>
                     </div>
                     {% elif streak_status and streak_status.can_repair %}
@@ -56,7 +56,7 @@
                     <div class="dash-streak">
                         <span class="dash-streak__fire">&#128293;</span>
                         <span class="dash-streak__text">{{ streak }}
-                            {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
+                            {% set _s10 = streak % 10 %}{% set _s100 = streak % 100 %}{% if _s10 == 1 and _s100 != 11 %}день{% elif _s10 in [2,3,4] and _s100 not in [12,13,14] %}дня{% else %}дней{% endif %} подряд</span>
                         <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
                         {% set milestones = {7: '🎯 Неделя!', 14: '💪 2 недели!', 30: '🏆 Месяц!', 60: '⭐ 2 месяца!', 100: '👑 100 дней!'} %}
                         {% if streak in milestones %}
