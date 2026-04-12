@@ -8,7 +8,7 @@ from flask_login import current_user
 from sqlalchemy import func
 
 from app import csrf
-from app.api.auth import api_login_required
+from app.api.decorators import api_auth_required
 from app.books.models import Book, Chapter, UserChapterProgress, Task, Block
 from app.curriculum.cache import cached
 from app.utils.db import db
@@ -21,7 +21,7 @@ api_books = Blueprint('api_books', __name__)
 
 
 @api_books.route('/books', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_books():
     books_query = db.select(Book)
     books = db.session.execute(books_query).scalars().all()
@@ -38,7 +38,7 @@ def get_books():
 
 
 @api_books.route('/books/<int:book_id>', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_book(book_id):
     book = Book.query.get_or_404(book_id)
 
@@ -108,7 +108,7 @@ def get_book(book_id):
 # ============================================================================
 
 @api_books.route('/books/<slug>/chapters', methods=['GET'])
-@api_login_required
+@api_auth_required
 @cached(timeout=3600, key_prefix='book_chapters_by_slug')  # Cache for 1 hour
 def get_book_chapters_by_slug(slug):
     """
@@ -129,7 +129,7 @@ def get_book_chapters_by_slug(slug):
 
 
 @api_books.route('/books/<int:book_id>/chapters', methods=['GET'])
-@api_login_required
+@api_auth_required
 @cached(timeout=3600, key_prefix='book_chapters')  # Cache for 1 hour
 def get_book_chapters(book_id):
     """
@@ -150,7 +150,7 @@ def get_book_chapters(book_id):
 
 
 @api_books.route('/books/<int:book_id>/chapters/<int:chapter_num>', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_chapter_content(book_id, chapter_num):
     """
     Get chapter content with navigation info
@@ -197,7 +197,7 @@ def get_chapter_content(book_id, chapter_num):
 
 # CSRF protection REQUIRED
 @api_books.route('/progress', methods=['PATCH'])
-@api_login_required
+@api_auth_required
 def update_chapter_progress():
     """
     Update reading progress
@@ -257,7 +257,7 @@ def update_chapter_progress():
 
 
 @api_books.route('/books/<int:book_id>/progress', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_book_chapter_progress(book_id):
     """
     Get user's reading progress for a book
@@ -307,7 +307,7 @@ def get_book_chapter_progress(book_id):
 
 
 @api_books.route('/word-translation/<word>', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_word_translation(word):
     """
     API для получения перевода слова с определением его формы
@@ -499,7 +499,7 @@ def get_word_translation(word):
 
 
 @api_books.route('/book/<int:book_id>/content', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_book_content(book_id):
     """Get book content for reading assignment"""
     start_position = request.args.get('start_position', type=int, default=0)
@@ -541,7 +541,7 @@ def get_book_content(book_id):
 
 
 @api_books.route('/tasks/<int:task_id>', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_task(task_id):
     """
     Get task by ID with its payload
@@ -572,7 +572,7 @@ def get_task(task_id):
 
 
 @api_books.route('/blocks/<int:block_id>/tasks', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_block_tasks(block_id):
     """
     Get all tasks for a specific block
@@ -609,7 +609,7 @@ def get_block_tasks(block_id):
 
 
 @api_books.route('/blocks/<int:block_id>', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_block(block_id):
     """
     Get block information with task types
@@ -645,7 +645,7 @@ def get_block(block_id):
 
 
 @api_books.route('/chapters/<int:chapter_id>', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_chapter_by_id(chapter_id):
     """
     Get chapter by ID with text and audio URL

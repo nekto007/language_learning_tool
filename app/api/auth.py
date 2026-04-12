@@ -1,9 +1,7 @@
-import functools
 import logging
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
-from flask_login import current_user, login_user
 
 from app import csrf
 from app.auth.models import User
@@ -13,19 +11,6 @@ logger = logging.getLogger(__name__)
 
 api_auth = Blueprint('api_auth', __name__)
 
-
-def api_login_required(f):
-    @functools.wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return jsonify({
-                'success': False,
-                'error': 'Authentication required',
-                'status_code': 401
-            }), 401
-        return f(*args, **kwargs)
-
-    return decorated_function
 
 
 @api_auth.route('/login', methods=['POST'])

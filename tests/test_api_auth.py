@@ -223,19 +223,11 @@ class TestAPIRefresh:
         assert refresh_response.status_code == 401
 
 
-class TestAPILoginRequired:
-    """Test @api_login_required decorator"""
+class TestAPIAuthRequired:
+    """Test unified @api_auth_required decorator (JWT + session fallback)"""
 
-    @pytest.mark.skip(reason="@api_login_required doesn't support JWT tokens - use @api_jwt_required instead")
-    def test_api_login_required_with_valid_token(self, client, test_user):
-        """Test API endpoint with valid JWT token
-
-        NOTE: This test is skipped because /api/words uses @api_login_required which
-        only supports Flask-Login session cookies, not JWT tokens.
-
-        To make this test pass, /api/words needs to be migrated to use @api_jwt_required.
-        """
-        # Login to get access token
+    def test_endpoint_accepts_jwt_token(self, client, test_user):
+        """Endpoints accept JWT Bearer tokens"""
         login_response = client.post(
             '/api/login',
             json={
@@ -247,17 +239,20 @@ class TestAPILoginRequired:
         login_data = login_response.get_json()
         access_token = login_data['access_token']
 
-        # Use access token to access protected endpoint
         response = client.get(
             '/api/words',
             headers={'Authorization': f'Bearer {access_token}'}
         )
 
-        # Should succeed (not 401)
         assert response.status_code == 200
 
-    def test_api_login_required_without_token(self, client):
-        """Test protected API endpoint without token"""
+    def test_endpoint_accepts_session_cookie(self, authenticated_client):
+        """Endpoints accept session cookie auth"""
+        response = authenticated_client.get('/api/words')
+        assert response.status_code == 200
+
+    def test_endpoint_rejects_unauthenticated(self, client):
+        """Endpoints reject unauthenticated requests"""
         response = client.get('/api/words')
 
         assert response.status_code == 401
@@ -265,3 +260,31 @@ class TestAPILoginRequired:
 
         assert data['success'] is False
         assert 'Authentication required' in data['error']
+
+    def test_endpoint_rejects_invalid_jwt(self, client):
+        """Endpoints reject invalid JWT tokens"""
+        response = client.get(
+            '/api/words',
+            headers={'Authorization': 'Bearer invalid_token_here'}
+        )
+
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data['success'] is False
+
+    def test_jwt_preferred_over_session(self, client, test_user):
+        """JWT auth works even without a session"""
+        login_response = client.post(
+            '/api/login',
+            json={
+                'username': test_user.username,
+                'password': 'testpass123'
+            }
+        )
+        access_token = login_response.get_json()['access_token']
+
+        response = client.get(
+            '/api/words',
+            headers={'Authorization': f'Bearer {access_token}'}
+        )
+        assert response.status_code == 200

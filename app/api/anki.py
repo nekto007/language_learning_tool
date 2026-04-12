@@ -6,7 +6,7 @@ from flask import Blueprint, jsonify, request, send_file
 from flask_login import current_user
 
 from app import csrf
-from app.api.auth import api_login_required
+from app.api.decorators import api_auth_required
 from app.utils.anki_export import create_anki_package
 from app.words.models import CollectionWords
 
@@ -17,7 +17,7 @@ api_anki = Blueprint('api_anki', __name__)
 
 @api_anki.route('/export-anki', methods=['POST'])
 # CSRF protection REQUIRED
-@api_login_required
+@api_auth_required
 def export_anki():
     if not request.is_json:
         return jsonify({

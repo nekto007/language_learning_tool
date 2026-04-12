@@ -133,11 +133,11 @@ Task 1 (factory) → Task 2 (db lifecycle) → Task 3 (config)
 - Browser-AJAX endpoints (из study/words pages) продолжают работать через session + CSRF
 - НЕ ломать существующие browser flows
 
-- [ ] Создать единый `@api_auth_required` декоратор (JWT → session fallback)
-- [ ] Заменить `@api_login_required` и `@api_jwt_required` на `@api_auth_required` где применимо
-- [ ] Проверить `@csrf.exempt` — только для чисто-JWT endpoints
-- [ ] Обновить тесты: проверить что каждый endpoint принимает и JWT и session
-- [ ] Обновить `docs/API.md` — единый auth model description
+- [x] Создать единый `@api_auth_required` декоратор (JWT → session fallback)
+- [x] Заменить `@api_login_required` и `@api_jwt_required` на `@api_auth_required` где применимо
+- [x] Проверить `@csrf.exempt` — только для чисто-JWT endpoints
+- [x] Обновить тесты: проверить что каждый endpoint принимает и JWT и session
+- [x] Обновить `docs/API.md` — единый auth model description
 
 ### Task 5: Repair Developer Bootstrap and Test Bootstrap
 
