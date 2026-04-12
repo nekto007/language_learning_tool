@@ -1,321 +1,28 @@
-# app/curriculum/routes/book_courses.py
-
 import logging
 from datetime import UTC, datetime
 
-from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
-from sqlalchemy.orm.attributes import flag_modified
 
-from sqlalchemy import case
-
-from app.curriculum.book_courses import (BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress, generate_slug)
-from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
-
-# Порядок типов уроков внутри одного дня: practice перед reading
-_LESSON_TYPE_ORDER = case(
-    (DailyLesson.lesson_type == 'vocabulary', 0),
-    (DailyLesson.lesson_type == 'context_review', 1),
-    (DailyLesson.lesson_type == 'reading', 9),
-    else_=5,
+from app.curriculum.book_courses import (
+    BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress, generate_slug,
 )
-# Стандартная сортировка уроков: день → тип (practice first) → id
-LESSON_ORDER = (DailyLesson.day_number, _LESSON_TYPE_ORDER, DailyLesson.id)
+from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
+from app.curriculum.routes.book_courses_service import (
+    LESSON_ORDER, _build_linked_topics_and_return_url, _build_vocabulary_fc_vars,
+    _parse_lesson_scaffold, build_daily_lesson_dict, ensure_words_in_book_deck,
+    find_next_lesson_url, get_course_by_slug_or_id, get_lesson_type_display,
+    get_pretty_lesson_url, get_ui_lang, load_vocabulary_data, truncate_context,
+)
 from app.curriculum.services.book_srs_integration import BookSRSIntegration
+from app.curriculum.services.comprehension_generator import ClozePracticeGenerator, ComprehensionMCQGenerator
 from app.curriculum.services.grammar_focus_generator import GrammarFocusGenerator
-from app.curriculum.services.comprehension_generator import ComprehensionMCQGenerator, ClozePracticeGenerator
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 
-
-def _build_linked_topics_and_return_url(lf: dict, course, module, next_lesson_url: str, has_next_lesson: bool):
-    """Build linked grammar topics list (with inline content) and return_url for grammar-lab practice."""
-    from app.grammar_lab.models import GrammarTopic, GrammarExercise
-
-    linked_topics = []
-    for tid in lf.get('linked_grammar_topic_ids', []):
-        if isinstance(tid, str):
-            t = GrammarTopic.query.filter_by(slug=tid).first()
-        else:
-            t = GrammarTopic.query.get(tid)
-        if t:
-            ex_count = GrammarExercise.query.filter_by(topic_id=t.id).count()
-            linked_topics.append({
-                'id': t.id,
-                'title': t.title,
-                'title_ru': t.title_ru,
-                'level': t.level,
-                'exercise_count': ex_count,
-                'content': t.content,
-            })
-
-    # Build return_url for grammar-lab practice completion
-    if has_next_lesson and next_lesson_url:
-        grammar_return_url = next_lesson_url
-    elif course.slug:
-        grammar_return_url = url_for(
-            'book_courses.view_module_by_slug',
-            course_slug=course.slug,
-            module_number=module.module_number
-        )
-    else:
-        grammar_return_url = url_for(
-            'book_courses.view_module',
-            course_id=course.id,
-            module_id=module.id
-        )
-
-    return linked_topics, grammar_return_url
-
-# Язык UI определяется уровнем курса: A1-A2 → ru, B1-B2 → mixed, C1-C2 → en
-def get_ui_lang(course_level: str) -> str:
-    """Определить язык интерфейса по уровню курса"""
-    level = (course_level or "").upper()
-    if level in ("A1", "A2"):
-        return "ru"
-    if level in ("C1", "C2"):
-        return "en"
-    return "mixed"
-
-
-# Словарь переводов типов уроков (ru / en)
-LESSON_TYPE_TRANSLATIONS = {
-    # v3.0 lesson types
-    'vocabulary':        {'ru': 'Словарь',              'en': 'Vocabulary'},
-    'reading':           {'ru': 'Чтение',               'en': 'Reading'},
-    'language_focus':    {'ru': 'Грамматика',           'en': 'Grammar'},
-    'grammar_focus':     {'ru': 'Грамматика',           'en': 'Grammar'},
-    'comprehension_mcq': {'ru': 'Тест на понимание',    'en': 'Reading Quiz'},
-    'phrase_cloze':      {'ru': 'Заполнение пропусков', 'en': 'Cloze Practice'},
-    'cloze_practice':    {'ru': 'Заполнение пропусков', 'en': 'Cloze Practice'},
-    'context_review':    {'ru': 'Фразы в контексте',    'en': 'Key Phrases in Context'},
-    'vocabulary_review': {'ru': 'Повторение слов',      'en': 'Card Review'},
-    'guided_retelling':  {'ru': 'Пересказ',             'en': 'Retelling'},
-    'summary_writing':   {'ru': 'Краткий пересказ',     'en': 'Summary'},
-    'module_test':       {'ru': 'Тест модуля',          'en': 'Module Test'},
-    'anki_session':      {'ru': 'Повторение слов',      'en': 'Card Review'},
-    # v2.0 lesson types (legacy)
-    'reading_part1':       {'ru': 'Чтение (часть 1)',     'en': 'Reading (Part 1)'},
-    'reading_part2':       {'ru': 'Чтение (часть 2)',     'en': 'Reading (Part 2)'},
-    'vocabulary_practice': {'ru': 'Практика словаря',     'en': 'Vocabulary Practice'},
-    'discussion':          {'ru': 'Обсуждение',           'en': 'Discussion'},
-    'mixed_practice':      {'ru': 'Смешанная практика',   'en': 'Mixed Practice'},
-    # Legacy lesson types
-    'reading_passage':   {'ru': 'Чтение',            'en': 'Reading'},
-    'reading_assignment':{'ru': 'Чтение',            'en': 'Reading'},
-    'reading_mcq':       {'ru': 'Тест по чтению',    'en': 'Reading Quiz'},
-    'match_headings':    {'ru': 'Заголовки',          'en': 'Match Headings'},
-    'open_cloze':        {'ru': 'Пропуски',           'en': 'Open Cloze'},
-    'word_formation':    {'ru': 'Словообразование',   'en': 'Word Formation'},
-    'keyword_transform': {'ru': 'Трансформации',      'en': 'Key Word Transform'},
-    'grammar_sheet':     {'ru': 'Грамматика',         'en': 'Grammar'},
-    'grammar':           {'ru': 'Грамматика',         'en': 'Grammar'},
-    'final_test':        {'ru': 'Итоговый тест',      'en': 'Final Test'},
-    'srs':               {'ru': 'Повторение слов',    'en': 'Card Review'},
-}
-
-
-def _parse_lesson_scaffold(raw_annotations):
-    """Parse DailyLesson.annotations field — supports both old (list) and new (dict) format.
-
-    Returns dict with keys: annotations, objectives, before_reading, reflection, self_check, can_do.
-    """
-    if raw_annotations is None:
-        return {
-            'annotations': None,
-            'objectives': None,
-            'before_reading': None,
-            'reflection': None,
-            'self_check': None,
-            'can_do': None,
-        }
-
-    # Old format: plain list of annotation dicts
-    if isinstance(raw_annotations, list):
-        return {
-            'annotations': raw_annotations,
-            'objectives': None,
-            'before_reading': None,
-            'reflection': None,
-            'self_check': None,
-            'can_do': None,
-        }
-
-    # New format: dict with sections
-    return {
-        'annotations': raw_annotations.get('annotations'),
-        'objectives': raw_annotations.get('objectives'),
-        'before_reading': raw_annotations.get('before_reading'),
-        'reflection': raw_annotations.get('reflection'),
-        'self_check': raw_annotations.get('self_check'),
-        'can_do': raw_annotations.get('can_do'),
-    }
-
-
-def get_lesson_type_display(lesson_type: str, ui_lang: str = 'ru') -> str:
-    """Получить название типа урока с учётом языка интерфейса.
-    Для mixed используется ru (названия типов — это навигация)."""
-    lang = 'ru' if ui_lang in ('ru', 'mixed') else 'en'
-    entry = LESSON_TYPE_TRANSLATIONS.get(lesson_type)
-    if entry:
-        return entry.get(lang, entry.get('ru', lesson_type))
-    return lesson_type.replace('_', ' ').title()
-
-
-def truncate_context(text: str, max_sentences: int = 1) -> str:
-    """Обрезать контекст до указанного количества предложений"""
-    if not text:
-        return ''
-
-    import re
-    # Разбиваем по точке с пробелом и заглавной буквой (более надёжно)
-    # Ищем: точка + пробел + заглавная буква
-    parts = re.split(r'\.\s+(?=[A-Z])', text.strip())
-
-    if len(parts) <= max_sentences:
-        return text
-
-    # Возвращаем первые N предложений с точкой
-    result = '. '.join(parts[:max_sentences])
-    if not result.endswith('.'):
-        result += '.'
-    return result
-
-
-def _build_vocabulary_fc_vars(
-    vocabulary_data: list[dict],
-    course: 'BookCourse',
-    module: 'BookCourseModule',
-    daily_lesson: 'DailyLesson | None',
-    next_lesson_url: str | None,
-    has_next_lesson: bool,
-    is_review: bool = False,
-) -> dict:
-    """Build fc_* template variables for vocabulary flashcard sessions.
-
-    Returns a dict of template variables to be merged into render_template kwargs.
-    """
-    fc_cards: list[dict] = []
-    srs_session_key: str | None = None
-    fc_nothing_to_study = False
-
-    # Try SRS session first (provides direction, requeue, etc.)
-    if daily_lesson and current_user.is_authenticated:
-        try:
-            enrollment = BookCourseEnrollment.query.filter_by(
-                user_id=current_user.id, course_id=course.id
-            ).first()
-            if enrollment:
-                srs = BookSRSIntegration()
-                session_data = srs.create_srs_session_for_lesson(
-                    user_id=current_user.id,
-                    daily_lesson=daily_lesson,
-                    enrollment=enrollment
-                )
-                srs_session_key = session_data.get('session_key')
-                studied_today = session_data.get('studied_today', 0)
-                for card in session_data.get('deck', []):
-                    fc_cards.append({
-                        'word_id': card.get('word_id'),
-                        'card_id': card.get('card_id'),
-                        'direction_id': None,
-                        'direction': card.get('direction', 'eng-rus'),
-                        'front': card.get('front', ''),
-                        'back': card.get('back', ''),
-                        'audio_url': card.get('audio_url'),
-                        'example': card.get('examples', '') or '',
-                        'example_translation': '',
-                        'book_context': card.get('context'),
-                        'status': card.get('phase', 'new'),
-                        'is_new': card.get('new', True),
-                        'word': card.get('lemma', card.get('front', '')),
-                        'translation': card.get('translation', card.get('back', '')),
-                        'unit_type': card.get('unit_type'),
-                        'note': card.get('note'),
-                    })
-                if not fc_cards and studied_today > 0:
-                    fc_nothing_to_study = True
-        except Exception as e:
-            logger.error(f"Error loading SRS session for vocabulary: {e}")
-
-    # Fallback to vocabulary_data if SRS session didn't return cards
-    if not fc_cards and not fc_nothing_to_study:
-        for v in vocabulary_data:
-            fc_cards.append({
-                'word_id': v.get('id'),
-                'card_id': None,
-                'direction_id': None,
-                'direction': 'eng-rus',
-                'front': v.get('lemma', ''),
-                'back': v.get('translation', ''),
-                'audio_url': v.get('audio_url'),
-                'example': v.get('example', ''),
-                'example_translation': '',
-                'book_context': v.get('context'),
-                'status': 'new',
-                'is_new': True,
-                'word': v.get('lemma', ''),
-                'translation': v.get('translation', ''),
-                'unit_type': v.get('unit_type'),
-                'note': v.get('note'),
-            })
-
-    # Build module URL for back navigation
-    if course.slug:
-        back_url = url_for('book_courses.view_module_by_slug',
-                           course_slug=course.slug,
-                           module_number=module.module_number)
-    else:
-        back_url = url_for('book_courses.view_module',
-                           course_id=course.id, module_id=module.id)
-
-    # Mark-complete URL
-    mark_complete_url: str | None = None
-    if daily_lesson:
-        mark_complete_url = f'/curriculum/api/v1/lesson/{daily_lesson.id}/complete'
-
-    title_suffix = 'Повторение слов' if is_review else 'Словарь'
-
-    return {
-        'fc_title': f"{course.title}: {title_suffix}",
-        'fc_back_url': back_url,
-        'fc_cards': fc_cards,
-        'fc_grade_url': '/curriculum/api/v1/srs/grade',
-        'fc_grade_payload': (
-            '(function(card, rating, sessionId) {'
-            ' return { card_id: card.card_id || card.word_id,'
-            ' rating: rating,'
-            ' session_key: '
-            + (f'"{srs_session_key}"' if srs_session_key else '"book_vocab"')
-            + ' };'
-            '})'
-        ),
-        'fc_mark_complete_url': mark_complete_url,
-        'fc_on_complete_url': next_lesson_url or back_url,
-        'fc_on_complete_text': 'Следующий урок' if has_next_lesson else 'К модулю',
-        'fc_session_id': srs_session_key,
-        'fc_show_examples': True,
-        'fc_show_audio': True,
-        'fc_show_book_context': True,
-        'fc_nothing_to_study': fc_nothing_to_study,
-    }
-
-
-# Create blueprint for book course routes
 book_courses_bp = Blueprint('book_courses', __name__)
-
-
-def get_course_by_slug_or_id(course_identifier):
-    """Get course by slug or id"""
-    # Try to parse as integer (id)
-    try:
-        course_id = int(course_identifier)
-        return BookCourse.query.get_or_404(course_id)
-    except (ValueError, TypeError):
-        # It's a slug
-        return BookCourse.query.filter_by(slug=course_identifier).first_or_404()
 
 
 @book_courses_bp.route('/book-courses')
@@ -323,13 +30,11 @@ def get_course_by_slug_or_id(course_identifier):
 def list_book_courses():
     """Display all available book courses"""
     try:
-        # Get all active book courses
         courses = BookCourse.query.filter_by(is_active=True).order_by(
             BookCourse.is_featured.desc(),
             BookCourse.created_at.desc()
         ).all()
 
-        # Get user's enrollments
         user_enrollments = {}
         if current_user.is_authenticated:
             enrollments = BookCourseEnrollment.query.filter_by(
@@ -337,19 +42,17 @@ def list_book_courses():
             ).all()
             user_enrollments = {e.course_id: e for e in enrollments}
 
-        # Prepare course data with enrollment status
         course_data = []
         for course in courses:
             enrollment = user_enrollments.get(course.id)
-            course_info = {
+            course_data.append({
                 'course': course,
                 'book': course.book,
                 'enrollment': enrollment,
                 'is_enrolled': enrollment is not None,
                 'progress_percentage': enrollment.progress_percentage if enrollment else 0,
                 'current_module': enrollment.current_module if enrollment else None
-            }
-            course_data.append(course_info)
+            })
 
         from app.telegram.models import TelegramUser
         telegram_linked = TelegramUser.query.filter_by(
@@ -380,18 +83,15 @@ def view_course(course_id):
             flash('Этот курс больше не доступен', 'error')
             return redirect(url_for('book_courses.list_book_courses'))
 
-        # Get user enrollment
         enrollment = BookCourseEnrollment.query.filter_by(
             user_id=current_user.id,
             course_id=course_id
         ).first()
 
-        # Get course modules
         modules = BookCourseModule.query.filter_by(
             course_id=course_id
         ).order_by(BookCourseModule.order_index).all()
 
-        # Get module progress if enrolled
         module_progress = {}
         if enrollment:
             progress_records = BookModuleProgress.query.filter_by(
@@ -399,7 +99,6 @@ def view_course(course_id):
             ).all()
             module_progress = {p.module_id: p for p in progress_records}
 
-        # Get user's known word IDs for difficulty calculation
         from app.study.models import UserWord
         known_word_ids = {
             r[0] for r in db.session.query(UserWord.word_id).filter(
@@ -407,20 +106,16 @@ def view_course(course_id):
             ).all()
         }
 
-        # Prepare modules with progress and lock status
         module_data = []
         for i, module in enumerate(modules):
             progress = module_progress.get(module.id)
 
-            # Check if module is unlocked
             is_unlocked = True
             if module.is_locked and i > 0:
-                # Module is unlocked if previous module is completed
                 prev_module = modules[i - 1]
                 prev_progress = module_progress.get(prev_module.id)
                 is_unlocked = prev_progress and prev_progress.status == 'completed'
 
-            # Difficulty indicator: count new words in module vocabulary
             new_words_count = 0
             total_vocab = 0
             if module.vocabulary_focus:
@@ -433,7 +128,7 @@ def view_course(course_id):
                 total_vocab = len(vocab_word_ids)
                 new_words_count = sum(1 for wid in vocab_word_ids if wid not in known_word_ids)
 
-            module_info = {
+            module_data.append({
                 'module': module,
                 'progress': progress,
                 'is_unlocked': is_unlocked,
@@ -441,16 +136,12 @@ def view_course(course_id):
                 'status': progress.status if progress else 'not_started',
                 'new_words_count': new_words_count,
                 'total_vocab': total_vocab,
-            }
-            module_data.append(module_info)
+            })
 
         return render_template(
             'curriculum/book_courses/course_detail.html',
-            course=course,
-            book=course.book,
-            enrollment=enrollment,
-            modules=module_data,
-            total_modules=len(modules),
+            course=course, book=course.book, enrollment=enrollment,
+            modules=module_data, total_modules=len(modules),
             is_enrolled=enrollment is not None
         )
 
@@ -465,37 +156,23 @@ def view_course(course_id):
 def enroll_in_course(course_id):
     """Enroll user in a book course"""
     try:
-        logger.info(f"User {current_user.id} attempting to enroll in course {course_id}")
-
         course = BookCourse.query.get_or_404(course_id)
 
         if not course.is_active:
-            logger.warning(f"Course {course_id} is not active")
             return jsonify({'success': False, 'error': 'Курс недоступен'}), 400
 
-        # Check if already enrolled
         existing_enrollment = BookCourseEnrollment.query.filter_by(
-            user_id=current_user.id,
-            course_id=course_id
+            user_id=current_user.id, course_id=course_id
         ).first()
 
         if existing_enrollment:
-            logger.info(f"User {current_user.id} already enrolled in course {course_id}")
             return jsonify({'success': False, 'error': 'Вы уже записаны на этот курс'}), 400
 
-        # Check prerequisites if required
-        if course.requires_prerequisites and course.prerequisites:
-            pass
-
-        # Create enrollment
         enrollment = BookCourseEnrollment(
-            user_id=current_user.id,
-            course_id=course_id,
-            status='active',
-            enrolled_at=datetime.now(UTC)
+            user_id=current_user.id, course_id=course_id,
+            status='active', enrolled_at=datetime.now(UTC)
         )
 
-        # Set current module to first module
         first_module = BookCourseModule.query.filter_by(
             course_id=course_id
         ).order_by(BookCourseModule.order_index).first()
@@ -505,9 +182,6 @@ def enroll_in_course(course_id):
 
         db.session.add(enrollment)
         db.session.commit()
-
-        logger.info(
-            f"User {current_user.id} successfully enrolled in course {course_id} with enrollment ID {enrollment.id}")
 
         return jsonify({
             'success': True,
@@ -532,19 +206,15 @@ def view_module(course_id, module_id):
         if module.course_id != course_id:
             abort(404)
 
-        # Check enrollment
         enrollment = BookCourseEnrollment.query.filter_by(
-            user_id=current_user.id,
-            course_id=course_id
+            user_id=current_user.id, course_id=course_id
         ).first()
 
         if not enrollment:
             flash('Вы должны записаться на курс, чтобы просматривать модули', 'error')
             return redirect(url_for('book_courses.view_course', course_id=course_id))
 
-        # Check if module is unlocked
         if module.is_locked:
-            # Get previous module
             prev_module = BookCourseModule.query.filter(
                 BookCourseModule.course_id == course_id,
                 BookCourseModule.order_index < module.order_index
@@ -552,36 +222,28 @@ def view_module(course_id, module_id):
 
             if prev_module:
                 prev_progress = BookModuleProgress.query.filter_by(
-                    enrollment_id=enrollment.id,
-                    module_id=prev_module.id
+                    enrollment_id=enrollment.id, module_id=prev_module.id
                 ).first()
-
                 if not prev_progress or prev_progress.status != 'completed':
                     flash('Вы должны завершить предыдущий модуль', 'error')
                     return redirect(url_for('book_courses.view_course', course_id=course_id))
 
-        # Get or create module progress
         module_progress = BookModuleProgress.query.filter_by(
-            enrollment_id=enrollment.id,
-            module_id=module_id
+            enrollment_id=enrollment.id, module_id=module_id
         ).first()
 
         if not module_progress:
             module_progress = BookModuleProgress(
-                enrollment_id=enrollment.id,
-                module_id=module_id,
-                status='not_started',
-                started_at=datetime.now(UTC)
+                enrollment_id=enrollment.id, module_id=module_id,
+                status='not_started', started_at=datetime.now(UTC)
             )
             db.session.add(module_progress)
             db.session.commit()
 
-        # Get lessons from DailyLesson table (new architecture)
         daily_lessons = DailyLesson.query.filter_by(
             book_course_module_id=module.id
         ).order_by(*LESSON_ORDER).all()
 
-        # Convert to template format
         ui_lang = get_ui_lang(course.level)
         lessons = []
         for dl in daily_lessons:
@@ -591,15 +253,10 @@ def view_module(course_id, module_id):
             else:
                 title = f'День {dl.day_number}: {type_label}'
             lessons.append({
-                'lesson_number': dl.day_number,
-                'type': dl.lesson_type,
-                'title': title,
-                'id': dl.id,
-                'estimated_time': 15,
-                'description': None
+                'lesson_number': dl.day_number, 'type': dl.lesson_type,
+                'title': title, 'id': dl.id, 'estimated_time': 15, 'description': None
             })
 
-        # Get next and previous modules
         next_module = BookCourseModule.query.filter(
             BookCourseModule.course_id == course_id,
             BookCourseModule.order_index > module.order_index
@@ -610,19 +267,14 @@ def view_module(course_id, module_id):
             BookCourseModule.order_index < module.order_index
         ).order_by(BookCourseModule.order_index.desc()).first()
 
-        # Get due cards count for SRS review badge
         srs_integration = BookSRSIntegration()
         due_cards_count = srs_integration.get_due_cards_count(current_user.id)
 
         return render_template(
             'curriculum/book_courses/module_detail.html',
-            course=course,
-            module=module,
-            enrollment=enrollment,
-            module_progress=module_progress,
-            lessons=lessons,
-            next_module=next_module,
-            prev_module=prev_module,
+            course=course, module=module, enrollment=enrollment,
+            module_progress=module_progress, lessons=lessons,
+            next_module=next_module, prev_module=prev_module,
             due_cards_count=due_cards_count
         )
 
@@ -632,650 +284,322 @@ def view_module(course_id, module_id):
         return redirect(url_for('book_courses.view_course', course_id=course_id))
 
 
-@book_courses_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons/<int:lesson_number>')
-@login_required
-def view_lesson(course_id, module_id, lesson_number):
-    """Display specific lesson within a module"""
-    try:
-        course = BookCourse.query.get_or_404(course_id)
-        module = BookCourseModule.query.get_or_404(module_id)
+def _prepare_lesson_context(course_id, module_id, daily_lesson=None, lesson_number=None):
+    """Common setup for view_lesson and view_lesson_by_id."""
+    course = BookCourse.query.get_or_404(course_id)
+    module = BookCourseModule.query.get_or_404(module_id)
 
-        if module.course_id != course_id:
-            abort(404)
+    if module.course_id != course_id:
+        abort(404)
 
-        # Check enrollment and module access
-        enrollment = BookCourseEnrollment.query.filter_by(
-            user_id=current_user.id,
-            course_id=course_id
-        ).first()
+    enrollment = BookCourseEnrollment.query.filter_by(
+        user_id=current_user.id, course_id=course_id
+    ).first()
 
-        if not enrollment:
-            flash('Доступ запрещен', 'error')
-            return redirect(url_for('book_courses.view_course', course_id=course_id))
+    if not enrollment:
+        flash('Доступ запрещен', 'error')
+        return None
 
-        # Get Daily Lesson according to new architecture
-        from app.curriculum.daily_lessons import DailyLesson
-
+    if daily_lesson is None and lesson_number is not None:
         daily_lesson = DailyLesson.query.filter_by(
             book_course_module_id=module_id,
             day_number=lesson_number
         ).first()
 
         if not daily_lesson:
-            # Fallback to old lessons_data format for backward compatibility
             lessons_data = module.lessons_data or {}
             lessons = lessons_data.get('lessons', [])
-
             lesson = None
             for l in lessons:
                 if l.get('lesson_number') == lesson_number:
                     lesson = l
                     break
-
             if not lesson:
                 abort(404)
         else:
-            # Convert DailyLesson to lesson format for templates
-            ui_lang = get_ui_lang(course.level)
-            type_label = get_lesson_type_display(daily_lesson.lesson_type, ui_lang)
-            if ui_lang == 'en':
-                title = f'Day {daily_lesson.day_number}: {type_label}'
-            else:
-                title = f'День {daily_lesson.day_number}: {type_label}'
-            lesson = {
-                'lesson_number': daily_lesson.day_number,
-                'type': daily_lesson.lesson_type,
-                'title': title,
-                'slice_text': daily_lesson.slice_text,
-                'word_count': daily_lesson.word_count,
-                'task_id': daily_lesson.task_id,
-                'daily_lesson_id': daily_lesson.id,
-                'available_at': daily_lesson.available_at
-            }
+            lesson = build_daily_lesson_dict(daily_lesson, course.level)
+    else:
+        lesson = build_daily_lesson_dict(daily_lesson, course.level)
+        lesson_number = daily_lesson.day_number
 
-        # Get module progress
-        module_progress = BookModuleProgress.query.filter_by(
-            enrollment_id=enrollment.id,
-            module_id=module_id
-        ).first()
+    module_progress = BookModuleProgress.query.filter_by(
+        enrollment_id=enrollment.id, module_id=module_id
+    ).first()
 
-        if not module_progress:
-            flash('Ошибка доступа к модулю', 'error')
-            return redirect(url_for('book_courses.view_module',
-                                    course_id=course_id, module_id=module_id))
+    if not module_progress:
+        flash('Ошибка доступа к модулю', 'error')
+        return None
 
-        # Get review cards for SRS section in all lessons
-        srs_integration = BookSRSIntegration()
-        review_cards = srs_integration.get_due_cards_for_review(current_user.id, limit=5)
+    srs_integration = BookSRSIntegration()
+    review_cards = srs_integration.get_due_cards_for_review(current_user.id, limit=5)
 
-        # Get next lesson URL
-        next_lesson_url = None
-        has_next_lesson = False
-        if daily_lesson:
-            # Get all lessons in order and find the next one
-            all_lessons = DailyLesson.query.filter_by(
-                book_course_module_id=module_id
-            ).order_by(*LESSON_ORDER).all()
+    next_lesson_url = None
+    has_next_lesson = False
+    if daily_lesson:
+        next_lesson_url, has_next_lesson = find_next_lesson_url(
+            daily_lesson, module_id, course, module
+        )
 
-            # Find current lesson position and get next
-            for i, dl in enumerate(all_lessons):
-                if dl.id == daily_lesson.id and i < len(all_lessons) - 1:
-                    next_daily_lesson = all_lessons[i + 1]
-                    next_position = i + 2  # 1-indexed position
-                    has_next_lesson = True
-                    # Use pretty URL if course has slug
-                    if course.slug:
-                        next_lesson_url = url_for(
-                            'book_courses.view_lesson_by_slug',
-                            course_slug=course.slug,
-                            module_number=module.module_number,
-                            lesson_number=next_position
-                        )
-                    else:
-                        next_lesson_url = url_for(
-                            'book_courses.view_lesson_by_id',
-                            course_id=course_id,
-                            module_id=module_id,
-                            lesson_id=next_daily_lesson.id
-                        )
-                    break
+    return {
+        'course': course, 'module': module, 'enrollment': enrollment,
+        'daily_lesson': daily_lesson, 'lesson': lesson, 'lesson_number': lesson_number,
+        'module_progress': module_progress, 'review_cards': review_cards,
+        'next_lesson_url': next_lesson_url, 'has_next_lesson': has_next_lesson,
+    }
 
-        # Route to appropriate lesson type handler
-        lesson_type = lesson.get('type', 'text')
-        logger.info(f"view_lesson: course={course_id}, module={module_id}, lesson_type='{lesson_type}'")
 
-        # Special handling for SRS/Anki sessions
-        if lesson_type == 'anki_session' or lesson_type == 'srs':
-            return render_template(
-                'curriculum/book_courses/lessons/anki_session.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                book=course.book,
-                review_cards=review_cards
+def _render_lesson_by_type(ctx):
+    """Render lesson template based on lesson type."""
+    course = ctx['course']
+    module = ctx['module']
+    lesson = ctx['lesson']
+    lesson_number = ctx['lesson_number']
+    module_progress = ctx['module_progress']
+    daily_lesson = ctx['daily_lesson']
+    review_cards = ctx['review_cards']
+    next_lesson_url = ctx['next_lesson_url']
+    has_next_lesson = ctx['has_next_lesson']
+
+    lesson_type = lesson.get('type', 'text')
+    common = dict(course=course, module=module, lesson=lesson,
+                  lesson_number=lesson_number, module_progress=module_progress,
+                  review_cards=review_cards)
+
+    if lesson_type in ('anki_session', 'srs'):
+        return render_template(
+            'curriculum/book_courses/lessons/anki_session.html',
+            **common, book=course.book
+        )
+
+    if lesson_type in ['reading', 'reading_assignment', 'reading_passage', 'reading_part1', 'reading_part2']:
+        dl = daily_lesson
+        reading_difficulty = None
+        if dl:
+            from app.study.models import UserWord
+            slice_vocab = SliceVocabulary.query.filter_by(daily_lesson_id=dl.id).all()
+            if slice_vocab:
+                known_ids = {
+                    r[0] for r in db.session.query(UserWord.word_id).filter(
+                        UserWord.user_id == current_user.id
+                    ).all()
+                }
+                new_count = sum(1 for sv in slice_vocab if sv.word_id not in known_ids)
+                _ui = get_ui_lang(course.level)
+                if new_count < 5:
+                    hint = 'Easy reading — enjoy the story!' if _ui == 'en' else 'Лёгкое чтение — наслаждайся историей!'
+                    reading_difficulty = {'level': 'easy', 'new_words': new_count, 'hint': hint}
+                elif new_count <= 10:
+                    hint = 'Moderate reading — highlight key words' if _ui == 'en' else 'Среднее чтение — подчёркивай важные слова'
+                    reading_difficulty = {'level': 'medium', 'new_words': new_count, 'hint': hint}
+                else:
+                    hint = 'Intensive reading — analyze each sentence' if _ui == 'en' else 'Вдумчивое чтение — разбирай каждое предложение'
+                    reading_difficulty = {'level': 'hard', 'new_words': new_count, 'hint': hint}
+
+        scaffold = _parse_lesson_scaffold(dl.annotations if dl else None)
+        return render_template(
+            'curriculum/book_courses/lessons/reading_passage.html',
+            **common, book=course.book, daily_lesson=dl,
+            use_api=True if dl else False, next_lesson_url=next_lesson_url,
+            has_next_lesson=has_next_lesson, reading_difficulty=reading_difficulty,
+            **scaffold,
+        )
+
+    if lesson_type == 'vocabulary':
+        vocabulary_data = load_vocabulary_data(daily_lesson, lesson, course.level)
+        book_deck = ensure_words_in_book_deck(current_user.id, course, vocabulary_data)
+        fc_vars = _build_vocabulary_fc_vars(
+            vocabulary_data=vocabulary_data, course=course, module=module,
+            daily_lesson=daily_lesson, next_lesson_url=next_lesson_url,
+            has_next_lesson=has_next_lesson,
+        )
+        return render_template(
+            'curriculum/book_courses/lessons/vocabulary.html',
+            **common, vocabulary_data=vocabulary_data,
+            total_words=len(vocabulary_data), daily_lesson=daily_lesson,
+            book_deck=book_deck, **fc_vars,
+        )
+
+    if lesson_type in ['grammar', 'language_focus']:
+        from app.grammar_lab.models import GrammarTopic, GrammarExercise
+
+        task = daily_lesson.task if daily_lesson else None
+        if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
+            lf = task.payload
+            linked_topics, grammar_return_url = _build_linked_topics_and_return_url(
+                lf, course, module, next_lesson_url, has_next_lesson
             )
-        elif lesson_type in ['reading', 'reading_assignment', 'reading_passage', 'reading_part1', 'reading_part2']:
-            # All reading types use the reading_passage template
-            template = 'curriculum/book_courses/lessons/reading_passage.html'
-
-            # Calculate reading difficulty indicator (Donets method)
-            reading_difficulty = None
-            dl = daily_lesson if 'daily_lesson' in dir() else None
-            if dl:
-                from app.study.models import UserWord
-                slice_vocab = SliceVocabulary.query.filter_by(
-                    daily_lesson_id=dl.id
-                ).all()
-                if slice_vocab:
-                    known_ids = {
-                        r[0] for r in db.session.query(UserWord.word_id).filter(
-                            UserWord.user_id == current_user.id
-                        ).all()
-                    }
-                    new_count = sum(1 for sv in slice_vocab if sv.word_id not in known_ids)
-                    _ui = get_ui_lang(course.level)
-                    if new_count < 5:
-                        hint = 'Easy reading — enjoy the story!' if _ui == 'en' else 'Лёгкое чтение — наслаждайся историей!'
-                        reading_difficulty = {'level': 'easy', 'new_words': new_count, 'hint': hint}
-                    elif new_count <= 10:
-                        hint = 'Moderate reading — highlight key words' if _ui == 'en' else 'Среднее чтение — подчёркивай важные слова'
-                        reading_difficulty = {'level': 'medium', 'new_words': new_count, 'hint': hint}
-                    else:
-                        hint = 'Intensive reading — analyze each sentence' if _ui == 'en' else 'Вдумчивое чтение — разбирай каждое предложение'
-                        reading_difficulty = {'level': 'hard', 'new_words': new_count, 'hint': hint}
-
-            scaffold = _parse_lesson_scaffold(dl.annotations if dl else None)
-
             return render_template(
-                template,
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                book=course.book,
-                daily_lesson=dl,
-                use_api=True if dl else False,
-                review_cards=review_cards,
-                next_lesson_url=next_lesson_url,
-                has_next_lesson=has_next_lesson,
-                reading_difficulty=reading_difficulty,
-                annotations=scaffold['annotations'],
-                objectives=scaffold['objectives'],
-                before_reading=scaffold['before_reading'],
-                reflection=scaffold['reflection'],
-                self_check=scaffold['self_check'],
-                can_do=scaffold['can_do'],
+                'curriculum/book_courses/lessons/language_focus.html',
+                **common, lf=lf, linked_topics=linked_topics,
+                daily_lesson=daily_lesson, next_lesson_url=next_lesson_url,
+                has_next_lesson=has_next_lesson, grammar_return_url=grammar_return_url,
             )
-        elif lesson_type == 'vocabulary':
-            # Load vocabulary from SliceVocabulary according to new architecture
-            vocabulary_data = []
-            TARGET_WORDS_FOR_STUDENT = 7  # 6-7 unique words = 12-14 cards (eng-rus + rus-eng)
 
-            if daily_lesson:
-                from app.curriculum.services.book_srs_integration import is_word_learned
+        topic = None
+        if task and getattr(task, 'grammar_topic_id', None):
+            topic = GrammarTopic.query.get(task.grammar_topic_id)
 
-                # Use new DailyLesson vocabulary with proper eager loading and sorting
-                slice_vocab = SliceVocabulary.query.filter_by(
-                    daily_lesson_id=daily_lesson.id
-                ).options(joinedload(SliceVocabulary.word)).order_by(
-                    SliceVocabulary.priority.desc(),
-                    SliceVocabulary.frequency_in_slice.desc()
-                ).all()
-
-                for sv in slice_vocab:
-                    # Skip learned words for authenticated users
-                    if current_user.is_authenticated:
-                        if is_word_learned(current_user.id, sv.word_id):
-                            continue
-
-                    word = sv.word
-                    # Context sentence from book (relevant to current reading) - max 1 sentences
-                    context = truncate_context(sv.context_sentence or '', max_sentences=1)
-
-                    # Example with translation from DB
-                    db_example = getattr(word, 'sentences', '') or ''
-                    db_example = db_example.replace('\\n', '\n').replace('<br>', '\n').replace('<br/>', '\n')
-
-                    vocab_item = {
-                        'id': word.id,
-                        'lemma': word.english_word,  # As per specification
-                        'translation': word.russian_word,
-                        'context': context,  # From book
-                        'example': db_example,  # From DB with translation
-                        'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
-                        'has_audio': getattr(word, 'get_download', 0) == 1,
-                        'frequency': sv.frequency_in_slice,
-                        'part_of_speech': getattr(word, 'pos', 'unknown'),
-                        'level': getattr(word, 'level', None),
-                        'transcription': getattr(word, 'transcription', None)
-                    }
-                    vocabulary_data.append(vocab_item)
-
-                    # Limit to target words for student
-                    if len(vocabulary_data) >= TARGET_WORDS_FOR_STUDENT:
+        if not topic:
+            course_level = course.level or 'B1'
+            day_number = daily_lesson.day_number if daily_lesson else lesson_number
+            grammar_lesson_index = (day_number - 1) // 6
+            grammar_topics = GrammarTopic.query.filter_by(level=course_level).order_by(GrammarTopic.order).all()
+            if not grammar_topics:
+                for fallback in ['B1', 'A2', 'A1']:
+                    grammar_topics = GrammarTopic.query.filter_by(level=fallback).order_by(GrammarTopic.order).all()
+                    if grammar_topics:
                         break
-            else:
-                # Fallback to old task-based vocabulary
-                task_id = lesson.get('task_id')
-                if task_id:
-                    from app.books.models import Task
-                    task = Task.query.get(task_id)
-                    if task and task.payload:
-                        cards = task.payload.get('cards', [])
-                        for idx, card in enumerate(cards):
-                            vocab_item = {
-                                'id': idx + 1,
-                                'lemma': card.get('front', ''),
-                                'translation': card.get('back', {}).get('translation', ''),
-                                'example': card.get('back', {}).get('examples', [''])[0] if card.get('back', {}).get(
-                                    'examples') else '',
-                                'audio_url': card.get('audio_url', ''),
-                                'frequency': card.get('back', {}).get('frequency', 0)
-                            }
-                            vocabulary_data.append(vocab_item)
-                            if len(vocabulary_data) >= TARGET_WORDS_FOR_STUDENT:
-                                break
+            if grammar_topics:
+                topic = grammar_topics[grammar_lesson_index % len(grammar_topics)]
 
-            # Create deck for this book course (if not exists) and add words
-            from app.curriculum.services.book_srs_integration import get_or_create_book_course_deck
-            from app.study.models import QuizDeckWord
-            try:
-                logger.info(f"Creating/getting book deck for user {current_user.id}, course {course.id} (vocabulary in view_lesson)")
-                book_deck = get_or_create_book_course_deck(current_user.id, course)
+        exercises = []
+        if topic:
+            topic_exercises = GrammarExercise.query.filter_by(
+                topic_id=topic.id
+            ).filter(
+                GrammarExercise.exercise_type.in_(['multiple_choice', 'fill_blank'])
+            ).order_by(GrammarExercise.order).limit(5).all()
+            for ex in topic_exercises:
+                exercises.append({
+                    'id': ex.id, 'exercise_type': ex.exercise_type,
+                    'content': ex.content, 'question': ex.content.get('question', ''),
+                    'options': ex.content.get('options', []),
+                    'correct': ex.content.get('correct_answer', 0),
+                    'explanation': ex.content.get('explanation', '')
+                })
 
-                # Add vocabulary words to deck
-                if book_deck and vocabulary_data:
-                    words_added = 0
-                    for vocab in vocabulary_data:
-                        word_id = vocab.get('id')
-                        if word_id:
-                            existing = QuizDeckWord.query.filter_by(
-                                deck_id=book_deck.id, word_id=word_id
-                            ).first()
-                            if not existing:
-                                deck_word = QuizDeckWord(deck_id=book_deck.id, word_id=word_id)
-                                db.session.add(deck_word)
-                                words_added += 1
-                    if words_added > 0:
-                        logger.info(f"Added {words_added} words to deck {book_deck.id}")
+        return render_template(
+            'curriculum/book_courses/lessons/grammar_bridge.html',
+            **common, topic=topic, exercises=exercises,
+            daily_lesson=daily_lesson, next_lesson_url=next_lesson_url,
+            has_next_lesson=has_next_lesson,
+        )
 
-                db.session.commit()
-                logger.info(f"Book deck created/retrieved: {book_deck.id if book_deck else 'None'}, title={book_deck.title if book_deck else 'None'}")
-            except Exception as e:
-                logger.error(f"Error creating book deck: {str(e)}", exc_info=True)
-                db.session.rollback()
-                book_deck = None
-
-            fc_vars = _build_vocabulary_fc_vars(
-                vocabulary_data=vocabulary_data,
-                course=course, module=module,
-                daily_lesson=daily_lesson,
-                next_lesson_url=next_lesson_url,
-                has_next_lesson=has_next_lesson,
-            )
+    if lesson_type == 'context_review':
+        task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
+        if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
             return render_template(
-                'curriculum/book_courses/lessons/vocabulary.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                vocabulary_data=vocabulary_data,
-                total_words=len(vocabulary_data),
-                daily_lesson=daily_lesson,
-                review_cards=review_cards,
-                book_deck=book_deck,
-                **fc_vars,
+                'curriculum/book_courses/lessons/context_review.html',
+                **common, daily_lesson=daily_lesson,
+                has_next_lesson=has_next_lesson, next_lesson_url=next_lesson_url,
+                cr=task.payload,
             )
-        elif lesson_type in ['grammar', 'language_focus']:
-            from app.grammar_lab.models import GrammarTopic, GrammarExercise
 
-            # Check if this lesson has a Language Focus payload (book-linked content)
-            task = daily_lesson.task if daily_lesson else None
-            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
-                # Language Focus lesson — render from task.payload
-                lf = task.payload
+        vocabulary_data = []
+        if daily_lesson:
+            slice_vocab = SliceVocabulary.query.filter_by(
+                daily_lesson_id=daily_lesson.id
+            ).options(joinedload(SliceVocabulary.word)).all()
+            for sv in slice_vocab:
+                word = sv.word
+                vocabulary_data.append({
+                    'id': word.id, 'lemma': word.english_word,
+                    'translation': word.russian_word,
+                    'example': truncate_context(sv.context_sentence or '', max_sentences=1),
+                    'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
+                    'frequency': sv.frequency_in_slice,
+                })
 
-                # Fetch linked grammar topics with inline content + return_url
-                linked_topics, grammar_return_url = _build_linked_topics_and_return_url(
-                    lf, course, module, next_lesson_url, has_next_lesson
-                )
+        book_deck = ensure_words_in_book_deck(current_user.id, course, vocabulary_data[:15])
+        fc_vars = _build_vocabulary_fc_vars(
+            vocabulary_data=vocabulary_data[:15], course=course, module=module,
+            daily_lesson=daily_lesson, next_lesson_url=next_lesson_url,
+            has_next_lesson=has_next_lesson, is_review=True,
+        )
+        return render_template(
+            'curriculum/book_courses/lessons/vocabulary.html',
+            **common, vocabulary_data=vocabulary_data[:15],
+            total_words=len(vocabulary_data[:15]), daily_lesson=daily_lesson,
+            is_review=True, book_deck=book_deck, **fc_vars,
+        )
 
-                return render_template(
-                    'curriculum/book_courses/lessons/language_focus.html',
-                    course=course,
-                    module=module,
-                    lesson=lesson,
-                    lesson_number=lesson_number,
-                    module_progress=module_progress,
-                    review_cards=review_cards,
-                    lf=lf,
-                    linked_topics=linked_topics,
-                    daily_lesson=daily_lesson,
-                    next_lesson_url=next_lesson_url,
-                    has_next_lesson=has_next_lesson,
-                    grammar_return_url=grammar_return_url
-                )
-
-            # Fallback: Grammar Bridge (old behavior for lessons without payload)
-            topic = None
-            if task and getattr(task, 'grammar_topic_id', None):
-                topic = GrammarTopic.query.get(task.grammar_topic_id)
-
-            if not topic:
-                course_level = course.level or 'B1'
-                day_number = daily_lesson.day_number if daily_lesson else lesson_number
-                grammar_lesson_index = (day_number - 1) // 6
-
-                grammar_topics = GrammarTopic.query.filter_by(
-                    level=course_level
-                ).order_by(GrammarTopic.order).all()
-
-                if not grammar_topics:
-                    for fallback in ['B1', 'A2', 'A1']:
-                        grammar_topics = GrammarTopic.query.filter_by(
-                            level=fallback
-                        ).order_by(GrammarTopic.order).all()
-                        if grammar_topics:
-                            break
-
-                if grammar_topics:
-                    topic_index = grammar_lesson_index % len(grammar_topics)
-                    topic = grammar_topics[topic_index]
-
-            exercises = []
-            if topic:
-                topic_exercises = GrammarExercise.query.filter_by(
-                    topic_id=topic.id
-                ).filter(
-                    GrammarExercise.exercise_type.in_(['multiple_choice', 'fill_blank'])
-                ).order_by(GrammarExercise.order).limit(5).all()
-
-                for ex in topic_exercises:
-                    exercises.append({
-                        'id': ex.id,
-                        'exercise_type': ex.exercise_type,
-                        'content': ex.content,
-                        'question': ex.content.get('question', ''),
-                        'options': ex.content.get('options', []),
-                        'correct': ex.content.get('correct_answer', 0),
-                        'explanation': ex.content.get('explanation', '')
-                    })
-
+    if lesson_type == 'comprehension_mcq':
+        task = daily_lesson.task if daily_lesson else None
+        if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
             return render_template(
-                'curriculum/book_courses/lessons/grammar_bridge.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards,
-                topic=topic,
-                exercises=exercises,
-                daily_lesson=daily_lesson,
-                next_lesson_url=next_lesson_url,
-                has_next_lesson=has_next_lesson
+                'curriculum/book_courses/lessons/comprehension_check.html',
+                **common, cc=task.payload, daily_lesson=daily_lesson,
+                next_lesson_url=next_lesson_url, has_next_lesson=has_next_lesson,
             )
-        elif lesson_type in ['context_review']:
-            # Check for curated context review payload
-            task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
-            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
-                cr = task.payload
-                return render_template(
-                    'curriculum/book_courses/lessons/context_review.html',
-                    course=course, module=module, lesson=lesson,
-                    lesson_number=lesson_number, module_progress=module_progress,
-                    review_cards=review_cards, daily_lesson=daily_lesson,
-                    has_next_lesson=has_next_lesson, next_lesson_url=next_lesson_url, cr=cr
-                )
+        mcq_data = None
+        if daily_lesson and daily_lesson.slice_text:
+            mcq_data = ComprehensionMCQGenerator.generate_questions(daily_lesson.slice_text, num_questions=10)
+        return render_template(
+            'curriculum/book_courses/lessons/reading_mcq.html',
+            **common, daily_lesson=daily_lesson, mcq_data=mcq_data,
+        )
 
-            # Fallback: auto-generated vocabulary review
-            vocabulary_data = []
-
-            if daily_lesson:
-                slice_vocab = SliceVocabulary.query.filter_by(
-                    daily_lesson_id=daily_lesson.id
-                ).options(joinedload(SliceVocabulary.word)).all()
-
-                for sv in slice_vocab:
-                    word = sv.word
-                    vocab_item = {
-                        'id': word.id,
-                        'lemma': word.english_word,
-                        'translation': word.russian_word,
-                        'example': truncate_context(sv.context_sentence or '', max_sentences=1),
-                        'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
-                        'frequency': sv.frequency_in_slice,
-                    }
-                    vocabulary_data.append(vocab_item)
-
-            # Create deck for this book course (if not exists) and add words
-            from app.curriculum.services.book_srs_integration import get_or_create_book_course_deck
-            from app.study.models import QuizDeckWord
-            try:
-                logger.info(f"Creating/getting book deck for user {current_user.id}, course {course.id} (context_review in view_lesson)")
-                book_deck = get_or_create_book_course_deck(current_user.id, course)
-
-                # Add vocabulary words to deck
-                vocab_to_add = vocabulary_data[:15]
-                if book_deck and vocab_to_add:
-                    words_added = 0
-                    for vocab in vocab_to_add:
-                        word_id = vocab.get('id')
-                        if word_id:
-                            existing = QuizDeckWord.query.filter_by(
-                                deck_id=book_deck.id, word_id=word_id
-                            ).first()
-                            if not existing:
-                                deck_word = QuizDeckWord(deck_id=book_deck.id, word_id=word_id)
-                                db.session.add(deck_word)
-                                words_added += 1
-                    if words_added > 0:
-                        logger.info(f"Added {words_added} words to deck {book_deck.id} (context_review)")
-
-                db.session.commit()
-                logger.info(f"Book deck created/retrieved: {book_deck.id if book_deck else 'None'}")
-            except Exception as e:
-                logger.error(f"Error creating book deck: {str(e)}", exc_info=True)
-                db.session.rollback()
-                book_deck = None
-
-            fc_vars = _build_vocabulary_fc_vars(
-                vocabulary_data=vocabulary_data[:15],
-                course=course, module=module,
-                daily_lesson=daily_lesson,
-                next_lesson_url=next_lesson_url,
-                has_next_lesson=has_next_lesson,
-                is_review=True,
-            )
+    if lesson_type == 'phrase_cloze':
+        task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
+        if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
             return render_template(
-                'curriculum/book_courses/lessons/vocabulary.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                vocabulary_data=vocabulary_data[:15],
-                total_words=len(vocabulary_data[:15]),
-                daily_lesson=daily_lesson,
-                review_cards=review_cards,
-                is_review=True,
-                book_deck=book_deck,
-                **fc_vars,
+                'curriculum/book_courses/lessons/phrase_cloze.html',
+                **common, daily_lesson=daily_lesson,
+                has_next_lesson=has_next_lesson, next_lesson_url=next_lesson_url,
+                pc=task.payload,
             )
-        elif lesson_type in ['comprehension_mcq']:
-            # Check for curated comprehension payload
-            task = daily_lesson.task if daily_lesson else None
-            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
-                cc = task.payload
-                return render_template(
-                    'curriculum/book_courses/lessons/comprehension_check.html',
-                    course=course,
-                    module=module,
-                    lesson=lesson,
-                    lesson_number=lesson_number,
-                    module_progress=module_progress,
-                    review_cards=review_cards,
-                    cc=cc,
-                    daily_lesson=daily_lesson,
-                    next_lesson_url=next_lesson_url,
-                    has_next_lesson=has_next_lesson
-                )
+        cloze_data = None
+        if task and task.payload:
+            cloze_data = task.payload
+        if not cloze_data and daily_lesson and daily_lesson.slice_text:
+            cloze_data = ClozePracticeGenerator.generate_cloze(daily_lesson.slice_text, num_gaps=8)
+        return render_template(
+            'curriculum/book_courses/lessons/open_cloze.html',
+            **common, daily_lesson=daily_lesson, cloze_data=cloze_data,
+        )
 
-            # Fallback: auto-generated questions
-            mcq_data = None
-            if daily_lesson and daily_lesson.slice_text:
-                mcq_data = ComprehensionMCQGenerator.generate_questions(
-                    daily_lesson.slice_text, num_questions=10
-                )
+    if lesson_type in ['reading_mcq', 'match_headings', 'open_cloze', 'word_formation', 'keyword_transform', 'vocabulary_practice']:
+        template_name = 'word_formation' if lesson_type == 'vocabulary_practice' else lesson_type
+        return render_template(f'curriculum/book_courses/lessons/{template_name}.html', **common)
 
+    if lesson_type == 'guided_retelling':
+        task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
+        if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
             return render_template(
-                'curriculum/book_courses/lessons/reading_mcq.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards,
-                daily_lesson=daily_lesson if 'daily_lesson' in dir() else None,
-                mcq_data=mcq_data
+                'curriculum/book_courses/lessons/retelling.html',
+                **common, daily_lesson=daily_lesson,
+                has_next_lesson=has_next_lesson, next_lesson_url=next_lesson_url,
+                rt=task.payload,
             )
-        elif lesson_type in ['phrase_cloze']:
-            # Cloze practice — check for curated phrase cloze payload
-            task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
-            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
-                pc = task.payload
-                return render_template(
-                    'curriculum/book_courses/lessons/phrase_cloze.html',
-                    course=course,
-                    module=module,
-                    lesson=lesson,
-                    lesson_number=lesson_number,
-                    module_progress=module_progress,
-                    review_cards=review_cards,
-                    daily_lesson=daily_lesson,
-                    has_next_lesson=has_next_lesson if 'has_next_lesson' in dir() else False,
-                    next_lesson_url=next_lesson_url if 'next_lesson_url' in dir() else None,
-                    pc=pc
-                )
+        return render_template(
+            'curriculum/book_courses/lessons/summary.html',
+            **common, daily_lesson=daily_lesson,
+        )
 
-            # Fallback: auto-generated cloze
-            cloze_data = None
+    if lesson_type == 'discussion':
+        return render_template(
+            'curriculum/book_courses/lessons/discussion.html',
+            **common, daily_lesson=daily_lesson,
+        )
+
+    if lesson_type in ['module_test', 'final_test']:
+        test_data = None
+        if daily_lesson and daily_lesson.task_id:
+            from app.books.models import Task
+            task = Task.query.get(daily_lesson.task_id)
             if task and task.payload:
-                cloze_data = task.payload
+                test_data = task.payload
+        return render_template(
+            'curriculum/book_courses/lessons/final_test.html',
+            **common, daily_lesson=daily_lesson, test_data=test_data,
+            next_lesson_url=next_lesson_url, has_next_lesson=has_next_lesson,
+        )
 
-            if not cloze_data and daily_lesson and daily_lesson.slice_text:
-                cloze_data = ClozePracticeGenerator.generate_cloze(
-                    daily_lesson.slice_text, num_gaps=8
-                )
+    if lesson_type == 'mixed_practice':
+        return render_template('curriculum/book_courses/lessons/text.html', **common)
 
-            return render_template(
-                'curriculum/book_courses/lessons/open_cloze.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards,
-                daily_lesson=daily_lesson if 'daily_lesson' in dir() else None,
-                cloze_data=cloze_data
-            )
-        elif lesson_type in ['reading_mcq', 'match_headings', 'open_cloze', 'word_formation', 'keyword_transform', 'vocabulary_practice']:
-            # Vocabulary practice uses word_formation template as fallback
-            template_name = 'word_formation' if lesson_type == 'vocabulary_practice' else lesson_type
-            return render_template(
-                f'curriculum/book_courses/lessons/{template_name}.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards
-            )
-        elif lesson_type == 'guided_retelling':
-            # Check for curated retelling payload
-            task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
-            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
-                rt = task.payload
-                return render_template(
-                    'curriculum/book_courses/lessons/retelling.html',
-                    course=course, module=module, lesson=lesson,
-                    lesson_number=lesson_number, module_progress=module_progress,
-                    review_cards=review_cards, daily_lesson=daily_lesson,
-                    has_next_lesson=has_next_lesson, next_lesson_url=next_lesson_url, rt=rt
-                )
+    return render_template('curriculum/book_courses/lessons/text.html', **common)
 
-            # Fallback: old summary template
-            return render_template(
-                'curriculum/book_courses/lessons/summary.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards,
-                daily_lesson=daily_lesson if 'daily_lesson' in dir() else None
-            )
-        elif lesson_type == 'discussion':
-            # Discussion questions - productive task
-            return render_template(
-                'curriculum/book_courses/lessons/discussion.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards,
-                daily_lesson=daily_lesson if 'daily_lesson' in dir() else None
-            )
-        elif lesson_type in ['module_test', 'final_test']:
-            # Load test data from task
-            test_data = None
-            if daily_lesson and daily_lesson.task_id:
-                from app.books.models import Task
-                task = Task.query.get(daily_lesson.task_id)
-                if task and task.payload:
-                    test_data = task.payload
 
-            return render_template(
-                'curriculum/book_courses/lessons/final_test.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards,
-                daily_lesson=daily_lesson,
-                test_data=test_data,
-                next_lesson_url=next_lesson_url,
-                has_next_lesson=has_next_lesson
-            )
-        elif lesson_type == 'mixed_practice':
-            # Mixed practice uses text template
-            return render_template(
-                'curriculum/book_courses/lessons/text.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards
-            )
-        else:
-            # Default text lesson for other types
-            return render_template(
-                'curriculum/book_courses/lessons/text.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards
-            )
-
+@book_courses_bp.route('/book-courses/<int:course_id>/modules/<int:module_id>/lessons/<int:lesson_number>')
+@login_required
+def view_lesson(course_id, module_id, lesson_number):
+    """Display specific lesson within a module"""
+    try:
+        ctx = _prepare_lesson_context(course_id, module_id, lesson_number=lesson_number)
+        if ctx is None:
+            return redirect(url_for('book_courses.view_course', course_id=course_id))
+        return _render_lesson_by_type(ctx)
     except Exception as e:
         logger.error(f"Error viewing lesson {lesson_number}: {str(e)}")
         flash('Ошибка при загрузке урока', 'error')
@@ -1288,560 +612,13 @@ def view_lesson(course_id, module_id, lesson_number):
 def view_lesson_by_id(course_id, module_id, lesson_id):
     """Display specific lesson by ID within a module"""
     try:
-        course = BookCourse.query.get_or_404(course_id)
-        module = BookCourseModule.query.get_or_404(module_id)
-
-        if module.course_id != course_id:
-            abort(404)
-
-        # Check enrollment and module access
-        enrollment = BookCourseEnrollment.query.filter_by(
-            user_id=current_user.id,
-            course_id=course_id
-        ).first()
-
-        if not enrollment:
-            flash('Доступ запрещен', 'error')
-            return redirect(url_for('book_courses.view_course', course_id=course_id))
-
-        # Get Daily Lesson by ID
         daily_lesson = DailyLesson.query.get_or_404(lesson_id)
-
         if daily_lesson.book_course_module_id != module_id:
             abort(404)
-
-        # Convert DailyLesson to lesson format for templates
-        ui_lang = get_ui_lang(course.level)
-        type_label = get_lesson_type_display(daily_lesson.lesson_type, ui_lang)
-        if ui_lang == 'en':
-            title = f'Day {daily_lesson.day_number}: {type_label}'
-        else:
-            title = f'День {daily_lesson.day_number}: {type_label}'
-        lesson = {
-            'lesson_number': daily_lesson.day_number,
-            'type': daily_lesson.lesson_type,
-            'title': title,
-            'slice_text': daily_lesson.slice_text,
-            'word_count': daily_lesson.word_count,
-            'task_id': daily_lesson.task_id,
-            'daily_lesson_id': daily_lesson.id,
-            'available_at': daily_lesson.available_at
-        }
-
-        # Get module progress
-        module_progress = BookModuleProgress.query.filter_by(
-            enrollment_id=enrollment.id,
-            module_id=module_id
-        ).first()
-
-        if not module_progress:
-            flash('Ошибка доступа к модулю', 'error')
-            return redirect(url_for('book_courses.view_module',
-                                    course_id=course_id, module_id=module_id))
-
-        # Get review cards for SRS section in all lessons
-        srs_integration = BookSRSIntegration()
-        review_cards = srs_integration.get_due_cards_for_review(current_user.id, limit=5)
-
-        # Get next lesson URL
-        next_lesson_url = None
-        has_next_lesson = False
-        # Get all lessons in order and find the next one
-        all_lessons = DailyLesson.query.filter_by(
-            book_course_module_id=module_id
-        ).order_by(*LESSON_ORDER).all()
-
-        # Find current lesson position and get next
-        for i, dl in enumerate(all_lessons):
-            if dl.id == daily_lesson.id and i < len(all_lessons) - 1:
-                next_daily_lesson = all_lessons[i + 1]
-                next_position = i + 2  # 1-indexed position
-                has_next_lesson = True
-                # Use pretty URL if course has slug
-                if course.slug:
-                    next_lesson_url = url_for(
-                        'book_courses.view_lesson_by_slug',
-                        course_slug=course.slug,
-                        module_number=module.module_number,
-                        lesson_number=next_position
-                    )
-                else:
-                    next_lesson_url = url_for(
-                        'book_courses.view_lesson_by_id',
-                        course_id=course_id,
-                        module_id=module_id,
-                        lesson_id=next_daily_lesson.id
-                    )
-                break
-
-        # Route to appropriate lesson type handler
-        lesson_type = lesson.get('type', 'text')
-        lesson_number = daily_lesson.day_number
-
-        # Special handling for SRS/Anki sessions
-        if lesson_type == 'anki_session' or lesson_type == 'srs':
-            return render_template(
-                'curriculum/book_courses/lessons/anki_session.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                book=course.book,
-                review_cards=review_cards
-            )
-        elif lesson_type in ['reading', 'reading_assignment', 'reading_passage', 'reading_part1', 'reading_part2']:
-            # All reading types use the reading_passage template
-            template = 'curriculum/book_courses/lessons/reading_passage.html'
-
-            scaffold = _parse_lesson_scaffold(daily_lesson.annotations if daily_lesson else None)
-
-            return render_template(
-                template,
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                book=course.book,
-                daily_lesson=daily_lesson,
-                use_api=True,
-                review_cards=review_cards,
-                next_lesson_url=next_lesson_url,
-                has_next_lesson=has_next_lesson,
-                annotations=scaffold['annotations'],
-                objectives=scaffold['objectives'],
-                before_reading=scaffold['before_reading'],
-                reflection=scaffold['reflection'],
-                self_check=scaffold['self_check'],
-                can_do=scaffold['can_do'],
-            )
-        elif lesson_type == 'vocabulary':
-            # Load vocabulary from SliceVocabulary
-            vocabulary_data = []
-            TARGET_WORDS_FOR_STUDENT = 7  # 6-7 unique words = 12-14 cards (eng-rus + rus-eng)
-
-            from app.curriculum.services.book_srs_integration import is_word_learned
-
-            # Load vocabulary sorted by priority and frequency
-            slice_vocab = SliceVocabulary.query.filter_by(
-                daily_lesson_id=daily_lesson.id
-            ).options(joinedload(SliceVocabulary.word)).order_by(
-                SliceVocabulary.priority.desc(),
-                SliceVocabulary.frequency_in_slice.desc()
-            ).all()
-
-            for sv in slice_vocab:
-                # Skip learned words for authenticated users
-                if current_user.is_authenticated:
-                    if is_word_learned(current_user.id, sv.word_id):
-                        continue
-
-                word = sv.word
-                # Context sentence from book (relevant to current reading) - max 1 sentences
-                context = truncate_context(sv.context_sentence or '', max_sentences=1)
-
-                # Example with translation from DB
-                db_example = getattr(word, 'sentences', '') or ''
-                db_example = db_example.replace('\\n', '\n').replace('<br>', '\n').replace('<br/>', '\n')
-
-                vocab_item = {
-                    'id': word.id,
-                    'lemma': word.english_word,
-                    'translation': word.russian_word,
-                    'context': context,  # From book
-                    'example': db_example,  # From DB with translation
-                    'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
-                    'frequency': sv.frequency_in_slice,
-                    'part_of_speech': getattr(word, 'pos', 'unknown')
-                }
-                vocabulary_data.append(vocab_item)
-
-                # Limit to target words for student
-                if len(vocabulary_data) >= TARGET_WORDS_FOR_STUDENT:
-                    break
-
-            # Create deck for this book course (if not exists) and add words
-            from app.curriculum.services.book_srs_integration import get_or_create_book_course_deck
-            from app.study.models import QuizDeckWord
-            try:
-                logger.info(f"Creating/getting book deck for user {current_user.id}, course {course.id}")
-                book_deck = get_or_create_book_course_deck(current_user.id, course)
-
-                # Add vocabulary words to deck
-                if book_deck and vocabulary_data:
-                    words_added = 0
-                    for vocab in vocabulary_data:
-                        word_id = vocab.get('id')
-                        if word_id:
-                            existing = QuizDeckWord.query.filter_by(
-                                deck_id=book_deck.id, word_id=word_id
-                            ).first()
-                            if not existing:
-                                deck_word = QuizDeckWord(deck_id=book_deck.id, word_id=word_id)
-                                db.session.add(deck_word)
-                                words_added += 1
-                    if words_added > 0:
-                        logger.info(f"Added {words_added} words to deck {book_deck.id}")
-
-                db.session.commit()
-                logger.info(f"Book deck created/retrieved: {book_deck.id if book_deck else 'None'}")
-            except Exception as e:
-                logger.error(f"Error creating book deck: {str(e)}", exc_info=True)
-                db.session.rollback()
-                book_deck = None
-
-            fc_vars = _build_vocabulary_fc_vars(
-                vocabulary_data=vocabulary_data,
-                course=course, module=module,
-                daily_lesson=daily_lesson,
-                next_lesson_url=next_lesson_url,
-                has_next_lesson=has_next_lesson,
-            )
-            return render_template(
-                'curriculum/book_courses/lessons/vocabulary.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                vocabulary_data=vocabulary_data,
-                total_words=len(vocabulary_data),
-                daily_lesson=daily_lesson,
-                review_cards=review_cards,
-                book_deck=book_deck,
-                **fc_vars,
-            )
-        elif lesson_type in ['grammar', 'language_focus']:
-            from app.grammar_lab.models import GrammarTopic, GrammarExercise
-
-            # Check if this lesson has a Language Focus payload (book-linked content)
-            task = daily_lesson.task if daily_lesson else None
-            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
-                # Language Focus lesson — render from task.payload
-                lf = task.payload
-
-                # Fetch linked grammar topics with inline content + return_url
-                linked_topics, grammar_return_url = _build_linked_topics_and_return_url(
-                    lf, course, module, next_lesson_url, has_next_lesson
-                )
-
-                return render_template(
-                    'curriculum/book_courses/lessons/language_focus.html',
-                    course=course,
-                    module=module,
-                    lesson=lesson,
-                    lesson_number=lesson_number,
-                    module_progress=module_progress,
-                    review_cards=review_cards,
-                    lf=lf,
-                    linked_topics=linked_topics,
-                    daily_lesson=daily_lesson,
-                    next_lesson_url=next_lesson_url,
-                    has_next_lesson=has_next_lesson,
-                    grammar_return_url=grammar_return_url
-                )
-
-            # Fallback: Grammar Bridge (old behavior for lessons without payload)
-            topic = None
-            if task and getattr(task, 'grammar_topic_id', None):
-                topic = GrammarTopic.query.get(task.grammar_topic_id)
-
-            if not topic:
-                course_level = course.level or 'B1'
-                day_number = daily_lesson.day_number if daily_lesson else lesson_number
-
-                grammar_lesson_index = (day_number - 1) // 6
-
-                grammar_topics = GrammarTopic.query.filter_by(
-                    level=course_level
-                ).order_by(GrammarTopic.order).all()
-
-                if not grammar_topics:
-                    for fallback in ['B1', 'A2', 'A1']:
-                        grammar_topics = GrammarTopic.query.filter_by(
-                            level=fallback
-                        ).order_by(GrammarTopic.order).all()
-                        if grammar_topics:
-                            break
-
-                if grammar_topics:
-                    topic_index = grammar_lesson_index % len(grammar_topics)
-                    topic = grammar_topics[topic_index]
-
-            # Get exercises for the topic
-            exercises = []
-            if topic:
-                topic_exercises = GrammarExercise.query.filter_by(
-                    topic_id=topic.id
-                ).filter(
-                    GrammarExercise.exercise_type.in_(['multiple_choice', 'fill_blank'])
-                ).order_by(GrammarExercise.order).limit(5).all()
-
-                for ex in topic_exercises:
-                    exercises.append({
-                        'id': ex.id,
-                        'exercise_type': ex.exercise_type,
-                        'content': ex.content,
-                        'question': ex.content.get('question', ''),
-                        'options': ex.content.get('options', []),
-                        'correct': ex.content.get('correct_answer', 0),
-                        'explanation': ex.content.get('explanation', '')
-                    })
-
-            return render_template(
-                'curriculum/book_courses/lessons/grammar_bridge.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards,
-                topic=topic,
-                exercises=exercises,
-                daily_lesson=daily_lesson,
-                next_lesson_url=next_lesson_url,
-                has_next_lesson=has_next_lesson
-            )
-        elif lesson_type in ['context_review']:
-            # Check for curated context review payload
-            task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
-            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
-                cr = task.payload
-                return render_template(
-                    'curriculum/book_courses/lessons/context_review.html',
-                    course=course, module=module, lesson=lesson,
-                    lesson_number=lesson_number, module_progress=module_progress,
-                    review_cards=review_cards, daily_lesson=daily_lesson,
-                    has_next_lesson=has_next_lesson, next_lesson_url=next_lesson_url, cr=cr
-                )
-
-            # Fallback: auto-generated vocabulary review
-            vocabulary_data = []
-            slice_vocab = SliceVocabulary.query.filter_by(
-                daily_lesson_id=daily_lesson.id
-            ).options(joinedload(SliceVocabulary.word)).all()
-
-            for sv in slice_vocab:
-                word = sv.word
-                vocab_item = {
-                    'id': word.id,
-                    'lemma': word.english_word,
-                    'translation': word.russian_word,
-                    'example': truncate_context(sv.context_sentence or '', max_sentences=1),
-                    'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
-                    'frequency': sv.frequency_in_slice,
-                }
-                vocabulary_data.append(vocab_item)
-
-            # Create deck for this book course (if not exists) and add words
-            from app.curriculum.services.book_srs_integration import get_or_create_book_course_deck
-            from app.study.models import QuizDeckWord
-            try:
-                logger.info(f"Creating/getting book deck for user {current_user.id}, course {course.id} (context_review)")
-                book_deck = get_or_create_book_course_deck(current_user.id, course)
-
-                # Add vocabulary words to deck
-                vocab_to_add = vocabulary_data[:15]
-                if book_deck and vocab_to_add:
-                    words_added = 0
-                    for vocab in vocab_to_add:
-                        word_id = vocab.get('id')
-                        if word_id:
-                            existing = QuizDeckWord.query.filter_by(
-                                deck_id=book_deck.id, word_id=word_id
-                            ).first()
-                            if not existing:
-                                deck_word = QuizDeckWord(deck_id=book_deck.id, word_id=word_id)
-                                db.session.add(deck_word)
-                                words_added += 1
-                    if words_added > 0:
-                        logger.info(f"Added {words_added} words to deck {book_deck.id} (context_review)")
-
-                db.session.commit()
-                logger.info(f"Book deck created/retrieved: {book_deck.id if book_deck else 'None'}")
-            except Exception as e:
-                logger.error(f"Error creating book deck: {str(e)}", exc_info=True)
-                db.session.rollback()
-                book_deck = None
-
-            fc_vars = _build_vocabulary_fc_vars(
-                vocabulary_data=vocabulary_data[:15],
-                course=course, module=module,
-                daily_lesson=daily_lesson,
-                next_lesson_url=next_lesson_url,
-                has_next_lesson=has_next_lesson,
-                is_review=True,
-            )
-            return render_template(
-                'curriculum/book_courses/lessons/vocabulary.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                vocabulary_data=vocabulary_data[:15],
-                total_words=len(vocabulary_data[:15]),
-                daily_lesson=daily_lesson,
-                review_cards=review_cards,
-                is_review=True,
-                book_deck=book_deck,
-                **fc_vars,
-            )
-        elif lesson_type in ['comprehension_mcq']:
-            # Check for curated comprehension payload
-            task = daily_lesson.task if daily_lesson else None
-            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
-                cc = task.payload
-                return render_template(
-                    'curriculum/book_courses/lessons/comprehension_check.html',
-                    course=course,
-                    module=module,
-                    lesson=lesson,
-                    lesson_number=lesson_number,
-                    module_progress=module_progress,
-                    review_cards=review_cards,
-                    cc=cc,
-                    daily_lesson=daily_lesson,
-                    next_lesson_url=next_lesson_url,
-                    has_next_lesson=has_next_lesson
-                )
-
-            # Fallback: auto-generated questions
-            mcq_data = None
-            if daily_lesson and daily_lesson.slice_text:
-                mcq_data = ComprehensionMCQGenerator.generate_questions(
-                    daily_lesson.slice_text, num_questions=10
-                )
-
-            return render_template(
-                'curriculum/book_courses/lessons/reading_mcq.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards,
-                daily_lesson=daily_lesson,
-                mcq_data=mcq_data
-            )
-        elif lesson_type in ['phrase_cloze']:
-            # Cloze practice — check for curated phrase cloze payload
-            task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
-            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
-                pc = task.payload
-                return render_template(
-                    'curriculum/book_courses/lessons/phrase_cloze.html',
-                    course=course,
-                    module=module,
-                    lesson=lesson,
-                    lesson_number=lesson_number,
-                    module_progress=module_progress,
-                    review_cards=review_cards,
-                    daily_lesson=daily_lesson,
-                    has_next_lesson=has_next_lesson if 'has_next_lesson' in dir() else False,
-                    next_lesson_url=next_lesson_url if 'next_lesson_url' in dir() else None,
-                    pc=pc
-                )
-
-            # Fallback: auto-generated cloze
-            cloze_data = None
-            if task and task.payload:
-                cloze_data = task.payload
-
-            if not cloze_data and daily_lesson and daily_lesson.slice_text:
-                cloze_data = ClozePracticeGenerator.generate_cloze(
-                    daily_lesson.slice_text, num_gaps=8
-                )
-
-            return render_template(
-                'curriculum/book_courses/lessons/open_cloze.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards,
-                daily_lesson=daily_lesson,
-                cloze_data=cloze_data
-            )
-        elif lesson_type == 'guided_retelling':
-            # Check for curated retelling payload
-            task = daily_lesson.task if daily_lesson and daily_lesson.task_id else None
-            if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:
-                rt = task.payload
-                return render_template(
-                    'curriculum/book_courses/lessons/retelling.html',
-                    course=course, module=module, lesson=lesson,
-                    lesson_number=lesson_number, module_progress=module_progress,
-                    review_cards=review_cards, daily_lesson=daily_lesson,
-                    has_next_lesson=has_next_lesson, next_lesson_url=next_lesson_url, rt=rt
-                )
-
-            # Fallback: old summary template
-            return render_template(
-                'curriculum/book_courses/lessons/summary.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards,
-                daily_lesson=daily_lesson
-            )
-        elif lesson_type in ['reading_mcq', 'match_headings', 'open_cloze', 'word_formation', 'keyword_transform']:
-            return render_template(
-                f'curriculum/book_courses/lessons/{lesson_type}.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards
-            )
-        elif lesson_type in ['module_test', 'final_test']:
-            # Load test data from task
-            test_data = None
-            if daily_lesson and daily_lesson.task_id:
-                from app.books.models import Task
-                task = Task.query.get(daily_lesson.task_id)
-                if task and task.payload:
-                    test_data = task.payload
-
-            return render_template(
-                'curriculum/book_courses/lessons/final_test.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards,
-                daily_lesson=daily_lesson,
-                test_data=test_data,
-                next_lesson_url=next_lesson_url,
-                has_next_lesson=has_next_lesson
-            )
-        elif lesson_type == 'mixed_practice':
-            return render_template(
-                'curriculum/book_courses/lessons/text.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards
-            )
-        else:
-            return render_template(
-                'curriculum/book_courses/lessons/text.html',
-                course=course,
-                module=module,
-                lesson=lesson,
-                lesson_number=lesson_number,
-                module_progress=module_progress,
-                review_cards=review_cards
-            )
-
+        ctx = _prepare_lesson_context(course_id, module_id, daily_lesson=daily_lesson)
+        if ctx is None:
+            return redirect(url_for('book_courses.view_course', course_id=course_id))
+        return _render_lesson_by_type(ctx)
     except Exception as e:
         logger.error(f"Error viewing lesson by id {lesson_id}: {str(e)}")
         flash('Ошибка при загрузке урока', 'error')
@@ -1849,637 +626,9 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
                                 course_id=course_id, module_id=module_id))
 
 
-# API endpoints according to Детальный_план_уроков.md
-
-@book_courses_bp.route('/api/v1/lesson/<int:lesson_id>')
-@login_required
-def get_lesson_api(lesson_id):
-    """Get lesson data according to specification"""
-    try:
-        # lesson_id here is daily_lesson_id for new architecture
-        from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
-        from app.words.models import CollectionWords
-
-        # SECURITY: Check enrollment BEFORE exposing any lesson data.
-        # Use .get() instead of .get_or_404() to avoid revealing resource existence.
-        daily_lesson = DailyLesson.query.get(lesson_id)
-        if not daily_lesson:
-            return jsonify({'error': 'Not found'}), 404
-
-        module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
-        if not module:
-            return jsonify({'error': 'Not found'}), 404
-
-        enrollment = BookCourseEnrollment.query.filter_by(
-            course_id=module.course_id,
-            user_id=current_user.id
-        ).first()
-
-        if not enrollment:
-            return jsonify({'error': 'Not found'}), 404
-
-        lesson_type = daily_lesson.lesson_type
-
-        if lesson_type == 'vocabulary':
-            # GET /api/v1/lesson/:id → JSON: { words:[{id,lemma,translation,example,audio_url}] }
-            slice_vocab = SliceVocabulary.query.filter_by(
-                daily_lesson_id=daily_lesson.id
-            ).options(joinedload(SliceVocabulary.word)).limit(10).all()
-
-            words = []
-            for sv in slice_vocab:
-                word = sv.word
-                words.append({
-                    'id': word.id,
-                    'lemma': word.english_word,
-                    'translation': word.russian_word,
-                    'example': truncate_context(sv.context_sentence or '', max_sentences=1),
-                    'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3'
-                })
-
-            return jsonify({'words': words})
-
-        elif lesson_type in ['reading', 'reading_passage']:
-            # { html, tooltip_map:{lemma:{id,translation,example,audio_url}} }
-
-            # Try to get vocabulary from this lesson first
-            slice_vocab = SliceVocabulary.query.filter_by(
-                daily_lesson_id=daily_lesson.id
-            ).options(joinedload(SliceVocabulary.word)).all()
-
-            tooltip_map = {}
-
-            # If no vocabulary for this lesson, try to get from module's block vocabulary
-            if not slice_vocab:
-                from app.books.models import BlockVocab
-                from app.words.models import CollectionWords as CW
-
-                module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
-                if module and module.block_id:
-                    # Get all vocabulary from the block
-                    block_vocab = (db.session.query(BlockVocab, CW)
-                                   .join(CW, BlockVocab.word_id == CW.id)
-                                   .filter(BlockVocab.block_id == module.block_id)
-                                   .order_by(BlockVocab.freq.desc())
-                                   .limit(50)
-                                   .all())
-
-                    text_lower = (daily_lesson.slice_text or '').lower()
-                    for bv, word in block_vocab:
-                        word_lower = word.english_word.lower()
-                        # Only include words that appear in this slice
-                        if word_lower in text_lower:
-                            tooltip_map[word_lower] = {
-                                'id': word.id,
-                                'translation': word.russian_word,
-                                'example': '',
-                                'audio_url': f'/static/audio/pronunciation_en_{word_lower.replace(" ", "_")}.mp3',
-                                'transcription': getattr(word, 'transcription', None),
-                                'pos': getattr(word, 'pos', None)
-                            }
-            else:
-                # Use vocabulary from SliceVocabulary
-                for sv in slice_vocab:
-                    word = sv.word
-                    tooltip_map[word.english_word.lower()] = {
-                        'id': word.id,
-                        'translation': word.russian_word,
-                        'example': truncate_context(sv.context_sentence or '', max_sentences=1),
-                        'audio_url': f'/static/audio/pronunciation_en_{word.english_word.lower().replace(" ", "_")}.mp3',
-                        'transcription': getattr(word, 'transcription', None),
-                        'pos': getattr(word, 'pos', None)
-                    }
-
-            # Highlight vocabulary words in text with better regex
-            import re
-            html_text = daily_lesson.slice_text or ''
-
-            # Handle both literal \n (escaped) and actual newlines
-            # First replace literal backslash-n with actual newlines
-            html_text = html_text.replace('\\n', '\n')
-            html_text = html_text.replace('\r\n', '\n')
-
-            # Split by double newlines or treat single newlines as paragraph breaks
-            if '\n\n' in html_text:
-                paragraphs = html_text.split('\n\n')
-            elif '\n' in html_text:
-                paragraphs = html_text.split('\n')
-            else:
-                paragraphs = [html_text]
-
-            html_paragraphs = []
-
-            for idx, paragraph in enumerate(paragraphs):
-                paragraph = paragraph.strip()
-                if not paragraph:
-                    continue
-
-                # Highlight vocabulary words in this paragraph (preserve original case)
-                highlighted_paragraph = paragraph
-                for lemma in tooltip_map:
-                    # Use word boundaries to match whole words only, preserve original case
-                    pattern = r'\b(' + re.escape(lemma) + r')\b'
-                    highlighted_paragraph = re.sub(
-                        pattern,
-                        lambda m: f'<span class="word" data-lemma="{lemma}">{m.group(1)}</span>',
-                        highlighted_paragraph,
-                        flags=re.IGNORECASE
-                    )
-
-                # Wrap in paragraph with data-paragraph-index
-                html_paragraphs.append(
-                    f'<p data-paragraph-index="{idx}">{highlighted_paragraph}</p>'
-                )
-
-            # If no paragraphs found, wrap entire text in one paragraph
-            if not html_paragraphs and html_text.strip():
-                html_paragraphs = [f'<p>{html_text.strip()}</p>']
-
-            final_html = '\n'.join(html_paragraphs)
-
-            # Resolve audio URL: prefer daily_lesson.audio_url, fallback to chapter audio
-            audio_url = daily_lesson.audio_url
-            if not audio_url and daily_lesson.chapter_id:
-                from app.books.models import Chapter
-                chapter = Chapter.query.get(daily_lesson.chapter_id)
-                if chapter and chapter.audio_url:
-                    audio_url = url_for('books.serve_chapter_audio',
-                                        book_id=chapter.book_id,
-                                        chapter_num=chapter.chap_num)
-
-            return jsonify({
-                'html': final_html,
-                'tooltip_map': tooltip_map,
-                'word_count': daily_lesson.word_count,
-                'title': f'Чтение — День {daily_lesson.day_number}',
-                'audio_url': audio_url
-            })
-
-        else:
-            return jsonify({'error': 'Lesson type not supported'}), 400
-
-    except Exception as e:
-        logger.error(f"Error getting lesson {lesson_id}: {str(e)}")
-        return jsonify({'error': 'Server error'}), 500
-
-
-@book_courses_bp.route('/api/v1/lesson/<int:lesson_id>/progress', methods=['GET', 'POST'])
-@login_required
-def lesson_progress_api(lesson_id):
-    """Save/load reading progress and self-check answers for a lesson."""
-    try:
-        from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
-
-        # SECURITY: Uniform 404 response to prevent resource enumeration
-        daily_lesson = DailyLesson.query.get(lesson_id)
-        if not daily_lesson:
-            return jsonify({'error': 'Not found'}), 404
-
-        module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
-        if not module:
-            return jsonify({'error': 'Not found'}), 404
-
-        enrollment = BookCourseEnrollment.query.filter_by(
-            course_id=module.course_id,
-            user_id=current_user.id
-        ).first()
-        if not enrollment:
-            return jsonify({'error': 'Not found'}), 404
-
-        progress = UserLessonProgress.query.filter_by(
-            user_id=current_user.id,
-            daily_lesson_id=lesson_id,
-            enrollment_id=enrollment.id
-        ).first()
-
-        if request.method == 'GET':
-            if progress and progress.lesson_data:
-                return jsonify(progress.lesson_data)
-            return jsonify({})
-
-        # POST — save progress
-        data = request.get_json(silent=True) or {}
-
-        if not progress:
-            progress = UserLessonProgress(
-                user_id=current_user.id,
-                daily_lesson_id=lesson_id,
-                enrollment_id=enrollment.id,
-                status='in_progress',
-                started_at=datetime.now(UTC)
-            )
-            db.session.add(progress)
-
-        lesson_data = dict(progress.lesson_data or {})
-        if 'reading_progress' in data:
-            lesson_data['reading_progress'] = min(int(data['reading_progress']), 100)
-        if 'self_check' in data:
-            lesson_data['self_check'] = data['self_check']
-
-        progress.lesson_data = lesson_data
-        flag_modified(progress, 'lesson_data')
-        db.session.commit()
-
-        return jsonify({'ok': True})
-
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f'Error saving lesson progress: {e}')
-        return jsonify({'error': 'Server error'}), 500
-
-
-@book_courses_bp.route('/api/v1/lesson/<int:lesson_id>/complete', methods=['POST'])
-@login_required
-def complete_lesson_api_v1(lesson_id):
-    """Complete lesson according to specification"""
-    try:
-        # POST /api/v1/lesson/:id/complete → 201
-        from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress, LessonCompletionEvent
-
-        # SECURITY: Uniform 404 response to prevent resource enumeration
-        daily_lesson = DailyLesson.query.get(lesson_id)
-        if not daily_lesson:
-            return jsonify({'error': 'Not found'}), 404
-
-        module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
-        if not module:
-            return jsonify({'error': 'Not found'}), 404
-
-        enrollment = BookCourseEnrollment.query.filter_by(
-            course_id=module.course_id,
-            user_id=current_user.id
-        ).first()
-
-        if not enrollment:
-            return jsonify({'error': 'Not found'}), 404
-
-        # Create or update progress
-        progress = UserLessonProgress.query.filter_by(
-            user_id=current_user.id,
-            daily_lesson_id=lesson_id,
-            enrollment_id=enrollment.id
-        ).first()
-
-        if not progress:
-            progress = UserLessonProgress(
-                user_id=current_user.id,
-                daily_lesson_id=lesson_id,
-                enrollment_id=enrollment.id,
-                status='completed',
-                started_at=datetime.now(UTC)
-            )
-            db.session.add(progress)
-
-        progress.status = 'completed'
-        progress.completed_at = datetime.now(UTC)
-
-        # Also update BookModuleProgress.lessons_completed for template compatibility
-        module_progress = BookModuleProgress.query.filter_by(
-            enrollment_id=enrollment.id,
-            module_id=daily_lesson.book_course_module_id
-        ).first()
-
-        if module_progress:
-            lessons_completed = list(module_progress.lessons_completed or [])
-            if daily_lesson.id not in lessons_completed:
-                lessons_completed.append(daily_lesson.id)
-                module_progress.lessons_completed = lessons_completed
-                flag_modified(module_progress, 'lessons_completed')
-                # Update module status
-                module_progress.status = 'in_progress'
-
-        # Create completion event
-        completion_event = LessonCompletionEvent(
-            daily_lesson_id=lesson_id,
-            user_id=current_user.id,
-            event_type='lesson_completed',
-            event_data={'lesson_type': daily_lesson.lesson_type}
-        )
-        db.session.add(completion_event)
-
-        # Auto-create SRS cards for vocabulary lessons
-        if daily_lesson.lesson_type == 'vocabulary':
-            try:
-                from app.curriculum.services.book_srs_integration import BookSRSIntegration
-                srs_integration = BookSRSIntegration()
-                srs_integration.auto_create_srs_cards_from_vocabulary_lesson(
-                    user_id=current_user.id,
-                    daily_lesson=daily_lesson
-                )
-                logger.info(f"Auto-created SRS cards for lesson {lesson_id}")
-            except Exception as e:
-                logger.error(f"Error auto-creating SRS cards: {str(e)}")
-
-        # Sync grammar completion with Grammar Lab
-        if daily_lesson.lesson_type in ['grammar', 'language_focus']:
-            try:
-                from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
-
-                # Try explicit FK first
-                topic = None
-                task = daily_lesson.task
-                if task and getattr(task, 'grammar_topic_id', None):
-                    topic = GrammarTopic.query.get(task.grammar_topic_id)
-
-                # Fallback to modulo-based mapping
-                if not topic:
-                    from app.curriculum.book_courses import BookCourse
-
-                    course = BookCourse.query.get(module.course_id)
-                    course_level = course.level if course else 'A1'
-
-                    grammar_topics = GrammarTopic.query.filter_by(
-                        level=course_level
-                    ).order_by(GrammarTopic.order).all()
-
-                    if not grammar_topics:
-                        for fallback in ['A1', 'A2', 'B1']:
-                            grammar_topics = GrammarTopic.query.filter_by(
-                                level=fallback
-                            ).order_by(GrammarTopic.order).all()
-                            if grammar_topics:
-                                break
-
-                    if grammar_topics:
-                        grammar_lesson_index = (daily_lesson.day_number - 1) // 6
-                        topic = grammar_topics[grammar_lesson_index % len(grammar_topics)]
-
-                if topic:
-                    topic_status = UserGrammarTopicStatus.get_or_create(
-                        user_id=current_user.id,
-                        topic_id=topic.id
-                    )
-                    topic_status.transition_to('theory_completed')
-                    logger.info(f"Synced grammar topic {topic.id} status for user {current_user.id}")
-
-            except Exception as e:
-                logger.error(f"Error syncing grammar with Grammar Lab: {str(e)}")
-
-        db.session.commit()
-
-        return jsonify({'success': True, 'message': 'Lesson completed'}), 201
-
-    except Exception as e:
-        logger.error(f"Error completing lesson {lesson_id}: {str(e)}")
-        db.session.rollback()
-        return jsonify({'error': 'Server error'}), 500
-
-
-@book_courses_bp.route('/api/book-courses/<int:course_id>/modules/<int:module_id>/complete-lesson', methods=['POST'])
-@login_required
-def complete_lesson_api(course_id, module_id):
-    """Mark a lesson as completed"""
-    try:
-        data = request.get_json()
-        lesson_number = data.get('lesson_number')
-        score = data.get('score', 100)
-
-        if not lesson_number:
-            return jsonify({'success': False, 'error': 'lesson_number required'}), 400
-
-        # Get enrollment and module progress
-        enrollment = BookCourseEnrollment.query.filter_by(
-            user_id=current_user.id,
-            course_id=course_id
-        ).first()
-
-        if not enrollment:
-            return jsonify({'success': False, 'error': 'Not enrolled'}), 403
-
-        module_progress = BookModuleProgress.query.filter_by(
-            enrollment_id=enrollment.id,
-            module_id=module_id
-        ).first()
-
-        if not module_progress:
-            return jsonify({'success': False, 'error': 'Module progress not found'}), 404
-
-        # Mark lesson as completed
-        module_progress.mark_lesson_completed(lesson_number, score)
-
-        # Auto-create SRS cards for vocabulary lessons
-        try:
-            from app.curriculum.services.book_srs_integration import BookSRSIntegration
-            from app.curriculum.daily_lessons import DailyLesson
-
-            # Find the corresponding daily lesson and check if it's vocabulary
-            daily_lesson = DailyLesson.query.filter_by(
-                book_course_module_id=module_id,
-                day_number=lesson_number,
-                lesson_type='vocabulary'
-            ).first()
-
-            if daily_lesson:
-                srs_integration = BookSRSIntegration()
-                srs_integration.auto_create_srs_cards_from_vocabulary_lesson(
-                    user_id=current_user.id,
-                    daily_lesson=daily_lesson
-                )
-                logger.info(f"Auto-created SRS cards for vocabulary lesson {lesson_number}")
-        except Exception as e:
-            logger.error(f"Error auto-creating SRS cards: {str(e)}")
-
-        # Update enrollment progress
-        enrollment.last_activity = datetime.now(UTC)
-
-        # Calculate overall course progress
-        total_modules = BookCourseModule.query.filter_by(course_id=course_id).count()
-        completed_modules = BookModuleProgress.query.filter_by(
-            enrollment_id=enrollment.id,
-            status='completed'
-        ).count()
-
-        enrollment.progress_percentage = (completed_modules / total_modules) * 100 if total_modules > 0 else 0
-
-        db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'lesson_completed': True,
-            'module_progress': module_progress.progress_percentage,
-            'module_status': module_progress.status,
-            'course_progress': enrollment.progress_percentage
-        })
-
-    except Exception as e:
-        logger.error(f"Error completing lesson: {str(e)}")
-        db.session.rollback()
-        return jsonify({'success': False, 'error': 'Server error'}), 500
-
-
-@book_courses_bp.route('/api/book-courses/<int:course_id>/progress')
-@login_required
-def get_course_progress_api(course_id):
-    """Get user's progress in a course"""
-    try:
-        enrollment = BookCourseEnrollment.query.filter_by(
-            user_id=current_user.id,
-            course_id=course_id
-        ).first()
-
-        if not enrollment:
-            return jsonify({'success': False, 'error': 'Not enrolled'}), 404
-
-        # Get module progress
-        module_progress = BookModuleProgress.query.filter_by(
-            enrollment_id=enrollment.id
-        ).all()
-
-        progress_data = {
-            'enrollment': {
-                'status': enrollment.status,
-                'progress_percentage': enrollment.progress_percentage,
-                'total_study_time': enrollment.total_study_time,
-                'words_learned': enrollment.words_learned,
-                'enrolled_at': enrollment.enrolled_at.isoformat(),
-                'last_activity': enrollment.last_activity.isoformat() if enrollment.last_activity else None
-            },
-            'modules': [
-                {
-                    'module_id': mp.module_id,
-                    'status': mp.status,
-                    'progress_percentage': mp.progress_percentage,
-                    'lessons_completed': mp.lessons_completed or [],
-                    'current_lesson': mp.current_lesson_number,
-                    'reading_position': mp.reading_position,
-                    'vocabulary_score': mp.vocabulary_score,
-                    'comprehension_score': mp.comprehension_score
-                }
-                for mp in module_progress
-            ]
-        }
-
-        return jsonify({
-            'success': True,
-            'course_id': course_id,
-            'progress': progress_data
-        })
-
-    except Exception as e:
-        logger.error(f"Error getting course progress: {str(e)}")
-        return jsonify({'success': False, 'error': 'Server error'}), 500
-
-
-@book_courses_bp.route('/api/srs/session/<int:lesson_id>', methods=['GET'])
-@login_required
-def get_srs_session(lesson_id):
-    """
-    Get SRS session for vocabulary lesson.
-    Returns only cards that are due for review today.
-    """
-    try:
-        # SECURITY: Uniform 404 response to prevent resource enumeration
-        daily_lesson = DailyLesson.query.get(lesson_id)
-        if not daily_lesson:
-            return jsonify({'error': 'Not found'}), 404
-
-        module = BookCourseModule.query.get(daily_lesson.book_course_module_id)
-        if not module:
-            return jsonify({'error': 'Not found'}), 404
-
-        enrollment = BookCourseEnrollment.query.filter_by(
-            user_id=current_user.id,
-            course_id=module.course_id
-        ).first()
-
-        if not enrollment:
-            return jsonify({'error': 'Not found'}), 404
-
-        srs_integration = BookSRSIntegration()
-        session_data = srs_integration.create_srs_session_for_lesson(
-            user_id=current_user.id,
-            daily_lesson=daily_lesson,
-            enrollment=enrollment
-        )
-
-        return jsonify(session_data)
-
-    except Exception as e:
-        logger.error(f"Error creating SRS session: {str(e)}")
-        return jsonify({'error': 'Server error'}), 500
-
-
-@book_courses_bp.route('/api/srs/grade', methods=['POST'])
-@login_required
-def grade_srs_card():
-    """
-    Grade an SRS card.
-    POST /api/srs/grade {card_id, grade, session_key}
-
-    Grade scale:
-    1 = "Не знаю" (Again)
-    3 = "Сомневаюсь" (Hard)
-    5 = "Знаю" (Easy)
-    """
-    try:
-        data = request.get_json()
-        card_id = data.get('card_id')
-        grade = data.get('grade')
-        session_key = data.get('session_key', '')
-
-        if not card_id or grade is None:
-            return jsonify({'success': False, 'error': 'card_id and grade required'}), 400
-
-        srs_integration = BookSRSIntegration()
-        result = srs_integration.process_card_grade(
-            user_id=current_user.id,
-            card_id=card_id,
-            grade=grade,
-            session_key=session_key
-        )
-
-        return jsonify(result)
-
-    except Exception as e:
-        logger.error(f"Error grading SRS card: {str(e)}")
-        return jsonify({'success': False, 'error': 'Server error'}), 500
-
-
-@book_courses_bp.route('/api/srs/add-card', methods=['POST'])
-@login_required
-def add_word_to_srs():
-    """
-    Add a word to user's SRS flashcards.
-    POST /api/srs/add-card {word_id, source, course_id}
-
-    Returns word_status: 'not_added', 'in_learning', or 'learned'
-    """
-    try:
-        data = request.get_json()
-        word_id = data.get('word_id')
-        source = data.get('source', 'book_reading')
-        course_id = data.get('course_id')
-
-        if not word_id:
-            return jsonify({'success': False, 'error': 'word_id required'}), 400
-
-        srs_integration = BookSRSIntegration()
-        result = srs_integration.add_word_to_srs(
-            user_id=current_user.id,
-            word_id=word_id,
-            source=source,
-            course_id=course_id
-        )
-
-        if result.get('success'):
-            return jsonify(result)
-        else:
-            # Return word_status even on failure (for UI to update)
-            return jsonify(result), 400
-
-    except Exception as e:
-        logger.error(f"Error adding word to SRS: {str(e)}")
-        return jsonify({'success': False, 'error': 'Server error'}), 500
-
-
-# ==================== NEW ROUTES WITH SLUG AND ORDINAL NUMBERS ====================
-# URL format: /curriculum/courses/<slug>/modules/<module_number>/lessons/<lesson_number>
-# Example: /curriculum/courses/harry-potter-order-phoenix/modules/1/lessons/2
-
 @book_courses_bp.route('/courses/<course_slug>')
 @login_required
 def view_course_by_slug(course_slug):
-    """Display course details by slug - redirects to main view_course"""
     course = get_course_by_slug_or_id(course_slug)
     return view_course(course.id)
 
@@ -2487,7 +636,6 @@ def view_course_by_slug(course_slug):
 @book_courses_bp.route('/courses/<course_slug>/enroll', methods=['POST'])
 @login_required
 def enroll_by_slug(course_slug):
-    """Enroll in course by slug"""
     course = get_course_by_slug_or_id(course_slug)
     return enroll_in_course(course.id)
 
@@ -2495,55 +643,30 @@ def enroll_by_slug(course_slug):
 @book_courses_bp.route('/courses/<course_slug>/modules/<int:module_number>')
 @login_required
 def view_module_by_slug(course_slug, module_number):
-    """Display module by course slug and module number"""
     course = get_course_by_slug_or_id(course_slug)
-
-    # Get module by number
     module = BookCourseModule.query.filter_by(
-        course_id=course.id,
-        module_number=module_number
+        course_id=course.id, module_number=module_number
     ).first_or_404()
-
     return view_module(course.id, module.id)
 
 
 @book_courses_bp.route('/courses/<course_slug>/modules/<int:module_number>/lessons/<int:lesson_number>')
 @login_required
 def view_lesson_by_slug(course_slug, module_number, lesson_number):
-    """Display lesson by course slug, module number and lesson number (position in list, not day_number!)"""
     course = get_course_by_slug_or_id(course_slug)
-
-    # Get module by number
     module = BookCourseModule.query.filter_by(
-        course_id=course.id,
-        module_number=module_number
+        course_id=course.id, module_number=module_number
     ).first_or_404()
 
-    # Get all lessons ordered by day_number
     all_lessons = DailyLesson.query.filter_by(
         book_course_module_id=module.id
     ).order_by(*LESSON_ORDER).all()
 
-    # Get lesson by position (lesson_number is 1-indexed)
     if lesson_number < 1 or lesson_number > len(all_lessons):
         abort(404)
 
     daily_lesson = all_lessons[lesson_number - 1]
-
     return view_lesson_by_id(course.id, module.id, daily_lesson.id)
 
 
-# Helper to generate URL for lessons with pretty format
-def get_pretty_lesson_url(course, module, lesson_index):
-    """Generate pretty URL for lesson"""
-    if course.slug:
-        return url_for('book_courses.view_lesson_by_slug',
-                      course_slug=course.slug,
-                      module_number=module.module_number,
-                      lesson_number=lesson_index)
-    else:
-        # Fallback to id-based URL
-        return url_for('book_courses.view_lesson',
-                      course_id=course.id,
-                      module_id=module.id,
-                      lesson_number=lesson_index)
+import app.curriculum.routes.book_courses_api  # noqa: E402, F401

@@ -25,7 +25,8 @@ def init_curriculum_module(app):
     # Initialize metrics collection
     from app.curriculum.metrics import init_metrics, setup_database_monitoring
     init_metrics(app)
-    setup_database_monitoring()
+    with app.app_context():
+        setup_database_monitoring()
 
     # Initialize backup system
     from app.curriculum.backup import init_backup_system
