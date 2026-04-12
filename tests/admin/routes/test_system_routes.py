@@ -159,6 +159,8 @@ class TestInitDatabase:
         assert response.status_code == 302  # Redirect
         assert response.location.endswith('/admin/system/database')
         mock_init_db.assert_called_once()
+        args, kwargs = mock_init_db.call_args
+        assert len(args) == 1, "init_db should be called with current_app"
 
     @patch('app.utils.db_init.init_db')
     def test_init_database_error(self, mock_init_db, admin_client, mock_admin_user):

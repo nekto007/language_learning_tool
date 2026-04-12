@@ -94,12 +94,12 @@ Task 1 (factory) → Task 2 (db lifecycle) → Task 3 (config)
 
 **Зависит от:** Task 1 (factory уже не вызывает `db.create_all()` в production)
 
-- [ ] Оставить Alembic единственным supported способом управления схемой в production
-- [ ] Удалить legacy `init_db` (или переименовать в `_legacy_init_db` и пометить deprecated)
-- [ ] Исправить баг с вызовом `init_db()` без `app` в админке
-- [ ] Проверить, какие seed data должны жить в миграциях, а не в runtime (`seed_initial_modules`, `seed_achievements`)
-- [ ] Добавить smoke-test: `flask db upgrade head` на чистой БД создаёт все таблицы
-- [ ] Документировать: "единственный путь создания/обновления схемы — `flask db upgrade`"
+- [x] Оставить Alembic единственным supported способом управления схемой в production
+- [x] Удалить legacy `init_db` (или переименовать в `_legacy_init_db` и пометить deprecated)
+- [x] Исправить баг с вызовом `init_db()` без `app` в админке
+- [x] Проверить, какие seed data должны жить в миграциях, а не в runtime (`seed_initial_modules`, `seed_achievements`)
+- [x] Добавить smoke-test: `flask db upgrade head` на чистой БД создаёт все таблицы
+- [x] Документировать: "единственный путь создания/обновления схемы — `flask db upgrade`"
 
 ### Task 3: Normalize Configuration and Eliminate Import-Time Behavior
 

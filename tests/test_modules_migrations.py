@@ -42,13 +42,16 @@ def clean_modules(db_session):
 
 
 class TestCreateModuleTables:
-    """Тесты функции create_module_tables"""
+    """Тесты функции create_module_tables (deprecated)"""
 
-    @patch('app.modules.migrations.db.create_all')
-    def test_create_module_tables_calls_create_all(self, mock_create_all):
-        """Тест что вызывается db.create_all()"""
-        create_module_tables()
-        mock_create_all.assert_called_once()
+    def test_create_module_tables_is_deprecated_noop(self):
+        """create_module_tables is now a deprecated no-op"""
+        import warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            create_module_tables()
+            deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
+            assert len(deprecation_warnings) == 1
 
 
 class TestSeedInitialModulesBasic:

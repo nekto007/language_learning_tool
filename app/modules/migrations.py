@@ -1,19 +1,26 @@
 """
-Миграция для создания модульной системы.
-Этот файл содержит SQL-скрипты для создания таблиц modules и user_modules.
+Module system seed data and user migration utilities.
+
+Schema is managed exclusively through Alembic migrations (flask db upgrade).
+This file contains only seed data and user-migration helpers.
 """
+import logging
+import warnings
 
 from app.utils.db import db
 from app.modules.models import SystemModule, UserModule
 
+logger = logging.getLogger(__name__)
+
 
 def create_module_tables():
-    """
-    Создает таблицы для модульной системы
-    """
-    # SQLAlchemy автоматически создаст таблицы через db.create_all()
-    # Но мы можем добавить кастомные миграции здесь, если нужно
-    db.create_all()
+    """DEPRECATED: Tables are created via Alembic migrations."""
+    warnings.warn(
+        "create_module_tables() is deprecated. Use 'flask db upgrade'.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    logger.info("create_module_tables() called (deprecated, no-op)")
 
 
 def seed_initial_modules():
