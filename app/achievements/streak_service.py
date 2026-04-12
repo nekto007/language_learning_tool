@@ -329,7 +329,7 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow')
 
     active_dates = set()
     for offset in range(days):
-        check_date = today - timedelta(days=offset)
+        check_date = local_today - timedelta(days=offset)
         if check_date in event_dates:
             active_dates.add(check_date)
             continue
