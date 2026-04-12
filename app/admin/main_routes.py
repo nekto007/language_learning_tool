@@ -12,6 +12,7 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
 from sqlalchemy import case, desc, distinct, func
+from sqlalchemy.exc import SQLAlchemyError
 
 from app import csrf
 from app.auth.models import User
@@ -130,8 +131,8 @@ def get_dashboard_statistics():
     try:
         total_books = db.session.query(func.count(Book.id)).scalar() or 0
         total_readings = db.session.query(func.sum(Book.unique_words)).scalar() or 0
-    except Exception as e:
-        logger.warning(f"Error getting book statistics: {e}")
+    except SQLAlchemyError:
+        logger.exception("Error getting book statistics")
         total_books = 0
         total_readings = 0
 
@@ -139,8 +140,8 @@ def get_dashboard_statistics():
     try:
         words_total = db.session.query(func.count(CollectionWords.id)).scalar() or 0
         words_with_audio = CollectionWords.query.filter_by(get_download=1).count()
-    except Exception as e:
-        logger.warning(f"Error getting word statistics: {e}")
+    except SQLAlchemyError:
+        logger.exception("Error getting word statistics")
         words_total = 0
         words_with_audio = 0
 
@@ -148,8 +149,8 @@ def get_dashboard_statistics():
     try:
         total_lessons = Lessons.query.count()
         active_lessons = db.session.query(func.count(distinct(LessonProgress.lesson_id))).scalar() or 0
-    except Exception as e:
-        logger.warning(f"Error getting curriculum statistics: {e}")
+    except SQLAlchemyError:
+        logger.exception("Error getting curriculum statistics")
         total_lessons = 0
         active_lessons = 0
 
@@ -315,7 +316,8 @@ def get_content_metrics() -> dict:
         from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
         book_courses_count = db.session.query(func.count(BookCourse.id)).scalar() or 0
         enrollments_count = db.session.query(func.count(BookCourseEnrollment.id)).scalar() or 0
-    except Exception:
+    except (SQLAlchemyError, ImportError):
+        logger.warning("Error getting book course metrics", exc_info=True)
         book_courses_count = 0
         enrollments_count = 0
 
@@ -625,8 +627,8 @@ def get_content_alerts() -> list:
     try:
         alerts = LessonAnalyticsService.generate_alerts()
         return alerts[:5]
-    except Exception as e:
-        logger.warning(f"Error generating content alerts: {e}")
+    except (SQLAlchemyError, AttributeError):
+        logger.exception("Error generating content alerts")
         return []
 
 
@@ -641,7 +643,8 @@ def get_system_health() -> dict:
     }
     try:
         db.session.execute(db.text('SELECT 1'))
-    except Exception as e:
+    except SQLAlchemyError as e:
+        logger.warning("DB health check failed: %s", e)
         health['db_status'] = 'error'
         health['db_error'] = str(e)
 
@@ -912,14 +915,14 @@ def import_curriculum():
             try:
                 json_text = file.read().decode('utf-8')
                 json_data = json.loads(json_text)
-            except Exception as e:
+            except (UnicodeDecodeError, json.JSONDecodeError) as e:
                 flash(f'Ошибка при чтении файла: {str(e)}', 'danger')
                 return redirect(url_for('admin.import_curriculum'))
         elif request.form.get('json_text'):
             # Получаем JSON из текстового поля
             try:
                 json_data = json.loads(request.form.get('json_text'))
-            except Exception as e:
+            except (json.JSONDecodeError, TypeError) as e:
                 flash(f'Ошибка в формате JSON: {str(e)}', 'danger')
                 return redirect(url_for('admin.import_curriculum'))
 
@@ -935,8 +938,8 @@ def import_curriculum():
                     return redirect(url_for('admin.lesson_list', module_id=module.id))
                 else:
                     return redirect(url_for('admin.curriculum'))
-            except Exception as e:
-                logger.error(f'Ошибка при импорте: {str(e)}', exc_info=True)
+            except (SQLAlchemyError, ValueError, KeyError) as e:
+                logger.error("Ошибка при импорте: %s", e, exc_info=True)
                 flash(f'Ошибка при импорте: {str(e)}', 'danger')
                 return redirect(url_for('admin.import_curriculum'))
 

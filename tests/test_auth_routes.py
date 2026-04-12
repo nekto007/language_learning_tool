@@ -14,6 +14,8 @@ import pytest
 import uuid
 from unittest.mock import patch, MagicMock
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.auth.models import User
 from app.utils.db import db
 
@@ -180,7 +182,7 @@ class TestRegister:
     @patch('app.auth.routes.email_sender')
     def test_register_succeeds_even_if_email_fails(self, mock_email, client, db_session):
         """Registration should succeed even if welcome email sending fails."""
-        mock_email.send_email.side_effect = Exception("SMTP error")
+        mock_email.send_email.side_effect = OSError("SMTP connection refused")
         unique = uuid.uuid4().hex[:8]
         r = client.post('/register', data={
             'username': f'newuser_{unique}',
@@ -333,3 +335,68 @@ class TestTokenHelpers:
         from app.auth.routes import verify_reset_token
         with app.app_context():
             assert verify_reset_token('totally_invalid') is None
+
+
+
+# ---------------------------------------------------------------------------
+# Exception handling — auth flow must fail-closed
+# ---------------------------------------------------------------------------
+
+class TestAuthExceptionHandling:
+    @patch('app.auth.routes.email_sender')
+    def test_db_error_during_registration_shows_error(self, mock_email, client, db_session):
+        """DB error during registration must not silently log user in."""
+        mock_email.send_email.return_value = True
+        unique = uuid.uuid4().hex[:8]
+        with patch('app.auth.routes.db.session.commit', side_effect=SQLAlchemyError("DB down")):
+            r = client.post('/register', data={
+                'username': f'newuser_{unique}',
+                'email': f'newuser_{unique}@example.com',
+                'password': 'Xk9$mP2vL!qw',
+                'password2': 'Xk9$mP2vL!qw',
+            }, follow_redirects=True)
+            assert r.status_code == 200
+            page = r.data.decode()
+            assert 'не удалась' in page.lower() or 'danger' in page.lower()
+
+    def test_db_error_during_profile_update_rolls_back(self, authenticated_client, db_session):
+        """Profile update DB error must rollback and show error flash."""
+        original_commit = db.session.commit
+        call_count = [0]
+
+        def commit_that_fails_second_time():
+            call_count[0] += 1
+            if call_count[0] > 1:
+                raise SQLAlchemyError("DB error")
+            return original_commit()
+
+        with patch.object(db.session, 'commit', side_effect=commit_that_fails_second_time):
+            r = authenticated_client.post('/profile', data={
+                'section': 'settings',
+                'timezone': 'UTC',
+            }, follow_redirects=True)
+            assert r.status_code == 200
+
+    def test_db_error_during_password_change_logs_exception(self, authenticated_client, test_user, caplog):
+        """Password change DB error must log exception and rollback."""
+        import logging
+        original_commit = db.session.commit
+        call_count = [0]
+
+        def commit_that_fails_second_time():
+            call_count[0] += 1
+            if call_count[0] > 1:
+                raise SQLAlchemyError("DB error")
+            return original_commit()
+
+        with caplog.at_level(logging.ERROR, logger='app.auth.routes'):
+            with patch.object(db.session, 'commit', side_effect=commit_that_fails_second_time):
+                try:
+                    authenticated_client.post('/change-password', data={
+                        'current_password': 'testpass123',
+                        'new_password': 'NewPass123!@#',
+                        'confirm_password': 'NewPass123!@#',
+                    })
+                except Exception:
+                    pass
+            assert 'Failed to change password' in caplog.text

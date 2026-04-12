@@ -209,7 +209,8 @@ def check_streak_milestone(user_id: int, current_streak: int,
         from app.notifications.services import notify_streak_milestone
         notify_streak_milestone(user_id, current_streak, reward)
     except Exception:
-        pass  # Don't break streak flow for notification errors
+        logger.warning("Failed to send streak milestone notification for user %s, streak %s",
+                        user_id, current_streak, exc_info=True)
 
     return {'streak': current_streak, 'reward': reward}
 

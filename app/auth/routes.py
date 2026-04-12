@@ -5,7 +5,7 @@ from flask_babel import lazy_gettext as _l
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from flask import Blueprint, current_app, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
-from itsdangerous import URLSafeTimedSerializer
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.auth.forms import LoginForm, RegistrationForm, RequestResetForm, ResetPasswordForm
 from app.auth.models import User, ReferralLog
@@ -125,15 +125,12 @@ def verify_reset_token(token: str, expiration: int = 3600):
     # First decode without salt to get user_id, then verify with per-user salt
     try:
         user_id = serializer.loads(token, salt='password-reset-probe', max_age=expiration)
-    except Exception:
-        # Try all users is not feasible; decode payload without verification to get user_id
+    except (BadSignature, SignatureExpired):
         try:
-            from itsdangerous import URLSafeTimedSerializer as S
-            s = S(Config.SECRET_KEY)
-            # loads with any salt just to extract the payload — we re-verify below
+            s = URLSafeTimedSerializer(Config.SECRET_KEY)
             user_id = s.loads_unsafe(token)[1]
-        except Exception:
-            logger.exception("Failed to decode password reset token")
+        except (BadSignature, ValueError, TypeError):
+            logger.warning("Failed to decode password reset token")
             return None
 
     if not isinstance(user_id, int):
@@ -143,12 +140,14 @@ def verify_reset_token(token: str, expiration: int = 3600):
     if not user:
         return None
 
-    # Now verify with the correct per-user salt
     try:
         verified_id = serializer.loads(token, salt=_get_reset_salt(user), max_age=expiration)
         return verified_id
-    except Exception:
-        logger.exception("Failed to verify password reset token for user %s", user_id)
+    except SignatureExpired:
+        logger.info("Expired password reset token for user %s", user_id)
+        return None
+    except BadSignature:
+        logger.warning("Invalid password reset token for user %s", user_id)
         return None
 
 
@@ -351,15 +350,14 @@ def register():
                 try:
                     ModuleService.grant_default_modules_to_user(user.id)
                     modules_granted = True
-                except Exception:
+                except SQLAlchemyError:
                     current_app.logger.warning("Module granting failed for user=%s, retrying", user.id, exc_info=True)
                     db.session.rollback()
                     user = db.session.merge(user)
-                    # Retry once after rollback
                     try:
                         ModuleService.grant_default_modules_to_user(user.id)
                         modules_granted = True
-                    except Exception:
+                    except SQLAlchemyError:
                         current_app.logger.error("Module granting failed on retry for user=%s", user.id, exc_info=True)
                         db.session.rollback()
                         user = db.session.merge(user)
@@ -381,17 +379,16 @@ def register():
                             "dashboard_url": dashboard_url,
                         }
                     )
-                except Exception:
+                except (OSError, RuntimeError):
                     current_app.logger.warning("Welcome email failed for user=%s", user.email, exc_info=True)
 
                 flash('Добро пожаловать! Ваш аккаунт создан.', 'success')
                 resp = redirect(url_for('onboarding.wizard'))
                 resp.delete_cookie('ref')
                 return resp
-            except Exception as e:
+            except (IntegrityError, SQLAlchemyError) as e:
                 db.session.rollback()
-                import logging
-                logging.getLogger(__name__).error(f"Registration failed: {e}")
+                logger.error("Registration failed: %s", e, exc_info=True)
                 flash('Регистрация не удалась. Попробуйте позже.', 'danger')
 
         # Social proof
@@ -509,7 +506,7 @@ def profile_update():
     try:
         db.session.commit()
         flash('Настройки сохранены.', 'success')
-    except Exception:
+    except SQLAlchemyError:
         logger.exception("Failed to save profile settings for user %s", current_user.id)
         db.session.rollback()
         flash('Ошибка при сохранении настроек.', 'danger')
@@ -535,7 +532,8 @@ def change_password():
             try:
                 db.session.commit()
                 flash('Пароль изменен успешно.', 'success')
-            except Exception as e:
+            except SQLAlchemyError:
+                logger.exception("Failed to change password for user %s", current_user.id)
                 db.session.rollback()
                 flash('Ошибка при изменении пароля.', 'danger')
     

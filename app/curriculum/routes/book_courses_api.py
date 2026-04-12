@@ -147,7 +147,7 @@ def get_lesson_api(lesson_id):
                 from app.books.models import Chapter
                 chapter = Chapter.query.get(daily_lesson.chapter_id)
                 if chapter and chapter.audio_url:
-                    audio_url = url_for('books.serve_chapter_audio',
+                    audio_url = url_for('books_api.serve_chapter_audio',
                                         book_id=chapter.book_id,
                                         chapter_num=chapter.chap_num)
 
