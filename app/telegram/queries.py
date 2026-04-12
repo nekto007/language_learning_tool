@@ -91,43 +91,60 @@ def _has_activity_in_range(user_id: int, start_utc: datetime,
                            end_utc: datetime) -> bool:
     """Check if user had any activity between start_utc and end_utc.
 
-    Must check the same 5 sources as has_activity_today() to avoid
-    streak gaps when user only did book reading or book course lessons.
+    Must check the same sources as has_activity_today() to avoid
+    streak gaps when user only did one type of activity.
+
+    Handles both timezone-aware and naive datetime columns by stripping
+    tzinfo from boundaries before comparison with naive DB columns.
     """
+    from app.study.models import StudySession
+
+    # Some columns store naive UTC datetimes, so we need both variants
+    start_naive = start_utc.replace(tzinfo=None)
+    end_naive = end_utc.replace(tzinfo=None)
+
     if LessonProgress.query.filter(
         LessonProgress.user_id == user_id,
-        LessonProgress.last_activity >= start_utc,
-        LessonProgress.last_activity < end_utc,
+        LessonProgress.last_activity >= start_naive,
+        LessonProgress.last_activity < end_naive,
     ).first():
         return True
 
     if UserGrammarExercise.query.filter(
         UserGrammarExercise.user_id == user_id,
-        UserGrammarExercise.last_reviewed >= start_utc,
-        UserGrammarExercise.last_reviewed < end_utc,
+        UserGrammarExercise.last_reviewed >= start_naive,
+        UserGrammarExercise.last_reviewed < end_naive,
     ).first():
         return True
 
     if db.session.query(UserCardDirection).join(UserWord).filter(
         UserWord.user_id == user_id,
-        UserCardDirection.last_reviewed >= start_utc,
-        UserCardDirection.last_reviewed < end_utc,
+        UserCardDirection.last_reviewed >= start_naive,
+        UserCardDirection.last_reviewed < end_naive,
+    ).first():
+        return True
+
+    # Study sessions (flashcard reviews)
+    if StudySession.query.filter(
+        StudySession.user_id == user_id,
+        StudySession.start_time >= start_naive,
+        StudySession.start_time < end_naive,
     ).first():
         return True
 
     # Book reading progress
     if UserChapterProgress.query.filter(
         UserChapterProgress.user_id == user_id,
-        UserChapterProgress.updated_at >= start_utc,
-        UserChapterProgress.updated_at < end_utc,
+        UserChapterProgress.updated_at >= start_naive,
+        UserChapterProgress.updated_at < end_naive,
     ).first():
         return True
 
     # Book course lesson progress
     if UserLessonProgress.query.filter(
         UserLessonProgress.user_id == user_id,
-        UserLessonProgress.completed_at >= start_utc,
-        UserLessonProgress.completed_at < end_utc,
+        UserLessonProgress.completed_at >= start_naive,
+        UserLessonProgress.completed_at < end_naive,
     ).first():
         return True
 
