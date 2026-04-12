@@ -224,11 +224,11 @@ Task 1 (factory) → Task 2 (db lifecycle) → Task 3 (config)
 - `app/achievements/streak_service.py` (coin operations)
 - `app/admin/main_routes.py`
 
-- [ ] Заменить broad `except Exception` на конкретные exceptions где возможно
-- [ ] В оставшихся broad catches — добавить `logger.exception()` с контекстом
-- [ ] Убрать `pass` в security-critical paths — заменить на fail-closed (return error / re-raise)
-- [ ] Проверить rollback/commit discipline
-- [ ] Добавить тесты: exception в auth flow → пользователь не авторизуется (не silent pass)
+- [x] Заменить broad `except Exception` на конкретные exceptions где возможно
+- [x] В оставшихся broad catches — добавить `logger.exception()` с контекстом
+- [x] Убрать `pass` в security-critical paths — заменить на fail-closed (return error / re-raise)
+- [x] Проверить rollback/commit discipline
+- [x] Добавить тесты: exception в auth flow → пользователь не авторизуется (не silent pass)
 
 ### Task 8b: Exception Audit — Services and Background Jobs
 
