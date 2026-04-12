@@ -199,9 +199,9 @@ Task 1 (factory) → Task 2 (db lifecycle) → Task 3 (config)
 
 **Acceptance:** каждый выделенный файл < 1000 строк, все тесты проходят.
 
-- [ ] Разделить `lessons.py` по типам уроков (vocabulary, grammar, quiz, card) — ~4 файла
-- [ ] Разделить `book_courses.py` на routes + service
-- [ ] Прогнать тесты
+- [x] Разделить `lessons.py` по типам уроков (vocabulary, grammar, quiz, card) — ~4 файла
+- [x] Разделить `book_courses.py` на routes + service
+- [x] Прогнать тесты
 
 ### Task 7c: Refactor `app/books/routes.py` и `app/curriculum/service.py`
 
