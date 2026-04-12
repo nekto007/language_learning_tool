@@ -148,11 +148,11 @@ Task 1 (factory) → Task 2 (db lifecycle) → Task 3 (config)
 
 **Зависит от:** Task 3
 
-- [ ] Сделать тестовый bootstrap воспроизводимым из чистого окружения
-- [ ] Добавить `-r requirements.txt` в `requirements-test.txt`
-- [ ] Привести README к фактическим версиям Python, портам, способу запуска
-- [ ] Явно описать: PostgreSQL обязателен для тестов (SQLite не поддерживается из-за JSONB, array_agg и т.д.)
-- [ ] Добавить минимальный smoke path: `pip install -r requirements-test.txt && python -c "from app import create_app; create_app()" && pytest tests/ -x --timeout=60`
+- [x] Сделать тестовый bootstrap воспроизводимым из чистого окружения
+- [x] Добавить `-r requirements.txt` в `requirements-test.txt`
+- [x] Привести README к фактическим версиям Python, портам, способу запуска
+- [x] Явно описать: PostgreSQL обязателен для тестов (SQLite не поддерживается из-за JSONB, array_agg и т.д.)
+- [x] Добавить минимальный smoke path: `pip install -r requirements-test.txt && python -c "from app import create_app; create_app()" && pytest tests/ -x --timeout=60`
 
 ### Task 6: Remove Dead Entry Points
 
