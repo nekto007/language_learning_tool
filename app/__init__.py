@@ -9,7 +9,6 @@ from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
 
 from app.utils.db import db
-from app.utils.db_init import init_db, optimize_db
 from app.utils.i18n import init_babel
 from app.utils.rate_limit_helpers import get_remote_address_key
 from config.settings import Config
@@ -88,30 +87,9 @@ def create_app(config_class=Config):
     from app.achievements import models as achievements_models
     from app.notifications import models as notifications_models
 
-    # Database initialization and seeding - MUST happen before any module that queries DB
-    # Skip in testing mode - tests will handle their own data setup
-    if not app.config.get('TESTING', False):
-        with app.app_context():
-            # Check if tables exist, create if not
-            from sqlalchemy import inspect
-            inspector = inspect(db.engine)
-            existing_tables = inspector.get_table_names()
-
-            if 'users' not in existing_tables:
-                # Database is empty - create all tables
-                print('🔧 Creating database tables...')
-                db.create_all()
-                print('✅ Database tables created successfully!')
-
-            # Seed initial data for modules system
-            from app.modules.migrations import seed_initial_modules
-            seed_initial_modules()
-
-            # Seed initial achievements
-            from app.achievements.seed import seed_achievements
-            seed_achievements()
-    else:
-        # Ensure tables exist when running in testing mode (SQLite, etc.)
+    # In production, schema is managed by Alembic (`flask db upgrade head`).
+    # In testing, create tables directly so tests don't need migrations.
+    if app.config.get('TESTING', False):
         with app.app_context():
             db.create_all()
 
@@ -349,25 +327,57 @@ def create_app(config_class=Config):
     from app.utils.db_config import configure_database_engine
     configure_database_engine(app, db)
 
-    # Start Telegram services (skip in tests)
-    has_token = bool(app.config.get('TELEGRAM_BOT_TOKEN'))
-    if not app.config.get('TESTING', False) and has_token:
+    # Register CLI commands for startup jobs (seed, warm-cache, start-bot, start-email-scheduler)
+    _register_cli_commands(app)
+
+    return app
+
+
+def _register_cli_commands(app):
+    """Register CLI commands for operations previously done as side effects in create_app()."""
+    import click
+
+    @app.cli.command('seed')
+    def seed_cmd():
+        """Seed initial data (modules and achievements). Safe to run multiple times."""
+        from app.modules.migrations import seed_initial_modules
+        from app.achievements.seed import seed_achievements
+        seed_initial_modules()
+        seed_achievements()
+        click.echo('Seeding complete.')
+
+    @app.cli.command('warm-cache')
+    def warm_cache_cmd():
+        """Warm the curriculum cache."""
+        from app.curriculum.cache import warm_cache
+        from app.curriculum.models import CEFRLevel
+        if CEFRLevel.query.count() > 0:
+            warm_cache()
+            click.echo('Cache warmed.')
+        else:
+            click.echo('No data to warm cache with.')
+
+    @app.cli.command('start-bot')
+    def start_bot_cmd():
+        """Start Telegram bot scheduler and polling (dev mode)."""
+        has_token = bool(app.config.get('TELEGRAM_BOT_TOKEN'))
+        if not has_token:
+            click.echo('TELEGRAM_BOT_TOKEN not set — bot disabled.')
+            return
+
         from app.telegram.scheduler import init_scheduler
         init_scheduler(app)
+        click.echo('Telegram scheduler started.')
 
-        # Dev mode: use polling instead of webhook
-        # WERKZEUG_RUN_MAIN=true means we're in Flask reloader child (dev mode)
         is_dev = os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or os.environ.get('TELEGRAM_POLLING')
         if is_dev:
             from app.telegram.polling import start_polling
             start_polling(app)
-            print('🤖 Telegram polling started')
-    elif not app.config.get('TESTING', False):
-        print(f'🤖 Telegram bot disabled (token set: {has_token})')
+            click.echo('Telegram polling started.')
 
-    # Start email re-engagement scheduler (skip in tests)
-    if not app.config.get('TESTING', False):
+    @app.cli.command('start-email-scheduler')
+    def start_email_scheduler_cmd():
+        """Start the email re-engagement scheduler."""
         from app.email_scheduler import init_email_scheduler
         init_email_scheduler(app)
-
-    return app
+        click.echo('Email scheduler started.')
