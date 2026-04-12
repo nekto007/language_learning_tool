@@ -122,6 +122,9 @@ def create_app(config_class=Config):
     from app.books.routes import books as books_blueprint
     app.register_blueprint(books_blueprint)
 
+    from app.books.api import books_api as books_api_blueprint
+    app.register_blueprint(books_api_blueprint)
+
     # Register admin routes (handles book courses separately to avoid circular imports)
     from app.admin import register_admin_routes
     register_admin_routes(app)

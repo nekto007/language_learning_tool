@@ -209,10 +209,10 @@ Task 1 (factory) → Task 2 (db lifecycle) → Task 3 (config)
 
 **Acceptance:** каждый выделенный файл < 1000 строк, все тесты проходят, нет `sys.path` mutation и import-time `os.makedirs`.
 
-- [ ] `books/routes.py` — вынести reader API в `books/api.py`
-- [ ] `curriculum/service.py` — вынести бизнес-логику из route-level functions
-- [ ] Убрать `sys.path` mutation и import-time `os.makedirs` из `books/routes.py`
-- [ ] Прогнать тесты
+- [x] `books/routes.py` — вынести reader API в `books/api.py`
+- [x] `curriculum/service.py` — вынести бизнес-логику из route-level functions
+- [x] Убрать `sys.path` mutation и import-time `os.makedirs` из `books/routes.py`
+- [x] Прогнать тесты
 
 ### Task 8a: Exception Audit — Critical Paths (auth, security, payments)
 
