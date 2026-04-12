@@ -166,13 +166,13 @@ Task 1 (factory) → Task 2 (db lifecycle) → Task 3 (config)
 **Зависит от:** Task 5
 
 **Решения зафиксированы (не "либо/либо"):**
-- [ ] `run.py` — оставить, убрать мёртвый код, оставить как dev entrypoint
-- [ ] `celery_app.py` — удалить (Celery не используется, task modules не существуют)
-- [ ] `main.py` — удалить (дублирует функционал, содержит broken imports)
-- [ ] `setup_web.py` — удалить (заменён CLI seed commands)
-- [ ] `script_migrations.py`, `run_module_migration.py` — удалить если функционал покрыт Alembic
-- [ ] Обновить Dockerfile: убрать ссылки на удалённые entrypoints
-- [ ] Добавить в README матрицу: "Official entrypoints: `flask run` (dev), `gunicorn` (prod), `flask db` (migrations)"
+- [x] `run.py` — оставить, убрать мёртвый код, оставить как dev entrypoint
+- [x] `celery_app.py` — удалить (Celery не используется, task modules не существуют)
+- [x] `main.py` — удалить (дублирует функционал, содержит broken imports)
+- [x] `setup_web.py` — удалить (заменён CLI seed commands)
+- [x] `script_migrations.py`, `run_module_migration.py` — удалить если функционал покрыт Alembic
+- [x] Обновить Dockerfile: убрать ссылки на удалённые entrypoints
+- [x] Добавить в README матрицу: "Official entrypoints: `flask run` (dev), `gunicorn` (prod), `flask db` (migrations)"
 
 ### Task 7a: Refactor `app/study/routes.py` (~2630 строк)
 

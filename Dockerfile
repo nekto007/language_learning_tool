@@ -17,7 +17,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Копируем только необходимые файлы и директории
 # Не копируем аудиофайлы
 COPY run.py .
-COPY main.py .
 COPY babel.cfg .
 COPY cli.py .
 COPY convert_fb2_to_txt.py .
