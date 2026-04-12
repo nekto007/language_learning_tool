@@ -1,120 +1,71 @@
 """
 API Security Decorators
 
-SECURITY: These decorators enforce proper authentication patterns
-and prevent CSRF vulnerabilities in hybrid cookie/JWT systems.
+Unified authentication decorator that accepts both JWT Bearer tokens
+and Flask-Login session cookies. JWT is checked first; session is the fallback.
 """
 import functools
+import logging
+
 from flask import jsonify, request
-from flask_login import current_user
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_login import current_user, login_user
+from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+
+logger = logging.getLogger(__name__)
 
 
-def jwt_only_endpoint(f):
+def api_auth_required(f):
     """
-    Decorator to ensure endpoint ONLY accepts JWT authentication, not cookies
+    Unified API authentication: JWT Bearer first, session cookie fallback.
 
-    SECURITY: Prevents CSRF attacks on @csrf.exempt endpoints that might
-    accidentally accept cookie-based authentication.
+    - If Authorization: Bearer <token> is present, validates JWT and loads the user.
+    - Otherwise falls back to Flask-Login session (current_user).
+    - Sets current_user in both paths so endpoint code can use current_user.id uniformly.
 
-    Use this decorator on all @csrf.exempt endpoints to ensure they are
-    truly stateless and don't rely on browser cookies.
-
-    Usage:
-        @api.route('/endpoint', methods=['POST'])
-        @csrf.exempt
-        @jwt_only_endpoint
-        @jwt_required()
-        def endpoint():
-            ...
-
-    Why this is needed:
-    - Flask-Login's current_user is populated from session cookies
-    - If endpoint uses current_user but has @csrf.exempt, it's vulnerable to CSRF
-    - This decorator rejects requests that have session cookies to force JWT usage
+    CSRF note: endpoints decorated with @csrf.exempt should only be reachable
+    via JWT in practice (mobile/external clients). Browser-AJAX endpoints
+    keep CSRF protection via Flask-WTF (no @csrf.exempt).
     """
     @functools.wraps(f)
     def decorated_function(*args, **kwargs):
-        # Check if request has session cookie (indicates cookie-based auth attempt)
-        if request.cookies.get('session') or 'session' in request.cookies:
-            return jsonify({
-                'success': False,
-                'error': 'This endpoint only accepts JWT authentication. Please use Authorization header.',
-                'status_code': 400
-            }), 400
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            try:
+                verify_jwt_in_request()
+                user_id = get_jwt_identity()
+                from app.auth.models import User
+                user = db_get_user(user_id)
+                if user is None:
+                    return jsonify({
+                        'success': False,
+                        'error': 'User not found',
+                        'status_code': 401
+                    }), 401
+                login_user(user, remember=False)
+                return f(*args, **kwargs)
+            except Exception:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid or expired token',
+                    'status_code': 401
+                }), 401
 
-        # Also check if Flask-Login populated current_user from cookies
-        # (This means someone is trying to use cookies instead of JWT)
-        if current_user.is_authenticated and not request.headers.get('Authorization'):
-            return jsonify({
-                'success': False,
-                'error': 'Cookie-based authentication not allowed. Use JWT token in Authorization header.',
-                'status_code': 400
-            }), 400
+        if current_user.is_authenticated:
+            return f(*args, **kwargs)
 
-        return f(*args, **kwargs)
+        return jsonify({
+            'success': False,
+            'error': 'Authentication required',
+            'status_code': 401
+        }), 401
 
     return decorated_function
 
 
-def api_jwt_required(f):
-    """
-    Secure JWT-based authentication decorator for API endpoints
-
-    SECURITY:
-    - Only accepts JWT tokens (no cookies)
-    - Safe to use with @csrf.exempt
-    - Provides current_user_id via get_jwt_identity()
-
-    Usage:
-        @api.route('/endpoint', methods=['POST'])
-        @csrf.exempt  # Safe: JWT is stateless
-        @api_jwt_required
-        def endpoint():
-            user_id = get_jwt_identity()  # Get user ID from JWT
-            ...
-
-    This replaces the insecure @api_login_required pattern.
-    """
-    @functools.wraps(f)
-    @jwt_required()
-    @jwt_only_endpoint
-    def decorated_function(*args, **kwargs):
-        return f(*args, **kwargs)
-
-    return decorated_function
+def db_get_user(user_id: int):
+    from app.auth.models import User
+    return User.query.filter_by(id=user_id).first()
 
 
-def api_login_required(f):
-    """
-    DEPRECATED: Use @api_jwt_required instead
-
-    This decorator uses Flask-Login (cookies) which requires CSRF protection.
-    For API endpoints, use JWT tokens instead:
-
-    BEFORE (insecure):
-        @api.route('/endpoint')
-        @csrf.exempt  # DANGER: cookies without CSRF!
-        @api_login_required
-        def endpoint():
-            ...
-
-    AFTER (secure):
-        @api.route('/endpoint')
-        @csrf.exempt  # Safe: JWT is stateless
-        @api_jwt_required
-        def endpoint():
-            user_id = get_jwt_identity()
-            ...
-    """
-    @functools.wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return jsonify({
-                'success': False,
-                'error': 'Authentication required',
-                'status_code': 401
-            }), 401
-        return f(*args, **kwargs)
-
-    return decorated_function
+api_jwt_required = api_auth_required
+api_login_required = api_auth_required

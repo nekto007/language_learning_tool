@@ -5,7 +5,7 @@ from flask_login import current_user
 from sqlalchemy import func, or_
 
 from app import csrf
-from app.api.auth import api_login_required
+from app.api.decorators import api_auth_required
 from app.utils.db import db
 from app.words.models import CollectionWords
 
@@ -15,7 +15,7 @@ api_words = Blueprint('api_words', __name__)
 
 
 @api_words.route('/words', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_words():
     # Get query parameters
     status = request.args.get('status', type=int)
@@ -114,7 +114,7 @@ def get_words():
 
 
 @api_words.route('/words/<int:word_id>', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_word(word_id):
     word = CollectionWords.query.get_or_404(word_id)
 
@@ -183,7 +183,7 @@ def get_word(word_id):
 
 @api_words.route('/update-word-status', methods=['POST'])
 # CSRF protection REQUIRED - called from web interface with CSRF token
-@api_login_required
+@api_auth_required
 def update_word_status():
     if not request.is_json:
         return jsonify({
@@ -235,7 +235,7 @@ def update_word_status():
 
 @api_words.route('/batch-update-status', methods=['POST'])
 # CSRF protection REQUIRED - called from web interface with CSRF token
-@api_login_required
+@api_auth_required
 def batch_update_status():
     """
     Batch update status for multiple words.
@@ -340,7 +340,7 @@ def batch_update_status():
 
 
 @api_words.route('/search')
-@api_login_required
+@api_auth_required
 def search_words():
     """API для поиска слов (используется в административном интерфейсе)"""
     term = request.args.get('term', '')
@@ -378,7 +378,7 @@ def search_words():
 
 @api_words.route('/words/<int:word_id>/status', methods=['POST'])
 # CSRF protection REQUIRED - called from web interface with CSRF token
-@api_login_required
+@api_auth_required
 def update_single_word_status(word_id):
     """
     Update status for a single word - endpoint used by templates.
@@ -468,7 +468,7 @@ def update_single_word_status(word_id):
 
 @api_words.route('/user-words-status', methods=['POST'])
 # CSRF protection REQUIRED - called from web interface with CSRF token
-@api_login_required
+@api_auth_required
 def get_user_words_status():
     """Получить статусы слов пользователя для списка word_ids"""
     if not request.is_json:

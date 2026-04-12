@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from app.study.services.deck_service import DeckService
 from app.study.services.quiz_service import QuizService
-from app.study.routes import _calculate_matching_score
+from app.study.game_routes import _calculate_matching_score
 
 # Aliases for backward compatibility with tests
 is_auto_deck = DeckService.is_auto_deck

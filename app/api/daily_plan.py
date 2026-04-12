@@ -1,11 +1,11 @@
 """API endpoints for daily plan and summary."""
 
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import get_jwt_identity
+from flask_login import current_user
 from zoneinfo import ZoneInfo
 
 from app import csrf
-from app.api.decorators import api_jwt_required
+from app.api.decorators import api_auth_required
 from app.utils.db import db
 
 api_daily_plan = Blueprint('api_daily_plan', __name__)
@@ -23,14 +23,14 @@ def _validate_timezone(tz_name: str) -> str:
 
 
 @api_daily_plan.route('/daily-status')
-@api_jwt_required
+@api_auth_required
 def daily_status():
     """Unified daily status: plan + summary + streak + yesterday — one request."""
     from app.telegram.queries import get_daily_plan, get_daily_summary, get_yesterday_summary
     from app.achievements.streak_service import compute_plan_steps, process_streak_on_activity
 
     tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
-    user_id = get_jwt_identity()
+    user_id = current_user.id
 
     plan = get_daily_plan(user_id, tz=tz)
     summary = get_daily_summary(user_id, tz=tz)
@@ -54,7 +54,7 @@ def daily_status():
 
 
 @api_daily_plan.route('/daily-plan')
-@api_jwt_required
+@api_auth_required
 def daily_plan():
     """Get user's daily study plan.
 
@@ -76,14 +76,14 @@ def daily_plan():
     from app.telegram.queries import get_daily_plan
 
     tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
-    user_id = get_jwt_identity()
+    user_id = current_user.id
     plan = get_daily_plan(user_id, tz=tz)
 
     return jsonify({'success': True, **plan})
 
 
 @api_daily_plan.route('/daily-summary')
-@api_jwt_required
+@api_auth_required
 def daily_summary():
     """Get summary of today's learning activity.
 
@@ -109,14 +109,14 @@ def daily_summary():
     from app.telegram.queries import get_daily_summary
 
     tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
-    user_id = get_jwt_identity()
+    user_id = current_user.id
     summary = get_daily_summary(user_id, tz=tz)
 
     return jsonify({'success': True, **summary})
 
 
 @api_daily_plan.route('/streak')
-@api_jwt_required
+@api_auth_required
 def streak():
     """Get user's current learning streak with recovery status.
 
@@ -129,7 +129,7 @@ def streak():
     from app.achievements.streak_service import get_streak_status
 
     tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
-    user_id = get_jwt_identity()
+    user_id = current_user.id
     status = get_streak_status(user_id, tz=tz)
 
     return jsonify({'success': True, **status})
@@ -137,13 +137,13 @@ def streak():
 
 @api_daily_plan.route('/streak/repair', methods=['POST'])
 @csrf.exempt
-@api_jwt_required
+@api_auth_required
 def streak_repair():
     """Pay streak coins to repair a broken streak."""
     from app.achievements.streak_service import find_missed_date, apply_paid_repair
     from app.telegram.queries import get_current_streak
 
-    user_id = get_jwt_identity()
+    user_id = current_user.id
     tz = _validate_timezone(request.json.get('tz', DEFAULT_TZ) if request.is_json else DEFAULT_TZ)
 
     missed = find_missed_date(user_id, tz=tz)

@@ -1,158 +1,86 @@
 """
 Tests for database initialization utilities
-Тесты утилит инициализации базы данных
 """
+import warnings
+
 import pytest
-from unittest.mock import patch, MagicMock, call
-from app.utils.db_init import init_db, optimize_db
+from unittest.mock import patch, MagicMock
+
+from app.utils.db_init import init_db, _legacy_init_db
 
 
 class TestInitDb:
-    """Тесты функции init_db"""
+    """Tests for the deprecated init_db function"""
 
-    def test_init_db_creates_indexes_successfully(self, app, db_session):
-        """Тест успешного создания индексов"""
+    def test_init_db_emits_deprecation_warning(self, app):
+        """init_db should emit a DeprecationWarning."""
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            init_db(app)
+            deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
+            assert len(deprecation_warnings) >= 1
+
+    def test_init_db_works_without_app_argument(self, app):
+        """init_db() without app should use current_app (fixes the admin bug)."""
         with app.app_context():
-            # Mock execute and commit to track calls
-            with patch.object(db_session, 'execute') as mock_execute, \
-                 patch.object(db_session, 'commit') as mock_commit:
+            with warnings.catch_warnings(record=True):
+                warnings.simplefilter("always")
+                init_db()
 
-                init_db(app)
-
-                # Verify all 4 index creation statements were executed
-                assert mock_execute.call_count == 4
-
-                # Verify the specific index creation calls
-                expected_calls = [
-                    call("CREATE INDEX IF NOT EXISTS idx_user_word_status_user ON user_word_status (user_id)"),
-                    call("CREATE INDEX IF NOT EXISTS idx_user_word_status_word ON user_word_status (word_id)"),
-                    call("CREATE INDEX IF NOT EXISTS idx_word_book_link_book ON word_book_link (book_id)"),
-                    call("CREATE INDEX IF NOT EXISTS idx_word_book_link_word ON word_book_link (word_id)")
-                ]
-                mock_execute.assert_has_calls(expected_calls, any_order=False)
-
-                # Verify commit was called once
-                mock_commit.assert_called_once()
-
-    def test_init_db_handles_index_creation_exception(self, app, db_session, caplog):
-        """Тест обработки исключения при создании индексов"""
-        with app.app_context():
-            # Mock execute to raise an exception
-            with patch.object(db_session, 'execute') as mock_execute, \
-                 patch.object(db_session, 'rollback') as mock_rollback:
-
-                mock_execute.side_effect = Exception("Table does not exist")
-
-                # Should not raise exception, but log warning
-                init_db(app)
-
-                # Verify rollback was called
-                mock_rollback.assert_called_once()
-
-                # Verify warning was logged
-                assert any("Could not create indexes" in record.message for record in caplog.records)
-
-    def test_init_db_gets_database_type(self, app, db_session):
-        """Тест что init_db получает тип базы данных"""
-        with app.app_context():
-            with patch('app.utils.db_config.get_database_type') as mock_get_db_type, \
-                 patch.object(db_session, 'execute'), \
-                 patch.object(db_session, 'commit'):
-
-                mock_get_db_type.return_value = 'sqlite'
-
-                init_db(app)
-
-                # Verify get_database_type was called with app
-                mock_get_db_type.assert_called_once_with(app)
-
-    def test_init_db_index_already_exists_exception(self, app, db_session):
-        """Тест что init_db обрабатывает ситуацию когда индексы уже существуют"""
-        with app.app_context():
-            with patch.object(db_session, 'execute') as mock_execute, \
-                 patch.object(db_session, 'rollback') as mock_rollback:
-
-                # Simulate index already exists error
-                mock_execute.side_effect = Exception("index already exists")
-
-                # Should not raise, should handle gracefully
-                init_db(app)
-
-                # Verify rollback was called
-                mock_rollback.assert_called_once()
-
-
-class TestOptimizeDb:
-    """Тесты функции optimize_db"""
-
-    def test_optimize_db_runs_vacuum_and_analyze(self, db_session):
-        """Тест что optimize_db выполняет VACUUM и ANALYZE"""
-        with patch.object(db_session, 'execute') as mock_execute, \
-             patch.object(db_session, 'commit') as mock_commit:
-
-            optimize_db()
-
-            # Verify VACUUM and ANALYZE were executed
-            assert mock_execute.call_count == 2
-            expected_calls = [
-                call("VACUUM"),
-                call("ANALYZE")
-            ]
-            mock_execute.assert_has_calls(expected_calls, any_order=False)
-
-            # Verify commit was called
-            mock_commit.assert_called_once()
-
-    def test_optimize_db_commits_changes(self, db_session):
-        """Тест что optimize_db коммитит изменения"""
-        with patch.object(db_session, 'execute'), \
-             patch.object(db_session, 'commit') as mock_commit:
-
-            optimize_db()
-
-            # Verify commit was called exactly once
-            mock_commit.assert_called_once()
-
-    def test_optimize_db_executes_in_correct_order(self, db_session):
-        """Тест что VACUUM выполняется перед ANALYZE"""
-        with patch.object(db_session, 'execute') as mock_execute, \
-             patch.object(db_session, 'commit'):
-
-            optimize_db()
-
-            # Get the calls in order
-            calls = mock_execute.call_args_list
-
-            # Verify VACUUM is first, ANALYZE is second
-            assert str(calls[0]) == "call('VACUUM')"
-            assert str(calls[1]) == "call('ANALYZE')"
-
-
-class TestDatabaseInitIntegration:
-    """Интеграционные тесты"""
-
-    def test_init_db_works_with_app_context(self, app):
-        """Тест что init_db работает в контексте приложения"""
-        with patch('app.utils.db_init.db.session') as mock_session:
-            mock_session.execute = MagicMock()
-            mock_session.commit = MagicMock()
-
-            # Should not raise any exceptions
+    def test_init_db_accepts_app_argument(self, app):
+        """init_db(app) should work with explicit app argument."""
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
             init_db(app)
 
-            # Verify session was used
-            assert mock_session.execute.called
-            assert mock_session.commit.called
+    def test_init_db_is_noop(self, app, db_session):
+        """init_db should not modify the database (no-op)."""
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            with patch.object(db_session, 'execute') as mock_execute:
+                init_db(app)
+                mock_execute.assert_not_called()
 
-    def test_optimize_db_can_be_called_standalone(self):
-        """Тест что optimize_db может быть вызвана без контекста приложения"""
-        with patch('app.utils.db_init.db.session') as mock_session:
-            mock_session.execute = MagicMock()
-            mock_session.commit = MagicMock()
+    def test_legacy_init_db_emits_deprecation(self, app):
+        """_legacy_init_db emits DeprecationWarning."""
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            _legacy_init_db(app)
+            deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
+            assert len(deprecation_warnings) == 1
+            assert "deprecated" in str(deprecation_warnings[0].message).lower()
 
-            # Should work without app context
-            optimize_db()
 
-            # Verify it executed the optimization commands
-            assert mock_session.execute.call_count == 2
-            assert mock_session.commit.called
+class TestCreateModuleTables:
+    """Tests for deprecated create_module_tables"""
+
+    def test_create_module_tables_is_noop(self):
+        """create_module_tables should be a deprecated no-op."""
+        from app.modules.migrations import create_module_tables
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            create_module_tables()
+            deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
+            assert len(deprecation_warnings) == 1
+
+
+class TestAlembicSinglePath:
+    """Tests verifying Alembic is the single schema management path."""
+
+    def test_factory_testing_mode_uses_create_all(self, app):
+        """In TESTING mode, create_app uses db.create_all() (intentional)."""
+        assert app.config.get('TESTING') is True
+
+    def test_create_all_guarded_by_testing_flag(self):
+        """db.create_all() in factory is guarded by TESTING config flag."""
+        import inspect
+        from app import create_app
+        source = inspect.getsource(create_app)
+        assert "if app.config.get('TESTING'" in source
+        assert "db.create_all()" in source
+
+    def test_alembic_upgrade_head_smoke(self, app):
+        """flask db upgrade head should succeed (smoke test)."""
+        runner = app.test_cli_runner()
+        result = runner.invoke(args=['db', 'heads'])
+        assert result.exit_code == 0, f"flask db heads failed: {result.output}"

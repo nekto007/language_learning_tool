@@ -52,25 +52,4 @@ def init_curriculum_module(app):
     from app.curriculum.routes.public import courses_bp
     app.register_blueprint(courses_bp, url_prefix='/courses')
 
-    # Warm cache on startup - try to warm cache immediately
-    # Skip in testing mode - tests will handle their own setup
-    if not app.config.get('TESTING', False):
-        try:
-            from app.curriculum.cache import warm_cache
-            from app.utils.db import db
-            from sqlalchemy import inspect
-            # Don't warm cache if we don't have tables yet
-            with app.app_context():
-                inspector = inspect(db.engine)
-                if 'cefr_levels' in inspector.get_table_names():
-                    from app.curriculum.models import CEFRLevel
-                    if CEFRLevel.query.count() > 0:
-                        warm_cache()
-                    else:
-                        app.logger.info("Skipping cache warming - no data in database yet")
-                else:
-                    app.logger.info("Skipping cache warming - tables not created yet")
-        except Exception as e:
-            app.logger.error(f"Error warming curriculum cache: {str(e)}")
-
     app.logger.info("Curriculum module initialized successfully")

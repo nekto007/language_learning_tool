@@ -6,7 +6,7 @@ System Management Routes для административной панели
 """
 import logging
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, url_for
 from flask_login import current_user
 
 from app.admin.services.system_service import SystemService
@@ -92,7 +92,7 @@ def init_database():
     """Инициализация базы данных"""
     try:
         from app.utils.db_init import init_db
-        init_db()
+        init_db(current_app)
         flash('База данных успешно инициализирована!', 'success')
         logger.info(f"Database initialized by admin user {current_user.username}")
     except Exception as e:

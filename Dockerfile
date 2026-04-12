@@ -17,7 +17,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Копируем только необходимые файлы и директории
 # Не копируем аудиофайлы
 COPY run.py .
-COPY main.py .
 COPY babel.cfg .
 COPY cli.py .
 COPY convert_fb2_to_txt.py .
@@ -40,5 +39,5 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Set permissions
 #RUN chmod -R 755 /app
 
-# Run application
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "600", "--graceful-timeout", "60", "run:app"]
+# Run migrations, seed data, then start application
+CMD ["sh", "-c", "flask db upgrade head && flask seed && flask warm-cache && gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 600 --graceful-timeout 60 run:app"]

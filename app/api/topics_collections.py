@@ -5,7 +5,7 @@ from flask_login import current_user
 from sqlalchemy import func, or_
 
 from app import csrf
-from app.api.auth import api_login_required
+from app.api.decorators import api_auth_required
 from app.study.models import UserWord
 from app.study.services.srs_service import get_user_word_ids
 from app.utils.db import db
@@ -18,7 +18,7 @@ api_topics_collections = Blueprint('api_topics_collections', __name__)
 
 # API маршруты для тем (Topics)
 @api_topics_collections.route('/topics', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_topics():
     """Получение списка тем с фильтрацией и пагинацией"""
     # Параметры запроса
@@ -100,7 +100,7 @@ def get_topics():
 
 
 @api_topics_collections.route('/topics/<int:topic_id>', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_topic(topic_id):
     """Получение детальной информации о теме"""
     topic = Topic.query.get_or_404(topic_id)
@@ -175,7 +175,7 @@ def get_topic(topic_id):
 
 
 @api_topics_collections.route('/topics/<int:topic_id>/words', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_topic_words(topic_id):
     """Получение слов, связанных с темой"""
     # Проверка существования темы
@@ -237,7 +237,7 @@ def get_topic_words(topic_id):
 
 @api_topics_collections.route('/topics/<int:topic_id>/add-to-study', methods=['POST'])
 # CSRF protection REQUIRED
-@api_login_required
+@api_auth_required
 def add_topic_to_study(topic_id):
     """Добавление всех слов темы в список изучения"""
     # Проверка существования темы
@@ -323,7 +323,7 @@ def add_topic_to_study(topic_id):
 
 # API маршруты для коллекций (Collections)
 @api_topics_collections.route('/collections', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_collections():
     """Получение списка коллекций с фильтрацией и пагинацией"""
     # Параметры запроса
@@ -416,7 +416,7 @@ def get_collections():
 
 
 @api_topics_collections.route('/collections/<int:collection_id>', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_collection(collection_id):
     """Получение детальной информации о коллекции"""
     collection = Collection.query.get_or_404(collection_id)
@@ -499,7 +499,7 @@ def get_collection(collection_id):
 
 
 @api_topics_collections.route('/collections/<int:collection_id>/words', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_collection_words(collection_id):
     """Получение слов коллекции"""
     # Проверка существования коллекции
@@ -561,7 +561,7 @@ def get_collection_words(collection_id):
 
 @api_topics_collections.route('/collections/<int:collection_id>/add-to-study', methods=['POST'])
 # CSRF protection REQUIRED
-@api_login_required
+@api_auth_required
 def add_collection_to_study(collection_id):
     """Добавление всех слов коллекции в список изучения"""
     # Проверка существования коллекции
@@ -647,7 +647,7 @@ def add_collection_to_study(collection_id):
 
 # API для работы со словами в контексте тем и коллекций
 @api_topics_collections.route('/words/<int:word_id>/topics', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_word_topics(word_id):
     """Получение тем, связанных со словом"""
     # Проверка существования слова
@@ -674,7 +674,7 @@ def get_word_topics(word_id):
 
 
 @api_topics_collections.route('/words/<int:word_id>/collections', methods=['GET'])
-@api_login_required
+@api_auth_required
 def get_word_collections(word_id):
     """Получение коллекций, содержащих слово"""
     # Проверка существования слова
