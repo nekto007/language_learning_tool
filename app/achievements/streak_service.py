@@ -322,24 +322,10 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow')
     activity_rows = db.session.query(union.c.d).distinct().all()
     activity_dates: set[date] = {row[0] for row in activity_rows if row[0] is not None}
 
-    # Merge activity dates with streak events
+    # Merge activity dates with streak events, clamp to window
     all_active = (activity_dates | event_dates) & {
         local_today - timedelta(days=i) for i in range(days)
     }
-
-    active_dates = set()
-    for offset in range(days):
-        check_date = local_today - timedelta(days=offset)
-        if check_date in event_dates:
-            active_dates.add(check_date)
-            continue
-        try:
-            day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
-            if _has_activity_in_range(user_id, day_start, day_end):
-                active_dates.add(check_date)
-        except Exception:
-            logger.exception("Failed to check activity for user %s on day offset %s", user_id, offset)
-            
 
     active_dates_str = sorted(d.isoformat() for d in all_active)
 
