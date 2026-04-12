@@ -186,12 +186,12 @@ Task 1 (factory) → Task 2 (db lifecycle) → Task 3 (config)
 
 **Acceptance:** каждый выделенный файл < 1000 строк, все тесты проходят, нет circular imports.
 
-- [ ] Добавить regression tests для ключевых endpoints перед split
-- [ ] Выделить `api_routes.py`
-- [ ] Выделить `deck_routes.py`
-- [ ] Выделить `game_routes.py`
-- [ ] Проверить blueprint registration и url_for ссылки
-- [ ] Прогнать полный test suite
+- [x] Добавить regression tests для ключевых endpoints перед split
+- [x] Выделить `api_routes.py`
+- [x] Выделить `deck_routes.py`
+- [x] Выделить `game_routes.py`
+- [x] Проверить blueprint registration и url_for ссылки
+- [x] Прогнать полный test suite
 
 ### Task 7b: Refactor `app/curriculum/routes/lessons.py` и `book_courses.py`
 
