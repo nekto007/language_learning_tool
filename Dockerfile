@@ -22,6 +22,7 @@ COPY cli.py .
 COPY convert_fb2_to_txt.py .
 COPY app app/
 COPY config config/
+COPY migrations migrations/
 # Добавляем другие нужные файлы/папки, если необходимо
 
 # Создаем директорию для аудио файлов, но НЕ копируем сами файлы
