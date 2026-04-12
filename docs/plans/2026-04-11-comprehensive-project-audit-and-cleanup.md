@@ -110,12 +110,12 @@ Task 1 (factory) → Task 2 (db lifecycle) → Task 3 (config)
 
 **Зависит от:** Task 2
 
-- [ ] Убрать `validate_environment()` с import-time execution
-- [ ] Перенести обязательную валидацию окружения в `create_app()` (after config load, before extensions init)
-- [ ] Заменить `print()` на structured logging
-- [ ] Привести `Config`, `TestConfig`, docker env и `.env.example` к одному источнику истины
-- [ ] Явно определить production/dev/test semantics для `SECRET_KEY`, `JWT_SECRET_KEY`, cookie flags и DB URI
-- [ ] Покрыть тестами отсутствие import-time side effects: `import config.settings` не печатает и не кидает
+- [x] Убрать `validate_environment()` с import-time execution
+- [x] Перенести обязательную валидацию окружения в `create_app()` (after config load, before extensions init)
+- [x] Заменить `print()` на structured logging
+- [x] Привести `Config`, `TestConfig`, docker env и `.env.example` к одному источнику истины
+- [x] Явно определить production/dev/test semantics для `SECRET_KEY`, `JWT_SECRET_KEY`, cookie flags и DB URI
+- [x] Покрыть тестами отсутствие import-time side effects: `import config.settings` не печатает и не кидает
 
 ### Task 4: Consolidate API Authentication Model
 

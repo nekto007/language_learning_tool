@@ -1,28 +1,24 @@
 """
 Settings module for application configuration.
+
+No side effects at import time: validation runs inside create_app().
 """
+import logging
 import os
-import sys
 from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 from sqlalchemy.pool import NullPool
 
+logger = logging.getLogger(__name__)
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 IS_TESTING = os.environ.get("TESTING", "").lower() == "true"
 
-# Custom exception for configuration errors
-class EnvironmentConfigurationError(Exception):
-    """
-    Raised when required environment variables are missing
 
-    ARCHITECTURE: Using exceptions instead of sys.exit() allows:
-    1. Proper error handling in Flask
-    2. Unit testing
-    3. Graceful error messages
-    4. Flask error handlers to catch and display user-friendly messages
-    """
+class EnvironmentConfigurationError(Exception):
+    """Raised when required environment variables are missing."""
     def __init__(self, missing_required, missing_recommended=None):
         self.missing_required = missing_required
         self.missing_recommended = missing_recommended or []
@@ -36,7 +32,6 @@ class EnvironmentConfigurationError(Exception):
         super().__init__(" | ".join(message_parts))
 
 
-# Critical environment variables validation
 REQUIRED_ENV_VARS = [
     'POSTGRES_USER',
     'POSTGRES_PASSWORD',
@@ -44,7 +39,6 @@ REQUIRED_ENV_VARS = [
     'SECRET_KEY'
 ]
 
-# Optional but recommended environment variables
 RECOMMENDED_ENV_VARS = [
     'FLASK_ENV',
     'FLASK_APP'
@@ -53,61 +47,27 @@ RECOMMENDED_ENV_VARS = [
 
 def validate_environment():
     """
-    Validate that all required environment variables are set
+    Validate required/recommended environment variables.
 
-    ARCHITECTURE FIX: Raises exception instead of calling sys.exit()
-    This allows Flask to handle the error gracefully and makes the code testable.
+    Called by create_app() after config load, before extensions init.
+    Not called at import time.
 
     Raises:
-        EnvironmentConfigurationError: When required environment variables are missing
-
+        EnvironmentConfigurationError: When required vars are missing (non-TESTING only).
     Returns:
-        tuple: (missing_required, missing_recommended) - both empty lists if all OK
+        tuple: (missing_required, missing_recommended)
     """
-    missing_required = []
-    missing_recommended = []
+    missing_required = [v for v in REQUIRED_ENV_VARS if not os.environ.get(v)]
+    missing_recommended = [v for v in RECOMMENDED_ENV_VARS if not os.environ.get(v)]
 
-    # Check required variables
-    for var in REQUIRED_ENV_VARS:
-        if not os.environ.get(var):
-            missing_required.append(var)
-
-    # Check recommended variables
-    for var in RECOMMENDED_ENV_VARS:
-        if not os.environ.get(var):
-            missing_recommended.append(var)
-
-    # ARCHITECTURE FIX: Raise exception instead of sys.exit(1)
     if missing_required:
-        error_msg = f"❌ CRITICAL ERROR: Missing required environment variables:\n"
-        for var in missing_required:
-            error_msg += f"   - {var}\n"
-        error_msg += f"💡 Please set these variables before starting the application."
-        print(error_msg, file=sys.stderr)
+        logger.error("Missing required environment variables: %s", ", ".join(missing_required))
         raise EnvironmentConfigurationError(missing_required, missing_recommended)
 
-    # Warning for missing recommended variables
     if missing_recommended:
-        print(f"⚠️  WARNING: Missing recommended environment variables:")
-        for var in missing_recommended:
-            print(f"   - {var}")
-        print(f"💡 Consider setting these for optimal functionality.")
-
-    # Success message
-    if not missing_required and not missing_recommended:
-        print(f"✅ All environment variables are properly configured.")
+        logger.warning("Missing recommended environment variables: %s", ", ".join(missing_recommended))
 
     return (missing_required, missing_recommended)
-
-
-# Validate environment on import
-# Will raise EnvironmentConfigurationError if required vars are missing
-try:
-    validate_environment()
-except EnvironmentConfigurationError as e:
-    # Re-raise for Flask to handle, but allow imports to work in tests
-    if not IS_TESTING:
-        raise
 
 # Database settings - now guaranteed to exist
 DB_USER = os.environ.get("POSTGRES_USER")
@@ -201,29 +161,31 @@ MAX_SYNC_PROCESSING_SIZE = 50000  # ~50 KB
 # Таймаут для блокирующих операций при синхронной обработке (в секундах)
 SYNC_PROCESSING_TIMEOUT = 30
 
-# Flask Config class
 class Config:
-    """Flask application configuration."""
+    """
+    Flask application configuration (production defaults).
+
+    Security-sensitive settings:
+    - SECRET_KEY: from env, required in production (validated by validate_environment)
+    - JWT_SECRET_KEY: from env, random fallback in dev only; None in production forces explicit config
+    - SESSION_COOKIE_SECURE / REMEMBER_COOKIE_SECURE: True except FLASK_ENV=development
+    - DB URI: built from POSTGRES_* env vars (required)
+    """
     TESTING = IS_TESTING
     SECRET_KEY = os.environ.get("SECRET_KEY")
     SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     AUDIO_UPLOAD_FOLDER = MEDIA_FOLDER
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max upload
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 
-    # Internationalization
     BABEL_DEFAULT_LOCALE = "en"
     BABEL_DEFAULT_TIMEZONE = "UTC"
 
-    # JWT — must be distinct from SECRET_KEY
-    # SECURITY: Require explicit JWT_SECRET_KEY in production to prevent
-    # token invalidation on restart (random fallback only for development)
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or (
         os.urandom(32).hex() if os.environ.get("FLASK_ENV") != "production"
         else None
     )
 
-    # Security — default to secure cookies (only disable explicitly for local dev)
     SESSION_COOKIE_SECURE = os.environ.get("FLASK_ENV") != "development"
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
@@ -231,45 +193,44 @@ class Config:
     REMEMBER_COOKIE_SECURE = os.environ.get("FLASK_ENV") != "development"
     REMEMBER_COOKIE_HTTPONLY = True
     REMEMBER_COOKIE_DURATION = timedelta(days=30)
-    
-    # CSRF Protection
-    WTF_CSRF_ENABLED = True
-    WTF_CSRF_TIME_LIMIT = 3600  # 1 hour
 
-    # Telegram bot
+    WTF_CSRF_ENABLED = True
+    WTF_CSRF_TIME_LIMIT = 3600
+
     TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
     TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET")
     TELEGRAM_BOT_USERNAME = os.environ.get("TELEGRAM_BOT_USERNAME", "llt_englishbot")
     SITE_URL = os.environ.get("SITE_URL", "")
 
-    # Google Search Console / Webmaster verification
     GOOGLE_SITE_VERIFICATION = os.environ.get("GOOGLE_SITE_VERIFICATION", "")
-    # Google Analytics (gtag.js) measurement ID, e.g. "G-XXXXXXXXXX"
     GOOGLE_ANALYTICS_ID = os.environ.get("GOOGLE_ANALYTICS_ID", "")
 
-    # Database Connection Pooling
     SQLALCHEMY_ENGINE_OPTIONS = DEFAULT_SQLALCHEMY_ENGINE_OPTIONS
 
 
-
 class TestConfig(Config):
-    """Тестовая конфигурация - использует отдельную PostgreSQL базу"""
+    """
+    Test configuration - uses a separate PostgreSQL database.
+
+    Hardcoded secrets are intentional: tests must not depend on env vars
+    for SECRET_KEY/JWT_SECRET_KEY.
+    """
     TESTING = True
-    
-    # Используем отдельную тестовую базу данных PostgreSQL
     TEST_DB_NAME = f"{DB_NAME}_test"
     SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{TEST_DB_NAME}"
-    
+
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     WTF_CSRF_ENABLED = True
     WTF_CSRF_SECRET_KEY = 'csrf-test-key'
     SECRET_KEY = 'test-secret-key'
     JWT_SECRET_KEY = 'test-jwt-secret-key'
     SERVER_NAME = 'localhost.localdomain'
-    
-    # Отключаем validation в тестах для быстрой работы
+
+    SESSION_COOKIE_SECURE = False
+    REMEMBER_COOKIE_SECURE = False
+
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
         'pool_recycle': 300,
-        'echo': False  # Включить True для отладки SQL запросов
+        'echo': False,
     }

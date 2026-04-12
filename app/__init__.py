@@ -55,6 +55,10 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    if not app.config.get('TESTING'):
+        from config.settings import validate_environment
+        validate_environment()
+
     # Configure JWT
     from datetime import timedelta
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=15)
