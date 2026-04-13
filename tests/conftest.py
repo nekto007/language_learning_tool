@@ -20,6 +20,9 @@ import pytest
 import json
 import os
 import uuid
+import sqlalchemy
+import sqlalchemy.orm
+import sqlalchemy.event
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
 from pathlib import Path
@@ -53,6 +56,21 @@ from app.auth.models import User
 from app.curriculum.models import (
     CEFRLevel, Module, Lessons, LessonProgress
 )
+
+
+def _truncate_all_tables(db_instance) -> None:
+    """Truncate all tables at the start of the test session to ensure a clean state."""
+    from sqlalchemy import text
+    conn = db_instance.engine.connect()
+    try:
+        inspector = sqlalchemy.inspect(db_instance.engine)
+        table_names = [t for t in inspector.get_table_names() if t != 'alembic_version']
+        if table_names:
+            table_list = ', '.join(f'"{t}"' for t in table_names)
+            conn.execute(text(f'TRUNCATE TABLE {table_list} CASCADE'))
+            conn.execute(text('COMMIT'))
+    finally:
+        conn.close()
 
 
 def _ensure_worker_db(base_db_url: str, db_name: str) -> None:
@@ -139,6 +157,8 @@ def app(worker_id):
 
     with test_app.app_context():
         db.create_all()
+        db.session.remove()
+        _truncate_all_tables(db)
         yield test_app
         db.session.remove()
 
@@ -157,32 +177,50 @@ def client(app):
 
 @pytest.fixture(scope='function')
 def db_session(app):
-    """Create database session for tests with cleanup.
+    """Create database session for tests with transaction rollback cleanup.
 
-    Uses DELETE in FK-safe order for cleanup.
-    Each worker has its own database when running with pytest-xdist.
+    Uses nested transaction (savepoint) pattern via the Flask-SQLAlchemy session:
+    - Forces all app contexts to share one session (scopefunc override)
+    - Wraps each test in BEGIN → SAVEPOINT → ROLLBACK TO SAVEPOINT
+    - session.commit() releases savepoint and starts a new one
+    - session.rollback() rolls back savepoint and starts a new one
+    - After the test, rolls back the parent transaction — no DELETEs needed
+    - Compatible with pytest-xdist (each worker has its own database)
     """
     with app.app_context():
-        db.session.rollback()
+        original_scopefunc = db.session.registry.scopefunc
+        db.session.registry.scopefunc = lambda: 'test_scope'
 
-        from app.curriculum.models import LessonProgress, Lessons, Module, CEFRLevel
-        from app.auth.models import User, ReferralLog
+        _real_remove = db.session.remove
 
-        try:
-            LessonProgress.query.delete()
-            Lessons.query.delete()
-            Module.query.delete()
-            CEFRLevel.query.delete()
-            ReferralLog.query.delete()
-            User.query.delete()
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+        session = db.session()
+        session.rollback()
+        session.begin_nested()
+
+        _real_commit = session.commit
+        _real_rollback = session.rollback
+
+        def _commit_savepoint():
+            session.flush()
+            _real_commit()
+            session.begin_nested()
+
+        def _rollback_savepoint():
+            _real_rollback()
+            session.begin_nested()
+
+        session.commit = _commit_savepoint
+        session.rollback = _rollback_savepoint
+        db.session.remove = lambda: None
 
         yield db.session
 
-        db.session.rollback()
-        db.session.remove()
+        session.commit = _real_commit
+        session.rollback = _real_rollback
+        db.session.remove = _real_remove
+        _real_rollback()
+        _real_remove()
+        db.session.registry.scopefunc = original_scopefunc
 
 
 @pytest.fixture(scope='function')
@@ -227,13 +265,6 @@ def admin_user(app, db_session, client):
             sess['_fresh'] = True
 
     yield user
-
-    # Cleanup
-    try:
-        db_session.delete(user)
-        db_session.commit()
-    except:
-        db_session.rollback()
 
 
 @pytest.fixture(scope='function')
