@@ -66,12 +66,12 @@
 **Files:**
 - Create: `tests/test_telegram_routes.py`
 
-- [ ] Написать тесты для POST `/telegram/generate-code` — генерация кода привязки (auth required, возвращает код)
-- [ ] Написать тесты для POST `/telegram/unlink` — отвязка аккаунта (auth required, edge cases)
-- [ ] Написать тесты для GET `/telegram/status` — статус привязки (auth required, linked/unlinked states)
-- [ ] Написать тесты для POST `/telegram/webhook` — webhook endpoint (auth token validation, payload handling)
-- [ ] Пометить ключевые happy-path тесты как `@pytest.mark.smoke`
-- [ ] Запустить полный тест-сьют
+- [x] Написать тесты для POST `/telegram/generate-code` — генерация кода привязки (auth required, возвращает код)
+- [x] Написать тесты для POST `/telegram/unlink` — отвязка аккаунта (auth required, edge cases)
+- [x] Написать тесты для GET `/telegram/status` — статус привязки (auth required, linked/unlinked states)
+- [x] Написать тесты для POST `/telegram/webhook` — webhook endpoint (auth token validation, payload handling)
+- [x] Пометить ключевые happy-path тесты как `@pytest.mark.smoke`
+- [x] Запустить полный тест-сьют
 
 ### Task 5: Тесты для grammar_lab API routes
 
