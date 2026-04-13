@@ -5,6 +5,7 @@ import pytest
 class TestLandingPage:
     """Test landing page content and structure."""
 
+    @pytest.mark.smoke
     def test_landing_returns_200(self, client):
         response = client.get('/')
         assert response.status_code == 200
@@ -37,6 +38,7 @@ class TestLandingPage:
         html = response.data.decode()
         assert 'WebSite' in html
 
+    @pytest.mark.smoke
     def test_landing_has_og_tags(self, client):
         response = client.get('/')
         html = response.data.decode()

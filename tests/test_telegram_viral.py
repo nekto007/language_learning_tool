@@ -73,6 +73,7 @@ class TestStatsReferralCount:
 class TestWeeklyReportInvitePrompt:
     """Test that weekly report includes invite prompt."""
 
+    @pytest.mark.smoke
     def test_weekly_report_has_invite_prompt(self, app):
         from datetime import date
         from app.telegram.notifications import format_weekly_report

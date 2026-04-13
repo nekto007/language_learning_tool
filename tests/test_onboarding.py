@@ -39,6 +39,7 @@ class TestOnboardingWizard:
         assert r.status_code == 302
         assert '/login' in r.headers.get('Location', '')
 
+    @pytest.mark.smoke
     def test_wizard_page_renders_for_new_user(self, client, new_user):
         # Login first
         client.post('/login', data={
@@ -62,6 +63,7 @@ class TestOnboardingWizard:
 
 
 class TestOnboardingRedirect:
+    @pytest.mark.smoke
     def test_login_redirects_new_user_to_onboarding(self, client, new_user):
         r = client.post('/login', data={
             'username_or_email': new_user.username,
@@ -132,6 +134,7 @@ class TestOnboardingBeforeRequest:
 
 
 class TestOnboardingComplete:
+    @pytest.mark.smoke
     def test_complete_marks_user_onboarded(self, client, db_session, new_user):
         # Login
         client.post('/login', data={

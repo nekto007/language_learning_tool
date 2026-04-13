@@ -60,6 +60,7 @@ class TestNotificationAPI:
         response = client.get('/api/notifications/list')
         assert response.status_code in (302, 401)
 
+    @pytest.mark.smoke
     def test_list_returns_json(self, notif_auth_client, notif_user, db_session):
         create_notification(notif_user.id, 'test', 'API Test')
         db_session.commit()
@@ -69,12 +70,14 @@ class TestNotificationAPI:
         assert data['success'] is True
         assert len(data['notifications']) >= 1
 
+    @pytest.mark.smoke
     def test_unread_count_endpoint(self, notif_auth_client):
         response = notif_auth_client.get('/api/notifications/unread-count')
         assert response.status_code == 200
         data = response.get_json()
         assert 'count' in data
 
+    @pytest.mark.smoke
     def test_mark_all_read(self, notif_auth_client, notif_user, db_session):
         create_notification(notif_user.id, 'test', 'To Read')
         db_session.commit()

@@ -18,6 +18,7 @@ from app.utils.db import db
 class TestGetStudyItems:
     """Test /api/get-study-items GET endpoint - Lines 548-741"""
 
+    @pytest.mark.smoke
     def test_get_items_auto_mode(self, authenticated_client, user_words, user_card_directions, study_settings):
         """Test getting study items in auto mode"""
         response = authenticated_client.get('/study/api/get-study-items?source=auto')
@@ -359,6 +360,7 @@ class TestUpdateStudyItem:
 class TestCompleteSession:
     """Test /api/complete-session POST endpoint - Lines 824-859"""
 
+    @pytest.mark.smoke
     def test_complete_session_successfully(self, authenticated_client, study_session, db_session):
         """Test successfully completing a session"""
         assert study_session.end_time is None

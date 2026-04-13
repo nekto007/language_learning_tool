@@ -54,12 +54,12 @@
 - Modify: `pytest.ini`
 - Modify: `tests/conftest.py`
 
-- [ ] Добавить `@pytest.mark.smoke` маркер в pytest.ini
-- [ ] Пометить ~50-100 ключевых тестов как `@pytest.mark.smoke` — по 2-5 тестов на каждый blueprint (основные happy path: GET главных страниц, POST ключевых API)
-- [ ] Добавить `@pytest.mark.slow` на тесты которые создают много данных или делают сложные setup
-- [ ] Обновить pytest.ini: добавить команду `pytest -m smoke` для быстрого прогона
-- [ ] Проверить что `pytest -m smoke` работает и покрывает все blueprints
-- [ ] Запустить полный тест-сьют — убедиться что маркеры не сломали ничего
+- [x] Добавить `@pytest.mark.smoke` маркер в pytest.ini
+- [x] Пометить ~50-100 ключевых тестов как `@pytest.mark.smoke` — по 2-5 тестов на каждый blueprint (основные happy path: GET главных страниц, POST ключевых API)
+- [x] Добавить `@pytest.mark.slow` на тесты которые создают много данных или делают сложные setup
+- [x] Обновить pytest.ini: добавить команду `pytest -m smoke` для быстрого прогона
+- [x] Проверить что `pytest -m smoke` работает и покрывает все blueprints
+- [x] Запустить полный тест-сьют — убедиться что маркеры не сломали ничего
 
 ### Task 4: Тесты для telegram routes
 

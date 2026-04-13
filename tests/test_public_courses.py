@@ -43,6 +43,7 @@ def sample_level(db_session):
 class TestPublicCourseCatalog:
     """Test GET /courses public route."""
 
+    @pytest.mark.smoke
     def test_catalog_returns_200(self, client):
         response = client.get('/courses/')
         assert response.status_code == 200
@@ -72,6 +73,7 @@ class TestPublicCourseCatalog:
 class TestPublicLevelDetail:
     """Test GET /courses/<level_code> public route."""
 
+    @pytest.mark.smoke
     def test_level_returns_200(self, client, sample_level):
         response = client.get(f'/courses/{sample_level.code}')
         assert response.status_code == 200

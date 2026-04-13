@@ -26,6 +26,7 @@ def grammar_topics(db_session):
 class TestGrammarBreadcrumbs:
     """Test breadcrumb rendering and JSON-LD."""
 
+    @pytest.mark.smoke
     def test_topic_has_breadcrumb_html(self, client, grammar_topics):
         t1, _ = grammar_topics
         response = client.get(f'/grammar-lab/topic/{t1.id}')

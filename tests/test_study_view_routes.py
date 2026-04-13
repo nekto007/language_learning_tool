@@ -17,6 +17,7 @@ from app.utils.db import db
 class TestIndex:
     """Test / (index/dashboard) route - Lines 116-240"""
 
+    @pytest.mark.smoke
     def test_shows_dashboard(self, authenticated_client, study_settings):
         """Test that dashboard renders successfully"""
         response = authenticated_client.get('/study/')
@@ -85,6 +86,7 @@ class TestIndex:
 class TestSettings:
     """Test /settings route - Lines 243-259"""
 
+    @pytest.mark.smoke
     def test_get_settings_form(self, authenticated_client, study_settings):
         """Test GET request shows settings form"""
         response = authenticated_client.get('/study/settings')
@@ -136,6 +138,7 @@ class TestSettings:
 class TestCards:
     """Test /cards and /cards/deck/<id> routes - Lines 265-411"""
 
+    @pytest.mark.smoke
     def test_cards_page_renders(self, authenticated_client, study_settings):
         """Test that cards page renders"""
         response = authenticated_client.get('/study/cards')

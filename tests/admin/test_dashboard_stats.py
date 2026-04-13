@@ -189,6 +189,7 @@ class TestGetDailyActivityData:
 class TestDashboardRoute:
     """Tests for the admin dashboard route."""
 
+    @pytest.mark.smoke
     def test_dashboard_returns_200(self, app, client, admin_user):
         """Admin dashboard should return 200 for admin user."""
         response = client.get('/admin/')

@@ -3,6 +3,7 @@ import pytest
 
 
 class TestPrivacyPolicy:
+    @pytest.mark.smoke
     def test_privacy_returns_200(self, client):
         response = client.get('/privacy')
         assert response.status_code == 200
@@ -12,6 +13,7 @@ class TestPrivacyPolicy:
         html = response.data.decode('utf-8')
         assert 'Политика конфиденциальности' in html
 
+    @pytest.mark.smoke
     def test_privacy_contains_key_sections(self, client):
         response = client.get('/privacy')
         html = response.data.decode('utf-8')

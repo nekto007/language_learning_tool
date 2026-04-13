@@ -154,6 +154,7 @@ def game_score(db_session, test_user):
 class TestGetUserStats:
     """Test get_user_stats method"""
 
+    @pytest.mark.slow
     def test_returns_comprehensive_stats(self, db_session, test_user, user_words, study_session):
         """Test getting comprehensive user statistics"""
         from app.study.services.stats_service import StatsService
@@ -178,6 +179,7 @@ class TestGetUserStats:
         assert 'today_time_spent' in stats
         assert 'study_streak' in stats
 
+    @pytest.mark.slow
     def test_mastery_percentage_calculated_correctly(self, db_session, test_user):
         """Test mastery percentage calculation
 
@@ -261,6 +263,7 @@ class TestGetUserStats:
         assert isinstance(stats['recent_sessions'], list)
         assert len(stats['recent_sessions']) > 0
 
+    @pytest.mark.slow
     def test_today_statistics_accurate(self, db_session, test_user):
         """Test today's statistics are calculated correctly
 
@@ -331,6 +334,7 @@ class TestGetUserWordStats:
     Mastered words are a subset of 'review' words with high intervals.
     """
 
+    @pytest.mark.slow
     def test_counts_words_by_status(self, db_session, test_user):
         """Test word count by status"""
         from app.study.services.stats_service import StatsService
@@ -581,6 +585,7 @@ class TestGetXpLeaderboard:
             assert user_entry['total_xp'] == 350
             assert user_entry['level'] == 3  # 350 // 100 = 3
 
+    @pytest.mark.slow
     def test_sorted_by_xp_descending(self, db_session):
         """Test leaderboard is sorted by XP (highest first)"""
         from app.study.services.stats_service import StatsService
@@ -653,6 +658,7 @@ class TestGetAchievementLeaderboard:
         if user_entry:
             assert user_entry['achievement_count'] == 3
 
+    @pytest.mark.slow
     def test_sorted_by_achievement_count_descending(self, db_session, achievements):
         """Test sorted by achievement count (highest first)"""
         from app.study.services.stats_service import StatsService
@@ -702,6 +708,7 @@ class TestGetUserXpRank:
         # Should return a rank or None
         assert rank is None or isinstance(rank, int)
 
+    @pytest.mark.slow
     def test_rank_calculation_accurate(self, db_session):
         """Test rank is calculated correctly"""
         from app.study.services.stats_service import StatsService
@@ -775,6 +782,7 @@ class TestGetUserAchievementRank:
         # Should return rank or None
         assert rank is None or isinstance(rank, int)
 
+    @pytest.mark.slow
     def test_achievement_rank_calculation(self, db_session, achievements):
         """Test achievement rank calculation is accurate"""
         from app.study.services.stats_service import StatsService

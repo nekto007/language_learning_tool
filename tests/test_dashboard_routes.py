@@ -59,6 +59,7 @@ def words_module_access(app, db_session, test_user):
 class TestDashboard:
     """Test dashboard route and template rendering"""
 
+    @pytest.mark.smoke
     def test_dashboard_accessible(self, client):
         """Dashboard should redirect to login for anonymous users"""
         response = client.get('/dashboard')

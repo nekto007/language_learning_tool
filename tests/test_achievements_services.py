@@ -408,6 +408,7 @@ class TestAchievementService:
         assert 'streak_3' in codes
         assert 'streak_7' in codes
 
+    @pytest.mark.slow
     def test_check_all_achievements(self, db_session, test_user):
         """Тест проверки всех достижений"""
         # Создаем или получаем достижения
@@ -443,6 +444,7 @@ class TestAchievementService:
 class TestProcessLessonCompletion:
     """Тесты комплексной обработки завершения урока"""
 
+    @pytest.mark.slow
     def test_process_lesson_completion_full_workflow(self, db_session, test_user, test_lesson_vocabulary):
         """Тест полного цикла обработки завершения урока"""
         # Создаем или получаем достижение
@@ -483,6 +485,7 @@ class TestProcessLessonCompletion:
         assert result['score'] == 75.0
         assert len(result['new_achievements']) == 0
 
+    @pytest.mark.slow
     def test_process_lesson_completion_multiple_lessons(self, db_session, test_user, test_lesson_vocabulary, test_lesson_quiz):
         """Тест обработки нескольких уроков"""
         # Первый урок
