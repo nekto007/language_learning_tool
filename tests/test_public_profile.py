@@ -1,58 +1,17 @@
 """Tests for public user profile page."""
 import pytest
 import uuid
-from app import create_app
-from app.utils.db import db as _db
 from app.auth.models import User
-from config.settings import TestConfig
-
-
-@pytest.fixture(scope='module')
-def app():
-    app = create_app(TestConfig)
-    with app.app_context():
-        from sqlalchemy import text, inspect
-        inspector = inspect(_db.engine)
-        columns = [c['name'] for c in inspector.get_columns('users')]
-        for col, typ in [('onboarding_completed', 'BOOLEAN DEFAULT false'),
-                         ('referral_code', 'VARCHAR(16) UNIQUE'),
-                         ('referred_by_id', 'INTEGER'),
-                         ('onboarding_level', 'VARCHAR(4)'),
-                         ('onboarding_focus', 'VARCHAR(100)'),
-                         ('email_unsubscribe_token', 'VARCHAR(64) UNIQUE'),
-                         ('email_opted_out', 'BOOLEAN DEFAULT false')]:
-            if col not in columns:
-                try:
-                    _db.session.execute(text(f'ALTER TABLE users ADD COLUMN {col} {typ}'))
-                    _db.session.commit()
-                except Exception:
-                    _db.session.rollback()
-        _db.create_all()
-        yield app
 
 
 @pytest.fixture
-def client(app):
-    return app.test_client()
-
-
-@pytest.fixture
-def db_session(app):
-    with app.app_context():
-        yield _db.session
-        _db.session.rollback()
-
-
-@pytest.fixture
-def profile_user(app, db_session):
+def profile_user(db_session):
     suffix = uuid.uuid4().hex[:8]
     user = User(username=f'pub_{suffix}', email=f'pub_{suffix}@test.com', active=True)
     user.set_password('test')
     db_session.add(user)
     db_session.commit()
-    yield user
-    db_session.delete(user)
-    db_session.commit()
+    return user
 
 
 class TestPublicProfile:
@@ -106,27 +65,19 @@ class TestPublicProfile:
 class TestProfileExternalUrls:
     """Test that profile and referral pages use dynamic URLs, not hardcoded domain."""
 
-    def test_profile_url_uses_url_for(self, app, client, db_session):
+    def test_profile_url_uses_url_for(self, client, db_session):
         """Profile page should show URL via url_for, not hardcoded llt-english.com."""
-        import uuid
-        from app.auth.models import User
         suffix = uuid.uuid4().hex[:8]
         user = User(username=f'urltest_{suffix}', email=f'urltest_{suffix}@t.com', active=True)
         user.set_password('test')
         db_session.add(user)
         db_session.commit()
 
-        # Authenticate
         with client.session_transaction() as sess:
             sess['_user_id'] = str(user.id)
 
         response = client.get('/profile')
         if response.status_code == 200:
             html = response.data.decode()
-            # Should contain the username in a URL, built by url_for
             assert f'/u/{user.username}' in html
-            # Should NOT contain hardcoded domain for this URL
             assert f'https://llt-english.com/u/{user.username}' not in html or 'url_for' in html or 'localhost' in html
-
-        db_session.delete(user)
-        db_session.commit()

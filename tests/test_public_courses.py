@@ -1,55 +1,13 @@
 """Tests for public course catalog and level detail pages."""
 import pytest
-from app import create_app
-from app.utils.db import db as _db
+import uuid
 from app.curriculum.models import CEFRLevel, Module, Lessons
-from config.settings import TestConfig
-
-
-@pytest.fixture(scope='module')
-def app():
-    app = create_app(TestConfig)
-    with app.app_context():
-        from sqlalchemy import text, inspect
-        inspector = inspect(_db.engine)
-        columns = [c['name'] for c in inspector.get_columns('users')]
-        for col, typ in [('onboarding_completed', 'BOOLEAN DEFAULT false'),
-                         ('referral_code', 'VARCHAR(16) UNIQUE'),
-                         ('referred_by_id', 'INTEGER'),
-                         ('onboarding_level', 'VARCHAR(4)'),
-                         ('onboarding_focus', 'VARCHAR(100)'),
-                         ('email_unsubscribe_token', 'VARCHAR(64) UNIQUE'),
-                         ('email_opted_out', 'BOOLEAN DEFAULT false')]:
-            if col not in columns:
-                try:
-                    _db.session.execute(text(f'ALTER TABLE users ADD COLUMN {col} {typ}'))
-                    _db.session.commit()
-                except Exception:
-                    _db.session.rollback()
-        _db.create_all()
-        yield app
 
 
 @pytest.fixture
-def client(app):
-    return app.test_client()
-
-
-@pytest.fixture
-def db_session(app):
-    with app.app_context():
-        yield _db.session
-        _db.session.rollback()
-
-
-@pytest.fixture
-def sample_level(app, db_session):
+def sample_level(db_session):
     """Create a sample CEFR level with a module and lesson."""
-    import uuid
     suffix = uuid.uuid4().hex[:6]
-    code = f'T{suffix[:1].upper()}'  # Short unique code
-
-    # Ensure unique code — use X + random suffix
     code = f'X{suffix[:1].upper()}'
 
     level = CEFRLevel(
@@ -79,13 +37,7 @@ def sample_level(app, db_session):
     db_session.add(lesson)
     db_session.commit()
 
-    yield level
-
-    # Cleanup
-    db_session.delete(lesson)
-    db_session.delete(module)
-    db_session.delete(level)
-    db_session.commit()
+    return level
 
 
 class TestPublicCourseCatalog:

@@ -43,10 +43,10 @@
 **Files:**
 - Modify: `tests/test_landing_improvements.py`, `tests/test_telegram_viral.py`, `tests/test_seo_meta.py`, `tests/test_public_words_seo.py`, `tests/test_quiz_sharing.py`, `tests/test_share_buttons.py`, `tests/test_levelup_celebration.py`, `tests/test_word_of_day.py`, `tests/test_streak_milestones.py`, `tests/test_public_courses.py`, `tests/test_notifications.py`, `tests/test_cross_linking.py`, `tests/test_onboarding_personalization.py`, `tests/test_public_profile.py`, `tests/test_improved_registration.py`, `tests/test_reengagement_emails.py`, `tests/test_public_streak.py`, `tests/test_acceptance_criteria.py`, `tests/test_grammar_seo.py`
 
-- [ ] Удалить локальные `app`, `client` fixtures из каждого файла — перевести на shared `app`/`client` из conftest.py
-- [ ] Перенести нужную setup-логику (ALTER TABLE, специфичные данные) в conftest.py fixtures или в setup методы тестовых классов
-- [ ] Убедиться что все тесты в этих файлах проходят с shared fixtures
-- [ ] Запустить полный тест-сьют
+- [x] Удалить локальные `app`, `client` fixtures из каждого файла — перевести на shared `app`/`client` из conftest.py
+- [x] Перенести нужную setup-логику (ALTER TABLE, специфичные данные) в conftest.py fixtures или в setup методы тестовых классов
+- [x] Убедиться что все тесты в этих файлах проходят с shared fixtures
+- [x] Запустить полный тест-сьют
 
 ### Task 3: Добавить маркеры и конфигурацию для быстрого smoke-прогона
 

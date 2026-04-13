@@ -1,52 +1,13 @@
 """Tests for public shared quiz deck page."""
 import pytest
 import uuid
-from app import create_app
-from app.utils.db import db as _db
 from app.auth.models import User
 from app.study.models import QuizDeck, QuizDeckWord
 from app.words.models import CollectionWords
-from config.settings import TestConfig
-
-
-@pytest.fixture(scope='module')
-def app():
-    app = create_app(TestConfig)
-    with app.app_context():
-        from sqlalchemy import text, inspect
-        inspector = inspect(_db.engine)
-        columns = [c['name'] for c in inspector.get_columns('users')]
-        for col, typ in [('onboarding_completed', 'BOOLEAN DEFAULT false'),
-                         ('referral_code', 'VARCHAR(16) UNIQUE'),
-                         ('referred_by_id', 'INTEGER'),
-                         ('onboarding_level', 'VARCHAR(4)'),
-                         ('onboarding_focus', 'VARCHAR(100)'),
-                         ('email_unsubscribe_token', 'VARCHAR(64) UNIQUE'),
-                         ('email_opted_out', 'BOOLEAN DEFAULT false')]:
-            if col not in columns:
-                try:
-                    _db.session.execute(text(f'ALTER TABLE users ADD COLUMN {col} {typ}'))
-                    _db.session.commit()
-                except Exception:
-                    _db.session.rollback()
-        _db.create_all()
-        yield app
 
 
 @pytest.fixture
-def client(app):
-    return app.test_client()
-
-
-@pytest.fixture
-def db_session(app):
-    with app.app_context():
-        yield _db.session
-        _db.session.rollback()
-
-
-@pytest.fixture
-def shared_deck(app, db_session):
+def shared_deck(db_session):
     """Create a public shared deck with words."""
     suffix = uuid.uuid4().hex[:8]
 
@@ -77,13 +38,7 @@ def shared_deck(app, db_session):
     db_session.add(deck_word)
     db_session.commit()
 
-    yield deck, word, user
-
-    db_session.delete(deck_word)
-    db_session.delete(word)
-    db_session.delete(deck)
-    db_session.delete(user)
-    db_session.commit()
+    return deck, word, user
 
 
 class TestSharedDeckPublic:
@@ -128,20 +83,15 @@ class TestSharedDeckPublic:
         response = client.get('/study/quiz/shared/nonexistent99')
         assert response.status_code == 404
 
-    def test_404_for_private_deck(self, app, client, db_session):
+    def test_404_for_private_deck(self, client, db_session):
         suffix = uuid.uuid4().hex[:8]
-        with app.app_context():
-            user = User(username=f'pvt_{suffix}', email=f'pvt_{suffix}@test.com', active=True)
-            user.set_password('test')
-            db_session.add(user)
-            db_session.flush()
-            deck = QuizDeck(title='Private', user_id=user.id, is_public=False, share_code=f'pvt{suffix}')
-            db_session.add(deck)
-            db_session.commit()
+        user = User(username=f'pvt_{suffix}', email=f'pvt_{suffix}@test.com', active=True)
+        user.set_password('test')
+        db_session.add(user)
+        db_session.flush()
+        deck = QuizDeck(title='Private', user_id=user.id, is_public=False, share_code=f'pvt{suffix}')
+        db_session.add(deck)
+        db_session.commit()
 
-            response = client.get(f'/study/quiz/shared/pvt{suffix}')
-            assert response.status_code == 404
-
-            db_session.delete(deck)
-            db_session.delete(user)
-            db_session.commit()
+        response = client.get(f'/study/quiz/shared/pvt{suffix}')
+        assert response.status_code == 404
