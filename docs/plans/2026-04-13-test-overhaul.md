@@ -102,10 +102,10 @@
 
 ### Task 7: Verify acceptance criteria
 
-- [ ] Запустить полный тест-сьют (`pytest`)
-- [ ] Запустить smoke-тесты (`pytest -m smoke`) — должны проходить за < 30 секунд
-- [ ] Проверить что полный сьют стал быстрее (transaction rollback + consolidated apps)
-- [ ] Проверить покрытие telegram, grammar_lab, words routes через `pytest --cov`
+- [x] Запустить полный тест-сьют (`pytest`) — 3239 passed, 23 failed (all pre-existing), 53.73s
+- [x] Запустить smoke-тесты (`pytest -m smoke`) — 70 tests, 6.5s (target <30s)
+- [x] Проверить что полный сьют стал быстрее (transaction rollback + consolidated apps) — 829s→54s, 15x speedup
+- [x] Проверить покрытие telegram, grammar_lab, words routes через `pytest --cov` — telegram/routes 100%, grammar_lab/routes 99%, words/routes 48%
 
 ### Task 8: Update documentation
 
