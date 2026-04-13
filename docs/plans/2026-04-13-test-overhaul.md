@@ -92,13 +92,13 @@
 **Files:**
 - Create: `tests/test_words_routes.py`
 
-- [ ] Написать тесты для GET `/words` — список слов с фильтрами (status, level, search)
-- [ ] Написать тесты для GET `/words/<word_id>` — детальная страница слова
-- [ ] Написать тесты для POST `/update-word-status/<word_id>/<status>` — обновление статуса (valid/invalid статусы)
-- [ ] Написать тесты для GET `/api/daily-plan/next-step` и POST `/api/streak/repair-web` — API endpoints
-- [ ] Написать тесты для edge cases: несуществующее слово, чужое слово, невалидный статус
-- [ ] Пометить ключевые happy-path тесты как `@pytest.mark.smoke`
-- [ ] Запустить полный тест-сьют
+- [x] Написать тесты для GET `/words` — список слов с фильтрами (status, level, search)
+- [x] Написать тесты для GET `/words/<word_id>` — детальная страница слова
+- [x] Написать тесты для POST `/update-word-status/<word_id>/<status>` — обновление статуса (valid/invalid статусы)
+- [x] Написать тесты для GET `/api/daily-plan/next-step` и POST `/api/streak/repair-web` — API endpoints
+- [x] Написать тесты для edge cases: несуществующее слово, чужое слово, невалидный статус
+- [x] Пометить ключевые happy-path тесты как `@pytest.mark.smoke`
+- [x] Запустить полный тест-сьют
 
 ### Task 7: Verify acceptance criteria
 
