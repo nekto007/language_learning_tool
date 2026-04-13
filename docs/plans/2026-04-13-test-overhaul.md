@@ -78,14 +78,14 @@
 **Files:**
 - Create: `tests/test_grammar_lab_routes.py`
 
-- [ ] Написать тесты для GET `/grammar-lab/` — главная страница (200, контент)
-- [ ] Написать тесты для GET `/grammar-lab/topics`, `/grammar-lab/topics/<level>` — списки тем
-- [ ] Написать тесты для GET `/grammar-lab/topic/<id>` — детальная страница темы (existing/missing)
-- [ ] Написать тесты для GET `/grammar-lab/practice` и `/grammar-lab/practice/topic/<id>` — практика
-- [ ] Написать тесты для API endpoints: `/grammar-lab/api/topics`, `/grammar-lab/api/exercise/check`, `/grammar-lab/api/stats`
-- [ ] Написать тесты для auth-protected endpoints — проверка redirect для неавторизованных
-- [ ] Пометить ключевые happy-path тесты как `@pytest.mark.smoke`
-- [ ] Запустить полный тест-сьют
+- [x] Написать тесты для GET `/grammar-lab/` — главная страница (200, контент)
+- [x] Написать тесты для GET `/grammar-lab/topics`, `/grammar-lab/topics/<level>` — списки тем
+- [x] Написать тесты для GET `/grammar-lab/topic/<id>` — детальная страница темы (existing/missing)
+- [x] Написать тесты для GET `/grammar-lab/practice` и `/grammar-lab/practice/topic/<id>` — практика
+- [x] Написать тесты для API endpoints: `/grammar-lab/api/topics`, `/grammar-lab/api/exercise/check`, `/grammar-lab/api/stats`
+- [x] Написать тесты для auth-protected endpoints — проверка redirect для неавторизованных
+- [x] Пометить ключевые happy-path тесты как `@pytest.mark.smoke`
+- [x] Запустить полный тест-сьют
 
 ### Task 6: Тесты для words routes (word list, detail, status update)
 
