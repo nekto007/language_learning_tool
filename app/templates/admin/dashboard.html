@@ -27,6 +27,7 @@
 
 <!-- System Health bar (compact, always visible) -->
 <div class="d-flex align-items-center gap-3 mb-3 small text-muted">
+    <span class="fw-semibold">Система:</span>
     <span><i class="fas fa-heartbeat me-1"></i>БД: {% if system_health.db_status == 'ok' %}<span class="text-success">OK</span>{% else %}<span class="text-danger">Ошибка</span>{% endif %}</span>
     <span>Uptime: {{ (system_health.uptime_seconds // 3600) }}ч {{ (system_health.uptime_seconds % 3600 // 60) }}м</span>
     <span>5xx: <span class="{% if system_health.errors_5xx > 0 %}text-danger fw-bold{% endif %}">{{ system_health.errors_5xx }}</span></span>
@@ -68,6 +69,7 @@
                 <div class="card-body">
                     {{ quick_stats([
                         ('Книг', total_books, 'fa-book'),
+                        ('Уникальных слов в книгах', "{:,}".format(total_readings), 'fa-book-reader'),
                         ('Слов', "{:,}".format(words_total), 'fa-spell-check'),
                         ('Слов с аудио', "{:,}".format(words_with_audio), 'fa-volume-up'),
                         ('Уроков', total_lessons, 'fa-file-alt')
@@ -90,7 +92,7 @@
                 <div class="card-header"><h5 class="mb-0"><i class="fas fa-cubes me-2 text-muted"></i>Контент</h5></div>
                 <div class="card-body">
                     {{ quick_stats([
-                        ('Грамм. тем', content.grammar_topics_count, 'fa-language'),
+                        ('Грамматических тем', content.grammar_topics_count, 'fa-language'),
                         ('Книж. курсов', content.book_courses_count, 'fa-book'),
                         ('Записей', content.enrollments_count, 'fa-user-graduate'),
                         ('Колод', content.active_decks, 'fa-layer-group')
@@ -136,7 +138,7 @@
     <div class="row g-3">
         <div class="col-lg-4">
             <div class="card h-100">
-                <div class="card-header"><h5 class="mb-0"><i class="fas fa-clipboard-check me-2 text-muted"></i>Качество</h5></div>
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-clipboard-check me-2 text-muted"></i>Качество контента</h5></div>
                 <div class="card-body">
                     {{ quick_stats([
                         ('Низкий % прох.', content_quality.low_pass_count, 'fa-exclamation-circle'),
@@ -209,14 +211,14 @@
             <div class="card h-100">
                 <div class="card-header"><h5 class="mb-0"><i class="fas fa-fire me-2 text-muted"></i>Серии</h5></div>
                 <div class="card-body">
-                    {{ quick_stats([('Активных', streaks.active_streaks, 'fa-fire-alt'), ('Средняя', streaks.avg_streak, 'fa-chart-bar'), ('Рекорд', streaks.longest_overall, 'fa-trophy')]) }}
+                    {{ quick_stats([('Активных серий', streaks.active_streaks, 'fa-fire-alt'), ('Средняя', streaks.avg_streak, 'fa-chart-bar'), ('Рекорд', streaks.longest_overall, 'fa-trophy')]) }}
                     {% if streaks.distribution %}<div style="position:relative;height:140px;" class="mt-2"><canvas id="streakDistChart"></canvas></div>{% endif %}
                 </div>
             </div>
         </div>
         <div class="col-lg-4">
             <div class="card h-100">
-                <div class="card-header"><h5 class="mb-0"><i class="fas fa-coins me-2 text-muted"></i>Монеты</h5></div>
+                <div class="card-header"><h5 class="mb-0"><i class="fas fa-coins me-2 text-muted"></i>Экономика монет</h5></div>
                 <div class="card-body">
                     {{ quick_stats([('В обращении', coins.total_balance, 'fa-wallet'), ('Заработано', coins.total_earned, 'fa-arrow-up'), ('Потрачено', coins.total_spent, 'fa-arrow-down'), ('С монетами', coins.users_with_coins, 'fa-user-tag')]) }}
                 </div>
@@ -333,16 +335,20 @@ const C = {
     danger: styles.getPropertyValue('--chart-danger').trim(),
     info: styles.getPropertyValue('--chart-info').trim()
 };
+const activityLabels = {{ activity_data.labels | tojson }};
+const activityRegistrations = {{ activity_data.registrations | tojson }};
+const activityLogins = {{ activity_data.logins | tojson }};
+const activityActiveUsers = {{ activity_data.active_users | tojson }};
 
 // Activity Chart
 new Chart(document.getElementById('activityChart').getContext('2d'), {
     type: 'line',
     data: {
-        labels: {{ activity_data.labels | tojson }},
+        labels: activityLabels,
         datasets: [
-            {label:'Регистрации', data:{{ activity_data.registrations|tojson }}, borderColor:C.info, backgroundColor:'transparent', tension:.4, borderWidth:2},
-            {label:'Входы', data:{{ activity_data.logins|tojson }}, borderColor:C.primary, backgroundColor:C.primaryL, tension:.4, fill:true},
-            {label:'Учебная активность', data:{{ activity_data.active_users|tojson }}, borderColor:C.success, backgroundColor:C.successL, tension:.4, fill:true}
+            {label:'Регистрации', data:activityRegistrations, borderColor:C.info, backgroundColor:'transparent', tension:.4, borderWidth:2},
+            {label:'Входы', data:activityLogins, borderColor:C.primary, backgroundColor:C.primaryL, tension:.4, fill:true},
+            {label:'Учебная активность', data:activityActiveUsers, borderColor:C.success, backgroundColor:C.successL, tension:.4, fill:true}
         ]
     },
     options: {responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}}}

@@ -33,9 +33,13 @@
         </div>
         <h1 class="auth-card__title">Регистрация</h1>
         <p class="auth-card__subtitle">Создайте аккаунт для начала обучения</p>
-        {% if learner_count and learner_count > 0 %}
-        <p class="auth-card__social-proof" style="margin-top:0.5rem; font-size:0.85rem; opacity:0.85;">Присоединяйтесь к {{ learner_count }} ученикам</p>
-        {% endif %}
+        <p class="auth-card__social-proof" style="margin-top:0.5rem; font-size:0.85rem; opacity:0.85;">
+          {% if learner_count and learner_count > 0 %}
+          Присоединяйтесь к {{ learner_count }} ученикам
+          {% else %}
+          social-proof
+          {% endif %}
+        </p>
       </div>
     </div>
 

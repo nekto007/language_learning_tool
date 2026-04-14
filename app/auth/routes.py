@@ -129,6 +129,9 @@ def verify_reset_token(token: str, expiration: int = 3600):
         try:
             s = URLSafeTimedSerializer(Config.SECRET_KEY)
             user_id = s.loads_unsafe(token)[1]
+        except Exception:
+            logger.exception("Failed to decode password reset token")
+            return None
         except (BadSignature, ValueError, TypeError):
             logger.warning("Failed to decode password reset token")
             return None

@@ -319,9 +319,13 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow')
         )
     )
 
-    union = q1.union(q2, q3, q4, q5).subquery()
-    activity_rows = db.session.query(union.c.d).distinct().all()
-    activity_dates: set[date] = {row[0] for row in activity_rows if row[0] is not None}
+    try:
+        union = q1.union(q2, q3, q4, q5).subquery()
+        activity_rows = db.session.query(union.c.d).distinct().all()
+        activity_dates: set[date] = {row[0] for row in activity_rows if row[0] is not None}
+    except Exception:
+        logger.exception("Failed to check activity for streak calendar user %s", user_id)
+        activity_dates = set()
 
     # Merge activity dates with streak events, clamp to window
     all_active = (activity_dates | event_dates) & {

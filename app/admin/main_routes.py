@@ -36,6 +36,11 @@ _error_5xx_count = 0
 from app.admin.utils.decorators import admin_required, cache_result
 
 
+def _activity_date_expr(*columns):
+    """Return the first non-null date column for activity tracking."""
+    return func.date(func.coalesce(*columns))
+
+
 def _active_user_ids_for_date(target_date):
     """UNION DISTINCT user_id across all 6 activity tables for a single date.
 
@@ -48,9 +53,7 @@ def _active_user_ids_for_date(target_date):
     from app.curriculum.book_courses import BookCourseEnrollment
 
     q1 = db.session.query(LessonProgress.user_id).filter(
-        LessonProgress.status == 'completed',
-        LessonProgress.completed_at.isnot(None),
-        func.date(LessonProgress.completed_at) == target_date,
+        _activity_date_expr(LessonProgress.last_activity, LessonProgress.completed_at) == target_date,
     )
     q2 = db.session.query(StudySession.user_id).filter(
         func.date(StudySession.start_time) == target_date,
@@ -84,10 +87,8 @@ def _count_active_users_in_range(start_date, end_date) -> int:
     from app.curriculum.book_courses import BookCourseEnrollment
 
     q1 = db.session.query(LessonProgress.user_id).filter(
-        LessonProgress.status == 'completed',
-        LessonProgress.completed_at.isnot(None),
-        func.date(LessonProgress.completed_at) >= start_date,
-        func.date(LessonProgress.completed_at) <= end_date,
+        _activity_date_expr(LessonProgress.last_activity, LessonProgress.completed_at) >= start_date,
+        _activity_date_expr(LessonProgress.last_activity, LessonProgress.completed_at) <= end_date,
     )
     q2 = db.session.query(StudySession.user_id).filter(
         func.date(StudySession.start_time) >= start_date,

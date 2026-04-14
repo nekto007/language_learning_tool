@@ -174,8 +174,7 @@ def learn_by_module(level_code, module_number):
     """Страница модуля: /learn/a1/module-1/ - показывает список уроков модуля"""
     # Валидация уровня
     level_code_upper = level_code.upper()
-    valid_levels = ['A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2']
-    if level_code_upper not in valid_levels:
+    if not CEFRLevel.query.filter_by(code=level_code_upper).first():
         flash('Уровень не найден', 'error')
         return redirect(url_for('learn.learn_index'))
 
@@ -313,5 +312,4 @@ def lesson_by_id(lesson_id):
         return render_template('curriculum/lessons/empty_content.html', lesson=lesson)
 
     return render_func(lesson)
-
 

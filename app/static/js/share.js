@@ -19,6 +19,22 @@ function shareVia(platform, text, url) {
             );
             break;
 
+        case 'whatsapp':
+            window.open(
+                'https://wa.me/?text=' + encodeURIComponent((text ? text + ' ' : '') + url),
+                '_blank',
+                'width=600,height=400'
+            );
+            break;
+
+        case 'twitter':
+            window.open(
+                'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(url),
+                '_blank',
+                'width=600,height=400'
+            );
+            break;
+
         case 'copy':
             var fullText = text ? text + ' ' + url : url;
             navigator.clipboard.writeText(fullText).then(function() {

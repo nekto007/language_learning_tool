@@ -17,7 +17,7 @@ class StudySession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
 
-    session_type = db.Column(db.String(20), nullable=False)  # 'cards', 'quiz', etc.
+    session_type = db.Column(db.String(20), nullable=False, default='cards')  # 'cards', 'quiz', etc.
     start_time = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     end_time = db.Column(db.DateTime, nullable=True)
 
