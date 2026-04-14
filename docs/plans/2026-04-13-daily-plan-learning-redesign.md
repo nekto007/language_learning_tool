@@ -72,13 +72,13 @@ Build the repair pressure scoring that determines when a Repair mission should o
 - Create: `app/daily_plan/repair_pressure.py`
 - Create: `tests/test_repair_pressure.py`
 
-- [ ] Implement `calculate_repair_pressure(user_id, tz)` returning a pressure score (0.0-1.0) and breakdown
-- [ ] Input signals: overdue SRS count vs threshold, active grammar weak points, recent failure cluster count
-- [ ] Define `REPAIR_THRESHOLD` constant (e.g. 0.6) above which Repair mission triggers
-- [ ] Query overdue SRS items from existing SRS tables
-- [ ] Query grammar weak points from grammar progress tables
-- [ ] Write tests with mocked DB data: no pressure, moderate pressure, high pressure, edge cases
-- [ ] Run project test suite - must pass before task 4
+- [x] Implement `calculate_repair_pressure(user_id, tz)` returning a pressure score (0.0-1.0) and breakdown
+- [x] Input signals: overdue SRS count vs threshold, active grammar weak points, recent failure cluster count
+- [x] Define `REPAIR_THRESHOLD` constant (e.g. 0.6) above which Repair mission triggers
+- [x] Query overdue SRS items from existing SRS tables
+- [x] Query grammar weak points from grammar progress tables
+- [x] Write tests with mocked DB data: no pressure, moderate pressure, high pressure, edge cases
+- [x] Run project test suite - must pass before task 4
 
 ### Task 4: Implement mission selector
 
