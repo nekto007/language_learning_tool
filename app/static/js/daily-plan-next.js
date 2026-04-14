@@ -59,6 +59,8 @@
   var lastShownAt = 0;
   var modalShown = false;
 
+  var isMissionPlan = !!document.querySelector('[data-mission-plan]');
+
   // Listen for completion event from each page's own logic
   document.addEventListener('dailyPlanStepComplete', function(e) {
     // Guard: only fire when event includes {completed: true}
@@ -146,11 +148,14 @@
     var fallbackUrl = dashboardUrl ? dashboardUrl.getAttribute('data-dashboard-url') : '/dashboard';
     var nextUrl = data.step_url || fallbackUrl;
 
+    var modalTitle = isMissionPlan ? '\u042d\u0442\u0430\u043f \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d!' : '\u0428\u0430\u0433 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d!';
+    var nextLabel = isMissionPlan ? '\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u044d\u0442\u0430\u043f' : '\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433';
+
     overlay.innerHTML =
       '<div class="dp-modal">' +
         '<div class="dp-modal__icon">\u2705</div>' +
-        '<div class="dp-modal__title">\u0428\u0430\u0433 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d!</div>' +
-        '<div class="dp-modal__countdown" id="dp-modal-countdown">\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433 \u0447\u0435\u0440\u0435\u0437 ' + countdownSeconds + '...</div>' +
+        '<div class="dp-modal__title">' + escapeHtml(modalTitle) + '</div>' +
+        '<div class="dp-modal__countdown" id="dp-modal-countdown">' + escapeHtml(nextLabel) + ' \u0447\u0435\u0440\u0435\u0437 ' + countdownSeconds + '...</div>' +
         '<a href="' + escapeHtml(nextUrl) + '" class="dp-modal__btn" id="dp-modal-go">\u2192 ' + escapeHtml(data.step_title) + '</a>' +
         '<button class="dp-modal__cancel" id="dp-modal-cancel">\u041e\u0441\u0442\u0430\u0442\u044c\u0441\u044f \u043d\u0430 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435</button>' +
       '</div>';
@@ -166,7 +171,7 @@
         window.location.href = nextUrl;
         return;
       }
-      countdownEl.textContent = '\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433 \u0447\u0435\u0440\u0435\u0437 ' + countdownSeconds + '...';
+      countdownEl.textContent = nextLabel + ' \u0447\u0435\u0440\u0435\u0437 ' + countdownSeconds + '...';
     }, 1000);
 
     // Cancel button
@@ -193,12 +198,13 @@
       if (dotsContainer) dotsContainer.innerHTML = dotsHtml;
 
       var textEl = bar.querySelector('.dp-bar__text');
-      if (textEl) textEl.textContent = '\u0428\u0430\u0433 ' + (done + 1) + ' \u0438\u0437 ' + total;
+      var stepWord = isMissionPlan ? '\u042d\u0442\u0430\u043f' : '\u0428\u0430\u0433';
+      if (textEl) textEl.textContent = stepWord + ' ' + (done + 1) + ' \u0438\u0437 ' + total;
 
       var btnEl = document.getElementById('dp-bar__next');
       if (btnEl) {
         btnEl.href = nextUrl;
-        btnEl.textContent = '\u2192 \u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433';
+        btnEl.textContent = '\u2192 ' + nextLabel;
       }
     }
   }

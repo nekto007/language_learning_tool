@@ -171,13 +171,13 @@ Replace the resource checklist in dashboard template with mission-first renderin
 - Modify: `app/static/css/design-system.css` (minimal additions for mission UI)
 - Create: `tests/test_dashboard_mission_render.py`
 
-- [ ] Add conditional block in dashboard.html: if mission plan present, render mission UI; else render legacy steps
-- [ ] Mission UI shows: mission title + reason line, 3-4 phase cards (sequential, not parallel), one active CTA (current phase), completion statement when done
-- [ ] Phase cards: show phase title and status (pending/active/completed), hide internal content-type names (no "dialogue_completion_quiz" etc.)
-- [ ] Update daily-plan-next.js to handle phase-based progression (next phase instead of next step type)
-- [ ] Motivational wording: no exam/punishment language, check = gentle close, repair = supportive framing
-- [ ] Write template render tests: mission elements present when flag on, legacy elements when flag off, phase states render correctly
-- [ ] Run project test suite - must pass before task 9
+- [x] Add conditional block in dashboard.html: if mission plan present, render mission UI; else render legacy steps
+- [x] Mission UI shows: mission title + reason line, 3-4 phase cards (sequential, not parallel), one active CTA (current phase), completion statement when done
+- [x] Phase cards: show phase title and status (pending/active/completed), hide internal content-type names (no "dialogue_completion_quiz" etc.)
+- [x] Update daily-plan-next.js to handle phase-based progression (next phase instead of next step type)
+- [x] Motivational wording: no exam/punishment language, check = gentle close, repair = supportive framing
+- [x] Write template render tests: mission elements present when flag on, legacy elements when flag off, phase states render correctly
+- [x] Run project test suite - must pass before task 9
 
 ### Task 9: Update Telegram bot plan formatting
 
