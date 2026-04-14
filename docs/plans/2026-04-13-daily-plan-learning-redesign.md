@@ -105,25 +105,25 @@ For each mission type, assemble concrete phases by querying existing content sou
 - Create: `app/daily_plan/assembler.py`
 - Create: `tests/test_mission_assembler.py`
 
-- [ ] Implement `assemble_progress_mission(user_id, primary_source, tz)` -> MissionPlan
+- [x] Implement `assemble_progress_mission(user_id, primary_source, tz)` -> MissionPlan
   - Recall phase: SRS due items or guided vocab recall
   - Learn phase: next lesson from normal_course or book_course
   - Use phase: applied block from course (practice/quiz items)
   - Check phase (optional): micro-check from course
-- [ ] Implement `assemble_repair_mission(user_id, repair_breakdown, tz)` -> MissionPlan
+- [x] Implement `assemble_repair_mission(user_id, repair_breakdown, tz)` -> MissionPlan
   - Recall phase: overdue SRS items
   - Learn phase: target weak grammar point
   - Use phase: targeted quiz
   - Close phase: short success marker
-- [ ] Implement `assemble_reading_mission(user_id, tz)` -> MissionPlan
+- [x] Implement `assemble_reading_mission(user_id, tz)` -> MissionPlan
   - Recall phase: prior scene/chapter vocabulary
   - Read phase: next reading segment from books
   - Use phase: extract/use vocabulary from reading
   - Check phase (optional): meaning prompt
-- [ ] Each assembler validates MissionPlan constraints (3-4 phases, single source)
-- [ ] Add fallback helpers: guided recall when free recall items unavailable, soft close when check source unsafe
-- [ ] Write tests for each mission type assembly, fallback scenarios, validation failures
-- [ ] Run project test suite - must pass before task 6
+- [x] Each assembler validates MissionPlan constraints (3-4 phases, single source)
+- [x] Add fallback helpers: guided recall when free recall items unavailable, soft close when check source unsafe
+- [x] Write tests for each mission type assembly, fallback scenarios, validation failures
+- [x] Run project test suite - must pass before task 6
 
 ### Task 6: Build mission plan service (orchestrator)
 
