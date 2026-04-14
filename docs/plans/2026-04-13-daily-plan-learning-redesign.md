@@ -88,14 +88,14 @@ Rule-based selector that chooses mission type based on user's primary track and 
 - Create: `app/daily_plan/mission_selector.py`
 - Create: `tests/test_mission_selector.py`
 
-- [ ] Implement `detect_primary_track(user_id)` -> SourceKind (normal_course / book_course / books/reading) based on user's active enrollments and progress
-- [ ] Implement `select_mission(user_id, tz)` -> (MissionType, reason_code, reason_text)
-- [ ] Selection priority: (1) if repair pressure >= threshold -> Repair; (2) if primary_track is reading -> Reading; (3) else -> Progress
-- [ ] Add negative conditions: skip mission type if no safe Use phase or no buildable Recall phase for it
-- [ ] Add stability rule: don't switch Progress mission source within same day (cache or check existing today's plan)
-- [ ] Cold start handling: default to Progress from default track or simplest Reading
-- [ ] Write tests for all 3 mission types, priority ordering, cold start, negative conditions
-- [ ] Run project test suite - must pass before task 5
+- [x] Implement `detect_primary_track(user_id)` -> SourceKind (normal_course / book_course / books/reading) based on user's active enrollments and progress
+- [x] Implement `select_mission(user_id, tz)` -> (MissionType, reason_code, reason_text)
+- [x] Selection priority: (1) if repair pressure >= threshold -> Repair; (2) if primary_track is reading -> Reading; (3) else -> Progress
+- [x] Add negative conditions: skip mission type if no safe Use phase or no buildable Recall phase for it
+- [x] Add stability rule: don't switch Progress mission source within same day (cache or check existing today's plan)
+- [x] Cold start handling: default to Progress from default track or simplest Reading
+- [x] Write tests for all 3 mission types, priority ordering, cold start, negative conditions
+- [x] Run project test suite - must pass before task 5
 
 ### Task 5: Build mission assembler (phase builder per mission type)
 
