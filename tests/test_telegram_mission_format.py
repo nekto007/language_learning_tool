@@ -230,10 +230,13 @@ class TestFormatMissionMorningReminder:
 class TestLegacyFormatUnchanged:
     """Verify that legacy plan (without mission key) is not affected."""
 
-    def test_legacy_plan_has_no_mission_key(self):
+    def test_format_mission_plan_text_handles_legacy_gracefully(self):
         legacy_plan = {
             'next_lesson': {'lesson_id': 1, 'title': 'Test', 'module_number': 1},
             'grammar_topic': None,
             'words_due': 5,
         }
         assert 'mission' not in legacy_plan
+        text = format_mission_plan_text(legacy_plan)
+        assert 'План на сегодня' in text
+        assert '0/0' in text

@@ -380,7 +380,7 @@ def dashboard():
     t_elapsed = time.time() - t_start
     logger.info("Dashboard data loaded in %.3fs for user_id=%s", t_elapsed, current_user.id)
 
-    mission_plan = daily_plan if daily_plan.get('plan_version') else None
+    mission_plan = daily_plan if daily_plan.get('mission') else None
 
     return render_template('dashboard.html',
         # Daily plan

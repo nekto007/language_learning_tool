@@ -168,8 +168,9 @@ class TestDashboardMissionRender:
         plan = _make_mission_plan('progress', [False, False, False])
         response = self._get_dashboard(client, test_user, plan)
         html = response.data.decode('utf-8')
-        for internal_name in ['dialogue_completion_quiz', 'normal_course', 'grammar_lab', 'srs']:
-            assert internal_name not in html or internal_name in str(response.data)
+        visible_text_markers = ['dialogue_completion_quiz']
+        for internal_name in visible_text_markers:
+            assert internal_name not in html, f"Internal name '{internal_name}' leaked into dashboard HTML"
         assert 'source_kind' not in html
 
     def test_four_phases_rendered(self, client, app, db_session, test_user, words_module_access):

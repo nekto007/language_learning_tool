@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import func, distinct
+from sqlalchemy import func
 
 from app.utils.db import db
 from app.curriculum.models import LessonProgress, Lessons, Module
@@ -38,6 +38,7 @@ def _count_srs_due(user_id: int) -> int:
         .join(UserWord)
         .filter(
             UserWord.user_id == user_id,
+            UserCardDirection.state.in_(('review', 'relearning')),
             UserCardDirection.next_review <= now,
             UserCardDirection.direction == 'eng-rus',
         )
@@ -71,10 +72,11 @@ def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
                 next_l = Lessons.query.filter(
                     Lessons.module_id == module.id,
                     Lessons.order > lesson.order,
-                ).order_by(Lessons.number).first()
+                ).order_by(Lessons.order).first()
 
                 if not next_l:
                     next_module = Module.query.filter(
+                        Module.level_id == module.level_id,
                         Module.number == module.number + 1,
                     ).first()
                     if next_module:
@@ -143,14 +145,14 @@ def _find_next_book_course_lesson(user_id: int) -> Optional[dict[str, Any]]:
 
 
 def _find_next_book(user_id: int) -> Optional[dict[str, Any]]:
-    started_book_ids = [
-        r[0] for r in db.session.query(distinct(Chapter.book_id)).join(
-            UserChapterProgress, UserChapterProgress.chapter_id == Chapter.id,
-        ).filter(UserChapterProgress.user_id == user_id).all()
-    ]
+    most_recent = db.session.query(Chapter.book_id).join(
+        UserChapterProgress, UserChapterProgress.chapter_id == Chapter.id,
+    ).filter(
+        UserChapterProgress.user_id == user_id,
+    ).order_by(UserChapterProgress.updated_at.desc()).first()
 
-    if started_book_ids:
-        book = Book.query.get(started_book_ids[0])
+    if most_recent:
+        book = Book.query.get(most_recent[0])
         if book:
             return {'title': book.title, 'id': book.id}
 
@@ -173,9 +175,6 @@ def _find_weak_grammar_topic(user_id: int) -> Optional[dict[str, Any]]:
         if topic:
             return {'title': topic.title, 'topic_id': topic.id}
 
-    first = GrammarTopic.query.order_by(GrammarTopic.order).first()
-    if first:
-        return {'title': first.title, 'topic_id': first.id}
     return None
 
 
