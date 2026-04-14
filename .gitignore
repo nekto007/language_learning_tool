@@ -361,6 +361,7 @@ coverage*.json
 # Local backups and exports
 module_backups/
 local_exports/
+local_archive/
 missing_lessons.json
 flashcards_all.csv
 first.csv
