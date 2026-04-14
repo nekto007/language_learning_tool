@@ -196,16 +196,16 @@ Adapt Telegram bot daily plan display to mission format when flag is active.
 
 ### Task 10: Verify acceptance criteria
 
-- [ ] Run full test suite: `pytest`
-- [ ] Run smoke tests: `pytest -m smoke`
-- [ ] Verify: each daily plan has exactly 1 mission, 1 primary source, 3-4 phases (when flag on)
-- [ ] Verify: user does not see site sections as peer-level daily blocks
-- [ ] Verify: Progress mission does not mix normal_course + book_course + books
-- [ ] Verify: SRS is not identity of the day outside Repair mission
-- [ ] Verify: Books do not appear as "another block" inside Progress mission
-- [ ] Verify: fallback to legacy plan works when mission cannot be built
-- [ ] Verify: old consumers get backward-compatible fields via legacy block
-- [ ] Verify: feature flag correctly routes between old and new plan
+- [x] Run full test suite: `pytest`
+- [x] Run smoke tests: `pytest -m smoke`
+- [x] Verify: each daily plan has exactly 1 mission, 1 primary source, 3-4 phases (when flag on)
+- [x] Verify: user does not see site sections as peer-level daily blocks
+- [x] Verify: Progress mission does not mix normal_course + book_course + books
+- [x] Verify: SRS is not identity of the day outside Repair mission
+- [x] Verify: Books do not appear as "another block" inside Progress mission
+- [x] Verify: fallback to legacy plan works when mission cannot be built
+- [x] Verify: old consumers get backward-compatible fields via legacy block
+- [x] Verify: feature flag correctly routes between old and new plan
 
 ### Task 11: Update documentation
 
