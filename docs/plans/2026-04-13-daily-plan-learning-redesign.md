@@ -133,17 +133,17 @@ Top-level service that ties selector + assembler + fallback into a single `get_m
 - Create: `app/daily_plan/service.py`
 - Create: `tests/test_daily_mission_service.py`
 
-- [ ] Implement `get_mission_plan(user_id, tz)` -> dict (JSON-serializable mission payload)
+- [x] Implement `get_mission_plan(user_id, tz)` -> dict (JSON-serializable mission payload)
   - Calls `select_mission()` to pick mission type
   - Calls appropriate `assemble_*_mission()` to build phases
   - Converts MissionPlan to dict matching the v1 payload schema from the product doc
   - Includes `legacy` block with backward-compatible flat keys (next_lesson, grammar_topic, words_due, etc.)
-- [ ] Implement fallback: if assembly fails or produces invalid plan, return legacy plan from `get_daily_plan_v2()`
-- [ ] Implement `get_daily_plan_unified(user_id, tz)` that checks `user.use_mission_plan` flag:
+- [x] Implement fallback: if assembly fails or produces invalid plan, return legacy plan from `get_daily_plan_v2()`
+- [x] Implement `get_daily_plan_unified(user_id, tz)` that checks `user.use_mission_plan` flag:
   - If True: call `get_mission_plan()`
   - If False: call existing `get_daily_plan_v2()`
-- [ ] Write tests: happy path for each mission type, fallback on assembly failure, flag routing
-- [ ] Run project test suite - must pass before task 7
+- [x] Write tests: happy path for each mission type, fallback on assembly failure, flag routing
+- [x] Run project test suite - must pass before task 7
 
 ### Task 7: Integrate mission plan into API and dashboard route
 
