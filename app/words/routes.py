@@ -157,7 +157,8 @@ def dashboard():
     from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
     from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
     from app.telegram.models import TelegramUser
-    from app.telegram.queries import get_daily_plan_v2, get_current_streak, get_daily_summary
+    from app.daily_plan.service import get_daily_plan_unified
+    from app.telegram.queries import get_current_streak, get_daily_summary
     from app.telegram.notifications import _lesson_minutes, _words_minutes
     from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses, get_best_study_time, get_reading_speed_trend
     from app.grammar_lab.services.grammar_lab_service import GrammarLabService
@@ -167,7 +168,7 @@ def dashboard():
 
     # === DAILY PLAN & STREAK ===
     streak = get_current_streak(current_user.id)
-    daily_plan = get_daily_plan_v2(current_user.id)
+    daily_plan = get_daily_plan_unified(current_user.id)
     daily_summary = get_daily_summary(current_user.id)
 
     # Time-based greeting
@@ -379,6 +380,8 @@ def dashboard():
     t_elapsed = time.time() - t_start
     logger.info("Dashboard data loaded in %.3fs for user_id=%s", t_elapsed, current_user.id)
 
+    mission_plan = daily_plan if daily_plan.get('plan_version') else None
+
     return render_template('dashboard.html',
         # Daily plan
         greeting=greeting,
@@ -390,6 +393,7 @@ def dashboard():
         yesterday_summary=yesterday_summary,
         plan_completion=plan_completion,
         plan_steps=daily_plan.get('steps', {}),
+        mission_plan=mission_plan,
         cards_url=cards_url,
         lesson_minutes=lesson_minutes,
         words_minutes=words_minutes,
@@ -715,11 +719,56 @@ def phrasal_verb_list():
 @login_required
 def daily_plan_next_step() -> tuple:
     """Return the next incomplete step from today's daily plan."""
-    from app.telegram.queries import get_daily_plan, get_daily_summary
+    from app.daily_plan.service import get_daily_plan_unified
+    from app.telegram.queries import get_daily_summary
 
-    daily_plan = get_daily_plan(current_user.id)
+    daily_plan = get_daily_plan_unified(current_user.id)
+
+    if daily_plan.get('phases'):
+        return _next_step_from_mission(daily_plan)
+
     daily_summary = get_daily_summary(current_user.id)
+    return _next_step_from_legacy(daily_plan, daily_summary)
 
+
+def _next_step_from_mission(plan: dict) -> tuple:
+    """Return next incomplete phase from mission plan."""
+    phases = plan['phases']
+    phases_done = sum(1 for p in phases if p.get('completed'))
+    phases_total = len(phases)
+
+    next_phase = next((p for p in phases if not p.get('completed')), None)
+
+    if not next_phase:
+        return jsonify({
+            'has_next': False,
+            'all_done': True,
+            'steps_done': phases_done,
+            'steps_total': phases_total,
+        })
+
+    PHASE_ICONS = {
+        'recall': '\U0001f504',
+        'learn': '\U0001f3af',
+        'use': '\U0001f9e0',
+        'read': '\U0001f4d5',
+        'check': '\u2705',
+        'close': '\U0001f3c1',
+    }
+
+    return jsonify({
+        'has_next': True,
+        'step_type': next_phase['phase'],
+        'step_title': next_phase['title'],
+        'step_url': None,
+        'step_icon': PHASE_ICONS.get(next_phase['phase'], '\U0001f4cc'),
+        'steps_done': phases_done,
+        'steps_total': phases_total,
+    })
+
+
+def _next_step_from_legacy(daily_plan: dict, daily_summary: dict) -> tuple:
+    """Return next incomplete step from legacy flat plan."""
     plan_completion = {
         'lesson': daily_summary['lessons_count'] > 0,
         'grammar': daily_summary['grammar_exercises'] > 0,
@@ -728,7 +777,6 @@ def daily_plan_next_step() -> tuple:
         'books': len(daily_summary.get('books_read', [])) > 0,
     }
 
-    # Build ordered list of steps that exist in today's plan
     steps: list[dict] = []
 
     if daily_plan.get('next_lesson'):
@@ -780,7 +828,6 @@ def daily_plan_next_step() -> tuple:
     steps_done = sum(1 for s in steps if s['done'])
     steps_total = len(steps)
 
-    # Find first incomplete step
     next_step = next((s for s in steps if not s['done']), None)
 
     if not next_step:

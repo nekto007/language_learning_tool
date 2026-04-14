@@ -38,8 +38,16 @@ def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dic
     Returns (plan_completion, steps_available, steps_done, steps_total).
     Single source of truth — used by dashboard route, API, and bot.
 
-    Supports both new format (with 'steps' dict) and legacy flat format.
+    Supports mission phases format, new step-state format, and legacy flat format.
     """
+    phases = daily_plan.get('phases')
+    if phases:
+        plan_completion = {p['id']: p.get('completed', False) for p in phases}
+        steps_available = {p['id']: True for p in phases}
+        steps_done = sum(1 for p in phases if p.get('completed', False))
+        steps_total = len(phases)
+        return plan_completion, steps_available, steps_done, steps_total
+
     steps = daily_plan.get('steps')
 
     if steps:

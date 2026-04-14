@@ -154,12 +154,12 @@ Wire the new mission plan service into existing API endpoints and dashboard rout
 - Modify: `app/words/routes.py` (dashboard route, next-step endpoint)
 - Create: `tests/test_daily_mission_api.py`
 
-- [ ] In `app/api/daily_plan.py`: modify `/daily-status` and `/daily-plan` endpoints to call `get_daily_plan_unified()` instead of `get_daily_plan_v2()`
-- [ ] In `app/words/routes.py`: modify `dashboard()` route to call `get_daily_plan_unified()` and pass mission data to template
-- [ ] Modify `daily_plan_next_step()` to work with mission phases when flag is on (map phase completion to next phase)
-- [ ] Ensure `compute_plan_steps()` in streak_service works with both old steps dict and new mission phases
-- [ ] Write integration tests: API returns mission payload when flag on, legacy payload when flag off
-- [ ] Run project test suite - must pass before task 8
+- [x] In `app/api/daily_plan.py`: modify `/daily-status` and `/daily-plan` endpoints to call `get_daily_plan_unified()` instead of `get_daily_plan_v2()`
+- [x] In `app/words/routes.py`: modify `dashboard()` route to call `get_daily_plan_unified()` and pass mission data to template
+- [x] Modify `daily_plan_next_step()` to work with mission phases when flag is on (map phase completion to next phase)
+- [x] Ensure `compute_plan_steps()` in streak_service works with both old steps dict and new mission phases
+- [x] Write integration tests: API returns mission payload when flag on, legacy payload when flag off
+- [x] Run project test suite - must pass before task 8
 
 ### Task 8: Build mission-based dashboard UI
 
