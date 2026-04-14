@@ -80,3 +80,16 @@ function shareVia(platform, text, url) {
             }
     }
 }
+
+document.addEventListener('click', function(event) {
+    var button = event.target.closest('.share-btn[data-platform]');
+    if (!button) {
+        return;
+    }
+
+    shareVia(
+        button.dataset.platform || '',
+        button.dataset.shareText || '',
+        button.dataset.shareUrl || window.location.href
+    );
+});
