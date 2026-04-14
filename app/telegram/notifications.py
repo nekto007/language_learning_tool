@@ -492,6 +492,95 @@ def format_weekly_report(report: dict[str, Any], site_url: str) -> str:
     return '\n'.join(lines)
 
 
+_PHASE_EMOJI: dict[str, str] = {
+    'recall': '\U0001f9e0',
+    'learn': '\U0001f4da',
+    'use': '\u270d\ufe0f',
+    'read': '\U0001f4d6',
+    'check': '\u2705',
+    'close': '\U0001f3c1',
+}
+
+_MISSION_EMOJI: dict[str, str] = {
+    'progress': '\U0001f680',
+    'repair': '\U0001f527',
+    'reading': '\U0001f4d6',
+}
+
+
+def format_mission_plan_text(plan: dict[str, Any]) -> str:
+    """Format mission-based plan for Telegram display.
+
+    Returns formatted text with mission title, reason, numbered phases,
+    and completion status.
+    """
+    mission = plan.get('mission', {})
+    phases = plan.get('phases', [])
+
+    mission_type = mission.get('type', 'progress')
+    mission_emoji = _MISSION_EMOJI.get(mission_type, '\U0001f4cb')
+    title = mission.get('title', 'План на сегодня')
+    reason = mission.get('reason_text', '')
+
+    done_count = sum(1 for p in phases if p.get('completed'))
+    total_count = len(phases)
+
+    lines = [f'{mission_emoji} {title} ({done_count}/{total_count})', '']
+
+    if reason:
+        lines.append(reason)
+        lines.append('')
+
+    for i, phase in enumerate(phases, 1):
+        phase_kind = phase.get('phase', '')
+        completed = phase.get('completed', False)
+        phase_title = phase.get('title', '')
+
+        if completed:
+            status = '\u2705'
+        elif i == 1 or (i > 1 and phases[i - 2].get('completed')):
+            status = '\u25b6\ufe0f'
+        else:
+            status = '\u2b1c'
+
+        phase_emoji = _PHASE_EMOJI.get(phase_kind, '\U0001f539')
+        lines.append(f'{status} {i}. {phase_emoji} {phase_title}')
+
+    if done_count == total_count and total_count > 0:
+        lines.append('')
+        completion = plan.get('completion', {}) or {}
+        message = completion.get('message', 'Миссия выполнена! Отличная работа \U0001f389')
+        lines.append(message)
+
+    return '\n'.join(lines)
+
+
+def format_mission_morning_reminder(user_name: str, streak: int,
+                                     plan: dict[str, Any],
+                                     site_url: str) -> tuple[str, dict | None]:
+    """Format morning reminder for mission-based plan.
+
+    Returns (text, reply_markup) tuple.
+    """
+    lines = [f'Доброе утро, {user_name} \U0001f642', '']
+
+    if streak > 0:
+        lines.append(f'\U0001f525 {streak} дней подряд \u2014 отличный темп!')
+        lines.append('')
+
+    lines.append(format_mission_plan_text(plan))
+
+    buttons: list[list[dict]] = []
+    if site_url:
+        buttons.append([{
+            'text': '\U0001f3af Начать занятие',
+            'url': f'{site_url}/study?from=telegram',
+        }])
+
+    reply_markup = {'inline_keyboard': buttons} if buttons else None
+    return '\n'.join(lines), reply_markup
+
+
 def format_word_of_day(word_data: dict, site_url: str) -> tuple[str, dict | None]:
     """Format Word of the Day message for Telegram.
 

@@ -188,11 +188,11 @@ Adapt Telegram bot daily plan display to mission format when flag is active.
 - Modify: `app/telegram/bot.py` or relevant handler file
 - Create: `tests/test_telegram_mission_format.py`
 
-- [ ] Add `get_daily_plan_for_telegram(user_id, tz)` that returns formatted mission text when flag on, legacy format when off
-- [ ] Mission format for Telegram: mission title, reason, numbered phases with status emoji, completion status
-- [ ] Ensure backward compatibility: old Telegram message format unchanged when flag off
-- [ ] Write tests for both flag states, all 3 mission types formatted correctly
-- [ ] Run project test suite - must pass before task 10
+- [x] Add `get_daily_plan_for_telegram(user_id, tz)` that returns formatted mission text when flag on, legacy format when off
+- [x] Mission format for Telegram: mission title, reason, numbered phases with status emoji, completion status
+- [x] Ensure backward compatibility: old Telegram message format unchanged when flag off
+- [x] Write tests for both flag states, all 3 mission types formatted correctly
+- [x] Run project test suite - must pass before task 10
 
 ### Task 10: Verify acceptance criteria
 
