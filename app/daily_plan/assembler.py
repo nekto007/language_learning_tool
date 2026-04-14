@@ -210,6 +210,7 @@ def assemble_progress_mission(
     primary_source: SourceKind,
     tz: Optional[str] = None,
 ) -> Optional[MissionPlan]:
+    """Build Progress mission: Recall → Learn (next lesson) → Use (practice) → optional Check."""
     srs_due = _count_srs_due(user_id)
 
     if primary_source == SourceKind.book_course:
@@ -321,6 +322,7 @@ def assemble_repair_mission(
     repair_breakdown: RepairBreakdown,
     tz: Optional[str] = None,
 ) -> Optional[MissionPlan]:
+    """Build Repair mission: Recall (overdue SRS) → Learn (weak grammar/vocab) → Use (quiz) → Close."""
     srs_due = _count_srs_due(user_id)
     grammar_due = _count_grammar_due(user_id)
 
@@ -392,6 +394,7 @@ def assemble_reading_mission(
     user_id: int,
     tz: Optional[str] = None,
 ) -> Optional[MissionPlan]:
+    """Build Reading mission: Recall (book vocab) → Read (next chapter) → Use (new words) → optional Check."""
     book = _find_next_book(user_id)
     if not book:
         return None

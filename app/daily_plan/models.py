@@ -7,12 +7,14 @@ from typing import Any, Optional
 
 
 class MissionType(enum.Enum):
+    """progress = advance in primary course, repair = fix weak spots (SRS/grammar), reading = book-first session."""
     progress = "progress"
     repair = "repair"
     reading = "reading"
 
 
 class PhaseKind(enum.Enum):
+    """Canonical learning phases: recall → learn → use/read → check/close."""
     recall = "recall"
     learn = "learn"
     use = "use"
@@ -65,6 +67,7 @@ class PrimarySource:
 
 @dataclass
 class MissionPlan:
+    """Top-level daily plan: 1 mission + 1 source + 3-4 sequential phases. Legacy dict preserves backward compat."""
     plan_version: str
     mission: Mission
     primary_goal: PrimaryGoal

@@ -55,6 +55,7 @@ def _is_reading_track(track: Optional[SourceKind]) -> bool:
 def select_mission(
     user_id: int, tz: Optional[str] = None
 ) -> tuple[MissionType, str, str]:
+    """Pick mission type: (1) Repair if pressure >= 0.6, (2) Reading if primary track is books, (3) Progress otherwise."""
     pressure = calculate_repair_pressure(user_id, tz)
     if pressure.total_score >= REPAIR_THRESHOLD:
         return (

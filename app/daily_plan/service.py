@@ -62,6 +62,7 @@ def _mission_plan_to_dict(plan: MissionPlan) -> dict[str, Any]:
 
 
 def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[str, Any]]:
+    """Select mission type → assemble phases → return JSON-serializable dict. Returns None on failure (caller falls back to legacy)."""
     try:
         mission_type, reason_code, reason_text = select_mission(user_id, tz)
 
@@ -90,6 +91,7 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
 
 
 def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, Any]:
+    """Entry point: returns mission plan if user.use_mission_plan is True, otherwise legacy get_daily_plan_v2()."""
     from app.auth.models import User
 
     user = User.query.get(user_id)

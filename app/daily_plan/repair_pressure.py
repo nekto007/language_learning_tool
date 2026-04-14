@@ -105,6 +105,7 @@ def _count_failure_clusters(user_id: int, tz: Optional[str] = None) -> int:
 def calculate_repair_pressure(
     user_id: int, tz: Optional[str] = None
 ) -> RepairBreakdown:
+    """Weighted score (0-1): 50% overdue SRS + 30% grammar weak points + 20% recent failure clusters."""
     overdue = _count_overdue_srs(user_id)
     weak = _count_grammar_weak_points(user_id)
     failures = _count_failure_clusters(user_id, tz)
