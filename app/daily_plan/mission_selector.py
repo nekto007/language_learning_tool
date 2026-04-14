@@ -10,7 +10,7 @@ from app.curriculum.book_courses import BookCourseEnrollment
 from app.books.models import UserChapterProgress
 
 from app.daily_plan.models import MissionType, SourceKind
-from app.daily_plan.repair_pressure import REPAIR_THRESHOLD, calculate_repair_pressure
+from app.daily_plan.repair_pressure import REPAIR_THRESHOLD, RepairBreakdown, calculate_repair_pressure
 
 
 def _has_active_book_course(user_id: int) -> bool:
@@ -54,14 +54,15 @@ def _is_reading_track(track: Optional[SourceKind]) -> bool:
 
 def select_mission(
     user_id: int, tz: Optional[str] = None
-) -> tuple[MissionType, str, str]:
-    """Pick mission type: (1) Repair if pressure >= 0.6, (2) Reading if primary track is books, (3) Progress otherwise."""
+) -> tuple[MissionType, str, str, Optional[RepairBreakdown]]:
+    """Pick mission type: (1) Repair if pressure >= 0.6, (2) Reading if primary track is books, (3) Progress otherwise. Returns (type, reason_code, reason_text, repair_breakdown_or_None)."""
     pressure = calculate_repair_pressure(user_id, tz)
     if pressure.total_score >= REPAIR_THRESHOLD:
         return (
             MissionType.repair,
             "repair_pressure_high",
             "У тебя накопились слабые места — давай укрепим основу",
+            pressure,
         )
 
     track = detect_primary_track(user_id)
@@ -71,6 +72,7 @@ def select_mission(
             MissionType.reading,
             "primary_track_reading",
             "Продолжим чтение — это твой основной трек",
+            None,
         )
 
     if track is not None:
@@ -78,10 +80,12 @@ def select_mission(
             MissionType.progress,
             "primary_track_progress",
             "Двигаемся вперёд по курсу",
+            None,
         )
 
     return (
         MissionType.progress,
         "cold_start",
         "Начни с первого урока — всё впереди!",
+        None,
     )

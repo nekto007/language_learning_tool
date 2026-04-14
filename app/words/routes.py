@@ -731,7 +731,7 @@ def daily_plan_next_step() -> tuple:
     return _next_step_from_legacy(daily_plan, daily_summary)
 
 
-def _next_step_from_mission(plan: dict) -> tuple:
+def _next_step_from_mission(plan: dict):
     """Return next incomplete phase from mission plan."""
     phases = plan['phases']
     phases_done = sum(1 for p in phases if p.get('completed'))
@@ -760,7 +760,7 @@ def _next_step_from_mission(plan: dict) -> tuple:
         'has_next': True,
         'step_type': next_phase['phase'],
         'step_title': next_phase['title'],
-        'step_url': None,
+        'step_url': '/dashboard',
         'step_icon': PHASE_ICONS.get(next_phase['phase'], '\U0001f4cc'),
         'steps_done': phases_done,
         'steps_total': phases_total,

@@ -144,7 +144,7 @@ class TestMissionPlanToDict:
 class TestGetMissionPlan:
     @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
     @patch(f"{MODULE}.assemble_progress_mission")
-    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "primary_track_progress", "Вперёд"))
+    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "primary_track_progress", "Вперёд", None))
     def test_progress_happy_path(self, _sel, mock_asm, _track):
         mock_asm.return_value = _make_progress_plan()
         result = get_mission_plan(1)
@@ -153,19 +153,19 @@ class TestGetMissionPlan:
         assert result['plan_version'] == '1'
         mock_asm.assert_called_once_with(1, SourceKind.normal_course, None)
 
-    @patch(f"{MODULE}.calculate_repair_pressure")
     @patch(f"{MODULE}.assemble_repair_mission")
-    @patch(f"{MODULE}.select_mission", return_value=(MissionType.repair, "repair_pressure_high", "Слабые места"))
-    def test_repair_happy_path(self, _sel, mock_asm, mock_pressure):
-        mock_pressure.return_value = _high_breakdown()
+    @patch(f"{MODULE}.select_mission")
+    def test_repair_happy_path(self, mock_sel, mock_asm):
+        breakdown = _high_breakdown()
+        mock_sel.return_value = (MissionType.repair, "repair_pressure_high", "Слабые места", breakdown)
         mock_asm.return_value = _make_repair_plan()
         result = get_mission_plan(1)
         assert result is not None
         assert result['mission']['type'] == 'repair'
-        mock_asm.assert_called_once()
+        mock_asm.assert_called_once_with(1, breakdown, None)
 
     @patch(f"{MODULE}.assemble_reading_mission")
-    @patch(f"{MODULE}.select_mission", return_value=(MissionType.reading, "primary_track_reading", "Чтение"))
+    @patch(f"{MODULE}.select_mission", return_value=(MissionType.reading, "primary_track_reading", "Чтение", None))
     def test_reading_happy_path(self, _sel, mock_asm):
         mock_asm.return_value = _make_reading_plan()
         result = get_mission_plan(1)
@@ -174,7 +174,7 @@ class TestGetMissionPlan:
 
     @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
     @patch(f"{MODULE}.assemble_progress_mission", return_value=None)
-    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "cold_start", "Start"))
+    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "cold_start", "Start", None))
     def test_assembly_returns_none(self, _sel, _asm, _track):
         result = get_mission_plan(1)
         assert result is None
@@ -186,7 +186,7 @@ class TestGetMissionPlan:
 
     @patch(f"{MODULE}.detect_primary_track", return_value=None)
     @patch(f"{MODULE}.assemble_progress_mission")
-    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "cold_start", "Start"))
+    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "cold_start", "Start", None))
     def test_no_track_defaults_to_normal_course(self, _sel, mock_asm, _track):
         mock_asm.return_value = _make_progress_plan()
         get_mission_plan(1)
@@ -194,7 +194,7 @@ class TestGetMissionPlan:
 
     @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.book_course)
     @patch(f"{MODULE}.assemble_progress_mission")
-    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "primary_track_progress", "Вперёд"))
+    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "primary_track_progress", "Вперёд", None))
     def test_book_course_track_passed_to_assembler(self, _sel, mock_asm, _track):
         mock_asm.return_value = _make_progress_plan()
         get_mission_plan(1)
@@ -202,7 +202,7 @@ class TestGetMissionPlan:
 
     @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.books)
     @patch(f"{MODULE}.assemble_progress_mission")
-    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "cold_start", "Start"))
+    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "cold_start", "Start", None))
     def test_books_track_falls_back_to_normal_course(self, _sel, mock_asm, _track):
         mock_asm.return_value = _make_progress_plan()
         get_mission_plan(1)

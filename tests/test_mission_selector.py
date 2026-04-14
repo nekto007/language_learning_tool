@@ -105,10 +105,11 @@ class TestSelectMission:
         mock_pressure.return_value = _high_pressure()
         mock_track.return_value = SourceKind.normal_course
 
-        mission_type, reason_code, reason_text = select_mission(1)
+        mission_type, reason_code, reason_text, breakdown = select_mission(1)
 
         assert mission_type == MissionType.repair
         assert reason_code == "repair_pressure_high"
+        assert breakdown is not None
         mock_track.assert_not_called()
 
     @patch(f"{MODULE}.calculate_repair_pressure")
@@ -116,7 +117,7 @@ class TestSelectMission:
     def test_repair_at_exact_threshold(self, mock_track, mock_pressure):
         mock_pressure.return_value = _threshold_pressure()
 
-        mission_type, reason_code, _ = select_mission(1)
+        mission_type, reason_code, _, _ = select_mission(1)
 
         assert mission_type == MissionType.repair
         assert reason_code == "repair_pressure_high"
@@ -127,7 +128,7 @@ class TestSelectMission:
         mock_pressure.return_value = _low_pressure()
         mock_track.return_value = SourceKind.books
 
-        mission_type, reason_code, _ = select_mission(1)
+        mission_type, reason_code, _, _ = select_mission(1)
 
         assert mission_type == MissionType.reading
         assert reason_code == "primary_track_reading"
@@ -138,7 +139,7 @@ class TestSelectMission:
         mock_pressure.return_value = _low_pressure()
         mock_track.return_value = SourceKind.normal_course
 
-        mission_type, reason_code, _ = select_mission(1)
+        mission_type, reason_code, _, _ = select_mission(1)
 
         assert mission_type == MissionType.progress
         assert reason_code == "primary_track_progress"
@@ -149,7 +150,7 @@ class TestSelectMission:
         mock_pressure.return_value = _low_pressure()
         mock_track.return_value = SourceKind.book_course
 
-        mission_type, reason_code, _ = select_mission(1)
+        mission_type, reason_code, _, _ = select_mission(1)
 
         assert mission_type == MissionType.progress
         assert reason_code == "primary_track_progress"
@@ -160,7 +161,7 @@ class TestSelectMission:
         mock_pressure.return_value = _low_pressure()
         mock_track.return_value = None
 
-        mission_type, reason_code, _ = select_mission(1)
+        mission_type, reason_code, _, _ = select_mission(1)
 
         assert mission_type == MissionType.progress
         assert reason_code == "cold_start"
@@ -171,7 +172,7 @@ class TestSelectMission:
         mock_pressure.return_value = _high_pressure()
         mock_track.return_value = SourceKind.books
 
-        mission_type, _, _ = select_mission(1)
+        mission_type, _, _, _ = select_mission(1)
 
         assert mission_type == MissionType.repair
 
@@ -181,23 +182,24 @@ class TestSelectMission:
         mock_pressure.return_value = _just_below_threshold()
         mock_track.return_value = SourceKind.normal_course
 
-        mission_type, _, _ = select_mission(1)
+        mission_type, _, _, _ = select_mission(1)
 
         assert mission_type == MissionType.progress
 
     @patch(f"{MODULE}.calculate_repair_pressure")
     @patch(f"{MODULE}.detect_primary_track")
-    def test_returns_tuple_of_three(self, mock_track, mock_pressure):
+    def test_returns_tuple_of_four(self, mock_track, mock_pressure):
         mock_pressure.return_value = _low_pressure()
         mock_track.return_value = SourceKind.normal_course
 
         result = select_mission(1)
 
         assert isinstance(result, tuple)
-        assert len(result) == 3
+        assert len(result) == 4
         assert isinstance(result[0], MissionType)
         assert isinstance(result[1], str)
         assert isinstance(result[2], str)
+        assert result[3] is None
 
     @patch(f"{MODULE}.calculate_repair_pressure")
     @patch(f"{MODULE}.detect_primary_track")
@@ -215,11 +217,11 @@ class TestSelectMission:
         mock_pressure.return_value = _low_pressure()
         for track in [None, SourceKind.normal_course, SourceKind.books]:
             mock_track.return_value = track
-            _, _, reason_text = select_mission(1)
+            _, _, reason_text, _ = select_mission(1)
             assert len(reason_text) > 0
 
         mock_pressure.return_value = _high_pressure()
-        _, _, reason_text = select_mission(1)
+        _, _, reason_text, _ = select_mission(1)
         assert len(reason_text) > 0
 
 
@@ -230,7 +232,7 @@ class TestSelectMissionPriority:
         mock_pressure.return_value = _high_pressure()
         mock_track.return_value = SourceKind.books
 
-        t, _, _ = select_mission(1)
+        t, _, _, _ = select_mission(1)
         assert t == MissionType.repair
 
     @patch(f"{MODULE}.calculate_repair_pressure")
@@ -239,7 +241,7 @@ class TestSelectMissionPriority:
         mock_pressure.return_value = _low_pressure()
         mock_track.return_value = SourceKind.books
 
-        t, _, _ = select_mission(1)
+        t, _, _, _ = select_mission(1)
         assert t == MissionType.reading
 
     @patch(f"{MODULE}.calculate_repair_pressure")
@@ -248,5 +250,5 @@ class TestSelectMissionPriority:
         mock_pressure.return_value = _low_pressure()
         mock_track.return_value = SourceKind.book_course
 
-        t, _, _ = select_mission(1)
+        t, _, _, _ = select_mission(1)
         assert t == MissionType.progress

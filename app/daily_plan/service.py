@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict
 from typing import Any, Optional
 
 from app.daily_plan.models import MissionPlan, MissionType, SourceKind
@@ -11,7 +10,6 @@ from app.daily_plan.assembler import (
     assemble_reading_mission,
     assemble_repair_mission,
 )
-from app.daily_plan.repair_pressure import calculate_repair_pressure
 
 logger = logging.getLogger(__name__)
 
@@ -67,13 +65,12 @@ def _mission_plan_to_dict(plan: MissionPlan) -> dict[str, Any]:
 def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[str, Any]]:
     """Select mission type → assemble phases → return JSON-serializable dict. Returns None on failure (caller falls back to legacy)."""
     try:
-        mission_type, reason_code, reason_text = select_mission(user_id, tz)
+        mission_type, reason_code, reason_text, repair_breakdown = select_mission(user_id, tz)
 
         plan: Optional[MissionPlan] = None
 
         if mission_type == MissionType.repair:
-            breakdown = calculate_repair_pressure(user_id, tz)
-            plan = assemble_repair_mission(user_id, breakdown, tz)
+            plan = assemble_repair_mission(user_id, repair_breakdown, tz)
 
         elif mission_type == MissionType.reading:
             plan = assemble_reading_mission(user_id, tz)
