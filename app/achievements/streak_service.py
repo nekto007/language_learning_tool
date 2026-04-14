@@ -42,11 +42,17 @@ def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dic
     """
     phases = daily_plan.get('phases')
     if phases:
-        plan_completion = {p['id']: p.get('completed', False) for p in phases}
-        steps_available = {p['id']: True for p in phases}
-        steps_done = sum(1 for p in phases if p.get('completed', False))
-        steps_total = len(phases)
-        return plan_completion, steps_available, steps_done, steps_total
+        any_completed = any(p.get('completed', False) for p in phases)
+        if any_completed:
+            plan_completion = {p['id']: p.get('completed', False) for p in phases}
+            steps_available = {p['id']: True for p in phases}
+            steps_done = sum(1 for v in plan_completion.values() if v)
+            steps_total = len(phases)
+            return plan_completion, steps_available, steps_done, steps_total
+        if 'lessons_count' not in daily_summary:
+            plan_completion = {p['id']: False for p in phases}
+            steps_available = {p['id']: True for p in phases}
+            return plan_completion, steps_available, 0, len(phases)
 
     steps = daily_plan.get('steps')
 

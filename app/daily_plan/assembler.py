@@ -153,6 +153,7 @@ def _find_next_book_course_lesson(user_id: int) -> Optional[dict[str, Any]]:
             return {
                 'course_id': enrollment.course_id,
                 'course_title': course.title if course else None,
+                'module_id': dl.book_course_module_id,
                 'lesson_id': dl.id,
                 'day_number': dl.day_number,
                 'lesson_type': dl.lesson_type,

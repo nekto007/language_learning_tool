@@ -57,6 +57,9 @@ def _mission_plan_to_dict(plan: MissionPlan) -> dict[str, Any]:
 
     if plan.legacy:
         result['legacy'] = plan.legacy
+        for k, v in plan.legacy.items():
+            if k not in result:
+                result[k] = v
 
     return result
 
