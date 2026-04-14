@@ -16,6 +16,7 @@ class TestCurriculumIndex:
     @patch('app.admin.routes.curriculum_routes.CEFRLevel')
     @patch('app.admin.routes.curriculum_routes.Lessons')
     @patch('app.admin.routes.curriculum_routes.db.session')
+    @pytest.mark.smoke
     def test_curriculum_index_success(self, mock_session, mock_lessons, mock_level, mock_render, admin_client, mock_admin_user):
         """Test successful curriculum index page"""
         # Setup mocks

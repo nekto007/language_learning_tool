@@ -1,51 +1,12 @@
 """Tests for cross-linking between words and grammar topics."""
 import pytest
 import uuid
-from app import create_app
-from app.utils.db import db as _db
 from app.words.models import CollectionWords
 from app.grammar_lab.models import GrammarTopic
-from config.settings import TestConfig
-
-
-@pytest.fixture(scope='module')
-def app():
-    app = create_app(TestConfig)
-    with app.app_context():
-        from sqlalchemy import text, inspect
-        inspector = inspect(_db.engine)
-        columns = [c['name'] for c in inspector.get_columns('users')]
-        for col, typ in [('onboarding_completed', 'BOOLEAN DEFAULT false'),
-                         ('referral_code', 'VARCHAR(16) UNIQUE'),
-                         ('referred_by_id', 'INTEGER'),
-                         ('onboarding_level', 'VARCHAR(4)'),
-                         ('onboarding_focus', 'VARCHAR(100)'),
-                         ('email_unsubscribe_token', 'VARCHAR(64) UNIQUE'),
-                         ('email_opted_out', 'BOOLEAN DEFAULT false')]:
-            if col not in columns:
-                try:
-                    _db.session.execute(text(f'ALTER TABLE users ADD COLUMN {col} {typ}'))
-                    _db.session.commit()
-                except Exception:
-                    _db.session.rollback()
-        _db.create_all()
-        yield app
 
 
 @pytest.fixture
-def client(app):
-    return app.test_client()
-
-
-@pytest.fixture
-def db_session(app):
-    with app.app_context():
-        yield _db.session
-        _db.session.rollback()
-
-
-@pytest.fixture
-def cross_link_data(app, db_session):
+def cross_link_data(db_session):
     """Create a word and grammar topic at the same level."""
     suffix = uuid.uuid4().hex[:6]
     word = CollectionWords(
@@ -65,10 +26,7 @@ def cross_link_data(app, db_session):
     )
     db_session.add_all([word, topic])
     db_session.commit()
-    yield word, topic
-    db_session.delete(word)
-    db_session.delete(topic)
-    db_session.commit()
+    return word, topic
 
 
 class TestWordToGrammarCrossLink:

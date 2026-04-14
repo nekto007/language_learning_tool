@@ -1,4 +1,5 @@
 """Tests for the /health endpoint."""
+import pytest
 from unittest.mock import patch
 from sqlalchemy.exc import OperationalError
 
@@ -6,6 +7,7 @@ from sqlalchemy.exc import OperationalError
 class TestHealthCheck:
     """Test health check endpoint returns correct status."""
 
+    @pytest.mark.smoke
     def test_health_returns_200_when_db_connected(self, client):
         response = client.get('/health')
         assert response.status_code == 200

@@ -52,6 +52,7 @@ class TestStudyDashboardEmptyState:
 class TestAchievementsEmptyState:
     """Test study/achievements.html empty state."""
 
+    @pytest.mark.smoke
     def test_achievements_page_renders(self, authenticated_client):
         """Achievements page should render with or without achievements."""
         response = authenticated_client.get('/study/achievements')

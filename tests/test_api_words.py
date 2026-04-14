@@ -45,6 +45,7 @@ def user_words_with_status(db_session, test_user, test_words):
 class TestGetWords:
     """Test GET /api/words endpoint"""
 
+    @pytest.mark.smoke
     def test_get_words_list(self, authenticated_client, test_words):
         """Test getting paginated word list"""
         response = authenticated_client.get('/api/words')
@@ -113,6 +114,7 @@ class TestGetWords:
 class TestGetWord:
     """Test GET /api/words/<id> endpoint"""
 
+    @pytest.mark.smoke
     def test_get_word_details(self, authenticated_client, test_words):
         """Test getting single word details"""
         word_id = test_words[0].id
@@ -142,6 +144,7 @@ class TestGetWord:
 class TestUpdateWordStatus:
     """Test POST /api/update-word-status endpoint"""
 
+    @pytest.mark.smoke
     def test_update_word_status_success(self, authenticated_client, test_words, db_session):
         """Test successfully updating word status"""
         word_id = test_words[0].id

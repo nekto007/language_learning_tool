@@ -123,6 +123,7 @@ def _safe_widget_call(name: str, fn, *args, default=None, **kwargs):
         with db.session.begin_nested():
             return fn(*args, **kwargs)
     except Exception:
+        db.session.rollback()
         logger.exception("Dashboard widget '%s' failed", name)
         return default
 
@@ -443,6 +444,10 @@ def dashboard():
         # Reading speed trend & grammar by level
         reading_speed_trend=reading_speed_trend,
         grammar_levels_summary=grammar_levels_summary,
+        # Summary widgets
+        weekly_analytics=weekly_analytics,
+        continue_lesson=continue_lesson,
+        grammar_user_stats=grammar_user_stats,
     )
 
 

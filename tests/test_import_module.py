@@ -468,6 +468,7 @@ class TestImportModuleEdgeCases:
                     db_session.delete(module)
                     db_session.commit()
 
+    @pytest.mark.slow
     def test_import_multiple_lessons(self, app, db_session, test_level):
         """Тест импорта модуля с несколькими уроками"""
         import uuid

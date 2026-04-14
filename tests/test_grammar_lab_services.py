@@ -1104,6 +1104,7 @@ class TestGrammarLabRouteNavigation:
     }
 
     @patch('app.grammar_lab.services.grammar_lab_service._get_srs_stats_service')
+    @pytest.mark.smoke
     def test_index_has_next_topic_for_auth_user(self, mock_srs_stats_fn,
                                                   authenticated_client, db_session, grammar_topic):
         """Authenticated user should get next_topic in index context."""
@@ -1116,6 +1117,7 @@ class TestGrammarLabRouteNavigation:
         response = authenticated_client.get('/grammar-lab/')
         assert response.status_code == 200
 
+    @pytest.mark.smoke
     def test_index_works_for_anonymous(self, app):
         """Anonymous user should see grammar index without errors."""
         with app.test_client() as client:

@@ -25,10 +25,12 @@ from app.utils.db import db
 # ---------------------------------------------------------------------------
 
 class TestLogin:
+    @pytest.mark.smoke
     def test_login_page_renders(self, client):
         r = client.get('/login')
         assert r.status_code == 200
 
+    @pytest.mark.smoke
     def test_login_with_username(self, client, test_user):
         r = client.post('/login', data={
             'username_or_email': test_user.username,
@@ -120,6 +122,7 @@ class TestSafeRedirect:
 # ---------------------------------------------------------------------------
 
 class TestRegister:
+    @pytest.mark.smoke
     def test_register_page_renders(self, client):
         r = client.get('/register')
         assert r.status_code == 200
@@ -129,6 +132,7 @@ class TestRegister:
         assert r.status_code == 302
 
     @patch('app.auth.routes.email_sender')
+    @pytest.mark.smoke
     def test_register_success(self, mock_email, client, db_session):
         mock_email.send_email.return_value = True
         unique = uuid.uuid4().hex[:8]
@@ -226,6 +230,7 @@ class TestRegister:
 # ---------------------------------------------------------------------------
 
 class TestLogout:
+    @pytest.mark.smoke
     def test_logout_redirects(self, authenticated_client):
         r = authenticated_client.get('/logout', follow_redirects=False)
         assert r.status_code == 302

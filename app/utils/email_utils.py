@@ -53,6 +53,7 @@ class EmailSender:
         try:
             # Проверяем настройки email
             if not all([self.email_host, self.default_from_email]):
+                logger.warning("Email sending skipped due to incomplete SMTP configuration")
                 return False
 
             # Подключение к SMTP-серверу

@@ -226,6 +226,7 @@ class TestUserManagementAccessControl:
         assert result['current_page'] == 1
         assert len(result['users']) >= 2  # At least test_user and admin_user
 
+    @pytest.mark.slow
     def test_get_all_users_pagination_works(self, db_session):
         """Test pagination limits work correctly"""
         from app.admin.services.user_management_service import UserManagementService

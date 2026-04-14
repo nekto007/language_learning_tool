@@ -26,6 +26,7 @@ def grammar_topic(app, db_session):
 
 
 class TestSitemap:
+    @pytest.mark.smoke
     def test_sitemap_returns_xml(self, client):
         response = client.get('/sitemap.xml')
         assert response.status_code == 200
@@ -52,6 +53,7 @@ class TestSitemap:
 
 
 class TestRobots:
+    @pytest.mark.smoke
     def test_robots_returns_text(self, client):
         response = client.get('/robots.txt')
         assert response.status_code == 200

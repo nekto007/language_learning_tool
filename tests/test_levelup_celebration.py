@@ -1,68 +1,28 @@
 """Tests for level-up celebration API and modal."""
 import pytest
 import uuid
-from app import create_app
-from app.utils.db import db as _db
 from app.auth.models import User
-from config.settings import TestConfig
-
-
-@pytest.fixture(scope='module')
-def app():
-    app = create_app(TestConfig)
-    with app.app_context():
-        from sqlalchemy import text, inspect
-        inspector = inspect(_db.engine)
-        columns = [c['name'] for c in inspector.get_columns('users')]
-        for col, typ in [('onboarding_completed', 'BOOLEAN DEFAULT false'),
-                         ('referral_code', 'VARCHAR(16) UNIQUE'),
-                         ('referred_by_id', 'INTEGER'),
-                         ('onboarding_level', 'VARCHAR(4)'),
-                         ('onboarding_focus', 'VARCHAR(100)'),
-                         ('email_unsubscribe_token', 'VARCHAR(64) UNIQUE'),
-                         ('email_opted_out', 'BOOLEAN DEFAULT false')]:
-            if col not in columns:
-                try:
-                    _db.session.execute(text(f'ALTER TABLE users ADD COLUMN {col} {typ}'))
-                    _db.session.commit()
-                except Exception:
-                    _db.session.rollback()
-        _db.create_all()
-        yield app
 
 
 @pytest.fixture
-def client(app):
-    return app.test_client()
-
-
-@pytest.fixture
-def db_session(app):
-    with app.app_context():
-        yield _db.session
-        _db.session.rollback()
-
-
-@pytest.fixture
-def test_user(app, db_session):
+def celebration_user(db_session):
     suffix = uuid.uuid4().hex[:8]
     user = User(
         username=f'lvlup_{suffix}',
         email=f'lvlup_{suffix}@test.com',
         active=True,
+        onboarding_completed=True,
     )
     user.set_password('testpass123')
     db_session.add(user)
     db_session.commit()
-    yield user
-    db_session.delete(user)
-    db_session.commit()
+    return user
 
 
 @pytest.fixture
-def auth_client(client, test_user):
+def auth_client(client, celebration_user):
     with client.session_transaction() as sess:
-        sess['_user_id'] = str(test_user.id)
+        sess['_user_id'] = str(celebration_user.id)
     return client
 
 
@@ -96,13 +56,12 @@ class TestCelebrationAPI:
         assert 'celebrations' in data
         assert isinstance(data['celebrations'], list)
 
-    def test_celebrations_with_xp(self, app, auth_client, test_user, db_session):
+    def test_celebrations_with_xp(self, auth_client, celebration_user, db_session):
         """After adding XP, level should be reflected."""
         from app.study.models import UserXP
-        with app.app_context():
-            xp = UserXP.get_or_create(test_user.id)
-            xp.add_xp(500)  # Should reach level 3+
-            db_session.commit()
+        xp = UserXP.get_or_create(celebration_user.id)
+        xp.add_xp(500)
+        db_session.commit()
 
         response = auth_client.get('/study/api/celebrations')
         data = response.get_json()
@@ -115,7 +74,6 @@ class TestLevelUpModalInBase:
 
     def test_base_has_levelup_modal(self, auth_client):
         """Authenticated page should contain level-up modal."""
-        # Use grammar-lab (public page that extends base.html)
         response = auth_client.get('/grammar-lab/')
         html = response.data.decode()
         assert 'levelup-modal' in html

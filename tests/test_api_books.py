@@ -73,6 +73,7 @@ def test_task(db_session, test_block):
 class TestGetBooks:
     """Test GET /api/books endpoint"""
 
+    @pytest.mark.smoke
     def test_get_books_list(self, authenticated_client, test_book):
         """Test getting list of all books"""
         response = authenticated_client.get('/api/books')
@@ -94,6 +95,7 @@ class TestGetBooks:
 class TestGetBook:
     """Test GET /api/books/<id> endpoint"""
 
+    @pytest.mark.smoke
     def test_get_book_details(self, authenticated_client, test_book):
         """Test getting single book details"""
         response = authenticated_client.get(f'/api/books/{test_book.id}')
@@ -117,6 +119,7 @@ class TestGetBook:
 class TestGetChaptersByBookId:
     """Test GET /api/books/<id>/chapters endpoint"""
 
+    @pytest.mark.smoke
     def test_get_chapters_list(self, authenticated_client, test_book, test_chapter):
         """Test getting chapters for a book"""
         response = authenticated_client.get(f'/api/books/{test_book.id}/chapters')

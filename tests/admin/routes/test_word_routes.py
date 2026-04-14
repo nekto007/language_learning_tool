@@ -11,6 +11,7 @@ class TestWordManagement:
     """Tests for word_management() route"""
 
     @patch('app.admin.routes.word_routes.WordManagementService.get_word_statistics')
+    @pytest.mark.smoke
     def test_word_management_success(self, mock_get_stats, admin_client, mock_admin_user):
         """Test successful word management page"""
         mock_get_stats.return_value = {

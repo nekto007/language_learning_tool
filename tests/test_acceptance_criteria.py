@@ -1,51 +1,12 @@
 """Acceptance criteria verification for user acquisition improvements."""
 import pytest
 import uuid
-from app import create_app
-from app.utils.db import db as _db
 from app.auth.models import User
 from app.words.models import CollectionWords
-from config.settings import TestConfig
-
-
-@pytest.fixture(scope='module')
-def app():
-    app = create_app(TestConfig)
-    with app.app_context():
-        from sqlalchemy import text, inspect
-        inspector = inspect(_db.engine)
-        columns = [c['name'] for c in inspector.get_columns('users')]
-        for col, typ in [('onboarding_completed', 'BOOLEAN DEFAULT false'),
-                         ('referral_code', 'VARCHAR(16) UNIQUE'),
-                         ('referred_by_id', 'INTEGER'),
-                         ('onboarding_level', 'VARCHAR(4)'),
-                         ('onboarding_focus', 'VARCHAR(100)'),
-                         ('email_unsubscribe_token', 'VARCHAR(64) UNIQUE'),
-                         ('email_opted_out', 'BOOLEAN DEFAULT false')]:
-            if col not in columns:
-                try:
-                    _db.session.execute(text(f'ALTER TABLE users ADD COLUMN {col} {typ}'))
-                    _db.session.commit()
-                except Exception:
-                    _db.session.rollback()
-        _db.create_all()
-        yield app
 
 
 @pytest.fixture
-def client(app):
-    return app.test_client()
-
-
-@pytest.fixture
-def db_session(app):
-    with app.app_context():
-        yield _db.session
-        _db.session.rollback()
-
-
-@pytest.fixture
-def sample_word(app, db_session):
+def sample_word(db_session):
     suffix = uuid.uuid4().hex[:8]
     word = CollectionWords(
         english_word=f'accept{suffix}',
@@ -54,9 +15,7 @@ def sample_word(app, db_session):
     )
     db_session.add(word)
     db_session.commit()
-    yield word
-    db_session.delete(word)
-    db_session.commit()
+    return word
 
 
 class TestPublicRoutesReturn200:
@@ -119,43 +78,34 @@ class TestOGTagsOnPublicPages:
 
 
 class TestReferralFlowEndToEnd:
-    """Verify referral flow: generate code → share → register → reward."""
+    """Verify referral flow: generate code -> share -> register -> reward."""
 
-    def test_referral_code_generation(self, app, db_session):
+    def test_referral_code_generation(self, db_session):
         suffix = uuid.uuid4().hex[:8]
-        with app.app_context():
-            user = User(username=f'reftest_{suffix}', email=f'reftest_{suffix}@test.com', active=True)
-            user.set_password('test')
-            db_session.add(user)
-            db_session.commit()
+        user = User(username=f'reftest_{suffix}', email=f'reftest_{suffix}@test.com', active=True)
+        user.set_password('test')
+        db_session.add(user)
+        db_session.commit()
 
-            code = user.ensure_referral_code()
-            assert code is not None
-            assert len(code) > 0
+        code = user.ensure_referral_code()
+        assert code is not None
+        assert len(code) > 0
 
-            # Verify code lookup works
-            found = User.query.filter_by(referral_code=code).first()
-            assert found.id == user.id
+        found = User.query.filter_by(referral_code=code).first()
+        assert found.id == user.id
 
-            db_session.delete(user)
-            db_session.commit()
-
-    def test_referral_xp_award(self, app, db_session):
+    def test_referral_xp_award(self, db_session):
         suffix = uuid.uuid4().hex[:8]
         from app.study.models import UserXP
-        with app.app_context():
-            referrer = User(username=f'refa_{suffix}', email=f'refa_{suffix}@test.com', active=True)
-            referrer.set_password('test')
-            db_session.add(referrer)
-            db_session.flush()
 
-            xp = UserXP.get_or_create(referrer.id)
-            initial = xp.total_xp
-            xp.add_xp(100)
-            db_session.commit()
+        referrer = User(username=f'refa_{suffix}', email=f'refa_{suffix}@test.com', active=True)
+        referrer.set_password('test')
+        db_session.add(referrer)
+        db_session.flush()
 
-            assert UserXP.query.filter_by(user_id=referrer.id).first().total_xp == initial + 100
+        xp = UserXP.get_or_create(referrer.id)
+        initial = xp.total_xp
+        xp.add_xp(100)
+        db_session.commit()
 
-            db_session.delete(xp)
-            db_session.delete(referrer)
-            db_session.commit()
+        assert UserXP.query.filter_by(user_id=referrer.id).first().total_xp == initial + 100
