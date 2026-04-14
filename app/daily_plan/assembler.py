@@ -6,7 +6,7 @@ from typing import Any, Optional
 from sqlalchemy import func
 
 from app.utils.db import db
-from app.curriculum.models import LessonProgress, Lessons, Module
+from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
 from app.grammar_lab.models import (
@@ -40,7 +40,6 @@ def _count_srs_due(user_id: int) -> int:
             UserWord.user_id == user_id,
             UserCardDirection.state.in_(('review', 'relearning')),
             UserCardDirection.next_review <= now,
-            UserCardDirection.direction == 'eng-rus',
         )
         .scalar()
     ) or 0
@@ -84,6 +83,21 @@ def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
                             Lessons.module_id == next_module.id,
                         ).order_by(Lessons.number).first()
 
+                if not next_l:
+                    current_level = CEFRLevel.query.get(module.level_id)
+                    if current_level:
+                        next_level = CEFRLevel.query.filter(
+                            CEFRLevel.order > current_level.order,
+                        ).order_by(CEFRLevel.order).first()
+                        if next_level:
+                            next_lvl_module = Module.query.filter_by(
+                                level_id=next_level.id,
+                            ).order_by(Module.number).first()
+                            if next_lvl_module:
+                                next_l = Lessons.query.filter_by(
+                                    module_id=next_lvl_module.id,
+                                ).order_by(Lessons.number).first()
+
                 if next_l:
                     nl_module = Module.query.get(next_l.module_id)
                     return {
@@ -94,7 +108,9 @@ def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
                         'lesson_type': next_l.type,
                     }
 
-    first_module = Module.query.order_by(Module.number).first()
+    first_module = Module.query.join(CEFRLevel).order_by(
+        CEFRLevel.order, Module.number,
+    ).first()
     if first_module:
         first_lesson = Lessons.query.filter_by(
             module_id=first_module.id,
