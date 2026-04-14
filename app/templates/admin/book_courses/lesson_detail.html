@@ -593,7 +593,7 @@
             </div>
             <div class="meta-item">
                 <i class="fas fa-calendar"></i>
-                <span>{{ lesson.created_at.strftime('%d.%m.%Y') }}</span>
+                <span>{{ lesson.created_at.strftime('%d.%m.%Y') if lesson.created_at else 'Не указано' }}</span>
             </div>
         </div>
     </div>
@@ -701,7 +701,7 @@
                                 {% if progress.completed_at %}
                                     {{ progress.completed_at.strftime('%d.%m.%Y %H:%M') }}
                                 {% elif progress.started_at %}
-                                    Начат {{ progress.started_at.strftime('%d.%m.%Y') }}
+                                    Начат {{ progress.started_at.strftime('%d.%m.%Y') if progress.started_at else 'Не указано' }}
                                 {% endif %}
                             </div>
                         </div>

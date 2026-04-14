@@ -488,7 +488,7 @@
         </div>
         <div class="meta-item">
             <i class="fas fa-calendar"></i>
-            <span>Создан {{ course.created_at.strftime('%d.%m.%Y') }}</span>
+            <span>Создан {{ course.created_at.strftime('%d.%m.%Y') if course.created_at else 'Не указано' }}</span>
         </div>
         {% if course.is_active %}
         <span class="badge-status active">Активен</span>
@@ -556,7 +556,7 @@
                                 {% if module.estimated_duration_days %}
                                 <span><i class="fas fa-clock"></i> {{ module.estimated_duration_days }} дней</span>
                                 {% endif %}
-                                <span><i class="fas fa-calendar-alt"></i> {{ module.created_at.strftime('%d.%m') }}</span>
+                                <span><i class="fas fa-calendar-alt"></i> {{ module.created_at.strftime('%d.%m') if module.created_at else 'n/a' }}</span>
                             </div>
                         </div>
                     </div>
@@ -599,7 +599,7 @@
                         </div>
                         <div class="user-info">
                             <div class="user-name">{{ enrollment.user.username }}</div>
-                            <div class="user-date">{{ enrollment.enrolled_at.strftime('%d.%m.%Y') }}</div>
+                            <div class="user-date">{{ enrollment.enrolled_at.strftime('%d.%m.%Y') if enrollment.enrolled_at else 'Не указано' }}</div>
                         </div>
                         <div class="enrollment-progress">
                             <div class="progress-bar-container">

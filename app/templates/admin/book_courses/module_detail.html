@@ -722,7 +722,7 @@
                 </div>
                 <div class="meta-item">
                     <i class="fas fa-calendar"></i>
-                    <span>Создан {{ module.created_at.strftime('%d.%m.%Y') }}</span>
+                    <span>Создан {{ module.created_at.strftime('%d.%m.%Y') if module.created_at else 'Не указано' }}</span>
                 </div>
             </div>
         </div>

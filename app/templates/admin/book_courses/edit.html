@@ -433,7 +433,7 @@ select.form-control {
             <span><i class="fas fa-book"></i> {{ course.book.title }}</span>
             <span><i class="fas fa-user"></i> {{ course.book.author or 'Неизвестный автор' }}</span>
             <span><i class="fas fa-signal"></i> Уровень {{ course.level }}</span>
-            <span><i class="fas fa-calendar"></i> {{ course.created_at.strftime('%d.%m.%Y') }}</span>
+            <span><i class="fas fa-calendar"></i> {{ course.created_at.strftime('%d.%m.%Y') if course.created_at else 'Не указано' }}</span>
         </div>
     </div>
 </div>
