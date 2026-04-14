@@ -52,6 +52,9 @@ class User(db.Model, UserMixin):
     notify_in_app_streaks = Column(Boolean, default=True, nullable=False, server_default='true')
     notify_in_app_weekly = Column(Boolean, default=True, nullable=False, server_default='true')
 
+    # Daily plan: mission-based plan feature flag
+    use_mission_plan = Column(Boolean, default=False, nullable=False, server_default='false')
+
     referred_by = relationship('User', remote_side='User.id', foreign_keys=[referred_by_id])
 
     __table_args__ = (

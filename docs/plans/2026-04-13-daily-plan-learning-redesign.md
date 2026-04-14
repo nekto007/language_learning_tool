@@ -58,11 +58,11 @@ Add a user-level flag to toggle between legacy plan and mission plan. Use existi
 - Create: `alembic/versions/xxxx_add_use_mission_plan.py` (migration)
 - Create: `tests/test_mission_feature_flag.py`
 
-- [ ] Add `use_mission_plan = Column(Boolean, default=False, server_default='false')` to User model
-- [ ] Create Alembic migration for the new column
-- [ ] Verify migration chain consistency
-- [ ] Write tests: flag defaults to False, can be toggled, respects per-user setting
-- [ ] Run project test suite - must pass before task 3
+- [x] Add `use_mission_plan = Column(Boolean, default=False, server_default='false')` to User model
+- [x] Create Alembic migration for the new column
+- [x] Verify migration chain consistency
+- [x] Write tests: flag defaults to False, can be toggled, respects per-user setting
+- [x] Run project test suite - must pass before task 3
 
 ### Task 3: Implement repair pressure calculator
 
