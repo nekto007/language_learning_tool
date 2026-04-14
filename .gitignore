@@ -355,8 +355,20 @@ COVERAGE_ROADMAP*.md
 # Coverage JSON files
 coverage*.json
 
-# Skills directory
-.claude/skills/
+# Claude local tooling
+.claude/
+
+# Local backups and exports
+module_backups/
+local_exports/
+missing_lessons.json
+flashcards_all.csv
+first.csv
+module_mapping.csv
+module_topics.csv
+new_word_*.csv
+new_words_*.csv
+words_new_*.csv
 
 # Misc development files
 db_log.txt
