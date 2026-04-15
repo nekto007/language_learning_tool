@@ -120,9 +120,9 @@
            MISSION-BASED PLAN (new sequential UI)
            ══════════════════════════════════════════ #}
         {% set m_phases = mission_plan.get('phases', []) %}
-        {% set m_total = m_phases | length %}
+        {% set m_total = plan_steps_total if plan_steps_total is defined else m_phases | length %}
         {% set m_done = plan_steps_done if plan_steps_done is defined else 0 %}
-        {% set m_all_done = (m_done == m_total and m_total > 0) %}
+        {% set m_all_done = (m_done >= m_total and m_total > 0) %}
 
         {# Mission header: title + reason #}
         {% set m = mission_plan.get('mission', {}) %}

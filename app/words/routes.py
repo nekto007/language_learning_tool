@@ -741,8 +741,9 @@ def _next_step_from_mission(plan: dict, daily_summary: dict) -> tuple:
 
     phases = plan['phases']
     completion = _compute_phase_completion(phases, daily_summary)
-    phases_done = sum(1 for v in completion.values() if v)
-    phases_total = len(phases)
+    required_ids = {p['id'] for p in phases if p.get('required', True)}
+    phases_done = sum(1 for pid, v in completion.items() if v and pid in required_ids)
+    phases_total = len(required_ids)
 
     next_phase = next((p for p in phases if not completion.get(p['id'])), None)
 
@@ -812,7 +813,7 @@ def _phase_url(phase: dict, plan: dict) -> str:
             return url_for('books.read_book_chapters',
                            book_id=book['id']) + '?from=daily_plan'
 
-    return url_for('words.word_list')
+    return url_for('words.dashboard')
 
 
 def _next_step_from_legacy(daily_plan: dict, daily_summary: dict) -> tuple:

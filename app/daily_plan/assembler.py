@@ -375,7 +375,7 @@ def assemble_repair_mission(
         phase=PhaseKind.use,
         title="Проверяем понимание",
         source_kind=SourceKind.grammar_lab if grammar_topic else SourceKind.vocab,
-        mode="targeted_quiz" if grammar_topic else "vocab_drill",
+        mode="targeted_quiz" if grammar_topic else "meaning_prompt",
     ))
 
     phases.append(_make_close_phase())
