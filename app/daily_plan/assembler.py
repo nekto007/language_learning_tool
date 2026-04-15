@@ -50,6 +50,7 @@ def _count_grammar_due(user_id: int) -> int:
         db.session.query(func.count(UserGrammarExercise.id))
         .filter(
             UserGrammarExercise.user_id == user_id,
+            UserGrammarExercise.state.in_(('review', 'relearning')),
             UserGrammarExercise.next_review <= now,
         )
         .scalar()
@@ -69,8 +70,8 @@ def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
             if module:
                 next_l = Lessons.query.filter(
                     Lessons.module_id == module.id,
-                    Lessons.order > lesson.order,
-                ).order_by(Lessons.order).first()
+                    Lessons.number > lesson.number,
+                ).order_by(Lessons.number).first()
 
                 if not next_l:
                     next_module = Module.query.filter(
