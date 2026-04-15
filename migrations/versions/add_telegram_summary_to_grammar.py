@@ -16,9 +16,28 @@ branch_labels = None
 depends_on = None
 
 
+def _table_exists(table):
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    return table in insp.get_table_names()
+
+
+def _column_exists(table, column):
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    columns = [c['name'] for c in insp.get_columns(table)]
+    return column in columns
+
+
 def upgrade():
-    op.add_column('grammar_topics', sa.Column('telegram_summary', sa.Text(), nullable=True))
+    if not _table_exists('grammar_topics'):
+        return
+    if not _column_exists('grammar_topics', 'telegram_summary'):
+        op.add_column('grammar_topics', sa.Column('telegram_summary', sa.Text(), nullable=True))
 
 
 def downgrade():
-    op.drop_column('grammar_topics', 'telegram_summary')
+    if not _table_exists('grammar_topics'):
+        return
+    if _column_exists('grammar_topics', 'telegram_summary'):
+        op.drop_column('grammar_topics', 'telegram_summary')
