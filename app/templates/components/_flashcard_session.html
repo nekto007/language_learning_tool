@@ -392,6 +392,7 @@
             dailyLimit: {{ fc_daily_limit | tojson if fc_daily_limit is defined else '20' }},
             newCardsToday: {{ fc_new_cards_today | tojson if fc_new_cards_today is defined else '0' }},
             deckId: {{ fc_deck_id | tojson if fc_deck_id is defined and fc_deck_id else 'null' }},
+            extraStudy: {{ fc_extra_study | tojson if fc_extra_study is defined else 'false' }},
         });
     });
 </script>
