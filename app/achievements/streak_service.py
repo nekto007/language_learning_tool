@@ -62,19 +62,22 @@ def _compute_phase_completion(phases: list[dict], daily_summary: dict) -> dict[s
     }
 
     result: dict[str, bool] = {}
+    deferred: list[dict] = []
     for p in phases:
         mode = p.get('mode', '')
         category = _MODE_DONE_CHECK.get(mode)
         if category:
             result[p['id']] = checks.get(category, False)
         elif mode == 'success_marker':
-            result[p['id']] = all(
-                result.get(q['id'], False)
-                for q in phases
-                if q.get('required', True) and q['id'] != p['id']
-            )
+            deferred.append(p)
         else:
             result[p['id']] = p.get('completed', False)
+    for p in deferred:
+        result[p['id']] = all(
+            result.get(q['id'], False)
+            for q in phases
+            if q.get('required', True) and q['id'] != p['id']
+        )
     return result
 
 
@@ -91,7 +94,7 @@ def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dic
         plan_completion = _compute_phase_completion(phases, daily_summary)
         steps_available = {p['id']: True for p in phases}
         steps_done = sum(1 for v in plan_completion.values() if v)
-        steps_total = len(phases)
+        steps_total = sum(1 for p in phases if p.get('required', True))
         return plan_completion, steps_available, steps_done, steps_total
 
     steps = daily_plan.get('steps')
