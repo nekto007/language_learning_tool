@@ -1,0 +1,9 @@
+{% extends "lesson_base_template.html" %}
+
+{% block lesson_content %}
+<div class="lesson-empty-content" style="text-align: center; padding: 3rem 1rem;">
+    <h2>{{ _('Урок временно недоступен') }}</h2>
+    <p>{{ _('Содержимое урока недоступно. Попробуйте позже.') }}</p>
+    <a href="/learn/" class="btn btn-primary" style="margin-top: 1.5rem;">{{ _('Вернуться к урокам') }}</a>
+</div>
+{% endblock %}

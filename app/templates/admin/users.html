@@ -107,6 +107,9 @@
                             {% if user.is_admin %}
                                 {{ status_badge('Админ', 'info') }}
                             {% endif %}
+                            {% if user.use_mission_plan %}
+                                {{ status_badge('Mission Plan', 'primary') }}
+                            {% endif %}
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm">
@@ -129,6 +132,16 @@
                                     </button>
                                 </form>
                                 {% endif %}
+
+                                <!-- Toggle Mission Plan -->
+                                <form action="{{ url_for('user_admin.toggle_mission_plan', user_id=user.id) }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
+                                    <button type="submit" class="btn btn-outline-{{ 'primary' if user.use_mission_plan else 'secondary' }}"
+                                            title="{{ 'Выключить mission-based plan' if user.use_mission_plan else 'Включить mission-based plan' }}">
+                                        <i class="fas fa-{{ 'route' if user.use_mission_plan else 'map-signs' }}"></i>
+                                    </button>
+                                </form>
 
                                 <!-- Send Reminder -->
                                 <button type="button" class="btn btn-outline-primary"
