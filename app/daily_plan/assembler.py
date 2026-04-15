@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -7,6 +8,7 @@ from sqlalchemy import func
 
 from app.utils.db import db
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
+from app.daily_plan.level_utils import get_user_current_cefr_level, _cefr_code_to_order
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
 from app.grammar_lab.models import (
@@ -29,6 +31,9 @@ from app.daily_plan.models import (
     SourceKind,
 )
 from app.daily_plan.repair_pressure import RepairBreakdown
+
+logger = logging.getLogger(__name__)
+
 
 def _count_srs_due(user_id: int) -> int:
     now = datetime.now(timezone.utc)
@@ -114,9 +119,15 @@ def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
                         'lesson_type': next_l.type,
                     }
 
-    first_module = Module.query.join(CEFRLevel).order_by(
-        CEFRLevel.order, Module.number,
-    ).first()
+    # Cold start: pick first module at or above the user's effective CEFR level.
+    level_code = get_user_current_cefr_level(user_id, db)
+    user_level_order = _cefr_code_to_order(level_code, db)
+
+    cold_query = Module.query.join(CEFRLevel)
+    if user_level_order >= 0:
+        cold_query = cold_query.filter(CEFRLevel.order >= user_level_order)
+    first_module = cold_query.order_by(CEFRLevel.order.asc(), Module.number.asc()).first()
+
     if first_module:
         first_lesson = Lessons.query.filter_by(
             module_id=first_module.id,
@@ -152,6 +163,13 @@ def _find_next_book_course_lesson(user_id: int) -> Optional[dict[str, Any]]:
     ).filter(
         BookCourseModule.course_id == enrollment.course_id,
     ).order_by(DailyLesson.day_number).all()
+
+    if not lessons:
+        logger.warning(
+            "_find_next_book_course_lesson: no lessons found for enrollment %s (user_id=%s)",
+            enrollment.id, user_id,
+        )
+        return None
 
     for dl in lessons:
         if dl.id not in completed_ids:
