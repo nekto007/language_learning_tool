@@ -201,6 +201,7 @@ migrate_sqlite_to_postgres.py
 transfer_db_data.py
 
 # Local documentation files (progress tracking and notes)
+.ralphex/
 claude.md
 REFACTORING_REPORT.md
 DESIGN_UNIFICATION_COMPLETED.md
