@@ -18,6 +18,21 @@ logger = logging.getLogger(__name__)
 
 # Simple TTL cache for leaderboard data (shared across requests)
 _leaderboard_cache: dict = {'data': None, 'expires': 0.0, 'lock': threading.Lock()}
+_MISSION_PHASE_POINTS = {
+    'recall': 8,
+    'learn': 22,
+    'use': 18,
+    'read': 20,
+    'check': 12,
+    'close': 0,
+}
+_LEGACY_STEP_POINTS = {
+    'lesson': 22,
+    'grammar': 18,
+    'words': 14,
+    'books': 20,
+    'book_course_practice': 18,
+}
 
 words = Blueprint('words', __name__)
 
@@ -142,12 +157,206 @@ def _get_cached_leaderboard(stats_service_cls, limit: int = 5):
     return data
 
 
+def _compute_daily_race_state(daily_plan: dict, daily_summary: dict, streak: int) -> dict:
+    from app.achievements.streak_service import compute_plan_steps
+
+    plan_completion, _, steps_done, steps_total = compute_plan_steps(daily_plan, daily_summary)
+    score = 0
+    next_step_title = None
+    next_step_points = 0
+
+    phases = daily_plan.get('phases') or []
+    if phases:
+        required_phases = [p for p in phases if p.get('required', True)]
+        for phase in required_phases:
+            points = _MISSION_PHASE_POINTS.get(phase.get('phase', ''), 12)
+            if plan_completion.get(phase.get('id'), False):
+                score += points
+            elif next_step_title is None:
+                next_step_title = phase.get('title') or 'Следующий этап'
+                next_step_points = points
+
+        if steps_total > 0 and steps_done >= steps_total:
+            score += 12
+    else:
+        steps = daily_plan.get('steps') or {}
+        for key in ('lesson', 'grammar', 'words', 'books', 'book_course_practice'):
+            step = steps.get(key)
+            if not step:
+                continue
+            points = _LEGACY_STEP_POINTS.get(key, 15)
+            if plan_completion.get(key, False):
+                score += points
+            elif next_step_title is None:
+                next_step_title = step.get('title') or 'Следующий шаг'
+                next_step_points = points
+
+        if steps_total > 0 and steps_done >= steps_total:
+            score += 12
+
+    score += min(max(streak, 0), 10)
+
+    return {
+        'score': score,
+        'steps_done': steps_done,
+        'steps_total': steps_total,
+        'next_step_title': next_step_title,
+        'next_step_points': next_step_points,
+    }
+
+
+def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, str | None]:
+    from app.achievements.streak_service import _compute_phase_completion
+
+    phases = plan.get('phases') or []
+    if phases:
+        completion = _compute_phase_completion(phases, daily_summary)
+        next_phase = next((p for p in phases if not completion.get(p['id'])), None)
+        if next_phase:
+            return next_phase.get('title'), _phase_url(next_phase, plan)
+
+    steps = plan.get('steps') or {}
+    legacy_order = ('lesson', 'grammar', 'words', 'books', 'book_course_practice')
+    for key in legacy_order:
+        step = steps.get(key)
+        if step and not step.get('is_done'):
+            return step.get('title') or 'Следующий шаг', step.get('url')
+
+    return None, None
+
+
+def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
+    from app.auth.models import User
+    from app.daily_plan.service import get_daily_plan_unified
+    from app.telegram.queries import get_current_streak, get_daily_summary
+
+    candidates = (
+        User.query
+        .filter(
+            User.active.is_(True),
+            User.is_admin.is_(False),
+            User.onboarding_completed.is_(True),
+        )
+        .order_by(User.last_login.desc().nullslast(), User.created_at.desc())
+        .limit(18)
+        .all()
+    )
+
+    current_user_row = User.query.get(current_user_id)
+    if current_user_row and not any(user.id == current_user_id for user in candidates):
+        candidates.append(current_user_row)
+
+    entries = []
+    for user in candidates:
+        user_tz = user.timezone or tz
+        try:
+            plan = get_daily_plan_unified(user.id, tz=user_tz)
+            summary = get_daily_summary(user.id, tz=user_tz)
+            streak = get_current_streak(user.id, tz=user_tz)
+            race_state = _compute_daily_race_state(plan, summary, streak)
+        except Exception:
+            logger.exception("Failed to build daily race entry for user %s", user.id)
+            continue
+
+        if race_state['steps_total'] <= 0:
+            continue
+
+        entries.append({
+            'user_id': user.id,
+            'username': user.username,
+            'score': race_state['score'],
+            'steps_done': race_state['steps_done'],
+            'steps_total': race_state['steps_total'],
+            'streak': streak,
+            'next_step_title': race_state['next_step_title'],
+            'next_step_points': race_state['next_step_points'],
+            'is_me': user.id == current_user_id,
+            'is_bot': False,
+        })
+
+    current_index = next((i for i, item in enumerate(entries) if item['is_me']), None)
+    if current_index is None:
+        return None
+
+    me_seed = entries[current_index]
+
+    if len(entries) < 4:
+        bot_names = ['Молния', 'Ракета', 'Спринтер']
+        bot_offsets = [8, -6, 15]
+        bot_steps = [0, 0, 1]
+        for idx, name in enumerate(bot_names):
+            entries.append({
+                'user_id': -(idx + 1),
+                'username': name,
+                'score': max(0, me_seed['score'] + bot_offsets[idx]),
+                'steps_done': min(me_seed['steps_total'], max(0, me_seed['steps_done'] + bot_steps[idx])),
+                'steps_total': me_seed['steps_total'],
+                'streak': max(0, me_seed['streak'] + idx + 1),
+                'next_step_title': me_seed['next_step_title'],
+                'next_step_points': me_seed['next_step_points'],
+                'is_me': False,
+                'is_bot': True,
+            })
+
+    entries.sort(key=lambda item: (-item['score'], -item['steps_done'], -item['streak'], item['username'].lower()))
+    current_index = next((i for i, item in enumerate(entries) if item['is_me']), None)
+    if current_index is None:
+        return None
+
+    for idx, entry in enumerate(entries, start=1):
+        entry['rank'] = idx
+
+    me = entries[current_index]
+    rival_above = entries[current_index - 1] if current_index > 0 else None
+    rival_below = entries[current_index + 1] if current_index + 1 < len(entries) else None
+
+    gap_up = max(1, rival_above['score'] - me['score']) if rival_above else 0
+    gap_down = max(1, me['score'] - rival_below['score']) if rival_below else None
+
+    if rival_above:
+        if me['next_step_points'] and me['next_step_points'] > gap_up:
+            callout = f'«{me["next_step_title"]}» даст рывок и поднимет тебя выше {rival_above["username"]}.'
+        elif me['next_step_points']:
+            remaining = max(0, gap_up - me['next_step_points'])
+            callout = (
+                f'«{me["next_step_title"]}» сократит отрыв до {remaining} '
+                f'и приблизит тебя к {rival_above["username"]}.'
+            )
+        else:
+            callout = f'До {rival_above["username"]}: {gap_up} очков.'
+    else:
+        callout = 'Ты впереди. Закрой следующий этап и закрепи лидерство.'
+
+    start = max(0, current_index - 2)
+    end = min(len(entries), current_index + 3)
+
+    return {
+        'rank': me['rank'],
+        'total': len(entries),
+        'score': me['score'],
+        'steps_done': me['steps_done'],
+        'steps_total': me['steps_total'],
+        'streak': me['streak'],
+        'rival_above': rival_above,
+        'rival_below': rival_below,
+        'gap_up': gap_up,
+        'gap_down': gap_down,
+        'callout': callout,
+        'next_step_title': me['next_step_title'],
+        'next_step_points': me['next_step_points'],
+        'duel_target': rival_above or rival_below,
+        'has_bot_rivals': any(entry.get('is_bot') for entry in entries),
+        'leaderboard': entries[start:end],
+    }
+
+
 @words.route('/dashboard')
 @login_required
 @module_required('words')
 def dashboard():
     """Main dashboard with daily plan, streak and activity summary."""
     t_start = time.time()
+    tz = current_user.timezone or 'Europe/Moscow'
 
     # Process deferred referral reward on first visit
     _process_referral_reward_on_first_visit(current_user)
@@ -166,9 +375,9 @@ def dashboard():
     from app.achievements.streak_service import get_streak_calendar, get_milestone_history
 
     # === DAILY PLAN & STREAK ===
-    streak = get_current_streak(current_user.id)
-    daily_plan = get_daily_plan_unified(current_user.id)
-    daily_summary = get_daily_summary(current_user.id)
+    streak = get_current_streak(current_user.id, tz=tz)
+    daily_plan = get_daily_plan_unified(current_user.id, tz=tz)
+    daily_summary = get_daily_summary(current_user.id, tz=tz)
 
     # Time-based greeting
     from datetime import datetime as dt
@@ -188,18 +397,19 @@ def dashboard():
 
     # Yesterday summary
     from app.telegram.queries import get_yesterday_summary
-    yesterday_summary = get_yesterday_summary(current_user.id)
+    yesterday_summary = get_yesterday_summary(current_user.id, tz=tz)
 
     # === PLAN COMPLETION & STREAK ===
     from app.achievements.streak_service import compute_plan_steps, process_streak_on_activity
 
     plan_completion, steps_available, steps_done, steps_total = compute_plan_steps(daily_plan, daily_summary)
 
-    streak_result = process_streak_on_activity(current_user.id, steps_done, steps_total)
+    streak_result = process_streak_on_activity(current_user.id, steps_done, steps_total, tz=tz)
     streak_status = streak_result['streak_status']
     required_steps = streak_result['required_steps']
     streak_repaired = streak_result['streak_repaired']
     streak = streak_status.get('streak', streak)
+    daily_race = _safe_widget_call('daily_race', _build_daily_race_widget, current_user.id, tz, default=None)
 
     # Cards URL (user's default deck or generic)
     cards_url = url_for('study.cards')
@@ -214,7 +424,6 @@ def dashboard():
     words_minutes = _words_minutes(daily_plan.get('words_due', 0))
 
     # === ACTIVITY HEATMAP & STREAK CALENDAR ===
-    tz = 'Europe/Moscow'
     activity_heatmap = _safe_widget_call(
         'activity_heatmap', get_activity_heatmap, current_user.id, days=90, tz=tz, default=[])
     # Show empty state if user has no activity (all counts zero)
@@ -380,10 +589,15 @@ def dashboard():
     logger.info("Dashboard data loaded in %.3fs for user_id=%s", t_elapsed, current_user.id)
 
     mission_plan = daily_plan if daily_plan.get('mission') else None
+    plan_meta = daily_plan.get('_plan_meta', {})
     phase_urls = {}
     if mission_plan:
         for p in daily_plan.get('phases', []):
             phase_urls[p.get('id', '')] = _phase_url(p, daily_plan)
+    next_plan_title, next_plan_url = _get_next_plan_action(daily_plan, daily_summary)
+    if daily_race:
+        daily_race['next_action_title'] = next_plan_title
+        daily_race['next_action_url'] = next_plan_url
 
     return render_template('dashboard.html',
         # Daily plan
@@ -391,12 +605,14 @@ def dashboard():
         streak=streak,
         streak_status=streak_status,
         streak_repaired=streak_repaired,
+        daily_race=daily_race,
         daily_plan=daily_plan,
         daily_summary=daily_summary,
         yesterday_summary=yesterday_summary,
         plan_completion=plan_completion,
         plan_steps=daily_plan.get('steps', {}),
         mission_plan=mission_plan,
+        plan_meta=plan_meta,
         phase_urls=phase_urls,
         cards_url=cards_url,
         lesson_minutes=lesson_minutes,
@@ -726,8 +942,9 @@ def daily_plan_next_step() -> tuple:
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_daily_summary
 
-    daily_plan = get_daily_plan_unified(current_user.id)
-    daily_summary = get_daily_summary(current_user.id)
+    tz = current_user.timezone or 'Europe/Moscow'
+    daily_plan = get_daily_plan_unified(current_user.id, tz=tz)
+    daily_summary = get_daily_summary(current_user.id, tz=tz)
 
     if daily_plan.get('phases'):
         return _next_step_from_mission(daily_plan, daily_summary)
@@ -737,13 +954,13 @@ def daily_plan_next_step() -> tuple:
 
 def _next_step_from_mission(plan: dict, daily_summary: dict) -> tuple:
     """Return next incomplete phase from mission plan."""
-    from app.achievements.streak_service import _compute_phase_completion
+    from app.achievements.streak_service import _compute_phase_completion, compute_plan_steps
 
     phases = plan['phases']
     completion = _compute_phase_completion(phases, daily_summary)
-    required_ids = {p['id'] for p in phases if p.get('required', True)}
-    phases_done = sum(1 for pid, v in completion.items() if v and pid in required_ids)
-    phases_total = len(required_ids)
+    _, _, steps_done, steps_total = compute_plan_steps(plan, daily_summary)
+    phases_done = steps_done
+    phases_total = steps_total
 
     next_phase = next((p for p in phases if not completion.get(p['id'])), None)
 
@@ -784,7 +1001,7 @@ def _phase_url(phase: dict, plan: dict) -> str:
 
     if mode in ('srs_review', 'guided_recall', 'book_vocab_recall',
                 'micro_check', 'meaning_prompt', 'vocab_drill'):
-        return cards_url + '?from=daily_plan'
+        return url_for('study.cards', source='daily_plan_mix') + '&from=daily_plan'
 
     if mode in ('curriculum_lesson', 'lesson_practice'):
         nl = plan.get('next_lesson')
@@ -803,9 +1020,9 @@ def _phase_url(phase: dict, plan: dict) -> str:
     if mode in ('grammar_practice', 'targeted_quiz'):
         gt = plan.get('grammar_topic')
         if gt and gt.get('topic_id'):
-            return url_for('grammar_lab.topic_detail',
+            return url_for('grammar_lab.practice',
                            topic_id=gt['topic_id']) + '?from=daily_plan'
-        return url_for('grammar_lab.index')
+        return url_for('grammar_lab.practice') + '?from=daily_plan'
 
     if mode in ('book_reading', 'reading_vocab_extract'):
         book = plan.get('book_to_read')

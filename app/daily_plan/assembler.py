@@ -14,6 +14,7 @@ from app.grammar_lab.models import (
     UserGrammarExercise,
     UserGrammarTopicStatus,
 )
+from app.study.deck_utils import get_daily_plan_mix_word_ids
 from app.study.models import UserWord, UserCardDirection
 from app.books.models import Book, Chapter, UserChapterProgress
 
@@ -29,10 +30,11 @@ from app.daily_plan.models import (
 )
 from app.daily_plan.repair_pressure import RepairBreakdown
 
-
 def _count_srs_due(user_id: int) -> int:
     now = datetime.now(timezone.utc)
-    return (
+    mix_word_ids = get_daily_plan_mix_word_ids(user_id)
+
+    query = (
         db.session.query(func.count(UserCardDirection.id))
         .join(UserWord)
         .filter(
@@ -40,8 +42,12 @@ def _count_srs_due(user_id: int) -> int:
             UserCardDirection.state.in_(('review', 'relearning')),
             UserCardDirection.next_review <= now,
         )
-        .scalar()
-    ) or 0
+    )
+
+    if mix_word_ids:
+        query = query.filter(UserWord.word_id.in_(mix_word_ids))
+
+    return query.scalar() or 0
 
 
 def _count_grammar_due(user_id: int) -> int:
@@ -199,13 +205,13 @@ def _make_recall_phase(source_kind: SourceKind, has_srs: bool) -> MissionPhase:
     if has_srs:
         return MissionPhase(
             phase=PhaseKind.recall,
-            title="Вспоминаем изученное",
+            title="Разогрев серии",
             source_kind=SourceKind.srs,
             mode="srs_review",
         )
     return MissionPhase(
         phase=PhaseKind.recall,
-        title="Повторяем ключевые слова",
+        title="Вспоминаем главное",
         source_kind=source_kind,
         mode="guided_recall",
     )
@@ -224,6 +230,8 @@ def _make_close_phase() -> MissionPhase:
 def assemble_progress_mission(
     user_id: int,
     primary_source: SourceKind,
+    reason_code: str = "primary_track_progress",
+    reason_text: str = "Двигаемся вперёд по курсу",
     tz: Optional[str] = None,
 ) -> Optional[MissionPlan]:
     """Build Progress mission: Recall → Learn (next lesson) → Use (practice) → optional Check."""
@@ -238,13 +246,13 @@ def assemble_progress_mission(
             _make_recall_phase(SourceKind.book_course, srs_due > 0),
             MissionPhase(
                 phase=PhaseKind.learn,
-                title="Урок книжного курса",
+                title="Главный шаг миссии",
                 source_kind=SourceKind.book_course,
                 mode="book_course_lesson",
             ),
             MissionPhase(
                 phase=PhaseKind.use,
-                title="Практика по материалу",
+                title="Практика без подсказок",
                 source_kind=SourceKind.book_course,
                 mode="book_course_practice",
             ),
@@ -253,7 +261,7 @@ def assemble_progress_mission(
         if srs_due > 0:
             phases.append(MissionPhase(
                 phase=PhaseKind.check,
-                title="Быстрая проверка",
+                title="Контрольный раунд",
                 source_kind=SourceKind.srs,
                 mode="micro_check",
                 required=False,
@@ -264,8 +272,8 @@ def assemble_progress_mission(
             mission=Mission(
                 type=MissionType.progress,
                 title="Продвигаемся по курсу",
-                reason_code="primary_track_progress",
-                reason_text="Двигаемся вперёд по книжному курсу",
+                reason_code=reason_code,
+                reason_text=reason_text,
             ),
             primary_goal=PrimaryGoal(
                 type="advance",
@@ -289,34 +297,34 @@ def assemble_progress_mission(
         _make_recall_phase(SourceKind.normal_course, srs_due > 0),
         MissionPhase(
             phase=PhaseKind.learn,
-            title="Новый урок",
+            title="Главный шаг миссии",
             source_kind=SourceKind.normal_course,
             mode="curriculum_lesson",
         ),
         MissionPhase(
             phase=PhaseKind.use,
-            title="Применяем на практике",
+            title="Практика без подсказок",
             source_kind=SourceKind.normal_course,
             mode="lesson_practice",
         ),
     ]
 
     if srs_due > 0:
-        phases.append(MissionPhase(
-            phase=PhaseKind.check,
-            title="Быстрая проверка",
-            source_kind=SourceKind.srs,
-            mode="micro_check",
-            required=False,
-        ))
+            phases.append(MissionPhase(
+                phase=PhaseKind.check,
+                title="Контрольный раунд",
+                source_kind=SourceKind.srs,
+                mode="micro_check",
+                required=False,
+            ))
 
     return MissionPlan(
         plan_version="1",
         mission=Mission(
             type=MissionType.progress,
             title="Продвигаемся по курсу",
-            reason_code="primary_track_progress",
-            reason_text="Двигаемся вперёд по курсу",
+            reason_code=reason_code,
+            reason_text=reason_text,
         ),
         primary_goal=PrimaryGoal(
             type="advance",
@@ -336,6 +344,8 @@ def assemble_progress_mission(
 def assemble_repair_mission(
     user_id: int,
     repair_breakdown: RepairBreakdown,
+    reason_code: str = "repair_pressure_high",
+    reason_text: str = "У тебя накопились слабые места — давай укрепим основу",
     tz: Optional[str] = None,
 ) -> Optional[MissionPlan]:
     """Build Repair mission: Recall (overdue SRS) → Learn (weak grammar/vocab) → Use (quiz) → Close."""
@@ -350,7 +360,7 @@ def assemble_repair_mission(
     phases: list[MissionPhase] = [
         MissionPhase(
             phase=PhaseKind.recall,
-            title="Повторяем забытое",
+            title="Возвращаем забытое",
             source_kind=SourceKind.srs,
             mode="srs_review" if srs_due > 0 else "guided_recall",
         ),
@@ -359,21 +369,21 @@ def assemble_repair_mission(
     if grammar_topic:
         phases.append(MissionPhase(
             phase=PhaseKind.learn,
-            title="Укрепляем грамматику",
+            title="Разбираем слабое место",
             source_kind=SourceKind.grammar_lab,
             mode="grammar_practice",
         ))
     else:
         phases.append(MissionPhase(
             phase=PhaseKind.learn,
-            title="Работаем над словами",
+            title="Подтягиваем слова",
             source_kind=SourceKind.vocab,
             mode="vocab_drill",
         ))
 
     phases.append(MissionPhase(
         phase=PhaseKind.use,
-        title="Проверяем понимание",
+        title="Сразу применяем",
         source_kind=SourceKind.grammar_lab if grammar_topic else SourceKind.vocab,
         mode="targeted_quiz" if grammar_topic else "meaning_prompt",
     ))
@@ -385,8 +395,8 @@ def assemble_repair_mission(
         mission=Mission(
             type=MissionType.repair,
             title="Укрепляем основу",
-            reason_code="repair_pressure_high",
-            reason_text="У тебя накопились слабые места — давай укрепим основу",
+            reason_code=reason_code,
+            reason_text=reason_text,
         ),
         primary_goal=PrimaryGoal(
             type="repair",
@@ -409,6 +419,8 @@ def assemble_repair_mission(
 
 def assemble_reading_mission(
     user_id: int,
+    reason_code: str = "primary_track_reading",
+    reason_text: str = "Продолжим чтение — это твой основной трек",
     tz: Optional[str] = None,
 ) -> Optional[MissionPlan]:
     """Build Reading mission: Recall (book vocab) → Read (next chapter) → Use (new words) → optional Check."""
@@ -421,19 +433,19 @@ def assemble_reading_mission(
     phases = [
         MissionPhase(
             phase=PhaseKind.recall,
-            title="Вспоминаем слова из книги",
+            title="Входим в контекст",
             source_kind=SourceKind.vocab,
             mode="book_vocab_recall" if srs_due > 0 else "guided_recall",
         ),
         MissionPhase(
             phase=PhaseKind.read,
-            title="Читаем дальше",
+            title="Читаем следующий фрагмент",
             source_kind=SourceKind.books,
             mode="book_reading",
         ),
         MissionPhase(
             phase=PhaseKind.use,
-            title="Работаем с новыми словами",
+            title="Вытаскиваем язык из текста",
             source_kind=SourceKind.vocab,
             mode="reading_vocab_extract",
         ),
@@ -442,7 +454,7 @@ def assemble_reading_mission(
     if srs_due > 0:
         phases.append(MissionPhase(
             phase=PhaseKind.check,
-            title="Проверяем понимание",
+            title="Закрываем чтение короткой проверкой",
             source_kind=SourceKind.vocab,
             mode="meaning_prompt",
             required=False,
@@ -453,8 +465,8 @@ def assemble_reading_mission(
         mission=Mission(
             type=MissionType.reading,
             title="Читаем и учимся",
-            reason_code="primary_track_reading",
-            reason_text="Продолжим чтение — это твой основной трек",
+            reason_code=reason_code,
+            reason_text=reason_text,
         ),
         primary_goal=PrimaryGoal(
             type="read",

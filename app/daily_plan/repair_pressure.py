@@ -7,6 +7,7 @@ from typing import Optional
 from sqlalchemy import func
 
 from app.utils.db import db
+from app.study.deck_utils import get_daily_plan_mix_word_ids
 from app.study.models import UserWord, UserCardDirection
 from app.grammar_lab.models import GrammarAttempt, UserGrammarExercise
 
@@ -52,8 +53,9 @@ def _normalize(value: int, soft: int, hard: int) -> float:
 
 def _count_overdue_srs(user_id: int) -> int:
     now = datetime.now(timezone.utc)
+    mix_word_ids = get_daily_plan_mix_word_ids(user_id)
 
-    overdue_cards = (
+    query = (
         db.session.query(func.count(UserCardDirection.id))
         .join(UserWord)
         .filter(
@@ -61,8 +63,12 @@ def _count_overdue_srs(user_id: int) -> int:
             UserCardDirection.state.in_(('review', 'relearning')),
             UserCardDirection.next_review <= now,
         )
-        .scalar()
-    ) or 0
+    )
+
+    if mix_word_ids:
+        query = query.filter(UserWord.word_id.in_(mix_word_ids))
+
+    overdue_cards = query.scalar() or 0
 
     overdue_grammar = (
         db.session.query(func.count(UserGrammarExercise.id))
