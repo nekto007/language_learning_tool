@@ -381,7 +381,7 @@ def assemble_repair_mission(
             track if track in (SourceKind.normal_course, SourceKind.book_course)
             else SourceKind.normal_course
         )
-        return assemble_progress_mission(user_id, primary_source, tz=tz)
+        return assemble_progress_mission(user_id, primary_source, reason_code=reason_code, reason_text=reason_text, tz=tz)
 
     grammar_topic = _find_weak_grammar_topic(user_id)
 

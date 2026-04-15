@@ -1,5 +1,5 @@
 """Tests for app/daily_plan/assembler.py — level-aware cold start and edge cases."""
-from unittest.mock import MagicMock, patch, call, ANY
+from unittest.mock import MagicMock, patch, ANY
 
 import pytest
 

@@ -299,7 +299,7 @@ class TestRepairMissionDegradation:
 
         assert result is not None
         assert result.mission.type == MissionType.progress
-        mock_progress.assert_called_once_with(1, SourceKind.normal_course, tz=None)
+        mock_progress.assert_called_once_with(1, SourceKind.normal_course, reason_code="repair_pressure_high", reason_text="У тебя накопились слабые места — давай укрепим основу", tz=None)
 
     @patch(f"{ASSEMBLER_MODULE}.detect_primary_track", return_value=SourceKind.book_course)
     @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
@@ -319,7 +319,7 @@ class TestRepairMissionDegradation:
 
         assemble_repair_mission(1, breakdown)
 
-        mock_progress.assert_called_once_with(1, SourceKind.book_course, tz=None)
+        mock_progress.assert_called_once_with(1, SourceKind.book_course, reason_code="repair_pressure_high", reason_text="У тебя накопились слабые места — давай укрепим основу", tz=None)
 
     @patch(f"{ASSEMBLER_MODULE}.detect_primary_track", return_value=None)
     @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
@@ -339,7 +339,7 @@ class TestRepairMissionDegradation:
 
         assemble_repair_mission(1, breakdown)
 
-        mock_progress.assert_called_once_with(1, SourceKind.normal_course, tz=None)
+        mock_progress.assert_called_once_with(1, SourceKind.normal_course, reason_code="repair_pressure_high", reason_text="У тебя накопились слабые места — давай укрепим основу", tz=None)
 
 
 class TestAssemblerWarningLogs:
