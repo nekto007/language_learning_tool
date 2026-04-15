@@ -52,7 +52,8 @@ def _normalize(value: int, soft: int, hard: int) -> float:
 
 
 def _count_overdue_srs(user_id: int) -> int:
-    now = datetime.now(timezone.utc)
+    # next_review is stored as naive UTC (Column(DateTime)), so now must be naive UTC too
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     mix_word_ids = get_daily_plan_mix_word_ids(user_id)
 
     query = (
@@ -110,7 +111,7 @@ def _count_failure_clusters(user_id: int) -> int:
 
 
 def calculate_repair_pressure(
-    user_id: int, tz: Optional[str] = None
+    user_id: int, tz: Optional[str] = None  # tz accepted for API compatibility; all counts use naive UTC
 ) -> RepairBreakdown:
     """Weighted score (0-1): 50% overdue SRS + 30% grammar weak points + 20% recent failure clusters."""
     overdue = _count_overdue_srs(user_id)

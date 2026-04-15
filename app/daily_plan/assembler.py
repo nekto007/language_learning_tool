@@ -37,7 +37,8 @@ logger = logging.getLogger(__name__)
 
 
 def _count_srs_due(user_id: int) -> int:
-    now = datetime.now(timezone.utc)
+    # next_review is stored as naive UTC (Column(DateTime)), so now must be naive UTC too
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     mix_word_ids = get_daily_plan_mix_word_ids(user_id)
 
     query = (
@@ -57,7 +58,8 @@ def _count_srs_due(user_id: int) -> int:
 
 
 def _count_grammar_due(user_id: int) -> int:
-    now = datetime.now(timezone.utc)
+    # next_review is stored as naive UTC (Column(DateTime)), so now must be naive UTC too
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     return (
         db.session.query(func.count(UserGrammarExercise.id))
         .filter(
@@ -329,13 +331,13 @@ def assemble_progress_mission(
     ]
 
     if srs_due > 0:
-            phases.append(MissionPhase(
-                phase=PhaseKind.check,
-                title="Контрольный раунд",
-                source_kind=SourceKind.srs,
-                mode="micro_check",
-                required=False,
-            ))
+        phases.append(MissionPhase(
+            phase=PhaseKind.check,
+            title="Контрольный раунд",
+            source_kind=SourceKind.srs,
+            mode="micro_check",
+            required=False,
+        ))
 
     return MissionPlan(
         plan_version="1",
