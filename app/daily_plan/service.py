@@ -115,7 +115,7 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
 
         if plan is None:
             logger.warning(
-                "%s assembler returned None for user_id=%s, falling back to legacy",
+                "%s assembler returned None for user_id=%s",
                 mission_type.value if mission_type else "unknown",
                 user_id,
             )
