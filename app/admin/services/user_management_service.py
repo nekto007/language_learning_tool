@@ -332,6 +332,22 @@ class UserManagementService:
         return True, f"Admin status {'granted' if user.is_admin else 'revoked'} for {user.username}"
 
     @classmethod
+    def toggle_mission_plan(cls, user_id: int) -> Optional[Dict]:
+        """Toggle mission-based daily plan flag for a user."""
+        user = User.query.get(user_id)
+        if not user:
+            return None
+
+        user.use_mission_plan = not user.use_mission_plan
+        db.session.commit()
+
+        return {
+            'user_id': user.id,
+            'username': user.username,
+            'use_mission_plan': user.use_mission_plan,
+        }
+
+    @classmethod
     def get_user_activity_stats(cls, days: int = 30) -> Dict:
         """
         Get user activity statistics for dashboard

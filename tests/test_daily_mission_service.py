@@ -141,6 +141,37 @@ class TestMissionPlanToDict:
         assert 'legacy' not in d
 
 
+class TestPlanMetaHelper:
+    def test_mission_mode_meta_added(self):
+        from app.daily_plan.service import _with_plan_meta
+
+        payload = {'mission': {'type': 'progress'}}
+        result = _with_plan_meta(
+            payload,
+            mission_plan_enabled=True,
+            effective_mode='mission',
+        )
+
+        assert result['_plan_meta']['mission_plan_enabled'] is True
+        assert result['_plan_meta']['effective_mode'] == 'mission'
+        assert result['_plan_meta']['fallback_reason'] is None
+
+    def test_legacy_fallback_meta_added(self):
+        from app.daily_plan.service import _with_plan_meta
+
+        payload = {'steps': {}}
+        result = _with_plan_meta(
+            payload,
+            mission_plan_enabled=True,
+            effective_mode='legacy_fallback',
+            fallback_reason='mission_build_failed',
+        )
+
+        assert result['_plan_meta']['mission_plan_enabled'] is True
+        assert result['_plan_meta']['effective_mode'] == 'legacy_fallback'
+        assert result['_plan_meta']['fallback_reason'] == 'mission_build_failed'
+
+
 class TestGetMissionPlan:
     @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
     @patch(f"{MODULE}.assemble_progress_mission")
@@ -151,7 +182,13 @@ class TestGetMissionPlan:
         assert result is not None
         assert result['mission']['type'] == 'progress'
         assert result['plan_version'] == '1'
-        mock_asm.assert_called_once_with(1, SourceKind.normal_course, None)
+        mock_asm.assert_called_once_with(
+            1,
+            SourceKind.normal_course,
+            reason_code="primary_track_progress",
+            reason_text="Вперёд",
+            tz=None,
+        )
 
     @patch(f"{MODULE}.assemble_repair_mission")
     @patch(f"{MODULE}.select_mission")
@@ -162,7 +199,13 @@ class TestGetMissionPlan:
         result = get_mission_plan(1)
         assert result is not None
         assert result['mission']['type'] == 'repair'
-        mock_asm.assert_called_once_with(1, breakdown, None)
+        mock_asm.assert_called_once_with(
+            1,
+            breakdown,
+            reason_code="repair_pressure_high",
+            reason_text="Слабые места",
+            tz=None,
+        )
 
     @patch(f"{MODULE}.assemble_reading_mission")
     @patch(f"{MODULE}.select_mission", return_value=(MissionType.reading, "primary_track_reading", "Чтение", None))
@@ -190,7 +233,13 @@ class TestGetMissionPlan:
     def test_no_track_defaults_to_normal_course(self, _sel, mock_asm, _track):
         mock_asm.return_value = _make_progress_plan()
         get_mission_plan(1)
-        mock_asm.assert_called_once_with(1, SourceKind.normal_course, None)
+        mock_asm.assert_called_once_with(
+            1,
+            SourceKind.normal_course,
+            reason_code="cold_start",
+            reason_text="Start",
+            tz=None,
+        )
 
     @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.book_course)
     @patch(f"{MODULE}.assemble_progress_mission")
@@ -198,7 +247,13 @@ class TestGetMissionPlan:
     def test_book_course_track_passed_to_assembler(self, _sel, mock_asm, _track):
         mock_asm.return_value = _make_progress_plan()
         get_mission_plan(1)
-        mock_asm.assert_called_once_with(1, SourceKind.book_course, None)
+        mock_asm.assert_called_once_with(
+            1,
+            SourceKind.book_course,
+            reason_code="primary_track_progress",
+            reason_text="Вперёд",
+            tz=None,
+        )
 
     @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.books)
     @patch(f"{MODULE}.assemble_progress_mission")
@@ -206,7 +261,13 @@ class TestGetMissionPlan:
     def test_books_track_falls_back_to_normal_course(self, _sel, mock_asm, _track):
         mock_asm.return_value = _make_progress_plan()
         get_mission_plan(1)
-        mock_asm.assert_called_once_with(1, SourceKind.normal_course, None)
+        mock_asm.assert_called_once_with(
+            1,
+            SourceKind.normal_course,
+            reason_code="cold_start",
+            reason_text="Start",
+            tz=None,
+        )
 
 
 LEGACY_MODULE = "app.telegram.queries"

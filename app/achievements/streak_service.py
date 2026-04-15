@@ -93,9 +93,10 @@ def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dic
     if phases:
         plan_completion = _compute_phase_completion(phases, daily_summary)
         steps_available = {p['id']: True for p in phases}
-        required_ids = {p['id'] for p in phases if p.get('required', True)}
-        steps_done = sum(1 for pid, v in plan_completion.items() if v and pid in required_ids)
-        steps_total = len(required_ids)
+
+        required_phases = [p for p in phases if p.get('required', True)]
+        steps_done = sum(1 for p in required_phases if plan_completion.get(p['id'], False))
+        steps_total = len(required_phases)
         return plan_completion, steps_available, steps_done, steps_total
 
     steps = daily_plan.get('steps')

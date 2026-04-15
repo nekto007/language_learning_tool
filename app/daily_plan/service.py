@@ -14,6 +14,22 @@ from app.daily_plan.assembler import (
 logger = logging.getLogger(__name__)
 
 
+def _with_plan_meta(
+    payload: dict[str, Any],
+    *,
+    mission_plan_enabled: bool,
+    effective_mode: str,
+    fallback_reason: Optional[str] = None,
+) -> dict[str, Any]:
+    enriched = dict(payload)
+    enriched['_plan_meta'] = {
+        'mission_plan_enabled': mission_plan_enabled,
+        'effective_mode': effective_mode,
+        'fallback_reason': fallback_reason,
+    }
+    return enriched
+
+
 def _mission_plan_to_dict(plan: MissionPlan) -> dict[str, Any]:
     def _enum_value(obj: Any) -> Any:
         if hasattr(obj, 'value'):
@@ -70,15 +86,32 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
         plan: Optional[MissionPlan] = None
 
         if mission_type == MissionType.repair:
-            plan = assemble_repair_mission(user_id, repair_breakdown, tz)
+            plan = assemble_repair_mission(
+                user_id,
+                repair_breakdown,
+                reason_code=reason_code,
+                reason_text=reason_text,
+                tz=tz,
+            )
 
         elif mission_type == MissionType.reading:
-            plan = assemble_reading_mission(user_id, tz)
+            plan = assemble_reading_mission(
+                user_id,
+                reason_code=reason_code,
+                reason_text=reason_text,
+                tz=tz,
+            )
 
         elif mission_type == MissionType.progress:
             track = detect_primary_track(user_id)
             primary_source = track if track in (SourceKind.normal_course, SourceKind.book_course) else SourceKind.normal_course
-            plan = assemble_progress_mission(user_id, primary_source, tz)
+            plan = assemble_progress_mission(
+                user_id,
+                primary_source,
+                reason_code=reason_code,
+                reason_text=reason_text,
+                tz=tz,
+            )
 
         if plan is None:
             return None
@@ -98,9 +131,25 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
     if user and user.use_mission_plan:
         mission_payload = get_mission_plan(user_id, tz)
         if mission_payload is not None:
-            return mission_payload
+            return _with_plan_meta(
+                mission_payload,
+                mission_plan_enabled=True,
+                effective_mode='mission',
+            )
+        logger.warning("Mission plan enabled but fallback to legacy plan for user %s", user_id)
+        from app.telegram.queries import get_daily_plan_v2
+        legacy_payload = get_daily_plan_v2(user_id, tz) if tz else get_daily_plan_v2(user_id)
+        return _with_plan_meta(
+            legacy_payload,
+            mission_plan_enabled=True,
+            effective_mode='legacy_fallback',
+            fallback_reason='mission_build_failed',
+        )
 
     from app.telegram.queries import get_daily_plan_v2
-    if tz:
-        return get_daily_plan_v2(user_id, tz)
-    return get_daily_plan_v2(user_id)
+    payload = get_daily_plan_v2(user_id, tz) if tz else get_daily_plan_v2(user_id)
+    return _with_plan_meta(
+        payload,
+        mission_plan_enabled=False,
+        effective_mode='legacy',
+    )

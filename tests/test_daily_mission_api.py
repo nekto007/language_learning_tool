@@ -206,6 +206,54 @@ class TestComputePlanStepsWithMissionPhases:
         assert done == 0
         assert total == 2
 
+    def test_progress_mission_real_modes_counts_each_phase(self):
+        from app.achievements.streak_service import compute_plan_steps
+        plan = {
+            'phases': [
+                {'id': 'p1', 'phase': 'recall', 'mode': 'srs_review', 'required': True},
+                {'id': 'p2', 'phase': 'learn', 'mode': 'curriculum_lesson', 'required': True},
+                {'id': 'p3', 'phase': 'use', 'mode': 'lesson_practice', 'required': True},
+            ],
+        }
+        summary = {'lessons_count': 1, 'words_reviewed': 0, 'srs_words_reviewed': 0,
+                   'grammar_exercises': 0, 'books_read': []}
+        completion, available, done, total = compute_plan_steps(plan, summary)
+        assert total == 3
+        assert done == 2
+        assert completion['p2'] is True
+        assert completion['p3'] is True
+
+    def test_reading_mission_real_modes_counts_each_phase(self):
+        from app.achievements.streak_service import compute_plan_steps
+        plan = {
+            'phases': [
+                {'id': 'p1', 'phase': 'recall', 'mode': 'book_vocab_recall', 'required': True},
+                {'id': 'p2', 'phase': 'read', 'mode': 'book_reading', 'required': True},
+                {'id': 'p3', 'phase': 'use', 'mode': 'reading_vocab_extract', 'required': True},
+            ],
+        }
+        summary = {'words_reviewed': 5, 'srs_words_reviewed': 0, 'lessons_count': 0,
+                   'grammar_exercises': 0, 'books_read': ['book1']}
+        completion, available, done, total = compute_plan_steps(plan, summary)
+        assert total == 3
+        assert done == 3
+
+    def test_repair_mission_real_modes_counts_each_phase(self):
+        from app.achievements.streak_service import compute_plan_steps
+        plan = {
+            'phases': [
+                {'id': 'p1', 'phase': 'recall', 'mode': 'srs_review', 'required': True},
+                {'id': 'p2', 'phase': 'learn', 'mode': 'grammar_practice', 'required': True},
+                {'id': 'p3', 'phase': 'use', 'mode': 'targeted_quiz', 'required': True},
+                {'id': 'p4', 'phase': 'close', 'mode': 'success_marker', 'required': False},
+            ],
+        }
+        summary = {'words_reviewed': 3, 'srs_words_reviewed': 0, 'lessons_count': 0,
+                   'grammar_exercises': 2, 'books_read': []}
+        completion, available, done, total = compute_plan_steps(plan, summary)
+        assert total == 3
+        assert done == 3
+
     def test_legacy_plan_still_works(self):
         from app.achievements.streak_service import compute_plan_steps
         plan = {
