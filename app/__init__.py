@@ -280,6 +280,10 @@ def create_app(config_class=Config):
     def handle_500_error(e):
         from flask import jsonify, render_template
         from app.admin.main_routes import increment_5xx_counter
+        try:
+            db.session.rollback()
+        except Exception:
+            logger.exception("Failed to rollback session in 500 handler")
         increment_5xx_counter()
         if _wants_json():
             return jsonify({'success': False, 'error': 'Internal server error'}), 500
@@ -288,7 +292,12 @@ def create_app(config_class=Config):
     @login_manager.user_loader
     def load_user(user_id):
         from app.auth.models import User
-        return User.query.get(int(user_id))
+        try:
+            return User.query.get(int(user_id))
+        except Exception:
+            db.session.rollback()
+            logger.exception("Failed to load user %s", user_id)
+            return None
 
     @app.before_request
     def update_last_active():
