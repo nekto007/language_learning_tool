@@ -353,7 +353,7 @@ class TestAssemblerWarningLogs:
         with caplog.at_level(logging.WARNING, logger="app.daily_plan.service"):
             result = get_mission_plan(1)
         assert result is None
-        assert any("progress_assembler returned None" in r.message for r in caplog.records)
+        assert any("assembler returned None" in r.message for r in caplog.records)
 
     @patch(f"{MODULE}.assemble_repair_mission", return_value=None)
     @patch(f"{MODULE}.select_mission")
@@ -365,7 +365,7 @@ class TestAssemblerWarningLogs:
         with caplog.at_level(logging.WARNING, logger="app.daily_plan.service"):
             result = get_mission_plan(1)
         assert result is None
-        assert any("repair_assembler returned None" in r.message for r in caplog.records)
+        assert any("assembler returned None" in r.message for r in caplog.records)
 
     @patch(f"{MODULE}.assemble_reading_mission", return_value=None)
     @patch(f"{MODULE}.select_mission", return_value=(MissionType.reading, "primary_track_reading", "Чтение", None))
@@ -374,7 +374,7 @@ class TestAssemblerWarningLogs:
         with caplog.at_level(logging.WARNING, logger="app.daily_plan.service"):
             result = get_mission_plan(1)
         assert result is None
-        assert any("reading_assembler returned None" in r.message for r in caplog.records)
+        assert any("assembler returned None" in r.message for r in caplog.records)
 
 
 LEGACY_MODULE = "app.telegram.queries"

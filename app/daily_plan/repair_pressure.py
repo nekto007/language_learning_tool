@@ -94,16 +94,9 @@ def _count_grammar_weak_points(user_id: int) -> int:
     ) or 0
 
 
-def _count_failure_clusters(user_id: int, tz: Optional[str] = None) -> int:
-    if tz:
-        try:
-            import pytz
-            now = datetime.now(pytz.timezone(tz))
-        except Exception:
-            now = datetime.now(timezone.utc)
-    else:
-        now = datetime.now(timezone.utc)
-    cutoff = now - timedelta(days=FAILURE_CLUSTER_WINDOW_DAYS)
+def _count_failure_clusters(user_id: int) -> int:
+    # created_at is stored as naive UTC (Column(DateTime)), so cutoff must be naive UTC too
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=FAILURE_CLUSTER_WINDOW_DAYS)
 
     return (
         db.session.query(func.count(GrammarAttempt.id))
@@ -122,7 +115,7 @@ def calculate_repair_pressure(
     """Weighted score (0-1): 50% overdue SRS + 30% grammar weak points + 20% recent failure clusters."""
     overdue = _count_overdue_srs(user_id)
     weak = _count_grammar_weak_points(user_id)
-    failures = _count_failure_clusters(user_id, tz)
+    failures = _count_failure_clusters(user_id)
 
     overdue_score = _normalize(overdue, OVERDUE_SRS_SOFT, OVERDUE_SRS_HARD)
     grammar_score = _normalize(weak, GRAMMAR_WEAK_SOFT, GRAMMAR_WEAK_HARD)
