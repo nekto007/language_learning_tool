@@ -1,7 +1,7 @@
 """add telegram notification hour columns
 
 Revision ID: add_telegram_notification_hours
-Revises: 03a5a0454960
+Revises: recreate_telegram
 Create Date: 2026-02-21 15:00:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'add_telegram_notification_hours'
-down_revision = '03a5a0454960'
+down_revision = 'recreate_telegram'
 branch_labels = None
 depends_on = None
 

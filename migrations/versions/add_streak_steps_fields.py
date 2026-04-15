@@ -1,7 +1,7 @@
 """add steps_done and steps_total to streak_events
 
 Revision ID: add_streak_steps_fields
-Revises: dca40f9b45ee
+Revises: None
 Create Date: 2026-03-31 12:00:00.000000
 
 """
@@ -11,13 +11,19 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'add_streak_steps_fields'
-down_revision = 'dca40f9b45ee'
+down_revision = None
 branch_labels = None
 depends_on = None
 
 
+def _table_exists(table):
+    from sqlalchemy import inspect
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    return table in inspector.get_table_names()
+
+
 def _column_exists(table, column):
-    """Check if a column already exists in the table."""
     from sqlalchemy import inspect
     bind = op.get_bind()
     inspector = inspect(bind)
@@ -26,6 +32,8 @@ def _column_exists(table, column):
 
 
 def upgrade():
+    if not _table_exists('streak_events'):
+        return
     if not _column_exists('streak_events', 'steps_done'):
         op.add_column('streak_events', sa.Column('steps_done', sa.Integer(), nullable=True))
     if not _column_exists('streak_events', 'steps_total'):
@@ -33,6 +41,8 @@ def upgrade():
 
 
 def downgrade():
+    if not _table_exists('streak_events'):
+        return
     if _column_exists('streak_events', 'steps_total'):
         op.drop_column('streak_events', 'steps_total')
     if _column_exists('streak_events', 'steps_done'):
