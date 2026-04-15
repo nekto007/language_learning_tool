@@ -59,7 +59,7 @@ class TestFindNextLessonColdStart:
             q = MagicMock()
             mock_module_cls.query.join.return_value = q
             q.filter.return_value.order_by.return_value.first.return_value = mock_module
-            # Also support the no-filter path (when order == 0)
+            # Support the no-filter path (when order == -1, CEFR code not found)
             q.order_by.return_value.first.return_value = mock_module
 
             # Module.query.get for module metadata
@@ -101,6 +101,15 @@ class TestFindNextLessonColdStart:
         out["mock_cto"].assert_called_once_with("C1", ANY)
         assert out["result"] is not None
 
+    def test_cold_start_unknown_level_skips_cefr_filter(self):
+        """When _cefr_code_to_order returns -1 (e.g. 'A0' not in DB), filter is
+        skipped and the unfiltered module query is used."""
+        out = self._run(user_id=2, level_code="A0", level_order=-1)
+        out["mock_gcl"].assert_called_once_with(2, ANY)
+        out["mock_cto"].assert_called_once_with("A0", ANY)
+        assert out["result"] is not None
+        assert out["result"]["lesson_id"] == 42
+
     def test_cold_start_returns_none_when_no_module_found(self):
         """Cold start → no module found at user's level → returns None."""
         from app.daily_plan.assembler import _find_next_lesson
@@ -126,6 +135,16 @@ class TestFindNextLessonColdStart:
 
 
 class TestFindNextBookCourseLessonEmptyWarning:
+    def test_no_enrollment_returns_none(self):
+        """When user has no active book course enrollment, returns None immediately."""
+        from app.daily_plan.assembler import _find_next_book_course_lesson
+
+        with patch(f"{ASSEMBLER_MOD}.BookCourseEnrollment") as mock_bce:
+            mock_bce.query.filter_by.return_value.first.return_value = None
+            result = _find_next_book_course_lesson(user_id=1)
+
+        assert result is None
+
     def test_empty_lessons_logs_warning(self, caplog):
         """When enrollment exists but course has no lessons, a warning is logged."""
         import logging

@@ -95,7 +95,15 @@ def _count_grammar_weak_points(user_id: int) -> int:
 
 
 def _count_failure_clusters(user_id: int, tz: Optional[str] = None) -> int:
-    cutoff = datetime.now(timezone.utc) - timedelta(days=FAILURE_CLUSTER_WINDOW_DAYS)
+    if tz:
+        try:
+            import pytz
+            now = datetime.now(pytz.timezone(tz))
+        except Exception:
+            now = datetime.now(timezone.utc)
+    else:
+        now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=FAILURE_CLUSTER_WINDOW_DAYS)
 
     return (
         db.session.query(func.count(GrammarAttempt.id))

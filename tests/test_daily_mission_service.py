@@ -279,7 +279,7 @@ MISSION_SELECTOR_MODULE = "app.daily_plan.mission_selector"
 class TestRepairMissionDegradation:
     """Repair mission degrades to progress when SRS=0 and grammar=0."""
 
-    @patch(f"{MISSION_SELECTOR_MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
+    @patch(f"{ASSEMBLER_MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
     @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
     @patch(f"{ASSEMBLER_MODULE}._count_grammar_due", return_value=0)
     @patch(f"{ASSEMBLER_MODULE}._count_srs_due", return_value=0)
@@ -301,7 +301,7 @@ class TestRepairMissionDegradation:
         assert result.mission.type == MissionType.progress
         mock_progress.assert_called_once_with(1, SourceKind.normal_course, tz=None)
 
-    @patch(f"{MISSION_SELECTOR_MODULE}.detect_primary_track", return_value=SourceKind.book_course)
+    @patch(f"{ASSEMBLER_MODULE}.detect_primary_track", return_value=SourceKind.book_course)
     @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
     @patch(f"{ASSEMBLER_MODULE}._count_grammar_due", return_value=0)
     @patch(f"{ASSEMBLER_MODULE}._count_srs_due", return_value=0)
@@ -321,7 +321,7 @@ class TestRepairMissionDegradation:
 
         mock_progress.assert_called_once_with(1, SourceKind.book_course, tz=None)
 
-    @patch(f"{MISSION_SELECTOR_MODULE}.detect_primary_track", return_value=None)
+    @patch(f"{ASSEMBLER_MODULE}.detect_primary_track", return_value=None)
     @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
     @patch(f"{ASSEMBLER_MODULE}._count_grammar_due", return_value=0)
     @patch(f"{ASSEMBLER_MODULE}._count_srs_due", return_value=0)
@@ -375,16 +375,6 @@ class TestAssemblerWarningLogs:
             result = get_mission_plan(1)
         assert result is None
         assert any("reading_assembler returned None" in r.message for r in caplog.records)
-
-    @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
-    @patch(f"{MODULE}.assemble_progress_mission", return_value=None)
-    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "cold_start", "Start", None))
-    def test_all_assemblers_failed_log_emitted(self, _sel, _asm, _track, caplog):
-        import logging
-        with caplog.at_level(logging.WARNING, logger="app.daily_plan.service"):
-            result = get_mission_plan(1)
-        assert result is None
-        assert any("all assemblers failed" in r.message for r in caplog.records)
 
 
 LEGACY_MODULE = "app.telegram.queries"

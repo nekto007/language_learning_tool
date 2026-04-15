@@ -9,6 +9,7 @@ from sqlalchemy import func
 from app.utils.db import db
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.daily_plan.level_utils import get_user_current_cefr_level, _cefr_code_to_order
+from app.daily_plan.mission_selector import detect_primary_track
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
 from app.grammar_lab.models import (
@@ -375,7 +376,6 @@ def assemble_repair_mission(
             "assemble_repair_mission: no SRS or grammar due for user_id=%s, degrading to progress mission",
             user_id,
         )
-        from app.daily_plan.mission_selector import detect_primary_track
         track = detect_primary_track(user_id)
         primary_source = (
             track if track in (SourceKind.normal_course, SourceKind.book_course)
