@@ -120,8 +120,8 @@
            MISSION-BASED PLAN (new sequential UI)
            ══════════════════════════════════════════ #}
         {% set m_phases = mission_plan.get('phases', []) %}
-        {% set m_done = m_phases | selectattr('completed') | list | length %}
         {% set m_total = m_phases | length %}
+        {% set m_done = plan_steps_done if plan_steps_done is defined else 0 %}
         {% set m_all_done = (m_done == m_total and m_total > 0) %}
 
         {# Mission header: title + reason #}
@@ -169,7 +169,7 @@
         <div class="dash-timeline" data-mission-plan="true">
         {% set mns = namespace(current_found=false) %}
         {% for phase in m_phases %}
-            {% set is_done = phase.get('completed', false) %}
+            {% set is_done = plan_completion.get(phase.get('id', ''), false) %}
             {% if is_done %}
                 {% set phase_css = 'done' %}
             {% elif not mns.current_found %}
@@ -194,7 +194,7 @@
                     {% if is_done %}
                     <span class="dash-step__btn">Готово &#10003;</span>
                     {% elif phase_css == 'current' %}
-                    <a href="/dashboard?from=daily_plan" class="dash-step__btn">Начать</a>
+                    <a href="{{ phase_urls.get(phase.get('id', ''), '/dashboard?from=daily_plan') }}" class="dash-step__btn">Начать</a>
                     {% endif %}
                 </div>
             </div>

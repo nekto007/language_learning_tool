@@ -10,7 +10,6 @@ from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
 from app.grammar_lab.models import (
-    GrammarExercise,
     GrammarTopic,
     UserGrammarExercise,
     UserGrammarTopicStatus,

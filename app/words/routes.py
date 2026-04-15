@@ -381,6 +381,10 @@ def dashboard():
     logger.info("Dashboard data loaded in %.3fs for user_id=%s", t_elapsed, current_user.id)
 
     mission_plan = daily_plan if daily_plan.get('mission') else None
+    phase_urls = {}
+    if mission_plan:
+        for p in daily_plan.get('phases', []):
+            phase_urls[p.get('id', '')] = _phase_url(p, daily_plan)
 
     return render_template('dashboard.html',
         # Daily plan
@@ -394,6 +398,7 @@ def dashboard():
         plan_completion=plan_completion,
         plan_steps=daily_plan.get('steps', {}),
         mission_plan=mission_plan,
+        phase_urls=phase_urls,
         cards_url=cards_url,
         lesson_minutes=lesson_minutes,
         words_minutes=words_minutes,
@@ -723,21 +728,24 @@ def daily_plan_next_step() -> tuple:
     from app.telegram.queries import get_daily_summary
 
     daily_plan = get_daily_plan_unified(current_user.id)
+    daily_summary = get_daily_summary(current_user.id)
 
     if daily_plan.get('phases'):
-        return _next_step_from_mission(daily_plan)
+        return _next_step_from_mission(daily_plan, daily_summary)
 
-    daily_summary = get_daily_summary(current_user.id)
     return _next_step_from_legacy(daily_plan, daily_summary)
 
 
-def _next_step_from_mission(plan: dict):
+def _next_step_from_mission(plan: dict, daily_summary: dict) -> tuple:
     """Return next incomplete phase from mission plan."""
+    from app.achievements.streak_service import _compute_phase_completion
+
     phases = plan['phases']
-    phases_done = sum(1 for p in phases if p.get('completed'))
+    completion = _compute_phase_completion(phases, daily_summary)
+    phases_done = sum(1 for v in completion.values() if v)
     phases_total = len(phases)
 
-    next_phase = next((p for p in phases if not p.get('completed')), None)
+    next_phase = next((p for p in phases if not completion.get(p['id'])), None)
 
     if not next_phase:
         return jsonify({
@@ -745,7 +753,7 @@ def _next_step_from_mission(plan: dict):
             'all_done': True,
             'steps_done': phases_done,
             'steps_total': phases_total,
-        })
+        }), 200
 
     PHASE_ICONS = {
         'recall': '\U0001f504',
@@ -760,11 +768,52 @@ def _next_step_from_mission(plan: dict):
         'has_next': True,
         'step_type': next_phase['phase'],
         'step_title': next_phase['title'],
-        'step_url': '/dashboard',
+        'step_url': _phase_url(next_phase, plan),
         'step_icon': PHASE_ICONS.get(next_phase['phase'], '\U0001f4cc'),
         'steps_done': phases_done,
         'steps_total': phases_total,
-    })
+    }), 200
+
+
+def _phase_url(phase: dict, plan: dict) -> str:
+    """Build URL for a mission phase based on its mode and legacy data."""
+    mode = phase.get('mode', '')
+    cards_url = url_for('study.cards')
+    if current_user.default_study_deck_id:
+        cards_url = url_for('study.cards_deck', deck_id=current_user.default_study_deck_id)
+
+    if mode in ('srs_review', 'guided_recall', 'book_vocab_recall',
+                'micro_check', 'meaning_prompt', 'vocab_drill'):
+        return cards_url + '?from=daily_plan'
+
+    if mode in ('curriculum_lesson', 'lesson_practice'):
+        nl = plan.get('next_lesson')
+        if nl and nl.get('lesson_id'):
+            return url_for('curriculum_lessons.lesson_detail',
+                           lesson_id=nl['lesson_id']) + '?from=daily_plan'
+
+    if mode in ('book_course_lesson', 'book_course_practice'):
+        bc = plan.get('book_course_lesson')
+        if bc and bc.get('course_id') and bc.get('module_id') and bc.get('lesson_id'):
+            return url_for('book_courses.view_lesson_by_id',
+                           course_id=bc['course_id'],
+                           module_id=bc['module_id'],
+                           lesson_id=bc['lesson_id']) + '?from=daily_plan'
+
+    if mode in ('grammar_practice', 'targeted_quiz'):
+        gt = plan.get('grammar_topic')
+        if gt and gt.get('topic_id'):
+            return url_for('grammar_lab.topic_detail',
+                           topic_id=gt['topic_id']) + '?from=daily_plan'
+        return url_for('grammar_lab.index')
+
+    if mode in ('book_reading', 'reading_vocab_extract'):
+        book = plan.get('book_to_read')
+        if book and book.get('id'):
+            return url_for('books.read_book_chapters',
+                           book_id=book['id']) + '?from=daily_plan'
+
+    return url_for('words.word_list')
 
 
 def _next_step_from_legacy(daily_plan: dict, daily_summary: dict) -> tuple:

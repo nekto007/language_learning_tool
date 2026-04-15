@@ -32,6 +32,52 @@ def get_required_steps(streak_length: int, steps_total: int) -> int:
     return min(required, steps_total)
 
 
+_MODE_DONE_CHECK: dict[str, str] = {
+    'srs_review': 'words',
+    'guided_recall': 'words',
+    'book_vocab_recall': 'words',
+    'micro_check': 'words',
+    'meaning_prompt': 'words',
+    'vocab_drill': 'words',
+    'reading_vocab_extract': 'words',
+    'curriculum_lesson': 'lesson',
+    'lesson_practice': 'lesson',
+    'book_course_lesson': 'book_course',
+    'book_course_practice': 'book_course',
+    'grammar_practice': 'grammar',
+    'targeted_quiz': 'grammar',
+    'book_reading': 'books',
+}
+
+
+def _compute_phase_completion(phases: list[dict], daily_summary: dict) -> dict[str, bool]:
+    """Infer phase completion from daily_summary activity data."""
+    checks = {
+        'words': (daily_summary.get('words_reviewed', 0) > 0
+                  or daily_summary.get('srs_words_reviewed', 0) > 0),
+        'lesson': daily_summary.get('lessons_count', 0) > 0,
+        'grammar': daily_summary.get('grammar_exercises', 0) > 0,
+        'books': len(daily_summary.get('books_read', [])) > 0,
+        'book_course': daily_summary.get('book_course_lessons_today', 0) > 0,
+    }
+
+    result: dict[str, bool] = {}
+    for p in phases:
+        mode = p.get('mode', '')
+        category = _MODE_DONE_CHECK.get(mode)
+        if category:
+            result[p['id']] = checks.get(category, False)
+        elif mode == 'success_marker':
+            result[p['id']] = all(
+                result.get(q['id'], False)
+                for q in phases
+                if q.get('required', True) and q['id'] != p['id']
+            )
+        else:
+            result[p['id']] = p.get('completed', False)
+    return result
+
+
 def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dict, int, int]:
     """Compute plan completion and step counts from plan + summary data.
 
@@ -42,7 +88,7 @@ def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dic
     """
     phases = daily_plan.get('phases')
     if phases:
-        plan_completion = {p['id']: p.get('completed', False) for p in phases}
+        plan_completion = _compute_phase_completion(phases, daily_summary)
         steps_available = {p['id']: True for p in phases}
         steps_done = sum(1 for v in plan_completion.values() if v)
         steps_total = len(phases)
