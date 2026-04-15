@@ -374,7 +374,7 @@ def assemble_repair_mission(
         phase=PhaseKind.use,
         title="Проверяем понимание",
         source_kind=SourceKind.grammar_lab if grammar_topic else SourceKind.vocab,
-        mode="targeted_quiz",
+        mode="targeted_quiz" if grammar_topic else "vocab_drill",
     ))
 
     phases.append(_make_close_phase())
@@ -401,6 +401,7 @@ def assemble_repair_mission(
         legacy={
             'overdue_srs': repair_breakdown.overdue_srs_count,
             'grammar_weak': repair_breakdown.grammar_weak_count,
+            'grammar_topic': grammar_topic,
         },
     )
 

@@ -123,7 +123,6 @@ def _safe_widget_call(name: str, fn, *args, default=None, **kwargs):
         with db.session.begin_nested():
             return fn(*args, **kwargs)
     except Exception:
-        db.session.rollback()
         logger.exception("Dashboard widget '%s' failed", name)
         return default
 

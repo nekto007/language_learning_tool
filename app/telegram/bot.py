@@ -499,7 +499,7 @@ def _handle_plan(chat_id: int, telegram_id: int) -> None:
         return
 
     from app.telegram.queries import (
-        get_daily_plan, get_daily_summary, get_current_streak, get_cards_url,
+        get_daily_summary, get_current_streak, get_cards_url,
         get_daily_plan_for_telegram,
     )
     from app.achievements.streak_service import get_or_create_coins
