@@ -8,6 +8,7 @@ from sqlalchemy import func, or_, and_, case
 from sqlalchemy.orm import joinedload
 
 from app.study.blueprint import study, get_audio_url_for_word
+from app.study.deck_utils import get_daily_plan_mix_word_ids
 from app.study.models import QuizDeck, StudySession, StudySettings, UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
@@ -51,6 +52,8 @@ def get_study_items():
                 'message': 'Deck not found or access denied',
                 'items': []
             })
+    elif word_source == 'daily_plan_mix':
+        deck_word_ids = get_daily_plan_mix_word_ids(current_user.id)
 
     if deck_id and deck:
         new_cards_today, reviews_today = SRSService.get_deck_stats_today(current_user.id, deck_id)

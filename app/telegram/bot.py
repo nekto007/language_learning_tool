@@ -499,7 +499,8 @@ def _handle_plan(chat_id: int, telegram_id: int) -> None:
         return
 
     from app.telegram.queries import (
-        get_daily_plan, get_daily_summary, get_current_streak, get_cards_url,
+        get_daily_summary, get_current_streak, get_cards_url,
+        get_daily_plan_for_telegram,
     )
     from app.achievements.streak_service import get_or_create_coins
 
@@ -508,10 +509,28 @@ def _handle_plan(chat_id: int, telegram_id: int) -> None:
     site_url = current_app.config.get('SITE_URL', '')
     cards_url = get_cards_url(user_id, site_url) if site_url else ''
 
-    plan = get_daily_plan(user_id, tz=user_tz)
+    plan = get_daily_plan_for_telegram(user_id, tz=user_tz)
     summary = get_daily_summary(user_id, tz=user_tz)
     streak = get_current_streak(user_id, tz=user_tz)
     coins = get_or_create_coins(user_id)
+
+    if plan.get('mission'):
+        from app.achievements.streak_service import _compute_phase_completion
+        from app.telegram.notifications import format_mission_plan_text
+        completion = _compute_phase_completion(plan['phases'], summary)
+        for p in plan['phases']:
+            p['completed'] = completion.get(p['id'], False)
+        text = format_mission_plan_text(plan)
+        text += f'\n\n\U0001f525 {streak} дней подряд  \U0001f4b0 {coins.balance}'
+        buttons: list[list[dict]] = []
+        if site_url:
+            buttons.append([{
+                'text': '\U0001f3af Начать занятие',
+                'url': f'{site_url}/study?from=telegram',
+            }])
+        reply_markup = {'inline_keyboard': buttons} if buttons else None
+        _send_message(chat_id, text, reply_markup=reply_markup)
+        return
 
     # Build checklist items: (done, label, url_or_none)
     steps: list[tuple[bool, str, str | None]] = []

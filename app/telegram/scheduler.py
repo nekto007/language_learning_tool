@@ -13,11 +13,13 @@ from app.telegram.queries import (
     has_activity_today, get_current_streak,
     get_daily_plan, get_daily_summary, get_weekly_report,
     get_tomorrow_preview, get_quickest_action, get_cards_url,
+    get_daily_plan_for_telegram,
 )
 from app.telegram.notifications import (
     format_morning_reminder, format_evening_summary,
     format_nudge, format_streak_alert, format_streak_repair_alert,
     format_weekly_report, format_word_of_day,
+    format_mission_morning_reminder,
 )
 
 logger = logging.getLogger(__name__)
@@ -104,9 +106,13 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
     # Morning reminder (user's custom hour)
     if local_hour == tg_user.morning_hour and tg_user.morning_reminder:
         streak = get_current_streak(user_id, tz=user_tz)
-        plan = get_daily_plan(user_id, tz=user_tz)
-        text, reply_markup = format_morning_reminder(name, streak, plan, site_url,
-                                                     cards_url=cards_url)
+        plan = get_daily_plan_for_telegram(user_id, tz=user_tz)
+        if plan.get('mission'):
+            text, reply_markup = format_mission_morning_reminder(
+                name, streak, plan, site_url)
+        else:
+            text, reply_markup = format_morning_reminder(
+                name, streak, plan, site_url, cards_url=cards_url)
         send_message(chat_id, text, reply_markup=reply_markup)
 
     # Word of the Day (1 hour after morning reminder)

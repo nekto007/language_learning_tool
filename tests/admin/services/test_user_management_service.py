@@ -273,6 +273,49 @@ class TestUserManagementService:
         assert 'User not found' in message
 
     @patch('app.admin.services.user_management_service.db')
+    @patch('app.admin.services.user_management_service.User')
+    def test_toggle_mission_plan_enable(self, mock_user, mock_db):
+        """Test enabling mission-based plan for user."""
+        mock_user_obj = Mock()
+        mock_user_obj.id = 2
+        mock_user_obj.username = 'testuser'
+        mock_user_obj.use_mission_plan = False
+        mock_user.query.get.return_value = mock_user_obj
+
+        result = UserManagementService.toggle_mission_plan(2)
+
+        assert result is not None
+        assert result['use_mission_plan'] is True
+        assert mock_user_obj.use_mission_plan is True
+        mock_db.session.commit.assert_called_once()
+
+    @patch('app.admin.services.user_management_service.db')
+    @patch('app.admin.services.user_management_service.User')
+    def test_toggle_mission_plan_disable(self, mock_user, mock_db):
+        """Test disabling mission-based plan for user."""
+        mock_user_obj = Mock()
+        mock_user_obj.id = 2
+        mock_user_obj.username = 'testuser'
+        mock_user_obj.use_mission_plan = True
+        mock_user.query.get.return_value = mock_user_obj
+
+        result = UserManagementService.toggle_mission_plan(2)
+
+        assert result is not None
+        assert result['use_mission_plan'] is False
+        assert mock_user_obj.use_mission_plan is False
+        mock_db.session.commit.assert_called_once()
+
+    @patch('app.admin.services.user_management_service.User')
+    def test_toggle_mission_plan_user_not_found(self, mock_user):
+        """Test toggling mission plan for non-existent user."""
+        mock_user.query.get.return_value = None
+
+        result = UserManagementService.toggle_mission_plan(999)
+
+        assert result is None
+
+    @patch('app.admin.services.user_management_service.db')
     def test_get_user_activity_stats_success(self, mock_db):
         """Test successful retrieval of user activity statistics"""
         # Mock registration data

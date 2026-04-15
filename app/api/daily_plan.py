@@ -26,13 +26,14 @@ def _validate_timezone(tz_name: str) -> str:
 @api_auth_required
 def daily_status():
     """Unified daily status: plan + summary + streak + yesterday — one request."""
-    from app.telegram.queries import get_daily_plan, get_daily_summary, get_yesterday_summary
+    from app.daily_plan.service import get_daily_plan_unified
+    from app.telegram.queries import get_daily_summary, get_yesterday_summary
     from app.achievements.streak_service import compute_plan_steps, process_streak_on_activity
 
     tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
     user_id = current_user.id
 
-    plan = get_daily_plan(user_id, tz=tz)
+    plan = get_daily_plan_unified(user_id, tz=tz)
     summary = get_daily_summary(user_id, tz=tz)
     yesterday = get_yesterday_summary(user_id, tz=tz)
 
@@ -73,11 +74,11 @@ def daily_plan():
         onboarding: Onboarding suggestions for new users (null if not new)
         bonus: Extra tasks available
     """
-    from app.telegram.queries import get_daily_plan
+    from app.daily_plan.service import get_daily_plan_unified
 
     tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
     user_id = current_user.id
-    plan = get_daily_plan(user_id, tz=tz)
+    plan = get_daily_plan_unified(user_id, tz=tz)
 
     return jsonify({'success': True, **plan})
 

@@ -111,9 +111,229 @@
     </div>
     {% endif %}
 
+    {% if daily_race %}
+    <section class="dash-race">
+        <div class="dash-race__header">
+            <div>
+                <div class="dash-race__eyebrow">Гонка дня</div>
+                <h2 class="dash-race__title">Что сделать сегодня, чтобы подняться выше</h2>
+                {% if daily_race.has_bot_rivals %}
+                <div class="dash-race__note">Тренировочный режим: соперники временные.</div>
+                {% endif %}
+            </div>
+            <div class="dash-race__badge">Место {{ daily_race.rank }}/{{ daily_race.total }}</div>
+        </div>
+
+        <div class="dash-race__hero">
+            <div class="dash-race__stats">
+                <div>
+                    <div class="dash-race__score">{{ daily_race.score }}</div>
+                    <div class="dash-race__score-label">очки за сегодня</div>
+                </div>
+                <div class="dash-race__progress">
+                    <div class="dash-race__progress-label">Прогресс: {{ daily_race.steps_done }}/{{ daily_race.steps_total }} этапов</div>
+                    <div class="dash-race__progress-bar">
+                        <div class="dash-race__progress-fill" style="width: {{ [daily_race.steps_done / daily_race.steps_total * 100, 100]|min if daily_race.steps_total else 0 }}%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dash-race__callout">{{ daily_race.callout }}</div>
+
+            <div class="dash-race__tasks">
+                {% if daily_race.next_step_title %}
+                <div class="dash-race__task">
+                    <div class="dash-race__task-index">1</div>
+                    <div class="dash-race__task-body">
+                        <div class="dash-race__task-title">Сделай шаг: {{ daily_race.next_step_title }}</div>
+                        <div class="dash-race__task-meta">За него даётся +{{ daily_race.next_step_points }} очков.</div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if daily_race.rival_above %}
+                <div class="dash-race__task">
+                    <div class="dash-race__task-index">2</div>
+                    <div class="dash-race__task-body">
+                        <div class="dash-race__task-title">Сократи отрыв до {{ daily_race.rival_above.username }}</div>
+                        <div class="dash-race__task-meta">Сейчас до обгона {{ daily_race.gap_up }} очк.</div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if daily_race.rival_below %}
+                <div class="dash-race__task">
+                    <div class="dash-race__task-index">3</div>
+                    <div class="dash-race__task-body">
+                        <div class="dash-race__task-title">Удержи позицию перед {{ daily_race.rival_below.username }}</div>
+                        <div class="dash-race__task-meta">Запас снизу: {{ daily_race.gap_down }} очк.</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if daily_race.next_action_url %}
+            <a href="{{ daily_race.next_action_url }}" class="dash-race__cta">
+                {% if daily_race.next_action_title %}Открыть: {{ daily_race.next_action_title }}{% else %}Сделать следующий шаг{% endif %}
+            </a>
+            {% endif %}
+
+            <div class="dash-race__board">
+                <div class="dash-race__board-title">Позиции рядом</div>
+                <div class="dash-race__list">
+                    {% for rival in daily_race.leaderboard %}
+                    <div class="dash-race__row {% if rival.is_me %}dash-race__row--me{% endif %}">
+                        <div class="dash-race__place">{{ rival.rank }}</div>
+                        <div class="dash-race__user">
+                            <div class="dash-race__name">{% if rival.is_me %}Ты{% else %}{{ rival.username }}{% endif %}</div>
+                            <div class="dash-race__user-meta">{{ rival.steps_done }}/{{ rival.steps_total }} этапов · 🔥 {{ rival.streak }}{% if rival.is_bot %} · тренировка{% endif %}</div>
+                        </div>
+                        <div class="dash-race__points">{{ rival.score }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
     <!-- Daily Plan -->
     <div class="dash-plan">
         <h2 class="dash-plan__heading">План на сегодня</h2>
+        {% if current_user.is_admin and plan_meta %}
+        <div class="dash-plan-debug dash-plan-debug--{{ plan_meta.get('effective_mode', 'unknown') }}">
+            Режим плана: <strong>{{ plan_meta.get('effective_mode', 'unknown') }}</strong>
+            {% if plan_meta.get('fallback_reason') %}
+            <span class="dash-plan-debug__reason">· fallback: {{ plan_meta.get('fallback_reason') }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    {% if mission_plan %}
+        {# ══════════════════════════════════════════
+           MISSION-BASED PLAN (new sequential UI)
+           ══════════════════════════════════════════ #}
+        {% set m_phases = mission_plan.get('phases', []) %}
+        {% set m_total = plan_steps_total if plan_steps_total is defined else m_phases | length %}
+        {% set m_done = plan_steps_done if plan_steps_done is defined else 0 %}
+        {% set m_all_done = (m_done >= m_total and m_total > 0) %}
+
+        {# Mission header: title + reason #}
+        {% set m = mission_plan.get('mission', {}) %}
+        {% set m_goal = mission_plan.get('primary_goal', {}) %}
+        {% set m_source = mission_plan.get('primary_source', {}) %}
+        {% set source_kind_labels = {
+            'normal_course': 'Курс',
+            'book_course': 'Книжный курс',
+            'books': 'Книга',
+            'grammar_lab': 'Грамматика',
+            'vocab': 'Слова',
+            'srs': 'Повторение'
+        } %}
+        {% set source_label = m_source.get('label', '') %}
+        {% if source_label and source_label.startswith('Lesson ') %}
+            {% set source_label = source_kind_labels.get(m_source.get('kind', ''), 'Курс') %}
+        {% endif %}
+        {% if not source_label %}
+            {% set source_label = source_kind_labels.get(m_source.get('kind', ''), 'Текущий трек') %}
+        {% endif %}
+        {% set mission_icons = {'progress': '&#127919;', 'repair': '&#128296;', 'reading': '&#128214;'} %}
+        <div class="dash-mission-header">
+            <span class="dash-mission-header__icon">{{ mission_icons.get(m.get('type', ''), '&#128204;')|safe }}</span>
+            <div class="dash-mission-header__text">
+                <div class="dash-mission-header__eyebrow">Главная миссия дня</div>
+                <div class="dash-mission-header__title">{{ m.get('title', '') }}</div>
+                <div class="dash-mission-header__reason">{{ m.get('reason_text', '') }}</div>
+                {% if source_label or m_goal.get('title') %}
+                <div class="dash-mission-header__meta">
+                    {% if source_label %}
+                    <span class="dash-mission-header__pill">Трек: {{ source_label }}</span>
+                    {% endif %}
+                    {% if m_goal.get('title') %}
+                    <span class="dash-mission-header__pill">Цель дня: {{ m_goal.get('title', '') }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Progress bar #}
+        {% if m_total > 0 %}
+        {% set m_pct = (m_done / m_total * 100) | int %}
+        <div class="dash-progress">
+            <div class="dash-progress__bar">
+                <div class="dash-progress__fill {% if m_all_done %}dash-progress__fill--done{% endif %}" style="width: {{ m_pct }}%"></div>
+            </div>
+            <span class="dash-progress__count">{{ m_done }}/{{ m_total }}</span>
+        </div>
+        {% if required_steps is defined and not m_all_done %}
+        <div class="dash-streak-req {% if plan_steps_done >= required_steps %}dash-streak-req--done{% endif %}">
+            {% if plan_steps_done >= required_steps %}
+            &#128293; Серия сохранена!
+            {% else %}
+            &#128293; До сохранения серии: {{ plan_steps_done|default(0) }}/{{ required_steps }}
+            {% if required_steps == 1 %}задание{% elif required_steps < 5 %}задания{% else %}заданий{% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {# Completion banner #}
+        {% if m_all_done %}
+        <div class="dash-plan-complete">
+            <span class="dash-plan-complete__icon">&#127881;</span>
+            <span class="dash-plan-complete__text">Отличная работа! Всё на сегодня сделано.</span>
+        </div>
+        {% endif %}
+
+        {# Phase cards #}
+        {% set phase_icons = {'recall': '&#128260;', 'learn': '&#127919;', 'use': '&#129504;', 'read': '&#128213;', 'check': '&#127937;', 'close': '&#127775;'} %}
+        {% set phase_hints = {
+            'recall': 'Быстрый старт: набираем темп и не роняем серию',
+            'learn': 'Главный шаг дня: идём за новым прогрессом и очками',
+            'use': 'Здесь решаем сами и набираем уверенность перед следующим уровнем',
+            'read': 'Идём через живой текст, детали и понимание смысла',
+            'check': 'Финальный раунд: проверяем, что действительно закрепилось',
+            'close': 'Фиксируем победу дня и готовим почву для следующего рывка'
+        } %}
+        <div class="dash-timeline" data-mission-plan="true">
+        {% set mns = namespace(current_found=false) %}
+        {% for phase in m_phases %}
+            {% set is_done = plan_completion.get(phase.get('id', ''), false) %}
+            {% if is_done %}
+                {% set phase_css = 'done' %}
+            {% elif not mns.current_found %}
+                {% set phase_css = 'current' %}
+                {% set mns.current_found = true %}
+            {% else %}
+                {% set phase_css = 'upcoming' %}
+            {% endif %}
+
+            <div class="dash-step dash-step--phase dash-step--{{ phase_css }}" style="animation-delay: {{ loop.index * 0.08 }}s" data-phase-id="{{ phase.get('id', '') }}">
+                <div class="dash-step__num">{% if is_done %}&#10003;{% else %}{{ loop.index }}{% endif %}</div>
+                <div class="dash-step__body">
+                    <div class="dash-step__icon">{{ phase_icons.get(phase.get('phase', ''), '&#128204;')|safe }}</div>
+                    <div class="dash-step__info">
+                        <div class="dash-step__title">{{ phase.get('title', '') }}</div>
+                        <div class="dash-step__meta">{{ phase_hints.get(phase.get('phase', ''), 'Последовательный этап миссии') }}</div>
+                        {% if is_done %}
+                        <div class="dash-step__result">&#10003; Этап закрыт</div>
+                        {% elif phase_css == 'current' %}
+                        <div class="dash-step__result">Текущий раунд</div>
+                        {% endif %}
+                    </div>
+                    {% if is_done %}
+                    <span class="dash-step__btn">Готово &#10003;</span>
+                    {% elif phase_css == 'current' %}
+                    <a href="{{ phase_urls.get(phase.get('id', ''), '/dashboard?from=daily_plan') }}" class="dash-step__btn">Вперёд к очкам</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+        </div><!-- /dash-timeline -->
+
+    {% else %}
+        {# ══════════════════════════════════════════
+           LEGACY PLAN (flat steps)
+           ══════════════════════════════════════════ #}
 
         {# Build visible steps list from plan_steps state machine #}
         {% set visible = [] %}
@@ -156,9 +376,9 @@
         {% if required_steps is defined and not all_done %}
         <div class="dash-streak-req {% if plan_steps_done >= required_steps %}dash-streak-req--done{% endif %}">
             {% if plan_steps_done >= required_steps %}
-            &#128293; Серия защитана!
+            &#128293; Серия сохранена!
             {% else %}
-            &#128293; Для серии: {{ plan_steps_done|default(0) }}/{{ required_steps }}
+            &#128293; До сохранения серии: {{ plan_steps_done|default(0) }}/{{ required_steps }}
             {% if required_steps == 1 %}задание{% elif required_steps < 5 %}задания{% else %}заданий{% endif %}
             {% endif %}
         </div>
@@ -394,6 +614,7 @@
             <a href="{% if not current_user.onboarding_completed %}{{ url_for('onboarding.wizard') }}{% else %}{{ url_for('courses.catalog') }}{% endif %}" class="dash-step__btn">Начать обучение</a>
         </div>
         {% endif %}
+    {% endif %}
     </div>
 
     <!-- Weekly Challenge -->
@@ -1237,6 +1458,93 @@
 .dash-step__book-link:hover {
     background: var(--dash-accent-medium);
 }
+
+/* ============================================
+   Mission Plan Header
+   ============================================ */
+
+.dash-mission-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: var(--dash-accent-soft);
+    border: 1px solid rgba(80, 70, 229, 0.15);
+    border-radius: var(--dash-radius-sm);
+    margin-bottom: 1rem;
+}
+
+.dash-plan-debug {
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    background: #f4f6fb;
+    color: #4a5670;
+}
+
+.dash-plan-debug--mission {
+    background: #eef8f0;
+    color: #24613a;
+}
+
+.dash-plan-debug--legacy_fallback {
+    background: #fff3e8;
+    color: #9a5b11;
+}
+
+.dash-plan-debug--legacy {
+    background: #f1f3f8;
+    color: #59657d;
+}
+
+.dash-mission-header__icon { font-size: 1.5rem; flex-shrink: 0; }
+
+.dash-mission-header__eyebrow {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dash-accent);
+    margin-bottom: 0.2rem;
+}
+
+.dash-mission-header__title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--dash-text);
+    line-height: 1.3;
+}
+
+.dash-mission-header__reason {
+    font-size: 0.9375rem;
+    color: var(--dash-text-muted);
+    margin-top: 0.2rem;
+}
+
+.dash-mission-header__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.65rem;
+}
+
+.dash-mission-header__pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(80, 70, 229, 0.08);
+    color: var(--dash-accent);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.dash-step--phase .dash-step__body { border-left: 3px solid var(--dash-accent); }
+.dash-step--phase.dash-step--done .dash-step__body { border-left: 3px solid var(--dash-success); }
+.dash-step--phase.dash-step--done .dash-step__num { color: var(--dash-success); border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.06); }
+.dash-step--phase.dash-step--current .dash-step__num { color: var(--dash-accent); border-color: rgba(80, 70, 229, 0.2); background: rgba(80, 70, 229, 0.06); }
+.dash-step--phase.dash-step--upcoming .dash-step__body { opacity: 0.6; }
 
 /* ============================================
    Today Summary
@@ -2619,6 +2927,235 @@
 }
 .dash-streak__share-btn:hover {
     background: rgba(255,255,255,0.35);
+}
+
+/* ============================================
+   Daily Race
+   ============================================ */
+.dash-race {
+    background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(16,185,129,0.10));
+    border: 1px solid rgba(99,102,241,0.18);
+    border-radius: 20px;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+    animation: dashSlideUp 0.45s ease-out both;
+    animation-delay: 0.08s;
+}
+
+.dash-race__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.dash-race__eyebrow {
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #4f46e5;
+    margin-bottom: 0.2rem;
+}
+
+.dash-race__title {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #0f172a;
+}
+
+.dash-race__note {
+    margin-top: 0.35rem;
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.dash-race__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.72);
+    color: #312e81;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.dash-race__hero,
+.dash-race__board {
+    background: rgba(255,255,255,0.78);
+    border: 1px solid rgba(255,255,255,0.75);
+    border-radius: 18px;
+    padding: 1rem;
+}
+
+.dash-race__hero {
+    display: flex;
+    flex-direction: column;
+    gap: 0.95rem;
+}
+
+.dash-race__stats {
+    display: grid;
+    grid-template-columns: minmax(0, 140px) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: center;
+}
+
+.dash-race__score {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1;
+}
+
+.dash-race__score-label,
+.dash-race__progress-label,
+.dash-race__user-meta {
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.dash-race__progress-bar {
+    margin-top: 0.45rem;
+    height: 10px;
+    background: #e5e7eb;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.dash-race__progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #4f46e5, #10b981);
+}
+
+.dash-race__callout {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.dash-race__tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+
+.dash-race__task {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+    padding: 0.8rem 0.9rem;
+    border-radius: 14px;
+    background: rgba(79,70,229,0.06);
+    border: 1px solid rgba(79,70,229,0.10);
+}
+
+.dash-race__task-index {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef2ff;
+    color: #4338ca;
+    font-weight: 800;
+}
+
+.dash-race__task-title {
+    font-weight: 700;
+    color: #111827;
+}
+
+.dash-race__task-meta {
+    margin-top: 0.2rem;
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.dash-race__cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.8rem 1rem;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    box-shadow: 0 10px 24px rgba(79,70,229,0.24);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.dash-race__cta:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(79,70,229,0.3);
+}
+
+.dash-race__board-title {
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.8rem;
+}
+
+.dash-race__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.dash-race__row {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.8rem;
+    border-radius: 14px;
+    background: #f8fafc;
+}
+
+.dash-race__row--me {
+    background: rgba(79,70,229,0.10);
+    outline: 1px solid rgba(79,70,229,0.18);
+}
+
+.dash-race__place {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef2ff;
+    color: #4338ca;
+    font-weight: 800;
+    font-size: 0.875rem;
+}
+
+.dash-race__name {
+    font-weight: 700;
+    color: #111827;
+}
+
+.dash-race__points {
+    font-weight: 800;
+    color: #111827;
+}
+
+@media (max-width: 760px) {
+    .dash-race__header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .dash-race__stats {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ============================================

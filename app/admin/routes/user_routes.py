@@ -87,6 +87,22 @@ def toggle_admin_status(user_id):
     return redirect(url_for('user_admin.users'))
 
 
+@user_bp.route('/users/<int:user_id>/toggle_mission_plan', methods=['POST'])
+@admin_required
+def toggle_mission_plan(user_id):
+    """Enable/disable mission-based daily plan for a user."""
+    result = UserManagementService.toggle_mission_plan(user_id)
+
+    if result:
+        state = "включён" if result['use_mission_plan'] else "выключен"
+        flash(f'Mission-based daily plan для {result["username"]} {state}.', 'success')
+    else:
+        flash('Пользователь не найден.', 'danger')
+
+    next_url = request.form.get('next') or request.referrer or url_for('user_admin.users')
+    return redirect(next_url)
+
+
 @user_bp.route('/users/<int:user_id>')
 @admin_required
 def user_detail(user_id):

@@ -1337,17 +1337,14 @@ class TestDashboardPerformance:
         assert result == [{'id': 2}]
 
     def test_safe_widget_call_returns_default_on_error(self, app):
-        """_safe_widget_call should return default value and rollback session on error"""
+        """_safe_widget_call should return default value on error (savepoint handles rollback)"""
         from app.words.routes import _safe_widget_call
-        from app.utils.db import db
 
         def failing_fn():
             raise ValueError("something broke")
 
-        with patch.object(db.session, 'rollback') as mock_rollback:
-            result = _safe_widget_call('test_widget', failing_fn, default=[])
-            assert result == []
-            mock_rollback.assert_called_once()
+        result = _safe_widget_call('test_widget', failing_fn, default=[])
+        assert result == []
 
     def test_safe_widget_call_returns_result_on_success(self, app):
         """_safe_widget_call should return function result on success"""

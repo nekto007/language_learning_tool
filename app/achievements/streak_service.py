@@ -32,14 +32,73 @@ def get_required_steps(streak_length: int, steps_total: int) -> int:
     return min(required, steps_total)
 
 
+_MODE_DONE_CHECK: dict[str, str] = {
+    'srs_review': 'words',
+    'guided_recall': 'words',
+    'book_vocab_recall': 'words',
+    'micro_check': 'words',
+    'meaning_prompt': 'words',
+    'vocab_drill': 'words',
+    'reading_vocab_extract': 'words',
+    'curriculum_lesson': 'lesson',
+    'lesson_practice': 'lesson',
+    'book_course_lesson': 'book_course',
+    'book_course_practice': 'book_course',
+    'grammar_practice': 'grammar',
+    'targeted_quiz': 'grammar',
+    'book_reading': 'books',
+}
+
+
+def _compute_phase_completion(phases: list[dict], daily_summary: dict) -> dict[str, bool]:
+    """Infer phase completion from daily_summary activity data."""
+    checks = {
+        'words': (daily_summary.get('words_reviewed', 0) > 0
+                  or daily_summary.get('srs_words_reviewed', 0) > 0),
+        'lesson': daily_summary.get('lessons_count', 0) > 0,
+        'grammar': daily_summary.get('grammar_exercises', 0) > 0,
+        'books': len(daily_summary.get('books_read', [])) > 0,
+        'book_course': daily_summary.get('book_course_lessons_today', 0) > 0,
+    }
+
+    result: dict[str, bool] = {}
+    deferred: list[dict] = []
+    for p in phases:
+        mode = p.get('mode', '')
+        category = _MODE_DONE_CHECK.get(mode)
+        if category:
+            result[p['id']] = checks.get(category, False)
+        elif mode == 'success_marker':
+            deferred.append(p)
+        else:
+            result[p['id']] = p.get('completed', False)
+    for p in deferred:
+        result[p['id']] = all(
+            result.get(q['id'], False)
+            for q in phases
+            if q.get('required', True) and q['id'] != p['id']
+        )
+    return result
+
+
 def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dict, int, int]:
     """Compute plan completion and step counts from plan + summary data.
 
     Returns (plan_completion, steps_available, steps_done, steps_total).
     Single source of truth — used by dashboard route, API, and bot.
 
-    Supports both new format (with 'steps' dict) and legacy flat format.
+    Supports mission phases format, new step-state format, and legacy flat format.
     """
+    phases = daily_plan.get('phases')
+    if phases:
+        plan_completion = _compute_phase_completion(phases, daily_summary)
+        steps_available = {p['id']: True for p in phases}
+
+        required_phases = [p for p in phases if p.get('required', True)]
+        steps_done = sum(1 for p in required_phases if plan_completion.get(p['id'], False))
+        steps_total = len(required_phases)
+        return plan_completion, steps_available, steps_done, steps_total
+
     steps = daily_plan.get('steps')
 
     if steps:
