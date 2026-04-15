@@ -270,6 +270,123 @@ class TestGetMissionPlan:
         )
 
 
+ASSEMBLER_MODULE = "app.daily_plan.assembler"
+
+
+MISSION_SELECTOR_MODULE = "app.daily_plan.mission_selector"
+
+
+class TestRepairMissionDegradation:
+    """Repair mission degrades to progress when SRS=0 and grammar=0."""
+
+    @patch(f"{MISSION_SELECTOR_MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
+    @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
+    @patch(f"{ASSEMBLER_MODULE}._count_grammar_due", return_value=0)
+    @patch(f"{ASSEMBLER_MODULE}._count_srs_due", return_value=0)
+    def test_zero_srs_and_grammar_delegates_to_progress(self, _srs, _gram, mock_progress, _track):
+        from app.daily_plan.assembler import assemble_repair_mission
+        from app.daily_plan.repair_pressure import RepairBreakdown
+
+        breakdown = RepairBreakdown(
+            overdue_srs_count=0, overdue_srs_score=0.0,
+            grammar_weak_count=0, grammar_weak_score=0.0,
+            failure_cluster_count=0, failure_cluster_score=0.0,
+            total_score=0.0,
+        )
+        mock_progress.return_value = _make_progress_plan()
+
+        result = assemble_repair_mission(1, breakdown)
+
+        assert result is not None
+        assert result.mission.type == MissionType.progress
+        mock_progress.assert_called_once_with(1, SourceKind.normal_course, tz=None)
+
+    @patch(f"{MISSION_SELECTOR_MODULE}.detect_primary_track", return_value=SourceKind.book_course)
+    @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
+    @patch(f"{ASSEMBLER_MODULE}._count_grammar_due", return_value=0)
+    @patch(f"{ASSEMBLER_MODULE}._count_srs_due", return_value=0)
+    def test_zero_srs_and_grammar_book_course_track(self, _srs, _gram, mock_progress, _track):
+        from app.daily_plan.assembler import assemble_repair_mission
+        from app.daily_plan.repair_pressure import RepairBreakdown
+
+        breakdown = RepairBreakdown(
+            overdue_srs_count=0, overdue_srs_score=0.0,
+            grammar_weak_count=0, grammar_weak_score=0.0,
+            failure_cluster_count=0, failure_cluster_score=0.0,
+            total_score=0.0,
+        )
+        mock_progress.return_value = _make_progress_plan()
+
+        assemble_repair_mission(1, breakdown)
+
+        mock_progress.assert_called_once_with(1, SourceKind.book_course, tz=None)
+
+    @patch(f"{MISSION_SELECTOR_MODULE}.detect_primary_track", return_value=None)
+    @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
+    @patch(f"{ASSEMBLER_MODULE}._count_grammar_due", return_value=0)
+    @patch(f"{ASSEMBLER_MODULE}._count_srs_due", return_value=0)
+    def test_zero_srs_and_grammar_no_track_defaults_to_normal_course(self, _srs, _gram, mock_progress, _track):
+        from app.daily_plan.assembler import assemble_repair_mission
+        from app.daily_plan.repair_pressure import RepairBreakdown
+
+        breakdown = RepairBreakdown(
+            overdue_srs_count=0, overdue_srs_score=0.0,
+            grammar_weak_count=0, grammar_weak_score=0.0,
+            failure_cluster_count=0, failure_cluster_score=0.0,
+            total_score=0.0,
+        )
+        mock_progress.return_value = _make_progress_plan()
+
+        assemble_repair_mission(1, breakdown)
+
+        mock_progress.assert_called_once_with(1, SourceKind.normal_course, tz=None)
+
+
+class TestAssemblerWarningLogs:
+    """Assembler failures produce structured warning logs in get_mission_plan."""
+
+    @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
+    @patch(f"{MODULE}.assemble_progress_mission", return_value=None)
+    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "cold_start", "Start", None))
+    def test_progress_assembler_none_emits_warning(self, _sel, _asm, _track, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING, logger="app.daily_plan.service"):
+            result = get_mission_plan(1)
+        assert result is None
+        assert any("progress_assembler returned None" in r.message for r in caplog.records)
+
+    @patch(f"{MODULE}.assemble_repair_mission", return_value=None)
+    @patch(f"{MODULE}.select_mission")
+    def test_repair_assembler_none_emits_warning(self, mock_sel, _asm, caplog):
+        import logging
+        breakdown = _high_breakdown()
+        mock_sel.return_value = (MissionType.repair, "repair_pressure_high", "Слабые места", breakdown)
+
+        with caplog.at_level(logging.WARNING, logger="app.daily_plan.service"):
+            result = get_mission_plan(1)
+        assert result is None
+        assert any("repair_assembler returned None" in r.message for r in caplog.records)
+
+    @patch(f"{MODULE}.assemble_reading_mission", return_value=None)
+    @patch(f"{MODULE}.select_mission", return_value=(MissionType.reading, "primary_track_reading", "Чтение", None))
+    def test_reading_assembler_none_emits_warning(self, _sel, _asm, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING, logger="app.daily_plan.service"):
+            result = get_mission_plan(1)
+        assert result is None
+        assert any("reading_assembler returned None" in r.message for r in caplog.records)
+
+    @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
+    @patch(f"{MODULE}.assemble_progress_mission", return_value=None)
+    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "cold_start", "Start", None))
+    def test_all_assemblers_failed_log_emitted(self, _sel, _asm, _track, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING, logger="app.daily_plan.service"):
+            result = get_mission_plan(1)
+        assert result is None
+        assert any("all assemblers failed" in r.message for r in caplog.records)
+
+
 LEGACY_MODULE = "app.telegram.queries"
 
 

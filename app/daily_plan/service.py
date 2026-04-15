@@ -93,6 +93,8 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
                 reason_text=reason_text,
                 tz=tz,
             )
+            if plan is None:
+                logger.warning("repair_assembler returned None for user_id=%s", user_id)
 
         elif mission_type == MissionType.reading:
             plan = assemble_reading_mission(
@@ -101,6 +103,8 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
                 reason_text=reason_text,
                 tz=tz,
             )
+            if plan is None:
+                logger.warning("reading_assembler returned None for user_id=%s", user_id)
 
         elif mission_type == MissionType.progress:
             track = detect_primary_track(user_id)
@@ -112,8 +116,11 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
                 reason_text=reason_text,
                 tz=tz,
             )
+            if plan is None:
+                logger.warning("progress_assembler returned None for user_id=%s", user_id)
 
         if plan is None:
+            logger.warning("all assemblers failed for user_id=%s, falling back to legacy", user_id)
             return None
 
         return _mission_plan_to_dict(plan)

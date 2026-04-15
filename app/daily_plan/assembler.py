@@ -371,7 +371,17 @@ def assemble_repair_mission(
     grammar_due = _count_grammar_due(user_id)
 
     if srs_due == 0 and grammar_due == 0:
-        return None
+        logger.info(
+            "assemble_repair_mission: no SRS or grammar due for user_id=%s, degrading to progress mission",
+            user_id,
+        )
+        from app.daily_plan.mission_selector import detect_primary_track
+        track = detect_primary_track(user_id)
+        primary_source = (
+            track if track in (SourceKind.normal_course, SourceKind.book_course)
+            else SourceKind.normal_course
+        )
+        return assemble_progress_mission(user_id, primary_source, tz=tz)
 
     grammar_topic = _find_weak_grammar_topic(user_id)
 
