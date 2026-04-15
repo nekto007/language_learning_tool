@@ -128,7 +128,7 @@
         {% set m = mission_plan.get('mission', {}) %}
         {% set mission_icons = {'progress': '&#127919;', 'repair': '&#128296;', 'reading': '&#128214;'} %}
         <div class="dash-mission-header">
-            <span class="dash-mission-header__icon">{{ mission_icons.get(m.get('type', ''), '&#128204;') }}</span>
+            <span class="dash-mission-header__icon">{{ mission_icons.get(m.get('type', ''), '&#128204;')|safe }}</span>
             <div class="dash-mission-header__text">
                 <div class="dash-mission-header__title">{{ m.get('title', '') }}</div>
                 <div class="dash-mission-header__reason">{{ m.get('reason_text', '') }}</div>
@@ -182,7 +182,7 @@
             <div class="dash-step dash-step--phase dash-step--{{ phase_css }}" style="animation-delay: {{ loop.index * 0.08 }}s" data-phase-id="{{ phase.get('id', '') }}">
                 <div class="dash-step__num">{% if is_done %}&#10003;{% else %}{{ loop.index }}{% endif %}</div>
                 <div class="dash-step__body">
-                    <div class="dash-step__icon">{{ phase_icons.get(phase.get('phase', ''), '&#128204;') }}</div>
+                    <div class="dash-step__icon">{{ phase_icons.get(phase.get('phase', ''), '&#128204;')|safe }}</div>
                     <div class="dash-step__info">
                         <div class="dash-step__title">{{ phase.get('title', '') }}</div>
                         {% if is_done %}

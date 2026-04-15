@@ -101,4 +101,6 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
             return mission_payload
 
     from app.telegram.queries import get_daily_plan_v2
-    return get_daily_plan_v2(user_id, tz or 'UTC')
+    if tz:
+        return get_daily_plan_v2(user_id, tz)
+    return get_daily_plan_v2(user_id)
