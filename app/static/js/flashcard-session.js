@@ -768,9 +768,9 @@ class FlashcardSession {
                 body: JSON.stringify(body),
             });
 
-            // Check response
             const contentType = response.headers.get('content-type');
-            if (!response.ok || !contentType || !contentType.includes('application/json')) {
+
+            if (!contentType || !contentType.includes('application/json')) {
                 const text = await response.text();
                 console.error('Server error:', response.status, 'Content-Type:', contentType, 'Body:', text.substring(0, 500));
                 alert('Сессия истекла. Перезагрузите страницу.');
@@ -779,6 +779,25 @@ class FlashcardSession {
             }
 
             const data = await response.json();
+
+            if (!response.ok) {
+                console.error('Server error:', response.status, 'Content-Type:', contentType, 'Body:', data);
+
+                if (response.status === 429 && data.error === 'daily_limit_exceeded') {
+                    alert('Дневной лимит новых карточек достигнут. Эта карточка не засчитана.');
+                    this.showCard(this.currentCardIndex + 1);
+                    return;
+                }
+
+                if (response.status === 400 || response.status === 401 || response.status === 403) {
+                    alert('Сессия истекла. Перезагрузите страницу.');
+                    window.location.reload();
+                    return;
+                }
+
+                alert(data.message || 'Произошла ошибка. Попробуйте ещё раз.');
+                return;
+            }
 
             // Anti-repeat: track card_id
             if (data.card_id) {
