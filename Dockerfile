@@ -41,4 +41,4 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 #RUN chmod -R 755 /app
 
 # Run migrations, seed data, then start application
-CMD ["sh", "-c", "flask db upgrade head && flask seed && flask warm-cache && gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 600 --graceful-timeout 60 run:app"]
+CMD ["sh", "-c", "flask db upgrade heads && flask seed && flask warm-cache && gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 600 --graceful-timeout 60 run:app"]
