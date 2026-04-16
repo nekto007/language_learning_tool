@@ -340,11 +340,11 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Create: `tests/api/test_daily_plan_api.py`
 
-- [ ] test GET /api/daily_plan/today: authenticated user returns plan
-- [ ] test GET /api/daily_plan/today: unauthenticated returns 401
-- [ ] test timezone validation: invalid tz returns 400
-- [ ] test: empty user (no progress) returns cold-start plan
-- [ ] run pytest -m smoke
+- [x] test GET /api/daily_plan/today: authenticated user returns plan
+- [x] test GET /api/daily_plan/today: unauthenticated returns 401
+- [x] test timezone validation: invalid tz returns 400
+- [x] test: empty user (no progress) returns cold-start plan
+- [x] run pytest -m smoke
 
 ### Task 30: Add API integration tests for study card endpoints
 
