@@ -724,10 +724,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Create: `tests/words/test_pagination.py`
 
-- [ ] test: GET /words?page=1&per_page=10 returns 10 items with total count
-- [ ] test: GET /words?page=99 returns empty items list not 500
-- [ ] test: per_page > 200 is clamped to 200
-- [ ] run pytest -m smoke
+- [x] test: GET /words?page=1&per_page=10 returns 10 items with total count
+- [x] test: GET /words?page=99 returns empty items list not 500
+- [x] test: per_page > 200 is clamped to 200
+- [x] run pytest -m smoke
 
 ### Task 67: Add test for slow query logger (from task 25)
 
