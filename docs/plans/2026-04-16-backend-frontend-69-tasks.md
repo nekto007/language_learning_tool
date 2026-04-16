@@ -394,11 +394,11 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Create: `app/admin/audit.py`
 - Modify: `app/admin/book_courses.py`, `app/admin/main_routes.py`
 
-- [ ] create `AdminAuditLog` SQLAlchemy model (id, admin_id, action, target_type, target_id, created_at)
-- [ ] create migration for new table
-- [ ] wrap delete-user, modify-content admin actions with `log_admin_action(admin_id, action, target)`
-- [ ] write test: deleting resource creates audit log entry
-- [ ] run pytest -m smoke
+- [x] create `AdminAuditLog` SQLAlchemy model (id, admin_id, action, target_type, target_id, created_at)
+- [x] create migration for new table
+- [x] wrap delete-user, modify-content admin actions with `log_admin_action(admin_id, action, target)`
+- [x] write test: deleting resource creates audit log entry
+- [x] run pytest -m smoke
 
 ### Task 35: Validate redirect `next` parameter domain (extend to curriculum routes)
 

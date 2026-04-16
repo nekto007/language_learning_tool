@@ -9,11 +9,13 @@ from datetime import UTC, datetime, timedelta
 from functools import wraps
 
 from flask import flash, jsonify, render_template, request, url_for
+from flask_login import current_user
 from sqlalchemy import desc, func
 from sqlalchemy.orm import joinedload
 
 from app.utils.db import db
 from app.admin.utils.decorators import admin_required, handle_admin_errors
+from app.admin.audit import log_admin_action
 from app.books.models import Book, Chapter, Task, TaskType
 from app.curriculum.book_courses import BookCourse, BookCourseModule, BookCourseEnrollment, BookModuleProgress
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary, UserLessonProgress
@@ -435,8 +437,14 @@ def register_book_course_routes(admin_bp):
                 # Delete the course itself
                 course_title = course.title
                 db.session.delete(course)
+                log_admin_action(
+                    admin_id=current_user.id,
+                    action='delete_book_course',
+                    target_type='BookCourse',
+                    target_id=course_id,
+                )
                 db.session.commit()
-                
+
                 logger.info(f"Successfully deleted course {course_id}: {course_title}")
                 flash(f'Курс "{course_title}" полностью удален!', 'success')
                 
