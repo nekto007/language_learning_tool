@@ -715,9 +715,9 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `tests/auth/test_auth_routes.py`
 
-- [ ] add test: POST /register with existing email returns 400 and error key 'email_taken'
-- [ ] add test: DB session is clean after duplicate registration attempt
-- [ ] run pytest -m smoke
+- [x] add test: POST /register with existing email returns 400 and error key 'email_taken'
+- [x] add test: DB session is clean after duplicate registration attempt
+- [x] run pytest -m smoke
 
 ### Task 66: Add test for pagination on word list endpoint (from task 18)
 
