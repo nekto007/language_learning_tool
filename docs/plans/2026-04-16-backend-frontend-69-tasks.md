@@ -598,10 +598,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: templates that use optional context variables without `| default()`
 
-- [ ] grep templates for `{{ [a-z_]+ }}` patterns (single variable without filter)
-- [ ] identify which of these are sometimes absent from render context
-- [ ] add `| default('')` or `| default(none)` appropriately
-- [ ] run pytest -m smoke
+- [x] grep templates for `{{ [a-z_]+ }}` patterns (single variable without filter)
+- [x] identify which of these are sometimes absent from render context
+- [x] add `| default('')` or `| default(none)` appropriately
+- [x] run pytest -m smoke
 
 ### Task 54: Add unit tests for words score/ranking service
 

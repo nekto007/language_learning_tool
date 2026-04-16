@@ -999,7 +999,7 @@
                 <a href="{{ url_for('study.index') }}" class="dash-progress__card dash-progress__card--words">
                     <div class="dash-progress__emoji">&#127183;</div>
                     <div class="dash-progress__data">
-                        <div class="dash-progress__value">{{ words_total }}</div>
+                        <div class="dash-progress__value">{{ words_total | default(0) }}</div>
                         <div class="dash-progress__label">&#1089;&#1083;&#1086;&#1074; &#1074; &#1082;&#1086;&#1083;&#1083;&#1077;&#1082;&#1094;&#1080;&#1080;</div>
                     </div>
                     <div class="dash-progress__arrow">&rsaquo;</div>
@@ -1009,7 +1009,7 @@
                 <a href="{{ url_for('grammar_lab.index') }}" class="dash-progress__card dash-progress__card--grammar">
                     <div class="dash-progress__emoji">&#129504;</div>
                     <div class="dash-progress__data">
-                        <div class="dash-progress__value">{{ grammar_studied }}<span class="dash-progress__total">/{{ grammar_total }}</span></div>
+                        <div class="dash-progress__value">{{ grammar_studied | default(0) }}<span class="dash-progress__total">/{{ grammar_total | default(0) }}</span></div>
                         <div class="dash-progress__label">&#1090;&#1077;&#1084; &#1075;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1080;</div>
                     </div>
                     <div class="dash-progress__arrow">&rsaquo;</div>
@@ -1029,8 +1029,8 @@
                 <a href="{{ url_for('books.book_list') }}" class="dash-progress__card dash-progress__card--books">
                     <div class="dash-progress__emoji">&#128218;</div>
                     <div class="dash-progress__data">
-                        <div class="dash-progress__value">{{ books_reading }}</div>
-                        <div class="dash-progress__label">{% if books_reading == 1 %}&#1082;&#1085;&#1080;&#1075;&#1072;{% elif books_reading < 5 %}&#1082;&#1085;&#1080;&#1075;&#1080;{% else %}&#1082;&#1085;&#1080;&#1075;{% endif %} &#1095;&#1080;&#1090;&#1072;&#1102;</div>
+                        <div class="dash-progress__value">{{ books_reading | default(0) }}</div>
+                        <div class="dash-progress__label">{% if books_reading == 1 %}&#1082;&#1085;&#1080;&#1075;&#1072;{% elif books_reading and books_reading < 5 %}&#1082;&#1085;&#1080;&#1075;&#1080;{% else %}&#1082;&#1085;&#1080;&#1075;{% endif %} &#1095;&#1080;&#1090;&#1072;&#1102;</div>
                     </div>
                     <div class="dash-progress__arrow">&rsaquo;</div>
                 </a>

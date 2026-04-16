@@ -3,9 +3,9 @@
 {% block title %}{{ word.english_word }} — перевод, примеры | LLT English{% endblock %}
 
 {% block head_extra %}
-<meta name="description" content="{{ meta_description }}">
+<meta name="description" content="{{ meta_description | default('') }}">
 <meta property="og:title" content="{{ word.english_word }} — перевод на русский | LLT English">
-<meta property="og:description" content="{{ meta_description }}">
+<meta property="og:description" content="{{ meta_description | default('') }}">
 <meta property="og:type" content="article">
 <link rel="canonical" href="https://llt-english.com/dictionary/{{ word.english_word|lower|replace(' ', '-') }}">
 <script type="application/ld+json">

@@ -4,13 +4,13 @@
 
 {% block og_tags %}
 <meta property="og:title" content="{{ topic.title }} ({{ topic.title_ru }}) — Грамматика {{ topic.level }} | LLT English">
-<meta property="og:description" content="{{ meta_description }}">
+<meta property="og:description" content="{{ meta_description | default('')}}">
 <meta property="og:type" content="article">
 <meta property="og:url" content="{{ request.base_url }}">
 {% endblock %}
 
 {% block head_extra %}
-<meta name="description" content="{{ meta_description }}">
+<meta name="description" content="{{ meta_description | default('')}}">
 <link rel="canonical" href="https://llt-english.com/grammar-lab/topic/{{ topic.id }}">
 <link rel="alternate" hreflang="ru" href="https://llt-english.com/grammar-lab/topic/{{ topic.id }}">
 <script type="application/ld+json">

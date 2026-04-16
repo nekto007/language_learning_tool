@@ -3,9 +3,9 @@
 {% block title %}{{ profile_user.username }} — Стрик {{ calendar.current_streak }} дней | LLT English{% endblock %}
 
 {% block head_extra %}
-<meta name="description" content="{{ meta_description }}">
+<meta name="description" content="{{ meta_description | default('')}}">
 <meta property="og:title" content="{{ profile_user.username }} — {{ calendar.current_streak }}-day streak | LLT English">
-<meta property="og:description" content="{{ meta_description }}">
+<meta property="og:description" content="{{ meta_description | default('')}}">
 <meta property="og:type" content="profile">
 <link rel="canonical" href="https://llt-english.com/streak/{{ profile_user.username }}">
 {% endblock %}
