@@ -362,11 +362,11 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `tests/grammar_lab/test_grammar_srs.py` (or create)
 
-- [ ] test review with 0 items due
-- [ ] test review with all items overdue
-- [ ] test first review (never reviewed before)
-- [ ] test interval calculation at mastery boundary
-- [ ] run pytest -m smoke
+- [x] test review with 0 items due
+- [x] test review with all items overdue
+- [x] test first review (never reviewed before)
+- [x] test interval calculation at mastery boundary
+- [x] run pytest -m smoke
 
 ### Task 32: Fix missing template variables causing 500 errors on edge routes
 
