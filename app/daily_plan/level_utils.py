@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
-def _cefr_code_to_order(level_code: str, db) -> int:
+def _cefr_code_to_order(level_code: Optional[str], db) -> int:
     """Return CEFRLevel.order for the given code, or -1 if not found."""
     from app.curriculum.models import CEFRLevel
 

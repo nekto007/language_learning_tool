@@ -141,7 +141,7 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
                 mission_plan_enabled=True,
                 effective_mode='mission',
             )
-        logger.warning("all assemblers failed for user_id=%s, falling back to legacy", user_id)
+        logger.warning("mission assembler failed for user_id=%s, falling back to legacy", user_id)
         from app.telegram.queries import get_daily_plan_v2
         legacy_payload = get_daily_plan_v2(user_id, tz) if tz else get_daily_plan_v2(user_id)
         return _with_plan_meta(
