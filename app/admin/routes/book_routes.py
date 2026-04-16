@@ -144,6 +144,7 @@ def update_book_statistics():
             books_to_update = Book.query.all()
 
         updated_count = 0
+        stat_errors = []
 
         for book in books_to_update:
             try:
@@ -176,6 +177,7 @@ def update_book_statistics():
 
             except Exception as e:
                 logger.warning(f"Error updating stats for book {book.id}: {str(e)}")
+                stat_errors.append({'book_id': book.id, 'title': book.title, 'error': str(e)})
                 continue
 
         admin_name = current_user.username
@@ -183,11 +185,14 @@ def update_book_statistics():
 
         logger.info(f"Book statistics updated by {admin_name}: {updated_count} books")
 
-        return jsonify({
+        response = {
             'success': True,
             'updated_count': updated_count,
-            'total_books': len(books_to_update)
-        })
+            'total_books': len(books_to_update),
+        }
+        if stat_errors:
+            response['errors'] = stat_errors
+        return jsonify(response)
 
     except Exception as e:
         logger.error(f"Error updating book statistics: {str(e)}")

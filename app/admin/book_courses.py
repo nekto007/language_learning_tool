@@ -824,87 +824,78 @@ def register_book_course_routes(admin_bp):
         if not course_ids:
             return jsonify({'success': False, 'error': 'Выберите курсы'}), 400
 
-        try:
-            courses = BookCourse.query.filter(BookCourse.id.in_(course_ids)).all()
+        if operation not in ('activate', 'deactivate', 'feature', 'unfeature', 'delete', 'delete_permanently'):
+            return jsonify({'success': False, 'error': 'Неизвестная операция'}), 400
 
-            if operation == 'activate':
-                for course in courses:
+        courses = BookCourse.query.filter(BookCourse.id.in_(course_ids)).all()
+        success_count = 0
+        errors = []
+
+        for course in courses:
+            try:
+                if operation == 'activate':
                     course.is_active = True
-                message = f'Активировано {len(courses)} курсов'
+                    db.session.flush()
 
-            elif operation == 'deactivate':
-                for course in courses:
+                elif operation == 'deactivate':
                     course.is_active = False
-                message = f'Деактивировано {len(courses)} курсов'
+                    db.session.flush()
 
-            elif operation == 'feature':
-                for course in courses:
+                elif operation == 'feature':
                     course.is_featured = True
-                message = f'Добавлено в рекомендуемые {len(courses)} курсов'
+                    db.session.flush()
 
-            elif operation == 'unfeature':
-                for course in courses:
+                elif operation == 'unfeature':
                     course.is_featured = False
-                message = f'Убрано из рекомендуемых {len(courses)} курсов'
+                    db.session.flush()
 
-            elif operation == 'delete':
-                # Soft delete - deactivate instead
-                for course in courses:
+                elif operation == 'delete':
+                    # Soft delete - deactivate instead
                     course.is_active = False
-                message = f'Деактивировано {len(courses)} курсов'
-                
-            elif operation == 'delete_permanently':
-                # Hard delete - physically remove from database
-                deleted_count = 0
-                for course in courses:
-                    try:
-                        # Delete related data first
-                        # Delete daily lessons and their vocabulary
-                        DailyLesson.query.filter(
-                            DailyLesson.book_course_module_id.in_(
-                                [m.id for m in course.modules]
-                            )
-                        ).delete(synchronize_session=False)
-                        
-                        # Delete module progress
-                        BookModuleProgress.query.filter(
-                            BookModuleProgress.module_id.in_(
-                                [m.id for m in course.modules]
-                            )
-                        ).delete(synchronize_session=False)
-                        
-                        # Delete enrollments
-                        BookCourseEnrollment.query.filter_by(course_id=course.id).delete()
-                        
-                        # Delete modules
-                        BookCourseModule.query.filter_by(course_id=course.id).delete()
-                        
-                        # Delete the course itself
-                        db.session.delete(course)
-                        deleted_count += 1
-                        
-                    except Exception as e:
-                        logger.error(f"Error deleting course {course.id}: {str(e)}")
-                        
-                message = f'Полностью удалено {deleted_count} курсов'
+                    db.session.flush()
 
-            else:
-                return jsonify({'success': False, 'error': 'Неизвестная операция'}), 400
+                elif operation == 'delete_permanently':
+                    # Hard delete - physically remove from database
+                    DailyLesson.query.filter(
+                        DailyLesson.book_course_module_id.in_(
+                            [m.id for m in course.modules]
+                        )
+                    ).delete(synchronize_session=False)
 
+                    BookModuleProgress.query.filter(
+                        BookModuleProgress.module_id.in_(
+                            [m.id for m in course.modules]
+                        )
+                    ).delete(synchronize_session=False)
+
+                    BookCourseEnrollment.query.filter_by(course_id=course.id).delete()
+                    BookCourseModule.query.filter_by(course_id=course.id).delete()
+                    db.session.delete(course)
+                    db.session.flush()
+
+                success_count += 1
+
+            except Exception as e:
+                logger.error(f"Error processing course {course.id} in bulk op '{operation}': {str(e)}")
+                errors.append({'course_id': course.id, 'title': course.title, 'error': str(e)})
+                db.session.rollback()
+
+        try:
             db.session.commit()
-
-            return jsonify({
-                'success': True,
-                'message': message
-            })
-
         except Exception as e:
-            logger.error(f"Error in bulk course operation: {str(e)}", exc_info=True)
+            logger.error(f"Error committing bulk course operation: {str(e)}", exc_info=True)
             db.session.rollback()
             return jsonify({
                 'success': False,
-                'error': f'Ошибка при выполнении операции: {str(e)}'
+                'error': f'Ошибка при сохранении: {str(e)}'
             }), 500
+
+        return jsonify({
+            'success': True,
+            'message': f'Операция выполнена: {success_count} из {len(courses)} курсов обработано',
+            'success_count': success_count,
+            'errors': errors
+        })
 
     # ====================
     # DAILY LESSON EDITING

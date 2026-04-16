@@ -277,10 +277,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `app/admin/book_courses.py`
 - Modify: `app/admin/routes/book_routes.py`
 
-- [ ] read current batch import logic; identify where all-or-nothing behavior exists
-- [ ] change to collect `errors = []` per-record, continue processing, return `{'success': N, 'errors': [...]}`
-- [ ] write test: batch with 1 invalid record returns partial success + error list
-- [ ] run pytest -m smoke
+- [x] read current batch import logic; identify where all-or-nothing behavior exists
+- [x] change to collect `errors = []` per-record, continue processing, return `{'success': N, 'errors': [...]}`
+- [x] write test: batch with 1 invalid record returns partial success + error list
+- [x] run pytest -m smoke
 
 ### Task 24: Add validate_enum decorator for status fields
 
