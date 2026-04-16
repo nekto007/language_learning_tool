@@ -1,7 +1,10 @@
+import logging
 import os
 
 from flask import Flask
 from flask_compress import Compress
+
+logger = logging.getLogger(__name__)
 from flask_limiter import Limiter
 
 from flask_login import LoginManager
@@ -53,6 +56,9 @@ limiter = Limiter(
 
 
 def create_app(config_class=Config):
+    from config.logging_config import configure_logging
+    configure_logging()
+
     app = Flask(__name__)
     app.config.from_object(config_class)
 

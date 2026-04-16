@@ -255,10 +255,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `config/logging_config.py` or `app/__init__.py`
 - Modify: `requirements.txt`
 
-- [ ] add `python-json-logger` to requirements.txt
-- [ ] configure root logger to use JsonFormatter in production mode (LOG_FORMAT=json env var)
-- [ ] verify log output is valid JSON in test environment
-- [ ] run pytest -m smoke
+- [x] add `python-json-logger` to requirements.txt
+- [x] configure root logger to use JsonFormatter in production mode (LOG_FORMAT=json env var)
+- [x] verify log output is valid JSON in test environment
+- [x] run pytest -m smoke
 
 ### Task 22: Duplicate detection — catch IntegrityError on word/topic insert
 
