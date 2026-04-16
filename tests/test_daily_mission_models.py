@@ -1,6 +1,7 @@
 import pytest
 
 from app.daily_plan.models import (
+    MODE_CATEGORY_MAP,
     MissionType,
     PhaseKind,
     SourceKind,
@@ -71,6 +72,59 @@ def _make_plan(num_phases: int = 3, **kwargs) -> MissionPlan:
     )
     defaults.update(kwargs)
     return MissionPlan(**defaults)
+
+
+class TestModeCategoryMap:
+    """Verify MODE_CATEGORY_MAP covers all modes and is used by streak_service and routes."""
+
+    EXPECTED_CATEGORIES = {'words', 'lesson', 'book_course', 'grammar', 'books'}
+
+    def test_all_categories_present(self):
+        assert set(MODE_CATEGORY_MAP.values()) == self.EXPECTED_CATEGORIES
+
+    def test_all_modes_mapped(self):
+        expected_modes = {
+            'srs_review', 'guided_recall', 'book_vocab_recall', 'micro_check',
+            'meaning_prompt', 'vocab_drill', 'reading_vocab_extract',
+            'curriculum_lesson', 'lesson_practice',
+            'book_course_lesson', 'book_course_practice',
+            'grammar_practice', 'targeted_quiz',
+            'book_reading',
+        }
+        assert set(MODE_CATEGORY_MAP.keys()) == expected_modes
+
+    def test_words_modes(self):
+        words_modes = [m for m, c in MODE_CATEGORY_MAP.items() if c == 'words']
+        assert 'srs_review' in words_modes
+        assert 'guided_recall' in words_modes
+        assert 'vocab_drill' in words_modes
+
+    def test_lesson_modes(self):
+        lesson_modes = [m for m, c in MODE_CATEGORY_MAP.items() if c == 'lesson']
+        assert set(lesson_modes) == {'curriculum_lesson', 'lesson_practice'}
+
+    def test_grammar_modes(self):
+        grammar_modes = [m for m, c in MODE_CATEGORY_MAP.items() if c == 'grammar']
+        assert set(grammar_modes) == {'grammar_practice', 'targeted_quiz'}
+
+    def test_books_modes(self):
+        books_modes = [m for m, c in MODE_CATEGORY_MAP.items() if c == 'books']
+        assert set(books_modes) == {'book_reading'}
+
+    def test_book_course_modes(self):
+        bc_modes = [m for m, c in MODE_CATEGORY_MAP.items() if c == 'book_course']
+        assert set(bc_modes) == {'book_course_lesson', 'book_course_practice'}
+
+    def test_streak_service_uses_registry(self):
+        """streak_service._MODE_DONE_CHECK should be the same object as MODE_CATEGORY_MAP."""
+        from app.achievements.streak_service import _MODE_DONE_CHECK
+        assert _MODE_DONE_CHECK is MODE_CATEGORY_MAP
+
+    def test_routes_imports_registry(self):
+        """routes module should import MODE_CATEGORY_MAP (verified via module attribute)."""
+        import app.words.routes as routes_mod
+        assert hasattr(routes_mod, 'MODE_CATEGORY_MAP')
+        assert routes_mod.MODE_CATEGORY_MAP is MODE_CATEGORY_MAP
 
 
 class TestEnums:

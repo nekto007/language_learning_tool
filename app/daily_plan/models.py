@@ -32,6 +32,26 @@ class SourceKind(enum.Enum):
     vocab = "vocab"
 
 
+# Central registry: every mission-plan mode → its activity category.
+# Used by streak_service (completion checks) and routes (URL grouping).
+MODE_CATEGORY_MAP: dict[str, str] = {
+    'srs_review': 'words',
+    'guided_recall': 'words',
+    'book_vocab_recall': 'words',
+    'micro_check': 'words',
+    'meaning_prompt': 'words',
+    'vocab_drill': 'words',
+    'reading_vocab_extract': 'words',
+    'curriculum_lesson': 'lesson',
+    'lesson_practice': 'lesson',
+    'book_course_lesson': 'book_course',
+    'book_course_practice': 'book_course',
+    'grammar_practice': 'grammar',
+    'targeted_quiz': 'grammar',
+    'book_reading': 'books',
+}
+
+
 @dataclass
 class MissionPhase:
     phase: PhaseKind

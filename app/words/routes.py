@@ -12,6 +12,7 @@ from app.utils.db import db
 from app.words.forms import WordFilterForm, WordSearchForm
 from app.words.models import CollectionWords
 from app.modules.decorators import module_required
+from app.daily_plan.models import MODE_CATEGORY_MAP
 from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
@@ -1000,21 +1001,23 @@ def _next_step_from_mission(plan: dict, daily_summary: dict) -> tuple:
 def _phase_url(phase: dict, plan: dict) -> str:
     """Build URL for a mission phase based on its mode and legacy data."""
     mode = phase.get('mode', '')
-    cards_url = url_for('study.cards')
-    if current_user.default_study_deck_id:
-        cards_url = url_for('study.cards_deck', deck_id=current_user.default_study_deck_id)
+    category = MODE_CATEGORY_MAP.get(mode)
 
-    if mode in ('srs_review', 'guided_recall', 'book_vocab_recall',
-                'micro_check', 'meaning_prompt', 'vocab_drill'):
+    # reading_vocab_extract is categorised as 'words' for completion checks,
+    # but the user navigates to a book page to do the activity.
+    if mode == 'reading_vocab_extract':
+        category = 'books'
+
+    if category == 'words':
         return url_for('study.cards', source='daily_plan_mix') + '&from=daily_plan'
 
-    if mode in ('curriculum_lesson', 'lesson_practice'):
+    if category == 'lesson':
         nl = plan.get('next_lesson')
         if nl and nl.get('lesson_id'):
             return url_for('curriculum_lessons.lesson_detail',
                            lesson_id=nl['lesson_id']) + '?from=daily_plan'
 
-    if mode in ('book_course_lesson', 'book_course_practice'):
+    if category == 'book_course':
         bc = plan.get('book_course_lesson')
         if bc and bc.get('course_id') and bc.get('module_id') and bc.get('lesson_id'):
             return url_for('book_courses.view_lesson_by_id',
@@ -1022,14 +1025,14 @@ def _phase_url(phase: dict, plan: dict) -> str:
                            module_id=bc['module_id'],
                            lesson_id=bc['lesson_id']) + '?from=daily_plan'
 
-    if mode in ('grammar_practice', 'targeted_quiz'):
+    if category == 'grammar':
         gt = plan.get('grammar_topic')
         if gt and gt.get('topic_id'):
             return url_for('grammar_lab.practice',
                            topic_id=gt['topic_id']) + '?from=daily_plan'
         return url_for('grammar_lab.practice') + '?from=daily_plan'
 
-    if mode in ('book_reading', 'reading_vocab_extract'):
+    if category == 'books':
         book = plan.get('book_to_read')
         if book and book.get('id'):
             return url_for('books.read_book_chapters',

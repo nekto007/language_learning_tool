@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.utils.db import db
 from app.achievements.models import StreakCoins, StreakEvent
+from app.daily_plan.models import MODE_CATEGORY_MAP
 from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
@@ -33,22 +34,7 @@ def get_required_steps(streak_length: int, steps_total: int) -> int:
     return min(required, steps_total)
 
 
-_MODE_DONE_CHECK: dict[str, str] = {
-    'srs_review': 'words',
-    'guided_recall': 'words',
-    'book_vocab_recall': 'words',
-    'micro_check': 'words',
-    'meaning_prompt': 'words',
-    'vocab_drill': 'words',
-    'reading_vocab_extract': 'words',
-    'curriculum_lesson': 'lesson',
-    'lesson_practice': 'lesson',
-    'book_course_lesson': 'book_course',
-    'book_course_practice': 'book_course',
-    'grammar_practice': 'grammar',
-    'targeted_quiz': 'grammar',
-    'book_reading': 'books',
-}
+_MODE_DONE_CHECK = MODE_CATEGORY_MAP
 
 
 def _compute_phase_completion(phases: list[dict], daily_summary: dict) -> dict[str, bool]:
