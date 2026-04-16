@@ -558,10 +558,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Create: `tests/notifications/test_services.py`
 
-- [ ] test notification created when user preference flag is True
-- [ ] test notification NOT created when flag is False
-- [ ] test notification dropdown content rendered via textContent (not innerHTML)
-- [ ] run pytest -m smoke
+- [x] test notification created when user preference flag is True
+- [x] test notification NOT created when flag is False
+- [x] test notification dropdown content rendered via textContent (not innerHTML)
+- [x] run pytest -m smoke
 
 ### Task 50: Validate datetime input parameters in routes
 
