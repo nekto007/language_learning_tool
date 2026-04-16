@@ -351,11 +351,11 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Create: `tests/api/test_study_api.py`
 
-- [ ] test start card session: valid lesson_id -> 200 with card data
-- [ ] test start card session: invalid lesson_id -> 404
-- [ ] test submit card answer: correct/incorrect responses
-- [ ] test: missing JSON content-type -> 415
-- [ ] run pytest -m smoke
+- [x] test start card session: valid lesson_id -> 200 with card data
+- [x] test start card session: invalid lesson_id -> 404
+- [x] test submit card answer: correct/incorrect responses
+- [x] test: missing JSON content-type -> 415
+- [x] run pytest -m smoke
 
 ### Task 31: Add parametrized edge case tests for SRS service
 
