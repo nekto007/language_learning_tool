@@ -1,6 +1,7 @@
 # app/curriculum/service.py
 import logging
 from datetime import datetime, UTC
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
@@ -29,7 +30,7 @@ from app.curriculum.card_service import (  # noqa: E402, F401
 )
 
 
-def get_user_level_progress(user_id):
+def get_user_level_progress(user_id: int) -> Dict[int, Dict[str, Any]]:
     """
     Получает прогресс пользователя по всем уровням CEFR
 
@@ -90,7 +91,7 @@ def get_user_level_progress(user_id):
     return level_progress
 
 
-def get_user_active_lessons(user_id, limit=5):
+def get_user_active_lessons(user_id: int, limit: int = 5) -> List[Dict[str, Any]]:
     """
     Получает список активных уроков пользователя
 
@@ -132,7 +133,7 @@ def get_user_active_lessons(user_id, limit=5):
     return active_lessons
 
 
-def get_next_lesson(current_lesson_id):
+def get_next_lesson(current_lesson_id: int) -> Optional[Lessons]:
     """
     Находит следующий урок после текущего в рамках модуля
 
@@ -168,7 +169,7 @@ def get_next_lesson(current_lesson_id):
     return next_lesson
 
 
-def complete_lesson(user_id, lesson_id, score=100.0):
+def complete_lesson(user_id: int, lesson_id: int, score: float = 100.0) -> Optional[LessonProgress]:
     """
     Отмечает урок как завершенный для пользователя
 
@@ -263,7 +264,7 @@ def complete_lesson(user_id, lesson_id, score=100.0):
         return None
 
 
-def get_lesson_statistics():
+def get_lesson_statistics() -> Dict[str, Any]:
     """
     Получает статистику по всем урокам
 
@@ -309,7 +310,7 @@ def get_lesson_statistics():
     }
 
 
-def calculate_user_curriculum_progress(user_id):
+def calculate_user_curriculum_progress(user_id: int) -> Dict[str, Any]:
     """
     Рассчитывает общий прогресс пользователя по учебному плану
 
