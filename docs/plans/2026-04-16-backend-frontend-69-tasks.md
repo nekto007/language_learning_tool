@@ -220,12 +220,12 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `app/words/routes.py`
 - Modify: `app/study/routes.py`
 
-- [ ] identify endpoints that return unbounded result sets
-- [ ] add `page` and `per_page` query params (default per_page=50, max=200)
-- [ ] return `{'items': [...], 'total': N, 'page': P, 'pages': TP}` shape
-- [ ] update relevant templates to use paginated API (or add frontend paging)
-- [ ] write tests for page=1, page=2, per_page clamping
-- [ ] run pytest -m smoke
+- [x] identify endpoints that return unbounded result sets
+- [x] add `page` and `per_page` query params (default per_page=50, max=200)
+- [x] return `{'items': [...], 'total': N, 'page': P, 'pages': TP}` shape
+- [x] update relevant templates to use paginated API (or add frontend paging)
+- [x] write tests for page=1, page=2, per_page clamping
+- [x] run pytest -m smoke
 
 ### Task 19: Add /health endpoint
 

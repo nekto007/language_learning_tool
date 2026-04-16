@@ -694,7 +694,7 @@ def word_list():
 
     # Параметры пагинации
     page = request.args.get('page', 1, type=int)
-    per_page = 50  # Увеличиваем для таблицы
+    per_page = min(request.args.get('per_page', 50, type=int), 200)
 
     # Создаем формы фильтров с параметрами запроса
     search_form = WordSearchForm(request.args)
