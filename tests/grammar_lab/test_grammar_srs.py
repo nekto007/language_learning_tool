@@ -406,3 +406,68 @@ class TestMasteryBoundaryInterval:
             previous_interval = result['interval']
             ease = result['ease_factor']
             repetitions += 1
+
+
+# ---------------------------------------------------------------------------
+# Task 52: Explicit tests for 0-items edge cases
+# ---------------------------------------------------------------------------
+
+class TestGetDueItemsZeroEdgeCases:
+    @pytest.mark.smoke
+    def test_get_due_items_no_due_returns_empty_list_not_none(self, app, db_session, test_user):
+        """get_due_grammar_exercises with no due items returns empty list, not None."""
+        service = UnifiedSRSService()
+        result = service.get_due_grammar_exercises(user_id=test_user.id)
+        assert result is not None, "Must not return None"
+        assert isinstance(result, list), "Must return a list"
+        assert len(result) == 0
+
+
+class TestSubmitReviewEmptyItems:
+    def test_get_practice_session_no_exercises_returns_empty_structure(self, app, db_session):
+        """get_practice_session when no exercises exist returns structured empty response."""
+        from app.grammar_lab.services.grammar_lab_service import GrammarLabService
+        service = GrammarLabService()
+        # Pass a topic_ids list that has no exercises (use an impossible topic id)
+        result = service.get_practice_session(user_id=999999, topic_ids=[999999], count=10)
+        assert isinstance(result, dict), "Must return a dict"
+        assert 'exercises' in result, "Response must have 'exercises' key"
+        assert isinstance(result['exercises'], list), "'exercises' must be a list"
+        assert len(result['exercises']) == 0, "No exercises should be returned"
+        assert result.get('total_exercises', 0) == 0, "total_exercises must be 0"
+
+    def test_get_practice_session_all_future_reviews_returns_empty_exercises(
+        self, app, db_session, test_user, grammar_exercises
+    ):
+        """get_practice_session when all exercises are due in the future returns empty exercises list."""
+        from datetime import datetime, timezone, timedelta
+        from app.grammar_lab.services.grammar_lab_service import GrammarLabService
+
+        service = GrammarLabService()
+        future = datetime.now(timezone.utc) + timedelta(days=30)
+
+        # Set all exercises to REVIEW state due in the future
+        for ex in grammar_exercises:
+            progress = UserGrammarExercise(
+                user_id=test_user.id,
+                exercise_id=ex.id,
+            )
+            progress.state = CardState.REVIEW.value
+            progress.interval = 10
+            progress.next_review = future
+            db_session.add(progress)
+        db_session.commit()
+
+        result = service.get_practice_session(
+            user_id=test_user.id,
+            topic_ids=[grammar_exercises[0].topic_id],
+            count=10,
+            include_new=False,
+        )
+
+        assert isinstance(result, dict)
+        assert 'exercises' in result
+        assert isinstance(result['exercises'], list)
+        assert len(result['exercises']) == 0, (
+            "No exercises should be in session when all are due in the future and include_new=False"
+        )

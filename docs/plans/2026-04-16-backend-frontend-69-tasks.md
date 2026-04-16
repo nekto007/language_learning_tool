@@ -589,9 +589,9 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `tests/grammar_lab/test_grammar_srs.py`
 
-- [ ] add test: `get_due_items(user_id)` with no due items returns empty list not None
-- [ ] add test: submitting review with empty due items returns appropriate response
-- [ ] run pytest -m smoke
+- [x] add test: `get_due_items(user_id)` with no due items returns empty list not None
+- [x] add test: submitting review with empty due items returns appropriate response
+- [x] run pytest -m smoke
 
 ### Task 53: Fix template variable defaults for optional context vars
 
