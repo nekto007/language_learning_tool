@@ -453,10 +453,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `app/books/routes.py`
 - Modify: `app/curriculum/routes/main.py`
 
-- [ ] locate `.first()` queries without `.first_or_404()` on resource lookups
-- [ ] replace with `.first_or_404()` or add explicit `if not resource: abort(404)`
-- [ ] write tests: requesting non-existent book/lesson returns 404, not 500
-- [ ] run pytest -m smoke
+- [x] locate `.first()` queries without `.first_or_404()` on resource lookups
+- [x] replace with `.first_or_404()` or add explicit `if not resource: abort(404)`
+- [x] write tests: requesting non-existent book/lesson returns 404, not 500
+- [x] run pytest -m smoke
 
 ### Task 40: Add pagination meta to admin user list endpoint
 

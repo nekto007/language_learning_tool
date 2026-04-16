@@ -278,6 +278,8 @@ def check_module_access(module_id: int) -> bool:
 def require_lesson_access(f):
     """
     Decorator to check lesson access permissions.
+
+    Returns 404 when the lesson does not exist, 403 when the user lacks access.
     """
 
     @wraps(f)
@@ -285,6 +287,12 @@ def require_lesson_access(f):
         lesson_id = kwargs.get('lesson_id')
         if not lesson_id:
             abort(400, "Lesson ID is required")
+
+        # Explicitly return 404 for non-existent lessons so callers receive the
+        # correct HTTP status code instead of the generic 403 that check_lesson_access
+        # would produce when the lesson is missing.
+        if not Lessons.query.get(lesson_id):
+            abort(404)
 
         if not check_lesson_access(lesson_id):
             abort(403, "You don't have access to this lesson")
