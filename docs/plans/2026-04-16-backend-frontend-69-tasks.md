@@ -679,9 +679,9 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `tests/admin/test_audit.py`
 
-- [ ] test: admin delete user action creates AdminAuditLog record
-- [ ] test: audit log entry includes admin_id, action string, timestamp
-- [ ] run pytest -m smoke
+- [x] test: admin delete user action creates AdminAuditLog record
+- [x] test: audit log entry includes admin_id, action string, timestamp
+- [x] run pytest -m smoke
 
 ### Task 62: Add gzip test for health endpoint and API response
 
