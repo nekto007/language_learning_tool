@@ -28,6 +28,7 @@ from app.daily_plan.models import (
     MissionPlan,
     MissionType,
     PhaseKind,
+    PhasePreview,
     PrimaryGoal,
     PrimarySource,
     SourceKind,
@@ -98,6 +99,7 @@ def _deduplicate_phases(phases: list[MissionPhase]) -> list[MissionPhase]:
                 mode=alt_mode,
                 required=phase.required,
                 completed=phase.completed,
+                preview=phase.preview,
             ))
             if alt_cat is not None:
                 seen_categories.add(alt_cat)
@@ -369,19 +371,33 @@ def _find_weak_grammar_topic(user_id: int) -> Optional[dict[str, Any]]:
     return None
 
 
-def _make_recall_phase(source_kind: SourceKind, has_srs: bool) -> MissionPhase:
+def _estimate_srs_minutes(count: int) -> int:
+    """Estimate minutes for SRS review: ~1 min per 10 cards, min 2."""
+    return max(2, (count + 9) // 10)
+
+
+def _make_recall_phase(source_kind: SourceKind, has_srs: bool, srs_due: int = 0) -> MissionPhase:
     if has_srs:
         return MissionPhase(
             phase=PhaseKind.recall,
             title="Разогрев серии",
             source_kind=SourceKind.srs,
             mode="srs_review",
+            preview=PhasePreview(
+                item_count=srs_due,
+                content_title="Повторение карточек",
+                estimated_minutes=_estimate_srs_minutes(srs_due),
+            ),
         )
     return MissionPhase(
         phase=PhaseKind.recall,
         title="Вспоминаем главное",
         source_kind=source_kind,
         mode="guided_recall",
+        preview=PhasePreview(
+            content_title="Быстрый разогрев",
+            estimated_minutes=3,
+        ),
     )
 
 
@@ -392,6 +408,10 @@ def _make_close_phase() -> MissionPhase:
         source_kind=SourceKind.vocab,
         mode="success_marker",
         required=False,
+        preview=PhasePreview(
+            content_title="Завершение миссии",
+            estimated_minutes=1,
+        ),
     )
 
 
@@ -410,19 +430,28 @@ def assemble_progress_mission(
         if not bc_lesson:
             return None
 
+        bc_title = bc_lesson.get('course_title') or "Книжный курс"
         phases = [
-            _make_recall_phase(SourceKind.book_course, srs_due > 0),
+            _make_recall_phase(SourceKind.book_course, srs_due > 0, srs_due),
             MissionPhase(
                 phase=PhaseKind.learn,
                 title="Главный шаг миссии",
                 source_kind=SourceKind.book_course,
                 mode="book_course_lesson",
+                preview=PhasePreview(
+                    content_title=bc_title,
+                    estimated_minutes=10,
+                ),
             ),
             MissionPhase(
                 phase=PhaseKind.use,
                 title="Практика без подсказок",
                 source_kind=SourceKind.book_course,
                 mode="book_course_practice",
+                preview=PhasePreview(
+                    content_title=bc_title,
+                    estimated_minutes=5,
+                ),
             ),
         ]
 
@@ -433,6 +462,11 @@ def assemble_progress_mission(
                 source_kind=SourceKind.srs,
                 mode="micro_check",
                 required=False,
+                preview=PhasePreview(
+                    item_count=min(srs_due, 10),
+                    content_title="Мини-проверка",
+                    estimated_minutes=3,
+                ),
             ))
 
         return MissionPlan(
@@ -461,19 +495,28 @@ def assemble_progress_mission(
     if not next_lesson:
         return None
 
+    lesson_title = next_lesson['title']
     phases = [
-        _make_recall_phase(SourceKind.normal_course, srs_due > 0),
+        _make_recall_phase(SourceKind.normal_course, srs_due > 0, srs_due),
         MissionPhase(
             phase=PhaseKind.learn,
             title="Главный шаг миссии",
             source_kind=SourceKind.normal_course,
             mode="curriculum_lesson",
+            preview=PhasePreview(
+                content_title=lesson_title,
+                estimated_minutes=10,
+            ),
         ),
         MissionPhase(
             phase=PhaseKind.use,
             title="Практика без подсказок",
             source_kind=SourceKind.normal_course,
             mode="lesson_practice",
+            preview=PhasePreview(
+                content_title=lesson_title,
+                estimated_minutes=5,
+            ),
         ),
     ]
 
@@ -484,6 +527,11 @@ def assemble_progress_mission(
             source_kind=SourceKind.srs,
             mode="micro_check",
             required=False,
+            preview=PhasePreview(
+                item_count=min(srs_due, 10),
+                content_title="Мини-проверка",
+                estimated_minutes=3,
+            ),
         ))
 
     return MissionPlan(
@@ -555,12 +603,18 @@ def assemble_repair_mission(
 
     grammar_topic = _find_weak_grammar_topic(user_id)
 
+    recall_mode = "srs_review" if srs_due > 0 else "guided_recall"
     phases: list[MissionPhase] = [
         MissionPhase(
             phase=PhaseKind.recall,
             title="Возвращаем забытое",
             source_kind=SourceKind.srs,
-            mode="srs_review" if srs_due > 0 else "guided_recall",
+            mode=recall_mode,
+            preview=PhasePreview(
+                item_count=srs_due if srs_due > 0 else None,
+                content_title="Повторение карточек" if srs_due > 0 else "Быстрый разогрев",
+                estimated_minutes=_estimate_srs_minutes(srs_due) if srs_due > 0 else 3,
+            ),
         ),
     ]
 
@@ -570,6 +624,10 @@ def assemble_repair_mission(
             title="Разбираем слабое место",
             source_kind=SourceKind.grammar_lab,
             mode="grammar_practice",
+            preview=PhasePreview(
+                content_title=grammar_topic['title'],
+                estimated_minutes=7,
+            ),
         ))
     else:
         phases.append(MissionPhase(
@@ -577,6 +635,10 @@ def assemble_repair_mission(
             title="Подтягиваем слова",
             source_kind=SourceKind.vocab,
             mode="vocab_drill",
+            preview=PhasePreview(
+                content_title="Тренировка слов",
+                estimated_minutes=5,
+            ),
         ))
 
     phases.append(MissionPhase(
@@ -584,6 +646,10 @@ def assemble_repair_mission(
         title="Сразу применяем",
         source_kind=SourceKind.grammar_lab if grammar_topic else SourceKind.vocab,
         mode="targeted_quiz" if grammar_topic else "meaning_prompt",
+        preview=PhasePreview(
+            content_title=grammar_topic['title'] if grammar_topic else "Проверка значений",
+            estimated_minutes=5,
+        ),
     ))
 
     phases.append(_make_close_phase())
@@ -629,6 +695,7 @@ def assemble_reading_mission(
         return None
 
     srs_due = _count_srs_due(user_id)
+    book_title = book['title']
 
     phases = [
         MissionPhase(
@@ -636,18 +703,31 @@ def assemble_reading_mission(
             title="Входим в контекст",
             source_kind=SourceKind.vocab,
             mode="book_vocab_recall" if srs_due > 0 else "guided_recall",
+            preview=PhasePreview(
+                item_count=srs_due if srs_due > 0 else None,
+                content_title="Слова из книги" if srs_due > 0 else "Быстрый разогрев",
+                estimated_minutes=_estimate_srs_minutes(srs_due) if srs_due > 0 else 3,
+            ),
         ),
         MissionPhase(
             phase=PhaseKind.read,
             title="Читаем следующий фрагмент",
             source_kind=SourceKind.books,
             mode="book_reading",
+            preview=PhasePreview(
+                content_title=book_title,
+                estimated_minutes=10,
+            ),
         ),
         MissionPhase(
             phase=PhaseKind.use,
             title="Вытаскиваем язык из текста",
             source_kind=SourceKind.vocab,
             mode="reading_vocab_extract",
+            preview=PhasePreview(
+                content_title=book_title,
+                estimated_minutes=5,
+            ),
         ),
     ]
 
@@ -658,6 +738,11 @@ def assemble_reading_mission(
             source_kind=SourceKind.vocab,
             mode="meaning_prompt",
             required=False,
+            preview=PhasePreview(
+                item_count=min(srs_due, 10),
+                content_title="Мини-проверка",
+                estimated_minutes=3,
+            ),
         ))
 
     return MissionPlan(

@@ -79,11 +79,11 @@ Enrich each MissionPhase with preview metadata: item count, content title, estim
 - Modify: `app/daily_plan/models.py` (add `preview` field to MissionPhase)
 - Modify: `app/daily_plan/assembler.py` (populate preview during assembly)
 
-- [ ] Add `PhasePreview` dataclass: `item_count: int | None`, `content_title: str | None`, `estimated_minutes: int | None`
-- [ ] Add `preview: PhasePreview | None` field to `MissionPhase`
-- [ ] In each assembler function, query actual counts: SRS due count for recall, lesson title for learn, topic name for grammar, book title for read
-- [ ] Write tests: assembled plans contain correct preview data for each phase type
-- [ ] Run project test suite - must pass before task 5
+- [x] Add `PhasePreview` dataclass: `item_count: int | None`, `content_title: str | None`, `estimated_minutes: int | None`
+- [x] Add `preview: PhasePreview | None` field to `MissionPhase`
+- [x] In each assembler function, query actual counts: SRS due count for recall, lesson title for learn, topic name for grammar, book title for read
+- [x] Write tests: assembled plans contain correct preview data for each phase type
+- [x] Run project test suite - must pass before task 5
 
 ### Task 5: Phase detail cards in template
 

@@ -56,6 +56,14 @@ MODE_CATEGORY_MAP: dict[str, str] = {
 
 
 @dataclass
+class PhasePreview:
+    """Preview metadata shown to the user before starting a phase."""
+    item_count: Optional[int] = None
+    content_title: Optional[str] = None
+    estimated_minutes: Optional[int] = None
+
+
+@dataclass
 class MissionPhase:
     phase: PhaseKind
     title: str
@@ -64,6 +72,7 @@ class MissionPhase:
     required: bool = True
     completed: bool = False
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
+    preview: Optional[PhasePreview] = None
 
 
 @dataclass
