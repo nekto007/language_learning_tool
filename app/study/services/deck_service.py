@@ -6,12 +6,16 @@ Responsibilities:
 - Deck word management
 - Deck statistics
 """
+import logging
 from typing import List, Dict, Tuple, Optional
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.utils.db import db
 from app.study.models import QuizDeck, QuizDeckWord, UserWord
 from app.words.models import CollectionWords
+
+logger = logging.getLogger(__name__)
 
 
 class DeckService:
@@ -63,16 +67,21 @@ class DeckService:
         if is_public:
             deck.generate_share_code()
 
-        db.session.add(deck)
-        db.session.flush()
+        try:
+            db.session.add(deck)
+            db.session.flush()
 
-        from app.auth.models import User
-        user = User.query.get(user_id)
-        if not user.default_study_deck_id:
-            user.default_study_deck_id = deck.id
+            from app.auth.models import User
+            user = User.query.get(user_id)
+            if not user.default_study_deck_id:
+                user.default_study_deck_id = deck.id
 
-        db.session.commit()
-        return deck
+            db.session.commit()
+            return deck
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
+            logger.exception("create_deck failed for user_id=%s title=%r", user_id, title)
+            raise
 
     @classmethod
     def update_deck(cls, deck_id: int, user_id: int, title: str = None, description: str = None,
@@ -177,29 +186,34 @@ class DeckService:
             parent_deck_id=original_deck.id,  # Link to parent for sync
             last_synced_at=datetime.now(timezone.utc)
         )
-        db.session.add(new_deck)
-        db.session.flush()
+        try:
+            db.session.add(new_deck)
+            db.session.flush()
 
-        # Copy words with all fields
-        for deck_word in original_deck.words:
-            # Get or create UserWord for the new owner (if word_id exists)
-            user_word_id = None
-            if deck_word.word_id:
-                user_word = UserWord.get_or_create(user_id, deck_word.word_id)
-                user_word_id = user_word.id
+            # Copy words with all fields
+            for deck_word in original_deck.words:
+                # Get or create UserWord for the new owner (if word_id exists)
+                user_word_id = None
+                if deck_word.word_id:
+                    user_word = UserWord.get_or_create(user_id, deck_word.word_id)
+                    user_word_id = user_word.id
 
-            new_deck_word = QuizDeckWord(
-                deck_id=new_deck.id,
-                word_id=deck_word.word_id,
-                user_word_id=user_word_id,  # Link to new owner's UserWord
-                custom_english=deck_word.custom_english,
-                custom_russian=deck_word.custom_russian,
-                order_index=deck_word.order_index
-            )
-            db.session.add(new_deck_word)
+                new_deck_word = QuizDeckWord(
+                    deck_id=new_deck.id,
+                    word_id=deck_word.word_id,
+                    user_word_id=user_word_id,  # Link to new owner's UserWord
+                    custom_english=deck_word.custom_english,
+                    custom_russian=deck_word.custom_russian,
+                    order_index=deck_word.order_index
+                )
+                db.session.add(new_deck_word)
 
-        db.session.commit()
-        return new_deck, None
+            db.session.commit()
+            return new_deck, None
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
+            logger.exception("copy_deck failed for deck_id=%s user_id=%s", deck_id, user_id)
+            return None, "Ошибка при копировании колоды"
 
     @classmethod
     def add_word_to_deck(cls, deck_id: int, user_id: int, word_id: int = None,
@@ -375,25 +389,32 @@ class DeckService:
             UserWord.word_id.in_(new_word_ids)
         ).all()}
 
-        for i, word_id in enumerate(new_word_ids):
-            # Create UserWord if needed
-            if word_id not in existing_user_words:
-                uw = UserWord(user_id=user_id, word_id=word_id)
-                db.session.add(uw)
-                db.session.flush()
-                existing_user_words[word_id] = uw.id
+        try:
+            for i, word_id in enumerate(new_word_ids):
+                # Create UserWord if needed
+                if word_id not in existing_user_words:
+                    uw = UserWord(user_id=user_id, word_id=word_id)
+                    db.session.add(uw)
+                    db.session.flush()
+                    existing_user_words[word_id] = uw.id
 
-            # Create QuizDeckWord
-            deck_word = QuizDeckWord(
-                deck_id=deck_id,
-                word_id=word_id,
-                user_word_id=existing_user_words[word_id],
-                order_index=max_order + i + 1
+                # Create QuizDeckWord
+                deck_word = QuizDeckWord(
+                    deck_id=deck_id,
+                    word_id=word_id,
+                    user_word_id=existing_user_words[word_id],
+                    order_index=max_order + i + 1
+                )
+                db.session.add(deck_word)
+
+            db.session.commit()
+            return len(new_word_ids), skipped
+        except (IntegrityError, OperationalError):
+            db.session.rollback()
+            logger.exception(
+                "add_bulk_words_to_deck failed for deck_id=%s user_id=%s", deck_id, user_id
             )
-            db.session.add(deck_word)
-
-        db.session.commit()
-        return len(new_word_ids), skipped
+            return 0, len(word_ids)
 
     @classmethod
     def search_words(cls, query: str, limit: int = 20) -> List[CollectionWords]:
