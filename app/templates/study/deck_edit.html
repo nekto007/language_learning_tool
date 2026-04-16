@@ -1488,17 +1488,26 @@ document.addEventListener('DOMContentLoaded', function() {
                         return;
                     }
 
-                    // Build results list
-                    autocompleteResults.innerHTML = words.map(word => `
+                    // Build results list (escapeHtml prevents XSS from user-controlled word data)
+                    autocompleteResults.innerHTML = words.map(word => {
+                        const engEsc = escapeHtml(word.english || '');
+                        const rusEsc = escapeHtml(word.russian || '');
+                        const sentRaw = word.sentences || '';
+                        const sentEsc = escapeHtml(sentRaw);
+                        const sentPreview = sentRaw.length > 0
+                            ? `<span class="de-autocomplete__item-hint">${escapeHtml(sentRaw.substring(0, 50))}${sentRaw.length > 50 ? '...' : ''}</span>`
+                            : '';
+                        return `
                         <button type="button" class="de-autocomplete__item"
-                                data-id="${word.id}"
-                                data-english="${word.english}"
-                                data-russian="${word.russian}"
-                                data-sentences="${word.sentences || ''}">
-                            <strong>${word.english}</strong> — ${word.russian}
-                            ${word.sentences ? '<span class="de-autocomplete__item-hint">' + word.sentences.substring(0, 50) + (word.sentences.length > 50 ? '...' : '') + '</span>' : ''}
+                                data-id="${escapeHtml(String(word.id))}"
+                                data-english="${engEsc}"
+                                data-russian="${rusEsc}"
+                                data-sentences="${sentEsc}">
+                            <strong>${engEsc}</strong> — ${rusEsc}
+                            ${sentPreview}
                         </button>
-                    `).join('');
+                        `;
+                    }).join('');
 
                     autocompleteResults.style.display = 'block';
 
@@ -1811,10 +1820,13 @@ document.addEventListener('DOMContentLoaded', function() {
             font-weight: 500;
         `;
 
-        toast.innerHTML = `
-            <span style="color: ${config.color}; font-size: 18px; font-weight: bold;">${config.icon}</span>
-            <span>${message}</span>
-        `;
+        const iconSpan = document.createElement('span');
+        iconSpan.style.cssText = `color: ${config.color}; font-size: 18px; font-weight: bold;`;
+        iconSpan.textContent = config.icon;
+        const msgSpan = document.createElement('span');
+        msgSpan.textContent = message;
+        toast.appendChild(iconSpan);
+        toast.appendChild(msgSpan);
 
         toastContainer.appendChild(toast);
 
@@ -1914,7 +1926,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         container.innerHTML = collections.map(c => `
-            <div class="de-ct-item" data-name="${c.name.toLowerCase()}">
+            <div class="de-ct-item" data-name="${escapeHtml(c.name.toLowerCase())}">
                 <div class="de-ct-item__info">
                     <span class="de-ct-item__name">${escapeHtml(c.name)}</span>
                     <span class="de-ct-item__count">${c.word_count} слов</span>
@@ -1936,7 +1948,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         container.innerHTML = topics.map(t => `
-            <div class="de-ct-item" data-name="${t.name.toLowerCase()}">
+            <div class="de-ct-item" data-name="${escapeHtml(t.name.toLowerCase())}">
                 <div class="de-ct-item__info">
                     <span class="de-ct-item__name">${escapeHtml(t.name)}</span>
                     <span class="de-ct-item__count">${t.word_count} слов</span>

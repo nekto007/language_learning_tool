@@ -1744,7 +1744,11 @@ function showSetDefaultDeckModal(wordIdToAddAfter, status) {
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast-notification toast-${type}`;
-    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>${message}`;
+    const icon = document.createElement('i');
+    icon.className = `fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2`;
+    const msgNode = document.createTextNode(message);
+    toast.appendChild(icon);
+    toast.appendChild(msgNode);
     document.body.appendChild(toast);
 
     setTimeout(() => toast.classList.add('show'), 10);
