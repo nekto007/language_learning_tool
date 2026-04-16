@@ -343,3 +343,12 @@ class CurriculumCacheService:
         except Exception as e:
             logger.error(f"Error getting level with modules: {str(e)}")
             return None
+
+    @staticmethod
+    def invalidate_user_cache(user_id: int) -> None:
+        """Invalidate per-user curriculum caches after progress mutation."""
+        try:
+            from app.curriculum.cache import CurriculumCache
+            CurriculumCache.invalidate_user_cache(user_id)
+        except Exception as exc:
+            logger.warning("Failed to invalidate curriculum cache for user_id=%s: %s", user_id, exc)

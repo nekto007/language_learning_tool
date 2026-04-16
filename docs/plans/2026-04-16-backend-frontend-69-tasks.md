@@ -516,10 +516,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `app/study/services/stats_service.py`
 - Modify: `app/curriculum/services/curriculum_cache_service.py`
 
-- [ ] identify what caches store per-user data
-- [ ] add cache.delete(key) calls after progress-mutating operations
-- [ ] write test: updating progress then fetching stats returns fresh data not stale cache
-- [ ] run pytest -m smoke
+- [x] identify what caches store per-user data
+- [x] add cache.delete(key) calls after progress-mutating operations
+- [x] write test: updating progress then fetching stats returns fresh data not stale cache
+- [x] run pytest -m smoke
 
 ### Task 46: Add .env.example update with all current environment variables
 

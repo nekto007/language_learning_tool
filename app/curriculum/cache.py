@@ -45,6 +45,13 @@ class SimpleCache:
         self._cache.clear()
         self._expiry.clear()
 
+    def delete_by_pattern(self, pattern: str) -> int:
+        """Delete all keys containing pattern. Returns count of deleted keys."""
+        keys_to_delete = [k for k in list(self._cache.keys()) if pattern in k]
+        for key in keys_to_delete:
+            self.delete(key)
+        return len(keys_to_delete)
+
     def size(self) -> int:
         """Get cache size"""
         return len(self._cache)
@@ -204,10 +211,10 @@ class CurriculumCache:
     @staticmethod
     def invalidate_user_cache(user_id: int):
         """Invalidate all cache entries for a user"""
-        # This is a simple implementation
-        # In a real Redis cache, you'd use pattern matching
-        cache.clear()  # For now, clear all cache
-        logger.info(f"Invalidated cache for user {user_id}")
+        deleted = cache.delete_by_pattern(f"user_{user_id}")
+        # Also delete the XP cache stored by template_utils
+        cache.delete(f"user_xp_{user_id}")
+        logger.info(f"Invalidated {deleted + 1} cache entries for user {user_id}")
 
     @staticmethod
     def invalidate_lesson_cache(lesson_id: int):
