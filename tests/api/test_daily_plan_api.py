@@ -128,3 +128,62 @@ def test_daily_summary_unauthenticated(client):
     """Unauthenticated request to /api/daily-summary returns 401."""
     response = client.get('/api/daily-summary')
     assert response.status_code == 401
+
+
+def test_daily_summary_invalid_date_returns_400(authenticated_client):
+    """Malformed date param to /api/daily-summary returns 400 with invalid_date error."""
+    response = authenticated_client.get('/api/daily-summary?date=not-a-date')
+    assert response.status_code == 400
+    data = response.get_json()
+    assert data['error'] == 'invalid_date'
+
+
+def test_daily_summary_valid_date_accepted(authenticated_client):
+    """Valid ISO date param to /api/daily-summary is accepted (200)."""
+    mock_summary = {'lessons_count': 0, 'words_reviewed': 0}
+    with patch('app.telegram.queries.get_daily_summary', return_value=mock_summary):
+        response = authenticated_client.get('/api/daily-summary?date=2026-01-15')
+    assert response.status_code == 200
+
+
+def test_daily_status_invalid_date_returns_400(authenticated_client):
+    """Malformed date param to /api/daily-status returns 400 with invalid_date error."""
+    response = authenticated_client.get('/api/daily-status?date=2026/01/15')
+    assert response.status_code == 400
+    data = response.get_json()
+    assert data['error'] == 'invalid_date'
+
+
+class TestParseDateParam:
+    """Unit tests for parse_date_param utility."""
+
+    def test_none_input_returns_no_error(self):
+        from app.utils.validators import parse_date_param
+        result, err = parse_date_param(None)
+        assert result is None
+        assert err is None
+
+    def test_valid_date_string(self):
+        from datetime import date
+        from app.utils.validators import parse_date_param
+        result, err = parse_date_param('2026-04-16')
+        assert result == date(2026, 4, 16)
+        assert err is None
+
+    def test_malformed_date_returns_error(self):
+        from app.utils.validators import parse_date_param
+        result, err = parse_date_param('16-04-2026')
+        assert result is None
+        assert err is not None
+
+    def test_partial_date_returns_error(self):
+        from app.utils.validators import parse_date_param
+        result, err = parse_date_param('2026-04')
+        assert result is None
+        assert err is not None
+
+    def test_empty_string_returns_error(self):
+        from app.utils.validators import parse_date_param
+        result, err = parse_date_param('')
+        assert result is None
+        assert err is not None

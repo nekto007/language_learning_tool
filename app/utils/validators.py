@@ -1,8 +1,23 @@
 """
 Common validation utilities for enum-typed request parameters.
 """
+from datetime import date
 from enum import Enum
-from typing import Type
+from typing import Optional, Tuple, Type
+
+
+def parse_date_param(raw: Optional[str]) -> Tuple[Optional[date], Optional[str]]:
+    """Parse an ISO-8601 date string (YYYY-MM-DD) from a request parameter.
+
+    Returns (date_obj, None) on success, (None, error_message) on failure.
+    Returns (None, None) when *raw* is None (param absent).
+    """
+    if raw is None:
+        return None, None
+    try:
+        return date.fromisoformat(raw), None
+    except ValueError:
+        return None, f"Invalid date format: '{raw}'. Expected YYYY-MM-DD."
 
 
 def validate_enum(value: str, enum_cls: Type[Enum]) -> bool:

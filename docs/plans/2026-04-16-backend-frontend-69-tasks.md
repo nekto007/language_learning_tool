@@ -569,10 +569,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `app/api/daily_plan.py`
 - Modify: any routes accepting `date` or `start_date` params
 
-- [ ] grep routes for `request.args.get('date')` usage
-- [ ] add try/except around `datetime.fromisoformat(raw)` with 400 on ValueError
-- [ ] write test: malformed date param returns 400
-- [ ] run pytest -m smoke
+- [x] grep routes for `request.args.get('date')` usage
+- [x] add try/except around `datetime.fromisoformat(raw)` with 400 on ValueError
+- [x] write test: malformed date param returns 400
+- [x] run pytest -m smoke
 
 ### Task 51: Add missing `@login_required` guards
 
