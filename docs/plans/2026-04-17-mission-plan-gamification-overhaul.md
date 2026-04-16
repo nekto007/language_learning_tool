@@ -61,11 +61,11 @@ Add lightweight persistence to track yesterday's mission type and bias selector 
 - Modify: `app/daily_plan/mission_selector.py`
 - Modify: `app/achievements/models.py` (add field to StreakEvent or new lightweight table)
 
-- [ ] Store `last_mission_type` in StreakEvent details or a new `daily_plan_log` table (one row per user per date)
-- [ ] If needed, create Alembic migration for the new column/table
-- [ ] In `select_mission()`, when repair is not triggered (pressure < 0.6), prefer a different type than yesterday's if alternatives are viable
-- [ ] Write tests: selector avoids yesterday's type when alternatives exist; repair still wins when pressure is high
-- [ ] Run project test suite - must pass before task 4
+- [x] Store `last_mission_type` in StreakEvent details or a new `daily_plan_log` table (one row per user per date)
+- [x] If needed, create Alembic migration for the new column/table
+- [x] In `select_mission()`, when repair is not triggered (pressure < 0.6), prefer a different type than yesterday's if alternatives are viable
+- [x] Write tests: selector avoids yesterday's type when alternatives exist; repair still wins when pressure is high
+- [x] Run project test suite - must pass before task 4
 
 ---
 

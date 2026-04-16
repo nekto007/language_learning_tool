@@ -4,7 +4,7 @@ import logging
 from typing import Any, Optional
 
 from app.daily_plan.models import MissionPlan, MissionType, SourceKind
-from app.daily_plan.mission_selector import select_mission, detect_primary_track
+from app.daily_plan.mission_selector import select_mission, detect_primary_track, save_mission_type
 from app.daily_plan.assembler import (
     assemble_progress_mission,
     assemble_reading_mission,
@@ -120,6 +120,25 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
                 user_id,
             )
             return None
+
+        # Persist selected mission type for rotation logic.
+        try:
+            from datetime import datetime
+            import pytz
+            from config.settings import DEFAULT_TIMEZONE
+            try:
+                tz_obj = pytz.timezone(tz or DEFAULT_TIMEZONE)
+            except pytz.UnknownTimeZoneError:
+                tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
+            user_today = datetime.now(tz_obj).date()
+            save_mission_type(user_id, mission_type, user_today)
+            from app.utils.db import db
+            db.session.commit()
+        except Exception:
+            logger.warning(
+                "Failed to persist mission type for user %s", user_id,
+                exc_info=True,
+            )
 
         return _mission_plan_to_dict(plan)
 
