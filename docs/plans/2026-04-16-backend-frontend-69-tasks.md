@@ -406,10 +406,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `app/curriculum/routes/main.py`
 - Modify: `app/study/routes.py`
 
-- [ ] grep all route files for `request.args.get('next')` or `request.args.get('redirect')`
-- [ ] apply the `is_safe_url` helper from task 3 to all occurrences
-- [ ] write tests for each new application
-- [ ] run pytest -m smoke
+- [x] grep all route files for `request.args.get('next')` or `request.args.get('redirect')`
+- [x] apply the `is_safe_url` helper from task 3 to all occurrences — all usages already use get_safe_redirect_url; curriculum/study routes have no next-param redirects
+- [x] write tests for each new application — added TestWordsRouteNextParamProtection and static analysis test in tests/test_open_redirect.py
+- [x] run pytest -m smoke
 
 ### Task 36: Add rate limiting to registration and password reset endpoints
 

@@ -1,4 +1,6 @@
 """Tests for open redirect protection via get_safe_redirect_url."""
+import uuid
+
 import pytest
 from app.auth.routes import get_safe_redirect_url
 
@@ -76,3 +78,102 @@ class TestRedirectsUsesSafeValidation:
             f'Found raw redirect(request.referrer) without validation:\n'
             + '\n'.join(violations)
         )
+
+    def test_all_next_params_use_safe_validation(self):
+        """Ensure all request.args.get('next') usages are wrapped by get_safe_redirect_url."""
+        import os
+        import re
+
+        app_dir = os.path.join(os.path.dirname(__file__), '..', 'app')
+        raw_next_pattern = re.compile(r"redirect\(\s*request\.(args|form)\.get\(['\"]next['\"]")
+
+        violations = []
+        for root, dirs, files in os.walk(app_dir):
+            for fname in files:
+                if not fname.endswith('.py'):
+                    continue
+                filepath = os.path.join(root, fname)
+                with open(filepath) as f:
+                    for lineno, line in enumerate(f, 1):
+                        if raw_next_pattern.search(line):
+                            violations.append(f'{filepath}:{lineno}: {line.strip()}')
+
+        assert violations == [], (
+            'Found redirect() using raw next param without get_safe_redirect_url:\n'
+            + '\n'.join(violations)
+        )
+
+
+class TestWordsRouteNextParamProtection:
+    """Verify that words.update_word_status uses safe redirect for next param."""
+
+    @pytest.fixture
+    def words_module_fixture(self, db_session, test_user):
+        from app.modules.models import SystemModule, UserModule
+        module = SystemModule.query.filter_by(code='words').first()
+        if not module:
+            module = SystemModule(
+                code='words', name='Words', description='Words module',
+                is_active=True, is_default=True, order=4,
+            )
+            db_session.add(module)
+            db_session.flush()
+        existing = UserModule.query.filter_by(
+            user_id=test_user.id, module_id=module.id,
+        ).first()
+        if not existing:
+            db_session.add(UserModule(
+                user_id=test_user.id, module_id=module.id, is_enabled=True,
+            ))
+            db_session.commit()
+        return module
+
+    @pytest.fixture
+    def sample_word(self, db_session):
+        from app.words.models import CollectionWords
+        suffix = uuid.uuid4().hex[:8]
+        word = CollectionWords(
+            english_word=f'testword_{suffix}',
+            russian_word='тестовое слово',
+            level='A1',
+            item_type='word',
+        )
+        db_session.add(word)
+        db_session.commit()
+        return word
+
+    def test_external_next_blocked(self, authenticated_client, words_module_fixture, sample_word):
+        """next=https://evil.com must not redirect to evil.com."""
+        resp = authenticated_client.post(
+            f'/update-word-status/{sample_word.id}/1',
+            query_string={'next': 'https://evil.com/steal'},
+            data={},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 302
+        location = resp.headers.get('Location', '')
+        assert 'evil.com' not in location
+
+    def test_internal_next_allowed(self, authenticated_client, words_module_fixture, sample_word):
+        """next=/words must redirect to /words."""
+        resp = authenticated_client.post(
+            f'/update-word-status/{sample_word.id}/1',
+            query_string={'next': '/words'},
+            data={},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 302
+        location = resp.headers.get('Location', '')
+        assert '/words' in location
+
+    def test_protocol_relative_next_blocked(self, authenticated_client, words_module_fixture, sample_word):
+        """next=//evil.com must not redirect to evil.com."""
+        resp = authenticated_client.post(
+            f'/update-word-status/{sample_word.id}/1',
+            query_string={'next': '//evil.com'},
+            data={},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 302
+        location = resp.headers.get('Location', '')
+        assert 'evil.com' not in location
