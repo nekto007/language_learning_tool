@@ -345,6 +345,36 @@ class TestRepairMissionDegradation:
         assert result.mission.type == MissionType.reading
         mock_reading.assert_called_once_with(1, reason_code="progress_next_step", reason_text="Всё повторено — продолжаем чтение", tz=None)
 
+    @patch(f"{ASSEMBLER_MODULE}.detect_primary_track", return_value=SourceKind.books)
+    @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
+    @patch(f"{ASSEMBLER_MODULE}.assemble_reading_mission", return_value=None)
+    @patch(f"{ASSEMBLER_MODULE}._count_grammar_due", return_value=0)
+    @patch(f"{ASSEMBLER_MODULE}._count_srs_due", return_value=0)
+    def test_zero_srs_and_grammar_books_track_reading_none_falls_back_to_progress(
+        self, _srs, _gram, _reading, mock_progress, _track
+    ):
+        from app.daily_plan.assembler import assemble_repair_mission
+        from app.daily_plan.repair_pressure import RepairBreakdown
+
+        breakdown = RepairBreakdown(
+            overdue_srs_count=0, overdue_srs_score=0.0,
+            grammar_weak_count=0, grammar_weak_score=0.0,
+            failure_cluster_count=0, failure_cluster_score=0.0,
+            total_score=0.0,
+        )
+        mock_progress.return_value = _make_progress_plan()
+
+        result = assemble_repair_mission(1, breakdown)
+
+        assert result is not None
+        assert result.mission.type == MissionType.progress
+        mock_progress.assert_called_once_with(
+            1, SourceKind.normal_course,
+            reason_code="progress_next_step",
+            reason_text="Всё повторено — двигаемся дальше по курсу",
+            tz=None,
+        )
+
     @patch(f"{ASSEMBLER_MODULE}.detect_primary_track", return_value=None)
     @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
     @patch(f"{ASSEMBLER_MODULE}._count_grammar_due", return_value=0)

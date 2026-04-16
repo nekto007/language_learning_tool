@@ -59,8 +59,8 @@ class TestAssembleRepairMissionNormalPath:
         assert result is not None
         assert result.mission.type == MissionType.repair
         assert len(result.phases) == 4
-        # When grammar_topic is None and srs_due=0, primary source falls back to grammar_lab
-        assert result.primary_source.kind == SourceKind.grammar_lab
+        # When grammar_topic is None and srs_due=0, primary source falls back to vocab
+        assert result.primary_source.kind == SourceKind.vocab
         # Use phase falls back to vocab drill when no grammar topic
         learn_phase = result.phases[1]
         assert learn_phase.mode == "vocab_drill"
