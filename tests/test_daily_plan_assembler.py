@@ -61,9 +61,10 @@ class TestAssembleRepairMissionNormalPath:
         assert len(result.phases) == 4
         # When grammar_topic is None and srs_due=0, primary source falls back to vocab
         assert result.primary_source.kind == SourceKind.vocab
-        # Use phase falls back to vocab drill when no grammar topic
+        # After dedup: phase[0]=guided_recall(words), phase[1] was vocab_drill(words dup)
+        # → substituted to grammar_practice(grammar) to avoid duplicate category
         learn_phase = result.phases[1]
-        assert learn_phase.mode == "vocab_drill"
+        assert learn_phase.mode == "grammar_practice"
 
     @patch(f"{ASSEMBLER_MOD}._find_weak_grammar_topic", return_value=None)
     @patch(f"{ASSEMBLER_MOD}._count_grammar_due", return_value=0)

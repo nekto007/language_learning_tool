@@ -1,8 +1,11 @@
+import logging
 from unittest.mock import patch, MagicMock
 
 import pytest
 
 from app.daily_plan.models import (
+    MODE_CATEGORY_MAP,
+    MissionPhase,
     MissionPlan,
     MissionType,
     PhaseKind,
@@ -10,6 +13,8 @@ from app.daily_plan.models import (
 )
 from app.daily_plan.repair_pressure import RepairBreakdown
 from app.daily_plan.assembler import (
+    _CATEGORY_SUBSTITUTIONS,
+    _deduplicate_phases,
     assemble_progress_mission,
     assemble_reading_mission,
     assemble_repair_mission,
@@ -153,13 +158,17 @@ class TestAssembleRepairMission:
     def test_repair_srs_only_no_grammar(self, _srs, _grammar, _topic):
         plan = assemble_repair_mission(1, _high_repair())
         assert plan is not None
-        assert plan.phases[1].source_kind == SourceKind.vocab
-        assert plan.phases[1].mode == "vocab_drill"
+        # After dedup: phase[0]=srs_review(words), phase[1] was vocab_drill(words dup)
+        # → substituted to grammar_practice(grammar)
+        assert plan.phases[1].source_kind == SourceKind.grammar_lab
+        assert plan.phases[1].mode == "grammar_practice"
 
+    @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
+    @patch(f"{MODULE}.assemble_progress_mission", return_value=None)
     @patch(f"{MODULE}._find_weak_grammar_topic", return_value=None)
     @patch(f"{MODULE}._count_grammar_due", return_value=0)
     @patch(f"{MODULE}._count_srs_due", return_value=0)
-    def test_repair_nothing_due_returns_none(self, _srs, _grammar, _topic):
+    def test_repair_nothing_due_degrades(self, _srs, _grammar, _topic, _progress, _track):
         plan = assemble_repair_mission(1, _low_repair())
         assert plan is None
 
@@ -319,3 +328,215 @@ class TestFallbackHelpers:
         assert close.phase == PhaseKind.close
         assert close.mode == "success_marker"
         assert close.required is False
+
+
+class TestDeduplicatePhases:
+    """Tests for _deduplicate_phases and duplicate category prevention."""
+
+    def _make_phase(self, mode: str, phase_kind: PhaseKind = PhaseKind.recall,
+                    source_kind: SourceKind = SourceKind.vocab) -> MissionPhase:
+        return MissionPhase(
+            phase=phase_kind, title="Test", source_kind=source_kind, mode=mode,
+        )
+
+    def test_no_duplicates_passes_through(self):
+        phases = [
+            self._make_phase("srs_review", PhaseKind.recall, SourceKind.srs),
+            self._make_phase("grammar_practice", PhaseKind.learn, SourceKind.grammar_lab),
+            self._make_phase("book_reading", PhaseKind.read, SourceKind.books),
+        ]
+        result = _deduplicate_phases(phases)
+        assert [p.mode for p in result] == ["srs_review", "grammar_practice", "book_reading"]
+
+    def test_duplicate_words_substitutes_to_grammar(self):
+        """Two 'words' phases → second becomes grammar_practice."""
+        phases = [
+            self._make_phase("srs_review", PhaseKind.recall, SourceKind.srs),
+            self._make_phase("vocab_drill", PhaseKind.learn),
+            self._make_phase("meaning_prompt", PhaseKind.use),
+        ]
+        result = _deduplicate_phases(phases)
+        categories = [MODE_CATEGORY_MAP.get(p.mode) for p in result]
+        non_none = [c for c in categories if c is not None]
+        assert len(non_none) == len(set(non_none))
+        # First words kept, second→grammar_practice(grammar), third→book_reading(books)
+        assert result[0].mode == "srs_review"
+        assert result[1].mode == "grammar_practice"
+        assert result[1].source_kind == SourceKind.grammar_lab
+        assert result[2].mode == "book_reading"
+        assert result[2].source_kind == SourceKind.books
+
+    def test_triple_words_substitutes_all(self):
+        """Three 'words' phases + close → each gets a different category."""
+        phases = [
+            self._make_phase("srs_review", PhaseKind.recall, SourceKind.srs),
+            self._make_phase("vocab_drill", PhaseKind.learn),
+            self._make_phase("meaning_prompt", PhaseKind.use),
+            self._make_phase("success_marker", PhaseKind.close),  # not in map
+        ]
+        result = _deduplicate_phases(phases)
+        categories = [MODE_CATEGORY_MAP.get(p.mode) for p in result]
+        non_none = [c for c in categories if c is not None]
+        assert len(non_none) == len(set(non_none)), f"Duplicate categories: {categories}"
+
+    def test_duplicate_grammar_with_words_taken_substitutes_to_books(self):
+        """Two 'grammar' phases when 'words' is taken → second becomes book_reading (books)."""
+        phases = [
+            self._make_phase("srs_review", PhaseKind.recall, SourceKind.srs),
+            self._make_phase("grammar_practice", PhaseKind.learn, SourceKind.grammar_lab),
+            self._make_phase("targeted_quiz", PhaseKind.use, SourceKind.grammar_lab),
+        ]
+        result = _deduplicate_phases(phases)
+        categories = [MODE_CATEGORY_MAP.get(p.mode) for p in result]
+        non_none = [c for c in categories if c is not None]
+        assert len(non_none) == len(set(non_none)), f"Duplicate categories: {categories}"
+        assert result[0].mode == "srs_review"
+        assert result[1].mode == "grammar_practice"
+        # words taken, meaning_prompt→words taken → book_reading (books)
+        assert result[2].mode == "book_reading"
+
+    def test_duplicate_grammar_substitutes_when_words_free(self):
+        """Two 'grammar' phases → second becomes vocab_drill when words category is free."""
+        phases = [
+            self._make_phase("grammar_practice", PhaseKind.recall, SourceKind.grammar_lab),
+            self._make_phase("targeted_quiz", PhaseKind.use, SourceKind.grammar_lab),
+            self._make_phase("book_reading", PhaseKind.read, SourceKind.books),
+        ]
+        result = _deduplicate_phases(phases)
+        assert result[0].mode == "grammar_practice"
+        assert result[1].mode == "vocab_drill"
+        assert result[1].source_kind == SourceKind.vocab
+
+    def test_fallback_when_primary_substitute_unavailable(self):
+        """When first substitute's category is taken, try deeper in the list."""
+        # words taken, grammar taken → vocab_drill(words dup) should fallback to book_reading(books)
+        phases = [
+            self._make_phase("srs_review", PhaseKind.recall, SourceKind.srs),         # words
+            self._make_phase("grammar_practice", PhaseKind.learn, SourceKind.grammar_lab),  # grammar
+            self._make_phase("vocab_drill", PhaseKind.use),                           # words dup
+            self._make_phase("success_marker", PhaseKind.close),                       # no cat
+        ]
+        result = _deduplicate_phases(phases)
+        # vocab_drill(words dup) → grammar_practice(grammar-taken), targeted_quiz(grammar-taken),
+        # book_reading(books-free) → substituted
+        assert result[2].mode == "book_reading"
+
+    def test_no_substitute_when_all_categories_taken(self):
+        """When all substitute categories are taken, phase is kept as-is."""
+        # words, grammar, books all taken → a 4th words phase can't be substituted
+        phases = [
+            self._make_phase("srs_review", PhaseKind.recall, SourceKind.srs),         # words
+            self._make_phase("grammar_practice", PhaseKind.learn, SourceKind.grammar_lab),  # grammar
+            self._make_phase("book_reading", PhaseKind.read, SourceKind.books),        # books
+            self._make_phase("vocab_drill", PhaseKind.use),                           # words dup
+        ]
+        result = _deduplicate_phases(phases)
+        # All substitute categories (grammar, books) are taken → kept as-is
+        assert result[3].mode == "vocab_drill"
+
+    def test_unknown_modes_passthrough(self):
+        """Modes not in MODE_CATEGORY_MAP pass through without dedup."""
+        phases = [
+            self._make_phase("success_marker", PhaseKind.close),
+            self._make_phase("success_marker", PhaseKind.close),
+            self._make_phase("srs_review", PhaseKind.recall, SourceKind.srs),
+        ]
+        result = _deduplicate_phases(phases)
+        assert len(result) == 3
+        assert result[0].mode == "success_marker"
+        assert result[1].mode == "success_marker"
+
+    def test_preserves_phase_attributes(self):
+        """Substituted phase preserves phase kind, title, required, completed."""
+        phase = MissionPhase(
+            phase=PhaseKind.use, title="Custom title",
+            source_kind=SourceKind.vocab, mode="meaning_prompt",
+            required=False, completed=True,
+        )
+        phases = [
+            self._make_phase("srs_review", PhaseKind.recall, SourceKind.srs),
+            phase,
+        ]
+        result = _deduplicate_phases(phases)
+        sub = result[1]
+        assert sub.phase == PhaseKind.use
+        assert sub.title == "Custom title"
+        assert sub.required is False
+        assert sub.completed is True
+
+
+class TestRepairDeduplication:
+    """Repair mission uses _deduplicate_phases to ensure varied categories."""
+
+    @patch(f"{MODULE}._find_weak_grammar_topic", return_value=None)
+    @patch(f"{MODULE}._count_grammar_due", return_value=0)
+    @patch(f"{MODULE}._count_srs_due", return_value=15)
+    def test_repair_no_grammar_deduplicates_words(self, _srs, _grammar, _topic):
+        """Without grammar, repair would have 3 words phases → dedup diversifies."""
+        plan = assemble_repair_mission(1, _high_repair())
+        assert plan is not None
+        categories = [MODE_CATEGORY_MAP.get(p.mode) for p in plan.phases]
+        non_none = [c for c in categories if c is not None]
+        assert len(non_none) == len(set(non_none)), f"Duplicate categories: {categories}"
+
+    @patch(f"{MODULE}._find_weak_grammar_topic", return_value={
+        'title': 'Articles', 'topic_id': 3,
+    })
+    @patch(f"{MODULE}._count_grammar_due", return_value=5)
+    @patch(f"{MODULE}._count_srs_due", return_value=10)
+    def test_repair_with_grammar_no_duplicate_categories(self, _srs, _grammar, _topic):
+        """Repair with grammar: words + grammar + grammar(quiz) → dedup fixes."""
+        plan = assemble_repair_mission(1, _high_repair())
+        assert plan is not None
+        categories = [MODE_CATEGORY_MAP.get(p.mode) for p in plan.phases]
+        non_none = [c for c in categories if c is not None]
+        assert len(non_none) == len(set(non_none)), f"Duplicate categories: {categories}"
+
+
+class TestMissionPlanDuplicateWarning:
+    """MissionPlan.__post_init__ warns on duplicate categories."""
+
+    def test_warns_on_duplicate_categories(self, caplog):
+        from app.daily_plan.models import Mission, PrimaryGoal, PrimarySource
+        with caplog.at_level(logging.WARNING, logger="app.daily_plan.models"):
+            # Bypass dedup to force duplicates into MissionPlan
+            MissionPlan(
+                plan_version="1",
+                mission=Mission(
+                    type=MissionType.progress, title="T",
+                    reason_code="test", reason_text="test",
+                ),
+                primary_goal=PrimaryGoal(type="t", title="T", success_criterion="t"),
+                primary_source=PrimarySource(kind=SourceKind.srs, id="1", label="L"),
+                phases=[
+                    MissionPhase(phase=PhaseKind.recall, title="A",
+                                 source_kind=SourceKind.srs, mode="srs_review"),
+                    MissionPhase(phase=PhaseKind.learn, title="B",
+                                 source_kind=SourceKind.vocab, mode="vocab_drill"),
+                    MissionPhase(phase=PhaseKind.use, title="C",
+                                 source_kind=SourceKind.vocab, mode="meaning_prompt"),
+                ],
+            )
+        assert any("duplicate category" in r.message for r in caplog.records)
+
+    def test_no_warning_when_categories_unique(self, caplog):
+        from app.daily_plan.models import Mission, PrimaryGoal, PrimarySource
+        with caplog.at_level(logging.WARNING, logger="app.daily_plan.models"):
+            MissionPlan(
+                plan_version="1",
+                mission=Mission(
+                    type=MissionType.progress, title="T",
+                    reason_code="test", reason_text="test",
+                ),
+                primary_goal=PrimaryGoal(type="t", title="T", success_criterion="t"),
+                primary_source=PrimarySource(kind=SourceKind.srs, id="1", label="L"),
+                phases=[
+                    MissionPhase(phase=PhaseKind.recall, title="A",
+                                 source_kind=SourceKind.srs, mode="srs_review"),
+                    MissionPhase(phase=PhaseKind.learn, title="B",
+                                 source_kind=SourceKind.grammar_lab, mode="grammar_practice"),
+                    MissionPhase(phase=PhaseKind.read, title="C",
+                                 source_kind=SourceKind.books, mode="book_reading"),
+                ],
+            )
+        assert not any("duplicate category" in r.message for r in caplog.records)

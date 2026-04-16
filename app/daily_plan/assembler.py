@@ -22,6 +22,7 @@ from app.study.models import UserWord, UserCardDirection
 from app.books.models import Book, Chapter, UserChapterProgress
 
 from app.daily_plan.models import (
+    MODE_CATEGORY_MAP,
     Mission,
     MissionPhase,
     MissionPlan,
@@ -34,6 +35,82 @@ from app.daily_plan.models import (
 from app.daily_plan.repair_pressure import RepairBreakdown
 
 logger = logging.getLogger(__name__)
+
+
+# Fallback substitution rules: when a category appears twice,
+# replace the second occurrence with an alternative (mode, SourceKind).
+_CATEGORY_SUBSTITUTIONS: dict[str, list[tuple[str, SourceKind]]] = {
+    'words': [
+        ('grammar_practice', SourceKind.grammar_lab),
+        ('targeted_quiz', SourceKind.grammar_lab),
+        ('book_reading', SourceKind.books),
+    ],
+    'lesson': [
+        ('vocab_drill', SourceKind.vocab),
+        ('grammar_practice', SourceKind.grammar_lab),
+    ],
+    'grammar': [
+        ('vocab_drill', SourceKind.vocab),
+        ('meaning_prompt', SourceKind.vocab),
+        ('book_reading', SourceKind.books),
+    ],
+    'books': [
+        ('vocab_drill', SourceKind.vocab),
+        ('grammar_practice', SourceKind.grammar_lab),
+    ],
+    'book_course': [
+        ('vocab_drill', SourceKind.vocab),
+        ('grammar_practice', SourceKind.grammar_lab),
+    ],
+}
+
+
+def _deduplicate_phases(phases: list[MissionPhase]) -> list[MissionPhase]:
+    """Ensure no two phases share the same activity category.
+
+    When a duplicate is detected, the later phase is replaced with an
+    alternative mode from ``_CATEGORY_SUBSTITUTIONS`` whose category has
+    not been seen yet.  If no viable substitute exists the phase is kept
+    as-is (``MissionPlan.__post_init__`` will log a warning).
+    """
+    seen_categories: set[str] = set()
+    used_modes: set[str] = {p.mode for p in phases}
+    result: list[MissionPhase] = []
+
+    for phase in phases:
+        cat = MODE_CATEGORY_MAP.get(phase.mode)
+        if cat is None or cat not in seen_categories:
+            if cat is not None:
+                seen_categories.add(cat)
+            result.append(phase)
+            continue
+
+        # Duplicate category — try to substitute.
+        substituted = False
+        for alt_mode, alt_source in _CATEGORY_SUBSTITUTIONS.get(cat, []):
+            alt_cat = MODE_CATEGORY_MAP.get(alt_mode)
+            if alt_cat in seen_categories or alt_mode in used_modes:
+                continue
+            result.append(MissionPhase(
+                phase=phase.phase,
+                title=phase.title,
+                source_kind=alt_source,
+                mode=alt_mode,
+                required=phase.required,
+                completed=phase.completed,
+            ))
+            if alt_cat is not None:
+                seen_categories.add(alt_cat)
+            used_modes.add(alt_mode)
+            substituted = True
+            break
+
+        if not substituted:
+            # No viable substitute; keep the original.
+            result.append(phase)
+            seen_categories.add(cat)
+
+    return result
 
 
 def _count_srs_due(user_id: int) -> int:
@@ -510,6 +587,8 @@ def assemble_repair_mission(
     ))
 
     phases.append(_make_close_phase())
+
+    phases = _deduplicate_phases(phases)
 
     return MissionPlan(
         plan_version="1",

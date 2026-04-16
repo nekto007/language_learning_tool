@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import enum
+import logging
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class MissionType(enum.Enum):
@@ -107,3 +110,17 @@ class MissionPlan:
             raise TypeError("primary_goal must be a PrimaryGoal instance")
         if not isinstance(self.primary_source, PrimarySource):
             raise TypeError("primary_source must be a PrimarySource instance")
+
+        # Warn if duplicate activity categories slip through deduplication.
+        seen_categories: dict[str, int] = {}
+        for i, phase in enumerate(self.phases):
+            cat = MODE_CATEGORY_MAP.get(phase.mode)
+            if cat is not None and cat in seen_categories:
+                logger.warning(
+                    "MissionPlan duplicate category %r in phases[%d] (mode=%s) "
+                    "and phases[%d] (mode=%s)",
+                    cat, seen_categories[cat], self.phases[seen_categories[cat]].mode,
+                    i, phase.mode,
+                )
+            elif cat is not None:
+                seen_categories[cat] = i

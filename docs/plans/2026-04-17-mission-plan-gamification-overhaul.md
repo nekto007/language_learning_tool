@@ -46,12 +46,12 @@ Prevent two phases with the same activity category from appearing in one plan. W
 - Modify: `app/daily_plan/assembler.py`
 - Modify: `app/daily_plan/models.py` (add validation)
 
-- [ ] Add `_deduplicate_phases(phases)` function in assembler that detects same-category phases and replaces the second with a different activity
-- [ ] Define fallback substitution rules: if words appears twice, swap second to grammar_practice or mini_quiz; if lesson appears twice, swap to vocab_drill
-- [ ] Add `MissionPlan.__post_init__` validation: warn (structured log) if duplicate categories slip through
-- [ ] Update `assemble_repair_mission` to use deduplication before returning
-- [ ] Write tests: plan with would-be-duplicate produces varied categories; fallback works when primary substitute unavailable
-- [ ] Run project test suite - must pass before task 3
+- [x] Add `_deduplicate_phases(phases)` function in assembler that detects same-category phases and replaces the second with a different activity
+- [x] Define fallback substitution rules: if words appears twice, swap second to grammar_practice or mini_quiz; if lesson appears twice, swap to vocab_drill
+- [x] Add `MissionPlan.__post_init__` validation: warn (structured log) if duplicate categories slip through
+- [x] Update `assemble_repair_mission` to use deduplication before returning
+- [x] Write tests: plan with would-be-duplicate produces varied categories; fallback works when primary substitute unavailable
+- [x] Run project test suite - must pass before task 3
 
 ### Task 3: Mission type rotation - no same type two days in a row
 
