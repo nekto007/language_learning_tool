@@ -7,6 +7,7 @@ from flask import Blueprint, current_app, flash, make_response, redirect, render
 from flask_login import current_user, login_required, login_user, logout_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
+from app import limiter
 from app.auth.forms import LoginForm, RegistrationForm, RequestResetForm, ResetPasswordForm
 from app.auth.models import User, ReferralLog, PasswordResetToken
 from app.utils.db import db
@@ -175,47 +176,40 @@ def verify_reset_token(token: str, expiration: int = 3600):
 
 
 @auth.route('/reset_password', methods=['GET', 'POST'])
+@limiter.limit("3 per hour")
 def reset_request():
-    # Import limiter here to avoid circular imports
-    from app import limiter
-    
-    # Apply rate limiting to password reset requests
-    @limiter.limit("10 per minute")
-    def _reset_request():
-        if current_user.is_authenticated:
-            return redirect(url_for(_default_fallback()))
+    if current_user.is_authenticated:
+        return redirect(url_for(_default_fallback()))
 
-        form = RequestResetForm()
-        if form.validate_on_submit():
-            user = User.query.filter_by(email=form.email.data).first()
-            if user:
-                token = get_reset_token(user.id)
-                reset_url = url_for('auth.reset_password', token=token, _external=True)
+    form = RequestResetForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user:
+            token = get_reset_token(user.id)
+            reset_url = url_for('auth.reset_password', token=token, _external=True)
 
-                # Отправляем электронное письмо
-                email_sent = email_sender.send_email(
-                    subject="Сброс пароля",
-                    to_email=user.email,
-                    template_name="password_reset",
-                    context={
-                        "username": user.username,
-                        "reset_url": reset_url
-                    }
-                )
+            # Отправляем электронное письмо
+            email_sent = email_sender.send_email(
+                subject="Сброс пароля",
+                to_email=user.email,
+                template_name="password_reset",
+                context={
+                    "username": user.username,
+                    "reset_url": reset_url
+                }
+            )
 
-                if email_sent:
-                    flash('На вашу электронную почту была отправлена инструкция по сбросу пароля.', 'info')
-                else:
-                    flash('Возникла проблема при отправке электронного письма. Пожалуйста, попробуйте позже.', 'danger')
-            else:
-                # Всегда показываем положительное сообщение из соображений безопасности
+            if email_sent:
                 flash('На вашу электронную почту была отправлена инструкция по сбросу пароля.', 'info')
+            else:
+                flash('Возникла проблема при отправке электронного письма. Пожалуйста, попробуйте позже.', 'danger')
+        else:
+            # Всегда показываем положительное сообщение из соображений безопасности
+            flash('На вашу электронную почту была отправлена инструкция по сбросу пароля.', 'info')
 
-            return redirect(url_for('auth.login'))
+        return redirect(url_for('auth.login'))
 
-        return render_template('auth/reset_request.html', form=form)
-    
-    return _reset_request()
+    return render_template('auth/reset_request.html', form=form)
 
 
 @auth.route('/reset_password/<token>', methods=['GET', 'POST'])
@@ -253,189 +247,173 @@ def reset_password(token):
 
 
 @auth.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
 def login():
-    # Import limiter here to avoid circular imports
-    from app import limiter
-    
-    # Apply rate limiting to login attempts
-    @limiter.limit("10 per minute")
-    def _login():
-        if current_user.is_authenticated:
-            return redirect(url_for(_default_fallback()))
+    if current_user.is_authenticated:
+        return redirect(url_for(_default_fallback()))
 
-        form = LoginForm()
-        if form.validate_on_submit():
-            # Check if input is email or username
-            login_input = form.username_or_email.data.strip()
-            
-            if '@' in login_input:
-                # It's an email
-                user = User.query.filter_by(email=login_input).first()
-            else:
-                # It's a username
-                user = User.query.filter_by(username=login_input).first()
-                
-            if user and user.check_password(form.password.data):
-                # Check if user is active
-                if not user.is_active:
-                    flash('Ваша учетная запись неактивна. Пожалуйста, обратитесь к администратору.', 'danger')
-                    return render_template('auth/login.html', form=form)
+    form = LoginForm()
+    if form.validate_on_submit():
+        # Check if input is email or username
+        login_input = form.username_or_email.data.strip()
 
-                # Log in the user
-                login_user(user, remember=form.remember_me.data)
+        if '@' in login_input:
+            # It's an email
+            user = User.query.filter_by(email=login_input).first()
+        else:
+            # It's a username
+            user = User.query.filter_by(username=login_input).first()
 
-                # Update last login timestamp
-                user.last_login = datetime.now(timezone.utc)
-                db.session.commit()
+        if user and user.check_password(form.password.data):
+            # Check if user is active
+            if not user.is_active:
+                flash('Ваша учетная запись неактивна. Пожалуйста, обратитесь к администратору.', 'danger')
+                return render_template('auth/login.html', form=form)
 
-                # Redirect to requested page or dashboard
-                # Check both GET args and POST form data for next parameter
-                next_page = request.args.get('next') or request.form.get('next')
+            # Log in the user
+            login_user(user, remember=form.remember_me.data)
 
-                # Redirect to onboarding if not completed, preserving next param
-                if not user.onboarding_completed:
-                    safe_next = get_safe_redirect_url(next_page) if next_page else None
-                    if safe_next and safe_next != url_for('words.dashboard'):
-                        return redirect(url_for('onboarding.wizard', next=safe_next))
-                    return redirect(url_for('onboarding.wizard'))
+            # Update last login timestamp
+            user.last_login = datetime.now(timezone.utc)
+            db.session.commit()
 
-                safe_url = get_safe_redirect_url(next_page)
-                return redirect(safe_url)
-            else:
-                logger.warning(
-                    'failed login attempt: user=%s ip=%s',
-                    login_input,
-                    request.remote_addr,
-                )
-                flash(_l('Invalid email or password'), 'danger')
-                return render_template('auth/login.html', form=form), 401
+            # Redirect to requested page or dashboard
+            # Check both GET args and POST form data for next parameter
+            next_page = request.args.get('next') or request.form.get('next')
 
-        return render_template('auth/login.html', form=form)
-    
-    return _login()
+            # Redirect to onboarding if not completed, preserving next param
+            if not user.onboarding_completed:
+                safe_next = get_safe_redirect_url(next_page) if next_page else None
+                if safe_next and safe_next != url_for('words.dashboard'):
+                    return redirect(url_for('onboarding.wizard', next=safe_next))
+                return redirect(url_for('onboarding.wizard'))
+
+            safe_url = get_safe_redirect_url(next_page)
+            return redirect(safe_url)
+        else:
+            logger.warning(
+                'failed login attempt: user=%s ip=%s',
+                login_input,
+                request.remote_addr,
+            )
+            flash(_l('Invalid email or password'), 'danger')
+            return render_template('auth/login.html', form=form), 401
+
+    return render_template('auth/login.html', form=form)
 
 
 @auth.route('/register', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def register():
-    # Import limiter here to avoid circular imports
-    from app import limiter
-    
-    # Apply rate limiting to registration attempts
-    @limiter.limit("10 per minute")
-    def _register():
-        if current_user.is_authenticated:
-            return redirect(url_for(_default_fallback()))
+    if current_user.is_authenticated:
+        return redirect(url_for(_default_fallback()))
 
-        # Capture ?ref= parameter and store in cookie so it survives form submission
-        ref_code = request.args.get('ref', '').strip()
-        if ref_code and len(ref_code) <= 16 and ref_code.isalnum() and request.method == 'GET':
-            resp = make_response(render_template('auth/register.html', form=RegistrationForm()))
-            resp.set_cookie('ref', ref_code, max_age=86400 * 30, httponly=True,
-                           samesite='Lax', secure=not current_app.debug)
-            return resp
+    # Capture ?ref= parameter and store in cookie so it survives form submission
+    ref_code = request.args.get('ref', '').strip()
+    if ref_code and len(ref_code) <= 16 and ref_code.isalnum() and request.method == 'GET':
+        resp = make_response(render_template('auth/register.html', form=RegistrationForm()))
+        resp.set_cookie('ref', ref_code, max_age=86400 * 30, httponly=True,
+                       samesite='Lax', secure=not current_app.debug)
+        return resp
 
-        form = RegistrationForm()
+    form = RegistrationForm()
 
-        # Capture query params
-        level_param = request.args.get('level', '')
-        ref_param = request.args.get('ref', '')
+    # Capture query params
+    level_param = request.args.get('level', '')
+    ref_param = request.args.get('ref', '')
 
-        if form.validate_on_submit():
-            user = User(
-                username=form.username.data,
-                email=form.email.data,
-                active=True  # Set user as active by default
-            )
-            user.set_password(form.password.data)
+    if form.validate_on_submit():
+        user = User(
+            username=form.username.data,
+            email=form.email.data,
+            active=True  # Set user as active by default
+        )
+        user.set_password(form.password.data)
 
-            # Pre-fill onboarding level from param
-            if level_param:
-                user.onboarding_level = level_param.upper()
+        # Pre-fill onboarding level from param
+        if level_param:
+            user.onboarding_level = level_param.upper()
 
-            # Handle referral code
-            ref_code = ref_param or request.form.get('ref')
-            if ref_code:
-                referrer = User.query.filter_by(referral_code=ref_code).first()
-                if referrer:
-                    user.referred_by_id = referrer.id
+        # Handle referral code
+        ref_code = ref_param or request.form.get('ref')
+        if ref_code:
+            referrer = User.query.filter_by(referral_code=ref_code).first()
+            if referrer:
+                user.referred_by_id = referrer.id
 
+        try:
+            db.session.add(user)
+            db.session.commit()
+
+            # Process referral
+            saved_ref = request.cookies.get('ref')
+            if saved_ref and len(saved_ref) <= 16 and saved_ref.isalnum():
+                try:
+                    referrer = User.query.filter_by(referral_code=saved_ref).first()
+                    if referrer and referrer.id != user.id:
+                        referral_log = ReferralLog(referrer_id=referrer.id, referred_id=user.id)
+                        db.session.add(referral_log)
+                        db.session.commit()
+                except (IntegrityError, SQLAlchemyError):
+                    current_app.logger.warning(
+                        "Referral processing failed for ref=%s", saved_ref, exc_info=True
+                    )
+                    db.session.rollback()  # Don't fail registration over referral
+
+            # Grant default modules to the new user
+            from app.modules.service import ModuleService
+            modules_granted = False
             try:
-                db.session.add(user)
-                db.session.commit()
-
-                # Process referral
-                saved_ref = request.cookies.get('ref')
-                if saved_ref and len(saved_ref) <= 16 and saved_ref.isalnum():
-                    try:
-                        referrer = User.query.filter_by(referral_code=saved_ref).first()
-                        if referrer and referrer.id != user.id:
-                            referral_log = ReferralLog(referrer_id=referrer.id, referred_id=user.id)
-                            db.session.add(referral_log)
-                            db.session.commit()
-                    except (IntegrityError, SQLAlchemyError):
-                        current_app.logger.warning(
-                            "Referral processing failed for ref=%s", saved_ref, exc_info=True
-                        )
-                        db.session.rollback()  # Don't fail registration over referral
-
-                # Grant default modules to the new user
-                from app.modules.service import ModuleService
-                modules_granted = False
+                ModuleService.grant_default_modules_to_user(user.id)
+                modules_granted = True
+            except SQLAlchemyError:
+                current_app.logger.warning("Module granting failed for user=%s, retrying", user.id, exc_info=True)
+                db.session.rollback()
+                user = db.session.merge(user)
                 try:
                     ModuleService.grant_default_modules_to_user(user.id)
                     modules_granted = True
                 except SQLAlchemyError:
-                    current_app.logger.warning("Module granting failed for user=%s, retrying", user.id, exc_info=True)
+                    current_app.logger.error("Module granting failed on retry for user=%s", user.id, exc_info=True)
                     db.session.rollback()
                     user = db.session.merge(user)
-                    try:
-                        ModuleService.grant_default_modules_to_user(user.id)
-                        modules_granted = True
-                    except SQLAlchemyError:
-                        current_app.logger.error("Module granting failed on retry for user=%s", user.id, exc_info=True)
-                        db.session.rollback()
-                        user = db.session.merge(user)
 
-                # Auto-login after registration
-                login_user(user)
-                user.last_login = datetime.now(timezone.utc)
-                db.session.commit()
+            # Auto-login after registration
+            login_user(user)
+            user.last_login = datetime.now(timezone.utc)
+            db.session.commit()
 
-                # Send welcome email (may be slow if mail server is unresponsive)
-                try:
-                    dashboard_url = url_for(_default_fallback(), _external=True)
-                    email_sender.send_email(
-                        subject="Добро пожаловать в Language Learning Tool!",
-                        to_email=user.email,
-                        template_name="welcome",
-                        context={
-                            "username": user.username,
-                            "dashboard_url": dashboard_url,
-                        }
-                    )
-                except (OSError, RuntimeError):
-                    current_app.logger.warning("Welcome email failed for user=%s", user.email, exc_info=True)
+            # Send welcome email (may be slow if mail server is unresponsive)
+            try:
+                dashboard_url = url_for(_default_fallback(), _external=True)
+                email_sender.send_email(
+                    subject="Добро пожаловать в Language Learning Tool!",
+                    to_email=user.email,
+                    template_name="welcome",
+                    context={
+                        "username": user.username,
+                        "dashboard_url": dashboard_url,
+                    }
+                )
+            except (OSError, RuntimeError):
+                current_app.logger.warning("Welcome email failed for user=%s", user.email, exc_info=True)
 
-                flash('Добро пожаловать! Ваш аккаунт создан.', 'success')
-                resp = redirect(url_for('onboarding.wizard'))
-                resp.delete_cookie('ref')
-                return resp
-            except (IntegrityError, SQLAlchemyError) as e:
-                db.session.rollback()
-                logger.error("Registration failed: %s", e, exc_info=True)
-                flash('Регистрация не удалась. Попробуйте позже.', 'danger')
+            flash('Добро пожаловать! Ваш аккаунт создан.', 'success')
+            resp = redirect(url_for('onboarding.wizard'))
+            resp.delete_cookie('ref')
+            return resp
+        except (IntegrityError, SQLAlchemyError) as e:
+            db.session.rollback()
+            logger.error("Registration failed: %s", e, exc_info=True)
+            flash('Регистрация не удалась. Попробуйте позже.', 'danger')
 
-        # Social proof
-        learner_count = User.query.filter_by(active=True).count()
+    # Social proof
+    learner_count = User.query.filter_by(active=True).count()
 
-        return render_template('auth/register.html', form=form,
-                               learner_count=learner_count,
-                               level_param=level_param,
-                               ref_param=ref_param)
-    
-        return render_template('auth/register.html', form=form)
-
-    return _register()
+    return render_template('auth/register.html', form=form,
+                           learner_count=learner_count,
+                           level_param=level_param,
+                           ref_param=ref_param)
 
 
 @auth.route('/logout')

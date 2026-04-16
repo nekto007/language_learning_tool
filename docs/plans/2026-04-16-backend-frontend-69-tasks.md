@@ -416,11 +416,11 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `app/auth/routes.py`
 
-- [ ] verify Flask-Limiter is installed and configured in app factory
-- [ ] add `@limiter.limit("5 per minute")` to POST /register
-- [ ] add `@limiter.limit("3 per hour")` to POST /password-reset
-- [ ] write test: exceeding limit returns 429
-- [ ] run pytest -m smoke
+- [x] verify Flask-Limiter is installed and configured in app factory
+- [x] add `@limiter.limit("5 per minute")` to POST /register
+- [x] add `@limiter.limit("3 per hour")` to POST /password-reset
+- [x] write test: exceeding limit returns 429
+- [x] run pytest -m smoke
 
 ### Task 37: Add bleach sanitization to user-provided text fields before storage
 
