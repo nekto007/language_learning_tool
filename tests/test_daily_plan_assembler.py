@@ -6,6 +6,151 @@ import pytest
 ASSEMBLER_MOD = "app.daily_plan.assembler"
 
 
+# ---------------------------------------------------------------------------
+# assemble_repair_mission — normal (non-degenerate) path
+# ---------------------------------------------------------------------------
+
+
+class TestAssembleRepairMissionNormalPath:
+    """assemble_repair_mission when SRS > 0 or grammar_due > 0 (no degradation)."""
+
+    @patch(f"{ASSEMBLER_MOD}._find_weak_grammar_topic")
+    @patch(f"{ASSEMBLER_MOD}._count_grammar_due", return_value=3)
+    @patch(f"{ASSEMBLER_MOD}._count_srs_due", return_value=10)
+    def test_returns_repair_plan_with_grammar_topic(self, _srs, _gram, mock_topic):
+        from app.daily_plan.assembler import assemble_repair_mission
+        from app.daily_plan.models import MissionType, SourceKind, PhaseKind
+        from app.daily_plan.repair_pressure import RepairBreakdown
+
+        mock_topic.return_value = {'title': 'Past Simple', 'topic_id': 7}
+        breakdown = RepairBreakdown(
+            overdue_srs_count=10, overdue_srs_score=0.5,
+            grammar_weak_count=3, grammar_weak_score=0.3,
+            failure_cluster_count=1, failure_cluster_score=0.1,
+            total_score=0.65,
+        )
+
+        result = assemble_repair_mission(1, breakdown)
+
+        assert result is not None
+        assert result.mission.type == MissionType.repair
+        assert len(result.phases) == 4
+        assert result.phases[-1].phase == PhaseKind.close
+        assert result.primary_source.kind == SourceKind.srs
+        assert result.legacy['grammar_topic'] == {'title': 'Past Simple', 'topic_id': 7}
+
+    @patch(f"{ASSEMBLER_MOD}._find_weak_grammar_topic", return_value=None)
+    @patch(f"{ASSEMBLER_MOD}._count_grammar_due", return_value=5)
+    @patch(f"{ASSEMBLER_MOD}._count_srs_due", return_value=0)
+    def test_returns_repair_plan_without_grammar_topic(self, _srs, _gram, _topic):
+        from app.daily_plan.assembler import assemble_repair_mission
+        from app.daily_plan.models import MissionType, SourceKind, PhaseKind
+        from app.daily_plan.repair_pressure import RepairBreakdown
+
+        breakdown = RepairBreakdown(
+            overdue_srs_count=0, overdue_srs_score=0.0,
+            grammar_weak_count=5, grammar_weak_score=0.5,
+            failure_cluster_count=2, failure_cluster_score=0.2,
+            total_score=0.65,
+        )
+
+        result = assemble_repair_mission(1, breakdown)
+
+        assert result is not None
+        assert result.mission.type == MissionType.repair
+        assert len(result.phases) == 4
+        # When grammar_topic is None and srs_due=0, primary source falls back to grammar_lab
+        assert result.primary_source.kind == SourceKind.grammar_lab
+        # Use phase falls back to vocab drill when no grammar topic
+        learn_phase = result.phases[1]
+        assert learn_phase.mode == "vocab_drill"
+
+    @patch(f"{ASSEMBLER_MOD}._find_weak_grammar_topic", return_value=None)
+    @patch(f"{ASSEMBLER_MOD}._count_grammar_due", return_value=0)
+    @patch(f"{ASSEMBLER_MOD}._count_srs_due", return_value=20)
+    def test_srs_only_recall_phase_uses_srs_review_mode(self, _srs, _gram, _topic):
+        from app.daily_plan.assembler import assemble_repair_mission
+        from app.daily_plan.models import PhaseKind
+        from app.daily_plan.repair_pressure import RepairBreakdown
+
+        breakdown = RepairBreakdown(
+            overdue_srs_count=20, overdue_srs_score=0.8,
+            grammar_weak_count=0, grammar_weak_score=0.0,
+            failure_cluster_count=0, failure_cluster_score=0.0,
+            total_score=0.4,
+        )
+
+        result = assemble_repair_mission(1, breakdown)
+
+        assert result is not None
+        recall = result.phases[0]
+        assert recall.phase == PhaseKind.recall
+        assert recall.mode == "srs_review"
+
+
+# ---------------------------------------------------------------------------
+# assemble_reading_mission
+# ---------------------------------------------------------------------------
+
+
+class TestAssembleReadingMission:
+    """Tests for assemble_reading_mission() — book reading track."""
+
+    @patch(f"{ASSEMBLER_MOD}._count_srs_due", return_value=0)
+    @patch(f"{ASSEMBLER_MOD}._find_next_book")
+    def test_returns_none_when_no_book(self, mock_book, _srs):
+        from app.daily_plan.assembler import assemble_reading_mission
+
+        mock_book.return_value = None
+        result = assemble_reading_mission(1)
+        assert result is None
+
+    @patch(f"{ASSEMBLER_MOD}._count_srs_due", return_value=0)
+    @patch(f"{ASSEMBLER_MOD}._find_next_book")
+    def test_returns_3_phases_when_no_srs(self, mock_book, _srs):
+        from app.daily_plan.assembler import assemble_reading_mission
+        from app.daily_plan.models import MissionType, SourceKind, PhaseKind
+
+        mock_book.return_value = {'id': 3, 'title': 'Alice in Wonderland'}
+        result = assemble_reading_mission(1)
+
+        assert result is not None
+        assert result.mission.type == MissionType.reading
+        assert len(result.phases) == 3
+        assert result.phases[0].phase == PhaseKind.recall
+        assert result.phases[1].phase == PhaseKind.read
+        assert result.phases[2].phase == PhaseKind.use
+        assert result.primary_source.kind == SourceKind.books
+        assert result.primary_source.id == '3'
+
+    @patch(f"{ASSEMBLER_MOD}._count_srs_due", return_value=5)
+    @patch(f"{ASSEMBLER_MOD}._find_next_book")
+    def test_returns_4_phases_when_srs_due(self, mock_book, _srs):
+        from app.daily_plan.assembler import assemble_reading_mission
+        from app.daily_plan.models import PhaseKind
+
+        mock_book.return_value = {'id': 3, 'title': 'Alice in Wonderland'}
+        result = assemble_reading_mission(1)
+
+        assert result is not None
+        assert len(result.phases) == 4
+        assert result.phases[3].phase == PhaseKind.check
+        assert result.phases[3].required is False
+        # Recall mode uses book_vocab_recall when SRS > 0
+        assert result.phases[0].mode == "book_vocab_recall"
+
+    @patch(f"{ASSEMBLER_MOD}._count_srs_due", return_value=0)
+    @patch(f"{ASSEMBLER_MOD}._find_next_book")
+    def test_legacy_block_contains_book(self, mock_book, _srs):
+        from app.daily_plan.assembler import assemble_reading_mission
+
+        mock_book.return_value = {'id': 7, 'title': 'Crime and Punishment'}
+        result = assemble_reading_mission(1)
+
+        assert result is not None
+        assert result.legacy == {'book_to_read': {'id': 7, 'title': 'Crime and Punishment'}}
+
+
 def _mock_module(module_id: int = 10, number: int = 1) -> MagicMock:
     m = MagicMock()
     m.id = module_id

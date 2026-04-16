@@ -317,8 +317,10 @@ class TestRepairMissionDegradation:
         )
         mock_progress.return_value = _make_progress_plan()
 
-        assemble_repair_mission(1, breakdown)
+        result = assemble_repair_mission(1, breakdown)
 
+        assert result is not None
+        assert result.mission.type == MissionType.progress
         mock_progress.assert_called_once_with(1, SourceKind.book_course, reason_code="progress_next_step", reason_text="Всё повторено — двигаемся дальше по курсу", tz=None)
 
     @patch(f"{ASSEMBLER_MODULE}.detect_primary_track", return_value=None)
@@ -337,8 +339,10 @@ class TestRepairMissionDegradation:
         )
         mock_progress.return_value = _make_progress_plan()
 
-        assemble_repair_mission(1, breakdown)
+        result = assemble_repair_mission(1, breakdown)
 
+        assert result is not None
+        assert result.mission.type == MissionType.progress
         mock_progress.assert_called_once_with(1, SourceKind.normal_course, reason_code="progress_next_step", reason_text="Всё повторено — двигаемся дальше по курсу", tz=None)
 
 
@@ -402,6 +406,8 @@ class TestGetDailyPlanUnified:
         result = get_daily_plan_unified(test_user.id)
         assert 'steps' in result
         mock_mission.assert_not_called()
+        assert result['_plan_meta']['mission_plan_enabled'] is False
+        assert result['_plan_meta']['effective_mode'] == 'legacy'
 
     @patch(f"{MODULE}.get_mission_plan", return_value=None)
     @patch(f"{LEGACY_MODULE}.get_daily_plan_v2", return_value={'steps': []})
@@ -412,6 +418,9 @@ class TestGetDailyPlanUnified:
         result = get_daily_plan_unified(test_user.id)
         assert 'steps' in result
         mock_legacy.assert_called_once()
+        assert result['_plan_meta']['mission_plan_enabled'] is True
+        assert result['_plan_meta']['effective_mode'] == 'legacy_fallback'
+        assert result['_plan_meta']['fallback_reason'] == 'mission_build_failed'
 
     @patch(f"{LEGACY_MODULE}.get_daily_plan_v2", return_value={'steps': []})
     def test_nonexistent_user_returns_legacy(self, mock_legacy, app):

@@ -122,48 +122,15 @@ def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
                     ).order_by(CEFRLevel.order.asc(), Module.number.asc()).all()
                     if eligible_modules:
                         for m in eligible_modules:
-                            # Check if user has already completed some lessons in this module.
-                            # If so, resume from the next unfinished lesson rather than restarting.
-                            last_in_module = (
-                                LessonProgress.query
-                                .join(Lessons, LessonProgress.lesson_id == Lessons.id)
-                                .filter(
-                                    LessonProgress.user_id == user_id,
-                                    LessonProgress.status == 'completed',
-                                    Lessons.module_id == m.id,
-                                )
-                                .order_by(Lessons.number.desc())
-                                .first()
-                            )
-                            if last_in_module:
-                                completed_l = Lessons.query.get(last_in_module.lesson_id)
-                                if completed_l:
-                                    next_in_mod = Lessons.query.filter(
-                                        Lessons.module_id == m.id,
-                                        Lessons.number > completed_l.number,
-                                    ).order_by(Lessons.number).first()
-                                    if next_in_mod:
-                                        jm = Module.query.get(next_in_mod.module_id)
-                                        return {
-                                            'title': next_in_mod.title,
-                                            'lesson_id': next_in_mod.id,
-                                            'module_id': next_in_mod.module_id,
-                                            'module_number': jm.number if jm else None,
-                                            'lesson_type': next_in_mod.type,
-                                        }
-                                # All lessons in this module already done — try next module.
-                                continue
-                            first_lesson = Lessons.query.filter_by(
-                                module_id=m.id,
-                            ).order_by(Lessons.number).first()
-                            if first_lesson:
-                                jm = Module.query.get(first_lesson.module_id)
+                            next_l = _next_unfinished_lesson_in_module(user_id, m.id)
+                            if next_l:
+                                jm = Module.query.get(next_l.module_id)
                                 return {
-                                    'title': first_lesson.title,
-                                    'lesson_id': first_lesson.id,
-                                    'module_id': first_lesson.module_id,
+                                    'title': next_l.title,
+                                    'lesson_id': next_l.id,
+                                    'module_id': next_l.module_id,
                                     'module_number': jm.number if jm else None,
-                                    'lesson_type': first_lesson.type,
+                                    'lesson_type': next_l.type,
                                 }
                     # No lesson found in target-level modules (absent or all empty shells)
                     # — fall through to sequential scan.
