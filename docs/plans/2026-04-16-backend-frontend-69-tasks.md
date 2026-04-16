@@ -706,9 +706,9 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: templates containing notification dropdown JS
 
-- [ ] grep JS in templates for notification rendering with innerHTML
-- [ ] replace with DOM API (createElement + textContent)
-- [ ] run pytest -m smoke
+- [x] grep JS in templates for notification rendering with innerHTML
+- [x] replace with DOM API (createElement + textContent)
+- [x] run pytest -m smoke
 
 ### Task 65: Add test for duplicate email registration (from task 41)
 
