@@ -537,11 +537,11 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `app/grammar_lab/routes.py`
 
-- [ ] read grammar topic creation handler
-- [ ] wrap db.session.commit() in IntegrityError catch for slug uniqueness
-- [ ] return 409 `{'error': 'slug_taken'}` with suggestion to append suffix
-- [ ] write test: creating topic with duplicate slug returns 409
-- [ ] run pytest -m smoke
+- [x] read grammar topic creation handler
+- [x] wrap db.session.commit() in IntegrityError catch for slug uniqueness
+- [x] return 409 `{'error': 'slug_taken'}` with suggestion to append suffix
+- [x] write test: creating topic with duplicate slug returns 409
+- [x] run pytest -m smoke
 
 ### Task 48: Add test for correct DAU/WAU calculation via UNION 6 tables
 
