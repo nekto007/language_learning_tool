@@ -648,9 +648,9 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `tests/auth/test_auth_routes.py`
 
-- [ ] add test: login with `next=https://evil.com` redirects to home not evil.com
-- [ ] add test: login with `next=/study/` redirects correctly
-- [ ] run pytest -m smoke
+- [x] add test: login with `next=https://evil.com` redirects to home not evil.com
+- [x] add test: login with `next=/study/` redirects correctly
+- [x] run pytest -m smoke
 
 ### Task 59: Add missing type hints to daily_plan module
 

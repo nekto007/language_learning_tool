@@ -136,6 +136,26 @@ class TestSafeRedirect:
         loc = r.headers.get('Location', '')
         assert 'javascript' not in loc
 
+    def test_blocks_https_external_url(self, client, test_user):
+        """login with next=https://evil.com must redirect to home, not evil.com."""
+        r = client.post('/login?next=https://evil.com', data={
+            'username_or_email': test_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=False)
+        assert r.status_code == 302
+        loc = r.headers.get('Location', '')
+        assert 'evil.com' not in loc
+
+    def test_allows_safe_internal_path(self, client, test_user):
+        """login with next=/study/ must redirect to /study/."""
+        r = client.post('/login?next=/study/', data={
+            'username_or_email': test_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=False)
+        assert r.status_code == 302
+        loc = r.headers.get('Location', '')
+        assert '/study/' in loc
+
 
 # ---------------------------------------------------------------------------
 # Register
