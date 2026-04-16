@@ -162,6 +162,14 @@ MAX_SYNC_PROCESSING_SIZE = 50000  # ~50 KB
 SYNC_PROCESSING_TIMEOUT = 30
 
 # =============================================================================
+# Performance monitoring thresholds
+# =============================================================================
+
+# Queries exceeding this threshold (milliseconds) are logged as slow queries.
+# Configurable via SLOW_QUERY_MS environment variable.
+SLOW_QUERY_MS: int = int(os.getenv('SLOW_QUERY_MS', 100))
+
+# =============================================================================
 # Domain thresholds — named constants for values used across multiple modules.
 # Import from here instead of hardcoding literals.
 # =============================================================================
@@ -222,6 +230,7 @@ class Config:
     GOOGLE_ANALYTICS_ID = os.environ.get("GOOGLE_ANALYTICS_ID", "")
 
     SQLALCHEMY_ENGINE_OPTIONS = DEFAULT_SQLALCHEMY_ENGINE_OPTIONS
+    SLOW_QUERY_MS: int = SLOW_QUERY_MS
 
 
 class TestConfig(Config):

@@ -299,10 +299,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `config/settings.py`
 - Modify: `app/__init__.py`
 
-- [ ] add SQLAlchemy event listener `before_cursor_execute` / `after_cursor_execute` that logs elapsed time if > 100ms
-- [ ] configure threshold via SLOW_QUERY_MS env var (default 100)
-- [ ] write test: artificially slow query triggers log entry (use monkeypatch on time.time)
-- [ ] run pytest -m smoke
+- [x] add SQLAlchemy event listener `before_cursor_execute` / `after_cursor_execute` that logs elapsed time if > 100ms
+- [x] configure threshold via SLOW_QUERY_MS env var (default 100)
+- [x] write test: artificially slow query triggers log entry (use monkeypatch on time.time)
+- [x] run pytest -m smoke
 
 ### Task 26: Add unit tests for daily_plan service pipeline
 
