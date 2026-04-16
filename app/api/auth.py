@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 
 from app import csrf
+from app.api.errors import api_error
 from app.auth.models import User
 from app.utils.db import db
 
@@ -55,30 +56,18 @@ def api_login():
     @limiter.limit("20 per hour")
     def _api_login_impl():
         if not request.is_json:
-            return jsonify({
-                'success': False,
-                'error': 'Invalid JSON format',
-                'status_code': 400
-            }), 400
+            return api_error('invalid_json', 'Invalid JSON format', 400)
 
         try:
             data = request.get_json()
         except Exception:
-            return jsonify({
-                'success': False,
-                'error': 'Invalid JSON format',
-                'status_code': 400
-            }), 400
+            return api_error('invalid_json', 'Invalid JSON format', 400)
 
         username = data.get('username')
         password = data.get('password')
 
         if not username or not password:
-            return jsonify({
-                'success': False,
-                'error': 'Missing username or password',
-                'status_code': 400
-            }), 400
+            return api_error('missing_fields', 'Missing username or password', 400)
 
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
@@ -99,11 +88,7 @@ def api_login():
                 }
             })
 
-        return jsonify({
-            'success': False,
-            'error': 'Invalid credentials',
-            'status_code': 401
-        }), 401
+        return api_error('invalid_credentials', 'Invalid credentials', 401)
 
     return _api_login_impl()
 
@@ -134,8 +119,4 @@ def refresh():
         })
     except Exception as e:
         logger.error(f'Token refresh error: {e}', exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': 'Token refresh failed',
-            'status_code': 401
-        }), 401
+        return api_error('token_refresh_failed', 'Token refresh failed', 401)

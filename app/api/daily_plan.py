@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 from app import csrf
 from app.api.decorators import api_auth_required
+from app.api.errors import api_error
 from app.utils.db import db
 
 api_daily_plan = Blueprint('api_daily_plan', __name__)
@@ -149,7 +150,7 @@ def streak_repair():
 
     missed = find_missed_date(user_id, tz=tz)
     if not missed:
-        return jsonify({'success': False, 'error': 'no_missed_date'}), 400
+        return api_error('no_missed_date', 'No missed date found', 400)
 
     result = apply_paid_repair(user_id, missed)
     if result['success']:

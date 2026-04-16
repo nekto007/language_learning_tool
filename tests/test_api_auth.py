@@ -41,9 +41,9 @@ class TestAPILogin:
         assert response.status_code == 401
         data = response.get_json()
 
-        assert data['success'] is False
-        assert data['error'] == 'Invalid credentials'
-        assert data['status_code'] == 401
+        assert data['error'] == 'invalid_credentials'
+        assert data['message'] == 'Invalid credentials'
+        assert data['status'] == 401
 
     def test_api_login_nonexistent_user(self, client):
         """Test login with non-existent username"""
@@ -58,8 +58,7 @@ class TestAPILogin:
         assert response.status_code == 401
         data = response.get_json()
 
-        assert data['success'] is False
-        assert data['error'] == 'Invalid credentials'
+        assert data['error'] == 'invalid_credentials'
 
     def test_api_login_missing_username(self, client):
         """Test error when missing username"""
@@ -71,8 +70,8 @@ class TestAPILogin:
         assert response.status_code == 400
         data = response.get_json()
 
-        assert data['success'] is False
-        assert 'Missing username or password' in data['error']
+        assert data['error'] == 'missing_fields'
+        assert 'Missing username or password' in data['message']
 
     def test_api_login_missing_password(self, client):
         """Test error when missing password"""
@@ -84,8 +83,8 @@ class TestAPILogin:
         assert response.status_code == 400
         data = response.get_json()
 
-        assert data['success'] is False
-        assert 'Missing username or password' in data['error']
+        assert data['error'] == 'missing_fields'
+        assert 'Missing username or password' in data['message']
 
     def test_api_login_empty_credentials(self, client):
         """Test error with empty username/password"""
@@ -97,7 +96,7 @@ class TestAPILogin:
         assert response.status_code == 400
         data = response.get_json()
 
-        assert data['success'] is False
+        assert 'error' in data
 
     def test_api_login_invalid_json(self, client):
         """Test error with invalid JSON"""
@@ -110,8 +109,8 @@ class TestAPILogin:
         assert response.status_code == 400
         data = response.get_json()
 
-        assert data['success'] is False
-        assert 'Invalid JSON format' in data['error']
+        assert data['error'] == 'invalid_json'
+        assert 'Invalid JSON format' in data['message']
 
     def test_api_login_not_json_content_type(self, client, test_user):
         """Test error when not sending JSON content type"""
@@ -123,8 +122,8 @@ class TestAPILogin:
         assert response.status_code == 400
         data = response.get_json()
 
-        assert data['success'] is False
-        assert 'Invalid JSON format' in data['error']
+        assert data['error'] == 'invalid_json'
+        assert 'Invalid JSON format' in data['message']
 
     def test_api_login_updates_last_login(self, client, test_user, db_session):
         """Test that successful login updates last_login timestamp"""
