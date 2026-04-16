@@ -493,11 +493,11 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Create: `app/middleware/request_id.py`
 - Modify: `app/__init__.py`
 
-- [ ] create before_request hook that sets `g.request_id = uuid4().hex`
-- [ ] create after_request hook that adds `X-Request-ID` header to response
-- [ ] include request_id in all logger calls via `extra={'request_id': g.request_id}`
-- [ ] write test: response includes X-Request-ID header
-- [ ] run pytest -m smoke
+- [x] create before_request hook that sets `g.request_id = uuid4().hex`
+- [x] create after_request hook that adds `X-Request-ID` header to response
+- [x] include request_id in all logger calls via `extra={'request_id': g.request_id}`
+- [x] write test: response includes X-Request-ID header
+- [x] run pytest -m smoke
 
 ### Task 44: Add caching to leaderboard and DAU/WAU queries
 

@@ -121,6 +121,10 @@ def create_app(config_class=Config):
     from app.middleware.security import add_security_headers
     add_security_headers(app)
 
+    # Initialize request ID middleware
+    from app.middleware.request_id import add_request_id
+    add_request_id(app)
+
     # Ensure directories exist
     os.makedirs(app.config['AUDIO_UPLOAD_FOLDER'], exist_ok=True)
 
