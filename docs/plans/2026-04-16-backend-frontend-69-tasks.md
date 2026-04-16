@@ -330,10 +330,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Create: `tests/achievements/test_streak_service.py`
 
-- [ ] write tests for streak calculation with timezone edge cases
-- [ ] write tests for streak recovery purchase flow
-- [ ] write tests for streak freeze handling
-- [ ] run pytest -m smoke
+- [x] write tests for streak calculation with timezone edge cases
+- [x] write tests for streak recovery purchase flow
+- [x] write tests for streak freeze handling
+- [x] run pytest -m smoke
 
 ### Task 29: Add API integration tests for /api/daily_plan endpoints
 
