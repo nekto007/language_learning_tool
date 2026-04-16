@@ -59,6 +59,26 @@ class TestLogin:
         }, follow_redirects=False)
         assert r.status_code == 401
 
+    def test_failed_login_emits_warning_log(self, client, test_user, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING, logger='app.auth.routes'):
+            client.post('/login', data={
+                'username_or_email': test_user.username,
+                'password': 'wrongpassword',
+            }, follow_redirects=False)
+        assert 'failed login attempt' in caplog.text
+        assert test_user.username in caplog.text
+
+    def test_failed_login_nonexistent_user_emits_warning_log(self, client, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING, logger='app.auth.routes'):
+            client.post('/login', data={
+                'username_or_email': 'ghost_user_xyz',
+                'password': 'whatever',
+            }, follow_redirects=False)
+        assert 'failed login attempt' in caplog.text
+        assert 'ghost_user_xyz' in caplog.text
+
     def test_login_inactive_user(self, client, db_session, test_user):
         test_user.active = False
         db_session.commit()

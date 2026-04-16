@@ -302,6 +302,11 @@ def login():
                 safe_url = get_safe_redirect_url(next_page)
                 return redirect(safe_url)
             else:
+                logger.warning(
+                    'failed login attempt: user=%s ip=%s',
+                    login_input,
+                    request.remote_addr,
+                )
                 flash(_l('Invalid email or password'), 'danger')
                 return render_template('auth/login.html', form=form), 401
 
