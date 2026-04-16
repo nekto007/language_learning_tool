@@ -132,7 +132,16 @@ def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
                                     'module_number': jm.number if jm else None,
                                     'lesson_type': next_l.type,
                                 }
-                    # No lesson found in target-level modules (absent or all empty shells)
+                        # No unfinished lesson found in any eligible module.
+                        # If any of those modules actually contains lessons, all content at
+                        # the target level is complete — do not regress to lower-level content.
+                        # If all are empty shells, fall through to the sequential scan below.
+                        if any(
+                            Lessons.query.filter_by(module_id=m.id).first() is not None
+                            for m in eligible_modules
+                        ):
+                            return None
+                    # No target-level modules in DB yet, or all are empty shells
                     # — fall through to sequential scan.
 
                 next_l = Lessons.query.filter(

@@ -219,6 +219,7 @@ class TestFindNextLessonColdStart:
                 "result": result,
                 "mock_gcl": mock_gcl,
                 "mock_cto": mock_cto,
+                "q": q,
             }
 
     def test_cold_start_b1_onboarding_calls_level_utils(self):
@@ -254,6 +255,8 @@ class TestFindNextLessonColdStart:
         out["mock_cto"].assert_called_once_with("A0", ANY)
         assert out["result"] is not None
         assert out["result"]["lesson_id"] == 42
+        # The filter must NOT have been called — verifies the no-filter code path.
+        out["q"].filter.assert_not_called()
 
     def test_cold_start_returns_none_when_no_module_found(self):
         """Cold start → no module found at user's level → returns None."""
@@ -502,7 +505,9 @@ class TestFindNextLessonWithProgress:
 
             # No user progress in the C1 module
             mock_lp.query.join.return_value.filter.return_value.order_by.return_value.first.return_value = None
-            # C1 module has no first lesson — empty shell
+            # C1 module has no first lesson — empty shell (both .filter_by().first() and
+            # .filter_by().order_by().first() must return None for the empty-shell check)
+            mock_lessons_cls.query.filter_by.return_value.first.return_value = None
             mock_lessons_cls.query.filter_by.return_value.order_by.return_value.first.return_value = None
 
             # Sequential scan: next lesson exists in the same A2 module
@@ -513,6 +518,53 @@ class TestFindNextLessonWithProgress:
         assert result is not None, "must not return None when target-level modules are empty shells"
         assert result["lesson_id"] == 101
         assert result["module_id"] == 10
+
+    def test_cefr_jump_returns_none_when_all_target_lessons_completed(self):
+        """User has A2 progress with C1 onboarding.
+        C1 modules exist and have lessons, but all C1 lessons are already completed.
+        Must return None (caller falls back to legacy) instead of regressing to A2 lessons."""
+        from app.daily_plan.assembler import _find_next_lesson
+
+        mock_last = MagicMock()
+        mock_last.lesson_id = 99
+        mock_a2_lesson = _mock_lesson(lesson_id=99, module_id=10)
+        mock_a2_lesson.number = 5
+        mock_a2_module = _mock_module(module_id=10, number=3)
+        mock_a2_module.level_id = 2
+        mock_a2_level = MagicMock()
+        mock_a2_level.order = 2  # A2
+
+        mock_c1_module = _mock_module(module_id=40, number=1)
+        # C1 module has a lesson, but all are already completed for this user.
+        mock_c1_lesson = _mock_lesson(lesson_id=200, module_id=40)
+
+        with (
+            patch(f"{ASSEMBLER_MOD}.LessonProgress") as mock_lp,
+            patch(f"{ASSEMBLER_MOD}.Lessons") as mock_lessons_cls,
+            patch(f"{ASSEMBLER_MOD}.Module") as mock_module_cls,
+            patch(f"{ASSEMBLER_MOD}.CEFRLevel") as mock_cefr_cls,
+            patch(f"{ASSEMBLER_MOD}.get_user_current_cefr_level", return_value="C1"),
+            patch(f"{ASSEMBLER_MOD}._cefr_code_to_order", return_value=6),
+            patch(f"{ASSEMBLER_MOD}._next_unfinished_lesson_in_module", return_value=None),
+        ):
+            mock_lp.query.filter.return_value.order_by.return_value.first.return_value = mock_last
+            mock_lessons_cls.query.get.return_value = mock_a2_lesson
+            mock_module_cls.query.get.return_value = mock_a2_module
+            mock_cefr_cls.query.get.return_value = mock_a2_level
+
+            mock_cefr_cls.order.__ge__ = MagicMock(return_value=MagicMock())
+
+            # Level-jump: one C1 module exists with actual lessons
+            jump_q = MagicMock()
+            mock_module_cls.query.join.return_value = jump_q
+            jump_q.filter.return_value.order_by.return_value.all.return_value = [mock_c1_module]
+
+            # The C1 module has content (filter_by check returns a lesson)
+            mock_lessons_cls.query.filter_by.return_value.first.return_value = mock_c1_lesson
+
+            result = _find_next_lesson(user_id=55)
+
+        assert result is None, "must return None when target-level modules have content but all lessons done"
 
     def test_progress_skips_empty_same_level_module(self):
         """User has A1 progress. Next module in same level is empty;
