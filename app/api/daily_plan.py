@@ -8,10 +8,11 @@ from app import csrf
 from app.api.decorators import api_auth_required
 from app.api.errors import api_error
 from app.utils.db import db
+from config.settings import DEFAULT_TIMEZONE
 
 api_daily_plan = Blueprint('api_daily_plan', __name__)
 
-DEFAULT_TZ = 'Europe/Moscow'
+DEFAULT_TZ = DEFAULT_TIMEZONE
 
 
 def _validate_timezone(tz_name: str) -> str:

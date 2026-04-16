@@ -21,6 +21,7 @@ from app.telegram.notifications import (
     format_weekly_report, format_word_of_day,
     format_mission_morning_reminder,
 )
+from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ def _hourly_check(app) -> None:
             try:
                 tz = pytz.timezone(tg_user.timezone)
             except pytz.UnknownTimeZoneError:
-                tz = pytz.timezone('Europe/Moscow')
+                tz = pytz.timezone(DEFAULT_TIMEZONE)
 
             local_time = now_utc.astimezone(tz)
             local_hour = local_time.hour

@@ -162,6 +162,14 @@ MAX_SYNC_PROCESSING_SIZE = 50000  # ~50 KB
 SYNC_PROCESSING_TIMEOUT = 30
 
 # =============================================================================
+# Timezone defaults
+# =============================================================================
+
+# Default application timezone — used as fallback when user has none set.
+# Configurable via DEFAULT_TIMEZONE environment variable.
+DEFAULT_TIMEZONE: str = os.getenv('DEFAULT_TIMEZONE', 'Europe/Moscow')
+
+# =============================================================================
 # Performance monitoring thresholds
 # =============================================================================
 
@@ -231,6 +239,7 @@ class Config:
 
     SQLALCHEMY_ENGINE_OPTIONS = DEFAULT_SQLALCHEMY_ENGINE_OPTIONS
     SLOW_QUERY_MS: int = SLOW_QUERY_MS
+    DEFAULT_TIMEZONE: str = DEFAULT_TIMEZONE
 
 
 class TestConfig(Config):

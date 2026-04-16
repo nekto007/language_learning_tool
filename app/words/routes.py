@@ -12,6 +12,7 @@ from app.utils.db import db
 from app.words.forms import WordFilterForm, WordSearchForm
 from app.words.models import CollectionWords
 from app.modules.decorators import module_required
+from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
 
@@ -359,7 +360,7 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
 def dashboard():
     """Main dashboard with daily plan, streak and activity summary."""
     t_start = time.time()
-    tz = current_user.timezone or 'Europe/Moscow'
+    tz = current_user.timezone or DEFAULT_TIMEZONE
 
     # Process deferred referral reward on first visit
     _process_referral_reward_on_first_visit(current_user)
@@ -386,7 +387,7 @@ def dashboard():
     from datetime import datetime as dt
     import pytz
     try:
-        local_hour = dt.now(pytz.timezone('Europe/Moscow')).hour
+        local_hour = dt.now(pytz.timezone(DEFAULT_TIMEZONE)).hour
     except (pytz.exceptions.UnknownTimeZoneError, OverflowError, OSError) as e:
         logger.warning("Failed to determine local hour via pytz, using UTC fallback: %s", e)
         local_hour = dt.utcnow().hour + 3
@@ -946,7 +947,7 @@ def daily_plan_next_step() -> tuple:
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_daily_summary
 
-    tz = current_user.timezone or 'Europe/Moscow'
+    tz = current_user.timezone or DEFAULT_TIMEZONE
     daily_plan = get_daily_plan_unified(current_user.id, tz=tz)
     daily_summary = get_daily_summary(current_user.id, tz=tz)
 
@@ -1126,7 +1127,7 @@ def streak_repair_web():
     from app.achievements.streak_service import find_missed_date, apply_paid_repair
     from app.telegram.queries import get_current_streak
 
-    tz = request.json.get('tz', 'Europe/Moscow') if request.is_json else 'Europe/Moscow'
+    tz = request.json.get('tz', DEFAULT_TIMEZONE) if request.is_json else DEFAULT_TIMEZONE
 
     missed = find_missed_date(current_user.id, tz=tz)
     if not missed:

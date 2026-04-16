@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import Date, cast, func, extract
 
 from app.utils.db import db
+from config.settings import DEFAULT_TIMEZONE
 
 
 # ---------------------------------------------------------------------------
@@ -19,7 +20,7 @@ from app.utils.db import db
 # ---------------------------------------------------------------------------
 
 def get_activity_heatmap(user_id: int, days: int = 90,
-                         tz: str = 'Europe/Moscow') -> list[dict[str, Any]]:
+                         tz: str = DEFAULT_TIMEZONE) -> list[dict[str, Any]]:
     """
     Return list of ``{date: "2026-03-27", count: N}`` for the last *days* days.
 
@@ -156,7 +157,7 @@ def get_activity_heatmap(user_id: int, days: int = 90,
 # ---------------------------------------------------------------------------
 
 def get_best_study_time(user_id: int,
-                        tz: str = 'Europe/Moscow') -> dict[str, Any]:
+                        tz: str = DEFAULT_TIMEZONE) -> dict[str, Any]:
     """
     Return ``{best_hour: 14, hourly_scores: {9: 82.5, 14: 91.2, ...}}``.
 

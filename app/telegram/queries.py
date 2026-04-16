@@ -13,8 +13,9 @@ from app.grammar_lab.models import UserGrammarExercise, UserGrammarTopicStatus, 
 from app.study.models import UserWord, UserCardDirection
 from app.books.models import UserChapterProgress, Book
 from app.telegram.notifications import LESSON_TIME
+from config.settings import DEFAULT_TIMEZONE
 
-DEFAULT_TZ = 'Europe/Moscow'
+DEFAULT_TZ = DEFAULT_TIMEZONE
 
 
 def _user_day_boundaries(tz_name: str = DEFAULT_TZ,

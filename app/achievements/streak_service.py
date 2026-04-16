@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.utils.db import db
 from app.achievements.models import StreakCoins, StreakEvent
+from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +158,7 @@ def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dic
 
 
 def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
-                               tz: str = 'Europe/Moscow') -> dict:
+                               tz: str = DEFAULT_TIMEZONE) -> dict:
     """Process streak: save completion, award coin, attempt free repair.
 
     Call this from any entry point (dashboard, API, bot).
@@ -171,7 +172,7 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     try:
         tz_obj = pytz.timezone(tz)
     except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone('Europe/Moscow')
+        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
     user_today = datetime.now(tz_obj).date()
 
     # Only award coins and record completion when the user has genuine
@@ -291,7 +292,7 @@ def get_milestone_history(user_id: int) -> list[dict]:
     ]
 
 
-def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow') -> dict:
+def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE) -> dict:
     """Get streak calendar data for the last N days.
 
     Uses a single batched UNION query to find all active dates (same 5
@@ -317,7 +318,7 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow')
     try:
         tz_obj = pytz.timezone(tz)
     except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone('Europe/Moscow')
+        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
     tz = tz_obj.zone
 
     local_today = datetime.now(tz_obj).date()
@@ -578,7 +579,7 @@ def apply_paid_repair(user_id: int, missed_date: date) -> dict:
     return {'success': True, 'cost': cost, 'balance': coins.balance, 'error': None}
 
 
-def find_missed_date(user_id: int, tz: str = 'Europe/Moscow',
+def find_missed_date(user_id: int, tz: str = DEFAULT_TIMEZONE,
                      max_days: int = 7) -> date | None:
     """Find the most recent missed date that could be repaired.
 
@@ -607,7 +608,7 @@ def find_missed_date(user_id: int, tz: str = 'Europe/Moscow',
     return None
 
 
-def get_streak_status(user_id: int, tz: str = 'Europe/Moscow',
+def get_streak_status(user_id: int, tz: str = DEFAULT_TIMEZONE,
                       steps_total: int = 4) -> dict:
     """Get full streak status for dashboard display."""
     from app.telegram.queries import get_current_streak, has_activity_today

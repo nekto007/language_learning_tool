@@ -442,10 +442,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `app/api/daily_plan.py`
 - Modify: `app/utils/template_utils.py`
 
-- [ ] add `DEFAULT_TIMEZONE = os.getenv('DEFAULT_TIMEZONE', 'Europe/Moscow')` to settings
-- [ ] grep all files for hardcoded `'Europe/Moscow'` string
-- [ ] replace each with `current_app.config['DEFAULT_TIMEZONE']` or import from settings
-- [ ] run pytest -m smoke
+- [x] add `DEFAULT_TIMEZONE = os.getenv('DEFAULT_TIMEZONE', 'Europe/Moscow')` to settings
+- [x] grep all files for hardcoded `'Europe/Moscow'` string
+- [x] replace each with `current_app.config['DEFAULT_TIMEZONE']` or import from settings
+- [x] run pytest -m smoke
 
 ### Task 39: Add graceful 404 for missing book/lesson content
 
