@@ -463,10 +463,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `app/admin/main_routes.py`
 
-- [ ] read current user list query; if loading all users, add `.paginate(page, per_page=50)`
-- [ ] pass pagination object to template; add prev/next controls in admin template
-- [ ] write test: page=1 returns first 50 users; page=2 returns next batch
-- [ ] run pytest -m smoke
+- [x] read current user list query; if loading all users, add `.paginate(page, per_page=50)` — already implemented in app/admin/routes/user_routes.py with per_page=20 (max 50)
+- [x] pass pagination object to template; add prev/next controls in admin template — already implemented in templates/admin/users.html
+- [x] write test: page=1 returns first 50 users; page=2 returns next batch — tests/admin/test_user_list_pagination.py
+- [x] run pytest -m smoke
 
 ### Task 41: Fix missing `db.session.rollback()` in registration flow on duplicate email
 
