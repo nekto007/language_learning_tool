@@ -429,11 +429,11 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `app/study/api_routes.py` (note field)
 - Modify: `app/words/routes.py` (definition/example fields)
 
-- [ ] add `bleach` to requirements.txt
-- [ ] identify all endpoints that persist user-provided free text
-- [ ] apply `bleach.clean(value, tags=[], strip=True)` before db.session.add
-- [ ] write test: storing `<script>` in note field saves sanitized text
-- [ ] run pytest -m smoke
+- [x] add `bleach` to requirements.txt
+- [x] identify all endpoints that persist user-provided free text
+- [x] apply `bleach.clean(value, tags=[], strip=True)` before db.session.add
+- [x] write test: storing `<script>` in note field saves sanitized text
+- [x] run pytest -m smoke
 
 ### Task 38: Move hardcoded DEFAULT_TIMEZONE to config
 
