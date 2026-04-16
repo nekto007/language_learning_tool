@@ -618,9 +618,9 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `tests/daily_plan/test_service.py` (from task 26)
 
-- [ ] test: Repair mission with 0 SRS and 0 grammar returns Progress mission (not None)
-- [ ] test: assembler failure emits warning log (use caplog)
-- [ ] run pytest -m smoke
+- [x] test: Repair mission with 0 SRS and 0 grammar returns Progress mission (not None)
+- [x] test: assembler failure emits warning log (use caplog)
+- [x] run pytest -m smoke
 
 ### Task 56: Verify migration chain has single head
 

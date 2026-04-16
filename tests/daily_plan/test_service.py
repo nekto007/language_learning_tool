@@ -401,3 +401,56 @@ class TestGetDailyPlanUnifiedFallback:
         mock_mission.assert_not_called()
         assert result["_plan_meta"]["mission_plan_enabled"] is False
         assert result["_plan_meta"]["effective_mode"] == "legacy"
+
+
+# ---------------------------------------------------------------------------
+# Task 55: repair mission degradation at service level + assembler failure log
+# ---------------------------------------------------------------------------
+
+
+class TestRepairMissionDegradationServiceLevel:
+    """Service-level tests for repair mission degradation edge cases (task 55)."""
+
+    @patch(f"{ASSEMBLER_MOD}.detect_primary_track", return_value=SourceKind.normal_course)
+    @patch(f"{ASSEMBLER_MOD}._find_next_lesson")
+    @patch(f"{ASSEMBLER_MOD}._count_grammar_due", return_value=0)
+    @patch(f"{ASSEMBLER_MOD}._count_srs_due", return_value=0)
+    @patch(f"{SELECTOR_MOD}.calculate_repair_pressure")
+    def test_repair_zero_srs_zero_grammar_returns_progress_not_none(
+        self, mock_pressure, _srs, _gram, mock_lesson, _track
+    ):
+        """Service-level: repair mission with 0 SRS and 0 grammar degrades to Progress (not None).
+
+        Ensures that get_mission_plan() does not return None when repair pressure was high
+        but the actual due items are 0 — the system must degrade gracefully to a progress plan.
+        """
+        from app.daily_plan.service import get_mission_plan
+
+        mock_pressure.return_value = _repair_breakdown(total_score=0.8)
+        mock_lesson.return_value = {
+            "title": "A1 Lesson",
+            "lesson_id": 10,
+            "module_id": 2,
+            "module_number": 1,
+            "lesson_type": "vocabulary",
+        }
+
+        result = get_mission_plan(user_id=99)
+
+        assert result is not None
+        assert result["mission"]["type"] == "progress"
+
+    @patch(f"{SERVICE_MOD}.assemble_repair_mission", side_effect=RuntimeError("DB error"))
+    @patch(f"{SELECTOR_MOD}.calculate_repair_pressure")
+    def test_assembler_exception_emits_warning_log(self, mock_pressure, _asm, caplog):
+        """Assembler failure (exception) causes get_mission_plan to log the error and return None."""
+        import logging
+        from app.daily_plan.service import get_mission_plan
+
+        mock_pressure.return_value = _repair_breakdown(total_score=0.8)
+
+        with caplog.at_level(logging.ERROR, logger="app.daily_plan.service"):
+            result = get_mission_plan(user_id=99)
+
+        assert result is None
+        assert any("Failed to build mission plan" in r.message for r in caplog.records)
