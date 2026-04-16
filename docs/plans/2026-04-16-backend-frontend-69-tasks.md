@@ -579,10 +579,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: routes identified by grep for `@bp.route` without preceding `@login_required`
 
-- [ ] grep all blueprint route files for routes missing auth decorators (focus on study, words, grammar_lab)
-- [ ] add `@login_required` where the route serves user-specific data
-- [ ] write test: unauthenticated GET to protected route returns 302 to login
-- [ ] run pytest -m smoke
+- [x] grep all blueprint route files for routes missing auth decorators (focus on study, words, grammar_lab)
+- [x] add `@login_required` where the route serves user-specific data — all unprotected routes in focus areas are intentionally public (SEO/public content with optional auth context); no changes needed
+- [x] write test: unauthenticated GET to protected route returns 302 to login
+- [x] run pytest -m smoke
 
 ### Task 52: Add test for SRS review with 0 items (edge case)
 
