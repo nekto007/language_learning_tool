@@ -548,10 +548,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Create: `tests/admin/test_activity_metrics.py`
 
-- [ ] write test that inserts activity records in each of the 6 tables
-- [ ] call `_count_active_users_in_range()` and verify count is correct
-- [ ] write test: user active in multiple tables counted once
-- [ ] run pytest -m smoke
+- [x] write test that inserts activity records in each of the 6 tables
+- [x] call `_count_active_users_in_range()` and verify count is correct
+- [x] write test: user active in multiple tables counted once
+- [x] run pytest -m smoke
 
 ### Task 49: Add test coverage for notification creation service
 
