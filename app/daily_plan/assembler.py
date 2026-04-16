@@ -103,7 +103,7 @@ def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
     last_completed = LessonProgress.query.filter(
         LessonProgress.user_id == user_id,
         LessonProgress.status == 'completed',
-    ).order_by(LessonProgress.completed_at.desc()).first()
+    ).order_by(LessonProgress.completed_at.desc().nullslast(), LessonProgress.id.desc()).first()
 
     if last_completed:
         lesson = Lessons.query.get(last_completed.lesson_id)
