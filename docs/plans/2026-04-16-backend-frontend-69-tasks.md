@@ -526,11 +526,11 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `.env.example`
 
-- [ ] grep config/settings.py for all `os.getenv(` calls
-- [ ] compare found keys with entries in .env.example
-- [ ] add any missing keys with descriptions (# comment)
-- [ ] remove obsolete keys no longer referenced
-- [ ] run pytest -m smoke (no code change, just verify nothing broke)
+- [x] grep config/settings.py for all `os.getenv(` calls
+- [x] compare found keys with entries in .env.example
+- [x] add any missing keys with descriptions (# comment)
+- [x] remove obsolete keys no longer referenced
+- [x] run pytest -m smoke (no code change, just verify nothing broke)
 
 ### Task 47: Fix grammar topic unique slug constraint — friendly error
 
