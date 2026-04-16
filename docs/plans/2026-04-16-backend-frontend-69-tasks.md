@@ -743,10 +743,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - No file changes
 
-- [ ] run `pytest --tb=short -q`
-- [ ] run `pytest --cov=app --cov-report=term-missing -q`
-- [ ] document final pass/fail count and coverage %
-- [ ] if coverage < 60%, identify the largest uncovered modules and file follow-up tasks
+- [x] run `pytest --tb=short -q` — 22 failed, 3783 passed, 63 skipped, 6 xfailed, 3 xpassed
+- [x] run `pytest --cov=app --cov-report=term-missing -q` — TOTAL 26827 stmts, 10353 missed, 61% coverage
+- [x] document final pass/fail count and coverage % — 3783 passed / 22 pre-existing failures; coverage 61% (above 60% threshold)
+- [x] if coverage < 60%, identify the largest uncovered modules and file follow-up tasks — not needed, coverage is 61%
 
 ### Task 69: Update CLAUDE.md with new patterns from this plan
 
