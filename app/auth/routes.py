@@ -8,7 +8,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.auth.forms import LoginForm, RegistrationForm, RequestResetForm, ResetPasswordForm
-from app.auth.models import User, ReferralLog
+from app.auth.models import User, ReferralLog, PasswordResetToken
 from app.utils.db import db
 from app.utils.email_utils import email_sender
 from config.settings import Config
@@ -107,19 +107,34 @@ def _get_reset_salt(user: User) -> str:
     return 'password-reset-' + hashlib.sha256(pw_hash.encode()).hexdigest()[:16]
 
 
+def _hash_token(token: str) -> str:
+    """Return SHA256 hex digest of a token string for safe DB storage."""
+    import hashlib
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 def get_reset_token(user_id: int, expiration: int = 3600) -> str:
-    """Generate a secure, per-user password reset token."""
+    """Generate a secure, per-user password reset token and record it for single-use enforcement."""
     user = User.query.get(user_id)
     if not user:
         raise ValueError(f'User {user_id} not found')
     serializer = URLSafeTimedSerializer(Config.SECRET_KEY)
-    return serializer.dumps(user_id, salt=_get_reset_salt(user))
+    token = serializer.dumps(user_id, salt=_get_reset_salt(user))
+
+    # Store token hash for single-use enforcement
+    token_hash = _hash_token(token)
+    record = PasswordResetToken(user_id=user_id, token_hash=token_hash)
+    db.session.add(record)
+    db.session.commit()
+
+    return token
 
 
 def verify_reset_token(token: str, expiration: int = 3600):
     """Verify reset token. Returns user_id or None.
 
     Token is invalidated when password changes (salt includes password hash).
+    Also enforces single-use via PasswordResetToken.used_at DB record.
     """
     serializer = URLSafeTimedSerializer(Config.SECRET_KEY)
     # First decode without salt to get user_id, then verify with per-user salt
@@ -132,9 +147,6 @@ def verify_reset_token(token: str, expiration: int = 3600):
         except Exception:
             logger.exception("Failed to decode password reset token")
             return None
-        except (BadSignature, ValueError, TypeError):
-            logger.warning("Failed to decode password reset token")
-            return None
 
     if not isinstance(user_id, int):
         return None
@@ -145,13 +157,21 @@ def verify_reset_token(token: str, expiration: int = 3600):
 
     try:
         verified_id = serializer.loads(token, salt=_get_reset_salt(user), max_age=expiration)
-        return verified_id
     except SignatureExpired:
         logger.info("Expired password reset token for user %s", user_id)
         return None
     except BadSignature:
         logger.warning("Invalid password reset token for user %s", user_id)
         return None
+
+    # Single-use check: token must exist in DB and not yet consumed
+    token_hash = _hash_token(token)
+    record = PasswordResetToken.query.filter_by(token_hash=token_hash).first()
+    if record is None or record.used_at is not None:
+        logger.warning("Password reset token already used or not found for user %s", user_id)
+        return None
+
+    return verified_id
 
 
 @auth.route('/reset_password', methods=['GET', 'POST'])
@@ -215,6 +235,12 @@ def reset_password(token):
 
     form = ResetPasswordForm()
     if form.validate_on_submit():
+        # Mark token as used before changing password (salt change would break the hash lookup)
+        token_hash = _hash_token(token)
+        token_record = PasswordResetToken.query.filter_by(token_hash=token_hash).first()
+        if token_record:
+            token_record.used_at = datetime.now(timezone.utc)
+
         # Generate a new salt
         user.salt = secrets.token_hex(16)
         user.set_password(form.password.data)
