@@ -123,7 +123,8 @@ def _process_referral_reward_on_first_visit(user) -> None:
         _check_referral_achievements(user.referred_by_id)
 
         db.session.commit()
-    except Exception:
+    except Exception as e:
+        logger.exception("Referral reward processing failed for user %s: %s", user.referred_by_id, e)
         db.session.rollback()
 
 
@@ -137,9 +138,9 @@ def _safe_widget_call(name: str, fn, *args, default=None, **kwargs):
     try:
         with db.session.begin_nested():
             return fn(*args, **kwargs)
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        logger.exception("Dashboard widget '%s' failed", name)
+        logger.exception("Dashboard widget '%s' failed: %s", name, e)
         return default
 
 
@@ -256,8 +257,8 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
                 summary = get_daily_summary(user.id, tz=user_tz)
                 streak = get_current_streak(user.id, tz=user_tz)
                 race_state = _compute_daily_race_state(plan, summary, streak)
-        except Exception:
-            logger.exception("Failed to build daily race entry for user %s", user.id)
+        except Exception as e:
+            logger.exception("Failed to build daily race entry for user %s: %s", user.id, e)
             continue
 
         if race_state['steps_total'] <= 0:
@@ -386,7 +387,8 @@ def dashboard():
     import pytz
     try:
         local_hour = dt.now(pytz.timezone('Europe/Moscow')).hour
-    except Exception:
+    except (pytz.exceptions.UnknownTimeZoneError, OverflowError, OSError) as e:
+        logger.warning("Failed to determine local hour via pytz, using UTC fallback: %s", e)
         local_hour = dt.utcnow().hour + 3
     if local_hour < 6:
         greeting = 'Доброй ночи'

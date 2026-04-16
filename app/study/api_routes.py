@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from flask import jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_, and_, case
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
 from app.study.blueprint import study, get_audio_url_for_word
@@ -484,8 +485,8 @@ def update_study_item():
     try:
         from app.achievements.streak_service import earn_daily_coin
         earn_daily_coin(current_user.id)
-    except Exception:
-        logger.exception("Failed to award daily coin for user %s", current_user.id)
+    except (SQLAlchemyError, ValueError, AttributeError) as e:
+        logger.exception("Failed to award daily coin for user %s: %s", current_user.id, e)
 
     db.session.commit()
 

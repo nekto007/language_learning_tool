@@ -230,8 +230,8 @@ class AchievementService:
                     try:
                         from app.notifications.services import notify_achievement
                         notify_achievement(user_id, achievement.name, achievement.icon)
-                    except Exception:
-                        logger.exception("Failed to send achievement notification for user %s", user_id)
+                    except (ImportError, Exception) as e:
+                        logger.exception("Failed to send achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
             db.session.commit()
@@ -285,8 +285,8 @@ class AchievementService:
                     try:
                         from app.notifications.services import notify_achievement
                         notify_achievement(user_id, achievement.name, achievement.icon)
-                    except Exception:
-                        logger.exception("Failed to send streak achievement notification for user %s", user_id)
+                    except (ImportError, Exception) as e:
+                        logger.exception("Failed to send streak achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
             db.session.commit()

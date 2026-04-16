@@ -3,6 +3,7 @@ import logging
 from datetime import datetime, UTC
 
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.utils.db import db
@@ -256,7 +257,8 @@ def complete_lesson(user_id, lesson_id, score=100.0):
             logger.warning("XP service not available, skipping XP award")
 
         return progress
-    except Exception as e:
+    except SQLAlchemyError as e:
+        logger.exception("Lesson completion recording failed for user=%s lesson=%s: %s", user_id, lesson_id, e)
         db.session.rollback()
         return None
 
