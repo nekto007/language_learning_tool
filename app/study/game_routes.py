@@ -288,7 +288,9 @@ def get_quiz_questions():
 @study.route('/api/submit-quiz-answer', methods=['POST'])
 @login_required
 def submit_quiz_answer():
-    data = request.json
+    if not request.is_json:
+        return jsonify({'error': 'Content-Type must be application/json'}), 415
+    data = request.json or {}
     session_id = data.get('session_id')
     is_correct = data.get('is_correct', False)
 

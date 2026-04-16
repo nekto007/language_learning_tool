@@ -842,6 +842,15 @@ class TestStudyAPIRoutes:
         })
         assert response.status_code == 200
 
+    def test_submit_quiz_answer_requires_json(self, authenticated_client):
+        """Test that /api/submit-quiz-answer returns 415 for non-JSON requests"""
+        response = authenticated_client.post(
+            '/study/api/submit-quiz-answer',
+            data='is_correct=true',
+            content_type='application/x-www-form-urlencoded'
+        )
+        assert response.status_code == 415
+
     def test_get_matching_words_api(self, authenticated_client, db_session, test_user, test_words_list):
         """Test GET /study/api/get-matching-words endpoint"""
         response = authenticated_client.get('/study/api/get-matching-words?difficulty=easy')

@@ -538,7 +538,9 @@ def update_study_item():
 def complete_session():
     from app.study.xp_service import XPService
 
-    data = request.json
+    if not request.is_json:
+        return jsonify({'error': 'Content-Type must be application/json'}), 415
+    data = request.json or {}
     session_id = data.get('session_id')
 
     session = StudySession.query.get(session_id)

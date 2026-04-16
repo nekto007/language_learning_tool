@@ -435,6 +435,15 @@ class TestCompleteSession:
 
         assert response.status_code == 302
 
+    def test_requires_json_content_type(self, authenticated_client):
+        """Test that non-JSON request returns 415"""
+        response = authenticated_client.post(
+            '/study/api/complete-session',
+            data='session_id=1',
+            content_type='application/x-www-form-urlencoded'
+        )
+        assert response.status_code == 415
+
 
 class TestCompleteMatchingGame:
     """Test /api/complete-matching-game POST endpoint - Lines 1610-1743"""
