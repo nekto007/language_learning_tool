@@ -638,10 +638,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `migrations/versions/*.py` (last 10 by mtime)
 
-- [ ] read each migration file
-- [ ] add module-level docstring: what schema change and why
-- [ ] no test needed (documentation only)
-- [ ] run pytest -m smoke
+- [x] read each migration file
+- [x] add module-level docstring: what schema change and why
+- [x] no test needed (documentation only)
+- [x] run pytest -m smoke
 
 ### Task 58: Add test for open redirect prevention (from task 3)
 

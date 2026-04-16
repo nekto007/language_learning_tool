@@ -1,4 +1,12 @@
-"""Add password_reset_tokens table for single-use token enforcement
+"""Add password_reset_tokens table for single-use token enforcement.
+
+Previously, password reset tokens were stored as a plain column on the users table
+with no expiry or usage tracking, allowing a leaked token to be replayed indefinitely.
+
+This migration creates a dedicated password_reset_tokens table with:
+- token_hash: SHA-256 hash of the reset token (never store raw tokens in DB)
+- used_at: set to the timestamp when the token was consumed, preventing reuse
+- CASCADE delete on user removal to avoid orphaned tokens
 
 Revision ID: add_password_reset_tokens
 Revises: f1e2d3c4b5a6
