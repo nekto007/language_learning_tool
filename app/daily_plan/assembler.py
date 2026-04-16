@@ -444,11 +444,19 @@ def assemble_repair_mission(
     grammar_due = _count_grammar_due(user_id)
 
     if srs_due == 0 and grammar_due == 0:
-        logger.warning(
-            "assemble_repair_mission: no SRS or grammar due for user_id=%s, degrading to progress mission",
-            user_id,
-        )
         track = detect_primary_track(user_id)
+        logger.warning(
+            "assemble_repair_mission: no SRS or grammar due for user_id=%s, degrading to %s mission",
+            user_id,
+            "reading" if track == SourceKind.books else "progress",
+        )
+        if track == SourceKind.books:
+            return assemble_reading_mission(
+                user_id,
+                reason_code="progress_next_step",
+                reason_text="Всё повторено — продолжаем чтение",
+                tz=tz,
+            )
         primary_source = (
             track if track in (SourceKind.normal_course, SourceKind.book_course)
             else SourceKind.normal_course
