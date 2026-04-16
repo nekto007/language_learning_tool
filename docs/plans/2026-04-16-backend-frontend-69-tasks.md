@@ -373,11 +373,11 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: relevant route files (identify from manual QA of routes with optional query params)
 
-- [ ] grep templates for `{{ variable }}` without `| default(...)` on non-guaranteed vars
-- [ ] grep route handlers for `render_template(...)` missing context vars defined in template
-- [ ] add `.get()` with defaults or Jinja `default` filter
-- [ ] write tests that hit each fixed route with minimal context
-- [ ] run pytest -m smoke
+- [x] grep templates for `{{ variable }}` without `| default(...)` on non-guaranteed vars
+- [x] grep route handlers for `render_template(...)` missing context vars defined in template
+- [x] add `.get()` with defaults or Jinja `default` filter
+- [x] write tests that hit each fixed route with minimal context
+- [x] run pytest -m smoke
 
 ### Task 33: Add smoke markers to key happy-path tests for new tests added in this plan
 

@@ -155,7 +155,7 @@
                 <tbody>
                     {% for session in recent_sessions %}
                     <tr>
-                        <td>{{ session.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ session.start_time.strftime('%Y-%m-%d %H:%M') if session.start_time else '—' }}</td>
                         <td>
                             <span class="stats-table__type-badge">{{ session.session_type|capitalize }}</span>
                         </td>

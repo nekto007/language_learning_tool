@@ -188,7 +188,7 @@
                 <span class="activity-card__dot"></span>
                 <span>Модуль {{ activity.module.number }}</span>
                 <span class="activity-card__dot"></span>
-                <span>{{ activity.last_activity.strftime('%d.%m %H:%M') }}</span>
+                <span>{{ activity.last_activity.strftime('%d.%m %H:%M') if activity.last_activity else '' }}</span>
               </div>
             </div>
             {% if activity.score %}
