@@ -244,10 +244,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `requirements.txt`
 - Modify: `app/__init__.py`
 
-- [ ] add `Flask-Compress` to requirements.txt
-- [ ] enable in app factory: `Compress(app)` with COMPRESS_MIMETYPES including application/json
-- [ ] write test: large JSON response has Content-Encoding: gzip header
-- [ ] run pytest -m smoke
+- [x] add `Flask-Compress` to requirements.txt
+- [x] enable in app factory: `Compress(app)` with COMPRESS_MIMETYPES including application/json
+- [x] write test: large JSON response has Content-Encoding: gzip header
+- [x] run pytest -m smoke
 
 ### Task 21: Add structured logging with JSON formatter
 

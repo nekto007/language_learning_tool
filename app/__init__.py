@@ -1,6 +1,7 @@
 import os
 
 from flask import Flask
+from flask_compress import Compress
 from flask_limiter import Limiter
 
 from flask_login import LoginManager
@@ -75,6 +76,15 @@ def create_app(config_class=Config):
     limiter.init_app(app)
     jwt.init_app(app)
     init_babel(app)
+
+    # Enable gzip compression for HTTP responses
+    app.config.setdefault('COMPRESS_MIMETYPES', [
+        'text/html', 'text/css', 'text/xml', 'text/javascript',
+        'application/json', 'application/javascript',
+    ])
+    app.config.setdefault('COMPRESS_LEVEL', 6)
+    app.config.setdefault('COMPRESS_MIN_SIZE', 500)
+    Compress(app)
 
     # Import all models in dependency order - MUST happen before any blueprint that uses models
     from app.auth import models as auth_models  # noqa: F401
