@@ -61,7 +61,7 @@
     <div class="side-menu" id="sideMenu">
         <div class="menu-header">
             <h3>{{ book.title }}</h3>
-            <button class="btn-close" id="closeSideMenu">
+            <button class="btn-close" id="closeSideMenu" aria-label="Закрыть меню">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -124,7 +124,7 @@
         <div class="popup-content">
             <div class="popup-header">
                 <span class="word-text" id="popupWord"></span>
-                <button class="btn-audio" id="playAudio" style="display: none;">
+                <button class="btn-audio" id="playAudio" style="display: none;" aria-label="Озвучить слово">
                     <i class="fas fa-volume-up"></i>
                 </button>
             </div>
@@ -136,7 +136,7 @@
                 <button class="btn-learn" id="addToLearning" style="display: none;">
                     <i class="fas fa-plus"></i> {{ _('Изучать') }}
                 </button>
-                <button class="btn-close-popup" id="closePopup">
+                <button class="btn-close-popup" id="closePopup" aria-label="Закрыть">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -144,17 +144,17 @@
     </div>
 
     <!-- Fullscreen Exit Button -->
-    <button class="fullscreen-exit" id="fullscreenExit" style="display: none;">
+    <button class="fullscreen-exit" id="fullscreenExit" style="display: none;" aria-label="Выйти из полноэкранного режима">
         <i class="fas fa-times"></i>
     </button>
 </div>
 
 <!-- Add Bookmark Modal -->
-<div class="modal" id="bookmarkModal">
+<div class="modal" id="bookmarkModal" role="dialog" aria-modal="true" aria-labelledby="bookmarkModalTitle">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>{{ _('Добавить закладку') }}</h3>
-            <button class="btn-close" id="closeBookmarkModal">
+            <h3 id="bookmarkModalTitle">{{ _('Добавить закладку') }}</h3>
+            <button class="btn-close" id="closeBookmarkModal" aria-label="Закрыть">
                 <i class="fas fa-times"></i>
             </button>
         </div>

@@ -200,14 +200,14 @@
    Usage: {{ delete_modal('deleteUserModal', url_for('admin.delete_user'), 'Delete User?') }}
    -------------------------------------------------------------------------- #}
 {% macro delete_modal(modal_id, action_url, title='Confirm Delete', message='Are you sure you want to delete this item?') %}
-<div class="modal fade" id="{{ modal_id }}" tabindex="-1">
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="{{ modal_id }}_title">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header border-0">
-                <h5 class="modal-title text-danger">
+                <h5 class="modal-title text-danger" id="{{ modal_id }}_title">
                     <i class="fas fa-exclamation-triangle me-2"></i>{{ title }}
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <p class="mb-0">{{ message }}</p>

@@ -775,12 +775,15 @@ function toggleFeatured(courseId, newStatus) {
 function deleteCourse(courseId) {
     const modal = document.createElement('div');
     modal.className = 'modal fade';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'deleteCourseModalTitle');
     modal.innerHTML = `
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content modal-content-rounded">
                 <div class="modal-header modal-header-bordered">
-                    <h5 class="modal-title">Удаление курса</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title" id="deleteCourseModalTitle">Удаление курса</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <div class="modal-body modal-body-padded">
                     <p class="mb-4">Выберите тип удаления:</p>
