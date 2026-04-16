@@ -483,9 +483,9 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `app/study/routes.py` or `app/study/services/stats_service.py`
 
-- [ ] identify where study sessions are marked complete
-- [ ] add `logger.info('study_session_complete user=%s lesson=%s duration=%s', ...)` with structured fields
-- [ ] run pytest -m smoke
+- [x] identify where study sessions are marked complete
+- [x] add `logger.info('study_session_complete user=%s lesson=%s duration=%s', ...)` with structured fields
+- [x] run pytest -m smoke
 
 ### Task 43: Add request ID middleware
 

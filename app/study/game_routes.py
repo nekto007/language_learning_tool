@@ -496,6 +496,10 @@ def complete_matching_game():
             session.correct_answers = pairs_matched
             session.complete_session()
             db.session.commit()
+            logger.info(
+                'study_session_complete user=%s session=%s session_type=%s duration=%s words_studied=%s',
+                current_user.id, session.id, session.session_type, session.duration, session.words_studied
+            )
 
     try:
         game_score = GameScore(
@@ -564,6 +568,10 @@ def complete_quiz():
         session = StudySession.query.get(session_id)
         if session and session.user_id == current_user.id:
             session.complete_session()
+            logger.info(
+                'study_session_complete user=%s session=%s session_type=%s duration=%s words_studied=%s',
+                current_user.id, session.id, session.session_type, session.duration, session.words_studied
+            )
 
     if deck_id:
         deck = QuizDeck.query.get(deck_id)

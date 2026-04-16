@@ -549,6 +549,11 @@ def complete_session():
         session.complete_session()
         db.session.commit()
 
+        logger.info(
+            'study_session_complete user=%s session=%s session_type=%s duration=%s words_studied=%s',
+            current_user.id, session.id, session.session_type, session.duration, session.words_studied
+        )
+
         xp_breakdown = XPService.calculate_flashcard_xp(
             cards_reviewed=session.words_studied or 0,
             correct_answers=session.correct_answers or 0
