@@ -265,6 +265,7 @@ class TestCalculateWordScore:
 
 
 class TestScoreAndRankWords:
+    @pytest.mark.smoke
     def test_basic_ranking(self):
         scorer = WordScorer(target_level='B1')
         word_frequencies = Counter({'hello': 10, 'world': 5, 'test': 3})

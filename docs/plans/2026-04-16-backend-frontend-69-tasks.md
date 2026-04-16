@@ -608,10 +608,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify or create: `tests/words/test_word_scorer.py`
 
-- [ ] verify 100% coverage already exists (per memory: word_scorer 14->100%)
-- [ ] if gaps found, add missing edge case tests
-- [ ] add smoke marker to one test
-- [ ] run pytest -m smoke
+- [x] verify 100% coverage already exists (per memory: word_scorer 14->100%)
+- [x] if gaps found, add missing edge case tests
+- [x] add smoke marker to one test
+- [x] run pytest -m smoke
 
 ### Task 55: Add test for repair mission degradation edge case
 
