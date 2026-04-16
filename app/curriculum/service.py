@@ -8,6 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.utils.db import db
+from app.utils.db_utils import query_by_ids
 from app.utils.normalization import normalize_text  # noqa: F401 — re-export
 
 logger = logging.getLogger(__name__)
@@ -47,11 +48,11 @@ def get_user_level_progress(user_id: int) -> Dict[int, Dict[str, Any]]:
     level_ids = [level.id for level in levels]
 
     # Получаем все модули для этих уровней
-    modules = Module.query.filter(Module.level_id.in_(level_ids)).all()
+    modules = query_by_ids(Module.query, Module.level_id, level_ids)
     module_ids = [module.id for module in modules]
 
     # Получаем все уроки для этих модулей
-    lessons = Lessons.query.filter(Lessons.module_id.in_(module_ids)).all()
+    lessons = query_by_ids(Lessons.query, Lessons.module_id, module_ids)
     lesson_ids = [lesson.id for lesson in lessons]
 
     # Получаем статистику по завершенным урокам
