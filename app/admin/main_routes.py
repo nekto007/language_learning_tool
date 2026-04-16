@@ -222,7 +222,7 @@ def get_daily_activity_data(days: int = 30) -> dict:
     }
 
 
-@cache_result('engagement_metrics', timeout=300)
+@cache_result('engagement_metrics', timeout=600)
 def get_engagement_metrics() -> dict:
     """DAU/WAU/MAU counts with trend arrows vs previous period.
 

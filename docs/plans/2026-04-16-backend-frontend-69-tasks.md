@@ -505,10 +505,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `app/words/routes.py` (leaderboard if not cached)
 - Modify: `app/admin/main_routes.py` (_count_active_users_in_range)
 
-- [ ] read current caching for leaderboard; verify TTL=5min via _get_cached_leaderboard()
-- [ ] add caching (TTL=10min) to DAU/WAU UNION query using Flask-Caching
-- [ ] write test: second call within TTL hits cache (mock db query count)
-- [ ] run pytest -m smoke
+- [x] read current caching for leaderboard; verify TTL=5min via _get_cached_leaderboard()
+- [x] add caching (TTL=10min) to DAU/WAU UNION query using Flask-Caching
+- [x] write test: second call within TTL hits cache (mock db query count)
+- [x] run pytest -m smoke
 
 ### Task 45: Add cache invalidation on user progress update
 
