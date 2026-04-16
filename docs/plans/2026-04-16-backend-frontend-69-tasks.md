@@ -473,10 +473,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `app/auth/routes.py`
 
-- [ ] read registration handler; locate `db.session.add(user)` flow
-- [ ] add IntegrityError catch for duplicate email with rollback and user-friendly error
-- [ ] write test: registering duplicate email returns 400 with 'email_taken' error
-- [ ] run pytest -m smoke
+- [x] read registration handler; locate `db.session.add(user)` flow
+- [x] add IntegrityError catch for duplicate email with rollback and user-friendly error
+- [x] write test: registering duplicate email returns 400 with 'email_taken' error
+- [x] run pytest -m smoke
 
 ### Task 42: Add study session completion event logging
 

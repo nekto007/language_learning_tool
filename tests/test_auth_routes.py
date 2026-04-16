@@ -14,7 +14,7 @@ import pytest
 import uuid
 from unittest.mock import patch, MagicMock
 
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.auth.models import User
 from app.utils.db import db
@@ -506,3 +506,67 @@ class TestAuthExceptionHandling:
                 except Exception:
                     pass
             assert 'Failed to change password' in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Duplicate email registration — DB-level IntegrityError handling (task 41)
+# ---------------------------------------------------------------------------
+
+class TestDuplicateEmailRegistration:
+    """Tests for race-condition duplicate email handling at the DB constraint level."""
+
+    def _make_integrity_error(self, msg: str) -> IntegrityError:
+        """Helper: build an IntegrityError whose orig.lower() contains `msg`."""
+        orig = Exception(msg)
+        return IntegrityError("INSERT INTO users ...", {}, orig)
+
+    @pytest.mark.smoke
+    def test_duplicate_email_db_constraint_returns_400(self, client, db_session):
+        """When DB-level IntegrityError fires for email, route returns 400 with 'email_taken'."""
+        unique = uuid.uuid4().hex[:8]
+        err = self._make_integrity_error(f"UNIQUE constraint failed: users.email")
+        with patch('app.auth.routes.db.session.commit', side_effect=err):
+            r = client.post('/register', data={
+                'username': f'newuser_{unique}',
+                'email': f'newuser_{unique}@example.com',
+                'password': 'Xk9$mP2vL!qw',
+                'password2': 'Xk9$mP2vL!qw',
+            }, follow_redirects=True)
+        assert r.status_code == 400
+        assert 'email_taken' in r.data.decode()
+
+    def test_duplicate_email_db_session_clean_after_error(self, client, db_session):
+        """DB session must be clean (rollback called) after duplicate email IntegrityError."""
+        unique = uuid.uuid4().hex[:8]
+        err = self._make_integrity_error("UNIQUE constraint failed: users.email")
+        rollback_called = []
+
+        original_rollback = db.session.rollback
+
+        def tracking_rollback():
+            rollback_called.append(True)
+            return original_rollback()
+
+        with patch('app.auth.routes.db.session.commit', side_effect=err):
+            with patch.object(db.session, 'rollback', side_effect=tracking_rollback):
+                client.post('/register', data={
+                    'username': f'newuser_{unique}',
+                    'email': f'newuser_{unique}@example.com',
+                    'password': 'Xk9$mP2vL!qw',
+                    'password2': 'Xk9$mP2vL!qw',
+                }, follow_redirects=True)
+        assert rollback_called, "db.session.rollback() must be called on duplicate email error"
+
+    def test_non_email_integrity_error_shows_generic_message(self, client, db_session):
+        """IntegrityError unrelated to email shows generic error, not email_taken."""
+        unique = uuid.uuid4().hex[:8]
+        err = self._make_integrity_error("UNIQUE constraint failed: users.username")
+        with patch('app.auth.routes.db.session.commit', side_effect=err):
+            r = client.post('/register', data={
+                'username': f'newuser_{unique}',
+                'email': f'newuser_{unique}@example.com',
+                'password': 'Xk9$mP2vL!qw',
+                'password2': 'Xk9$mP2vL!qw',
+            }, follow_redirects=True)
+        assert r.status_code == 200
+        assert 'email_taken' not in r.data.decode()

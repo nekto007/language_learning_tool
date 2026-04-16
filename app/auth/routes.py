@@ -402,7 +402,20 @@ def register():
             resp = redirect(url_for('onboarding.wizard'))
             resp.delete_cookie('ref')
             return resp
-        except (IntegrityError, SQLAlchemyError) as e:
+        except IntegrityError as e:
+            db.session.rollback()
+            err_str = str(e.orig).lower() if hasattr(e, 'orig') and e.orig else str(e).lower()
+            if 'email' in err_str:
+                logger.warning("Duplicate email registration attempt: %s", form.email.data)
+                learner_count = User.query.filter_by(active=True).count()
+                flash('email_taken', 'danger')
+                return render_template('auth/register.html', form=form,
+                                       learner_count=learner_count,
+                                       level_param=level_param,
+                                       ref_param=ref_param), 400
+            logger.error("Registration IntegrityError: %s", e, exc_info=True)
+            flash('Регистрация не удалась. Попробуйте позже.', 'danger')
+        except SQLAlchemyError as e:
             db.session.rollback()
             logger.error("Registration failed: %s", e, exc_info=True)
             flash('Регистрация не удалась. Попробуйте позже.', 'danger')
