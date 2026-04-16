@@ -9,6 +9,7 @@ from sqlalchemy.orm import backref, relationship
 
 from app.utils.db import db
 from app.utils.types import JSONBCompat
+from config.settings import PASSING_SCORE_PERCENT
 
 
 class LessonGrade(db.Model):
@@ -47,7 +48,7 @@ class LessonGrade(db.Model):
             return 'A'
         elif score >= 80:
             return 'B'
-        elif score >= 70:
+        elif score >= PASSING_SCORE_PERCENT:
             return 'C'
         elif score >= 60:
             return 'D'

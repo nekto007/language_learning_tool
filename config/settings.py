@@ -161,6 +161,22 @@ MAX_SYNC_PROCESSING_SIZE = 50000  # ~50 KB
 # Таймаут для блокирующих операций при синхронной обработке (в секундах)
 SYNC_PROCESSING_TIMEOUT = 30
 
+# =============================================================================
+# Domain thresholds — named constants for values used across multiple modules.
+# Import from here instead of hardcoding literals.
+# =============================================================================
+
+# Minimum score (0–100) a user must achieve to pass a lesson or module
+PASSING_SCORE_PERCENT: int = 70
+
+# SRS interval (days) at which a word is considered fully mastered
+# Mirrors app/srs/constants.py MASTERED_THRESHOLD_DAYS — kept in sync manually
+SRS_MASTERED_INTERVAL_DAYS: int = 180
+
+# Weighted repair-pressure score (0–1) that triggers a Repair mission in
+# the daily plan; mirrors app/daily_plan/repair_pressure.py REPAIR_THRESHOLD
+REPAIR_PRESSURE_THRESHOLD: float = 0.6
+
 class Config:
     """
     Flask application configuration (production defaults).

@@ -6,6 +6,7 @@ from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Inte
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
+from config.settings import PASSING_SCORE_PERCENT
 
 
 class CEFRLevel(db.Model):
@@ -44,7 +45,7 @@ class Module(db.Model):
     description = Column(Text)
     raw_content = Column(JSON)
     prerequisites = Column(JSON)  # JSON array of prerequisite module IDs or conditions
-    min_score_required = Column(Integer, default=70)  # Minimum score to unlock next module
+    min_score_required = Column(Integer, default=PASSING_SCORE_PERCENT)  # Minimum score to unlock next module
     allow_skip_test = Column(Boolean, default=False)  # Allow skip test for this module
     input_mode = Column(String(50),
                         default='selection_only')  # Input difficulty: selection_only, selection_and_ordering, mixed, advanced
@@ -95,7 +96,7 @@ class Module(db.Model):
             if prereq_module:
                 # Check if user completed this module
                 progress = self._get_module_completion(user_id, prereq['id'])
-                min_score = prereq.get('min_score', 70)
+                min_score = prereq.get('min_score', PASSING_SCORE_PERCENT)
 
                 if progress['progress_percent'] < 100:
                     reasons.append(f"Complete module '{prereq_module.title}'")
