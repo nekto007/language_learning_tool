@@ -734,9 +734,9 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Create: `tests/test_slow_query_logging.py`
 
-- [ ] mock time.time to make query appear to take 200ms
-- [ ] assert logger emits 'slow_query' level warning
-- [ ] run pytest -m smoke
+- [x] mock time.time to make query appear to take 200ms
+- [x] assert logger emits 'slow_query' level warning
+- [x] run pytest -m smoke
 
 ### Task 68: Run full test suite and verify coverage >= 60%
 
