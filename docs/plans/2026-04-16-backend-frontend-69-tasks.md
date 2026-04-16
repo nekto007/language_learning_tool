@@ -627,11 +627,11 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Examine: `migrations/versions/`
 
-- [ ] run `alembic heads` and verify single head exists
-- [ ] if multiple heads, create merge migration: `alembic merge heads -m "merge_heads"`
-- [ ] run `alembic check` to verify chain
-- [ ] write CI test: `alembic check` exits 0
-- [ ] run pytest -m smoke
+- [x] run `alembic heads` and verify single head exists
+- [x] if multiple heads, create merge migration: `alembic merge heads -m "merge_heads"`
+- [x] run `alembic check` to verify chain
+- [x] write CI test: `alembic check` exits 0
+- [x] run pytest -m smoke
 
 ### Task 57: Add Alembic docstrings to recent migration files
 
