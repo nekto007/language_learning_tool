@@ -8,7 +8,7 @@ from app import csrf
 from app.api.decorators import api_auth_required
 from app.api.errors import api_error
 from app.utils.db import db
-from app.utils.validators import parse_date_param
+
 from config.settings import DEFAULT_TIMEZONE
 
 api_daily_plan = Blueprint('api_daily_plan', __name__)
@@ -34,11 +34,6 @@ def daily_status():
     from app.achievements.streak_service import compute_plan_steps, process_streak_on_activity
 
     tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
-
-    raw_date = request.args.get('date')
-    _, date_error = parse_date_param(raw_date)
-    if date_error:
-        return api_error('invalid_date', date_error, 400)
 
     user_id = current_user.id
 
@@ -119,11 +114,6 @@ def daily_summary():
     from app.telegram.queries import get_daily_summary
 
     tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
-
-    raw_date = request.args.get('date')
-    target_date, date_error = parse_date_param(raw_date)
-    if date_error:
-        return api_error('invalid_date', date_error, 400)
 
     user_id = current_user.id
     summary = get_daily_summary(user_id, tz=tz)

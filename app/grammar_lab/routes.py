@@ -389,7 +389,11 @@ def api_create_topic():
         201 with topic dict on success
         409 {'error': 'slug_taken', 'suggestion': '...'} on duplicate slug
         400 on missing required fields
+        403 if user is not admin
     """
+    if not getattr(current_user, 'is_admin', False):
+        return jsonify({'error': 'admin access required'}), 403
+
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json'}), 415
 
@@ -400,14 +404,21 @@ def api_create_topic():
     if not slug or not title:
         return jsonify({'error': 'slug and title are required'}), 400
 
+    try:
+        order = int(data.get('order', 0))
+        estimated_time = int(data.get('estimated_time', 15))
+        difficulty = int(data.get('difficulty', 1))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'order, estimated_time, and difficulty must be integers'}), 400
+
     topic = GrammarTopic(
         slug=slug,
         title=title,
         title_ru=(data.get('title_ru') or '').strip(),
         level=data.get('level', 'A1'),
-        order=int(data.get('order', 0)),
-        estimated_time=int(data.get('estimated_time', 15)),
-        difficulty=int(data.get('difficulty', 1)),
+        order=order,
+        estimated_time=estimated_time,
+        difficulty=difficulty,
         content=data.get('content') or {},
     )
     db.session.add(topic)

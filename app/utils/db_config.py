@@ -6,6 +6,7 @@ instead of being executed in create_app() factory. This ensures proper separatio
 of concerns and prevents race conditions.
 """
 import logging
+import os
 import time
 from sqlalchemy import event
 
@@ -49,9 +50,9 @@ def configure_postgresql(app, db):
             cursor = dbapi_conn.cursor()
 
             try:
-                # Improves write performance, slightly less durable
-                # Good for development; reconsider for production
-                cursor.execute("SET synchronous_commit = OFF")
+                # Only disable synchronous_commit in non-production environments
+                if os.environ.get('FLASK_ENV') != 'production':
+                    cursor.execute("SET synchronous_commit = OFF")
 
                 # Prevents long-running queries from blocking
                 cursor.execute("SET statement_timeout = '30s'")
@@ -66,11 +67,6 @@ def configure_postgresql(app, db):
                 logger.error(f"Error setting PostgreSQL pragmas: {e}")
                 cursor.close()
                 raise
-
-        # Configure connection pool
-        if hasattr(db.engine, 'pool'):
-            db.engine.pool._pool.maxsize = 10
-            db.engine.pool._max_overflow = 20
 
         logger.info("PostgreSQL optimizations configured via event listeners")
 

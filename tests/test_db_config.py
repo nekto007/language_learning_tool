@@ -61,7 +61,8 @@ class TestConfigureDatabaseEngine:
         app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost/testdb'
         mock_db = MagicMock()
 
-        with patch('app.utils.db_config.configure_postgresql') as mock_pg:
+        with patch('app.utils.db_config.configure_postgresql') as mock_pg, \
+             patch('app.utils.db_config.configure_slow_query_logging'):
             configure_database_engine(app, mock_db)
             mock_pg.assert_called_once_with(app, mock_db)
 
@@ -70,7 +71,8 @@ class TestConfigureDatabaseEngine:
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
         mock_db = MagicMock()
 
-        with patch('app.utils.db_config.configure_sqlite') as mock_sqlite:
+        with patch('app.utils.db_config.configure_sqlite') as mock_sqlite, \
+             patch('app.utils.db_config.configure_slow_query_logging'):
             configure_database_engine(app, mock_db)
             mock_sqlite.assert_called_once_with(app, mock_db)
 
@@ -79,8 +81,9 @@ class TestConfigureDatabaseEngine:
         app.config['SQLALCHEMY_DATABASE_URI'] = 'mongodb://localhost/testdb'
         mock_db = MagicMock()
 
-        # Should not raise any exception
-        configure_database_engine(app, mock_db)
+        with patch('app.utils.db_config.configure_slow_query_logging'):
+            # Should not raise any exception
+            configure_database_engine(app, mock_db)
 
 
 class TestConfigurePostgresql:
@@ -101,22 +104,6 @@ class TestConfigurePostgresql:
             # First argument should be the engine
             assert mock_listen.call_args[0][0] == mock_engine
 
-    def test_configure_postgresql_configures_pool(self, app):
-        """Тест что настраивается connection pool"""
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost/testdb'
-        mock_db = MagicMock()
-        mock_engine = MagicMock()
-        mock_pool = MagicMock()
-        mock_pool._pool = MagicMock()
-        mock_engine.pool = mock_pool
-        mock_db.engine = mock_engine
-
-        with patch('app.utils.db_config.event.listens_for'):
-            configure_postgresql(app, mock_db)
-
-            # Verify pool was configured
-            assert mock_pool._pool.maxsize == 10
-            assert mock_pool._max_overflow == 20
 
 class TestConfigureSqlite:
     """Тесты конфигурации SQLite"""
@@ -144,17 +131,11 @@ class TestIntegration:
         app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost/testdb'
         mock_db = MagicMock()
         mock_engine = MagicMock()
-        mock_pool = MagicMock()
-        mock_pool._pool = MagicMock()
-        mock_engine.pool = mock_pool
         mock_db.engine = mock_engine
 
-        with patch('app.utils.db_config.event.listens_for'):
+        with patch('app.utils.db_config.event.listens_for'), \
+             patch('app.utils.db_config.configure_slow_query_logging'):
             configure_database_engine(app, mock_db)
-
-            # Verify pool configuration
-            assert mock_pool._pool.maxsize == 10
-            assert mock_pool._max_overflow == 20
 
     def test_full_sqlite_configuration_flow(self, app):
         """Тест полного потока конфигурации для SQLite"""
@@ -163,7 +144,8 @@ class TestIntegration:
         mock_engine = MagicMock()
         mock_db.engine = mock_engine
 
-        with patch('app.utils.db_config.event.listens_for') as mock_listen:
+        with patch('app.utils.db_config.event.listens_for') as mock_listen, \
+             patch('app.utils.db_config.configure_slow_query_logging'):
             configure_database_engine(app, mock_db)
 
             # Verify event listener was registered

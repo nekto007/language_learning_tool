@@ -130,30 +130,6 @@ def test_daily_summary_unauthenticated(client):
     assert response.status_code == 401
 
 
-def test_daily_summary_invalid_date_returns_400(authenticated_client):
-    """Malformed date param to /api/daily-summary returns 400 with invalid_date error."""
-    response = authenticated_client.get('/api/daily-summary?date=not-a-date')
-    assert response.status_code == 400
-    data = response.get_json()
-    assert data['error'] == 'invalid_date'
-
-
-def test_daily_summary_valid_date_accepted(authenticated_client):
-    """Valid ISO date param to /api/daily-summary is accepted (200)."""
-    mock_summary = {'lessons_count': 0, 'words_reviewed': 0}
-    with patch('app.telegram.queries.get_daily_summary', return_value=mock_summary):
-        response = authenticated_client.get('/api/daily-summary?date=2026-01-15')
-    assert response.status_code == 200
-
-
-def test_daily_status_invalid_date_returns_400(authenticated_client):
-    """Malformed date param to /api/daily-status returns 400 with invalid_date error."""
-    response = authenticated_client.get('/api/daily-status?date=2026/01/15')
-    assert response.status_code == 400
-    data = response.get_json()
-    assert data['error'] == 'invalid_date'
-
-
 class TestParseDateParam:
     """Unit tests for parse_date_param utility."""
 

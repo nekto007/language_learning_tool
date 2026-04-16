@@ -841,26 +841,23 @@ def register_book_course_routes(admin_bp):
 
         for course in courses:
             try:
+                nested = db.session.begin_nested()
+
                 if operation == 'activate':
                     course.is_active = True
-                    db.session.flush()
 
                 elif operation == 'deactivate':
                     course.is_active = False
-                    db.session.flush()
 
                 elif operation == 'feature':
                     course.is_featured = True
-                    db.session.flush()
 
                 elif operation == 'unfeature':
                     course.is_featured = False
-                    db.session.flush()
 
                 elif operation == 'delete':
                     # Soft delete - deactivate instead
                     course.is_active = False
-                    db.session.flush()
 
                 elif operation == 'delete_permanently':
                     # Hard delete - physically remove from database
@@ -879,14 +876,14 @@ def register_book_course_routes(admin_bp):
                     BookCourseEnrollment.query.filter_by(course_id=course.id).delete()
                     BookCourseModule.query.filter_by(course_id=course.id).delete()
                     db.session.delete(course)
-                    db.session.flush()
 
+                nested.commit()
                 success_count += 1
 
             except Exception as e:
+                nested.rollback()
                 logger.error(f"Error processing course {course.id} in bulk op '{operation}': {str(e)}")
                 errors.append({'course_id': course.id, 'title': course.title, 'error': str(e)})
-                db.session.rollback()
 
         try:
             db.session.commit()

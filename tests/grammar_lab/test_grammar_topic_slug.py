@@ -14,13 +14,27 @@ from app.utils.db import db
 
 
 @pytest.fixture
-def auth_client(app, client, test_user):
-    """Return authenticated client (regular user)."""
-    from flask_login import login_user
-    with app.test_request_context():
-        login_user(test_user)
+def admin_user(db_session):
+    """Create an admin user for grammar topic API tests."""
+    from app.auth.models import User
+    unique = uuid.uuid4().hex[:8]
+    user = User(
+        username=f'admin_{unique}',
+        email=f'admin_{unique}@test.com',
+        active=True,
+        is_admin=True,
+    )
+    user.set_password('pass')
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+
+@pytest.fixture
+def auth_client(app, client, admin_user):
+    """Return authenticated client (admin user)."""
     with client.session_transaction() as sess:
-        sess['_user_id'] = str(test_user.id)
+        sess['_user_id'] = str(admin_user.id)
         sess['_fresh'] = True
     return client
 
@@ -115,3 +129,16 @@ def test_create_topic_wrong_content_type_returns_415(app, auth_client):
         data='slug=test&title=Test',
     )
     assert response.status_code == 415
+
+
+def test_create_topic_non_admin_returns_403(app, client, test_user):
+    """Non-admin user gets 403 when trying to create a grammar topic."""
+    with client.session_transaction() as sess:
+        sess['_user_id'] = str(test_user.id)
+        sess['_fresh'] = True
+    response = client.post(
+        '/grammar-lab/api/topics',
+        json={'slug': 'test', 'title': 'Test'},
+        content_type='application/json',
+    )
+    assert response.status_code == 403

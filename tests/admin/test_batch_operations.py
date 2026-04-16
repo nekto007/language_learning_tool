@@ -72,19 +72,20 @@ class TestBulkCourseOperationsErrorReporting:
         course_ok = MagicMock(id=1, title='Good Course', modules=[])
         course_bad = MagicMock(id=2, title='Bad Course', modules=[])
 
-        flush_calls = [None, Exception("DB constraint violation")]
+        call_count = [0]
 
-        def flush_side_effect():
-            effect = flush_calls.pop(0)
-            if isinstance(effect, Exception):
-                raise effect
+        def begin_nested_side_effect():
+            call_count[0] += 1
+            nested = MagicMock()
+            if call_count[0] == 2:
+                nested.commit.side_effect = Exception("DB constraint violation")
+            return nested
 
         with patch('app.admin.book_courses.BookCourse') as mock_bc, \
              patch('app.admin.book_courses.db') as mock_db:
             mock_bc.query.filter.return_value.all.return_value = [course_ok, course_bad]
-            mock_db.session.flush.side_effect = flush_side_effect
+            mock_db.session.begin_nested.side_effect = begin_nested_side_effect
             mock_db.session.commit.return_value = None
-            mock_db.session.rollback.return_value = None
 
             response = admin_client.post(
                 '/admin/book-courses/bulk-operations',
@@ -104,12 +105,16 @@ class TestBulkCourseOperationsErrorReporting:
         course1 = MagicMock(id=3, title='Course 3', modules=[])
         course2 = MagicMock(id=4, title='Course 4', modules=[])
 
+        def begin_nested_side_effect():
+            nested = MagicMock()
+            nested.commit.side_effect = Exception("always fails")
+            return nested
+
         with patch('app.admin.book_courses.BookCourse') as mock_bc, \
              patch('app.admin.book_courses.db') as mock_db:
             mock_bc.query.filter.return_value.all.return_value = [course1, course2]
-            mock_db.session.flush.side_effect = Exception("always fails")
+            mock_db.session.begin_nested.side_effect = begin_nested_side_effect
             mock_db.session.commit.return_value = None
-            mock_db.session.rollback.return_value = None
 
             response = admin_client.post(
                 '/admin/book-courses/bulk-operations',

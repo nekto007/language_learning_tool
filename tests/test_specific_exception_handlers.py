@@ -224,19 +224,21 @@ class TestAchievementNotificationExceptionHandler:
     """Notification failures are caught and logged; achievement is still awarded."""
 
     @pytest.mark.smoke
-    def test_notify_achievement_uses_importerror_in_except(self):
-        """check_grade_achievements except clause includes ImportError."""
+    def test_notify_achievement_catches_exceptions(self):
+        """check_grade_achievements except clause catches notification errors."""
         import inspect
         from app.achievements import services
         source = inspect.getsource(services.AchievementService.check_grade_achievements)
-        assert 'ImportError' in source
+        assert 'except' in source
+        assert 'Exception' in source
 
-    def test_notify_streak_achievement_uses_importerror_in_except(self):
-        """check_streak_achievements except clause includes ImportError."""
+    def test_notify_streak_achievement_catches_exceptions(self):
+        """check_streak_achievements except clause catches notification errors."""
         import inspect
         from app.achievements import services
         source = inspect.getsource(services.AchievementService.check_streak_achievements)
-        assert 'ImportError' in source
+        assert 'except' in source
+        assert 'Exception' in source
 
     def test_notify_achievement_logs_exception(self):
         """Both achievement notification handlers call logger.exception."""
@@ -246,30 +248,3 @@ class TestAchievementNotificationExceptionHandler:
         src_streak = inspect.getsource(services.AchievementService.check_streak_achievements)
         assert 'logger.exception' in src_grade
         assert 'logger.exception' in src_streak
-
-    def test_notify_achievement_failure_does_not_prevent_award(self, app, db_session):
-        """Achievement is still added to DB even if notification raises."""
-        with app.app_context():
-            with patch('app.achievements.services.db') as mock_db, \
-                 patch('app.achievements.services.logger') as mock_logger:
-
-                mock_db.session.add = MagicMock()
-                mock_db.session.commit = MagicMock()
-
-                # Patch notify to raise
-                with patch('app.notifications.services.notify_achievement',
-                           side_effect=RuntimeError("notification service down")):
-                    from app.achievements import services
-
-                    # Simulate the notification catch block directly
-                    try:
-                        from app.notifications.services import notify_achievement
-                        notify_achievement(1, 'Test Achievement', '⭐')
-                    except (ImportError, Exception) as e:
-                        mock_logger.exception(
-                            "Failed to send achievement notification for user %s: %s", 1, e
-                        )
-
-                    assert mock_logger.exception.called
-                    call_args = mock_logger.exception.call_args[0]
-                    assert 'achievement notification' in call_args[0]

@@ -50,8 +50,8 @@ class TestCountActiveUsersInRange:
         from app.study.models import StudySession
 
         user = _make_user(db_session)
-        today = date.today()
         now = datetime.now(timezone.utc)
+        today = now.date()
 
         ss = StudySession(user_id=user.id, session_type='cards', start_time=now)
         db_session.add(ss)
@@ -66,8 +66,8 @@ class TestCountActiveUsersInRange:
 
         user = _make_user(db_session)
         lesson = _make_lesson(db_session)
-        today = date.today()
         now = datetime.now(timezone.utc)
+        today = now.date()
 
         lp = LessonProgress(
             user_id=user.id,
@@ -87,8 +87,8 @@ class TestCountActiveUsersInRange:
 
         user = _make_user(db_session)
         lesson = _make_lesson(db_session)
-        today = date.today()
         now = datetime.now(timezone.utc)
+        today = now.date()
 
         attempt = LessonAttempt(
             user_id=user.id,
@@ -108,8 +108,8 @@ class TestCountActiveUsersInRange:
         from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
 
         user = _make_user(db_session)
-        today = date.today()
         now = datetime.now(timezone.utc)
+        today = now.date()
 
         slug = f'test-topic-{uuid.uuid4().hex[:8]}'
         topic = GrammarTopic(
@@ -143,8 +143,8 @@ class TestCountActiveUsersInRange:
         from app.books.models import Book, Chapter, UserChapterProgress
 
         user = _make_user(db_session)
-        today = date.today()
         now = datetime.now(timezone.utc)
+        today = now.date()
 
         book = Book(
             title=f'Book {uuid.uuid4().hex[:8]}',
@@ -185,8 +185,8 @@ class TestCountActiveUsersInRange:
         from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
 
         user = _make_user(db_session)
-        today = date.today()
         now = datetime.now(timezone.utc)
+        today = now.date()
 
         book = Book(
             title=f'Book {uuid.uuid4().hex[:8]}',
@@ -225,8 +225,8 @@ class TestCountActiveUsersInRange:
 
         user = _make_user(db_session)
         lesson = _make_lesson(db_session)
-        today = date.today()
         now = datetime.now(timezone.utc)
+        today = now.date()
 
         # Same user active in both study_sessions and lesson_progress
         ss = StudySession(user_id=user.id, session_type='cards', start_time=now)
@@ -252,8 +252,8 @@ class TestCountActiveUsersInRange:
         db_session.commit()
 
         count = _count_active_users_in_range(today, today)
-        # Must be exactly 2 (user + user2), not 3
-        assert count >= 2
+        # Must be exactly 2 (user + user2), not 3 — verifies UNION dedup
+        assert count == 2
 
         # Confirm user1 is not double-counted by checking with only user1's records
         # We isolate by using a future date range where neither user has records
