@@ -309,11 +309,11 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Create: `tests/daily_plan/test_service.py`
 
-- [ ] write tests for `select_mission()`: repair_pressure >= 0.6 -> Repair mission
-- [ ] write tests for `assemble_progress_mission()`: cold start with onboarding_level
-- [ ] write tests for `assemble_repair_mission()`: 0 SRS + 0 grammar degrades to progress
-- [ ] write tests for fallback to legacy plan on assembly error
-- [ ] run pytest -m smoke
+- [x] write tests for `select_mission()`: repair_pressure >= 0.6 -> Repair mission
+- [x] write tests for `assemble_progress_mission()`: cold start with onboarding_level
+- [x] write tests for `assemble_repair_mission()`: 0 SRS + 0 grammar degrades to progress
+- [x] write tests for fallback to legacy plan on assembly error
+- [x] run pytest -m smoke
 
 ### Task 27: Add unit tests for curriculum service
 
