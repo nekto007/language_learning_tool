@@ -4,16 +4,13 @@
 Административная панель для управления курсами-книгами (Book Courses)
 """
 
-import json
 import logging
 from datetime import UTC, datetime, timedelta
 from functools import wraps
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for, abort
-from flask_login import current_user, login_required
-from sqlalchemy import desc, func, and_, or_
+from flask import flash, jsonify, render_template, request, url_for
+from sqlalchemy import desc, func
 from sqlalchemy.orm import joinedload
-from werkzeug.utils import secure_filename
 
 from app.utils.db import db
 from app.admin.utils.decorators import admin_required, handle_admin_errors

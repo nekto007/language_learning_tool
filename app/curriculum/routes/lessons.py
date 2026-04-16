@@ -10,7 +10,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.security import require_lesson_access, sanitize_json_content
 from app.curriculum.service import (
-    get_next_lesson, process_final_test_submission, process_grammar_submission,
+    process_final_test_submission, process_grammar_submission,
     process_matching_submission, process_quiz_submission,
 )
 from app.curriculum.validators import ProgressUpdateSchema, validate_request_data

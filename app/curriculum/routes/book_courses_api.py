@@ -24,8 +24,6 @@ logger = logging.getLogger(__name__)
 def get_lesson_api(lesson_id):
     """Get lesson data according to specification"""
     try:
-        from app.words.models import CollectionWords
-
         daily_lesson = DailyLesson.query.get(lesson_id)
         if not daily_lesson:
             return jsonify({'error': 'Not found'}), 404

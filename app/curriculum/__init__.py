@@ -1,7 +1,7 @@
 # app/curriculum/__init__.py
 
 # Import and use main blueprint directly for compatibility
-from app.curriculum.routes import admin_bp, api_bp, lessons_bp, main_bp as curriculum_bp
+from app.curriculum.routes import admin_bp, api_bp, lessons_bp, main_bp as curriculum_bp  # noqa: F401
 from app.curriculum.routes.main import learn_bp
 
 

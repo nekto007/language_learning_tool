@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from enum import Enum
 
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Float, CheckConstraint, Enum as SQLAEnum, text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db

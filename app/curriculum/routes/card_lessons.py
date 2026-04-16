@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 
 from flask import jsonify, render_template, request
 from flask_login import current_user, login_required
-from marshmallow import ValidationError
 
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.routes.lessons import lessons_bp

@@ -6,7 +6,7 @@ instead of being executed in create_app() factory. This ensures proper separatio
 of concerns and prevents race conditions.
 """
 import logging
-from sqlalchemy import event, text
+from sqlalchemy import event
 
 logger = logging.getLogger(__name__)
 

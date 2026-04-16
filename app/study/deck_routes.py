@@ -3,7 +3,7 @@ from flask_babel import gettext as _
 from flask_login import current_user, login_required
 
 from app.study.blueprint import study, is_auto_deck
-from app.study.models import StudySettings, UserWord
+from app.study.models import StudySettings
 from app.utils.db import db
 from app.words.forms import CollectionFilterForm
 from app.words.models import Collection, CollectionWords, Topic

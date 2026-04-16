@@ -8,7 +8,7 @@ Responsibilities:
 """
 from typing import List, Dict, Optional
 from datetime import UTC, datetime, timedelta
-from sqlalchemy import func, distinct
+from sqlalchemy import func
 
 from app.utils.db import db
 from app.auth.models import User, ReferralLog

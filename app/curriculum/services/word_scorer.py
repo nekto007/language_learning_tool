@@ -14,7 +14,7 @@ Factors considered:
 import logging
 import math
 from collections import Counter
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Set, Tuple
 
 from app.words.models import CollectionWords
 

@@ -11,7 +11,7 @@ from flask_login import login_required, current_user
 import logging
 
 from app.grammar_lab import grammar_lab_bp
-from app.grammar_lab.models import GrammarTopic, GrammarExercise, UserGrammarExercise, UserGrammarTopicStatus
+from app.grammar_lab.models import GrammarTopic, GrammarExercise, UserGrammarExercise
 from app.grammar_lab.services import GrammarLabService
 
 logger = logging.getLogger(__name__)

@@ -100,7 +100,6 @@ class SessionService:
             Dictionary with session statistics
         """
         from datetime import timedelta
-        from sqlalchemy import func
 
         start_date = datetime.now(timezone.utc) - timedelta(days=days)
 

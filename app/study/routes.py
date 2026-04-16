@@ -6,10 +6,10 @@ from flask_babel import gettext as _
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_, and_, case
 
-from app.study.blueprint import study, get_audio_url_for_word, is_auto_deck
+from app.study.blueprint import study, is_auto_deck
 from app.study.deck_utils import get_daily_plan_mix_word_ids
-from app.study.forms import StudySessionForm, StudySettingsForm
-from app.study.models import QuizDeck, StudySession, StudySettings, UserCardDirection, UserWord
+from app.study.forms import StudySettingsForm
+from app.study.models import QuizDeck, StudySettings, UserCardDirection, UserWord
 from app.utils.db import db
 from app.modules.decorators import module_required
 from app.study.services import DeckService, SRSService, SessionService, StatsService
@@ -21,8 +21,6 @@ logger = logging.getLogger(__name__)
 @login_required
 @module_required('study')
 def index():
-    from app.study.models import QuizDeck, QuizResult
-
     due_items_count = UserCardDirection.query \
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
         .filter(

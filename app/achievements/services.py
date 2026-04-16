@@ -4,12 +4,12 @@ Service for managing lesson grades, user statistics, and achievement tracking
 """
 import logging
 from datetime import date, datetime, timezone
-from typing import Optional, Dict, List
+from typing import Dict, List
 
 from sqlalchemy import func
 
 from app.achievements.models import LessonGrade, UserStatistics
-from app.study.models import Achievement, UserAchievement, UserXP
+from app.study.models import Achievement, UserAchievement
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)

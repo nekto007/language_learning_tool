@@ -2,14 +2,14 @@
 Service module for XP (Experience Points) and Achievements system.
 Handles XP calculations, achievement checks, and rewards.
 """
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Dict, Any
 
 from sqlalchemy import func
 from app.utils.db import db
 from app.study.models import (
     UserXP, Achievement, UserAchievement,
-    QuizResult, GameScore, StudySession
+    QuizResult
 )
 
 

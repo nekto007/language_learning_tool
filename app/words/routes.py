@@ -10,7 +10,7 @@ from sqlalchemy import case, func, or_
 from app.study.models import GameScore
 from app.utils.db import db
 from app.words.forms import WordFilterForm, WordSearchForm
-from app.words.models import CollectionWords, Topic
+from app.words.models import CollectionWords
 from app.modules.decorators import module_required
 
 logger = logging.getLogger(__name__)
@@ -364,9 +364,9 @@ def dashboard():
     # Process deferred referral reward on first visit
     _process_referral_reward_on_first_visit(current_user)
 
-    from app.study.models import UserWord, Achievement, UserAchievement
+    from app.study.models import Achievement, UserAchievement
     from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
-    from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
+    from app.curriculum.book_courses import BookCourseEnrollment
     from app.telegram.models import TelegramUser
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_current_streak, get_daily_summary

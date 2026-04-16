@@ -11,7 +11,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.telegram.models import TelegramUser
 from app.telegram.queries import (
     has_activity_today, get_current_streak,
-    get_daily_plan, get_daily_summary, get_weekly_report,
+    get_daily_summary, get_weekly_report,
     get_tomorrow_preview, get_quickest_action, get_cards_url,
     get_daily_plan_for_telegram,
 )

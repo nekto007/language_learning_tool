@@ -7,14 +7,14 @@ Responsibilities:
 - Card updates after reviews
 - Daily limits tracking
 """
-from typing import List, Dict, Optional, Tuple, Set
+from typing import List, Dict, Tuple, Set
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import func, and_, or_, case
 from sqlalchemy.orm import joinedload
 
 from app.utils.db import db
 from app.study.models import (
-    UserWord, UserCardDirection, StudySettings, StudySession, QuizDeckWord
+    UserWord, UserCardDirection, StudySettings, QuizDeckWord
 )
 from app.words.models import CollectionWords
 from app.srs.constants import CardState

@@ -19,7 +19,7 @@ def index():
     # Get platform statistics for social proof
     from app.auth.models import User
     from app.words.models import CollectionWords
-    from app.curriculum.models import CEFRLevel, LessonProgress, Lessons
+    from app.curriculum.models import LessonProgress
     from app.grammar_lab.models import GrammarTopic
     from sqlalchemy import func
 

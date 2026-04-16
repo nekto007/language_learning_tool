@@ -4,7 +4,6 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from app import csrf
 from app.api.decorators import api_auth_required
 from app.utils.db import db
 from app.words.models import CollectionWords
@@ -457,7 +456,6 @@ def update_single_word_status(word_id):
         return jsonify(response)
     except Exception as e:
         db.session.rollback()
-        import traceback
         error_msg = str(e)
 
         return jsonify({

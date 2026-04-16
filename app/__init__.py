@@ -2,7 +2,7 @@ import os
 
 from flask import Flask
 from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from flask_jwt_extended import JWTManager
@@ -77,19 +77,19 @@ def create_app(config_class=Config):
     init_babel(app)
 
     # Import all models in dependency order - MUST happen before any blueprint that uses models
-    from app.auth import models as auth_models
-    from app.books import models as books_models
-    from app.words import models as words_models  # Also defines word_book_link table
-    from app.study import models as study_models
-    from app.curriculum import models as curriculum_models
-    from app.curriculum import book_courses as book_courses_models
-    from app.curriculum import daily_lessons as daily_lessons_models
-    from app.modules import models as modules_models
-    from app.grammar_lab import models as grammar_models
-    from app.reminders import models as reminders_models
-    from app.telegram import models as telegram_models
-    from app.achievements import models as achievements_models
-    from app.notifications import models as notifications_models
+    from app.auth import models as auth_models  # noqa: F401
+    from app.books import models as books_models  # noqa: F401
+    from app.words import models as words_models  # noqa: F401  # Also defines word_book_link table
+    from app.study import models as study_models  # noqa: F401
+    from app.curriculum import models as curriculum_models  # noqa: F401
+    from app.curriculum import book_courses as book_courses_models  # noqa: F401
+    from app.curriculum import daily_lessons as daily_lessons_models  # noqa: F401
+    from app.modules import models as modules_models  # noqa: F401
+    from app.grammar_lab import models as grammar_models  # noqa: F401
+    from app.reminders import models as reminders_models  # noqa: F401
+    from app.telegram import models as telegram_models  # noqa: F401
+    from app.achievements import models as achievements_models  # noqa: F401
+    from app.notifications import models as notifications_models  # noqa: F401
 
     # In production, schema is managed by Alembic (`flask db upgrade head`).
     # In testing, create tables directly so tests don't need migrations.

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import func
-
 from app.utils.db import db
 from app.curriculum.models import LessonProgress
 from app.curriculum.book_courses import BookCourseEnrollment

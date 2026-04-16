@@ -258,8 +258,6 @@ def check_module_access(module_id: int) -> bool:
 
         if prev_module:
             # Check completion percentage of previous module
-            from sqlalchemy import func
-            
             total_lessons = Lessons.query.filter_by(module_id=prev_module.id).count()
             completed_count = LessonProgress.query.filter_by(
                 user_id=current_user.id,

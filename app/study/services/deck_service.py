@@ -7,7 +7,7 @@ Responsibilities:
 - Deck statistics
 """
 import logging
-from typing import List, Dict, Tuple, Optional
+from typing import List, Tuple, Optional
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, OperationalError
 

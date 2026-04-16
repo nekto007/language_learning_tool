@@ -283,7 +283,7 @@ def extract_fb2_metadata(file_path):
 def extract_epub_metadata(file_path):
     """Извлекает метаданные из EPUB файла"""
     try:
-        import ebooklib
+        import ebooklib  # noqa: F401
         from ebooklib import epub
 
         book = epub.read_epub(file_path)
@@ -405,7 +405,7 @@ def parse_epub(file_path, format_type):
     pip install ebooklib
     """
     try:
-        import ebooklib
+        import ebooklib  # noqa: F401
         from ebooklib import epub
 
         book = epub.read_epub(file_path)

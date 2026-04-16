@@ -9,11 +9,10 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from flask_login import current_user
-from sqlalchemy import distinct, func
+from sqlalchemy import func
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.auth.models import User
-from app.books.models import Book
 from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.study.models import UserWord
 from app.utils.audio import normalize_listening

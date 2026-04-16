@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 
 from flask import jsonify, request
 from flask_login import current_user, login_required
-from sqlalchemy import func, or_, and_, case
+from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 

@@ -452,7 +452,6 @@ def _get_profile_stats(user_id: int) -> dict:
     from app.curriculum.models import LessonProgress
     from app.achievements.models import UserStatistics
     from app.telegram.queries import get_current_streak
-    from sqlalchemy import func
 
     # Words learned (any status means user is studying it)
     total_words = UserWord.query.filter_by(user_id=user_id).count()
@@ -623,7 +622,6 @@ def public_profile(username: str):
     from app.study.models import UserXP, UserAchievement, Achievement
     from app.telegram.queries import get_current_streak
     from app.curriculum.models import LessonProgress
-    from sqlalchemy import func
 
     user = User.query.filter_by(username=username, active=True).first()
     if not user:

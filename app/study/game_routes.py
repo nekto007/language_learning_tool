@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 
 from app.study.blueprint import study, get_audio_url_for_word

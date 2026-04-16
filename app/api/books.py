@@ -7,7 +7,6 @@ from flask import Blueprint, jsonify, make_response, request, url_for
 from flask_login import current_user
 from sqlalchemy import func
 
-from app import csrf
 from app.api.decorators import api_auth_required
 from app.api.errors import api_error
 from app.books.models import Book, Chapter, UserChapterProgress, Task, Block

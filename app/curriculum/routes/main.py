@@ -7,7 +7,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.curriculum.security import check_module_access, require_lesson_access, require_module_access
+from app.curriculum.security import require_lesson_access
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)

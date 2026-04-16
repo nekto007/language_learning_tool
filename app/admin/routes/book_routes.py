@@ -4,17 +4,15 @@
 Book Management Routes для административной панели
 Маршруты для управления книгами, главами, метаданными
 """
-import json
 import logging
 import os
 import re
 import threading
-import traceback
 from datetime import UTC, datetime
 
 from flask import (Blueprint, flash, jsonify, redirect, render_template,
                    request, url_for, current_app)
-from sqlalchemy import desc, func
+from sqlalchemy import func
 from werkzeug.utils import secure_filename
 
 from app.admin.services.book_processing_service import BookProcessingService

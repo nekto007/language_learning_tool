@@ -5,7 +5,6 @@ import tempfile
 from flask import Blueprint, jsonify, request, send_file
 from flask_login import current_user
 
-from app import csrf
 from app.api.decorators import api_auth_required
 from app.utils.anki_export import create_anki_package
 from app.words.models import CollectionWords

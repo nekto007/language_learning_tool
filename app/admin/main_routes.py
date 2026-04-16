@@ -6,21 +6,17 @@
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from functools import wraps
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
-from flask_babel import gettext as _
-from flask_login import current_user, login_required
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import current_user
 from sqlalchemy import case, desc, distinct, func
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import csrf
 from app.auth.models import User
-from app.books.models import Book, Chapter
+from app.books.models import Book
 from app.curriculum.models import CEFRLevel, LessonAttempt, LessonProgress, Lessons, Module
 from app.utils.db import db
-from app.words.forms import CollectionForm, TopicForm
-from app.words.models import Collection, CollectionWordLink, CollectionWords, Topic, TopicWord
+from app.words.models import Collection, CollectionWordLink, CollectionWords
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -176,8 +172,6 @@ def get_daily_activity_data(days: int = 30) -> dict:
     Returns:
         dict with 'labels', 'registrations', 'logins', 'active_users' lists
     """
-    from app.study.models import StudySession
-
     today = datetime.now(timezone.utc).date()
     start_date = today - timedelta(days=days - 1)
 
@@ -1219,6 +1213,6 @@ def get_level_order(level_code):
 
 
 try:
-    from . import curriculum
+    from . import curriculum  # noqa: F401, F811
 except ImportError:
     logger.warning("Не удалось импортировать модуль curriculum")

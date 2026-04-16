@@ -1,11 +1,9 @@
 # app/curriculum/services/curriculum_cache_service.py
 
-import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Dict, Any, Optional, List
 
-from flask import current_app
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 

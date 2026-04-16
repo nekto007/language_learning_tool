@@ -1209,7 +1209,6 @@ def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
 
     # Books read today
     from app.books.models import Chapter
-    from sqlalchemy import distinct
     books_read_today = db.session.query(Book.title).join(
         Chapter, Chapter.book_id == Book.id
     ).join(

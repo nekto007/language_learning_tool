@@ -1,7 +1,6 @@
 # app/curriculum/routes/vocabulary_lessons.py
 
 import logging
-from datetime import UTC, datetime
 
 from flask import abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -10,11 +9,10 @@ from marshmallow import ValidationError
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.routes.lessons import lessons_bp
 from app.curriculum.security import require_lesson_access, sanitize_html
-from app.curriculum.service import get_next_lesson, process_matching_submission
+from app.curriculum.service import get_next_lesson
 from app.curriculum.services.progress_service import ProgressService
 from app.curriculum.validators import LessonContentValidator
 from app.study.models import UserWord
-from app.utils.db import db
 from app.words.models import CollectionWords
 
 logger = logging.getLogger(__name__)

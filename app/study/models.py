@@ -440,7 +440,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
             Tuple of (interval_days, requeue_minutes) for scheduling
         """
         from app.srs.constants import (
-            RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW,
+            RATING_DONT_KNOW, RATING_DOUBT,
             LEARNING_STEPS, RELEARNING_STEPS,
             GRADUATING_INTERVAL, EASY_INTERVAL,
             MIN_EASE_FACTOR, MAX_EASE_FACTOR,
@@ -549,7 +549,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
 
     def _handle_new_card(self, rating, learning_steps, easy_interval):
         """Handle rating for a NEW card."""
-        from app.srs.constants import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW, CardState
+        from app.srs.constants import RATING_DONT_KNOW, RATING_KNOW, CardState
 
         if rating == RATING_KNOW:
             # Easy: skip learning, go straight to review
