@@ -55,12 +55,12 @@ class TestFindNextLessonColdStart:
             # Cold start: no completed lesson
             mock_lp.query.filter.return_value.order_by.return_value.first.return_value = None
 
-            # Module cold-start query chain: .join().filter().order_by().first()
+            # Module cold-start query chain: .join().filter().order_by().all()
             q = MagicMock()
             mock_module_cls.query.join.return_value = q
-            q.filter.return_value.order_by.return_value.first.return_value = mock_module
+            q.filter.return_value.order_by.return_value.all.return_value = [mock_module]
             # Support the no-filter path (when order == -1, CEFR code not found)
-            q.order_by.return_value.first.return_value = mock_module
+            q.order_by.return_value.all.return_value = [mock_module]
 
             # Module.query.get for module metadata
             mock_module_cls.query.get.return_value = mock_module
@@ -123,10 +123,43 @@ class TestFindNextLessonColdStart:
             mock_lp.query.filter.return_value.order_by.return_value.first.return_value = None
             q = MagicMock()
             mock_module_cls.query.join.return_value = q
-            q.filter.return_value.order_by.return_value.first.return_value = None
+            q.filter.return_value.order_by.return_value.all.return_value = []
 
             result = _find_next_lesson(user_id=5)
             assert result is None
+
+    def test_cold_start_skips_empty_module_and_returns_next(self):
+        """Cold start → first eligible module has no lessons (empty); second has a lesson.
+        Must skip the empty module and return the lesson from the next one."""
+        from app.daily_plan.assembler import _find_next_lesson
+
+        empty_module = _mock_module(module_id=10, number=1)
+        populated_module = _mock_module(module_id=20, number=2)
+        populated_lesson = _mock_lesson(lesson_id=77, module_id=20, title="First real lesson")
+
+        with (
+            patch(f"{ASSEMBLER_MOD}.LessonProgress") as mock_lp,
+            patch(f"{ASSEMBLER_MOD}.get_user_current_cefr_level", return_value="A1"),
+            patch(f"{ASSEMBLER_MOD}._cefr_code_to_order", return_value=1),
+            patch(f"{ASSEMBLER_MOD}.Module") as mock_module_cls,
+            patch(f"{ASSEMBLER_MOD}.Lessons") as mock_lessons_cls,
+        ):
+            mock_lp.query.filter.return_value.order_by.return_value.first.return_value = None
+
+            q = MagicMock()
+            mock_module_cls.query.join.return_value = q
+            q.filter.return_value.order_by.return_value.all.return_value = [empty_module, populated_module]
+
+            mock_lessons_cls.query.filter_by.return_value.order_by.return_value.first.side_effect = [
+                None,            # empty_module has no lessons
+                populated_lesson,  # populated_module has a lesson
+            ]
+
+            result = _find_next_lesson(user_id=9)
+
+        assert result is not None
+        assert result["lesson_id"] == 77
+        assert result["module_id"] == 20
 
 
 class TestFindNextLessonWithProgress:
@@ -149,32 +182,496 @@ class TestFindNextLessonWithProgress:
             patch(f"{ASSEMBLER_MOD}.Lessons") as mock_lessons_cls,
             patch(f"{ASSEMBLER_MOD}.Module") as mock_module_cls,
             patch(f"{ASSEMBLER_MOD}.CEFRLevel") as mock_cefr_cls,
-            patch(f"{ASSEMBLER_MOD}.get_user_current_cefr_level") as mock_gcl,
+            patch(f"{ASSEMBLER_MOD}.get_user_current_cefr_level", return_value="B2"),
+            patch(f"{ASSEMBLER_MOD}._cefr_code_to_order", return_value=5),
         ):
             mock_lp.query.filter.return_value.order_by.return_value.first.return_value = mock_last
             mock_lessons_cls.query.get.return_value = mock_lesson
             mock_module_cls.query.get.return_value = mock_module
 
-            # Column comparisons (Lessons.number > x, CEFRLevel.order > x) are evaluated
-            # before .filter() is called; configure __gt__ on mock columns to avoid TypeError.
+            # Column comparisons (Lessons.number > x, Module.number > x, CEFRLevel.order > x)
+            # are evaluated before .filter() is called; configure __gt__ to avoid TypeError.
             mock_lessons_cls.number.__gt__ = MagicMock(return_value=MagicMock())
+            mock_module_cls.number.__gt__ = MagicMock(return_value=MagicMock())
             mock_cefr_cls.order.__gt__ = MagicMock(return_value=MagicMock())
 
-            # No next lesson in same module
-            mock_lessons_cls.query.filter.return_value.order_by.return_value.first.return_value = None
-            # No next module in same level
-            mock_module_cls.query.filter.return_value.first.return_value = None
-            # No next CEFR level
+            # effective_level_order=5 == current_level.order=6? No: 5 < 6, so no level jump.
             mock_current_level = MagicMock()
             mock_current_level.order = 6
             mock_cefr_cls.query.get.return_value = mock_current_level
-            mock_cefr_cls.query.filter.return_value.order_by.return_value.first.return_value = None
+
+            # No next lesson in same module
+            mock_lessons_cls.query.filter.return_value.order_by.return_value.first.return_value = None
+            # No next modules in same level
+            mock_module_cls.query.filter.return_value.order_by.return_value.all.return_value = []
+            # No higher CEFR levels (production code calls .all(), not .first())
+            mock_cefr_cls.query.filter.return_value.order_by.return_value.all.return_value = []
 
             result = _find_next_lesson(user_id=42)
 
             assert result is None
-            # Cold start must NOT be entered — get_user_current_cefr_level should not be called
-            mock_gcl.assert_not_called()
+
+    def test_progress_a2_with_c1_onboarding_jumps_to_c1(self):
+        """User has A2 progress but C1 onboarding level.
+        Effective level (C1, order=6) > current module level (A2, order=2).
+        Must jump to the first C1 module lesson, not the next A2 lesson."""
+        from app.daily_plan.assembler import _find_next_lesson
+
+        mock_last = MagicMock()
+        mock_last.lesson_id = 99
+        mock_a2_lesson = _mock_lesson(lesson_id=99, module_id=10)
+        mock_a2_lesson.number = 5
+        mock_a2_module = _mock_module(module_id=10, number=3)
+        mock_a2_module.level_id = 2
+        mock_a2_level = MagicMock()
+        mock_a2_level.order = 2  # A2 order
+
+        mock_c1_module = _mock_module(module_id=30, number=1)
+        mock_c1_lesson = _mock_lesson(lesson_id=77, module_id=30, title="C1 Lesson")
+
+        with (
+            patch(f"{ASSEMBLER_MOD}.LessonProgress") as mock_lp,
+            patch(f"{ASSEMBLER_MOD}.Lessons") as mock_lessons_cls,
+            patch(f"{ASSEMBLER_MOD}.Module") as mock_module_cls,
+            patch(f"{ASSEMBLER_MOD}.CEFRLevel") as mock_cefr_cls,
+            patch(f"{ASSEMBLER_MOD}.get_user_current_cefr_level", return_value="C1"),
+            patch(f"{ASSEMBLER_MOD}._cefr_code_to_order", return_value=6),
+        ):
+            mock_lp.query.filter.return_value.order_by.return_value.first.return_value = mock_last
+            mock_lessons_cls.query.get.return_value = mock_a2_lesson
+            # Module.query.get: first call is for the progress lesson's module (id=10),
+            # second is for the found lesson's module (id=30).
+            mock_module_cls.query.get.side_effect = [mock_a2_module, mock_c1_module]
+            mock_cefr_cls.query.get.return_value = mock_a2_level  # current module's CEFR level
+            # CEFRLevel.order >= effective_level_order is a column expression — configure __ge__.
+            mock_cefr_cls.order.__ge__ = MagicMock(return_value=MagicMock())
+
+            # Level-jump path: Module.query.join(CEFRLevel).filter(...).order_by(...).all()
+            jump_q = MagicMock()
+            mock_module_cls.query.join.return_value = jump_q
+            jump_q.filter.return_value.order_by.return_value.all.return_value = [mock_c1_module]
+
+            # User has NO completed lessons in the C1 module (pure onboarding scenario).
+            mock_lp.query.join.return_value.filter.return_value.order_by.return_value.first.return_value = None
+
+            # First lesson in the C1 module
+            mock_lessons_cls.query.filter_by.return_value.order_by.return_value.first.return_value = mock_c1_lesson
+
+            result = _find_next_lesson(user_id=55)
+
+        assert result is not None
+        assert result["lesson_id"] == 77
+        assert result["module_id"] == 30
+
+    def test_cefr_jump_falls_back_to_sequential_when_target_level_absent(self):
+        """User has A2 progress but C1 onboarding level.
+        The curriculum only contains content up to B2 — no C1 modules exist.
+        Must fall back to the normal sequential scan (next A2 lesson) instead of
+        returning None and triggering legacy fallback."""
+        from app.daily_plan.assembler import _find_next_lesson
+
+        mock_last = MagicMock()
+        mock_last.lesson_id = 99
+        mock_a2_lesson = _mock_lesson(lesson_id=99, module_id=10)
+        mock_a2_lesson.number = 5
+        mock_a2_module = _mock_module(module_id=10, number=3)
+        mock_a2_module.level_id = 2
+        mock_a2_level = MagicMock()
+        mock_a2_level.order = 2  # A2
+
+        # Next lesson in the same A2 module
+        mock_next_a2_lesson = _mock_lesson(lesson_id=100, module_id=10, title="A2 Lesson 6")
+        mock_next_a2_lesson.number = 6
+
+        with (
+            patch(f"{ASSEMBLER_MOD}.LessonProgress") as mock_lp,
+            patch(f"{ASSEMBLER_MOD}.Lessons") as mock_lessons_cls,
+            patch(f"{ASSEMBLER_MOD}.Module") as mock_module_cls,
+            patch(f"{ASSEMBLER_MOD}.CEFRLevel") as mock_cefr_cls,
+            patch(f"{ASSEMBLER_MOD}.get_user_current_cefr_level", return_value="C1"),
+            patch(f"{ASSEMBLER_MOD}._cefr_code_to_order", return_value=6),
+        ):
+            mock_lp.query.filter.return_value.order_by.return_value.first.return_value = mock_last
+            mock_lessons_cls.query.get.return_value = mock_a2_lesson
+            # Module.query.get: first for progress module (id=10), second for found lesson (id=10)
+            mock_module_cls.query.get.side_effect = [mock_a2_module, mock_a2_module]
+            mock_cefr_cls.query.get.return_value = mock_a2_level  # A2 order=2 < effective 6 → jump path
+
+            mock_cefr_cls.order.__ge__ = MagicMock(return_value=MagicMock())
+            mock_lessons_cls.number.__gt__ = MagicMock(return_value=MagicMock())
+
+            # Level-jump path: no C1 modules in curriculum — eligible_modules is empty
+            jump_q = MagicMock()
+            mock_module_cls.query.join.return_value = jump_q
+            jump_q.filter.return_value.order_by.return_value.all.return_value = []
+
+            # Sequential scan: next lesson exists in the same A2 module
+            mock_lessons_cls.query.filter.return_value.order_by.return_value.first.return_value = mock_next_a2_lesson
+
+            result = _find_next_lesson(user_id=55)
+
+        assert result is not None, "must not return None when C1 is absent — should continue from A2"
+        assert result["lesson_id"] == 100
+        assert result["module_id"] == 10
+
+    def test_cefr_jump_falls_back_to_sequential_when_target_modules_have_no_lessons(self):
+        """User has A2 progress but C1 onboarding level.
+        C1 modules exist in the curriculum but are all empty shells (no lessons).
+        Must fall back to the sequential scan (next A2 lesson) instead of returning None."""
+        from app.daily_plan.assembler import _find_next_lesson
+
+        mock_last = MagicMock()
+        mock_last.lesson_id = 99
+        mock_a2_lesson = _mock_lesson(lesson_id=99, module_id=10)
+        mock_a2_lesson.number = 5
+        mock_a2_module = _mock_module(module_id=10, number=3)
+        mock_a2_module.level_id = 2
+        mock_a2_level = MagicMock()
+        mock_a2_level.order = 2  # A2
+
+        mock_c1_shell = _mock_module(module_id=40, number=1)  # C1 module with no lessons
+
+        mock_next_a2_lesson = _mock_lesson(lesson_id=101, module_id=10, title="A2 Lesson 6")
+        mock_next_a2_lesson.number = 6
+
+        with (
+            patch(f"{ASSEMBLER_MOD}.LessonProgress") as mock_lp,
+            patch(f"{ASSEMBLER_MOD}.Lessons") as mock_lessons_cls,
+            patch(f"{ASSEMBLER_MOD}.Module") as mock_module_cls,
+            patch(f"{ASSEMBLER_MOD}.CEFRLevel") as mock_cefr_cls,
+            patch(f"{ASSEMBLER_MOD}.get_user_current_cefr_level", return_value="C1"),
+            patch(f"{ASSEMBLER_MOD}._cefr_code_to_order", return_value=6),
+        ):
+            mock_lp.query.filter.return_value.order_by.return_value.first.return_value = mock_last
+            mock_lessons_cls.query.get.return_value = mock_a2_lesson
+            mock_module_cls.query.get.side_effect = [mock_a2_module, mock_a2_module]
+            mock_cefr_cls.query.get.return_value = mock_a2_level  # A2 order=2 < effective 6 → jump path
+
+            mock_cefr_cls.order.__ge__ = MagicMock(return_value=MagicMock())
+            mock_lessons_cls.number.__gt__ = MagicMock(return_value=MagicMock())
+
+            # Level-jump path: one C1 module exists but has no lessons
+            jump_q = MagicMock()
+            mock_module_cls.query.join.return_value = jump_q
+            jump_q.filter.return_value.order_by.return_value.all.return_value = [mock_c1_shell]
+
+            # No user progress in the C1 module
+            mock_lp.query.join.return_value.filter.return_value.order_by.return_value.first.return_value = None
+            # C1 module has no first lesson — empty shell
+            mock_lessons_cls.query.filter_by.return_value.order_by.return_value.first.return_value = None
+
+            # Sequential scan: next lesson exists in the same A2 module
+            mock_lessons_cls.query.filter.return_value.order_by.return_value.first.return_value = mock_next_a2_lesson
+
+            result = _find_next_lesson(user_id=55)
+
+        assert result is not None, "must not return None when target-level modules are empty shells"
+        assert result["lesson_id"] == 101
+        assert result["module_id"] == 10
+
+    def test_progress_skips_empty_same_level_module(self):
+        """User has A1 progress. Next module in same level is empty;
+        the one after it has a lesson. Must skip the empty module."""
+        from app.daily_plan.assembler import _find_next_lesson
+
+        mock_last = MagicMock()
+        mock_last.lesson_id = 5
+        mock_lesson = _mock_lesson(lesson_id=5, module_id=10)
+        mock_lesson.number = 3
+        mock_m1 = _mock_module(module_id=10, number=1)
+        mock_m1.level_id = 1
+        mock_a1_level = MagicMock()
+        mock_a1_level.order = 1
+
+        mock_m2 = _mock_module(module_id=20, number=2)  # empty
+        mock_m3 = _mock_module(module_id=30, number=3)  # has lessons
+        mock_lesson_m3 = _mock_lesson(lesson_id=88, module_id=30, title="M3 Lesson")
+
+        with (
+            patch(f"{ASSEMBLER_MOD}.LessonProgress") as mock_lp,
+            patch(f"{ASSEMBLER_MOD}.Lessons") as mock_lessons_cls,
+            patch(f"{ASSEMBLER_MOD}.Module") as mock_module_cls,
+            patch(f"{ASSEMBLER_MOD}.CEFRLevel") as mock_cefr_cls,
+            patch(f"{ASSEMBLER_MOD}.get_user_current_cefr_level", return_value="A1"),
+            patch(f"{ASSEMBLER_MOD}._cefr_code_to_order", return_value=1),
+        ):
+            mock_lp.query.filter.return_value.order_by.return_value.first.return_value = mock_last
+            mock_lessons_cls.query.get.return_value = mock_lesson
+            # Module.query.get: first for progress module (id=10), second for found lesson module (id=30)
+            mock_module_cls.query.get.side_effect = [mock_m1, mock_m3]
+            mock_cefr_cls.query.get.return_value = mock_a1_level  # A1 order=1, == effective → no jump
+
+            mock_lessons_cls.number.__gt__ = MagicMock(return_value=MagicMock())
+            mock_module_cls.number.__gt__ = MagicMock(return_value=MagicMock())
+
+            # No prior progress in any of the next modules (M2, M3).
+            mock_lp.query.join.return_value.filter.return_value.order_by.return_value.first.return_value = None
+
+            # No next lesson in same module (M1) — via .filter()
+            mock_lessons_cls.query.filter.return_value.order_by.return_value.first.return_value = None
+            # _next_unfinished_lesson_in_module uses filter_by for modules with no prior progress:
+            # M2 empty → None, M3 has lesson → mock_lesson_m3
+            mock_lessons_cls.query.filter_by.return_value.order_by.return_value.first.side_effect = [
+                None,           # first lesson in M2 (empty)
+                mock_lesson_m3, # first lesson in M3
+            ]
+            # Same-level next modules: M2, M3
+            mock_module_cls.query.filter.return_value.order_by.return_value.all.return_value = [mock_m2, mock_m3]
+
+            result = _find_next_lesson(user_id=7)
+
+        assert result is not None
+        assert result["lesson_id"] == 88
+        assert result["module_id"] == 30
+
+    def test_progress_skips_empty_next_level_module(self):
+        """User has completed the last A1 module. First B1 module is empty;
+        second B1 module has a lesson. Must skip the empty module."""
+        from app.daily_plan.assembler import _find_next_lesson
+
+        mock_last = MagicMock()
+        mock_last.lesson_id = 5
+        mock_lesson = _mock_lesson(lesson_id=5, module_id=10)
+        mock_lesson.number = 3
+        mock_a1_module = _mock_module(module_id=10, number=5)
+        mock_a1_module.level_id = 1
+        mock_a1_level = MagicMock()
+        mock_a1_level.order = 1
+
+        mock_b1_level = MagicMock()
+        mock_b1_level.id = 2
+        mock_b1_module1 = _mock_module(module_id=20, number=1)  # empty
+        mock_b1_module2 = _mock_module(module_id=30, number=2)  # has lesson
+        mock_b1_lesson = _mock_lesson(lesson_id=99, module_id=30, title="B1 Lesson")
+
+        with (
+            patch(f"{ASSEMBLER_MOD}.LessonProgress") as mock_lp,
+            patch(f"{ASSEMBLER_MOD}.Lessons") as mock_lessons_cls,
+            patch(f"{ASSEMBLER_MOD}.Module") as mock_module_cls,
+            patch(f"{ASSEMBLER_MOD}.CEFRLevel") as mock_cefr_cls,
+            patch(f"{ASSEMBLER_MOD}.get_user_current_cefr_level", return_value="A1"),
+            patch(f"{ASSEMBLER_MOD}._cefr_code_to_order", return_value=1),
+        ):
+            mock_lp.query.filter.return_value.order_by.return_value.first.return_value = mock_last
+            mock_lessons_cls.query.get.return_value = mock_lesson
+            # Module.query.get: first for progress module (id=10), second for found lesson (id=30)
+            mock_module_cls.query.get.side_effect = [mock_a1_module, mock_b1_module2]
+            mock_cefr_cls.query.get.return_value = mock_a1_level  # A1 order=1, == effective → no jump
+
+            mock_lessons_cls.number.__gt__ = MagicMock(return_value=MagicMock())
+            mock_module_cls.number.__gt__ = MagicMock(return_value=MagicMock())
+            mock_cefr_cls.order.__gt__ = MagicMock(return_value=MagicMock())
+
+            # No prior progress in any of the B1 modules.
+            mock_lp.query.join.return_value.filter.return_value.order_by.return_value.first.return_value = None
+
+            # No next lesson in same module
+            mock_lessons_cls.query.filter.return_value.order_by.return_value.first.return_value = None
+            # No more A1 modules
+            mock_module_cls.query.filter.return_value.order_by.return_value.all.return_value = []
+            # Higher CEFR levels (now uses .all() — only B1 here)
+            mock_cefr_cls.query.filter.return_value.order_by.return_value.all.return_value = [mock_b1_level]
+            # B1 modules: first empty, second has lesson
+            mock_module_cls.query.filter_by.return_value.order_by.return_value.all.return_value = [
+                mock_b1_module1, mock_b1_module2,
+            ]
+            # Lessons in B1 modules via filter_by chain (no-prior-progress path in helper):
+            # first None (empty module), then mock_b1_lesson
+            mock_lessons_cls.query.filter_by.return_value.order_by.return_value.first.side_effect = [
+                None,         # first B1 module is empty
+                mock_b1_lesson,  # second B1 module has a lesson
+            ]
+
+            result = _find_next_lesson(user_id=8)
+
+        assert result is not None
+        assert result["lesson_id"] == 99
+        assert result["module_id"] == 30
+
+    def test_cefr_jump_resumes_from_last_completed_not_first_lesson(self):
+        """User completed C1 lessons 1-3, then completed an A2 lesson (backslidng).
+        Effective level = C1 (highest completed), last_completed module = A2.
+        Must resume from C1 lesson 4, NOT restart at C1 lesson 1."""
+        from app.daily_plan.assembler import _find_next_lesson
+
+        mock_last = MagicMock()
+        mock_last.lesson_id = 10  # an A2 lesson
+        mock_a2_lesson = _mock_lesson(lesson_id=10, module_id=5)
+        mock_a2_lesson.number = 2
+        mock_a2_module = _mock_module(module_id=5, number=1)
+        mock_a2_module.level_id = 2
+        mock_a2_level = MagicMock()
+        mock_a2_level.order = 2
+
+        mock_c1_module = _mock_module(module_id=30, number=1)
+        # Last completed C1 lesson
+        mock_last_c1_progress = MagicMock()
+        mock_last_c1_progress.lesson_id = 73
+        mock_c1_completed = _mock_lesson(lesson_id=73, module_id=30, title="C1 Lesson 3")
+        mock_c1_completed.number = 3
+        # Next C1 lesson to do
+        mock_c1_next = _mock_lesson(lesson_id=74, module_id=30, title="C1 Lesson 4")
+        mock_c1_next.number = 4
+
+        with (
+            patch(f"{ASSEMBLER_MOD}.LessonProgress") as mock_lp,
+            patch(f"{ASSEMBLER_MOD}.Lessons") as mock_lessons_cls,
+            patch(f"{ASSEMBLER_MOD}.Module") as mock_module_cls,
+            patch(f"{ASSEMBLER_MOD}.CEFRLevel") as mock_cefr_cls,
+            patch(f"{ASSEMBLER_MOD}.get_user_current_cefr_level", return_value="C1"),
+            patch(f"{ASSEMBLER_MOD}._cefr_code_to_order", return_value=6),
+        ):
+            # Last completed overall: the A2 lesson
+            mock_lp.query.filter.return_value.order_by.return_value.first.return_value = mock_last
+            # Last completed in the C1 module: lesson 3
+            mock_lp.query.join.return_value.filter.return_value.order_by.return_value.first.return_value = mock_last_c1_progress
+
+            # Lesson/module lookups
+            mock_lessons_cls.query.get.side_effect = [mock_a2_lesson, mock_c1_completed]
+            mock_module_cls.query.get.side_effect = [mock_a2_module, mock_c1_module]
+            mock_cefr_cls.query.get.return_value = mock_a2_level
+            mock_cefr_cls.order.__ge__ = MagicMock(return_value=MagicMock())
+            mock_lessons_cls.number.__gt__ = MagicMock(return_value=MagicMock())
+            mock_lessons_cls.module_id.__eq__ = MagicMock(return_value=MagicMock())
+
+            # Level-jump path: eligible_modules = [mock_c1_module]
+            jump_q = MagicMock()
+            mock_module_cls.query.join.return_value = jump_q
+            jump_q.filter.return_value.order_by.return_value.all.return_value = [mock_c1_module]
+
+            # Next lesson after C1 lesson 3 → C1 lesson 4
+            mock_lessons_cls.query.filter.return_value.order_by.return_value.first.return_value = mock_c1_next
+
+            result = _find_next_lesson(user_id=77)
+
+        assert result is not None
+        assert result["lesson_id"] == 74, "should resume from lesson 4, not restart at lesson 1"
+        assert result["module_id"] == 30
+
+    def test_progress_skips_entirely_empty_intermediate_level(self):
+        """User finishes last A1 module. B1 level exists but has NO modules at all.
+        C1 level has content. Must skip B1 entirely and reach C1."""
+        from app.daily_plan.assembler import _find_next_lesson
+
+        mock_last = MagicMock()
+        mock_last.lesson_id = 5
+        mock_lesson = _mock_lesson(lesson_id=5, module_id=10)
+        mock_lesson.number = 3
+        mock_a1_module = _mock_module(module_id=10, number=5)
+        mock_a1_module.level_id = 1
+        mock_a1_level = MagicMock()
+        mock_a1_level.order = 1
+
+        mock_b1_level = MagicMock()
+        mock_b1_level.id = 2
+        mock_c1_level = MagicMock()
+        mock_c1_level.id = 3
+        mock_c1_module = _mock_module(module_id=40, number=1)
+        mock_c1_lesson = _mock_lesson(lesson_id=77, module_id=40, title="C1 Lesson")
+
+        with (
+            patch(f"{ASSEMBLER_MOD}.LessonProgress") as mock_lp,
+            patch(f"{ASSEMBLER_MOD}.Lessons") as mock_lessons_cls,
+            patch(f"{ASSEMBLER_MOD}.Module") as mock_module_cls,
+            patch(f"{ASSEMBLER_MOD}.CEFRLevel") as mock_cefr_cls,
+            patch(f"{ASSEMBLER_MOD}.get_user_current_cefr_level", return_value="A1"),
+            patch(f"{ASSEMBLER_MOD}._cefr_code_to_order", return_value=1),
+        ):
+            mock_lp.query.filter.return_value.order_by.return_value.first.return_value = mock_last
+            mock_lessons_cls.query.get.return_value = mock_lesson
+            mock_module_cls.query.get.side_effect = [mock_a1_module, mock_c1_module]
+            mock_cefr_cls.query.get.return_value = mock_a1_level  # A1 order=1, == effective → no jump
+
+            mock_lessons_cls.number.__gt__ = MagicMock(return_value=MagicMock())
+            mock_module_cls.number.__gt__ = MagicMock(return_value=MagicMock())
+            mock_cefr_cls.order.__gt__ = MagicMock(return_value=MagicMock())
+
+            # No prior progress in any higher-level modules.
+            mock_lp.query.join.return_value.filter.return_value.order_by.return_value.first.return_value = None
+
+            # No next lesson in same module
+            mock_lessons_cls.query.filter.return_value.order_by.return_value.first.return_value = None
+            # No more A1 modules
+            mock_module_cls.query.filter.return_value.order_by.return_value.all.return_value = []
+            # Higher CEFR levels: B1 (empty) then C1
+            mock_cefr_cls.query.filter.return_value.order_by.return_value.all.return_value = [
+                mock_b1_level, mock_c1_level,
+            ]
+            # Module listing per level: B1 has no modules, C1 has one
+            mock_module_cls.query.filter_by.return_value.order_by.return_value.all.side_effect = [
+                [],               # B1 has no modules at all
+                [mock_c1_module], # C1 has one module
+            ]
+            # Lesson in C1 module via filter_by (no-prior-progress path in helper)
+            mock_lessons_cls.query.filter_by.return_value.order_by.return_value.first.return_value = mock_c1_lesson
+
+            result = _find_next_lesson(user_id=9)
+
+        assert result is not None
+        assert result["lesson_id"] == 77
+        assert result["module_id"] == 40
+
+    def test_same_level_backfill_resumes_from_prior_progress(self):
+        """User completed the last lesson of M1. M2 (same A1 level) was unlocked early
+        via the 80% rule and the user already finished lessons 1-2 there.
+        After backfilling M1, daily plan must resume at M2 lesson 3, not restart M2."""
+        from app.daily_plan.assembler import _find_next_lesson
+
+        mock_last = MagicMock()
+        mock_last.lesson_id = 5
+        mock_lesson_m1 = _mock_lesson(lesson_id=5, module_id=10)
+        mock_lesson_m1.number = 3
+        mock_m1 = _mock_module(module_id=10, number=1)
+        mock_m1.level_id = 1
+        mock_a1_level = MagicMock()
+        mock_a1_level.order = 1
+
+        mock_m2 = _mock_module(module_id=20, number=2)
+
+        # Last completed lesson in M2 (user was there before backfilling M1)
+        mock_lp_m2 = MagicMock()
+        mock_lp_m2.lesson_id = 50
+        mock_m2_completed = _mock_lesson(lesson_id=50, module_id=20)
+        mock_m2_completed.number = 2
+
+        # Next lesson in M2: lesson 3
+        mock_m2_next = _mock_lesson(lesson_id=51, module_id=20, title="M2 Lesson 3")
+        mock_m2_next.number = 3
+
+        with (
+            patch(f"{ASSEMBLER_MOD}.LessonProgress") as mock_lp,
+            patch(f"{ASSEMBLER_MOD}.Lessons") as mock_lessons_cls,
+            patch(f"{ASSEMBLER_MOD}.Module") as mock_module_cls,
+            patch(f"{ASSEMBLER_MOD}.CEFRLevel") as mock_cefr_cls,
+            patch(f"{ASSEMBLER_MOD}.get_user_current_cefr_level", return_value="A1"),
+            patch(f"{ASSEMBLER_MOD}._cefr_code_to_order", return_value=1),
+        ):
+            # Last overall completed: M1 lesson
+            mock_lp.query.filter.return_value.order_by.return_value.first.return_value = mock_last
+            # Last completed in M2 via join path (called by _next_unfinished_lesson_in_module)
+            mock_lp.query.join.return_value.filter.return_value.order_by.return_value.first.return_value = mock_lp_m2
+
+            mock_lessons_cls.query.get.side_effect = [mock_lesson_m1, mock_m2_completed]
+            # Module.query.get: M1 (progress lookup), then M2 (for the returned lesson's module)
+            mock_module_cls.query.get.side_effect = [mock_m1, mock_m2]
+            mock_cefr_cls.query.get.return_value = mock_a1_level  # A1 order=1 == effective → no jump
+
+            mock_lessons_cls.number.__gt__ = MagicMock(return_value=MagicMock())
+            mock_module_cls.number.__gt__ = MagicMock(return_value=MagicMock())
+
+            # No next lesson in M1 (same module), then next after M2 lesson 2 → mock_m2_next
+            mock_lessons_cls.query.filter.return_value.order_by.return_value.first.side_effect = [
+                None,        # no next lesson in M1
+                mock_m2_next,  # lesson after completed M2 lesson 2
+            ]
+            # Same-level next modules: M2 only
+            mock_module_cls.query.filter.return_value.order_by.return_value.all.return_value = [mock_m2]
+
+            result = _find_next_lesson(user_id=9)
+
+        assert result is not None
+        assert result["lesson_id"] == 51, "should resume from M2 lesson 3, not restart at M2 lesson 1"
+        assert result["module_id"] == 20
 
 
 # ---------------------------------------------------------------------------

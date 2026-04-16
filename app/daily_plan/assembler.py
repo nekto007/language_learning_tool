@@ -71,6 +71,34 @@ def _count_grammar_due(user_id: int) -> int:
     ) or 0
 
 
+def _next_unfinished_lesson_in_module(user_id: int, module_id: int) -> Optional[Any]:
+    """Return the next unfinished lesson in a module for a user.
+
+    Checks for prior completed progress and resumes after the last completed lesson.
+    Returns None if the module is empty or all lessons are already completed.
+    """
+    last_in_mod = (
+        LessonProgress.query
+        .join(Lessons, LessonProgress.lesson_id == Lessons.id)
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+            Lessons.module_id == module_id,
+        )
+        .order_by(Lessons.number.desc())
+        .first()
+    )
+    if last_in_mod:
+        completed_l = Lessons.query.get(last_in_mod.lesson_id)
+        if completed_l:
+            return Lessons.query.filter(
+                Lessons.module_id == module_id,
+                Lessons.number > completed_l.number,
+            ).order_by(Lessons.number).first()
+        return None  # broken FK — skip module
+    return Lessons.query.filter_by(module_id=module_id).order_by(Lessons.number).first()
+
+
 def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
     last_completed = LessonProgress.query.filter(
         LessonProgress.user_id == user_id,
@@ -82,35 +110,98 @@ def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
         if lesson:
             module = Module.query.get(lesson.module_id)
             if module:
+                # Determine the user's effective CEFR level (max of progress and onboarding).
+                # If onboarding level exceeds the current module's level, jump ahead instead
+                # of continuing sequentially — handles "A2 progress + C1 onboarding" case.
+                current_level = CEFRLevel.query.get(module.level_id)
+                effective_level_code = get_user_current_cefr_level(user_id, db)
+                effective_level_order = _cefr_code_to_order(effective_level_code, db)
+                if current_level and effective_level_order > current_level.order:
+                    eligible_modules = Module.query.join(CEFRLevel).filter(
+                        CEFRLevel.order >= effective_level_order,
+                    ).order_by(CEFRLevel.order.asc(), Module.number.asc()).all()
+                    if eligible_modules:
+                        for m in eligible_modules:
+                            # Check if user has already completed some lessons in this module.
+                            # If so, resume from the next unfinished lesson rather than restarting.
+                            last_in_module = (
+                                LessonProgress.query
+                                .join(Lessons, LessonProgress.lesson_id == Lessons.id)
+                                .filter(
+                                    LessonProgress.user_id == user_id,
+                                    LessonProgress.status == 'completed',
+                                    Lessons.module_id == m.id,
+                                )
+                                .order_by(Lessons.number.desc())
+                                .first()
+                            )
+                            if last_in_module:
+                                completed_l = Lessons.query.get(last_in_module.lesson_id)
+                                if completed_l:
+                                    next_in_mod = Lessons.query.filter(
+                                        Lessons.module_id == m.id,
+                                        Lessons.number > completed_l.number,
+                                    ).order_by(Lessons.number).first()
+                                    if next_in_mod:
+                                        jm = Module.query.get(next_in_mod.module_id)
+                                        return {
+                                            'title': next_in_mod.title,
+                                            'lesson_id': next_in_mod.id,
+                                            'module_id': next_in_mod.module_id,
+                                            'module_number': jm.number if jm else None,
+                                            'lesson_type': next_in_mod.type,
+                                        }
+                                # All lessons in this module already done — try next module.
+                                continue
+                            first_lesson = Lessons.query.filter_by(
+                                module_id=m.id,
+                            ).order_by(Lessons.number).first()
+                            if first_lesson:
+                                jm = Module.query.get(first_lesson.module_id)
+                                return {
+                                    'title': first_lesson.title,
+                                    'lesson_id': first_lesson.id,
+                                    'module_id': first_lesson.module_id,
+                                    'module_number': jm.number if jm else None,
+                                    'lesson_type': first_lesson.type,
+                                }
+                    # No lesson found in target-level modules (absent or all empty shells)
+                    # — fall through to sequential scan.
+
                 next_l = Lessons.query.filter(
                     Lessons.module_id == module.id,
                     Lessons.number > lesson.number,
                 ).order_by(Lessons.number).first()
 
                 if not next_l:
-                    next_module = Module.query.filter(
+                    # Iterate through all next modules in same CEFR level.
+                    # Resume from the next unfinished lesson if the user already has
+                    # progress in a later module (e.g. unlocked early via 80% rule).
+                    next_modules = Module.query.filter(
                         Module.level_id == module.level_id,
-                        Module.number == module.number + 1,
-                    ).first()
-                    if next_module:
-                        next_l = Lessons.query.filter(
-                            Lessons.module_id == next_module.id,
-                        ).order_by(Lessons.number).first()
+                        Module.number > module.number,
+                    ).order_by(Module.number).all()
+                    for nm in next_modules:
+                        next_l = _next_unfinished_lesson_in_module(user_id, nm.id)
+                        if next_l:
+                            break
 
-                if not next_l:
-                    current_level = CEFRLevel.query.get(module.level_id)
-                    if current_level:
-                        next_level = CEFRLevel.query.filter(
-                            CEFRLevel.order > current_level.order,
-                        ).order_by(CEFRLevel.order).first()
-                        if next_level:
-                            next_lvl_module = Module.query.filter_by(
-                                level_id=next_level.id,
-                            ).order_by(Module.number).first()
-                            if next_lvl_module:
-                                next_l = Lessons.query.filter_by(
-                                    module_id=next_lvl_module.id,
-                                ).order_by(Lessons.number).first()
+                if not next_l and current_level:
+                    # Iterate through all higher CEFR levels in order.
+                    # Resume from next unfinished lesson to handle cross-level early unlocks.
+                    higher_levels = CEFRLevel.query.filter(
+                        CEFRLevel.order > current_level.order,
+                    ).order_by(CEFRLevel.order).all()
+                    for next_level in higher_levels:
+                        next_level_modules = Module.query.filter_by(
+                            level_id=next_level.id,
+                        ).order_by(Module.number).all()
+                        for nlm in next_level_modules:
+                            next_l = _next_unfinished_lesson_in_module(user_id, nlm.id)
+                            if next_l:
+                                break
+                        if next_l:
+                            break
 
                 if next_l:
                     nl_module = Module.query.get(next_l.module_id)
@@ -132,9 +223,9 @@ def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
     cold_query = Module.query.join(CEFRLevel)
     if user_level_order >= 0:
         cold_query = cold_query.filter(CEFRLevel.order >= user_level_order)
-    first_module = cold_query.order_by(CEFRLevel.order.asc(), Module.number.asc()).first()
+    eligible_modules = cold_query.order_by(CEFRLevel.order.asc(), Module.number.asc()).all()
 
-    if first_module:
+    for first_module in eligible_modules:
         first_lesson = Lessons.query.filter_by(
             module_id=first_module.id,
         ).order_by(Lessons.number).first()
