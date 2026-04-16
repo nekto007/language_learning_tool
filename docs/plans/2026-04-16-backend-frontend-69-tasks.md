@@ -697,9 +697,9 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Create: `tests/admin/test_batch_operations.py`
 
-- [ ] test: batch import with 1 valid + 1 invalid record returns `{'success': 1, 'errors': [...]}`
-- [ ] test: batch with all valid records returns `{'success': N, 'errors': []}`
-- [ ] run pytest -m smoke
+- [x] test: batch import with 1 valid + 1 invalid record returns `{'success': 1, 'errors': [...]}`
+- [x] test: batch with all valid records returns `{'success': N, 'errors': []}`
+- [x] run pytest -m smoke
 
 ### Task 64: Fix notification dropdown to consistently use textContent not innerHTML
 
