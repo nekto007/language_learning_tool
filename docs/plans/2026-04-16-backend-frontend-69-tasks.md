@@ -233,10 +233,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Create: `app/health.py`
 - Modify: `app/__init__.py`
 
-- [ ] create blueprint with GET /health that checks db.session.execute('SELECT 1') and returns `{'status': 'ok', 'db': 'ok'}` or 503
-- [ ] register blueprint in app factory
-- [ ] write test: GET /health returns 200 with expected JSON
-- [ ] run pytest -m smoke
+- [x] create blueprint with GET /health that checks db.session.execute('SELECT 1') and returns `{'status': 'ok', 'db': 'ok'}` or 503
+- [x] register blueprint in app factory
+- [x] write test: GET /health returns 200 with expected JSON
+- [x] run pytest -m smoke
 
 ### Task 20: Add response compression middleware
 

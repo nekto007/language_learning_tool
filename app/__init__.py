@@ -223,20 +223,10 @@ def create_app(config_class=Config):
         from flask_wtf.csrf import generate_csrf
         return _jsonify({'csrf_token': generate_csrf()})
 
-    # Health check endpoint (no auth, no CSRF)
-    @app.route('/health', methods=['GET'])
-    def health_check():
-        import logging
-        from flask import jsonify
-        logger = logging.getLogger(__name__)
-        try:
-            db.session.execute(db.text('SELECT 1'))
-            return jsonify({'status': 'healthy', 'database': 'connected'}), 200
-        except Exception as e:
-            logger.error('Health check failed: %s', e)
-            return jsonify({'status': 'unhealthy', 'db': 'error'}), 503
-
-    csrf.exempt(app.view_functions['health_check'])
+    # Health check blueprint (no auth, no CSRF)
+    from app.health import health_bp
+    app.register_blueprint(health_bp)
+    csrf.exempt(app.view_functions['health_check.health'])
 
     # Add CSRF error handler for AJAX requests
     from flask_wtf.csrf import CSRFError

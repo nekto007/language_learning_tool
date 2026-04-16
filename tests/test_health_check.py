@@ -12,20 +12,20 @@ class TestHealthCheck:
         response = client.get('/health')
         assert response.status_code == 200
         data = response.get_json()
-        assert data['status'] == 'healthy'
-        assert data['database'] == 'connected'
+        assert data['status'] == 'ok'
+        assert data['db'] == 'ok'
 
     def test_health_returns_503_when_db_disconnected(self, app):
-        with app.test_client() as client:
+        with app.test_client() as test_client:
             with patch.object(
                 app.extensions['sqlalchemy'].session,
                 'execute',
                 side_effect=OperationalError('', '', Exception('connection refused')),
             ):
-                response = client.get('/health')
+                response = test_client.get('/health')
                 assert response.status_code == 503
                 data = response.get_json()
-                assert data['status'] == 'unhealthy'
+                assert data['status'] == 'error'
                 assert data['db'] == 'error'
                 # Must NOT leak exception details
                 assert 'connection refused' not in str(data)
