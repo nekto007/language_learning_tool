@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
 
-def _cefr_code_to_order(level_code: Optional[str], db) -> int:
+def _cefr_code_to_order(level_code: Optional[str], db: Any) -> int:
     """Return CEFRLevel.order for the given code, or -1 if not found."""
     from app.curriculum.models import CEFRLevel
 
@@ -21,7 +21,7 @@ def _cefr_code_to_order(level_code: Optional[str], db) -> int:
     return row[0]
 
 
-def get_user_current_cefr_level(user_id: int, db) -> str:
+def get_user_current_cefr_level(user_id: int, db: Any) -> str:
     """
     Derive the effective CEFR level for a user.
 

@@ -659,9 +659,9 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `app/daily_plan/level_utils.py`
 - Modify: `app/daily_plan/mission_types.py` (if exists)
 
-- [ ] read each file; annotate all public function signatures
-- [ ] verify `python -c "import app.daily_plan.service"` succeeds
-- [ ] run pytest -m smoke
+- [x] read each file; annotate all public function signatures
+- [x] verify `python -c "import app.daily_plan.service"` succeeds
+- [x] run pytest -m smoke
 
 ### Task 60: Add frontend form validation for study session settings
 
