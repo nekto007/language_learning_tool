@@ -129,6 +129,54 @@ class TestFindNextLessonColdStart:
             assert result is None
 
 
+class TestFindNextLessonWithProgress:
+    """Tests for _find_next_lesson() when user has prior lesson progress."""
+
+    def test_returns_none_when_all_lessons_completed(self):
+        """User has completed lessons but no next lesson exists (all curriculum done).
+        Must return None — NOT fall through to cold start."""
+        from app.daily_plan.assembler import _find_next_lesson
+
+        mock_last = MagicMock()
+        mock_last.lesson_id = 99
+        mock_lesson = _mock_lesson(lesson_id=99, module_id=10)
+        mock_lesson.number = 1
+        mock_module = _mock_module(module_id=10, number=5)
+        mock_module.level_id = 3
+
+        with (
+            patch(f"{ASSEMBLER_MOD}.LessonProgress") as mock_lp,
+            patch(f"{ASSEMBLER_MOD}.Lessons") as mock_lessons_cls,
+            patch(f"{ASSEMBLER_MOD}.Module") as mock_module_cls,
+            patch(f"{ASSEMBLER_MOD}.CEFRLevel") as mock_cefr_cls,
+            patch(f"{ASSEMBLER_MOD}.get_user_current_cefr_level") as mock_gcl,
+        ):
+            mock_lp.query.filter.return_value.order_by.return_value.first.return_value = mock_last
+            mock_lessons_cls.query.get.return_value = mock_lesson
+            mock_module_cls.query.get.return_value = mock_module
+
+            # Column comparisons (Lessons.number > x, CEFRLevel.order > x) are evaluated
+            # before .filter() is called; configure __gt__ on mock columns to avoid TypeError.
+            mock_lessons_cls.number.__gt__ = MagicMock(return_value=MagicMock())
+            mock_cefr_cls.order.__gt__ = MagicMock(return_value=MagicMock())
+
+            # No next lesson in same module
+            mock_lessons_cls.query.filter.return_value.order_by.return_value.first.return_value = None
+            # No next module in same level
+            mock_module_cls.query.filter.return_value.first.return_value = None
+            # No next CEFR level
+            mock_current_level = MagicMock()
+            mock_current_level.order = 6
+            mock_cefr_cls.query.get.return_value = mock_current_level
+            mock_cefr_cls.query.filter.return_value.order_by.return_value.first.return_value = None
+
+            result = _find_next_lesson(user_id=42)
+
+            assert result is None
+            # Cold start must NOT be entered — get_user_current_cefr_level should not be called
+            mock_gcl.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # _find_next_book_course_lesson — empty lessons warning
 # ---------------------------------------------------------------------------

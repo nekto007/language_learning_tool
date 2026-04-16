@@ -15,7 +15,7 @@ def _cefr_code_to_order(level_code: str, db) -> int:
         return -1
     row = db.session.query(CEFRLevel.order).filter(CEFRLevel.code == level_code).first()
     if row is None:
-        logger.warning("CEFRLevel not found for code=%s", level_code)
+        logger.debug("CEFRLevel not found for code=%s, returning -1 (expected fallback)", level_code)
         return -1
     return row[0]
 

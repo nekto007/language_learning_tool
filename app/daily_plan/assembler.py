@@ -121,6 +121,9 @@ def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
                         'module_number': nl_module.number if nl_module else None,
                         'lesson_type': next_l.type,
                     }
+        # User has progress but no next lesson found (all lessons done or broken FK).
+        # Do not fall through to cold start — signal to caller that there is nothing to advance.
+        return None
 
     # Cold start: pick first module at or above the user's effective CEFR level.
     level_code = get_user_current_cefr_level(user_id, db)
@@ -374,7 +377,7 @@ def assemble_repair_mission(
     grammar_due = _count_grammar_due(user_id)
 
     if srs_due == 0 and grammar_due == 0:
-        logger.info(
+        logger.warning(
             "assemble_repair_mission: no SRS or grammar due for user_id=%s, degrading to progress mission",
             user_id,
         )
