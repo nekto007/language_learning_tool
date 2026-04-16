@@ -542,7 +542,7 @@ class TestDuplicateEmailRegistration:
 
     @pytest.mark.smoke
     def test_duplicate_email_db_constraint_returns_400(self, client, db_session):
-        """When DB-level IntegrityError fires for email, route returns 400 with 'email_taken'."""
+        """When DB-level IntegrityError fires for email, route returns 400 with duplicate email message."""
         unique = uuid.uuid4().hex[:8]
         err = self._make_integrity_error(f"UNIQUE constraint failed: users.email")
         with patch('app.auth.routes.db.session.commit', side_effect=err):
@@ -553,7 +553,7 @@ class TestDuplicateEmailRegistration:
                 'password2': 'Xk9$mP2vL!qw',
             }, follow_redirects=True)
         assert r.status_code == 400
-        assert 'email_taken' in r.data.decode()
+        assert 'уже зарегистрирован' in r.data.decode()
 
     def test_duplicate_email_db_session_clean_after_error(self, client, db_session):
         """DB session must be clean (rollback called) after duplicate email IntegrityError."""
@@ -578,7 +578,7 @@ class TestDuplicateEmailRegistration:
         assert rollback_called, "db.session.rollback() must be called on duplicate email error"
 
     def test_non_email_integrity_error_shows_generic_message(self, client, db_session):
-        """IntegrityError unrelated to email shows generic error, not email_taken."""
+        """IntegrityError unrelated to email shows generic error, not duplicate email message."""
         unique = uuid.uuid4().hex[:8]
         err = self._make_integrity_error("UNIQUE constraint failed: users.username")
         with patch('app.auth.routes.db.session.commit', side_effect=err):
@@ -589,4 +589,4 @@ class TestDuplicateEmailRegistration:
                 'password2': 'Xk9$mP2vL!qw',
             }, follow_redirects=True)
         assert r.status_code == 200
-        assert 'email_taken' not in r.data.decode()
+        assert 'уже зарегистрирован' not in r.data.decode()

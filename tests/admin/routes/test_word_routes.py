@@ -151,11 +151,15 @@ class TestImportTranslations:
 class TestWordStatistics:
     """Tests for word_statistics() route"""
 
-    @patch('app.admin.routes.word_routes.CollectionWords')
-    def test_word_statistics_success(self, mock_words, admin_client, mock_admin_user):
+    @patch('app.admin.routes.word_routes.WordManagementService.get_detailed_statistics')
+    def test_word_statistics_success(self, mock_stats, admin_client, mock_admin_user):
         """Test successful word statistics page"""
-        mock_words.query.count.return_value = 1000
-        mock_words.query.filter_by.return_value.count.return_value = 900
+        mock_stats.return_value = {
+            'status_stats': [],
+            'level_stats': [],
+            'top_users': [],
+            'book_stats': [],
+        }
 
         response = admin_client.get('/admin/words/statistics')
 

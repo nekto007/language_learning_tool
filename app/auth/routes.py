@@ -408,7 +408,7 @@ def register():
             if 'email' in err_str:
                 logger.warning("Duplicate email registration attempt: %s", form.email.data)
                 learner_count = User.query.filter_by(active=True).count()
-                flash('email_taken', 'danger')
+                flash('Этот email уже зарегистрирован. Попробуйте войти.', 'danger')
                 return render_template('auth/register.html', form=form,
                                        learner_count=learner_count,
                                        level_param=level_param,

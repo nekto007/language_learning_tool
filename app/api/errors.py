@@ -13,4 +13,4 @@ def api_error(code: str, message: str, status: int) -> tuple:
     Returns:
         Tuple of (Response, status_code) ready for Flask to return.
     """
-    return jsonify({'error': code, 'message': message, 'status': status}), status
+    return jsonify({'success': False, 'error': code, 'message': message, 'status': status}), status
