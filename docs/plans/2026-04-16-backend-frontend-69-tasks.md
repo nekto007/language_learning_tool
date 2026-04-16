@@ -688,9 +688,9 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: `tests/test_health.py` or `tests/api/test_compression.py`
 
-- [ ] test: GET /health with Accept-Encoding: gzip returns compressed response
-- [ ] test: large GET /api/... response has Content-Encoding: gzip header
-- [ ] run pytest -m smoke
+- [x] test: GET /health with Accept-Encoding: gzip returns compressed response
+- [x] test: large GET /api/... response has Content-Encoding: gzip header
+- [x] run pytest -m smoke
 
 ### Task 63: Add test for batch admin operations partial success
 
