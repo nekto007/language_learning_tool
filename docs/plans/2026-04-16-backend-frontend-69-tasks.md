@@ -320,10 +320,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Create: `tests/curriculum/test_service.py`
 
-- [ ] write tests for module access check logic
-- [ ] write tests for lesson ordering and availability
-- [ ] write tests for CEFR level calculation
-- [ ] run pytest -m smoke
+- [x] write tests for module access check logic
+- [x] write tests for lesson ordering and availability
+- [x] write tests for CEFR level calculation
+- [x] run pytest -m smoke
 
 ### Task 28: Add unit tests for achievement streak service
 
