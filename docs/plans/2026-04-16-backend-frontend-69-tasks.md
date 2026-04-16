@@ -288,10 +288,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Create: `app/utils/validators.py`
 - Modify: routes accepting `status` or `state` string params
 
-- [ ] define `validate_enum(value: str, enum_cls: Type[Enum]) -> bool` in validators.py
-- [ ] apply to endpoints accepting lesson status, SRS state, etc.
-- [ ] write tests: invalid enum value returns 400; valid value passes
-- [ ] run pytest -m smoke
+- [x] define `validate_enum(value: str, enum_cls: Type[Enum]) -> bool` in validators.py
+- [x] apply to endpoints accepting lesson status, SRS state, etc.
+- [x] write tests: invalid enum value returns 400; valid value passes
+- [x] run pytest -m smoke
 
 ### Task 25: Add slow query logging for queries > 100ms
 

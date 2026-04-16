@@ -6,6 +6,7 @@ from sqlalchemy import func, or_
 
 from app.api.decorators import api_auth_required
 from app.utils.db import db
+from app.utils.validators import WordStatus, validate_enum
 from app.words.models import CollectionWords
 
 logger = logging.getLogger(__name__)
@@ -404,6 +405,12 @@ def update_single_word_status(word_id):
 
     word = CollectionWords.query.get_or_404(word_id)
 
+    if not validate_enum(status, WordStatus):
+        return jsonify({
+            'success': False,
+            'error': f'Invalid status: {status}'
+        }), 400
+
     try:
         # Преобразуем строковый статус в числовой
         status_mapping = {
@@ -412,12 +419,6 @@ def update_single_word_status(word_id):
             'review': 2,
             'mastered': 3
         }
-
-        if status not in status_mapping:
-            return jsonify({
-                'success': False,
-                'error': f'Invalid status: {status}'
-            }), 400
 
         numeric_status = status_mapping[status]
 
