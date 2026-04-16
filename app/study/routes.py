@@ -9,12 +9,31 @@ from sqlalchemy import func, or_, and_, case
 from app.study.blueprint import study, is_auto_deck
 from app.study.deck_utils import get_daily_plan_mix_word_ids
 from app.study.forms import StudySettingsForm
-from app.study.models import QuizDeck, StudySettings, UserCardDirection, UserWord
+from app.study.models import QuizDeck, QuizDeckWord, StudySettings, UserCardDirection, UserWord
 from app.utils.db import db
 from app.modules.decorators import module_required
 from app.study.services import DeckService, SRSService, SessionService, StatsService
 
 logger = logging.getLogger(__name__)
+
+
+def _preload_deck_word_counts(decks: list) -> None:
+    """Batch-load word counts for a list of QuizDeck objects.
+
+    Sets ``deck._word_count`` on each instance so the ``word_count`` property
+    returns it without issuing per-deck COUNT queries (avoids N+1).
+    """
+    if not decks:
+        return
+    deck_ids = [d.id for d in decks]
+    rows = db.session.query(
+        QuizDeckWord.deck_id, func.count(QuizDeckWord.id)
+    ).filter(
+        QuizDeckWord.deck_id.in_(deck_ids)
+    ).group_by(QuizDeckWord.deck_id).all()
+    counts = {deck_id: cnt for deck_id, cnt in rows}
+    for deck in decks:
+        deck._word_count = counts.get(deck.id, 0)
 
 
 @study.route('/')
@@ -166,6 +185,11 @@ def index():
         QuizDeck.is_public.is_(True),
         QuizDeck.user_id != current_user.id
     ).order_by(QuizDeck.times_played.desc(), QuizDeck.created_at.desc()).limit(12).all()
+
+    # Batch-preload word counts for all decks to avoid N+1 queries in template.
+    # Template accesses deck.word_count for each deck; without this, each call
+    # triggers a separate COUNT query via the dynamic 'words' relationship.
+    _preload_deck_word_counts(my_decks + public_decks)
 
     from app.telegram.models import TelegramUser
     telegram_linked = TelegramUser.query.filter_by(

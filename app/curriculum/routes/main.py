@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.security import require_lesson_access
@@ -178,8 +179,8 @@ def learn_by_module(level_code, module_number):
         flash('Уровень не найден', 'error')
         return redirect(url_for('learn.learn_index'))
 
-    # Находим модуль
-    module = Module.query.join(CEFRLevel).filter(
+    # Находим модуль — eager-load lessons to avoid lazy N+1 on module.lessons
+    module = Module.query.options(joinedload(Module.lessons)).join(CEFRLevel).filter(
         CEFRLevel.code == level_code_upper,
         Module.number == module_number
     ).first()

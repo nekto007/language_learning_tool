@@ -746,7 +746,13 @@ class QuizDeck(db.Model):
 
     @property
     def word_count(self):
-        """Get total number of words in deck"""
+        """Get total number of words in deck.
+
+        Returns the cached value set by batch-preloading in routes (via _word_count)
+        to avoid N+1 queries when iterating over multiple decks.
+        """
+        if '_word_count' in self.__dict__:
+            return self.__dict__['_word_count']
         return self.words.count()
 
     def sync_from_parent(self):
