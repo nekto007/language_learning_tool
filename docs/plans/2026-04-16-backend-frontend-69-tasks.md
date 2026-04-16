@@ -384,9 +384,9 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 **Files:**
 - Modify: new test files from tasks 26-31
 
-- [ ] add `@pytest.mark.smoke` to one happy-path test per new file
-- [ ] verify `pytest -m smoke` runs new tests
-- [ ] run pytest -m smoke
+- [x] add `@pytest.mark.smoke` to one happy-path test per new file
+- [x] verify `pytest -m smoke` runs new tests
+- [x] run pytest -m smoke
 
 ### Task 34: Add admin audit log for destructive admin actions
 
