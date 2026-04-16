@@ -6,6 +6,7 @@
 """
 import logging
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 from app.auth.models import User
 from app.books.models import Book
@@ -315,6 +316,10 @@ class WordManagementService:
             logger.info(f"Translations imported: {updated_count} updated, {added_count} added")
             return updated_count, added_count
 
+        except IntegrityError as e:
+            logger.warning("Duplicate english_word on translation import: %s", e)
+            db.session.rollback()
+            raise ValueError('duplicate_entry') from e
         except Exception as e:
             logger.error(f"Error importing translations: {str(e)}")
             db.session.rollback()
@@ -469,6 +474,10 @@ class WordManagementService:
             )
             return added_count, updated_count
 
+        except IntegrityError as e:
+            logger.warning("Duplicate english_word on phrasal verb import: %s", e)
+            db.session.rollback()
+            raise ValueError('duplicate_entry') from e
         except Exception as e:
             logger.error(f"Error importing phrasal verbs: {str(e)}")
             db.session.rollback()

@@ -266,10 +266,10 @@ Comprehensive improvement plan covering security hardening, test coverage expans
 - Modify: `app/words/routes.py`
 - Modify: `app/grammar_lab/routes.py` (topic insert)
 
-- [ ] locate db.session.add() calls that could hit unique constraint
-- [ ] wrap in `except IntegrityError` and return `{'error': 'duplicate_entry', 'field': 'word'}` with 409
-- [ ] write test: inserting duplicate word returns 409 with error key
-- [ ] run pytest -m smoke
+- [x] locate db.session.add() calls that could hit unique constraint
+- [x] wrap in `except IntegrityError` and return `{'error': 'duplicate_entry', 'field': 'word'}` with 409
+- [x] write test: inserting duplicate word returns 409 with error key
+- [x] run pytest -m smoke
 
 ### Task 23: Add per-record error reporting to batch admin operations
 

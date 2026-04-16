@@ -454,3 +454,58 @@ class TestImportTranslations:
 
         mock_db.session.rollback.assert_called_once()
         mock_logger.error.assert_called_once()
+
+    @patch('app.admin.services.word_management_service.logger')
+    @patch('app.admin.services.word_management_service.db')
+    @patch('app.admin.services.word_management_service.CollectionWords')
+    def test_import_duplicate_word_raises_value_error_duplicate_entry(self, mock_words, mock_db, mock_logger):
+        """IntegrityError on duplicate english_word is re-raised as ValueError('duplicate_entry')."""
+        from sqlalchemy.exc import IntegrityError as SAIntegrityError
+
+        mock_words.query.filter_by.return_value.first.return_value = None
+        mock_db.session.add.return_value = None
+        mock_db.session.commit.side_effect = SAIntegrityError(
+            statement='INSERT', params={}, orig=Exception('unique constraint')
+        )
+        mock_db.session.rollback.return_value = None
+
+        missing_words = [{'english_word': 'duplicate', 'russian_translate': 'дубликат',
+                          'english_sentence': 'Duplicate.', 'russian_sentence': 'Дубликат.',
+                          'level': 'A1', 'line_num': 1}]
+
+        with pytest.raises(ValueError) as exc_info:
+            WordManagementService.import_translations(
+                existing_words=[],
+                missing_words=missing_words,
+                words_to_add=['1']
+            )
+
+        assert str(exc_info.value) == 'duplicate_entry'
+        mock_db.session.rollback.assert_called_once()
+        mock_logger.warning.assert_called_once()
+
+    @patch('app.admin.services.word_management_service.logger')
+    @patch('app.admin.services.word_management_service.db')
+    @patch('app.admin.services.word_management_service.CollectionWords')
+    def test_import_phrasal_verb_duplicate_raises_value_error(self, mock_words, mock_db, mock_logger):
+        """IntegrityError on duplicate phrasal verb is re-raised as ValueError('duplicate_entry')."""
+        from sqlalchemy.exc import IntegrityError as SAIntegrityError
+
+        mock_db.session.add.return_value = None
+        mock_db.session.commit.side_effect = SAIntegrityError(
+            statement='INSERT', params={}, orig=Exception('unique constraint')
+        )
+        mock_db.session.rollback.return_value = None
+
+        new_verbs = [{'phrasal_verb': 'get up', 'russian_translate': 'вставать',
+                      'sentence': 'I get up early.', 'using': 'intransitive'}]
+
+        with pytest.raises(ValueError) as exc_info:
+            WordManagementService.import_phrasal_verbs(
+                new_verbs=new_verbs,
+                existing_verbs=[]
+            )
+
+        assert str(exc_info.value) == 'duplicate_entry'
+        mock_db.session.rollback.assert_called_once()
+        mock_logger.warning.assert_called_once()
