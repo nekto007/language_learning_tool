@@ -229,11 +229,15 @@ def reset_password(token):
 
     form = ResetPasswordForm()
     if form.validate_on_submit():
-        # Mark token as used before changing password (salt change would break the hash lookup)
+        # Atomically mark token as used to prevent race conditions.
+        # The conditional UPDATE ensures only one concurrent request can consume the token.
         token_hash = _hash_token(token)
-        token_record = PasswordResetToken.query.filter_by(token_hash=token_hash).first()
-        if token_record:
-            token_record.used_at = datetime.now(timezone.utc)
+        rows_updated = PasswordResetToken.query.filter_by(
+            token_hash=token_hash, used_at=None
+        ).update({'used_at': datetime.now(timezone.utc)})
+        if rows_updated == 0:
+            flash('Недействительная или истекшая ссылка для сброса пароля', 'warning')
+            return redirect(url_for('auth.reset_request'))
 
         # Generate a new salt
         user.salt = secrets.token_hex(16)

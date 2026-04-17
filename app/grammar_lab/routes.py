@@ -127,14 +127,10 @@ def practice(topic_id=None):
     topic = None
 
     # return_url: after practice completion, redirect here (e.g., back to book course lesson)
-    # Validate return_url to prevent open redirect attacks
+    # Validate return_url to prevent open redirect attacks (including backslash tricks)
+    from app.auth.routes import get_safe_redirect_url
     raw_return_url = request.args.get('return_url', '')
-    return_url = ''
-    if raw_return_url:
-        from urllib.parse import urlparse
-        parsed = urlparse(raw_return_url)
-        if not parsed.scheme and not parsed.netloc and raw_return_url.startswith('/'):
-            return_url = raw_return_url
+    return_url = get_safe_redirect_url(raw_return_url, fallback='grammar_lab.topics') if raw_return_url else ''
 
     if topic_id:
         # Topic-specific practice

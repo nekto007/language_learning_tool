@@ -106,6 +106,7 @@ def create_app(config_class=Config):
     from app.telegram import models as telegram_models  # noqa: F401
     from app.achievements import models as achievements_models  # noqa: F401
     from app.notifications import models as notifications_models  # noqa: F401
+    from app.admin import audit as admin_audit  # noqa: F401
 
     # In production, schema is managed by Alembic (`flask db upgrade head`).
     # In testing, create tables directly so tests don't need migrations.

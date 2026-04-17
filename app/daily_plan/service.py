@@ -127,6 +127,7 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
             return None
 
         # Persist selected mission type for rotation logic.
+        from app.utils.db import db
         try:
             from datetime import datetime
             import pytz
@@ -137,9 +138,9 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
                 tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
             user_today = datetime.now(tz_obj).date()
             save_mission_type(user_id, mission_type, user_today)
-            from app.utils.db import db
             db.session.commit()
         except Exception:
+            db.session.rollback()
             logger.warning(
                 "Failed to persist mission type for user %s", user_id,
                 exc_info=True,
