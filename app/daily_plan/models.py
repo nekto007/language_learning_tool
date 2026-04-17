@@ -4,9 +4,35 @@ import enum
 import logging
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Optional
 
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from app.utils.db import db
+from app.utils.types import JSONBCompat
+
 logger = logging.getLogger(__name__)
+
+
+class DailyPlanLog(db.Model):
+    """One row per user per calendar day recording mission selection and secured state."""
+    __tablename__ = 'daily_plan_log'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    plan_date = Column(Date, nullable=False)
+    mission_type = Column(String(20), nullable=True)
+    secured_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    user = relationship('User', backref='daily_plan_logs')
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'plan_date', name='uq_daily_plan_log_user_date'),
+        Index('idx_daily_plan_log_user_date', 'user_id', 'plan_date'),
+    )
 
 
 class MissionType(enum.Enum):

@@ -58,6 +58,7 @@ def daily_status():
         'steps_total': steps_total,
         'required_steps': streak_result['required_steps'],
         'streak_repaired': streak_result['streak_repaired'],
+        'day_secured': plan.get('day_secured', False),
     })
 
 

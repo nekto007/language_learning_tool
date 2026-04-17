@@ -112,13 +112,13 @@ Go/no-go: if continuation rate increases by ≥15% vs baseline after 2 weeks, pr
 - Modify: `app/daily_plan/models.py`
 - Modify: `app/daily_plan/routes.py`
 
-- [ ] add `day_secured` boolean field to plan payload (True when all required phases complete)
-- [ ] define "secured" using the Phase 0 definition from Task 2
-- [ ] add `secured_at` timestamp to `DailyPlanLog`
-- [ ] expose `day_secured` in the dashboard API response
-- [ ] write tests for secured=True and secured=False cases across all 3 mission types
-- [ ] write tests for edge cases defined in Task 2
-- [ ] run pytest — must pass before Task 7
+- [x] add `day_secured` boolean field to plan payload (True when all required phases complete)
+- [x] define "secured" using the Phase 0 definition from Task 2
+- [x] add `secured_at` timestamp to `DailyPlanLog`
+- [x] expose `day_secured` in the dashboard API response
+- [x] write tests for secured=True and secured=False cases across all 3 mission types
+- [x] write tests for edge cases defined in Task 2
+- [x] run pytest — must pass before Task 7
 
 ### Task 7: Add next-best-step recommender
 

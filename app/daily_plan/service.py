@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
+from datetime import date, datetime, timezone
 from typing import Any, Optional
 
-from app.daily_plan.models import MissionPlan, MissionType, SourceKind
+from app.daily_plan.models import DailyPlanLog, MissionPlan, MissionType, SourceKind
 from app.daily_plan.mission_selector import select_mission, detect_primary_track, save_mission_type
 from app.daily_plan.assembler import (
     assemble_progress_mission,
@@ -12,6 +13,40 @@ from app.daily_plan.assembler import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def compute_day_secured(phases: list[dict]) -> bool:
+    """Return True when all required phases are marked completed."""
+    required = [p for p in phases if p.get('required', True)]
+    if not required:
+        return False
+    return all(p.get('completed', False) for p in required)
+
+
+def write_secured_at(user_id: int, plan_date: date, mission_type: Optional[str] = None) -> None:
+    """Write secured_at timestamp to DailyPlanLog if not already set.
+
+    Creates the log row if it doesn't exist; updates only if secured_at is null.
+    This is idempotent — calling it multiple times is safe.
+    """
+    from app.utils.db import db
+    try:
+        log = DailyPlanLog.query.filter_by(user_id=user_id, plan_date=plan_date).first()
+        if log is None:
+            log = DailyPlanLog(
+                user_id=user_id,
+                plan_date=plan_date,
+                mission_type=mission_type,
+            )
+            db.session.add(log)
+        if log.secured_at is None:
+            log.secured_at = datetime.now(timezone.utc)
+        db.session.flush()
+    except Exception:
+        logger.warning(
+            "Failed to write secured_at for user %s on %s", user_id, plan_date,
+            exc_info=True,
+        )
 
 
 def _with_plan_meta(
@@ -36,8 +71,27 @@ def _mission_plan_to_dict(plan: MissionPlan) -> dict[str, Any]:
             return obj.value
         return obj
 
+    phases_list = [
+        {
+            'id': p.id,
+            'phase': _enum_value(p.phase),
+            'title': p.title,
+            'source_kind': _enum_value(p.source_kind),
+            'mode': p.mode,
+            'required': p.required,
+            'completed': p.completed,
+            'preview': {
+                'item_count': p.preview.item_count,
+                'content_title': p.preview.content_title,
+                'estimated_minutes': p.preview.estimated_minutes,
+            } if p.preview else None,
+        }
+        for p in plan.phases
+    ]
+
     result: dict[str, Any] = {
         'plan_version': plan.plan_version,
+        'day_secured': compute_day_secured(phases_list),
         'mission': {
             'type': _enum_value(plan.mission.type),
             'title': plan.mission.title,
@@ -54,23 +108,7 @@ def _mission_plan_to_dict(plan: MissionPlan) -> dict[str, Any]:
             'id': plan.primary_source.id,
             'label': plan.primary_source.label,
         },
-        'phases': [
-            {
-                'id': p.id,
-                'phase': _enum_value(p.phase),
-                'title': p.title,
-                'source_kind': _enum_value(p.source_kind),
-                'mode': p.mode,
-                'required': p.required,
-                'completed': p.completed,
-                'preview': {
-                    'item_count': p.preview.item_count,
-                    'content_title': p.preview.content_title,
-                    'estimated_minutes': p.preview.estimated_minutes,
-                } if p.preview else None,
-            }
-            for p in plan.phases
-        ],
+        'phases': phases_list,
         'completion': plan.completion,
     }
 
