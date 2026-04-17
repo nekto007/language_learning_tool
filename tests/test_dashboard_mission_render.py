@@ -708,3 +708,102 @@ class TestDashboardMissionRender:
         tablet_start = css.find('@media (min-width: 641px) and (max-width: 1024px)')
         tablet_block = css[tablet_start:tablet_start + 2500]
         assert 'display: block' in tablet_block
+
+    # ---- Task 14: rank badge on dashboard ----
+
+    def _set_user_plans(self, db_session, user_id, count, code=None):
+        """Ensure a UserStatistics row with the given plans_completed_total exists."""
+        from app.achievements.models import UserStatistics
+        from app.achievements.ranks import get_rank_code
+
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=user_id)
+            db_session.add(stats)
+            db_session.flush()
+        stats.plans_completed_total = count
+        stats.current_rank = code or get_rank_code(count)
+        db_session.commit()
+        return stats
+
+    def test_rank_badge_renders_for_novice(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: dashboard renders rank badge with novice name at zero plans completed."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        self._set_user_plans(db_session, test_user.id, 0)
+        response = self._get_dashboard(client, test_user, plan)
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'class="dash-rank dash-rank--novice"' in html
+        assert 'data-rank-code="novice"' in html
+        assert 'data-rank-plans="0"' in html
+        assert 'Новичок' in html
+        assert '0/7' in html
+        assert 'до «Исследователь»' in html
+        assert 'data-rank-progress="true"' in html
+
+    def test_rank_badge_renders_progress_numbers(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: progress bar text shows current / next-threshold numbers."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        self._set_user_plans(db_session, test_user.id, 14)
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'dash-rank--explorer' in html
+        assert 'data-rank-plans="14"' in html
+        assert '14/21' in html
+        assert 'до «Ученик»' in html
+        # Progress fill width is (14 - 7) / (21 - 7) = 50%
+        assert 'width: 50' in html or 'width: 50.0' in html
+
+    def test_rank_badge_renders_expert(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: badge picks correct rank name at higher thresholds."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        self._set_user_plans(db_session, test_user.id, 60)
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'dash-rank--expert' in html
+        assert 'Эксперт' in html
+        assert '60/100' in html
+        assert 'до «Мастер»' in html
+
+    def test_rank_badge_max_rank_shows_max_label(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: at the top rank, badge shows a max-rank label instead of the progress bar."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        self._set_user_plans(db_session, test_user.id, 400)
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'dash-rank--grandmaster' in html
+        assert 'Грандмастер' in html
+        assert 'dash-rank__progress--max' in html
+        assert 'Максимальный титул' in html
+        # No "до «..»" next-rank pointer when at max
+        assert 'до «' not in html.split('dash-rank')[1].split('dash-plan')[0] if 'dash-rank' in html else True
+
+    def test_rank_badge_absent_when_rank_info_missing(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: without rank_info the template omits the badge entirely."""
+        from unittest.mock import patch as _patch
+        plan = _make_mission_plan('progress', [False, False, False])
+        with _patch('app.words.routes._build_rank_info', return_value=None):
+            response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'class="dash-rank' not in html
+        assert 'data-rank-progress="true"' not in html
+
+    def test_rank_badge_unique_colors_per_rank(self):
+        """Task 14: each rank code has a unique colour class rule in the template CSS."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        for code in ('novice', 'explorer', 'student', 'expert', 'master', 'legend', 'grandmaster'):
+            assert f'.dash-rank--{code} .dash-rank__badge' in css, f'missing CSS rule for rank {code!r}'
+
+    def test_rank_badge_progress_fill_rendered(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: progress bar track and fill elements rendered with width percent."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        self._set_user_plans(db_session, test_user.id, 7)  # exact threshold for explorer
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'dash-rank__progress-track' in html
+        assert 'dash-rank__progress-fill' in html
+        # At threshold start, progress within new rank is 0%
+        assert 'width: 0' in html

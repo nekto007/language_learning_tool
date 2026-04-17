@@ -229,6 +229,61 @@ def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, 
     return None, None
 
 
+_RANK_COLORS = {
+    'novice': '#94a3b8',
+    'explorer': '#38bdf8',
+    'student': '#22c55e',
+    'expert': '#a855f7',
+    'master': '#f59e0b',
+    'legend': '#ef4444',
+    'grandmaster': '#facc15',
+}
+_RANK_ICONS = {
+    'novice': '\U0001F331',
+    'explorer': '\U0001F9ED',
+    'student': '\U0001F4D8',
+    'expert': '\U0001F393',
+    'master': '\U0001F3C5',
+    'legend': '\U0001F525',
+    'grandmaster': '\U0001F451',
+}
+_RANK_RU_NAMES = {
+    'novice': 'Новичок',
+    'explorer': 'Исследователь',
+    'student': 'Ученик',
+    'expert': 'Эксперт',
+    'master': 'Мастер',
+    'legend': 'Легенда',
+    'grandmaster': 'Грандмастер',
+}
+
+
+def _build_rank_info(current_user_id: int) -> dict | None:
+    from app.achievements.models import UserStatistics
+    from app.achievements.ranks import get_user_rank
+
+    stats = UserStatistics.query.filter_by(user_id=current_user_id).first()
+    plans_completed = int(stats.plans_completed_total) if stats and stats.plans_completed_total else 0
+    info = get_user_rank(plans_completed)
+
+    return {
+        'code': info.code,
+        'name': info.name,
+        'display_name': _RANK_RU_NAMES.get(info.code, info.name),
+        'icon': _RANK_ICONS.get(info.code, '\U0001F3C6'),
+        'color': _RANK_COLORS.get(info.code, '#64748b'),
+        'plans_completed': info.plans_completed,
+        'threshold': info.threshold,
+        'next_code': info.next_code,
+        'next_name': info.next_name,
+        'next_display_name': _RANK_RU_NAMES.get(info.next_code) if info.next_code else None,
+        'next_threshold': info.next_threshold,
+        'progress_percent': info.progress_percent,
+        'plans_to_next': info.plans_to_next,
+        'is_max': info.next_code is None,
+    }
+
+
 def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     from app.auth.models import User
     from app.daily_plan.service import get_daily_plan_unified
@@ -590,6 +645,9 @@ def dashboard():
         ).exists()
     ).scalar()
 
+    # === RANK / TITLE (daily plan cumulative) ===
+    rank_info = _safe_widget_call('rank_info', _build_rank_info, current_user.id, default=None)
+
     # === PERFORMANCE LOGGING ===
     t_elapsed = time.time() - t_start
     logger.info("Dashboard data loaded in %.3fs for user_id=%s", t_elapsed, current_user.id)
@@ -678,6 +736,8 @@ def dashboard():
         weekly_analytics=weekly_analytics,
         continue_lesson=continue_lesson,
         grammar_user_stats=grammar_user_stats,
+        # Rank badge (daily plan title system)
+        rank_info=rank_info,
     )
 
 

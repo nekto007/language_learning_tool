@@ -237,11 +237,11 @@ Show current rank badge on the dashboard header near the user's name/avatar area
 - Modify: `app/words/routes.py` (pass rank data)
 - Modify: `app/static/css/design-system.css` (rank badge styles)
 
-- [ ] Add rank badge component: colored pill with rank icon and title
-- [ ] Show rank progress bar: "14/21 days to next rank"
-- [ ] Each rank has a unique color and icon
-- [ ] Write tests: dashboard renders rank badge with correct rank name; progress shows correct numbers
-- [ ] Run project test suite - must pass before task 15
+- [x] Add rank badge component: colored pill with rank icon and title
+- [x] Show rank progress bar: "14/21 days to next rank"
+- [x] Each rank has a unique color and icon
+- [x] Write tests: dashboard renders rank badge with correct rank name; progress shows correct numbers
+- [x] Run project test suite - must pass before task 15
 
 ### Task 15: Rank history and profile display
 

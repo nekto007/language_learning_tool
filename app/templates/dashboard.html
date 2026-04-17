@@ -94,6 +94,29 @@
                         </div>
                     </div>
                     {% endif %}
+                    {% if rank_info %}
+                    <div class="dash-rank dash-rank--{{ rank_info.code }}"
+                         data-rank-code="{{ rank_info.code }}"
+                         data-rank-plans="{{ rank_info.plans_completed }}"
+                         title="Титул за выполненные дневные планы">
+                        <span class="dash-rank__badge" style="--rank-color: {{ rank_info.color }}">
+                            <span class="dash-rank__icon" aria-hidden="true">{{ rank_info.icon }}</span>
+                            <span class="dash-rank__name">{{ rank_info.display_name }}</span>
+                        </span>
+                        {% if rank_info.is_max %}
+                        <span class="dash-rank__progress dash-rank__progress--max" data-rank-progress="true">
+                            <span class="dash-rank__progress-text">Максимальный титул — {{ rank_info.plans_completed }} планов</span>
+                        </span>
+                        {% else %}
+                        <span class="dash-rank__progress" data-rank-progress="true">
+                            <span class="dash-rank__progress-text">{{ rank_info.plans_completed }}/{{ rank_info.next_threshold }} до «{{ rank_info.next_display_name }}»</span>
+                            <span class="dash-rank__progress-track" aria-hidden="true">
+                                <span class="dash-rank__progress-fill" style="width: {{ rank_info.progress_percent }}%; --rank-color: {{ rank_info.color }}"></span>
+                            </span>
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -1457,6 +1480,108 @@
 }
 
 .dash-streak__fire { font-size: 1.125rem; }
+
+/* ============================================
+   Rank / Title badge (Task 14)
+   ============================================ */
+
+.dash-rank {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin-top: 0.625rem;
+}
+
+.dash-rank__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+    box-shadow: 0 0 0 2px var(--rank-color, rgba(255, 255, 255, 0.1)) inset;
+    backdrop-filter: blur(4px);
+    white-space: nowrap;
+}
+
+.dash-rank__icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.dash-rank__name {
+    white-space: nowrap;
+}
+
+.dash-rank__progress {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 150px;
+    max-width: 240px;
+    flex: 1 1 160px;
+    font-size: 0.75rem;
+    opacity: 0.95;
+}
+
+.dash-rank__progress-text {
+    color: rgba(255, 255, 255, 0.92);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+.dash-rank__progress-track {
+    display: block;
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.dash-rank__progress-fill {
+    display: block;
+    height: 100%;
+    background: var(--rank-color, #fff);
+    border-radius: 4px;
+    transition: width 0.6s ease-out;
+    box-shadow: 0 0 6px var(--rank-color, rgba(255, 255, 255, 0.4));
+}
+
+.dash-rank__progress--max .dash-rank__progress-text {
+    color: #fde68a;
+    font-weight: 600;
+}
+
+/* Per-rank colour accents used when --rank-color inline var is unavailable */
+.dash-rank--novice .dash-rank__badge { box-shadow: 0 0 0 2px #94a3b8 inset; }
+.dash-rank--explorer .dash-rank__badge { box-shadow: 0 0 0 2px #38bdf8 inset; }
+.dash-rank--student .dash-rank__badge { box-shadow: 0 0 0 2px #22c55e inset; }
+.dash-rank--expert .dash-rank__badge { box-shadow: 0 0 0 2px #a855f7 inset; }
+.dash-rank--master .dash-rank__badge { box-shadow: 0 0 0 2px #f59e0b inset; }
+.dash-rank--legend .dash-rank__badge { box-shadow: 0 0 0 2px #ef4444 inset; }
+.dash-rank--grandmaster .dash-rank__badge {
+    box-shadow: 0 0 0 2px #facc15 inset, 0 0 12px rgba(250, 204, 21, 0.5);
+}
+
+@media (max-width: 640px) {
+    .dash-rank {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.35rem;
+    }
+    .dash-rank__progress {
+        min-width: 0;
+        max-width: 100%;
+        width: 100%;
+    }
+}
 
 /* ============================================
    Daily Plan
