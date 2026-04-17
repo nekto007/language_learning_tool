@@ -505,12 +505,12 @@ Show a weekly overview widget on the dashboard: which days had completed plans, 
 - Modify: `app/achievements/weekly_challenge.py` (integrate with mission data)
 - Modify: `app/static/css/design-system.css`
 
-- [ ] `dash-weekly` widget: 7-day grid (Mon-Sun) with colored dots per day (green=complete, yellow=partial, gray=missed)
-- [ ] Weekly XP total with comparison to previous week: "+120 XP vs last week"
-- [ ] Mission type pie/bar: how many progress/repair/reading missions this week
-- [ ] Weekly challenge progress bar integrated into the widget
-- [ ] Write tests: weekly widget renders correct day states; XP comparison calculates correctly; mission type counts match
-- [ ] Run project test suite - must pass before final verification
+- [x] `dash-weekly` widget: 7-day grid (Mon-Sun) with colored dots per day (green=complete, yellow=partial, gray=missed)
+- [x] Weekly XP total with comparison to previous week: "+120 XP vs last week"
+- [x] Mission type pie/bar: how many progress/repair/reading missions this week
+- [x] Weekly challenge progress bar integrated into the widget
+- [x] Write tests: weekly widget renders correct day states; XP comparison calculates correctly; mission type counts match
+- [x] Run project test suite - must pass before final verification
 
 
 ### BLOCK 9: Route Board, Rivals, and Lesson-Safe Flow (Tasks 33-36)

@@ -776,8 +776,11 @@ def dashboard():
     grammar_user_stats = srs_stats_service.get_grammar_user_stats(current_user.id)
 
     # === WEEKLY CHALLENGE ===
-    from app.achievements.weekly_challenge import get_weekly_challenge
+    from app.achievements.weekly_challenge import get_weekly_challenge, get_weekly_digest
     weekly_challenge = get_weekly_challenge(current_user.id)
+
+    # === WEEKLY DIGEST (task 30) ===
+    weekly_digest = _safe_widget_call('weekly_digest', get_weekly_digest, current_user.id, default=None)
 
     # === GAME SCORES (single query via union: best matching + best quiz) ===
     q_matching = GameScore.query.filter_by(
@@ -934,6 +937,8 @@ def dashboard():
         xp_level_up=xp_level_up,
         # Mission completion summary (task 29)
         completion_summary=completion_summary,
+        # Weekly progress digest (task 30)
+        weekly_digest=weekly_digest,
     )
 
 

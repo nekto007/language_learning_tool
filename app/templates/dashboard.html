@@ -1018,6 +1018,70 @@
     </div>
     {% endif %}
 
+    <!-- Weekly Progress Digest -->
+    {% if weekly_digest is defined and weekly_digest %}
+    <div class="dash-weekly" data-weekly-digest="true" aria-label="Прогресс за неделю">
+        <div class="dash-weekly__header">
+            <h3 class="dash-weekly__heading">&#128197; Неделя</h3>
+            {% if weekly_digest.xp_diff > 0 %}
+            <span class="dash-weekly__xp-diff dash-weekly__xp-diff--up" title="По сравнению с прошлой неделей">+{{ weekly_digest.xp_diff }} XP</span>
+            {% elif weekly_digest.xp_diff < 0 %}
+            <span class="dash-weekly__xp-diff dash-weekly__xp-diff--down" title="По сравнению с прошлой неделей">{{ weekly_digest.xp_diff }} XP</span>
+            {% else %}
+            <span class="dash-weekly__xp-diff" title="По сравнению с прошлой неделей">= XP</span>
+            {% endif %}
+        </div>
+
+        <!-- 7-day grid -->
+        <div class="dash-weekly__grid" data-weekly-grid="true">
+            {% for day in weekly_digest.days %}
+            <div class="dash-weekly__day dash-weekly__day--{{ day.state }}{% if day.is_today %} dash-weekly__day--today{% endif %}"
+                 data-day-state="{{ day.state }}"
+                 title="{{ day.date }}{% if day.state == 'complete' %} — выполнено{% elif day.state == 'partial' %} — частично{% elif day.state == 'missed' %} — пропущено{% elif day.state == 'future' %} — впереди{% endif %}">
+                <div class="dash-weekly__dot"></div>
+                <span class="dash-weekly__label">{{ day.label }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Weekly XP total -->
+        <div class="dash-weekly__xp" data-weekly-xp="true">
+            <span class="dash-weekly__xp-value">{{ weekly_digest.week_xp }} XP</span>
+            <span class="dash-weekly__xp-label">за эту неделю</span>
+        </div>
+
+        <!-- Mission type distribution -->
+        {% set total_missions = weekly_digest.mission_counts.progress + weekly_digest.mission_counts.repair + weekly_digest.mission_counts.reading %}
+        {% if total_missions > 0 %}
+        <div class="dash-weekly__missions" data-weekly-missions="true">
+            {% if weekly_digest.mission_counts.progress > 0 %}
+            <span class="dash-weekly__mission-tag dash-weekly__mission-tag--progress">&#128218; {{ weekly_digest.mission_counts.progress }}</span>
+            {% endif %}
+            {% if weekly_digest.mission_counts.repair > 0 %}
+            <span class="dash-weekly__mission-tag dash-weekly__mission-tag--repair">&#128295; {{ weekly_digest.mission_counts.repair }}</span>
+            {% endif %}
+            {% if weekly_digest.mission_counts.reading > 0 %}
+            <span class="dash-weekly__mission-tag dash-weekly__mission-tag--reading">&#128214; {{ weekly_digest.mission_counts.reading }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Weekly challenge progress embedded -->
+        {% if weekly_challenge is defined and weekly_challenge %}
+        <div class="dash-weekly__challenge" data-weekly-challenge-progress="true">
+            <div class="dash-weekly__challenge-header">
+                <span>{{ weekly_challenge.icon }} {{ weekly_challenge.title }}</span>
+                <span class="dash-weekly__challenge-count">{{ weekly_challenge.current }}/{{ weekly_challenge.target }}</span>
+            </div>
+            <div class="dash-weekly__challenge-bar">
+                <div class="dash-weekly__challenge-fill{% if weekly_challenge.completed %} dash-weekly__challenge-fill--done{% endif %}"
+                     style="width: {{ [weekly_challenge.current / weekly_challenge.target * 100, 100] | min }}%"></div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Today's Summary -->
     {% if daily_summary.lessons_count > 0 or daily_summary.grammar_exercises > 0 or daily_summary.words_reviewed > 0 or daily_summary.books_read %}
     <div class="dash-summary">
@@ -4453,6 +4517,105 @@
 .dash-challenge__bar { height: 8px; background: #e5e7eb; border-radius: 4px; margin-top: 8px; overflow: hidden; }
 .dash-challenge__fill { height: 100%; background: linear-gradient(90deg, #5046e5, #7c3aed); border-radius: 4px; transition: width 0.5s; }
 .dash-challenge__progress-text { font-weight: 700; color: #5046e5; }
+
+/* ============================================
+   Weekly Progress Digest (Task 30)
+   ============================================ */
+.dash-weekly {
+    background: var(--color-surface, #fff);
+    border-radius: 14px;
+    padding: 1rem 1.125rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    animation: dashSlideUp 0.5s ease-out both;
+    animation-delay: 0.38s;
+}
+.dash-weekly__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+.dash-weekly__heading {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--color-text, #111827);
+}
+.dash-weekly__xp-diff {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+.dash-weekly__xp-diff--up { background: #dcfce7; color: #15803d; }
+.dash-weekly__xp-diff--down { background: #fee2e2; color: #dc2626; }
+.dash-weekly__grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 0.75rem;
+}
+.dash-weekly__day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.dash-weekly__dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    transition: transform 0.2s;
+}
+.dash-weekly__day--complete .dash-weekly__dot { background: #22c55e; border-color: #16a34a; }
+.dash-weekly__day--partial .dash-weekly__dot { background: #fde047; border-color: #ca8a04; }
+.dash-weekly__day--missed .dash-weekly__dot { background: #e5e7eb; border-color: #d1d5db; }
+.dash-weekly__day--future .dash-weekly__dot { background: #f3f4f6; border-color: #e5e7eb; opacity: 0.5; }
+.dash-weekly__day--today .dash-weekly__dot { box-shadow: 0 0 0 3px rgba(99,102,241,0.3); }
+.dash-weekly__label {
+    font-size: 0.6875rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+.dash-weekly__day--today .dash-weekly__label { color: #6366f1; font-weight: 700; }
+.dash-weekly__xp {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 0.5rem;
+}
+.dash-weekly__xp-value { font-size: 1.125rem; font-weight: 800; color: #6366f1; }
+.dash-weekly__xp-label { font-size: 0.8125rem; color: #6b7280; }
+.dash-weekly__missions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+.dash-weekly__mission-tag {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+.dash-weekly__mission-tag--progress { background: #eff6ff; color: #2563eb; }
+.dash-weekly__mission-tag--repair { background: #fef3c7; color: #b45309; }
+.dash-weekly__mission-tag--reading { background: #f0fdf4; color: #15803d; }
+.dash-weekly__challenge { margin-top: 0.5rem; }
+.dash-weekly__challenge-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    color: #6b7280;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.dash-weekly__challenge-count { font-weight: 700; color: #5046e5; }
+.dash-weekly__challenge-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
+.dash-weekly__challenge-fill { height: 100%; background: linear-gradient(90deg, #5046e5, #7c3aed); border-radius: 3px; transition: width 0.5s; }
+.dash-weekly__challenge-fill--done { background: linear-gradient(90deg, #22c55e, #16a34a); }
 
 /* ============================================
    Insights Row (Reading Speed + Grammar Levels)
