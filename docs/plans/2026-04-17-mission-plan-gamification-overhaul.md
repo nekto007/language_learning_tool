@@ -141,12 +141,12 @@ Replace the current vertical card list with a visual "learning path" roadmap: no
 - Modify: `app/templates/dashboard.html` (new roadmap HTML structure)
 - Modify: `app/static/css/design-system.css` (roadmap CSS)
 
-- [ ] Create `dash-roadmap` container with `dash-roadmap__node` elements connected by `dash-roadmap__connector` lines
-- [ ] Each node is circular/hexagonal, showing phase icon and number
-- [ ] Connectors are CSS-drawn (border/pseudo-element) lines between nodes
-- [ ] Layout: alternating left-right zigzag pattern on mobile, horizontal on desktop
-- [ ] Write tests: roadmap HTML structure renders correct number of nodes matching phases
-- [ ] Run project test suite - must pass before task 9
+- [x] Create `dash-roadmap` container with `dash-roadmap__node` elements connected by `dash-roadmap__connector` lines
+- [x] Each node is circular/hexagonal, showing phase icon and number
+- [x] Connectors are CSS-drawn (border/pseudo-element) lines between nodes
+- [x] Layout: alternating left-right zigzag pattern on mobile, horizontal on desktop
+- [x] Write tests: roadmap HTML structure renders correct number of nodes matching phases
+- [x] Run project test suite - must pass before task 9
 
 ### Task 9: Roadmap node states
 
@@ -512,23 +512,6 @@ Show a weekly overview widget on the dashboard: which days had completed plans, 
 - [ ] Write tests: weekly widget renders correct day states; XP comparison calculates correctly; mission type counts match
 - [ ] Run project test suite - must pass before final verification
 
----
-
-### Task 31: Verify acceptance criteria
-
-- [ ] Run full test suite: `pytest`
-- [ ] Run smoke tests: `pytest -m smoke`
-- [ ] Verify test coverage meets 80%+ for new files
-- [ ] Verify no duplicate activity categories in any assembled mission plan
-- [ ] Verify roadmap renders correctly in dashboard template tests
-
-### Task 32: Update documentation
-
-- [ ] Update CLAUDE.md: add daily plan gamification patterns (XP, ranks, races, badges)
-- [ ] Update CLAUDE.md: document new models (DailyRace, rank fields, XP fields)
-- [ ] Move this plan to `docs/plans/completed/`
-
----
 
 ### BLOCK 9: Route Board, Rivals, and Lesson-Safe Flow (Tasks 33-36)
 
@@ -601,3 +584,21 @@ If the user has already entered a lesson through the daily plan, the lesson must
 - [ ] Add a product rule in mission assembly: if `Главный шаг миссии` resolves to a card-based lesson, either collapse the separate recall phase or relabel it so the user does not experience two visually identical card blocks in a row
 - [ ] Write tests: started lesson can continue past daily new-card threshold; generic free-study still stops at the threshold
 - [ ] Run project test suite - must pass before final verification
+
+---
+
+### Task 37: Verify acceptance criteria
+
+- [ ] Run full test suite: `pytest`
+- [ ] Run smoke tests: `pytest -m smoke`
+- [ ] Verify test coverage meets 80%+ for new files
+- [ ] Verify no duplicate activity categories in any assembled mission plan
+- [ ] Verify roadmap renders correctly in dashboard template tests
+
+### Task 38: Update documentation
+
+- [ ] Update CLAUDE.md: add daily plan gamification patterns (XP, ranks, races, badges)
+- [ ] Update CLAUDE.md: document new models (DailyRace, rank fields, XP fields)
+- [ ] Move this plan to `docs/plans/completed/`
+
+---

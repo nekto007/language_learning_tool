@@ -346,3 +346,81 @@ class TestDashboardMissionRender:
         assert 'dash-step--newly-active' in html
         assert 'dash-progress--animate' in html
         assert 'mission_phase_states_v1' in html
+
+    def test_roadmap_container_rendered(self, client, app, db_session, test_user, words_module_access):
+        """Task 8: roadmap container is emitted when a mission plan is present."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'class="dash-roadmap"' in html
+        assert 'data-roadmap="true"' in html
+        assert 'dash-roadmap__track' in html
+
+    def test_roadmap_absent_in_legacy_plan(self, client, app, db_session, test_user, words_module_access):
+        """Task 8: legacy plans (no mission) must not emit the roadmap container."""
+        legacy_plan = {'steps': {}, 'next_lesson': None, 'words_due': 0}
+        response = self._get_dashboard(client, test_user, legacy_plan)
+        html = response.data.decode('utf-8')
+        assert 'data-roadmap="true"' not in html
+        assert 'class="dash-roadmap"' not in html
+
+    def test_roadmap_node_count_matches_phases(self, client, app, db_session, test_user, words_module_access):
+        """Task 8: one node per mission phase."""
+        plan = _make_mission_plan('progress', [False, False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert html.count('data-roadmap-node="true"') == 4
+        plan3 = _make_mission_plan('progress', [False, False, False])
+        response3 = self._get_dashboard(client, test_user, plan3)
+        html3 = response3.data.decode('utf-8')
+        assert html3.count('data-roadmap-node="true"') == 3
+
+    def test_roadmap_connector_count_matches_phase_gaps(self, client, app, db_session, test_user, words_module_access):
+        """Task 8: connectors sit between nodes — N phases → N-1 connectors."""
+        plan = _make_mission_plan('progress', [False, False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert html.count('data-roadmap-connector="true"') == 3
+
+    def test_roadmap_node_state_classes(self, client, app, db_session, test_user, words_module_access):
+        """Task 8: node state classes reflect phase completion (done / current / upcoming)."""
+        plan = _make_mission_plan('progress', [True, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'dash-roadmap__node--done' in html
+        assert 'dash-roadmap__node--current' in html
+        assert 'dash-roadmap__node--upcoming' in html
+        assert 'data-node-state="done"' in html
+        assert 'data-node-state="current"' in html
+        assert 'data-node-state="upcoming"' in html
+
+    def test_roadmap_node_kind_classes(self, client, app, db_session, test_user, words_module_access):
+        """Task 8: node carries a kind modifier matching its phase (recall/learn/etc.)."""
+        plan = _make_mission_plan('progress', [False, False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'dash-roadmap__node--recall' in html
+        assert 'dash-roadmap__node--learn' in html
+        assert 'dash-roadmap__node--use' in html
+        assert 'dash-roadmap__node--check' in html
+        assert 'data-node-kind="recall"' in html
+        assert 'data-node-kind="learn"' in html
+
+    def test_roadmap_done_connector_marker(self, client, app, db_session, test_user, words_module_access):
+        """Task 8: a completed phase's outgoing connector is marked --done for the journey trail."""
+        plan = _make_mission_plan('progress', [True, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'dash-roadmap__connector--done' in html
+
+    def test_roadmap_css_rules_present(self):
+        """Task 8: roadmap CSS rules (node, connector, responsive breakpoint) live in template."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        assert '.dash-roadmap {' in css
+        assert '.dash-roadmap__track' in css
+        assert '.dash-roadmap__node' in css
+        assert '.dash-roadmap__connector' in css
+        assert '@media (max-width: 640px)' in css
