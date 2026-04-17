@@ -185,13 +185,13 @@ Go/no-go: if D7 retention increases and users who reach a checkpoint have ≥1.5
 - Create: `app/daily_plan/route_progress.py`
 - Create: migration file
 
-- [ ] add `UserRouteProgress` model: user_id, total_steps, checkpoint_steps, last_updated
-- [ ] one "route step" = one completed phase (weighted: learn=3, recall=2, use=2, read=2, check=1, close=1)
-- [ ] checkpoint every 20 weighted steps (tunable constant)
-- [ ] store current checkpoint number and steps-within-checkpoint
-- [ ] add migration
-- [ ] write model tests for step accumulation and checkpoint detection
-- [ ] run pytest — must pass
+- [x] add `UserRouteProgress` model: user_id, total_steps, checkpoint_steps, last_updated
+- [x] one "route step" = one completed phase (weighted: learn=3, recall=2, use=2, read=2, check=1, close=1)
+- [x] checkpoint every 20 weighted steps (tunable constant)
+- [x] store current checkpoint number and steps-within-checkpoint
+- [x] add migration
+- [x] write model tests for step accumulation and checkpoint detection
+- [x] run pytest — must pass
 
 ### Task 12: Route board API
 
