@@ -178,7 +178,13 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
         # Full plan completion: every required step is done.
         if steps_total > 0 and steps_done >= steps_total:
             try:
-                from app.achievements.ranks import record_plan_completion
+                from app.achievements.ranks import (
+                    _has_plan_completion_marker, record_plan_completion,
+                )
+
+                was_already_completed = _has_plan_completion_marker(
+                    user_id, user_today,
+                )
                 rank_up = record_plan_completion(user_id, for_date=user_today)
                 if rank_up is not None:
                     try:
@@ -187,6 +193,18 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
                     except Exception:
                         logger.warning(
                             "Failed to send rank-up notification for user %s",
+                            user_id, exc_info=True,
+                        )
+
+                # First completion for this date — evaluate mission badges.
+                if not was_already_completed:
+                    try:
+                        _check_mission_badges_for_today(
+                            user_id, user_today, tz,
+                        )
+                    except Exception:
+                        logger.warning(
+                            "Failed to check mission badges for user %s",
                             user_id, exc_info=True,
                         )
             except Exception:
@@ -620,6 +638,69 @@ def find_missed_date(user_id: int, tz: str = DEFAULT_TIMEZONE,
             # Found an unrepaired gap — return it
             return check_date
     return None
+
+
+def _get_today_mission_type(user_id: int, today_local: date) -> str | None:
+    """Return the mission type selected for the user on `today_local`."""
+    event = StreakEvent.query.filter_by(
+        user_id=user_id,
+        event_type='mission_selected',
+        event_date=today_local,
+    ).first()
+    if event and event.details:
+        return event.details.get('mission_type')
+    return None
+
+
+def _compute_plan_duration_minutes(
+    user_id: int, today_local: date,
+) -> int | None:
+    """Duration from first earned_daily to plan_completed for the given date.
+
+    Uses StreakEvent.created_at timestamps: earned_daily is written on the
+    user's first activity-bearing request of the day, plan_completed on the
+    request that finishes the plan. The delta approximates total time spent
+    in the day's plan.
+    """
+    events = StreakEvent.query.filter(
+        StreakEvent.user_id == user_id,
+        StreakEvent.event_date == today_local,
+        StreakEvent.event_type.in_(['earned_daily', 'plan_completed']),
+    ).all()
+
+    earned = next((e for e in events if e.event_type == 'earned_daily'), None)
+    completed = next((e for e in events if e.event_type == 'plan_completed'), None)
+
+    if (earned is None or completed is None
+            or earned.created_at is None or completed.created_at is None):
+        return None
+
+    start = earned.created_at
+    end = completed.created_at
+    if start.tzinfo is not None:
+        start = start.astimezone(timezone.utc).replace(tzinfo=None)
+    if end.tzinfo is not None:
+        end = end.astimezone(timezone.utc).replace(tzinfo=None)
+    delta = end - start
+    return max(0, int(delta.total_seconds() // 60))
+
+
+def _check_mission_badges_for_today(
+    user_id: int, user_today: date, tz: str,
+) -> None:
+    """Invoke the mission badge check for the plan just completed today."""
+    mission_type = _get_today_mission_type(user_id, user_today)
+    if mission_type is None:
+        return
+
+    duration = _compute_plan_duration_minutes(user_id, user_today)
+    from app.achievements.services import AchievementService
+    AchievementService.check_mission_achievements(
+        user_id=user_id,
+        mission_type=mission_type,
+        duration_minutes=duration,
+        tz=tz,
+    )
 
 
 def get_streak_status(user_id: int, tz: str = DEFAULT_TIMEZONE,

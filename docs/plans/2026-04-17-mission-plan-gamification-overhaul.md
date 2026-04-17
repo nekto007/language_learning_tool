@@ -284,13 +284,13 @@ Implement checking logic that evaluates whether mission-specific badges should b
 - Modify: `app/achievements/services.py` (new check method)
 - Modify: `app/achievements/streak_service.py` (call badge check on completion)
 
-- [ ] Add `check_mission_achievements(user_id, mission_type, completion_time)` method
-- [ ] Check first completion, type counts, perfect week, time-of-day badges
-- [ ] For speed_demon: compare first and last phase completion timestamps
-- [ ] For variety: query last 7 days of mission types
-- [ ] Hook into plan completion flow in streak_service
-- [ ] Write tests: each badge condition triggers correctly; no double-award
-- [ ] Run project test suite - must pass before task 18
+- [x] Add `check_mission_achievements(user_id, mission_type, completion_time)` method
+- [x] Check first completion, type counts, perfect week, time-of-day badges
+- [x] For speed_demon: compare first and last phase completion timestamps
+- [x] For variety: query last 7 days of mission types
+- [x] Hook into plan completion flow in streak_service
+- [x] Write tests: each badge condition triggers correctly; no double-award
+- [x] Run project test suite - must pass before task 18
 
 ### Task 18: Badge award animation on dashboard
 
