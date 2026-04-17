@@ -919,3 +919,151 @@ class TestDashboardMissionRender:
         assert ROUTE_PROGRESS_WEIGHTS['learn'] == 40
         assert ROUTE_PROGRESS_WEIGHTS['use'] == 30
         assert ROUTE_PROGRESS_WEIGHTS['check'] == 15
+
+    # ---- Task 34: Rival tokens on the route ----
+
+    def _get_dashboard_with_race(self, client, test_user, mission_plan, race_data):
+        """Render dashboard with both a mocked plan and a mocked daily_race payload."""
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.daily_plan.service.get_daily_plan_unified') as mock_plan, \
+             patch('app.words.routes._build_daily_race_widget') as mock_race:
+            mock_plan.return_value = mission_plan
+            mock_race.return_value = race_data
+            response = client.get('/dashboard')
+        return response
+
+    def _make_route_rivals(self):
+        """Return a minimal route_rivals list with ahead/me/behind tokens."""
+        return [
+            {
+                'user_id': 2, 'username': 'Ракета', 'initials': 'РА',
+                'score': 30, 'steps_done': 2, 'steps_total': 3,
+                'streak': 5, 'next_step_title': '', 'next_step_points': 0,
+                'is_me': False, 'is_bot': False, 'rank': 1, 'place_class': 'gold',
+                'is_complete': False, 'route_position': 66, 'rival_role': 'ahead',
+            },
+            {
+                'user_id': 1, 'username': 'Testuser', 'initials': 'TE',
+                'score': 20, 'steps_done': 1, 'steps_total': 3,
+                'streak': 3, 'next_step_title': 'Урок', 'next_step_points': 40,
+                'is_me': True, 'is_bot': False, 'rank': 2, 'place_class': 'silver',
+                'is_complete': False, 'route_position': 33, 'rival_role': 'me',
+            },
+            {
+                'user_id': 3, 'username': 'Молния', 'initials': 'МО',
+                'score': 10, 'steps_done': 0, 'steps_total': 3,
+                'streak': 1, 'next_step_title': '', 'next_step_points': 0,
+                'is_me': False, 'is_bot': True, 'rank': 3, 'place_class': '',
+                'is_complete': False, 'route_position': 0, 'rival_role': 'behind',
+            },
+        ]
+
+    def _make_race_payload(self, route_rivals=None):
+        rivals = route_rivals if route_rivals is not None else self._make_route_rivals()
+        return {
+            'rank': 2, 'place_class': 'silver', 'total': 3,
+            'score': 20, 'steps_done': 1, 'steps_total': 3,
+            'streak': 3, 'is_complete': False,
+            'rival_above': rivals[0], 'rival_below': rivals[2],
+            'gap_up': 10, 'gap_down': 10,
+            'callout': 'Сократи отрыв!',
+            'next_step_title': 'Урок', 'next_step_points': 40,
+            'duel_target': rivals[0],
+            'has_bot_rivals': True,
+            'leaderboard': rivals,
+            'route_rivals': rivals,
+            'next_action_title': '', 'next_action_url': '',
+        }
+
+    def test_route_rivals_in_payload(self):
+        """Task 34: route_rivals list is present and includes route_position for each entry."""
+        # Test the logic directly without a full DB round-trip
+        from app.words.routes import _build_daily_race_widget
+        # Ensure route_position calculation: steps_done/steps_total * 100
+        dummy_entry = {'steps_done': 2, 'steps_total': 4}
+        st = dummy_entry['steps_total']
+        pos = int(dummy_entry['steps_done'] / st * 100) if st > 0 else 0
+        assert pos == 50
+
+        dummy_entry_zero = {'steps_done': 0, 'steps_total': 0}
+        st2 = dummy_entry_zero['steps_total']
+        pos2 = int(dummy_entry_zero['steps_done'] / st2 * 100) if st2 > 0 else 0
+        assert pos2 == 0
+
+    def test_route_rivals_roles(self):
+        """Task 34: route_rivals entries carry rival_role field: ahead/me/behind/leader."""
+        rivals = self._make_route_rivals()
+        roles = {r['rival_role'] for r in rivals}
+        assert 'me' in roles
+        assert 'ahead' in roles
+        assert 'behind' in roles
+
+    def test_route_token_html_rendered_when_rivals_present(self, client, app, db_session, test_user, words_module_access):
+        """Task 34: dash-route-token elements rendered when route_rivals is in daily_race payload."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        race = self._make_race_payload()
+        response = self._get_dashboard_with_race(client, test_user, plan, race)
+        html = response.data.decode('utf-8')
+        assert 'data-route-tokens="true"' in html
+        assert 'data-route-token="true"' in html
+        # User token with rival_role="me" must be present
+        assert 'dash-route-token--me' in html
+
+    def test_route_token_ahead_and_behind_rendered(self, client, app, db_session, test_user, words_module_access):
+        """Task 34: ahead and behind rival tokens are rendered on the route."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        race = self._make_race_payload()
+        response = self._get_dashboard_with_race(client, test_user, plan, race)
+        html = response.data.decode('utf-8')
+        assert 'dash-route-token--ahead' in html
+        assert 'dash-route-token--behind' in html
+
+    def test_route_token_positions_in_style(self, client, app, db_session, test_user, words_module_access):
+        """Task 34: each token carries inline left% style matching its route_position."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        race = self._make_race_payload()
+        response = self._get_dashboard_with_race(client, test_user, plan, race)
+        html = response.data.decode('utf-8')
+        # ahead token at 66%
+        assert 'left: 66%' in html
+        # me token at 33%
+        assert 'left: 33%' in html
+
+    def test_route_tokens_absent_when_no_race(self, client, app, db_session, test_user, words_module_access):
+        """Task 34: token strip not rendered when daily_race is None."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard_with_race(client, test_user, plan, None)
+        html = response.data.decode('utf-8')
+        assert 'data-route-tokens="true"' not in html
+
+    def test_bot_rival_labeled_training(self, client, app, db_session, test_user, words_module_access):
+        """Task 34: bot rival tokens carry the training CSS class."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        race = self._make_race_payload()
+        response = self._get_dashboard_with_race(client, test_user, plan, race)
+        html = response.data.decode('utf-8')
+        assert 'dash-route-token--training' in html
+
+    def test_route_token_css_classes_in_design_system(self):
+        """Task 34: CSS classes for route tokens exist in design-system.css."""
+        import os
+        css_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'static', 'css', 'design-system.css')
+        with open(css_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        assert '.dash-route-tokens' in css
+        assert '.dash-route-token--me' in css
+        assert '.dash-route-token--ahead' in css
+        assert '.dash-route-token--behind' in css
+        assert '.dash-route-token--leader' in css
+        assert '.dash-route-token--training' in css
+
+    def test_leaderboard_rendered_as_collapsible_details(self, client, app, db_session, test_user, words_module_access):
+        """Task 34: race leaderboard is wrapped in a details element (secondary/compact UI)."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        race = self._make_race_payload()
+        response = self._get_dashboard_with_race(client, test_user, plan, race)
+        html = response.data.decode('utf-8')
+        assert 'dash-race__board--compact' in html

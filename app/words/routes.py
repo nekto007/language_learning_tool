@@ -431,6 +431,8 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
         entry['rank'] = idx
         entry['place_class'] = _MEDAL_BY_RANK.get(idx, '')
         entry['is_complete'] = entry['steps_done'] >= entry['steps_total'] and entry['steps_total'] > 0
+        st = entry['steps_total']
+        entry['route_position'] = int(entry['steps_done'] / st * 100) if st > 0 else 0
 
     me = entries[current_index]
     rival_above = entries[current_index - 1] if current_index > 0 else None
@@ -458,6 +460,22 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
 
     me_is_complete = me['steps_done'] >= me['steps_total'] and me['steps_total'] > 0
 
+    # Build route_rivals: compact set for on-route token display (one ahead, one behind, optional leader)
+    entries_by_pos = sorted(entries, key=lambda e: (-e['route_position'], -e['score']))
+    me_pos_idx = next((i for i, e in enumerate(entries_by_pos) if e['is_me']), None)
+    route_rivals: list[dict] = []
+    if me_pos_idx is not None:
+        ahead = entries_by_pos[me_pos_idx - 1] if me_pos_idx > 0 else None
+        behind = entries_by_pos[me_pos_idx + 1] if me_pos_idx + 1 < len(entries_by_pos) else None
+        leader = entries_by_pos[0] if not entries_by_pos[0]['is_me'] else None
+        if ahead:
+            route_rivals.append({**ahead, 'rival_role': 'ahead'})
+        route_rivals.append({**entries_by_pos[me_pos_idx], 'rival_role': 'me'})
+        if behind:
+            route_rivals.append({**behind, 'rival_role': 'behind'})
+        if leader and leader['user_id'] not in {e['user_id'] for e in route_rivals}:
+            route_rivals.append({**leader, 'rival_role': 'leader'})
+
     return {
         'rank': me['rank'],
         'place_class': me['place_class'],
@@ -477,6 +495,7 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
         'duel_target': rival_above or rival_below,
         'has_bot_rivals': any(entry.get('is_bot') for entry in entries),
         'leaderboard': entries[start:end],
+        'route_rivals': route_rivals,
     }
 
 

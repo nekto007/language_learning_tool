@@ -278,8 +278,8 @@
             {% endif %}
             {% endif %}
 
-            <div class="dash-race__board">
-                <div class="dash-race__board-title">{% if daily_race.is_complete %}Итоги гонки{% else %}Позиции рядом{% endif %}</div>
+            <details class="dash-race__board dash-race__board--compact" {% if daily_race.is_complete %}open{% endif %}>
+                <summary class="dash-race__board-title">{% if daily_race.is_complete %}Итоги гонки{% else %}Позиции рядом{% endif %}</summary>
                 <div class="dash-race__list">
                     {% for rival in daily_race.leaderboard %}
                     <div class="dash-race__row {% if rival.is_me %}dash-race__row--me{% endif %}">
@@ -293,7 +293,7 @@
                     </div>
                     {% endfor %}
                 </div>
-            </div>
+            </details>
         </div>
     </section>
     {% endif %}
@@ -629,6 +629,23 @@
             </div>
             <div class="dash-roadmap__swipe-hint" data-roadmap-swipe-hint="true" aria-hidden="true">Листайте, чтобы увидеть все шаги</div>
         </div>
+
+        {# Rival tokens on the route: user + nearby rivals by route_position #}
+        {% if daily_race and daily_race.route_rivals %}
+        <div class="dash-route-tokens" data-route-tokens="true" aria-label="Позиции участников на маршруте">
+            {% for rival in daily_race.route_rivals %}
+            <div class="dash-route-token dash-route-token--{{ rival.rival_role }}{% if rival.is_bot %} dash-route-token--training{% endif %}"
+                 style="left: {{ rival.route_position }}%"
+                 data-route-token="true"
+                 data-token-role="{{ rival.rival_role }}"
+                 data-route-position="{{ rival.route_position }}"
+                 title="{% if rival.is_me %}Ты: {{ rival.route_position }}% маршрута{% else %}{{ rival.username }}: {{ rival.route_position }}% маршрута{% endif %}">
+                <div class="dash-route-token__avatar">{{ rival.initials }}</div>
+                <div class="dash-route-token__label">{% if rival.is_me %}Ты{% else %}{{ rival.username }}{% endif %}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <div class="dash-timeline" data-mission-plan="true">
         {% set mns = namespace(current_found=false) %}

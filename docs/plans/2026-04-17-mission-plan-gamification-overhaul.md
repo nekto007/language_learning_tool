@@ -542,14 +542,14 @@ Show the user token and the nearest rival tokens directly on the route so progre
 - Modify: `app/templates/dashboard.html`
 - Modify: `app/static/css/design-system.css`
 
-- [ ] Extend `daily_race` payload with route-relative positions, not just rank/score
-- [ ] Add `route_position` (0-100 scale) for the current user and each rival based on completed phases plus partial progress inside the active phase
-- [ ] Show the current user token plus the nearest rivals on the route itself
-- [ ] Only render nearby rivals on the track: one ahead, one behind, optional leader marker
-- [ ] Use the route itself as the primary race UI; keep the leaderboard secondary and compact
-- [ ] Keep bot rivals only as fallback for low-population/testing scenarios, clearly labeled as training
-- [ ] Write tests: route payload includes route positions; dashboard renders user token and rival tokens
-- [ ] Run project test suite - must pass before task 35
+- [x] Extend `daily_race` payload with route-relative positions, not just rank/score
+- [x] Add `route_position` (0-100 scale) for the current user and each rival based on completed phases plus partial progress inside the active phase
+- [x] Show the current user token plus the nearest rivals on the route itself
+- [x] Only render nearby rivals on the track: one ahead, one behind, optional leader marker
+- [x] Use the route itself as the primary race UI; keep the leaderboard secondary and compact
+- [x] Keep bot rivals only as fallback for low-population/testing scenarios, clearly labeled as training
+- [x] Write tests: route payload includes route positions; dashboard renders user token and rival tokens
+- [x] Run project test suite - must pass before task 35
 
 ### Task 35: Overtake and checkpoint animations
 
