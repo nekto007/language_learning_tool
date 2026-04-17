@@ -337,12 +337,12 @@ Create a lightweight daily race system where users are matched into small groups
 - Modify: `app/achievements/models.py` (or new file for race models)
 - Create: Alembic migration
 
-- [ ] `DailyRace` model: id, race_date, created_at
-- [ ] `DailyRaceParticipant` model: race_id, user_id, points (default 0), finished_at, rank
-- [ ] Points use existing `_MISSION_PHASE_POINTS` from words/routes.py
-- [ ] Index on (user_id, race_date) for fast lookups
-- [ ] Write tests: models create correctly; unique constraint per user per date
-- [ ] Run project test suite - must pass before task 21
+- [x] `DailyRace` model: id, race_date, created_at
+- [x] `DailyRaceParticipant` model: race_id, user_id, points (default 0), finished_at, rank
+- [x] Points use existing `_MISSION_PHASE_POINTS` from words/routes.py
+- [x] Index on (user_id, race_date) for fast lookups
+- [x] Write tests: models create correctly; unique constraint per user per date
+- [x] Run project test suite - must pass before task 21
 
 ### Task 21: Race matchmaking
 

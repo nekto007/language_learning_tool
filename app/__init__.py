@@ -105,6 +105,7 @@ def create_app(config_class=Config):
     from app.reminders import models as reminders_models  # noqa: F401
     from app.telegram import models as telegram_models  # noqa: F401
     from app.achievements import models as achievements_models  # noqa: F401
+    from app.achievements import daily_race as achievements_daily_race  # noqa: F401
     from app.notifications import models as notifications_models  # noqa: F401
     from app.admin import audit as admin_audit  # noqa: F401
 
