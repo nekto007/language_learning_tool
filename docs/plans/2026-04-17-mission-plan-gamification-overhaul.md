@@ -270,11 +270,11 @@ Add new achievements specifically for daily plan missions: first mission complet
 - Modify: `app/achievements/seed.py` (new badge definitions)
 - Create: Alembic migration (if needed for new seed data)
 
-- [ ] Add badge definitions: `mission_first`, `mission_progress_5`, `mission_repair_5`, `mission_reading_5`, `mission_week_perfect`, `mission_early_bird`, `mission_night_owl`, `mission_variety_3` (all 3 types in one week), `mission_speed_demon` (all phases done in < 30 min)
-- [ ] Each badge has: code, name (Russian), description, icon, points, category='mission'
-- [ ] Write seed migration or update existing seed function
-- [ ] Write tests: all new badges are seeded correctly with unique codes
-- [ ] Run project test suite - must pass before task 17
+- [x] Add badge definitions: `mission_first`, `mission_progress_5`, `mission_repair_5`, `mission_reading_5`, `mission_week_perfect`, `mission_early_bird`, `mission_night_owl`, `mission_variety_3` (all 3 types in one week), `mission_speed_demon` (all phases done in < 30 min)
+- [x] Each badge has: code, name (Russian), description, icon, points, category='mission'
+- [x] Write seed migration or update existing seed function
+- [x] Write tests: all new badges are seeded correctly with unique codes
+- [x] Run project test suite - must pass before task 17
 
 ### Task 17: Mission badge check logic
 
