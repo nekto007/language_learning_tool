@@ -370,12 +370,12 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     for user in candidates:
         user_tz = user.timezone or tz
         try:
-            with db.session.begin_nested():
-                plan = get_daily_plan_unified(user.id, tz=user_tz)
-                summary = get_daily_summary(user.id, tz=user_tz)
-                streak = get_current_streak(user.id, tz=user_tz)
-                race_state = _compute_daily_race_state(plan, summary, streak)
+            plan = get_daily_plan_unified(user.id, tz=user_tz)
+            summary = get_daily_summary(user.id, tz=user_tz)
+            streak = get_current_streak(user.id, tz=user_tz)
+            race_state = _compute_daily_race_state(plan, summary, streak)
         except Exception as e:
+            db.session.rollback()
             logger.exception("Failed to build daily race entry for user %s: %s", user.id, e)
             continue
 
