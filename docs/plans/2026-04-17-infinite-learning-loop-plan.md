@@ -78,11 +78,11 @@ Design sprint only. No code. Output: locked product rules docs and 5 falsifiable
 **Files:**
 - Create: `docs/decisions/2026-04-18-instructional-validity.md`
 
-- [ ] define what "real learning" means in this system (retention score, accuracy under variation, mastery signal)
-- [ ] define the difference between a "product step" (moves route, earns XP) and a "learning step" (improves retention/mastery)
-- [ ] write the anti-exploit rule: route progress must be gated by learning signal, not raw task count
-- [ ] define spacing quality requirements for endless mode (no same-card back-to-back, no over-reviewing familiar material)
-- [ ] define transition conditions: when does a learner move from exposure to recall to transfer phases?
+- [x] define what "real learning" means in this system (retention score, accuracy under variation, mastery signal)
+- [x] define the difference between a "product step" (moves route, earns XP) and a "learning step" (improves retention/mastery)
+- [x] write the anti-exploit rule: route progress must be gated by learning signal, not raw task count
+- [x] define spacing quality requirements for endless mode (no same-card back-to-back, no over-reviewing familiar material)
+- [x] define transition conditions: when does a learner move from exposure to recall to transfer phases?
 
 ### Task 5: Define v1 scope and explicit deferrals
 
