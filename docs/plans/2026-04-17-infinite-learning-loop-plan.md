@@ -65,13 +65,13 @@ Design sprint only. No code. Output: locked product rules docs and 5 falsifiable
 **Files:**
 - Create: `docs/decisions/2026-04-18-hypotheses.md`
 
-- [ ] H1: "Showing 1 recommended 'next step' after minimum completion increases same-session continuation rate by ≥15%"
-- [ ] H2: "Visible route progress (position + next checkpoint) increases D7 retention vs baseline with no route"
-- [ ] H3: "Ghost rivals (no real user) improve continuation depth without increasing churn or stress indicators"
-- [ ] H4: "An endless queue of 5+ tasks outperforms a single 'next best step' recommendation for continuation depth"
-- [ ] H5: "Users who reach one checkpoint after minimum completion have 2x higher next-day return rate"
-- [ ] for each hypothesis: define measurement method, sample size needed, test duration, and pass/fail threshold
-- [ ] confirm that H1–H3 can be tested cheaply before H4 requires building the full endless engine
+- [x] H1: "Showing 1 recommended 'next step' after minimum completion increases same-session continuation rate by ≥15%"
+- [x] H2: "Visible route progress (position + next checkpoint) increases D7 retention vs baseline with no route"
+- [x] H3: "Ghost rivals (no real user) improve continuation depth without increasing churn or stress indicators"
+- [x] H4: "An endless queue of 5+ tasks outperforms a single 'next best step' recommendation for continuation depth"
+- [x] H5: "Users who reach one checkpoint after minimum completion have 2x higher next-day return rate"
+- [x] for each hypothesis: define measurement method, sample size needed, test duration, and pass/fail threshold
+- [x] confirm that H1–H3 can be tested cheaply before H4 requires building the full endless engine
 
 ### Task 4: Define instructional validity criteria
 
