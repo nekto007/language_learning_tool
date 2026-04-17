@@ -115,6 +115,10 @@ class UserStatistics(db.Model):
     plans_completed_total = Column(Integer, default=0, nullable=False, server_default='0')
     current_rank = Column(String(32), default='novice', nullable=False, server_default='novice')
 
+    # XP and level progression
+    total_xp = Column(Integer, default=0, nullable=False, server_default='0')
+    current_level = Column(Integer, default=1, nullable=False, server_default='1')
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))

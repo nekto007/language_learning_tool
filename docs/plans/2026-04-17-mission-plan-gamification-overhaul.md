@@ -404,13 +404,13 @@ Add an XP (experience points) system tied to daily plan activities. XP accumulat
 - Create: `app/achievements/xp_service.py`
 - Create: Alembic migration
 
-- [ ] Add `total_xp`, `current_level` columns to UserStatistics
-- [ ] Define XP awards: phase completion (by type), perfect day bonus (all phases), streak multiplier (1.0 + streak_days * 0.02, max 2.0), first-of-day bonus
-- [ ] Define level thresholds: exponential curve (level N requires N*100 XP from previous level)
-- [ ] `award_xp(user_id, amount, source)` function with multiplier application
-- [ ] `get_level_info(total_xp)` returning current level, XP in level, XP to next level, percentage
-- [ ] Write tests: XP awards calculate correctly with multipliers; level thresholds correct; edge cases at level boundaries
-- [ ] Run project test suite - must pass before task 25
+- [x] Add `total_xp`, `current_level` columns to UserStatistics
+- [x] Define XP awards: phase completion (by type), perfect day bonus (all phases), streak multiplier (1.0 + streak_days * 0.02, max 2.0), first-of-day bonus
+- [x] Define level thresholds: exponential curve (level N requires N*100 XP from previous level)
+- [x] `award_xp(user_id, amount, source)` function with multiplier application
+- [x] `get_level_info(total_xp)` returning current level, XP in level, XP to next level, percentage
+- [x] Write tests: XP awards calculate correctly with multipliers; level thresholds correct; edge cases at level boundaries
+- [x] Run project test suite - must pass before task 25
 
 ### Task 25: XP award integration
 
