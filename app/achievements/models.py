@@ -111,6 +111,10 @@ class UserStatistics(db.Model):
     total_badges = Column(Integer, default=0)
     total_badge_points = Column(Integer, default=0)
 
+    # Daily plan rank progression
+    plans_completed_total = Column(Integer, default=0, nullable=False, server_default='0')
+    current_rank = Column(String(32), default='novice', nullable=False, server_default='novice')
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))

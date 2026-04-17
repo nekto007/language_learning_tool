@@ -206,12 +206,12 @@ Create a rank system where users earn titles based on cumulative daily plan comp
 - Modify: `app/achievements/models.py` (add rank fields to UserStatistics)
 - Create: Alembic migration
 
-- [ ] Define `RANK_THRESHOLDS` list: [(0, "Novice"), (7, "Explorer"), (21, "Student"), (50, "Expert"), (100, "Master"), (200, "Legend"), (365, "Grandmaster")]
-- [ ] Add `plans_completed_total` and `current_rank` columns to UserStatistics
-- [ ] Create `get_user_rank(plans_completed)` function returning rank name, next rank threshold, progress percentage
-- [ ] Create Alembic migration
-- [ ] Write tests: rank calculation at each threshold boundary, edge cases (0, exact threshold, between thresholds)
-- [ ] Run project test suite - must pass before task 13
+- [x] Define `RANK_THRESHOLDS` list: [(0, "Novice"), (7, "Explorer"), (21, "Student"), (50, "Expert"), (100, "Master"), (200, "Legend"), (365, "Grandmaster")]
+- [x] Add `plans_completed_total` and `current_rank` columns to UserStatistics
+- [x] Create `get_user_rank(plans_completed)` function returning rank name, next rank threshold, progress percentage
+- [x] Create Alembic migration
+- [x] Write tests: rank calculation at each threshold boundary, edge cases (0, exact threshold, between thresholds)
+- [x] Run project test suite - must pass before task 13
 
 ### Task 13: Rank progression logic
 
