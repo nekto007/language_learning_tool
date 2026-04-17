@@ -55,6 +55,10 @@ class User(db.Model, UserMixin):
     # Daily plan: mission-based plan feature flag
     use_mission_plan = Column(Boolean, default=False, nullable=False, server_default='false')
 
+    # Age gating: used to determine adult status for rival strip (Phase 3).
+    # Null = unknown age (treated as adult for backward compatibility).
+    birth_year = Column(Integer, nullable=True)
+
     referred_by = relationship('User', remote_side='User.id', foreign_keys=[referred_by_id])
 
     __table_args__ = (

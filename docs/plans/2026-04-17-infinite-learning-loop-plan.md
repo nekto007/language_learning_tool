@@ -250,11 +250,11 @@ Go/no-go: if adult continuation depth increases and churn/stress indicators do n
 **Files:**
 - Modify: `app/achievements/daily_race.py` or create `app/daily_plan/rivals.py`
 
-- [ ] ghost rival has a name, avatar_seed, and deterministic route_position based on date + user seed (not stored per-user)
-- [ ] ghost moves at a rate slightly behind average user progression (not faster)
-- [ ] ghost is labeled "Training Rival" in the UI — no pretending it is a real person
-- [ ] adults only: gate by `User.birth_year` or explicit adult flag; children see no rival strip
-- [ ] write tests for ghost position calculation and child-gating
+- [x] ghost rival has a name, avatar_seed, and deterministic route_position based on date + user seed (not stored per-user)
+- [x] ghost moves at a rate slightly behind average user progression (not faster)
+- [x] ghost is labeled "Training Rival" in the UI — no pretending it is a real person
+- [x] adults only: gate by `User.birth_year` or explicit adult flag; children see no rival strip
+- [x] write tests for ghost position calculation and child-gating
 
 ### Task 17: Rival strip UI with anti-shame guardrails
 
