@@ -313,6 +313,9 @@ _CLIENT_EVENTS = {
     'next_step_accepted',
     'next_step_dismissed',
     'session_ended_at_minimum',
+    'rival_strip_shown',
+    'rival_strip_dismissed',
+    'steps_taken_while_rival_visible',
 }
 
 

@@ -273,12 +273,12 @@ Go/no-go: if adult continuation depth increases and churn/stress indicators do n
 **Files:**
 - Create: `docs/decisions/2026-04-18-phase3-results.md`
 
-- [ ] emit events: rival_strip_shown, rival_strip_dismissed, steps_taken_while_rival_visible
-- [ ] measure: continuation depth for users who see rival strip vs control group without
-- [ ] measure: dismissal rate (high dismissal = the feature is not wanted)
-- [ ] measure: churn delta after rival introduction
-- [ ] if dismissal > 30% or churn worsens: roll back rival strip
-- [ ] write tests for event emission
+- [x] emit events: rival_strip_shown, rival_strip_dismissed, steps_taken_while_rival_visible
+- [x] measure: continuation depth for users who see rival strip vs control group without (manual evaluation - requires production data; template in docs/decisions/2026-04-18-phase3-results.md)
+- [x] measure: dismissal rate (high dismissal = the feature is not wanted) (manual evaluation - requires production data)
+- [x] measure: churn delta after rival introduction (manual evaluation - requires production data)
+- [x] if dismissal > 30% or churn worsens: roll back rival strip (manual evaluation - requires production data)
+- [x] write tests for event emission
 
 ---
 

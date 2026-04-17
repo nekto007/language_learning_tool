@@ -247,3 +247,78 @@ def test_daily_status_no_event_when_not_secured(authenticated_client, db_session
         event_type='minimum_completed',
     ).first()
     assert ev is None
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 rival strip events
+# ---------------------------------------------------------------------------
+
+def test_record_rival_strip_shown(authenticated_client, db_session):
+    """rival_strip_shown event is accepted and stored."""
+    response = authenticated_client.post(
+        '/api/daily-plan/events',
+        json={'event_type': 'rival_strip_shown'},
+        content_type='application/json',
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['success'] is True
+    assert data['event_type'] == 'rival_strip_shown'
+
+
+def test_record_rival_strip_dismissed(authenticated_client, db_session):
+    """rival_strip_dismissed event is accepted and stored."""
+    response = authenticated_client.post(
+        '/api/daily-plan/events',
+        json={'event_type': 'rival_strip_dismissed'},
+    )
+    assert response.status_code == 200
+    assert response.get_json()['event_type'] == 'rival_strip_dismissed'
+
+
+def test_record_steps_taken_while_rival_visible(authenticated_client, db_session):
+    """steps_taken_while_rival_visible event is accepted and stored."""
+    response = authenticated_client.post(
+        '/api/daily-plan/events',
+        json={
+            'event_type': 'steps_taken_while_rival_visible',
+            'step_kind': 'learn',
+        },
+    )
+    assert response.status_code == 200
+    assert response.get_json()['event_type'] == 'steps_taken_while_rival_visible'
+
+
+def test_rival_events_persisted_to_db(authenticated_client, db_session, test_user):
+    """Rival strip events are written to the database with correct fields."""
+    from app.daily_plan.models import DailyPlanEvent
+
+    authenticated_client.post(
+        '/api/daily-plan/events',
+        json={'event_type': 'rival_strip_shown', 'plan_date': '2026-04-18'},
+    )
+
+    ev = DailyPlanEvent.query.filter_by(
+        user_id=test_user.id,
+        event_type='rival_strip_shown',
+    ).first()
+    assert ev is not None
+    assert str(ev.plan_date) == '2026-04-18'
+
+
+def test_rival_strip_shown_not_server_only(authenticated_client):
+    """rival_strip_shown is in the client-callable set (not blocked like minimum_completed)."""
+    response = authenticated_client.post(
+        '/api/daily-plan/events',
+        json={'event_type': 'rival_strip_shown'},
+    )
+    assert response.status_code == 200
+
+
+def test_minimum_completed_still_blocked_from_client(authenticated_client):
+    """minimum_completed remains server-only and cannot be sent by the client."""
+    response = authenticated_client.post(
+        '/api/daily-plan/events',
+        json={'event_type': 'minimum_completed'},
+    )
+    assert response.status_code == 400
