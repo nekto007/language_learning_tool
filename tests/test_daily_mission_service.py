@@ -173,10 +173,12 @@ class TestPlanMetaHelper:
 
 
 class TestGetMissionPlan:
+    @patch("app.utils.db.db")
+    @patch(f"{MODULE}.save_mission_type")
     @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
     @patch(f"{MODULE}.assemble_progress_mission")
     @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "primary_track_progress", "Вперёд", None))
-    def test_progress_happy_path(self, _sel, mock_asm, _track):
+    def test_progress_happy_path(self, _sel, mock_asm, _track, _save, _db):
         mock_asm.return_value = _make_progress_plan()
         result = get_mission_plan(1)
         assert result is not None
@@ -190,9 +192,11 @@ class TestGetMissionPlan:
             tz=None,
         )
 
+    @patch("app.utils.db.db")
+    @patch(f"{MODULE}.save_mission_type")
     @patch(f"{MODULE}.assemble_repair_mission")
     @patch(f"{MODULE}.select_mission")
-    def test_repair_happy_path(self, mock_sel, mock_asm):
+    def test_repair_happy_path(self, mock_sel, mock_asm, _save, _db):
         breakdown = _high_breakdown()
         mock_sel.return_value = (MissionType.repair, "repair_pressure_high", "Слабые места", breakdown)
         mock_asm.return_value = _make_repair_plan()
@@ -207,9 +211,11 @@ class TestGetMissionPlan:
             tz=None,
         )
 
+    @patch("app.utils.db.db")
+    @patch(f"{MODULE}.save_mission_type")
     @patch(f"{MODULE}.assemble_reading_mission")
     @patch(f"{MODULE}.select_mission", return_value=(MissionType.reading, "primary_track_reading", "Чтение", None))
-    def test_reading_happy_path(self, _sel, mock_asm):
+    def test_reading_happy_path(self, _sel, mock_asm, _save, _db):
         mock_asm.return_value = _make_reading_plan()
         result = get_mission_plan(1)
         assert result is not None

@@ -122,10 +122,12 @@ class MissionPlan:
             raise TypeError("primary_source must be a PrimarySource instance")
 
         # Warn if duplicate activity categories slip through deduplication.
+        # Reading missions intentionally have multiple 'words' phases — skip warning for them.
+        skip_dup_warning = self.mission.type == MissionType.reading
         seen_categories: dict[str, int] = {}
         for i, phase in enumerate(self.phases):
             cat = MODE_CATEGORY_MAP.get(phase.mode)
-            if cat is not None and cat in seen_categories:
+            if cat is not None and cat in seen_categories and not skip_dup_warning:
                 logger.warning(
                     "MissionPlan duplicate category %r in phases[%d] (mode=%s) "
                     "and phases[%d] (mode=%s)",

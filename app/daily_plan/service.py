@@ -137,10 +137,15 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
             except pytz.UnknownTimeZoneError:
                 tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
             user_today = datetime.now(tz_obj).date()
-            save_mission_type(user_id, mission_type, user_today)
+            nested = db.session.begin_nested()
+            try:
+                save_mission_type(user_id, mission_type, user_today)
+                nested.commit()
+            except Exception:
+                nested.rollback()
+                raise
             db.session.commit()
         except Exception:
-            db.session.rollback()
             logger.warning(
                 "Failed to persist mission type for user %s", user_id,
                 exc_info=True,
