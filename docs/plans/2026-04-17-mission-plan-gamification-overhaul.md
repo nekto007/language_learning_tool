@@ -597,8 +597,8 @@ If the user has already entered a lesson through the daily plan, the lesson must
 
 ### Task 38: Update documentation
 
-- [ ] Update CLAUDE.md: add daily plan gamification patterns (XP, ranks, races, badges)
-- [ ] Update CLAUDE.md: document new models (DailyRace, rank fields, XP fields)
-- [ ] Move this plan to `docs/plans/completed/`
+- [x] Update CLAUDE.md: add daily plan gamification patterns (XP, ranks, races, badges)
+- [x] Update CLAUDE.md: document new models (DailyRace, rank fields, XP fields)
+- [x] Move this plan to `docs/plans/completed/`
 
 ---
