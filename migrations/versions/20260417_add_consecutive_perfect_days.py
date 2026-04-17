@@ -17,18 +17,36 @@ branch_labels = None
 depends_on = None
 
 
+def _table_exists(table_name):
+    insp = sa.inspect(op.get_bind())
+    return table_name in insp.get_table_names()
+
+
+def _column_exists(table_name, column_name):
+    insp = sa.inspect(op.get_bind())
+    return any(col['name'] == column_name for col in insp.get_columns(table_name))
+
+
 def upgrade():
+    if not _table_exists('user_statistics'):
+        return
+
     with op.batch_alter_table('user_statistics', schema=None) as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                'consecutive_perfect_days',
-                sa.Integer(),
-                nullable=False,
-                server_default='0',
+        if not _column_exists('user_statistics', 'consecutive_perfect_days'):
+            batch_op.add_column(
+                sa.Column(
+                    'consecutive_perfect_days',
+                    sa.Integer(),
+                    nullable=False,
+                    server_default='0',
+                )
             )
-        )
 
 
 def downgrade():
+    if not _table_exists('user_statistics'):
+        return
+
     with op.batch_alter_table('user_statistics', schema=None) as batch_op:
-        batch_op.drop_column('consecutive_perfect_days')
+        if _column_exists('user_statistics', 'consecutive_perfect_days'):
+            batch_op.drop_column('consecutive_perfect_days')
