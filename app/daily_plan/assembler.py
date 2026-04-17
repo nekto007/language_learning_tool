@@ -65,6 +65,14 @@ _CATEGORY_SUBSTITUTIONS: dict[str, list[tuple[str, SourceKind]]] = {
     ],
 }
 
+_SUBSTITUTE_MODE_TITLES: dict[str, str] = {
+    'grammar_practice': 'Практика грамматики',
+    'targeted_quiz': 'Грамматический квиз',
+    'book_reading': 'Читаем книгу',
+    'vocab_drill': 'Тренировка слов',
+    'meaning_prompt': 'Угадай значение',
+}
+
 
 def _deduplicate_phases(phases: list[MissionPhase]) -> list[MissionPhase]:
     """Ensure no two phases share the same activity category.
@@ -94,12 +102,12 @@ def _deduplicate_phases(phases: list[MissionPhase]) -> list[MissionPhase]:
                 continue
             result.append(MissionPhase(
                 phase=phase.phase,
-                title=phase.title,
+                title=_SUBSTITUTE_MODE_TITLES.get(alt_mode, phase.title),
                 source_kind=alt_source,
                 mode=alt_mode,
                 required=phase.required,
                 completed=phase.completed,
-                preview=phase.preview,
+                preview=None,
             ))
             if alt_cat is not None:
                 seen_categories.add(alt_cat)

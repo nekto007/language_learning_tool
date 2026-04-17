@@ -448,11 +448,12 @@ class TestDeduplicatePhases:
         assert result[1].mode == "success_marker"
 
     def test_preserves_phase_attributes(self):
-        """Substituted phase preserves phase kind, title, required, completed."""
+        """Substituted phase preserves phase kind, required, completed; uses substitute title."""
         phase = MissionPhase(
             phase=PhaseKind.use, title="Custom title",
             source_kind=SourceKind.vocab, mode="meaning_prompt",
             required=False, completed=True,
+            preview=PhasePreview(item_count=5),
         )
         phases = [
             self._make_phase("srs_review", PhaseKind.recall, SourceKind.srs),
@@ -461,9 +462,12 @@ class TestDeduplicatePhases:
         result = _deduplicate_phases(phases)
         sub = result[1]
         assert sub.phase == PhaseKind.use
-        assert sub.title == "Custom title"
+        # Substituted phase gets a title matching the new mode, not the original
+        assert sub.title != "Custom title"
         assert sub.required is False
         assert sub.completed is True
+        # Preview is cleared since it was specific to the original mode
+        assert sub.preview is None
 
 
 class TestRepairDeduplication:
@@ -625,12 +629,11 @@ class TestPhasePreviewData:
         assert learn.preview.content_title == "Conditionals"
         assert learn.preview.estimated_minutes == 7
 
-        # Use: may be substituted by dedup (grammar category already taken),
-        # but preview is preserved from original phase
+        # Use: substituted by dedup (grammar category already taken),
+        # preview is cleared since the original preview described a different activity
         use = plan.phases[2]
-        assert use.preview is not None
-        assert use.preview.content_title == "Conditionals"
-        assert use.preview.estimated_minutes == 5
+        assert use.mode != "targeted_quiz"  # substituted away from grammar
+        assert use.preview is None
 
         # Close
         close = plan.phases[3]
