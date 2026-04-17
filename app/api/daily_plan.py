@@ -233,31 +233,33 @@ def daily_race_status():
 @api_daily_plan.route('/daily-plan/continuation')
 @api_auth_required
 def daily_plan_continuation():
-    """Return the single highest-priority continuation task after day is secured.
+    """Return up to 3 continuation tasks after day is secured.
 
     This endpoint is distinct from /api/daily-plan/next-step (which returns the
     next incomplete phase from the current daily plan). This endpoint focuses on
     post-minimum continuation recommendations using priority-based heuristics.
 
     Returns JSON:
-        step: {kind, reason, data, estimated_minutes} or null when exhausted
+        steps: list of {kind, reason, data, estimated_minutes} (up to 3, may be empty)
+        step: first item or null (backward compatibility)
     """
     from app.daily_plan.next_step import get_next_best_step
 
     user_id = current_user.id
-    step = get_next_best_step(user_id, db)
+    steps = get_next_best_step(user_id, db)
 
-    if step is None:
-        return jsonify({'success': True, 'step': None})
+    def _serialize(s):
+        return {
+            'kind': s.kind,
+            'reason': s.reason,
+            'data': s.data,
+            'estimated_minutes': s.estimated_minutes,
+        }
 
     return jsonify({
         'success': True,
-        'step': {
-            'kind': step.kind,
-            'reason': step.reason,
-            'data': step.data,
-            'estimated_minutes': step.estimated_minutes,
-        },
+        'steps': [_serialize(s) for s in steps],
+        'step': _serialize(steps[0]) if steps else None,
     })
 
 

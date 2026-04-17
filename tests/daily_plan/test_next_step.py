@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import patch, MagicMock
 
-from app.daily_plan.next_step import get_next_best_step, NextStep
+from app.daily_plan.next_step import get_next_best_step, NextStep, _apply_queue_filters
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -444,7 +444,7 @@ class TestGetNextBestStepPriorityOrdering:
 
                 result = get_next_best_step(1, _make_mock_db())
 
-            assert result.kind == 'lesson'
+            assert result[0].kind == 'lesson'
 
     def test_srs_beats_grammar_when_no_lesson(self, app):
         """SRS priority beats grammar when no lesson is available."""
@@ -458,7 +458,7 @@ class TestGetNextBestStepPriorityOrdering:
 
                 result = get_next_best_step(1, _make_mock_db())
 
-            assert result.kind == 'srs'
+            assert result[0].kind == 'srs'
 
     def test_grammar_beats_reading_when_no_lesson_srs(self, app):
         """Grammar priority beats reading when no lesson or SRS available."""
@@ -473,7 +473,7 @@ class TestGetNextBestStepPriorityOrdering:
 
                 result = get_next_best_step(1, _make_mock_db())
 
-            assert result.kind == 'grammar'
+            assert result[0].kind == 'grammar'
 
     def test_reading_beats_vocab(self, app):
         """Reading priority beats vocab."""
@@ -489,10 +489,10 @@ class TestGetNextBestStepPriorityOrdering:
 
                 result = get_next_best_step(1, _make_mock_db())
 
-            assert result.kind == 'reading'
+            assert result[0].kind == 'reading'
 
-    def test_returns_none_when_all_sources_exhausted(self, app):
-        """Returns None when every priority check returns None."""
+    def test_returns_empty_when_all_sources_exhausted(self, app):
+        """Returns empty list when every priority check returns None."""
         with app.app_context():
             with patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=None), \
                  patch('app.daily_plan.next_step._check_srs_due', return_value=None), \
@@ -502,7 +502,7 @@ class TestGetNextBestStepPriorityOrdering:
 
                 result = get_next_best_step(1, _make_mock_db())
 
-            assert result is None
+            assert result == []
 
     def test_vocab_returned_when_only_source(self, app):
         """Vocab is returned when it is the only available source."""
@@ -517,41 +517,142 @@ class TestGetNextBestStepPriorityOrdering:
 
                 result = get_next_best_step(1, _make_mock_db())
 
-            assert result is not None
-            assert result.kind == 'vocab'
+            assert len(result) == 1
+            assert result[0].kind == 'vocab'
+
+    def test_returns_all_available_up_to_three(self, app):
+        """Returns up to 3 steps when multiple sources are available."""
+        with app.app_context():
+            lesson_step = NextStep(kind='lesson', reason='Lesson', data={})
+            srs_step = NextStep(kind='srs', reason='SRS', data={})
+            grammar_step = NextStep(kind='grammar', reason='Grammar', data={})
+            reading_step = NextStep(kind='reading', reason='Reading', data={})
+
+            with patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=lesson_step), \
+                 patch('app.daily_plan.next_step._check_srs_due', return_value=srs_step), \
+                 patch('app.daily_plan.next_step._check_grammar_weak', return_value=grammar_step), \
+                 patch('app.daily_plan.next_step._check_reading_progress', return_value=reading_step), \
+                 patch('app.daily_plan.next_step._check_vocab', return_value=None):
+
+                result = get_next_best_step(1, _make_mock_db())
+
+            assert len(result) == 3
+            assert result[0].kind == 'lesson'
+            assert result[1].kind == 'srs'
+            assert result[2].kind == 'grammar'
+
+    def test_returns_fewer_than_three_when_limited_sources(self, app):
+        """Returns fewer than 3 without padding when only 2 sources available."""
+        with app.app_context():
+            srs_step = NextStep(kind='srs', reason='SRS', data={})
+            vocab_step = NextStep(kind='vocab', reason='Vocab', data={})
+
+            with patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=None), \
+                 patch('app.daily_plan.next_step._check_srs_due', return_value=srs_step), \
+                 patch('app.daily_plan.next_step._check_grammar_weak', return_value=None), \
+                 patch('app.daily_plan.next_step._check_reading_progress', return_value=None), \
+                 patch('app.daily_plan.next_step._check_vocab', return_value=vocab_step):
+
+                result = get_next_best_step(1, _make_mock_db())
+
+            assert len(result) == 2
+            assert result[0].kind == 'srs'
+            assert result[1].kind == 'vocab'
+
+
+# ── Queue filter tests ────────────────────────────────────────────────────────
+
+class TestApplyQueueFilters:
+    def test_filters_same_category_back_to_back(self):
+        """Same category back-to-back is skipped."""
+        steps = [
+            NextStep(kind='srs', reason='SRS 1', data={'n': 1}),
+            NextStep(kind='srs', reason='SRS 2', data={'n': 2}),
+            NextStep(kind='vocab', reason='Vocab', data={}),
+        ]
+        result = _apply_queue_filters(steps, 3)
+        assert len(result) == 2
+        assert result[0].kind == 'srs'
+        assert result[1].kind == 'vocab'
+
+    def test_respects_max_steps(self):
+        """Queue is capped at max_steps."""
+        steps = [
+            NextStep(kind='lesson', reason='L', data={}),
+            NextStep(kind='srs', reason='S', data={}),
+            NextStep(kind='grammar', reason='G', data={}),
+            NextStep(kind='reading', reason='R', data={}),
+        ]
+        result = _apply_queue_filters(steps, 2)
+        assert len(result) == 2
+        assert result[0].kind == 'lesson'
+        assert result[1].kind == 'srs'
+
+    def test_empty_candidates_returns_empty(self):
+        """Empty input returns empty list."""
+        assert _apply_queue_filters([], 3) == []
+
+    def test_single_candidate_returned_as_single_item(self):
+        """Single candidate yields a one-item list."""
+        steps = [NextStep(kind='vocab', reason='Vocab', data={})]
+        result = _apply_queue_filters(steps, 3)
+        assert len(result) == 1
+        assert result[0].kind == 'vocab'
+
+    def test_all_different_categories_pass_through(self):
+        """All steps with unique categories pass the filter unchanged."""
+        steps = [
+            NextStep(kind='lesson', reason='L', data={}),
+            NextStep(kind='srs', reason='S', data={}),
+            NextStep(kind='grammar', reason='G', data={}),
+        ]
+        result = _apply_queue_filters(steps, 3)
+        assert len(result) == 3
+        assert [s.kind for s in result] == ['lesson', 'srs', 'grammar']
 
 
 # ── API endpoint tests ────────────────────────────────────────────────────────
 
 class TestNextStepApiEndpoint:
     @pytest.mark.smoke
-    def test_continuation_endpoint_returns_step(self, authenticated_client):
-        """GET /api/daily-plan/continuation returns step when available."""
-        mock_step = NextStep(
-            kind='srs',
-            reason='You have 5 cards due for review',
-            data={'words_due': 5, 'daily_limit': 20},
-            estimated_minutes=3,
-        )
-        with patch('app.daily_plan.next_step.get_next_best_step', return_value=mock_step):
+    def test_continuation_endpoint_returns_steps(self, authenticated_client):
+        """GET /api/daily-plan/continuation returns steps list when available."""
+        mock_steps = [
+            NextStep(
+                kind='srs',
+                reason='You have 5 cards due for review',
+                data={'words_due': 5, 'daily_limit': 20},
+                estimated_minutes=3,
+            ),
+            NextStep(
+                kind='grammar',
+                reason='You have 4 grammar exercises due',
+                data={'topic_id': 1, 'topic_title': 'Present Simple', 'due_exercises': 4, 'status': 'practicing'},
+                estimated_minutes=5,
+            ),
+        ]
+        with patch('app.daily_plan.next_step.get_next_best_step', return_value=mock_steps):
             response = authenticated_client.get('/api/daily-plan/continuation')
 
         assert response.status_code == 200
         data = response.get_json()
         assert data['success'] is True
-        assert data['step'] is not None
+        assert len(data['steps']) == 2
+        assert data['steps'][0]['kind'] == 'srs'
+        assert data['steps'][0]['reason'] == 'You have 5 cards due for review'
+        assert data['steps'][0]['estimated_minutes'] == 3
+        # backward compat: step = first item
         assert data['step']['kind'] == 'srs'
-        assert data['step']['reason'] == 'You have 5 cards due for review'
-        assert data['step']['estimated_minutes'] == 3
 
-    def test_continuation_endpoint_returns_null_when_exhausted(self, authenticated_client):
-        """GET /api/daily-plan/continuation returns null step when all sources exhausted."""
-        with patch('app.daily_plan.next_step.get_next_best_step', return_value=None):
+    def test_continuation_endpoint_returns_empty_when_exhausted(self, authenticated_client):
+        """GET /api/daily-plan/continuation returns empty list and null step when exhausted."""
+        with patch('app.daily_plan.next_step.get_next_best_step', return_value=[]):
             response = authenticated_client.get('/api/daily-plan/continuation')
 
         assert response.status_code == 200
         data = response.get_json()
         assert data['success'] is True
+        assert data['steps'] == []
         assert data['step'] is None
 
     def test_continuation_endpoint_requires_auth(self, client):

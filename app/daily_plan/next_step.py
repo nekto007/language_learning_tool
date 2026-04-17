@@ -1,7 +1,8 @@
 """Next-best-step recommender for post-minimum continuation.
 
-Returns at most 1 recommended task with a human-readable reason string.
+Returns up to 3 continuation tasks with human-readable reason strings.
 Priority: unfinished lesson > SRS due > grammar weak > reading > vocab.
+Quality filters: no same category back-to-back.
 """
 from __future__ import annotations
 
@@ -25,20 +26,34 @@ class NextStep:
     estimated_minutes: Optional[int] = None
 
 
-def get_next_best_step(user_id: int, db) -> Optional[NextStep]:
-    """Return the single highest-priority continuation task for user_id.
+def get_next_best_step(user_id: int, db, max_steps: int = 3) -> list[NextStep]:
+    """Return up to max_steps continuation tasks for user_id, in priority order.
 
-    Returns None only when all sources are genuinely exhausted (no cards due,
-    no lessons available, no grammar, no reading, no vocab).
+    Applies quality filters: no same category back-to-back (covers both
+    "no exact duplicate back-to-back" and "no same category twice in a row").
+    Returns an empty list when all sources are genuinely exhausted.
     """
-    step = (
-        _check_unfinished_lesson(user_id, db)
-        or _check_srs_due(user_id, db)
-        or _check_grammar_weak(user_id, db)
-        or _check_reading_progress(user_id, db)
-        or _check_vocab(user_id, db)
-    )
-    return step
+    candidates = [s for s in [
+        _check_unfinished_lesson(user_id, db),
+        _check_srs_due(user_id, db),
+        _check_grammar_weak(user_id, db),
+        _check_reading_progress(user_id, db),
+        _check_vocab(user_id, db),
+    ] if s is not None]
+
+    return _apply_queue_filters(candidates, max_steps)
+
+
+def _apply_queue_filters(candidates: list[NextStep], max_steps: int) -> list[NextStep]:
+    """Build a queue applying quality filters: no same category back-to-back."""
+    queue: list[NextStep] = []
+    for step in candidates:
+        if len(queue) >= max_steps:
+            break
+        if queue and queue[-1].kind == step.kind:
+            continue
+        queue.append(step)
+    return queue
 
 
 # ── Priority 1: unfinished lesson ──────────────────────────────────────────

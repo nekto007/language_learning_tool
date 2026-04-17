@@ -207,10 +207,10 @@ Go/no-go: if D7 retention increases and users who reach a checkpoint have ≥1.5
 **Files:**
 - Modify: `app/daily_plan/next_step.py`
 
-- [ ] extend `get_next_best_step` to return up to 3 ordered options (primary + 2 alternatives)
-- [ ] apply quality filters: no exact duplicate back-to-back, no same category twice in a row
-- [ ] if < 3 good steps exist, return what's available without padding with low-quality filler
-- [ ] write tests for 3-item queue and under-3 fallback
+- [x] extend `get_next_best_step` to return up to 3 ordered options (primary + 2 alternatives)
+- [x] apply quality filters: no exact duplicate back-to-back, no same category twice in a row
+- [x] if < 3 good steps exist, return what's available without padding with low-quality filler
+- [x] write tests for 3-item queue and under-3 fallback
 
 ### Task 14: Route board UI
 
