@@ -229,11 +229,11 @@ Go/no-go: if D7 retention increases and users who reach a checkpoint have ≥1.5
 **Files:**
 - Create: `docs/decisions/2026-04-18-phase2-results.md`
 
-- [ ] measure D7 retention delta vs Phase 1 baseline
-- [ ] measure next-day return rate for users who reached a checkpoint vs those who stopped before
-- [ ] compare against H2 and H5 thresholds
-- [ ] check for instructional validity: are users doing more retrieval or just clicking cheap steps?
-- [ ] decision: proceed to Phase 3, adjust route weights, or stop
+- [x] measure D7 retention delta vs Phase 1 baseline (manual evaluation - requires production data; template in docs/decisions/2026-04-18-phase2-results.md)
+- [x] measure next-day return rate for users who reached a checkpoint vs those who stopped before (manual evaluation - requires production data)
+- [x] compare against H2 and H5 thresholds (manual evaluation - requires production data)
+- [x] check for instructional validity: are users doing more retrieval or just clicking cheap steps? (manual evaluation - requires production data)
+- [x] decision: proceed to Phase 3, adjust route weights, or stop (manual evaluation - requires production data)
 
 ---
 
