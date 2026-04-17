@@ -921,6 +921,21 @@ def dashboard():
         _build_route_metadata(daily_plan.get('phases', []), plan_completion)
         if mission_plan else None
     )
+    # Route progress state for Task 14 route board UI.
+    route_progress_state = None
+    if mission_plan:
+        try:
+            from app.daily_plan.route_progress import get_route_state, get_phase_step_weight
+            _weighted_steps_today = sum(
+                get_phase_step_weight(p.get('phase', ''))
+                for p in daily_plan.get('phases', [])
+                if plan_completion.get(p.get('id', ''), False)
+            )
+            route_progress_state = get_route_state(
+                current_user.id, _weighted_steps_today, db.session
+            )
+        except Exception:
+            route_progress_state = None
     next_plan_title, next_plan_url = _get_next_plan_action(daily_plan, daily_summary)
     if daily_race:
         daily_race['next_action_title'] = next_plan_title
@@ -1014,6 +1029,8 @@ def dashboard():
         weekly_digest=weekly_digest,
         # Route board metadata (task 33)
         route_metadata=route_metadata,
+        # Route progress state for task 14 route board UI
+        route_progress_state=route_progress_state,
     )
 
 

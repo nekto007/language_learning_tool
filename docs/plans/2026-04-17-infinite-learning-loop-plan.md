@@ -217,12 +217,12 @@ Go/no-go: if D7 retention increases and users who reach a checkpoint have ≥1.5
 **Files:**
 - Modify: relevant dashboard template
 
-- [ ] show route position: steps completed today, checkpoint distance
-- [ ] show a simple progress bar within current checkpoint stretch
-- [ ] show checkpoint label when reached ("Checkpoint 3 reached!")
-- [ ] show "Day secured" divider on the route (marks where minimum ended)
-- [ ] show 3-task queue preview below the route
-- [ ] write template tests
+- [x] show route position: steps completed today, checkpoint distance
+- [x] show a simple progress bar within current checkpoint stretch
+- [x] show checkpoint label when reached ("Checkpoint 3 reached!")
+- [x] show "Day secured" divider on the route (marks where minimum ended)
+- [x] show 3-task queue preview below the route
+- [x] write template tests
 
 ### Task 15: Phase 2 go/no-go evaluation
 

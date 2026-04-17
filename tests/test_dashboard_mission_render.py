@@ -1188,15 +1188,13 @@ class TestDashboardMissionRender:
         assert 'class="dash-day-secured"' not in html
 
     def test_next_step_container_rendered_inside_secured_banner(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: next-step container element is present inside the secured banner for JS to populate."""
+        """Task 9/14: next-step queue container is present inside the secured banner for JS to populate."""
         plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
         response = self._get_dashboard(client, test_user, plan)
         html = response.data.decode('utf-8')
         assert 'data-next-step-container="true"' in html
-        assert 'data-next-step-reason="true"' in html
-        assert 'data-next-step-kind="true"' in html
-        assert 'data-next-step-time="true"' in html
-        assert 'data-next-step-link="true"' in html
+        # Task 14: queue container replaces individual step slots; JS builds items dynamically
+        assert 'data-next-step-queue="true"' in html
         assert 'data-next-step-dismiss="true"' in html
 
     def test_next_step_container_absent_when_not_secured(self, client, app, db_session, test_user, words_module_access):
@@ -1256,3 +1254,188 @@ class TestDashboardMissionRender:
         assert 'data-roadmap="true"' in html
         assert 'data-mission-plan="true"' in html
         assert 'dash-mission-header' in html
+
+    # ---- Task 14 (plan): Route board UI ----
+
+    def _get_dashboard_with_route_state(self, client, test_user, plan, route_progress_state):
+        """Render dashboard with a mocked plan and route progress state."""
+        from unittest.mock import patch
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.daily_plan.service.get_daily_plan_unified') as mock_plan, \
+             patch('app.daily_plan.route_progress.get_route_state') as mock_route:
+            mock_plan.return_value = plan
+            mock_route.return_value = route_progress_state
+            response = client.get('/dashboard')
+        return response
+
+    def test_route_board_rendered_when_route_state_available(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: dash-route-board is rendered when route_progress_state is available."""
+        plan = _make_mission_plan('progress', [True, False, False])
+        route_state = {
+            'steps_today': 3,
+            'total_steps': 23,
+            'checkpoint_number': 1,
+            'steps_to_next_checkpoint': 17,
+            'percent_to_checkpoint': 15,
+        }
+        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
+        html = response.data.decode('utf-8')
+        assert 'data-route-board="true"' in html
+        assert 'dash-route-board' in html
+
+    def test_route_board_absent_for_legacy_plan(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: route board is absent for legacy (non-mission) plans."""
+        legacy_plan = {'steps': {}, 'next_lesson': None, 'words_due': 0}
+        response = self._get_dashboard(client, test_user, legacy_plan)
+        html = response.data.decode('utf-8')
+        assert 'data-route-board="true"' not in html
+
+    def test_route_board_shows_steps_today(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: route position shows steps completed today."""
+        plan = _make_mission_plan('progress', [True, False, False])
+        route_state = {
+            'steps_today': 5,
+            'total_steps': 25,
+            'checkpoint_number': 1,
+            'steps_to_next_checkpoint': 15,
+            'percent_to_checkpoint': 25,
+        }
+        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
+        html = response.data.decode('utf-8')
+        assert 'data-steps-today="5"' in html
+        assert 'Сегодня: 5' in html
+
+    def test_route_board_shows_checkpoint_distance(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: route board shows steps to next checkpoint."""
+        plan = _make_mission_plan('progress', [True, False, False])
+        route_state = {
+            'steps_today': 3,
+            'total_steps': 3,
+            'checkpoint_number': 0,
+            'steps_to_next_checkpoint': 17,
+            'percent_to_checkpoint': 15,
+        }
+        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
+        html = response.data.decode('utf-8')
+        assert 'До точки: 17' in html
+        assert 'data-steps-to-checkpoint="true"' in html
+
+    def test_route_board_progress_bar_rendered(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: progress bar within current checkpoint stretch is rendered."""
+        plan = _make_mission_plan('progress', [True, True, False])
+        route_state = {
+            'steps_today': 5,
+            'total_steps': 10,
+            'checkpoint_number': 0,
+            'steps_to_next_checkpoint': 10,
+            'percent_to_checkpoint': 50,
+        }
+        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
+        html = response.data.decode('utf-8')
+        assert 'data-route-bar-fill="true"' in html
+        assert 'width: 50%' in html
+        assert 'role="progressbar"' in html
+        assert 'data-percent-to-checkpoint="50"' in html
+
+    def test_route_board_checkpoint_label_shown_when_reached(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: 'Checkpoint N reached!' label shown when percent_to_checkpoint is 0 and checkpoint > 0."""
+        plan = _make_mission_plan('progress', [True, True, False])
+        route_state = {
+            'steps_today': 4,
+            'total_steps': 40,
+            'checkpoint_number': 2,
+            'steps_to_next_checkpoint': 20,
+            'percent_to_checkpoint': 0,
+        }
+        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
+        html = response.data.decode('utf-8')
+        assert 'data-checkpoint-reached="true"' in html
+        assert 'Контрольная точка 2 достигнута!' in html
+
+    def test_route_board_checkpoint_label_absent_when_not_reached(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: checkpoint reached label not shown when not at checkpoint boundary."""
+        plan = _make_mission_plan('progress', [True, False, False])
+        route_state = {
+            'steps_today': 3,
+            'total_steps': 3,
+            'checkpoint_number': 0,
+            'steps_to_next_checkpoint': 17,
+            'percent_to_checkpoint': 15,
+        }
+        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
+        html = response.data.decode('utf-8')
+        assert 'data-checkpoint-reached="true"' not in html
+
+    def test_route_board_secured_marker_shown_when_day_secured(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: day-secured marker on route bar is visible when day is secured and steps > 0."""
+        plan = _make_mission_plan('progress', [True, True, False])
+        plan['day_secured'] = True
+        route_state = {
+            'steps_today': 5,
+            'total_steps': 25,
+            'checkpoint_number': 1,
+            'steps_to_next_checkpoint': 15,
+            'percent_to_checkpoint': 25,
+        }
+        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
+        html = response.data.decode('utf-8')
+        assert 'data-secured-marker="true"' in html
+        assert 'Серия закреплена' in html
+
+    def test_route_board_secured_marker_absent_when_not_secured(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: day-secured marker not shown when day is not secured."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        plan['day_secured'] = False
+        route_state = {
+            'steps_today': 0,
+            'total_steps': 0,
+            'checkpoint_number': 0,
+            'steps_to_next_checkpoint': 20,
+            'percent_to_checkpoint': 0,
+        }
+        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
+        html = response.data.decode('utf-8')
+        assert 'data-secured-marker="true"' not in html
+
+    def test_route_board_queue_container_rendered_when_secured(self, client, app, db_session, test_user, words_module_access):
+        """Task 14: 3-task queue container is rendered when day is secured."""
+        plan = _make_mission_plan('progress', [True, True, False])
+        plan['day_secured'] = True
+        route_state = {
+            'steps_today': 5,
+            'total_steps': 25,
+            'checkpoint_number': 1,
+            'steps_to_next_checkpoint': 15,
+            'percent_to_checkpoint': 25,
+        }
+        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
+        html = response.data.decode('utf-8')
+        assert 'data-next-step-queue="true"' in html
+        assert 'Что дальше' in html
+
+    def test_route_board_queue_js_renders_three_steps(self):
+        """Task 14: JS in template uses steps array (not single step) to build up to 3 queue items."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            html = f.read()
+        assert 'data-next-step-queue' in html
+        assert 'buildQueueItem' in html
+        assert 'data.steps' in html
+        assert 'forEach' in html
+
+    def test_route_board_css_rules_present(self):
+        """Task 14: route board CSS rules exist in dashboard template."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        assert '.dash-route-board {' in css
+        assert '.dash-route-board__bar-wrap' in css
+        assert '.dash-route-board__bar-fill' in css
+        assert '.dash-route-board__secured-marker' in css
+        assert '.dash-next-step__item' in css
+        assert '.dash-next-step__queue' in css
