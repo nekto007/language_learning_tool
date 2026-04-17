@@ -420,12 +420,12 @@ Hook XP awards into phase completion and daily plan finish events.
 - Modify: `app/achievements/xp_service.py`
 - Modify: `app/achievements/streak_service.py` (call XP on completion)
 
-- [ ] On phase completion: award XP based on phase type (recall=15, learn=40, use=35, read=30, check=25, close=10)
-- [ ] On all-phases-done: bonus 50 XP ("Perfect day")
-- [ ] Apply streak multiplier to all awards
-- [ ] Detect level-up, create notification
-- [ ] Write tests: XP awarded on phase completion; bonus on full completion; level-up detected; multiplier applied
-- [ ] Run project test suite - must pass before task 26
+- [x] On phase completion: award XP based on phase type (recall=15, learn=40, use=35, read=30, check=25, close=10)
+- [x] On all-phases-done: bonus 50 XP ("Perfect day")
+- [x] Apply streak multiplier to all awards
+- [x] Detect level-up, create notification
+- [x] Write tests: XP awarded on phase completion; bonus on full completion; level-up detected; multiplier applied
+- [x] Run project test suite - must pass before task 26
 
 ### Task 26: XP and level display on dashboard
 

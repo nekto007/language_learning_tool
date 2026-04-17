@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import date
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -114,6 +115,75 @@ class XPAward:
     previous_level: int
     new_level: int
     leveled_up: bool
+
+
+def award_phase_xp_idempotent(
+    user_id: int,
+    phase_id: str,
+    phase_mode: str,
+    for_date: date,
+) -> XPAward | None:
+    """Award XP for a completed phase, idempotent (once per phase per day).
+
+    Returns XPAward if awarded, None if already awarded for this phase today.
+    Caller must commit the session.
+    """
+    from app.achievements.models import StreakEvent
+    from app.utils.db import db
+
+    already = StreakEvent.query.filter_by(
+        user_id=user_id,
+        event_type='xp_phase',
+        event_date=for_date,
+    ).filter(
+        StreakEvent.details['phase_id'].astext == phase_id
+    ).first()
+    if already:
+        return None
+
+    base = PHASE_XP.get(phase_mode, PHASE_XP.get('check', 25))
+    result = award_xp(user_id, base, f'phase:{phase_mode}')
+
+    db.session.add(StreakEvent(
+        user_id=user_id,
+        event_type='xp_phase',
+        event_date=for_date,
+        coins_delta=0,
+        details={'phase_id': phase_id, 'mode': phase_mode, 'xp': result.xp_awarded},
+    ))
+    return result
+
+
+def award_perfect_day_xp_idempotent(
+    user_id: int,
+    for_date: date,
+) -> XPAward | None:
+    """Award perfect day bonus XP (50 XP), once per day.
+
+    Returns XPAward if awarded, None if already awarded today.
+    Caller must commit the session.
+    """
+    from app.achievements.models import StreakEvent
+    from app.utils.db import db
+
+    already = StreakEvent.query.filter_by(
+        user_id=user_id,
+        event_type='xp_perfect_day',
+        event_date=for_date,
+    ).first()
+    if already:
+        return None
+
+    result = award_xp(user_id, PERFECT_DAY_BONUS_XP, 'perfect_day')
+
+    db.session.add(StreakEvent(
+        user_id=user_id,
+        event_type='xp_perfect_day',
+        event_date=for_date,
+        coins_delta=0,
+        details={'xp': result.xp_awarded},
+    ))
+    return result
 
 
 def award_xp(user_id: int, base_amount: int, source: str) -> XPAward:

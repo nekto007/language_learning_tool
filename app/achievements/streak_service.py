@@ -174,6 +174,7 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     # is due), which should not count as real study.
     real_activity = has_activity_today(user_id, tz=tz)
 
+    xp_level_up: dict | None = None
     if real_activity and daily_plan is not None and plan_completion is not None:
         phases = daily_plan.get('phases') or []
         if phases:
@@ -190,6 +191,57 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
             except Exception:
                 logger.warning(
                     "Failed to update race points for user %s",
+                    user_id, exc_info=True,
+                )
+
+            try:
+                from app.achievements.xp_service import (
+                    award_phase_xp_idempotent,
+                    award_perfect_day_xp_idempotent,
+                )
+                last_level_up: dict | None = None
+                for phase in phases:
+                    if not plan_completion.get(phase['id']):
+                        continue
+                    if not phase.get('required', True):
+                        continue
+                    xp_result = award_phase_xp_idempotent(
+                        user_id,
+                        phase['id'],
+                        phase.get('mode', ''),
+                        user_today,
+                    )
+                    if xp_result and xp_result.leveled_up:
+                        last_level_up = {
+                            'new_level': xp_result.new_level,
+                            'xp': xp_result.new_total_xp,
+                        }
+
+                required_phases = [p for p in phases if p.get('required', True)]
+                all_required_done = bool(required_phases) and all(
+                    plan_completion.get(p['id']) for p in required_phases
+                )
+                if all_required_done:
+                    bonus = award_perfect_day_xp_idempotent(user_id, user_today)
+                    if bonus and bonus.leveled_up:
+                        last_level_up = {
+                            'new_level': bonus.new_level,
+                            'xp': bonus.new_total_xp,
+                        }
+
+                if last_level_up:
+                    xp_level_up = last_level_up
+                    try:
+                        from app.notifications.services import notify_level_up
+                        notify_level_up(user_id, last_level_up['new_level'])
+                    except Exception:
+                        logger.warning(
+                            "Failed to send level-up notification for user %s",
+                            user_id, exc_info=True,
+                        )
+            except Exception:
+                logger.warning(
+                    "Failed to award XP for user %s",
                     user_id, exc_info=True,
                 )
 
@@ -274,6 +326,7 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
             'new_name': rank_up.new_name,
             'plans_completed': rank_up.plans_completed,
         } if rank_up else None,
+        'xp_level_up': xp_level_up,
     }
 
 
