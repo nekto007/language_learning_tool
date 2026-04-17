@@ -80,6 +80,16 @@ def daily_status():
     })
 
 
+def _compute_steps_today(phases: list) -> int:
+    """Sum weighted steps for all completed phases in the plan payload."""
+    from app.daily_plan.route_progress import get_phase_step_weight
+    return sum(
+        get_phase_step_weight(p.get('phase', ''))
+        for p in phases
+        if p.get('completed', False)
+    )
+
+
 @api_daily_plan.route('/daily-plan')
 @api_auth_required
 def daily_plan():
@@ -99,14 +109,20 @@ def daily_plan():
         book_course_done_today: Whether book course lesson done today
         onboarding: Onboarding suggestions for new users (null if not new)
         bonus: Extra tasks available
+        route_state: Current route progress state
     """
     from app.daily_plan.service import get_daily_plan_unified
+    from app.daily_plan.route_progress import get_route_state
 
     tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
     user_id = current_user.id
     plan = get_daily_plan_unified(user_id, tz=tz)
 
-    return jsonify({'success': True, **plan})
+    phases = plan.get('phases') or []
+    steps_today = _compute_steps_today(phases)
+    route_state = get_route_state(user_id, steps_today, db.session)
+
+    return jsonify({'success': True, 'route_state': route_state, **plan})
 
 
 @api_daily_plan.route('/daily-summary')
@@ -242,6 +258,51 @@ def daily_plan_continuation():
             'data': step.data,
             'estimated_minutes': step.estimated_minutes,
         },
+    })
+
+
+@api_daily_plan.route('/daily-plan/phase-complete', methods=['POST'])
+@csrf.exempt
+@api_auth_required
+def daily_plan_phase_complete():
+    """Record a completed mission phase and update route progress.
+
+    Body JSON:
+        phase_kind (str): one of learn, recall, use, read, check, close, bonus
+
+    Returns JSON:
+        route_state: updated route state dict
+        checkpoint_reached: bool — True if this completion crossed a checkpoint
+    """
+    from app.daily_plan.route_progress import add_route_steps, get_route_state, PHASE_STEP_WEIGHTS
+
+    if not request.is_json:
+        return api_error('invalid_content_type', 'Request must be JSON', 400)
+
+    body = request.get_json(silent=True) or {}
+    phase_kind = body.get('phase_kind', '')
+
+    if phase_kind not in PHASE_STEP_WEIGHTS:
+        return api_error(
+            'invalid_phase_kind',
+            f'phase_kind must be one of: {", ".join(sorted(PHASE_STEP_WEIGHTS))}',
+            400,
+        )
+
+    user_id = current_user.id
+    try:
+        row, checkpoint_reached = add_route_steps(user_id, phase_kind, db.session)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return api_error('db_error', 'Failed to update route progress', 500)
+
+    steps_today = body.get('steps_today', 0)
+    route_state = get_route_state(user_id, steps_today, db.session)
+    return jsonify({
+        'success': True,
+        'route_state': route_state,
+        'checkpoint_reached': checkpoint_reached,
     })
 
 

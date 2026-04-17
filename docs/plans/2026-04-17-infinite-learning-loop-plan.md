@@ -198,9 +198,9 @@ Go/no-go: if D7 retention increases and users who reach a checkpoint have ≥1.5
 **Files:**
 - Modify: `app/daily_plan/routes.py`
 
-- [ ] add route_state to daily plan API response: `{steps_today, total_steps, checkpoint_number, steps_to_next_checkpoint, percent_to_checkpoint}`
-- [ ] update route state on each phase completion
-- [ ] write API tests for route state transitions
+- [x] add route_state to daily plan API response: `{steps_today, total_steps, checkpoint_number, steps_to_next_checkpoint, percent_to_checkpoint}`
+- [x] update route state on each phase completion
+- [x] write API tests for route state transitions
 
 ### Task 13: 3-task continuation queue
 

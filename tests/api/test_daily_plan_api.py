@@ -186,6 +186,174 @@ def test_daily_summary_unauthenticated(client):
     assert response.status_code == 401
 
 
+class TestRouteStateInDailyPlan:
+    """Task 12: route_state is included in /api/daily-plan response."""
+
+    def test_route_state_present_no_completed_phases(self, authenticated_client):
+        """route_state key is always present; steps_today=0 when no phases completed."""
+        plan = dict(MOCK_PLAN)
+        plan['phases'] = [
+            {'id': 'p1', 'phase': 'recall', 'required': True, 'completed': False},
+        ]
+        with patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan), \
+             patch('app.daily_plan.route_progress.get_route_state', return_value={
+                 'steps_today': 0,
+                 'total_steps': 0,
+                 'checkpoint_number': 0,
+                 'steps_to_next_checkpoint': 20,
+                 'percent_to_checkpoint': 0,
+             }) as mock_rs:
+            response = authenticated_client.get('/api/daily-plan')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'route_state' in data
+        assert data['route_state']['steps_today'] == 0
+        mock_rs.assert_called_once()
+        _, call_steps_today, _ = mock_rs.call_args.args
+        assert call_steps_today == 0
+
+    def test_route_state_steps_today_from_completed_phases(self, authenticated_client):
+        """steps_today sums weights of completed phases only."""
+        plan = dict(MOCK_PLAN)
+        plan['phases'] = [
+            {'id': 'p1', 'phase': 'recall', 'required': True, 'completed': True},
+            {'id': 'p2', 'phase': 'learn', 'required': True, 'completed': False},
+        ]
+        with patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan), \
+             patch('app.daily_plan.route_progress.get_route_state', return_value={
+                 'steps_today': 2,
+                 'total_steps': 2,
+                 'checkpoint_number': 0,
+                 'steps_to_next_checkpoint': 18,
+                 'percent_to_checkpoint': 10,
+             }) as mock_rs:
+            response = authenticated_client.get('/api/daily-plan')
+
+        assert response.status_code == 200
+        _, call_steps_today, _ = mock_rs.call_args.args
+        assert call_steps_today == 2  # recall=2, learn not completed
+
+    def test_route_state_multiple_completed_phases(self, authenticated_client):
+        """steps_today sums all completed phase weights correctly."""
+        plan = dict(MOCK_PLAN)
+        plan['phases'] = [
+            {'id': 'p1', 'phase': 'recall', 'required': True, 'completed': True},
+            {'id': 'p2', 'phase': 'learn', 'required': True, 'completed': True},
+            {'id': 'p3', 'phase': 'check', 'required': False, 'completed': True},
+        ]
+        # recall=2 + learn=3 + check=1 = 6
+        with patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan), \
+             patch('app.daily_plan.route_progress.get_route_state', return_value={
+                 'steps_today': 6,
+                 'total_steps': 6,
+                 'checkpoint_number': 0,
+                 'steps_to_next_checkpoint': 14,
+                 'percent_to_checkpoint': 30,
+             }) as mock_rs:
+            response = authenticated_client.get('/api/daily-plan')
+
+        assert response.status_code == 200
+        _, call_steps_today, _ = mock_rs.call_args.args
+        assert call_steps_today == 6
+
+
+class TestPhaseCompleteEndpoint:
+    """Task 12: POST /api/daily-plan/phase-complete updates route progress."""
+
+    def test_phase_complete_valid_kind(self, authenticated_client, db_session, test_user):
+        """Valid phase_kind increments route progress and returns route_state."""
+        response = authenticated_client.post(
+            '/api/daily-plan/phase-complete',
+            json={'phase_kind': 'recall', 'steps_today': 2},
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert 'route_state' in data
+        assert 'checkpoint_reached' in data
+        assert data['checkpoint_reached'] is False
+        assert data['route_state']['total_steps'] == 2
+
+    def test_phase_complete_learn_kind(self, authenticated_client, db_session, test_user):
+        """learn phase contributes 3 weighted steps."""
+        response = authenticated_client.post(
+            '/api/daily-plan/phase-complete',
+            json={'phase_kind': 'learn', 'steps_today': 3},
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['route_state']['total_steps'] == 3
+
+    def test_phase_complete_bonus_kind(self, authenticated_client, db_session, test_user):
+        """bonus phase contributes 0 steps, no checkpoint."""
+        response = authenticated_client.post(
+            '/api/daily-plan/phase-complete',
+            json={'phase_kind': 'bonus', 'steps_today': 0},
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['route_state']['total_steps'] == 0
+        assert data['checkpoint_reached'] is False
+
+    def test_phase_complete_checkpoint_reached(self, authenticated_client, db_session, test_user):
+        """After 10 recall phases (20 steps), checkpoint_reached=True."""
+        for _ in range(9):
+            authenticated_client.post(
+                '/api/daily-plan/phase-complete',
+                json={'phase_kind': 'recall', 'steps_today': 0},
+            )
+        response = authenticated_client.post(
+            '/api/daily-plan/phase-complete',
+            json={'phase_kind': 'recall', 'steps_today': 20},
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['checkpoint_reached'] is True
+        assert data['route_state']['checkpoint_number'] == 1
+        assert data['route_state']['total_steps'] == 20
+
+    def test_phase_complete_invalid_kind(self, authenticated_client):
+        """Unknown phase_kind returns 400."""
+        response = authenticated_client.post(
+            '/api/daily-plan/phase-complete',
+            json={'phase_kind': 'nonexistent'},
+        )
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['success'] is False
+        assert data['error'] == 'invalid_phase_kind'
+
+    def test_phase_complete_non_json(self, authenticated_client):
+        """Non-JSON request returns 400."""
+        response = authenticated_client.post(
+            '/api/daily-plan/phase-complete',
+            data='phase_kind=recall',
+            content_type='application/x-www-form-urlencoded',
+        )
+        assert response.status_code == 400
+
+    def test_phase_complete_unauthenticated(self, client):
+        """Unauthenticated request returns 401."""
+        response = client.post(
+            '/api/daily-plan/phase-complete',
+            json={'phase_kind': 'recall'},
+        )
+        assert response.status_code == 401
+
+    def test_phase_complete_returns_route_state_shape(self, authenticated_client, db_session, test_user):
+        """route_state contains all required fields."""
+        response = authenticated_client.post(
+            '/api/daily-plan/phase-complete',
+            json={'phase_kind': 'use', 'steps_today': 2},
+        )
+        assert response.status_code == 200
+        rs = response.get_json()['route_state']
+        for key in ('steps_today', 'total_steps', 'checkpoint_number',
+                    'steps_to_next_checkpoint', 'percent_to_checkpoint'):
+            assert key in rs, f'Missing key: {key}'
+
+
 class TestParseDateParam:
     """Unit tests for parse_date_param utility."""
 
