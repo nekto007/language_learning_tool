@@ -577,13 +577,13 @@ If the user has already entered a lesson through the daily plan, the lesson must
 - Modify: `app/study/api_routes.py`
 - Modify: `app/static/js/flashcard-session.js`
 
-- [ ] Define a lesson-safe grading mode for card lessons that bypasses global new-card blocking once the lesson has started
-- [ ] Ensure lesson card sessions pass an explicit flag to grading/fetch APIs so they are not treated like generic free-study SRS
-- [ ] Keep daily limits for general SRS entry points (`Разогрев серии`, free study, deck study) intact
-- [ ] Add frontend handling so lesson sessions never show misleading session-expired copy for limit responses
-- [ ] Add a product rule in mission assembly: if `Главный шаг миссии` resolves to a card-based lesson, either collapse the separate recall phase or relabel it so the user does not experience two visually identical card blocks in a row
-- [ ] Write tests: started lesson can continue past daily new-card threshold; generic free-study still stops at the threshold
-- [ ] Run project test suite - must pass before final verification
+- [x] Define a lesson-safe grading mode for card lessons that bypasses global new-card blocking once the lesson has started
+- [x] Ensure lesson card sessions pass an explicit flag to grading/fetch APIs so they are not treated like generic free-study SRS
+- [x] Keep daily limits for general SRS entry points (`Разогрев серии`, free study, deck study) intact
+- [x] Add frontend handling so lesson sessions never show misleading session-expired copy for limit responses
+- [x] Add a product rule in mission assembly: if `Главный шаг миссии` resolves to a card-based lesson, either collapse the separate recall phase or relabel it so the user does not experience two visually identical card blocks in a row
+- [x] Write tests: started lesson can continue past daily new-card threshold; generic free-study still stops at the threshold
+- [x] Run project test suite - must pass before final verification
 
 ---
 

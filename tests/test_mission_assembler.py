@@ -849,6 +849,57 @@ class TestBonusPhase:
                     return
         pytest.skip("no seed producing bonus found in range")
 
+    @patch(f"{MODULE}._count_srs_due", return_value=5)
+    @patch(f"{MODULE}._find_next_lesson", return_value={
+        'title': 'Урок карточки', 'lesson_id': 10, 'module_id': 1,
+        'module_number': 1, 'lesson_type': 'card',
+    })
+    def test_recall_relabeled_when_learn_is_card_lesson(self, _lesson, _srs):
+        """When the learn phase is a card lesson and SRS is due, recall gets a distinct title."""
+        plan = assemble_progress_mission(1, SourceKind.normal_course)
+        assert plan is not None
+        recall = plan.phases[0]
+        assert recall.phase == PhaseKind.recall
+        assert recall.mode == "srs_review"
+        assert "SRS" in recall.title or "повтор" in recall.title.lower()
+        assert recall.title != "Разогрев серии"
+
+    @patch(f"{MODULE}._count_srs_due", return_value=5)
+    @patch(f"{MODULE}._find_next_lesson", return_value={
+        'title': 'Урок карточки', 'lesson_id': 10, 'module_id': 1,
+        'module_number': 1, 'lesson_type': 'flashcards',
+    })
+    def test_recall_relabeled_for_flashcards_lesson(self, _lesson, _srs):
+        """Same relabeling applies for lesson_type='flashcards'."""
+        plan = assemble_progress_mission(1, SourceKind.normal_course)
+        assert plan is not None
+        recall = plan.phases[0]
+        assert recall.title != "Разогрев серии"
+
+    @patch(f"{MODULE}._count_srs_due", return_value=0)
+    @patch(f"{MODULE}._find_next_lesson", return_value={
+        'title': 'Урок карточки', 'lesson_id': 10, 'module_id': 1,
+        'module_number': 1, 'lesson_type': 'card',
+    })
+    def test_no_relabeling_when_no_srs_due_and_card_lesson(self, _lesson, _srs):
+        """When SRS count is 0 and lesson is card-type, recall uses guided_recall (no card collision)."""
+        plan = assemble_progress_mission(1, SourceKind.normal_course)
+        assert plan is not None
+        recall = plan.phases[0]
+        assert recall.mode == "guided_recall"
+
+    @patch(f"{MODULE}._count_srs_due", return_value=10)
+    @patch(f"{MODULE}._find_next_lesson", return_value={
+        'title': 'Урок грамматики', 'lesson_id': 20, 'module_id': 1,
+        'module_number': 1, 'lesson_type': 'grammar',
+    })
+    def test_no_relabeling_for_non_card_lesson(self, _lesson, _srs):
+        """When lesson is not card-based, recall keeps its default title."""
+        plan = assemble_progress_mission(1, SourceKind.normal_course)
+        assert plan is not None
+        recall = plan.phases[0]
+        assert recall.title == "Разогрев серии"
+
     @patch(f"{MODULE}._count_srs_due", return_value=0)
     @patch(f"{MODULE}._find_next_lesson", return_value={
         'title': 'L', 'lesson_id': 1, 'module_id': 1,

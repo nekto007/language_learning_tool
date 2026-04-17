@@ -541,8 +541,28 @@ def assemble_progress_mission(
         return None
 
     lesson_title = next_lesson['title']
+    lesson_type = next_lesson.get('lesson_type', '')
+    lesson_is_card_based = lesson_type in ('card', 'flashcards')
+
+    # When the learn phase is a card-based lesson and there are SRS cards due, both
+    # phases would look like identical card sessions to the user. Relabel the recall
+    # phase so it's clear these are different activities (SRS review vs. new lesson).
+    recall_phase = _make_recall_phase(SourceKind.normal_course, srs_due > 0, srs_due)
+    if lesson_is_card_based and srs_due > 0:
+        recall_phase = MissionPhase(
+            phase=PhaseKind.recall,
+            title="Карточки SRS: повторение",
+            source_kind=SourceKind.srs,
+            mode="srs_review",
+            preview=PhasePreview(
+                item_count=srs_due,
+                content_title="Повторение из вашей колоды",
+                estimated_minutes=_estimate_srs_minutes(srs_due),
+            ),
+        )
+
     phases = [
-        _make_recall_phase(SourceKind.normal_course, srs_due > 0, srs_due),
+        recall_phase,
         MissionPhase(
             phase=PhaseKind.learn,
             title="Главный шаг миссии",

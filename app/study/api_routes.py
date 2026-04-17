@@ -408,6 +408,8 @@ def update_study_item():
     deck_id = data.get('deck_id')
 
     extra_study = request.args.get('extra_study') == 'true' or data.get('extra_study', False)
+    # lesson_mode bypasses new-card daily limits: once a lesson has started it must be completable
+    lesson_mode = data.get('lesson_mode', False)
 
     user_word = UserWord.get_or_create(current_user.id, word_id)
 
@@ -418,7 +420,7 @@ def update_study_item():
 
     is_first_review = (not direction) or (direction and direction.first_reviewed is None)
 
-    if is_first_review and not extra_study:
+    if is_first_review and not extra_study and not lesson_mode:
         settings = StudySettings.query.filter_by(user_id=current_user.id).with_for_update().first()
         if not settings:
             settings = StudySettings(user_id=current_user.id)

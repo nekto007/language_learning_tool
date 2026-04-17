@@ -287,6 +287,7 @@ def render_card_lesson(lesson):
         fc_show_book_context=False,
         fc_nothing_to_study=len(fc_cards) == 0,
         fc_extra_study=True,
+        fc_lesson_mode=True,
     )
 
 
@@ -450,6 +451,7 @@ def card_lesson(lesson_id):
         fc_show_book_context=False,
         fc_nothing_to_study=len(fc_cards) == 0,
         fc_extra_study=True,
+        fc_lesson_mode=True,
     )
 
 
