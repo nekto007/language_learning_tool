@@ -5,6 +5,41 @@
 {% block content %}
 <div class="dash-page">
 
+    {% if unseen_badges %}
+    <!-- Badge popup: celebratory stack for badges earned since last visit -->
+    <div class="dash-badge-popup" id="dash-badge-popup" role="dialog" aria-live="polite" aria-label="Новые награды">
+      {% for badge in unseen_badges %}
+      <div class="dash-badge-popup__card" data-badge-code="{{ badge.code }}" data-user-achievement-id="{{ badge.user_achievement_id }}" style="animation-delay: {{ loop.index0 * 0.15 }}s">
+        <button type="button" class="dash-badge-popup__dismiss" aria-label="Закрыть" onclick="this.closest('.dash-badge-popup__card').classList.add('dash-badge-popup__card--dismissed')">&times;</button>
+        <div class="dash-badge-popup__icon" aria-hidden="true">{{ badge.icon or '🏆' }}</div>
+        <div class="dash-badge-popup__body">
+          <div class="dash-badge-popup__title">Новая награда!</div>
+          <div class="dash-badge-popup__name">{{ badge.name }}</div>
+          {% if badge.description %}
+          <div class="dash-badge-popup__desc">{{ badge.description }}</div>
+          {% endif %}
+          {% if badge.xp_reward %}
+          <div class="dash-badge-popup__xp">+{{ badge.xp_reward }} XP</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <script>
+      (function () {
+        var popup = document.getElementById('dash-badge-popup');
+        if (!popup) return;
+        var cards = popup.querySelectorAll('.dash-badge-popup__card');
+        cards.forEach(function (card, idx) {
+          var baseDelay = 5000 + idx * 150;
+          setTimeout(function () {
+            card.classList.add('dash-badge-popup__card--dismissed');
+          }, baseDelay);
+        });
+      })();
+    </script>
+    {% endif %}
+
     <!-- Hero: Greeting + Streak -->
     <div class="dash-hero">
         <div class="dash-hero__bg-shapes">

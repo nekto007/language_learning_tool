@@ -624,6 +624,22 @@ def dashboard():
     # === RANK / TITLE (daily plan cumulative) ===
     rank_info = _safe_widget_call('rank_info', _build_rank_info, current_user.id, default=None)
 
+    # === UNSEEN BADGES POPUP ===
+    # Collect every badge earned since the last dashboard visit, then mark them
+    # seen so the popup fires exactly once per awarding.
+    from app.achievements.services import AchievementService
+    unseen_badges = _safe_widget_call(
+        'unseen_badges', AchievementService.get_unseen_badges, current_user.id, default=[])
+    if unseen_badges:
+        try:
+            AchievementService.mark_badges_seen(
+                current_user.id,
+                [b['user_achievement_id'] for b in unseen_badges],
+            )
+        except Exception as e:
+            db.session.rollback()
+            logger.exception("Failed to mark unseen badges as seen for user %s: %s", current_user.id, e)
+
     # === PERFORMANCE LOGGING ===
     t_elapsed = time.time() - t_start
     logger.info("Dashboard data loaded in %.3fs for user_id=%s", t_elapsed, current_user.id)
@@ -714,6 +730,8 @@ def dashboard():
         grammar_user_stats=grammar_user_stats,
         # Rank badge (daily plan title system)
         rank_info=rank_info,
+        # Badges earned since last dashboard visit (popup)
+        unseen_badges=unseen_badges,
     )
 
 

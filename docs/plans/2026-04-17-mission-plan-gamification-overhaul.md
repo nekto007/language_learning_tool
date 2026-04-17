@@ -301,12 +301,12 @@ When user returns to dashboard after earning a new badge, show a celebratory pop
 - Modify: `app/words/routes.py` (detect new badges)
 - Modify: `app/static/css/design-system.css` (popup styles)
 
-- [ ] Track `unseen_badges` - badges awarded since last dashboard visit
-- [ ] Render badge popup: icon, name, description, points earned, dismiss button
-- [ ] CSS animation: slide-in from top, gold shimmer border, auto-dismiss after 5s
-- [ ] Mark badges as seen after display
-- [ ] Write tests: unseen badges detected; popup HTML rendered when badges exist; seen badges not re-shown
-- [ ] Run project test suite - must pass before task 19
+- [x] Track `unseen_badges` - badges awarded since last dashboard visit
+- [x] Render badge popup: icon, name, description, points earned, dismiss button
+- [x] CSS animation: slide-in from top, gold shimmer border, auto-dismiss after 5s
+- [x] Mark badges as seen after display
+- [x] Write tests: unseen badges detected; popup HTML rendered when badges exist; seen badges not re-shown
+- [x] Run project test suite - must pass before task 19
 
 ### Task 19: Badge showcase on dashboard
 

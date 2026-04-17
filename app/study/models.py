@@ -1066,6 +1066,7 @@ class UserAchievement(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     achievement_id = db.Column(db.Integer, db.ForeignKey('achievements.id', ondelete='CASCADE'), nullable=False)
     earned_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    seen_at = db.Column(db.DateTime, nullable=True)
 
     # Relationships
     user = db.relationship('User', backref=db.backref('achievements', lazy='dynamic', cascade='all, delete-orphan'))

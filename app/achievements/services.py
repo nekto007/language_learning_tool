@@ -494,6 +494,62 @@ class AchievementService:
         return newly_awarded
 
     @staticmethod
+    def get_unseen_badges(user_id: int) -> List[Dict]:
+        """Return badges awarded to the user that have not yet been displayed.
+
+        "Unseen" means UserAchievement.seen_at IS NULL — the user has not
+        visited the dashboard since this badge was earned.
+
+        Returns a list of dicts (safe for Jinja) ordered oldest-first so the
+        popup stacks them naturally.
+        """
+        rows = (
+            db.session.query(UserAchievement, Achievement)
+            .join(Achievement, Achievement.id == UserAchievement.achievement_id)
+            .filter(
+                UserAchievement.user_id == user_id,
+                UserAchievement.seen_at.is_(None),
+            )
+            .order_by(UserAchievement.earned_at.asc())
+            .all()
+        )
+        return [
+            {
+                'user_achievement_id': ua.id,
+                'id': a.id,
+                'code': a.code,
+                'name': a.name,
+                'description': a.description,
+                'icon': a.icon,
+                'xp_reward': a.xp_reward,
+                'category': a.category,
+            }
+            for ua, a in rows
+        ]
+
+    @staticmethod
+    def mark_badges_seen(user_id: int, user_achievement_ids: Optional[List[int]] = None) -> int:
+        """Stamp seen_at = now() on the user's unseen badges.
+
+        If `user_achievement_ids` is None, marks every unseen badge owned by
+        the user. Returns the number of rows updated. Commits on success.
+        """
+        now = datetime.now(timezone.utc)
+        query = UserAchievement.query.filter(
+            UserAchievement.user_id == user_id,
+            UserAchievement.seen_at.is_(None),
+        )
+        if user_achievement_ids is not None:
+            if not user_achievement_ids:
+                return 0
+            query = query.filter(UserAchievement.id.in_(user_achievement_ids))
+
+        updated = query.update({UserAchievement.seen_at: now}, synchronize_session=False)
+        if updated:
+            db.session.commit()
+        return updated
+
+    @staticmethod
     def check_all_achievements(user_id: int) -> Dict[str, List[Achievement]]:
         """
         Check all possible achievements for a user

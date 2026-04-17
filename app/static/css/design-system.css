@@ -11412,3 +11412,164 @@ footer .col-md-4 {
 .deck-create-toggle:hover {
     color: var(--primary-600);
 }
+
+/* ==========================================================================
+   Badge Award Popup (task 18)
+   Fires on dashboard load when user has freshly earned badges.
+   Slides down from top, gold shimmer border, auto-dismiss after 5s.
+   ========================================================================== */
+.dash-badge-popup {
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: min(420px, calc(100vw - 2rem));
+    pointer-events: none;
+}
+
+.dash-badge-popup__card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, #fff 0%, #fffbea 100%);
+    border-radius: var(--radius-lg, 12px);
+    box-shadow: 0 10px 32px rgba(234, 179, 8, 0.25), 0 2px 8px rgba(0, 0, 0, 0.1);
+    pointer-events: auto;
+    animation: dashBadgePopupSlideIn 0.55s cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
+    overflow: hidden;
+}
+
+.dash-badge-popup__card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 2px;
+    background: linear-gradient(120deg, #facc15, #fde68a, #f59e0b, #fde68a, #facc15);
+    background-size: 300% 100%;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    animation: dashBadgePopupShimmer 2.4s linear infinite;
+    pointer-events: none;
+}
+
+.dash-badge-popup__card--dismissed {
+    animation: dashBadgePopupSlideOut 0.35s ease forwards;
+    pointer-events: none;
+}
+
+.dash-badge-popup__icon {
+    font-size: 2.25rem;
+    line-height: 1;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+.dash-badge-popup__body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.dash-badge-popup__title {
+    font-size: var(--text-xs, 0.75rem);
+    font-weight: var(--font-semibold, 600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #b45309;
+}
+
+.dash-badge-popup__name {
+    font-size: var(--text-base, 1rem);
+    font-weight: var(--font-bold, 700);
+    color: var(--gray-900, #111);
+    margin-top: 0.125rem;
+    word-break: break-word;
+}
+
+.dash-badge-popup__desc {
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--gray-600, #4b5563);
+    margin-top: 0.25rem;
+    line-height: 1.35;
+}
+
+.dash-badge-popup__xp {
+    display: inline-block;
+    margin-top: 0.375rem;
+    padding: 0.125rem 0.5rem;
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 999px;
+    font-size: var(--text-xs, 0.75rem);
+    font-weight: var(--font-semibold, 600);
+}
+
+.dash-badge-popup__dismiss {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.5rem;
+    background: transparent;
+    border: none;
+    font-size: 1.25rem;
+    line-height: 1;
+    color: var(--gray-500, #6b7280);
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+}
+
+.dash-badge-popup__dismiss:hover {
+    color: var(--gray-900, #111);
+}
+
+@keyframes dashBadgePopupSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateY(-40px) scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes dashBadgePopupSlideOut {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        max-height: 200px;
+        margin-bottom: 0.75rem;
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.95);
+        max-height: 0;
+        margin-bottom: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+}
+
+@keyframes dashBadgePopupShimmer {
+    0% {
+        background-position: 0% 0;
+    }
+    100% {
+        background-position: 300% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dash-badge-popup__card {
+        animation: none;
+    }
+    .dash-badge-popup__card::before {
+        animation: none;
+    }
+}
