@@ -229,38 +229,14 @@ def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, 
     return None, None
 
 
-_RANK_COLORS = {
-    'novice': '#94a3b8',
-    'explorer': '#38bdf8',
-    'student': '#22c55e',
-    'expert': '#a855f7',
-    'master': '#f59e0b',
-    'legend': '#ef4444',
-    'grandmaster': '#facc15',
-}
-_RANK_ICONS = {
-    'novice': '\U0001F331',
-    'explorer': '\U0001F9ED',
-    'student': '\U0001F4D8',
-    'expert': '\U0001F393',
-    'master': '\U0001F3C5',
-    'legend': '\U0001F525',
-    'grandmaster': '\U0001F451',
-}
-_RANK_RU_NAMES = {
-    'novice': 'Новичок',
-    'explorer': 'Исследователь',
-    'student': 'Ученик',
-    'expert': 'Эксперт',
-    'master': 'Мастер',
-    'legend': 'Легенда',
-    'grandmaster': 'Грандмастер',
-}
-
-
 def _build_rank_info(current_user_id: int) -> dict | None:
     from app.achievements.models import UserStatistics
-    from app.achievements.ranks import get_user_rank
+    from app.achievements.ranks import (
+        RANK_COLORS,
+        RANK_ICONS,
+        RANK_RU_NAMES,
+        get_user_rank,
+    )
 
     stats = UserStatistics.query.filter_by(user_id=current_user_id).first()
     plans_completed = int(stats.plans_completed_total) if stats and stats.plans_completed_total else 0
@@ -269,14 +245,14 @@ def _build_rank_info(current_user_id: int) -> dict | None:
     return {
         'code': info.code,
         'name': info.name,
-        'display_name': _RANK_RU_NAMES.get(info.code, info.name),
-        'icon': _RANK_ICONS.get(info.code, '\U0001F3C6'),
-        'color': _RANK_COLORS.get(info.code, '#64748b'),
+        'display_name': RANK_RU_NAMES.get(info.code, info.name),
+        'icon': RANK_ICONS.get(info.code, '\U0001F3C6'),
+        'color': RANK_COLORS.get(info.code, '#64748b'),
         'plans_completed': info.plans_completed,
         'threshold': info.threshold,
         'next_code': info.next_code,
         'next_name': info.next_name,
-        'next_display_name': _RANK_RU_NAMES.get(info.next_code) if info.next_code else None,
+        'next_display_name': RANK_RU_NAMES.get(info.next_code) if info.next_code else None,
         'next_threshold': info.next_threshold,
         'progress_percent': info.progress_percent,
         'plans_to_next': info.plans_to_next,

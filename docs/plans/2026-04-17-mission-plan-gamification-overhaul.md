@@ -252,11 +252,11 @@ Show rank progression history and current rank on the user's profile/stats page.
 - Modify: relevant profile template
 - Modify: `app/static/css/design-system.css`
 
-- [ ] Query StreakEvents to reconstruct rank-up dates
-- [ ] Show timeline of rank achievements with dates
-- [ ] Current rank displayed prominently with days-at-rank counter
-- [ ] Write tests: rank history returns correct progression; profile template renders rank section
-- [ ] Run project test suite - must pass before task 16
+- [x] Query StreakEvents to reconstruct rank-up dates
+- [x] Show timeline of rank achievements with dates
+- [x] Current rank displayed prominently with days-at-rank counter
+- [x] Write tests: rank history returns correct progression; profile template renders rank section
+- [x] Run project test suite - must pass before task 16
 
 ---
 

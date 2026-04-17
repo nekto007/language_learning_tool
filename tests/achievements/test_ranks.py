@@ -9,9 +9,12 @@ from app.achievements.models import StreakEvent, UserStatistics
 from app.achievements.ranks import (
     RANK_THRESHOLDS,
     RankInfo,
+    RankMilestone,
     RankUp,
     check_rank_up,
+    days_at_current_rank,
     get_rank_code,
+    get_rank_history,
     get_rank_name,
     get_user_rank,
     is_rank_up,
@@ -405,3 +408,130 @@ class TestStreakServiceIntegration:
             )
 
         assert result['rank_up'] is None
+
+
+class TestGetRankHistory:
+    """get_rank_history reconstructs rank-up milestones from StreakEvents."""
+
+    def _record_events(self, db_session, user_id, sequence):
+        today = date.today()
+        for offset, total, code in sequence:
+            db_session.add(StreakEvent(
+                user_id=user_id,
+                event_type='plan_completed',
+                coins_delta=0,
+                event_date=today + timedelta(days=offset),
+                details={'plans_completed_total': total, 'rank_code': code},
+            ))
+        db_session.flush()
+
+    def test_no_events_returns_empty_list(self, db_session, rank_user):
+        assert get_rank_history(rank_user.id) == []
+
+    def test_single_event_returns_one_milestone(self, db_session, rank_user):
+        self._record_events(db_session, rank_user.id, [(-1, 1, 'novice')])
+        history = get_rank_history(rank_user.id)
+        assert len(history) == 1
+        assert isinstance(history[0], RankMilestone)
+        assert history[0].code == 'novice'
+        assert history[0].name == 'Novice'
+        assert history[0].plans_completed == 1
+
+    def test_same_rank_events_collapse_to_first(self, db_session, rank_user):
+        self._record_events(db_session, rank_user.id, [
+            (-3, 1, 'novice'),
+            (-2, 2, 'novice'),
+            (-1, 3, 'novice'),
+        ])
+        history = get_rank_history(rank_user.id)
+        assert len(history) == 1
+        assert history[0].code == 'novice'
+        assert history[0].achieved_on == date.today() - timedelta(days=3)
+
+    def test_progression_through_ranks(self, db_session, rank_user):
+        self._record_events(db_session, rank_user.id, [
+            (-10, 1, 'novice'),
+            (-9, 6, 'novice'),
+            (-8, 7, 'explorer'),
+            (-7, 15, 'explorer'),
+            (-1, 21, 'student'),
+        ])
+        history = get_rank_history(rank_user.id)
+        assert [m.code for m in history] == ['novice', 'explorer', 'student']
+        assert history[0].achieved_on == date.today() - timedelta(days=10)
+        assert history[1].achieved_on == date.today() - timedelta(days=8)
+        assert history[2].achieved_on == date.today() - timedelta(days=1)
+        assert history[2].plans_completed == 21
+        assert history[2].name == 'Student'
+
+    def test_skip_events_without_rank_code(self, db_session, rank_user):
+        today = date.today()
+        db_session.add(StreakEvent(
+            user_id=rank_user.id,
+            event_type='plan_completed',
+            coins_delta=0,
+            event_date=today - timedelta(days=2),
+            details={},
+        ))
+        db_session.add(StreakEvent(
+            user_id=rank_user.id,
+            event_type='plan_completed',
+            coins_delta=0,
+            event_date=today - timedelta(days=1),
+            details={'plans_completed_total': 7, 'rank_code': 'explorer'},
+        ))
+        db_session.flush()
+
+        history = get_rank_history(rank_user.id)
+        assert len(history) == 1
+        assert history[0].code == 'explorer'
+
+    def test_other_event_types_ignored(self, db_session, rank_user):
+        today = date.today()
+        db_session.add(StreakEvent(
+            user_id=rank_user.id,
+            event_type='earned',
+            coins_delta=1,
+            event_date=today,
+            details={'rank_code': 'master', 'plans_completed_total': 100},
+        ))
+        db_session.flush()
+        assert get_rank_history(rank_user.id) == []
+
+
+class TestDaysAtCurrentRank:
+    """days_at_current_rank computes days since latest rank promotion."""
+
+    def _record(self, db_session, user_id, offset, total, code):
+        db_session.add(StreakEvent(
+            user_id=user_id,
+            event_type='plan_completed',
+            coins_delta=0,
+            event_date=date.today() + timedelta(days=offset),
+            details={'plans_completed_total': total, 'rank_code': code},
+        ))
+        db_session.flush()
+
+    def test_no_history_returns_zero(self, db_session, rank_user):
+        assert days_at_current_rank(rank_user.id) == 0
+
+    def test_promotion_today_returns_zero(self, db_session, rank_user):
+        self._record(db_session, rank_user.id, 0, 7, 'explorer')
+        assert days_at_current_rank(rank_user.id) == 0
+
+    def test_promotion_five_days_ago_returns_five(self, db_session, rank_user):
+        self._record(db_session, rank_user.id, -5, 7, 'explorer')
+        assert days_at_current_rank(rank_user.id) == 5
+
+    def test_uses_latest_promotion_date(self, db_session, rank_user):
+        self._record(db_session, rank_user.id, -10, 1, 'novice')
+        self._record(db_session, rank_user.id, -3, 7, 'explorer')
+        assert days_at_current_rank(rank_user.id) == 3
+
+    def test_explicit_today_override(self, db_session, rank_user):
+        self._record(db_session, rank_user.id, -2, 7, 'explorer')
+        result = days_at_current_rank(
+            rank_user.id,
+            today=date.today() + timedelta(days=5),
+        )
+        assert result == 7

@@ -78,9 +78,108 @@
 @media (max-width: 480px) {
   .pf-stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Rank section */
+.pf-rank__current {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.pf-rank__badge {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.9rem; border-radius: 999px;
+  background: var(--pf-surface-alt); border: 1px solid var(--pf-border);
+  font-weight: 700; color: var(--pf-text);
+}
+.pf-rank__icon { font-size: 1.15rem; }
+.pf-rank__name { font-size: 0.95rem; }
+.pf-rank__meta { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.85rem; color: var(--pf-text-muted); }
+.pf-rank__meta strong { color: var(--pf-text); font-weight: 700; }
+
+.pf-rank__progress { margin: 0.25rem 0 0.75rem; }
+.pf-rank__progress--max { font-size: 0.85rem; color: var(--pf-success); font-weight: 600; }
+.pf-rank__progress-text { font-size: 0.8rem; color: var(--pf-text-muted); margin-bottom: 0.35rem; }
+.pf-rank__progress-track {
+  position: relative; height: 6px; background: var(--pf-surface-alt);
+  border-radius: 4px; overflow: hidden;
+}
+.pf-rank__progress-fill {
+  position: absolute; top: 0; left: 0; height: 100%;
+  border-radius: 4px; transition: width 0.4s ease;
+}
+
+.pf-rank__timeline { margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--pf-border); }
+.pf-rank__timeline-title {
+  margin: 0 0 0.75rem; font-size: 0.9rem; font-weight: 700; color: var(--pf-text);
+}
+.pf-rank__timeline-list {
+  list-style: none; margin: 0; padding: 0 0 0 0.75rem;
+  border-left: 2px solid var(--pf-border);
+}
+.pf-rank__timeline-item {
+  position: relative; display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.35rem 0; font-size: 0.85rem; color: var(--pf-text);
+}
+.pf-rank__timeline-item::before {
+  content: ''; position: absolute; left: -1.15rem; top: 50%;
+  width: 8px; height: 8px; border-radius: 50%; background: var(--pf-primary);
+  transform: translateY(-50%);
+}
+.pf-rank__timeline-name { font-weight: 600; flex: 1; }
+.pf-rank__timeline-date { color: var(--pf-text-muted); font-size: 0.8rem; }
 </style>
 
 <div class="profile-page">
+  {# Rank / Title #}
+  {% if rank %}
+  <div class="pf-card pf-rank" data-rank-code="{{ rank.info.code }}">
+    <h2 class="pf-card__title">{{ _('Звание') }}</h2>
+    <div class="pf-rank__current">
+      <div class="pf-rank__badge pf-rank__badge--{{ rank.info.code }}">
+        <span class="pf-rank__icon" aria-hidden="true">{{ rank_icons.get(rank.info.code, '🏆') }}</span>
+        <span class="pf-rank__name">{{ rank_ru_names.get(rank.info.code, rank.info.name) }}</span>
+      </div>
+      <div class="pf-rank__meta">
+        <div class="pf-rank__days" data-rank-days="{{ rank.days_at_rank }}">
+          {{ _('Дней в звании') }}: <strong>{{ rank.days_at_rank }}</strong>
+        </div>
+        <div class="pf-rank__plans">
+          {{ _('Завершено планов') }}: <strong>{{ rank.plans_completed }}</strong>
+        </div>
+      </div>
+    </div>
+    {% if not rank.info.next_code %}
+    <div class="pf-rank__progress pf-rank__progress--max">
+      {{ _('Максимальное звание достигнуто') }}
+    </div>
+    {% else %}
+    <div class="pf-rank__progress">
+      <div class="pf-rank__progress-text">
+        {{ rank.info.plans_completed }}/{{ rank.info.next_threshold }} {{ _('до «') }}{{ rank_ru_names.get(rank.info.next_code, rank.info.next_name) }}{{ _('»') }}
+      </div>
+      <div class="pf-rank__progress-track" aria-hidden="true">
+        <div class="pf-rank__progress-fill"
+             style="width: {{ rank.info.progress_percent }}%; background: {{ rank_colors.get(rank.info.code, '#2563eb') }};"></div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if rank.history %}
+    <div class="pf-rank__timeline" data-rank-timeline="true">
+      <h3 class="pf-rank__timeline-title">{{ _('История званий') }}</h3>
+      <ol class="pf-rank__timeline-list">
+        {% for milestone in rank.history %}
+        <li class="pf-rank__timeline-item pf-rank__timeline-item--{{ milestone.code }}">
+          <span class="pf-rank__timeline-icon" aria-hidden="true">{{ rank_icons.get(milestone.code, '🏆') }}</span>
+          <span class="pf-rank__timeline-name">{{ rank_ru_names.get(milestone.code, milestone.name) }}</span>
+          <span class="pf-rank__timeline-date">{{ milestone.achieved_on.strftime('%d.%m.%Y') }}</span>
+        </li>
+        {% endfor %}
+      </ol>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   {# Learning Stats #}
   <div class="pf-card">
     <h2 class="pf-card__title">{{ _('Статистика обучения') }}</h2>

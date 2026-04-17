@@ -478,6 +478,29 @@ def _get_profile_stats(user_id: int) -> dict:
     }
 
 
+def _get_profile_rank(user_id: int) -> dict:
+    """Gather rank progression data for profile page."""
+    from app.achievements.models import UserStatistics
+    from app.achievements.ranks import (
+        days_at_current_rank,
+        get_rank_history,
+        get_user_rank,
+    )
+
+    user_stats = UserStatistics.query.filter_by(user_id=user_id).first()
+    plans_completed = int(user_stats.plans_completed_total or 0) if user_stats else 0
+    info = get_user_rank(plans_completed)
+    history = get_rank_history(user_id)
+    days = days_at_current_rank(user_id)
+
+    return {
+        'info': info,
+        'plans_completed': plans_completed,
+        'history': history,
+        'days_at_rank': days,
+    }
+
+
 # Valid timezone choices for the settings form
 TIMEZONE_CHOICES = [
     'Europe/Moscow', 'Europe/London', 'Europe/Berlin', 'Europe/Paris',
@@ -491,7 +514,10 @@ TIMEZONE_CHOICES = [
 @login_required
 def profile():
     """Profile view with learning stats and settings."""
+    from app.achievements.ranks import RANK_COLORS, RANK_ICONS, RANK_RU_NAMES
+
     stats = _get_profile_stats(current_user.id)
+    rank = _get_profile_rank(current_user.id)
 
     # Account age in days
     account_age_days = 0
@@ -503,6 +529,10 @@ def profile():
         'auth/profile.html',
         user=current_user,
         stats=stats,
+        rank=rank,
+        rank_colors=RANK_COLORS,
+        rank_icons=RANK_ICONS,
+        rank_ru_names=RANK_RU_NAMES,
         account_age_days=account_age_days,
         timezone_choices=TIMEZONE_CHOICES,
     )

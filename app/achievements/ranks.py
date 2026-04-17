@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,37 @@ RANK_THRESHOLDS: list[tuple[int, str, str]] = [
     (200, 'legend', 'Legend'),
     (365, 'grandmaster', 'Grandmaster'),
 ]
+
+
+RANK_COLORS: dict[str, str] = {
+    'novice': '#94a3b8',
+    'explorer': '#38bdf8',
+    'student': '#22c55e',
+    'expert': '#a855f7',
+    'master': '#f59e0b',
+    'legend': '#ef4444',
+    'grandmaster': '#facc15',
+}
+
+RANK_ICONS: dict[str, str] = {
+    'novice': '\U0001F331',
+    'explorer': '\U0001F9ED',
+    'student': '\U0001F4D8',
+    'expert': '\U0001F393',
+    'master': '\U0001F3C5',
+    'legend': '\U0001F525',
+    'grandmaster': '\U0001F451',
+}
+
+RANK_RU_NAMES: dict[str, str] = {
+    'novice': 'Новичок',
+    'explorer': 'Исследователь',
+    'student': 'Ученик',
+    'expert': 'Эксперт',
+    'master': 'Мастер',
+    'legend': 'Легенда',
+    'grandmaster': 'Грандмастер',
+}
 
 
 @dataclass(frozen=True)
@@ -187,6 +218,74 @@ def record_plan_completion(
             plans_completed=new_count,
         )
     return None
+
+
+@dataclass(frozen=True)
+class RankMilestone:
+    """One rank promotion from the user's history."""
+
+    code: str
+    name: str
+    achieved_on: date
+    plans_completed: int
+
+
+def get_rank_history(user_id: int) -> List[RankMilestone]:
+    """Reconstruct rank-up milestones for `user_id` from StreakEvents.
+
+    Returns a list ordered chronologically (earliest first). The first
+    milestone is always the initial `novice` rank recorded on the user's
+    earliest `plan_completed` marker; subsequent milestones represent each
+    distinct transition to a higher rank.
+    """
+    from app.achievements.models import StreakEvent
+
+    events = (
+        StreakEvent.query.filter_by(user_id=user_id, event_type='plan_completed')
+        .order_by(StreakEvent.event_date.asc(), StreakEvent.id.asc())
+        .all()
+    )
+    if not events:
+        return []
+
+    milestones: list[RankMilestone] = []
+    previous_code: Optional[str] = None
+    for ev in events:
+        details = ev.details or {}
+        rank_code = details.get('rank_code')
+        plans_total = details.get('plans_completed_total')
+        if rank_code is None or plans_total is None:
+            continue
+        if rank_code == previous_code:
+            continue
+        name = next(
+            (n for _t, c, n in RANK_THRESHOLDS if c == rank_code),
+            rank_code.title(),
+        )
+        milestones.append(RankMilestone(
+            code=rank_code,
+            name=name,
+            achieved_on=ev.event_date,
+            plans_completed=int(plans_total),
+        ))
+        previous_code = rank_code
+
+    return milestones
+
+
+def days_at_current_rank(user_id: int, today: Optional[date] = None) -> int:
+    """Return how many days the user has held their current rank.
+
+    Computed as (today - date of most recent rank promotion). Returns 0
+    when no history exists or on the same day the rank was reached.
+    """
+    history = get_rank_history(user_id)
+    if not history:
+        return 0
+    latest = history[-1]
+    anchor = today or date.today()
+    delta = (anchor - latest.achieved_on).days
+    return max(0, delta)
 
 
 def check_rank_up(user_id: int) -> Optional[RankUp]:
