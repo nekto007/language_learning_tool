@@ -109,11 +109,11 @@ Give each phase kind a distinct color and icon set instead of current monochrome
 - Modify: `app/templates/dashboard.html` (icon/color mapping)
 - Modify: `app/static/css/design-system.css` (phase color classes)
 
-- [ ] Define color palette per PhaseKind: recall=blue, learn=green, use=purple, read=amber, check=orange, close=gold
-- [ ] Add CSS classes `dash-step--recall`, `dash-step--learn`, etc. with accent colors, left border, icon background
-- [ ] Replace emoji-only icons with SVG or CSS-drawn icons for each phase
-- [ ] Write tests: template renders correct CSS class per phase type
-- [ ] Run project test suite - must pass before task 7
+- [x] Define color palette per PhaseKind: recall=blue, learn=green, use=purple, read=amber, check=orange, close=gold
+- [x] Add CSS classes `dash-step--recall`, `dash-step--learn`, etc. with accent colors, left border, icon background
+- [x] Replace emoji-only icons with SVG or CSS-drawn icons for each phase
+- [x] Write tests: template renders correct CSS class per phase type
+- [x] Run project test suite - must pass before task 7
 
 ### Task 7: Animated phase transitions
 
@@ -527,3 +527,77 @@ Show a weekly overview widget on the dashboard: which days had completed plans, 
 - [ ] Update CLAUDE.md: add daily plan gamification patterns (XP, ranks, races, badges)
 - [ ] Update CLAUDE.md: document new models (DailyRace, rank fields, XP fields)
 - [ ] Move this plan to `docs/plans/completed/`
+
+---
+
+### BLOCK 9: Route Board, Rivals, and Lesson-Safe Flow (Tasks 33-36)
+
+### Task 33: Replace step list with a route board metaphor
+
+Reframe the daily plan as a route made of checkpoints instead of a flat list of cards. The user should feel they are moving along a path, not just clicking through isolated tasks.
+
+**Files:**
+- Modify: `app/templates/dashboard.html`
+- Modify: `app/static/css/design-system.css`
+- Modify: `app/words/routes.py`
+
+- [ ] Introduce a `dash-route` container that renders the mission plan as a connected route with start, checkpoints, and finish
+- [ ] Map mission phases to route checkpoints: `recall`, `learn`, `use`, `check`, optional `close`
+- [ ] Define route progress weights per phase (for example: recall 15, learn 40, use 30, check 15) so the route supports partial movement, not only discrete step jumps
+- [ ] Preserve existing completion logic, but render it through route semantics rather than stacked cards
+- [ ] Add route metadata to the dashboard context: total checkpoints, current checkpoint index, finish state
+- [ ] Add a compact fallback layout for low-density mode (single-column mobile route, no horizontal overflow for MVP)
+- [ ] Write tests: dashboard renders route container and correct number of checkpoints for a mission plan
+- [ ] Run project test suite - must pass before task 34
+
+### Task 34: Add rival tokens to the route
+
+Show the user token and the nearest rival tokens directly on the route so progress feels spatial. Do not show a full leaderboard-only abstraction as the primary UI.
+
+**Files:**
+- Modify: `app/words/routes.py` (route-position payload)
+- Modify: `app/templates/dashboard.html`
+- Modify: `app/static/css/design-system.css`
+
+- [ ] Extend `daily_race` payload with route-relative positions, not just rank/score
+- [ ] Add `route_position` (0-100 scale) for the current user and each rival based on completed phases plus partial progress inside the active phase
+- [ ] Show the current user token plus the nearest rivals on the route itself
+- [ ] Only render nearby rivals on the track: one ahead, one behind, optional leader marker
+- [ ] Use the route itself as the primary race UI; keep the leaderboard secondary and compact
+- [ ] Keep bot rivals only as fallback for low-population/testing scenarios, clearly labeled as training
+- [ ] Write tests: route payload includes route positions; dashboard renders user token and rival tokens
+- [ ] Run project test suite - must pass before task 35
+
+### Task 35: Overtake and checkpoint animations
+
+Make route movement legible and satisfying. Completing a checkpoint should move the user token forward and visually indicate overtakes without adding noisy effects.
+
+**Files:**
+- Modify: `app/static/css/design-system.css`
+- Modify: `app/templates/dashboard.html`
+
+- [ ] Add token movement animation for checkpoint completion
+- [ ] Add overtaking animation when the user passes a rival token
+- [ ] Add checkpoint activation/completion animation for current and newly completed route points
+- [ ] Add explicit "checkpoint reached" and "overtake achieved" states that can be triggered after return from a plan step (`?from=daily_plan`)
+- [ ] Add finish-state animation that is calmer than full-screen celebration and fits both kids and adults
+- [ ] Write tests: dashboard includes animation hook classes/data attributes for route movement and overtakes
+- [ ] Run project test suite - must pass before task 36
+
+### Task 36: Do not interrupt a started lesson with daily limits
+
+If the user has already entered a lesson through the daily plan, the lesson must be finishable. Global daily new-card limits may gate entry to new free SRS, but must not break an already started lesson flow.
+
+**Files:**
+- Modify: `app/curriculum/routes/card_lessons.py`
+- Modify: `app/templates/components/_flashcard_session.html`
+- Modify: `app/study/api_routes.py`
+- Modify: `app/static/js/flashcard-session.js`
+
+- [ ] Define a lesson-safe grading mode for card lessons that bypasses global new-card blocking once the lesson has started
+- [ ] Ensure lesson card sessions pass an explicit flag to grading/fetch APIs so they are not treated like generic free-study SRS
+- [ ] Keep daily limits for general SRS entry points (`Разогрев серии`, free study, deck study) intact
+- [ ] Add frontend handling so lesson sessions never show misleading session-expired copy for limit responses
+- [ ] Add a product rule in mission assembly: if `Главный шаг миссии` resolves to a card-based lesson, either collapse the separate recall phase or relabel it so the user does not experience two visually identical card blocks in a row
+- [ ] Write tests: started lesson can continue past daily new-card threshold; generic free-study still stops at the threshold
+- [ ] Run project test suite - must pass before final verification

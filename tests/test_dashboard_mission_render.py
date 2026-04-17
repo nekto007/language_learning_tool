@@ -232,3 +232,52 @@ class TestDashboardMissionRender:
         assert html.count('data-phase-preview="true"') == 1
         assert 'aria-label="Количество заданий"' not in html
         assert 'aria-label="Время выполнения"' not in html
+
+    def test_phase_kind_css_classes_rendered(self, client, app, db_session, test_user, words_module_access):
+        """Task 6: each phase card emits dash-step--<kind> CSS class and data-phase-kind attribute."""
+        plan = _make_mission_plan('progress', [False, False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'dash-step--recall' in html
+        assert 'dash-step--learn' in html
+        assert 'dash-step--use' in html
+        assert 'dash-step--check' in html
+        assert 'data-phase-kind="recall"' in html
+        assert 'data-phase-kind="learn"' in html
+        assert 'data-phase-kind="use"' in html
+        assert 'data-phase-kind="check"' in html
+
+    def test_phase_svg_icons_rendered(self, client, app, db_session, test_user, words_module_access):
+        """Task 6: phase icons rendered as inline SVG (not just emoji)."""
+        plan = _make_mission_plan('progress', [False, False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'dash-step__svg-icon' in html
+        assert html.count('<svg class="dash-step__svg-icon"') >= 4
+
+    def test_phase_kind_css_class_combined_with_state(self, client, app, db_session, test_user, words_module_access):
+        """Task 6: kind class coexists with state class (done/current/upcoming) on same element."""
+        plan = _make_mission_plan('progress', [True, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        # Recall is first phase (done), learn is second (current), use is third (upcoming)
+        assert 'dash-step--phase dash-step--recall dash-step--done' in html
+        assert 'dash-step--phase dash-step--learn dash-step--current' in html
+        assert 'dash-step--phase dash-step--use dash-step--upcoming' in html
+
+    def test_phase_palette_css_present(self):
+        """Task 6: phase color palette CSS rules exist in dashboard template."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        for kind in ('recall', 'learn', 'use', 'read', 'check', 'close'):
+            assert f'.dash-step--phase.dash-step--{kind} .dash-step__body' in css, (
+                f'Missing border-left rule for phase kind {kind!r}'
+            )
+            assert f'.dash-step--phase.dash-step--{kind} .dash-step__num' in css, (
+                f'Missing num-colour rule for phase kind {kind!r}'
+            )
+            assert f'.dash-step--phase.dash-step--{kind} .dash-step__icon' in css, (
+                f'Missing icon rule for phase kind {kind!r}'
+            )
