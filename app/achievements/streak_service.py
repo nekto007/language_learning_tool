@@ -34,7 +34,7 @@ def get_required_steps(streak_length: int, steps_total: int) -> int:
     return min(required, steps_total)
 
 
-_MODE_DONE_CHECK = MODE_CATEGORY_MAP
+_MODE_DONE_CHECK = {k: v for k, v in MODE_CATEGORY_MAP.items() if k != 'success_marker'}
 
 
 def _compute_phase_completion(phases: list[dict], daily_summary: dict) -> dict[str, bool]:
