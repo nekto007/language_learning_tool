@@ -47,6 +47,24 @@ def daily_status():
         daily_plan=plan, plan_completion=plan_completion,
     )
 
+    day_secured = plan.get('day_secured', False)
+
+    if day_secured:
+        from datetime import datetime
+        import pytz
+        try:
+            tz_obj = pytz.timezone(tz)
+        except pytz.UnknownTimeZoneError:
+            tz_obj = pytz.timezone(DEFAULT_TZ)
+        today = datetime.now(tz_obj).date()
+        mission = plan.get('mission') or {}
+        mission_type = mission.get('type') if isinstance(mission, dict) else None
+        try:
+            emit_minimum_completed(user_id, mission_type, today)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     return jsonify({
         'success': True,
         'plan': plan,
@@ -58,7 +76,7 @@ def daily_status():
         'steps_total': steps_total,
         'required_steps': streak_result['required_steps'],
         'streak_repaired': streak_result['streak_repaired'],
-        'day_secured': plan.get('day_secured', False),
+        'day_secured': day_secured,
     })
 
 
@@ -225,6 +243,101 @@ def daily_plan_continuation():
             'estimated_minutes': step.estimated_minutes,
         },
     })
+
+
+_CLIENT_EVENTS = {
+    'next_step_shown',
+    'next_step_accepted',
+    'next_step_dismissed',
+    'session_ended_at_minimum',
+}
+
+
+@api_daily_plan.route('/daily-plan/events', methods=['POST'])
+@csrf.exempt
+@api_auth_required
+def record_daily_plan_event():
+    """Record a Phase 1 behavioral event for H1 hypothesis measurement.
+
+    Accepted event_types: next_step_shown, next_step_accepted,
+    next_step_dismissed, session_ended_at_minimum.
+
+    Body JSON:
+        event_type (str): one of the accepted event types
+        step_kind (str, optional): kind of the next step shown/accepted/dismissed
+        reason_text (str, optional): human-readable reason string for next_step_shown
+        plan_date (str, optional): ISO date string; defaults to today in user tz
+    """
+    from datetime import date as date_cls
+    from app.daily_plan.models import DailyPlanEvent, DailyPlanEventType
+
+    if not request.is_json:
+        return api_error('invalid_content_type', 'Request must be JSON', 400)
+
+    body = request.get_json(silent=True) or {}
+    event_type = body.get('event_type', '')
+
+    if event_type not in _CLIENT_EVENTS:
+        return api_error(
+            'invalid_event_type',
+            f'event_type must be one of: {", ".join(sorted(_CLIENT_EVENTS))}',
+            400,
+        )
+
+    plan_date_str = body.get('plan_date')
+    if plan_date_str:
+        try:
+            plan_date = date_cls.fromisoformat(plan_date_str)
+        except ValueError:
+            plan_date = None
+    else:
+        plan_date = None
+
+    step_kind = body.get('step_kind')
+    reason_text = body.get('reason_text')
+    if reason_text:
+        reason_text = str(reason_text)[:500]
+
+    event = DailyPlanEvent(
+        user_id=current_user.id,
+        event_type=event_type,
+        plan_date=plan_date,
+        step_kind=step_kind,
+        reason_text=reason_text,
+    )
+    db.session.add(event)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return api_error('db_error', 'Failed to record event', 500)
+
+    return jsonify({'success': True, 'event_type': event_type})
+
+
+def emit_minimum_completed(user_id: int, mission_type: str | None, plan_date) -> None:
+    """Server-side helper: emit minimum_completed event when day becomes secured.
+
+    Called internally when the plan payload indicates day_secured=True.
+    Idempotent per (user_id, plan_date): inserts only if no prior event exists.
+    """
+    from app.daily_plan.models import DailyPlanEvent
+
+    existing = DailyPlanEvent.query.filter_by(
+        user_id=user_id,
+        event_type='minimum_completed',
+        plan_date=plan_date,
+    ).first()
+    if existing:
+        return
+
+    event = DailyPlanEvent(
+        user_id=user_id,
+        event_type='minimum_completed',
+        plan_date=plan_date,
+        mission_type=mission_type,
+    )
+    db.session.add(event)
 
 
 @api_daily_plan.route('/streak/repair', methods=['POST'])

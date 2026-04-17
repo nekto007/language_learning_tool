@@ -35,6 +35,37 @@ class DailyPlanLog(db.Model):
     )
 
 
+class DailyPlanEventType(enum.Enum):
+    minimum_completed = "minimum_completed"
+    next_step_shown = "next_step_shown"
+    next_step_accepted = "next_step_accepted"
+    next_step_dismissed = "next_step_dismissed"
+    session_ended_at_minimum = "session_ended_at_minimum"
+
+
+class DailyPlanEvent(db.Model):
+    """One row per behavioral event emitted during Phase 1 tracking.
+
+    Stores user interaction events for H1 hypothesis measurement:
+    continuation rate = next_step_accepted / minimum_completed.
+    """
+    __tablename__ = 'daily_plan_events'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    event_type = Column(String(40), nullable=False)
+    plan_date = Column(Date, nullable=True)
+    mission_type = Column(String(20), nullable=True)
+    step_kind = Column(String(40), nullable=True)
+    reason_text = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_daily_plan_events_user_date', 'user_id', 'plan_date'),
+        Index('idx_daily_plan_events_type', 'event_type'),
+    )
+
+
 class MissionType(enum.Enum):
     """progress = advance in primary course, repair = fix weak spots (SRS/grammar), reading = book-first session."""
     progress = "progress"

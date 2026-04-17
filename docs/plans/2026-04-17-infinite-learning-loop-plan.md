@@ -140,12 +140,12 @@ Go/no-go: if continuation rate increases by ≥15% vs baseline after 2 weeks, pr
 **Files:**
 - Modify: `app/daily_plan/routes.py`
 
-- [ ] emit event: `minimum_completed` with timestamp and mission_type
-- [ ] emit event: `next_step_shown` with step_kind and reason_text
-- [ ] emit event: `next_step_accepted` (user clicked it)
-- [ ] emit event: `next_step_dismissed`
-- [ ] emit event: `session_ended_at_minimum` (user left without continuing)
-- [ ] write tests confirming events are emitted in correct states
+- [x] emit event: `minimum_completed` with timestamp and mission_type
+- [x] emit event: `next_step_shown` with step_kind and reason_text
+- [x] emit event: `next_step_accepted` (user clicked it)
+- [x] emit event: `next_step_dismissed`
+- [x] emit event: `session_ended_at_minimum` (user left without continuing)
+- [x] write tests confirming events are emitted in correct states
 
 ### Task 9: Phase 1 dashboard UI
 
