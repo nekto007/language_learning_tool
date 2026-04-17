@@ -220,7 +220,7 @@ class TestAssembleProgressMissionColdStart:
         plan = assemble_progress_mission(1, SourceKind.normal_course)
 
         assert plan is not None
-        assert len(plan.phases) == 3
+        assert 3 <= len(plan.phases) <= 4
         assert plan.phases[0].phase == PhaseKind.recall
         assert plan.phases[0].mode == "guided_recall"  # no SRS → guided_recall
         assert plan.phases[1].phase == PhaseKind.learn
@@ -243,9 +243,9 @@ class TestAssembleProgressMissionColdStart:
         plan = assemble_progress_mission(1, SourceKind.normal_course)
 
         assert plan is not None
-        assert len(plan.phases) == 4
-        assert plan.phases[3].phase == PhaseKind.check
-        assert plan.phases[3].required is False
+        assert 4 <= len(plan.phases) <= 5
+        check = next(p for p in plan.phases if p.phase == PhaseKind.check)
+        assert check.required is False
 
 
 # ---------------------------------------------------------------------------

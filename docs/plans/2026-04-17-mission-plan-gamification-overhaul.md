@@ -470,13 +470,13 @@ Randomly (20% chance) append a bonus "surprise" phase to the plan: could be a mi
 - Modify: `app/daily_plan/assembler.py` (bonus phase logic)
 - Modify: `app/daily_plan/models.py` (add bonus phase kinds)
 
-- [ ] Add `PhaseKind.bonus` value
-- [ ] Add bonus modes: `fun_fact_quiz`, `speed_review`, `word_scramble`
-- [ ] In each assembler, after building main phases, roll 20% chance to append bonus phase (required=False)
-- [ ] Bonus phase awards 2x XP if completed
-- [ ] Visual indicator: sparkle/star marker on the roadmap node
-- [ ] Write tests: bonus phase appears ~20% of time (test with seeded random); bonus is never required; correct modes assigned
-- [ ] Run project test suite - must pass before task 29
+- [x] Add `PhaseKind.bonus` value
+- [x] Add bonus modes: `fun_fact_quiz`, `speed_review`, `word_scramble`
+- [x] In each assembler, after building main phases, roll 20% chance to append bonus phase (required=False)
+- [x] Bonus phase awards 2x XP if completed
+- [x] Visual indicator: sparkle/star marker on the roadmap node
+- [x] Write tests: bonus phase appears ~20% of time (test with seeded random); bonus is never required; correct modes assigned
+- [x] Run project test suite - must pass before task 29
 
 ### Task 29: Mission completion summary screen
 

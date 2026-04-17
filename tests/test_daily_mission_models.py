@@ -77,7 +77,7 @@ def _make_plan(num_phases: int = 3, **kwargs) -> MissionPlan:
 class TestModeCategoryMap:
     """Verify MODE_CATEGORY_MAP covers all modes and is used by streak_service and routes."""
 
-    EXPECTED_CATEGORIES = {'words', 'lesson', 'book_course', 'grammar', 'books', 'meta'}
+    EXPECTED_CATEGORIES = {'words', 'lesson', 'book_course', 'grammar', 'books', 'meta', 'bonus'}
 
     def test_all_categories_present(self):
         assert set(MODE_CATEGORY_MAP.values()) == self.EXPECTED_CATEGORIES
@@ -91,6 +91,7 @@ class TestModeCategoryMap:
             'grammar_practice', 'targeted_quiz',
             'book_reading',
             'success_marker',
+            'fun_fact_quiz', 'speed_review', 'word_scramble',
         }
         assert set(MODE_CATEGORY_MAP.keys()) == expected_modes
 
@@ -136,7 +137,7 @@ class TestEnums:
 
     def test_phase_kind_values(self):
         assert set(p.value for p in PhaseKind) == {
-            "recall", "learn", "use", "read", "check", "close",
+            "recall", "learn", "use", "read", "check", "close", "bonus",
         }
 
     def test_source_kind_values(self):
@@ -213,20 +214,24 @@ class TestMissionPlan:
         assert len(plan.phases) == 4
 
     def test_empty_phases_rejected(self):
-        with pytest.raises(ValueError, match="3-4 phases"):
+        with pytest.raises(ValueError, match="3-5 phases"):
             _make_plan(phases=[])
 
     def test_1_phase_rejected(self):
-        with pytest.raises(ValueError, match="3-4 phases"):
+        with pytest.raises(ValueError, match="3-5 phases"):
             _make_plan(phases=[_make_phase()])
 
     def test_2_phases_rejected(self):
-        with pytest.raises(ValueError, match="3-4 phases"):
+        with pytest.raises(ValueError, match="3-5 phases"):
             _make_plan(phases=[_make_phase(), _make_phase()])
 
-    def test_5_phases_rejected(self):
-        with pytest.raises(ValueError, match="3-4 phases"):
-            _make_plan(phases=[_make_phase() for _ in range(5)])
+    def test_valid_5_phases(self):
+        plan = _make_plan(phases=[_make_phase() for _ in range(5)])
+        assert len(plan.phases) == 5
+
+    def test_6_phases_rejected(self):
+        with pytest.raises(ValueError, match="3-5 phases"):
+            _make_plan(phases=[_make_phase() for _ in range(6)])
 
     def test_legacy_default_none(self):
         plan = _make_plan()

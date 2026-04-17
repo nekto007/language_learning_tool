@@ -27,6 +27,10 @@ PHASE_XP: dict[str, int] = {
     'check': 25,
     'close': 10,
     'bonus': 20,
+    # Bonus phase modes award 2x the base bonus XP (40 = 2 * 20).
+    'fun_fact_quiz': 40,
+    'speed_review': 40,
+    'word_scramble': 40,
 }
 
 PERFECT_DAY_BONUS_XP = 50

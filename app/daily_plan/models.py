@@ -17,13 +17,14 @@ class MissionType(enum.Enum):
 
 
 class PhaseKind(enum.Enum):
-    """Canonical learning phases: recall → learn → use/read → check/close."""
+    """Canonical learning phases: recall → learn → use/read → check/close → bonus."""
     recall = "recall"
     learn = "learn"
     use = "use"
     read = "read"
     check = "check"
     close = "close"
+    bonus = "bonus"
 
 
 class SourceKind(enum.Enum):
@@ -53,6 +54,9 @@ MODE_CATEGORY_MAP: dict[str, str] = {
     'targeted_quiz': 'grammar',
     'book_reading': 'books',
     'success_marker': 'meta',
+    'fun_fact_quiz': 'bonus',
+    'speed_review': 'bonus',
+    'word_scramble': 'bonus',
 }
 
 
@@ -110,9 +114,9 @@ class MissionPlan:
     legacy: Optional[dict[str, Any]] = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.phases, list) or not (3 <= len(self.phases) <= 4):
+        if not isinstance(self.phases, list) or not (3 <= len(self.phases) <= 5):
             raise ValueError(
-                f"MissionPlan requires 3-4 phases, got {len(self.phases) if isinstance(self.phases, list) else 'non-list'}"
+                f"MissionPlan requires 3-5 phases, got {len(self.phases) if isinstance(self.phases, list) else 'non-list'}"
             )
         if not isinstance(self.mission, Mission):
             raise TypeError("mission must be a Mission instance")
@@ -123,11 +127,13 @@ class MissionPlan:
 
         # Warn if duplicate activity categories slip through deduplication.
         # Reading missions intentionally have multiple 'words' phases — skip warning for them.
+        # 'bonus' and 'meta' categories are always exempt from duplicate checks.
         skip_dup_warning = self.mission.type == MissionType.reading
+        _EXEMPT_CATEGORIES = {'bonus', 'meta'}
         seen_categories: dict[str, int] = {}
         for i, phase in enumerate(self.phases):
             cat = MODE_CATEGORY_MAP.get(phase.mode)
-            if cat is not None and cat in seen_categories and not skip_dup_warning:
+            if cat is not None and cat in seen_categories and not skip_dup_warning and cat not in _EXEMPT_CATEGORIES:
                 logger.warning(
                     "MissionPlan duplicate category %r in phases[%d] (mode=%s) "
                     "and phases[%d] (mode=%s)",

@@ -60,13 +60,13 @@ class TestAssembleProgressMission:
         assert plan.mission.type == MissionType.progress
         assert plan.primary_source.kind == SourceKind.normal_course
         assert plan.primary_source.label == "Урок 5"
-        assert len(plan.phases) == 4
+        assert 4 <= len(plan.phases) <= 5
         assert plan.phases[0].phase == PhaseKind.recall
         assert plan.phases[0].source_kind == SourceKind.srs
         assert plan.phases[1].phase == PhaseKind.learn
         assert plan.phases[2].phase == PhaseKind.use
-        assert plan.phases[3].phase == PhaseKind.check
-        assert plan.phases[3].required is False
+        check = next(p for p in plan.phases if p.phase == PhaseKind.check)
+        assert check.required is False
 
     @patch(f"{MODULE}._count_srs_due", return_value=0)
     @patch(f"{MODULE}._find_next_lesson", return_value={
@@ -75,7 +75,7 @@ class TestAssembleProgressMission:
     })
     def test_normal_course_no_srs_gives_3_phases(self, _lesson, _srs):
         plan = assemble_progress_mission(1, SourceKind.normal_course)
-        assert len(plan.phases) == 3
+        assert 3 <= len(plan.phases) <= 4
         assert plan.phases[0].phase == PhaseKind.recall
         assert plan.phases[0].mode == "guided_recall"
         assert plan.phases[1].phase == PhaseKind.learn
@@ -91,7 +91,7 @@ class TestAssembleProgressMission:
         assert plan.mission.type == MissionType.progress
         assert plan.primary_source.kind == SourceKind.book_course
         assert plan.primary_source.label == "Harry Potter"
-        assert len(plan.phases) == 4
+        assert 4 <= len(plan.phases) <= 5
         assert plan.phases[1].source_kind == SourceKind.book_course
 
     @patch(f"{MODULE}._count_srs_due", return_value=0)
@@ -101,7 +101,7 @@ class TestAssembleProgressMission:
     })
     def test_book_course_no_srs_gives_3_phases(self, _bc, _srs):
         plan = assemble_progress_mission(1, SourceKind.book_course)
-        assert len(plan.phases) == 3
+        assert 3 <= len(plan.phases) <= 4
 
     @patch(f"{MODULE}._count_srs_due", return_value=0)
     @patch(f"{MODULE}._find_next_lesson", return_value=None)
@@ -145,13 +145,13 @@ class TestAssembleRepairMission:
         plan = assemble_repair_mission(1, _high_repair())
         assert isinstance(plan, MissionPlan)
         assert plan.mission.type == MissionType.repair
-        assert len(plan.phases) == 4
+        assert 4 <= len(plan.phases) <= 5
         assert plan.phases[0].phase == PhaseKind.recall
         assert plan.phases[0].mode == "srs_review"
         assert plan.phases[1].phase == PhaseKind.learn
         assert plan.phases[1].source_kind == SourceKind.grammar_lab
         assert plan.phases[2].phase == PhaseKind.use
-        assert plan.phases[3].phase == PhaseKind.close
+        assert any(p.phase == PhaseKind.close for p in plan.phases)
 
     @patch(f"{MODULE}._find_weak_grammar_topic", return_value=None)
     @patch(f"{MODULE}._count_grammar_due", return_value=0)
@@ -202,8 +202,7 @@ class TestAssembleRepairMission:
     @patch(f"{MODULE}._count_srs_due", return_value=5)
     def test_repair_close_phase_not_required(self, _srs, _grammar, _topic):
         plan = assemble_repair_mission(1, _high_repair())
-        close = plan.phases[-1]
-        assert close.phase == PhaseKind.close
+        close = next(p for p in plan.phases if p.phase == PhaseKind.close)
         assert close.required is False
 
 
@@ -216,17 +215,17 @@ class TestAssembleReadingMission:
         assert plan.mission.type == MissionType.reading
         assert plan.primary_source.kind == SourceKind.books
         assert plan.primary_source.label == "Alice"
-        assert len(plan.phases) == 4
+        assert 4 <= len(plan.phases) <= 5
         assert plan.phases[0].phase == PhaseKind.recall
         assert plan.phases[1].phase == PhaseKind.read
         assert plan.phases[2].phase == PhaseKind.use
-        assert plan.phases[3].phase == PhaseKind.check
+        assert any(p.phase == PhaseKind.check for p in plan.phases)
 
     @patch(f"{MODULE}._count_srs_due", return_value=0)
     @patch(f"{MODULE}._find_next_book", return_value={'title': 'Gatsby', 'id': 3})
     def test_reading_no_srs_gives_3_phases(self, _book, _srs):
         plan = assemble_reading_mission(1)
-        assert len(plan.phases) == 3
+        assert 3 <= len(plan.phases) <= 4
         assert plan.phases[0].mode == "guided_recall"
 
     @patch(f"{MODULE}._count_srs_due", return_value=0)
@@ -245,7 +244,7 @@ class TestAssembleReadingMission:
     @patch(f"{MODULE}._find_next_book", return_value={'title': 'Book', 'id': 2})
     def test_reading_check_phase_not_required(self, _book, _srs):
         plan = assemble_reading_mission(1)
-        check = plan.phases[-1]
+        check = next(p for p in plan.phases if p.phase == PhaseKind.check)
         assert check.phase == PhaseKind.check
         assert check.required is False
 
@@ -265,16 +264,16 @@ class TestAssemblerValidation:
     })
     def test_plan_has_valid_phase_count(self, _lesson, _srs):
         plan = assemble_progress_mission(1, SourceKind.normal_course)
-        assert 3 <= len(plan.phases) <= 4
+        assert 3 <= len(plan.phases) <= 5
 
     @patch(f"{MODULE}._find_weak_grammar_topic", return_value={
         'title': 'T', 'topic_id': 1,
     })
     @patch(f"{MODULE}._count_grammar_due", return_value=5)
     @patch(f"{MODULE}._count_srs_due", return_value=5)
-    def test_repair_has_exactly_4_phases(self, _srs, _grammar, _topic):
+    def test_repair_has_4_or_5_phases(self, _srs, _grammar, _topic):
         plan = assemble_repair_mission(1, _high_repair())
-        assert len(plan.phases) == 4
+        assert 4 <= len(plan.phases) <= 5
 
     @patch(f"{MODULE}._count_srs_due", return_value=0)
     @patch(f"{MODULE}._find_next_lesson", return_value={
@@ -325,8 +324,7 @@ class TestFallbackHelpers:
     @patch(f"{MODULE}._count_srs_due", return_value=5)
     def test_close_phase_as_soft_close(self, _srs, _grammar, _topic):
         plan = assemble_repair_mission(1, _high_repair())
-        close = plan.phases[-1]
-        assert close.phase == PhaseKind.close
+        close = next(p for p in plan.phases if p.phase == PhaseKind.close)
         assert close.mode == "success_marker"
         assert close.required is False
 
@@ -724,3 +722,157 @@ class TestEstimateSrsMinutes:
         assert _estimate_srs_minutes(20) == 2
         assert _estimate_srs_minutes(30) == 3
         assert _estimate_srs_minutes(100) == 10
+
+
+class TestBonusPhase:
+    """Task 28: _maybe_add_bonus_phase and bonus phase integration."""
+
+    def test_always_adds_bonus_with_seeded_rng_below_threshold(self):
+        """A seeded RNG that returns 0.0 always triggers the bonus phase."""
+        import random
+        from app.daily_plan.assembler import _maybe_add_bonus_phase, BONUS_MODES
+        from app.daily_plan.models import PhaseKind
+
+        rng = random.Random(0)
+        # Reseed so first random() call is guaranteed below 0.2
+        # By finding a seed that gives us <0.2 on first call
+        for seed in range(1000):
+            rng = random.Random(seed)
+            if rng.random() < 0.20:
+                break
+
+        phases = [
+            MissionPhase(phase=PhaseKind.recall, title="R", source_kind=SourceKind.srs, mode="srs_review"),
+            MissionPhase(phase=PhaseKind.learn, title="L", source_kind=SourceKind.normal_course, mode="curriculum_lesson"),
+            MissionPhase(phase=PhaseKind.use, title="U", source_kind=SourceKind.normal_course, mode="lesson_practice"),
+        ]
+
+        rng2 = random.Random(seed)
+        result = _maybe_add_bonus_phase(phases, rng=rng2)
+
+        assert len(result) == 4
+        bonus = result[-1]
+        assert bonus.phase == PhaseKind.bonus
+        assert bonus.required is False
+        assert bonus.mode in [m for m, _ in BONUS_MODES]
+
+    def test_no_bonus_with_seeded_rng_above_threshold(self):
+        """A seeded RNG that returns >= 0.2 skips the bonus phase."""
+        import random
+        from app.daily_plan.assembler import _maybe_add_bonus_phase
+
+        # Find a seed where first random() >= 0.20
+        for seed in range(1000):
+            rng = random.Random(seed)
+            if rng.random() >= 0.20:
+                break
+
+        phases = [
+            MissionPhase(phase=PhaseKind.recall, title="R", source_kind=SourceKind.srs, mode="srs_review"),
+            MissionPhase(phase=PhaseKind.learn, title="L", source_kind=SourceKind.normal_course, mode="curriculum_lesson"),
+            MissionPhase(phase=PhaseKind.use, title="U", source_kind=SourceKind.normal_course, mode="lesson_practice"),
+        ]
+
+        rng2 = random.Random(seed)
+        result = _maybe_add_bonus_phase(phases, rng=rng2)
+
+        assert len(result) == 3
+
+    def test_bonus_phase_is_never_required(self):
+        """Bonus phase must always be required=False."""
+        import random
+        from app.daily_plan.assembler import _maybe_add_bonus_phase
+        from app.daily_plan.models import PhaseKind
+
+        for seed in range(500):
+            rng = random.Random(seed)
+            val = rng.random()
+            if val < 0.20:
+                phases = [
+                    MissionPhase(phase=PhaseKind.recall, title="R", source_kind=SourceKind.srs, mode="srs_review"),
+                    MissionPhase(phase=PhaseKind.learn, title="L", source_kind=SourceKind.normal_course, mode="curriculum_lesson"),
+                    MissionPhase(phase=PhaseKind.use, title="U", source_kind=SourceKind.normal_course, mode="lesson_practice"),
+                ]
+                result = _maybe_add_bonus_phase(phases, rng=random.Random(seed))
+                bonus = next((p for p in result if p.phase == PhaseKind.bonus), None)
+                if bonus:
+                    assert bonus.required is False
+                    return
+        pytest.skip("no seed < 0.2 found in range")
+
+    def test_bonus_modes_in_mode_category_map(self):
+        """All bonus modes must be in MODE_CATEGORY_MAP with category 'bonus'."""
+        from app.daily_plan.assembler import BONUS_MODES
+        from app.daily_plan.models import MODE_CATEGORY_MAP
+
+        for mode, _title in BONUS_MODES:
+            assert mode in MODE_CATEGORY_MAP, f"Missing mode: {mode}"
+            assert MODE_CATEGORY_MAP[mode] == 'bonus', f"Wrong category for {mode}"
+
+    def test_bonus_modes_have_xp(self):
+        """All bonus modes must have 2x XP defined in PHASE_XP."""
+        from app.daily_plan.assembler import BONUS_MODES
+        from app.achievements.xp_service import PHASE_XP
+
+        bonus_base = PHASE_XP['bonus']
+        for mode, _title in BONUS_MODES:
+            assert mode in PHASE_XP, f"Missing XP for mode: {mode}"
+            assert PHASE_XP[mode] == bonus_base * 2, (
+                f"{mode} XP={PHASE_XP[mode]} should be 2x bonus base={bonus_base}"
+            )
+
+    def test_phase_kind_bonus_exists(self):
+        """PhaseKind.bonus must be defined."""
+        assert PhaseKind.bonus.value == "bonus"
+
+    def test_assembler_bonus_appended_after_main_phases(self):
+        """When bonus is added, main phases remain at expected indices."""
+        import random
+        from app.daily_plan.assembler import _maybe_add_bonus_phase
+        from app.daily_plan.models import PhaseKind
+
+        for seed in range(1000):
+            rng = random.Random(seed)
+            if rng.random() < 0.20:
+                phases = [
+                    MissionPhase(phase=PhaseKind.recall, title="R", source_kind=SourceKind.srs, mode="srs_review"),
+                    MissionPhase(phase=PhaseKind.learn, title="L", source_kind=SourceKind.normal_course, mode="curriculum_lesson"),
+                    MissionPhase(phase=PhaseKind.use, title="U", source_kind=SourceKind.normal_course, mode="lesson_practice"),
+                ]
+                result = _maybe_add_bonus_phase(phases, rng=random.Random(seed))
+                if len(result) == 4:
+                    # Main phases at 0,1,2 unchanged; bonus at 3
+                    assert result[0].phase == PhaseKind.recall
+                    assert result[1].phase == PhaseKind.learn
+                    assert result[2].phase == PhaseKind.use
+                    assert result[3].phase == PhaseKind.bonus
+                    return
+        pytest.skip("no seed producing bonus found in range")
+
+    @patch(f"{MODULE}._count_srs_due", return_value=0)
+    @patch(f"{MODULE}._find_next_lesson", return_value={
+        'title': 'L', 'lesson_id': 1, 'module_id': 1,
+        'module_number': 1, 'lesson_type': 'grammar',
+    })
+    def test_progress_mission_accepts_5_phases(self, _lesson, _srs):
+        """Progress mission plan with bonus phase validates as 3-5 phases (not rejected)."""
+        import random
+        from app.daily_plan.models import PhaseKind
+
+        # Run many seeds to get a plan with 4 phases (3 base + 1 bonus)
+        for seed in range(2000):
+            rng = random.Random(seed)
+            if rng.random() < 0.20:
+                with patch(f"{MODULE}._maybe_add_bonus_phase",
+                           side_effect=lambda phases, **kw: phases + [
+                               MissionPhase(phase=PhaseKind.bonus, title="Bonus",
+                                            source_kind=SourceKind.vocab, mode="fun_fact_quiz",
+                                            required=False)
+                           ]):
+                    plan = assemble_progress_mission(1, SourceKind.normal_course)
+                assert plan is not None
+                bonus_phases = [p for p in plan.phases if p.phase == PhaseKind.bonus]
+                assert len(bonus_phases) == 1
+                assert bonus_phases[0].required is False
+                return
+        pytest.skip("unexpected skip")

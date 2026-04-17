@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import random
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -72,6 +73,41 @@ _SUBSTITUTE_MODE_TITLES: dict[str, str] = {
     'vocab_drill': 'Тренировка слов',
     'meaning_prompt': 'Угадай значение',
 }
+
+# Bonus phase: 20% chance, one of three fun mini-modes.
+BONUS_PHASE_CHANCE = 0.20
+BONUS_MODES: list[tuple[str, str]] = [
+    ('fun_fact_quiz', 'Викторина: факты языка'),
+    ('speed_review', 'Спидран: быстрое повторение'),
+    ('word_scramble', 'Анаграмма: собери слово'),
+]
+
+
+def _maybe_add_bonus_phase(
+    phases: list[MissionPhase],
+    rng: Optional[random.Random] = None,
+) -> list[MissionPhase]:
+    """Append a random bonus phase with BONUS_PHASE_CHANCE probability.
+
+    The bonus phase is always required=False and uses PhaseKind.bonus.
+    Callers pass a seeded `rng` in tests for deterministic behaviour.
+    """
+    _rng = rng or random
+    if _rng.random() >= BONUS_PHASE_CHANCE:
+        return phases
+    mode, title = _rng.choice(BONUS_MODES)
+    bonus = MissionPhase(
+        phase=PhaseKind.bonus,
+        title=title,
+        source_kind=SourceKind.vocab,
+        mode=mode,
+        required=False,
+        preview=PhasePreview(
+            content_title=title,
+            estimated_minutes=3,
+        ),
+    )
+    return phases + [bonus]
 
 
 def _deduplicate_phases(phases: list[MissionPhase]) -> list[MissionPhase]:
@@ -477,6 +513,7 @@ def assemble_progress_mission(
                 ),
             ))
 
+        phases = _maybe_add_bonus_phase(phases)
         return MissionPlan(
             plan_version="1",
             mission=Mission(
@@ -542,6 +579,7 @@ def assemble_progress_mission(
             ),
         ))
 
+    phases = _maybe_add_bonus_phase(phases)
     return MissionPlan(
         plan_version="1",
         mission=Mission(
@@ -663,6 +701,7 @@ def assemble_repair_mission(
     phases.append(_make_close_phase())
 
     phases = _deduplicate_phases(phases)
+    phases = _maybe_add_bonus_phase(phases)
 
     return MissionPlan(
         plan_version="1",
@@ -753,6 +792,7 @@ def assemble_reading_mission(
             ),
         ))
 
+    phases = _maybe_add_bonus_phase(phases)
     return MissionPlan(
         plan_version="1",
         mission=Mission(
