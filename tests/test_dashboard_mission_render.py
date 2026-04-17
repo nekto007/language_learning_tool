@@ -1153,3 +1153,106 @@ class TestDashboardMissionRender:
         assert 'dash-roadmap__node--just-completed' in html
         assert 'dash-route--finish-calm' in html
         assert 'data-animate-token' in html
+
+    # ---- Task 9 (Plan): Day secured banner + next-step card ----
+
+    def _make_mission_plan_with_secured(self, mission_type='progress', phases_completed=None, day_secured=False):
+        plan = _make_mission_plan(mission_type, phases_completed)
+        plan['day_secured'] = day_secured
+        return plan
+
+    def test_day_secured_banner_shown_when_secured_and_not_all_done(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: day-secured banner renders when day_secured=True and required phases are done but bonus phases remain."""
+        plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-day-secured="true"' in html
+        assert 'dash-day-secured' in html
+        assert 'День закрыт!' in html
+        assert 'Серия сохранена' in html
+
+    def test_day_secured_banner_absent_when_not_secured(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: day-secured banner must not appear when day_secured=False."""
+        plan = self._make_mission_plan_with_secured('progress', [False, False, False], day_secured=False)
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'class="dash-day-secured"' not in html
+        assert 'День закрыт!' not in html
+
+    def test_day_secured_banner_absent_when_all_done(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: when all phases are done the completion summary shows instead; no secured banner."""
+        plan = self._make_mission_plan_with_secured('progress', [True, True, True], day_secured=True)
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        # Banner must not appear when m_all_done (completion summary takes over)
+        assert 'class="dash-day-secured"' not in html
+
+    def test_next_step_container_rendered_inside_secured_banner(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: next-step container element is present inside the secured banner for JS to populate."""
+        plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-next-step-container="true"' in html
+        assert 'data-next-step-reason="true"' in html
+        assert 'data-next-step-kind="true"' in html
+        assert 'data-next-step-time="true"' in html
+        assert 'data-next-step-link="true"' in html
+        assert 'data-next-step-dismiss="true"' in html
+
+    def test_next_step_container_absent_when_not_secured(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: next-step container must not appear when day is not secured."""
+        plan = self._make_mission_plan_with_secured('progress', [False, False, False], day_secured=False)
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        # The HTML element must not be rendered (the string also appears in JS, check the element markup)
+        assert 'class="dash-next-step"' not in html
+        assert 'Продолжить позже' not in html
+
+    def test_continue_later_dismiss_button_rendered(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: dismiss button with correct data attribute is present when secured."""
+        plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-next-step-dismiss="true"' in html
+        assert 'Продолжить позже' in html
+
+    def test_day_secured_css_rules_present(self):
+        """Task 9: day-secured and next-step CSS rules exist in dashboard template."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        assert '.dash-day-secured {' in css
+        assert '.dash-day-secured__banner' in css
+        assert '.dash-next-step {' in css
+        assert '.dash-next-step__btn--go' in css
+        assert '.dash-next-step__btn--dismiss' in css
+
+    def test_day_secured_js_hook_present(self):
+        """Task 9: JS that fetches /api/daily-plan/continuation and renders the next-step card exists."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            html = f.read()
+        assert '/api/daily-plan/continuation' in html
+        assert 'data-next-step-container' in html
+        assert 'next_step_shown' in html
+        assert 'next_step_accepted' in html
+        assert 'next_step_dismissed' in html
+
+    def test_day_secured_cards_url_in_container(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: cards URL is embedded in the secured banner container for JS SRS/vocab fallback."""
+        plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-cards-url=' in html
+
+    def test_existing_progress_ui_unchanged_when_secured(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: existing roadmap and timeline are still rendered when day is secured (above banner)."""
+        plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        # Standard mission plan UI elements must still be present
+        assert 'data-roadmap="true"' in html
+        assert 'data-mission-plan="true"' in html
+        assert 'dash-mission-header' in html

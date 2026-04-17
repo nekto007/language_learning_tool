@@ -152,11 +152,11 @@ Go/no-go: if continuation rate increases by ≥15% vs baseline after 2 weeks, pr
 **Files:**
 - Modify: `app/templates/study/` or relevant dashboard template
 
-- [ ] show "Day secured" banner when `day_secured=True`
-- [ ] show 1 next-step card below the banner with reason text and estimated time
-- [ ] show "Continue later" option (dismisses next-step card without navigating away)
-- [ ] keep existing minimum progress UI unchanged above the banner
-- [ ] write template tests for secured state and non-secured state
+- [x] show "Day secured" banner when `day_secured=True`
+- [x] show 1 next-step card below the banner with reason text and estimated time
+- [x] show "Continue later" option (dismisses next-step card without navigating away)
+- [x] keep existing minimum progress UI unchanged above the banner
+- [x] write template tests for secured state and non-secured state
 
 ### Task 10: Phase 1 go/no-go evaluation
 
