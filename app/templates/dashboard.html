@@ -170,19 +170,34 @@
     {% endif %}
 
     {% if daily_race %}
-    <section class="dash-race">
+    <section class="dash-race{% if daily_race.is_complete %} dash-race--complete{% endif %}">
         <div class="dash-race__header">
             <div>
                 <div class="dash-race__eyebrow">Гонка дня</div>
+                {% if daily_race.is_complete %}
+                <h2 class="dash-race__title">Гонка завершена — ты финишировал {{ daily_race.rank }}-м!</h2>
+                {% else %}
                 <h2 class="dash-race__title">Что сделать сегодня, чтобы подняться выше</h2>
+                {% endif %}
                 {% if daily_race.has_bot_rivals %}
                 <div class="dash-race__note">Тренировочный режим: соперники временные.</div>
                 {% endif %}
             </div>
-            <div class="dash-race__badge">Место {{ daily_race.rank }}/{{ daily_race.total }}</div>
+            <div class="dash-race__badge dash-race__badge--{{ daily_race.place_class or 'default' }}">Место {{ daily_race.rank }}/{{ daily_race.total }}</div>
         </div>
 
         <div class="dash-race__hero">
+            {% if daily_race.is_complete %}
+            <div class="dash-race__final">
+                <div class="dash-race__final-place dash-race__final-place--{{ daily_race.place_class or 'default' }}">
+                    {% if daily_race.rank == 1 %}🥇{% elif daily_race.rank == 2 %}🥈{% elif daily_race.rank == 3 %}🥉{% else %}{{ daily_race.rank }}-е место{% endif %}
+                </div>
+                <div class="dash-race__final-score">{{ daily_race.score }} очков</div>
+                <div class="dash-race__final-message">
+                    {% if daily_race.rank == 1 %}Отличная работа — сегодня ты первый!{% elif daily_race.rank <= 3 %}Хороший результат, ты в тройке лидеров!{% else %}Продолжай в том же духе — завтра будет лучше!{% endif %}
+                </div>
+            </div>
+            {% else %}
             <div class="dash-race__stats">
                 <div>
                     <div class="dash-race__score">{{ daily_race.score }}</div>
@@ -196,7 +211,7 @@
                 </div>
             </div>
 
-            <div class="dash-race__callout">{{ daily_race.callout }}</div>
+            <div class="dash-race__nudge">{{ daily_race.callout }}</div>
 
             <div class="dash-race__tasks">
                 {% if daily_race.next_step_title %}
@@ -233,13 +248,15 @@
                 {% if daily_race.next_action_title %}Открыть: {{ daily_race.next_action_title }}{% else %}Сделать следующий шаг{% endif %}
             </a>
             {% endif %}
+            {% endif %}
 
             <div class="dash-race__board">
-                <div class="dash-race__board-title">Позиции рядом</div>
+                <div class="dash-race__board-title">{% if daily_race.is_complete %}Итоги гонки{% else %}Позиции рядом{% endif %}</div>
                 <div class="dash-race__list">
                     {% for rival in daily_race.leaderboard %}
                     <div class="dash-race__row {% if rival.is_me %}dash-race__row--me{% endif %}">
-                        <div class="dash-race__place">{{ rival.rank }}</div>
+                        <div class="dash-race__place dash-race__place--{{ rival.place_class or 'default' }}">{{ rival.rank }}</div>
+                        <div class="dash-race__avatar">{{ rival.initials }}</div>
                         <div class="dash-race__user">
                             <div class="dash-race__name">{% if rival.is_me %}Ты{% else %}{{ rival.username }}{% endif %}</div>
                             <div class="dash-race__user-meta">{{ rival.steps_done }}/{{ rival.steps_total }} этапов · 🔥 {{ rival.streak }}{% if rival.is_bot %} · тренировка{% endif %}</div>

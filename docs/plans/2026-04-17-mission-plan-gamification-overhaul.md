@@ -383,13 +383,13 @@ Show the race widget on the dashboard: mini leaderboard with 3-5 participants, u
 - Modify: `app/words/routes.py` (pass race data)
 - Modify: `app/static/css/design-system.css` (race widget styles)
 
-- [ ] `dash-race` widget: compact leaderboard showing avatar/initials, name, points, position
-- [ ] Current user row highlighted with accent color
-- [ ] Position indicators: 1st=gold, 2nd=silver, 3rd=bronze
-- [ ] When race complete (all participants finished or day ends): show final results with "You placed Nth!" message
-- [ ] Motivational nudge: "You're 8 points behind 1st - complete the next phase to catch up!"
-- [ ] Write tests: race widget renders with correct participant count; user highlighted; position badges correct
-- [ ] Run project test suite - must pass before task 24
+- [x] `dash-race` widget: compact leaderboard showing avatar/initials, name, points, position
+- [x] Current user row highlighted with accent color
+- [x] Position indicators: 1st=gold, 2nd=silver, 3rd=bronze
+- [x] When race complete (all participants finished or day ends): show final results with "You placed Nth!" message
+- [x] Motivational nudge: "You're 8 points behind 1st - complete the next phase to catch up!"
+- [x] Write tests: race widget renders with correct participant count; user highlighted; position badges correct
+- [x] Run project test suite - must pass before task 24
 
 ---
 

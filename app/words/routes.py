@@ -161,52 +161,55 @@ def _get_cached_leaderboard(stats_service_cls, limit: int = 5):
     return data
 
 
-def _compute_daily_race_state(daily_plan: dict, daily_summary: dict, streak: int) -> dict:
-    from app.achievements.streak_service import compute_plan_steps
+_MEDAL_BY_RANK = {1: 'gold', 2: 'silver', 3: 'bronze'}
 
-    plan_completion, _, steps_done, steps_total = compute_plan_steps(daily_plan, daily_summary)
-    score = 0
-    next_step_title = None
-    next_step_points = 0
 
-    phases = daily_plan.get('phases') or []
+def _participant_initials(username: str | None) -> str:
+    """Return 1-2 uppercase initials from a username for avatar display."""
+    if not username:
+        return '?'
+    clean = username.strip()
+    if not clean:
+        return '?'
+    # If the username contains separators, take the first letter of first two parts.
+    parts = [p for p in clean.replace('_', ' ').replace('.', ' ').split() if p]
+    if len(parts) >= 2:
+        return (parts[0][0] + parts[1][0]).upper()
+    return clean[:2].upper() if len(clean) >= 2 else clean[0].upper()
+
+
+def _format_place_label(rank: int | None) -> str:
+    if not rank:
+        return ''
+    if rank == 1:
+        return '1-е место'
+    if rank == 2:
+        return '2-е место'
+    if rank == 3:
+        return '3-е место'
+    return f'{rank}-е место'
+
+
+def _next_phase_points(plan: dict, plan_completion: dict) -> tuple[str | None, int]:
+    """Return (title, points) for the first incomplete required phase."""
+    phases = plan.get('phases') or []
     if phases:
-        required_phases = [p for p in phases if p.get('required', True)]
-        for phase in required_phases:
-            points = _MISSION_PHASE_POINTS.get(phase.get('phase', ''), 12)
-            if plan_completion.get(phase.get('id'), False):
-                score += points
-            elif next_step_title is None:
-                next_step_title = phase.get('title') or 'Следующий этап'
-                next_step_points = points
-
-        if steps_total > 0 and steps_done >= steps_total:
-            score += 12
-    else:
-        steps = daily_plan.get('steps') or {}
-        for key in ('lesson', 'grammar', 'words', 'books', 'book_course_practice'):
-            step = steps.get(key)
-            if not step:
+        for phase in phases:
+            if not phase.get('required', True):
                 continue
-            points = _LEGACY_STEP_POINTS.get(key, 15)
-            if plan_completion.get(key, False):
-                score += points
-            elif next_step_title is None:
-                next_step_title = step.get('title') or 'Следующий шаг'
-                next_step_points = points
+            if plan_completion.get(phase.get('id'), False):
+                continue
+            points = _MISSION_PHASE_POINTS.get(phase.get('phase', ''), 12)
+            return phase.get('title') or 'Следующий этап', points
 
-        if steps_total > 0 and steps_done >= steps_total:
-            score += 12
-
-    score += min(max(streak, 0), 10)
-
-    return {
-        'score': score,
-        'steps_done': steps_done,
-        'steps_total': steps_total,
-        'next_step_title': next_step_title,
-        'next_step_points': next_step_points,
-    }
+    steps = plan.get('steps') or {}
+    for key in ('lesson', 'grammar', 'words', 'books', 'book_course_practice'):
+        step = steps.get(key)
+        if not step or plan_completion.get(key, False):
+            continue
+        title = step.get('title') or 'Следующий шаг'
+        return title, _LEGACY_STEP_POINTS.get(key, 15)
+    return None, 0
 
 
 def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, str | None]:
@@ -260,6 +263,36 @@ def _build_rank_info(current_user_id: int) -> dict | None:
     }
 
 
+def _compute_daily_race_state(plan: dict, daily_summary: dict, streak: int) -> dict:
+    """Compute score, step counts, and next-step info for a single user in the daily race."""
+    from app.achievements.streak_service import compute_plan_steps
+
+    plan_completion, _steps_available, steps_done, steps_total = compute_plan_steps(plan, daily_summary)
+
+    score = 0
+    phases = plan.get('phases') or []
+    if phases:
+        for phase in phases:
+            if not phase.get('required', True):
+                continue
+            if plan_completion.get(phase.get('id'), False):
+                score += _MISSION_PHASE_POINTS.get(phase.get('phase', ''), 12)
+    else:
+        for key, pts in _LEGACY_STEP_POINTS.items():
+            if plan_completion.get(key, False):
+                score += pts
+
+    next_step_title, next_step_points = _next_phase_points(plan, plan_completion)
+
+    return {
+        'score': score,
+        'steps_done': steps_done,
+        'steps_total': steps_total,
+        'next_step_title': next_step_title,
+        'next_step_points': next_step_points,
+    }
+
+
 def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     from app.auth.models import User
     from app.daily_plan.service import get_daily_plan_unified
@@ -297,9 +330,11 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
         if race_state['steps_total'] <= 0:
             continue
 
+        uname = user.username or ''
         entries.append({
             'user_id': user.id,
-            'username': user.username,
+            'username': uname,
+            'initials': _participant_initials(uname),
             'score': race_state['score'],
             'steps_done': race_state['steps_done'],
             'steps_total': race_state['steps_total'],
@@ -324,6 +359,7 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
             entries.append({
                 'user_id': -(idx + 1),
                 'username': name,
+                'initials': name[:2].upper(),
                 'score': max(0, me_seed['score'] + bot_offsets[idx]),
                 'steps_done': min(me_seed['steps_total'], max(0, me_seed['steps_done'] + bot_steps[idx])),
                 'steps_total': me_seed['steps_total'],
@@ -341,6 +377,8 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
 
     for idx, entry in enumerate(entries, start=1):
         entry['rank'] = idx
+        entry['place_class'] = _MEDAL_BY_RANK.get(idx, '')
+        entry['is_complete'] = entry['steps_done'] >= entry['steps_total'] and entry['steps_total'] > 0
 
     me = entries[current_index]
     rival_above = entries[current_index - 1] if current_index > 0 else None
@@ -366,13 +404,17 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     start = max(0, current_index - 2)
     end = min(len(entries), current_index + 3)
 
+    me_is_complete = me['steps_done'] >= me['steps_total'] and me['steps_total'] > 0
+
     return {
         'rank': me['rank'],
+        'place_class': me['place_class'],
         'total': len(entries),
         'score': me['score'],
         'steps_done': me['steps_done'],
         'steps_total': me['steps_total'],
         'streak': me['streak'],
+        'is_complete': me_is_complete,
         'rival_above': rival_above,
         'rival_below': rival_below,
         'gap_up': gap_up,
