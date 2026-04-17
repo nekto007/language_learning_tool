@@ -156,13 +156,13 @@ Each node has visual states: completed (filled, green, checkmark), current (puls
 - Modify: `app/static/css/design-system.css` (node state styles)
 - Modify: `app/templates/dashboard.html` (state classes)
 
-- [ ] CSS classes: `dash-roadmap__node--done`, `--current`, `--upcoming`, `--bonus`
-- [ ] Done nodes: solid fill, checkmark overlay, completed connector turns solid
-- [ ] Current node: 1.2x scale, box-shadow glow, subtle pulse animation
-- [ ] Upcoming nodes: gray fill, dashed connector, slightly transparent
-- [ ] Optional/bonus phases get sparkle border (dashed gold)
-- [ ] Write tests: node state classes match phase completion status
-- [ ] Run project test suite - must pass before task 10
+- [x] CSS classes: `dash-roadmap__node--done`, `--current`, `--upcoming`, `--bonus`
+- [x] Done nodes: solid fill, checkmark overlay, completed connector turns solid
+- [x] Current node: 1.2x scale, box-shadow glow, subtle pulse animation
+- [x] Upcoming nodes: gray fill, dashed connector, slightly transparent
+- [x] Optional/bonus phases get sparkle border (dashed gold)
+- [x] Write tests: node state classes match phase completion status
+- [x] Run project test suite - must pass before task 10
 
 ### Task 10: Roadmap start and finish markers
 

@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 
-def _make_mission_plan(mission_type='progress', phases_completed=None, previews=None):
+def _make_mission_plan(mission_type='progress', phases_completed=None, previews=None, required=None):
     if phases_completed is None:
         phases_completed = [False, False, False]
     phases = []
@@ -20,7 +20,7 @@ def _make_mission_plan(mission_type='progress', phases_completed=None, previews=
             'title': d['title'],
             'source_kind': 'normal_course',
             'mode': 'default',
-            'required': True,
+            'required': required[i] if required is not None and i < len(required) else True,
             'completed': done,
             'preview': None,
         }
@@ -424,3 +424,93 @@ class TestDashboardMissionRender:
         assert '.dash-roadmap__node' in css
         assert '.dash-roadmap__connector' in css
         assert '@media (max-width: 640px)' in css
+
+    # ---- Task 9: roadmap node states (done/current/upcoming/bonus) ----
+
+    def test_roadmap_state_classes_match_completion_order(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: given [done, current, upcoming, upcoming], node state classes map 1:1 to completion."""
+        plan = _make_mission_plan('progress', [True, False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-phase-id="ph0"' in html
+        assert 'dash-roadmap__node--done' in html
+        assert 'data-node-state="done"' in html
+        assert 'dash-roadmap__node--current' in html
+        assert 'data-node-state="current"' in html
+        assert html.count('data-node-state="upcoming"') == 2
+
+    def test_roadmap_done_node_renders_check_overlay(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: done nodes include a dedicated check-overlay element for solid-completion visuals."""
+        plan = _make_mission_plan('progress', [True, True, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'class="dash-roadmap__node-check"' in html
+        assert html.count('class="dash-roadmap__node-check"') >= 2
+
+    def test_roadmap_check_overlay_absent_without_done_phases(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: no check overlay emitted when no phase is done yet."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'class="dash-roadmap__node-check"' not in html
+
+    def test_roadmap_connector_upcoming_class_rendered(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: connectors after a non-done phase get the --upcoming (dashed) modifier."""
+        plan = _make_mission_plan('progress', [True, False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'dash-roadmap__connector--done' in html
+        assert 'dash-roadmap__connector--upcoming' in html
+        assert 'data-connector-state="done"' in html
+        assert 'data-connector-state="upcoming"' in html
+
+    def test_roadmap_bonus_node_class_rendered(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: optional (required=False) phases get the --bonus modifier and sparkle element."""
+        plan = _make_mission_plan(
+            'progress',
+            [False, False, False, False],
+            required=[True, True, True, False],
+        )
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'dash-roadmap__node--bonus' in html
+        assert 'data-node-bonus="true"' in html
+        assert 'class="dash-roadmap__node-sparkle"' in html
+
+    def test_roadmap_bonus_absent_when_all_required(self, client, app, db_session, test_user, words_module_access):
+        """Task 9: when every phase is required, no --bonus modifier nor sparkle element appears."""
+        plan = _make_mission_plan('progress', [False, False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        # Only the node modifier usage should be absent from node class lists.
+        # (CSS selectors in <style> keep the substring; check for the class in markup.)
+        assert 'class="dash-roadmap__node-sparkle"' not in html
+        assert 'data-node-bonus="true"' not in html
+        assert html.count('data-node-bonus="false"') == 4
+        # No node-modifier usage on any rendered node element.
+        assert 'dash-roadmap__node dash-roadmap__node--' in html  # sanity: nodes render
+        assert ' dash-roadmap__node--bonus"' not in html
+        assert ' dash-roadmap__node--bonus ' not in html
+
+    def test_roadmap_state_css_rules_present(self):
+        """Task 9: node-state CSS (done, current pulse, upcoming dashed, bonus sparkle) lives in template."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        # State selectors
+        assert '.dash-roadmap__node--done' in css
+        assert '.dash-roadmap__node--current' in css
+        assert '.dash-roadmap__node--upcoming' in css
+        assert '.dash-roadmap__node--bonus' in css
+        # Connector state selectors
+        assert '.dash-roadmap__connector--done' in css
+        assert '.dash-roadmap__connector--upcoming' in css
+        # Supporting overlay selectors
+        assert '.dash-roadmap__node-check' in css
+        assert '.dash-roadmap__node-sparkle' in css
+        # Current node should pulse and scale
+        assert '@keyframes roadmap-node-pulse' in css
+        assert 'transform: scale(1.2)' in css
+        # Reduced-motion guard covers roadmap animations
+        assert '@media (prefers-reduced-motion: reduce)' in css

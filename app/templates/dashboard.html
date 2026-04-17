@@ -310,8 +310,9 @@
             'close': 'Завершение'
         } %}
 
-        {# Task 8: Visual roadmap — nodes + connectors showing the learning path.
-           Node state mirrors phase_css (done/current/upcoming). Rendered above
+        {# Task 8/9: Visual roadmap — nodes + connectors showing the learning path.
+           Node state (done/current/upcoming) mirrors phase completion; bonus
+           modifier marks optional phases (required=False). Rendered above
            detailed phase cards as a spatial summary of today's journey. #}
         {% if m_phases %}
         <div class="dash-roadmap" data-roadmap="true" aria-label="Маршрут миссии">
@@ -328,21 +329,26 @@
                         {% set node_state = 'upcoming' %}
                     {% endif %}
                     {% set node_kind = phase.get('phase', '') %}
-                    <div class="dash-roadmap__node dash-roadmap__node--{{ node_state }}{% if node_kind %} dash-roadmap__node--{{ node_kind }}{% endif %}"
+                    {% set is_bonus = (phase.get('required', true) == false) %}
+                    <div class="dash-roadmap__node dash-roadmap__node--{{ node_state }}{% if node_kind %} dash-roadmap__node--{{ node_kind }}{% endif %}{% if is_bonus %} dash-roadmap__node--bonus{% endif %}"
                          data-roadmap-node="true"
                          data-node-index="{{ loop.index0 }}"
                          data-node-kind="{{ node_kind }}"
                          data-node-state="{{ node_state }}"
+                         data-node-bonus="{{ 'true' if is_bonus else 'false' }}"
                          data-phase-id="{{ phase.get('id', '') }}"
                          title="{{ phase.get('title', '') }}">
                         <span class="dash-roadmap__node-inner">
                             <span class="dash-roadmap__node-icon" aria-hidden="true">{{ phase_icons.get(node_kind, '&#128204;')|safe }}</span>
                             <span class="dash-roadmap__node-index">{% if is_done %}&#10003;{% else %}{{ loop.index }}{% endif %}</span>
+                            {% if is_done %}<span class="dash-roadmap__node-check" aria-hidden="true">&#10003;</span>{% endif %}
+                            {% if is_bonus %}<span class="dash-roadmap__node-sparkle" aria-hidden="true">&#10022;</span>{% endif %}
                         </span>
                     </div>
                     {% if not loop.last %}
-                    <div class="dash-roadmap__connector{% if is_done %} dash-roadmap__connector--done{% endif %}"
+                    <div class="dash-roadmap__connector dash-roadmap__connector--{% if is_done %}done{% else %}upcoming{% endif %}"
                          data-roadmap-connector="true"
+                         data-connector-state="{% if is_done %}done{% else %}upcoming{% endif %}"
                          aria-hidden="true"></div>
                     {% endif %}
                 {% endfor %}
@@ -3165,7 +3171,8 @@
     line-height: 1;
 }
 
-/* Connector between nodes (CSS-drawn line) */
+/* Connector between nodes (CSS-drawn line). Defaults to an upcoming
+   (dashed, muted) look; switches to solid on the completed journey trail. */
 .dash-roadmap__connector {
     flex: 1 1 auto;
     align-self: center;
@@ -3174,29 +3181,69 @@
     max-width: 72px;
     background: var(--dash-border);
     border-radius: 2px;
-    transition: background 0.2s ease;
+    transition: background 0.2s ease, opacity 0.2s ease;
 }
 
 .dash-roadmap__connector--done {
     background: var(--dash-success, #10b981);
 }
 
-/* Node state tints */
-.dash-roadmap__node--done {
-    background: rgba(16, 185, 129, 0.12);
-    border-color: var(--dash-success, #10b981);
-}
-.dash-roadmap__node--done .dash-roadmap__node-icon { color: var(--dash-success, #10b981); }
-.dash-roadmap__node--done .dash-roadmap__node-index {
-    background: var(--dash-success, #10b981);
-    color: #fff;
-    border-color: var(--dash-success, #10b981);
+.dash-roadmap__connector--upcoming {
+    background: transparent;
+    background-image: linear-gradient(
+        to right,
+        var(--dash-border) 0,
+        var(--dash-border) 6px,
+        transparent 6px,
+        transparent 12px
+    );
+    background-size: 12px 3px;
+    background-repeat: repeat-x;
+    opacity: 0.75;
 }
 
+/* Task 9: Node state styles ------------------------------------------------ */
+
+/* Done: solid fill, contrasting check overlay, success tint */
+.dash-roadmap__node--done {
+    background: var(--dash-success, #10b981);
+    border-color: var(--dash-success, #10b981);
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+}
+.dash-roadmap__node--done .dash-roadmap__node-icon { color: #ffffff; }
+.dash-roadmap__node--done .dash-roadmap__node-index {
+    background: #ffffff;
+    color: var(--dash-success, #10b981);
+    border-color: var(--dash-success, #10b981);
+}
+.dash-roadmap__node-check {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    width: 22px;
+    height: 22px;
+    background: var(--dash-success, #10b981);
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.35);
+    animation: roadmap-node-check 0.45s cubic-bezier(.22,1,.36,1) both;
+}
+
+/* Current: 1.2x scale, accent glow, subtle pulse */
 .dash-roadmap__node--current {
     background: var(--dash-accent-soft);
     border-color: var(--dash-accent);
-    transform: scale(1.06);
+    transform: scale(1.2);
+    box-shadow: 0 0 0 4px rgba(80, 70, 229, 0.18), 0 6px 14px rgba(80, 70, 229, 0.25);
+    animation: roadmap-node-pulse 2.4s ease-in-out infinite;
+    z-index: 1;
 }
 .dash-roadmap__node--current .dash-roadmap__node-icon { color: var(--dash-accent); }
 .dash-roadmap__node--current .dash-roadmap__node-index {
@@ -3205,8 +3252,69 @@
     border-color: var(--dash-accent);
 }
 
+/* Upcoming: gray fill, dimmed, locked feel */
 .dash-roadmap__node--upcoming {
-    opacity: 0.65;
+    background: var(--dash-surface-alt);
+    border-color: var(--dash-border);
+    border-style: dashed;
+    opacity: 0.55;
+}
+.dash-roadmap__node--upcoming .dash-roadmap__node-icon { color: var(--dash-text-muted); }
+.dash-roadmap__node--upcoming .dash-roadmap__node-index {
+    background: var(--dash-surface);
+    color: var(--dash-text-muted);
+    border-color: var(--dash-border);
+}
+
+/* Bonus: sparkle border (dashed gold), layered on top of base state */
+.dash-roadmap__node--bonus {
+    border-style: dashed;
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25), 0 0 14px rgba(245, 158, 11, 0.35);
+}
+.dash-roadmap__node--bonus.dash-roadmap__node--upcoming {
+    opacity: 0.85;
+}
+.dash-roadmap__node-sparkle {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #fde68a 0%, #f59e0b 100%);
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.4);
+    animation: roadmap-node-sparkle 2.2s ease-in-out infinite;
+}
+
+@keyframes roadmap-node-pulse {
+    0%, 100% {
+        transform: scale(1.2);
+        box-shadow: 0 0 0 4px rgba(80, 70, 229, 0.18), 0 6px 14px rgba(80, 70, 229, 0.25);
+    }
+    50% {
+        transform: scale(1.26);
+        box-shadow: 0 0 0 7px rgba(80, 70, 229, 0.14), 0 8px 18px rgba(80, 70, 229, 0.32);
+    }
+}
+
+@keyframes roadmap-node-check {
+    0%   { transform: scale(0.2); opacity: 0; }
+    70%  { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes roadmap-node-sparkle {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50%      { transform: scale(1.18); opacity: 1; }
 }
 
 /* Mobile: zigzag vertical layout.
@@ -3247,8 +3355,14 @@
 
 @media (prefers-reduced-motion: reduce) {
     .dash-roadmap__node,
-    .dash-roadmap__connector {
+    .dash-roadmap__connector,
+    .dash-roadmap__node-check,
+    .dash-roadmap__node-sparkle {
         transition: none !important;
+        animation: none !important;
+    }
+    .dash-roadmap__node--current {
+        transform: scale(1.08);
     }
 }
 
