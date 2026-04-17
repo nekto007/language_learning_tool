@@ -452,6 +452,115 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     }
 
 
+_MISSION_CLOSING_MESSAGES: dict[str, list[str]] = {
+    'progress': [
+        'Прогресс сделан — ещё один шаг к свободному английскому.',
+        'Ты вложил время — оно работает на тебя.',
+        'Сегодняшний урок стал частью тебя.',
+    ],
+    'repair': [
+        'Ты не сдался — это и есть настоящее обучение.',
+        'Пробел закрыт. Фундамент стал крепче.',
+        'Починил сегодня — завтра двигаешься дальше.',
+    ],
+    'reading': [
+        'Каждый текст — это новый мир слов внутри.',
+        'Понимание растёт. Ты это чувствуешь.',
+        'Читать — значит мыслить. Отличная работа.',
+    ],
+    'default': [
+        'Ещё один день — ещё один шаг вперёд.',
+        'Постоянство — твоя суперсила.',
+        'Сделано. Следующий уровень ближе.',
+    ],
+}
+
+
+def _get_closing_message(mission_type: str | None, plans_completed: int) -> str:
+    import random
+    messages = _MISSION_CLOSING_MESSAGES.get(
+        mission_type or 'default',
+        _MISSION_CLOSING_MESSAGES['default'],
+    )
+    return messages[plans_completed % len(messages)]
+
+
+def _build_completion_summary(
+    user_id: int,
+    daily_plan: dict,
+    mission_level_info: dict | None,
+    rank_info: dict | None,
+    daily_race: dict | None,
+    unseen_badges: list,
+    streak: int,
+    plan_completion: dict,
+    tz: str,
+) -> dict:
+    """Compile rich completion summary for the mission plan completion screen."""
+    from datetime import date as date_cls
+    from app.achievements.xp_service import get_today_xp
+
+    try:
+        import pytz
+        tz_obj = pytz.timezone(tz)
+        from datetime import datetime
+        today = datetime.now(tz_obj).date()
+    except Exception:
+        today = date_cls.today()
+
+    today_xp_mission = _safe_widget_call(
+        'today_xp_mission', get_today_xp, user_id, today, default=0)
+
+    mission = daily_plan.get('mission') or {}
+    mission_type = mission.get('type')
+
+    plans_completed = (rank_info or {}).get('plans_completed', 0)
+    closing_message = _get_closing_message(mission_type, plans_completed)
+
+    race_rank = (daily_race or {}).get('rank')
+    race_total = (daily_race or {}).get('total')
+
+    bonus_done = False
+    phases = daily_plan.get('phases') or []
+    for phase in phases:
+        if not phase.get('required', True) and plan_completion.get(phase.get('id'), False):
+            bonus_done = True
+            break
+
+    share_parts = [f'Миссия выполнена! {streak} дней подряд.']
+    if today_xp_mission:
+        share_parts.append(f'+{today_xp_mission} XP сегодня.')
+    if mission_level_info:
+        share_parts.append(f'Уровень {mission_level_info["level"]}.')
+    if race_rank:
+        share_parts.append(f'Место в гонке: {race_rank}/{race_total}.')
+
+    return {
+        'today_xp': today_xp_mission,
+        'mission_type': mission_type,
+        'mission_title': mission.get('title', ''),
+        'streak': streak,
+        'level': (mission_level_info or {}).get('level'),
+        'xp_in_level': (mission_level_info or {}).get('xp_in_level'),
+        'xp_to_next': (mission_level_info or {}).get('xp_to_next'),
+        'xp_progress_percent': (mission_level_info or {}).get('progress_percent'),
+        'streak_multiplier': (mission_level_info or {}).get('streak_multiplier'),
+        'race_rank': race_rank,
+        'race_total': race_total,
+        'rank_code': (rank_info or {}).get('code'),
+        'rank_display_name': (rank_info or {}).get('display_name'),
+        'rank_icon': (rank_info or {}).get('icon'),
+        'rank_progress_percent': (rank_info or {}).get('progress_percent'),
+        'rank_plans_to_next': (rank_info or {}).get('plans_to_next'),
+        'rank_next_display_name': (rank_info or {}).get('next_display_name'),
+        'rank_is_max': (rank_info or {}).get('is_max', False),
+        'new_badges': unseen_badges,
+        'bonus_done': bonus_done,
+        'closing_message': closing_message,
+        'share_text': ' '.join(share_parts),
+    }
+
+
 @words.route('/dashboard')
 @login_required
 @module_required('words')
@@ -717,6 +826,15 @@ def dashboard():
             db.session.rollback()
             logger.exception("Failed to mark unseen badges as seen for user %s: %s", current_user.id, e)
 
+    # === COMPLETION SUMMARY (task 29) ===
+    completion_summary = _safe_widget_call(
+        'completion_summary',
+        _build_completion_summary,
+        current_user.id, daily_plan, mission_level_info, rank_info,
+        daily_race, unseen_badges, streak, plan_completion, tz,
+        default=None,
+    )
+
     # === PERFORMANCE LOGGING ===
     t_elapsed = time.time() - t_start
     logger.info("Dashboard data loaded in %.3fs for user_id=%s", t_elapsed, current_user.id)
@@ -814,6 +932,8 @@ def dashboard():
         # Mission XP / level widget (task 26)
         mission_level_info=mission_level_info,
         xp_level_up=xp_level_up,
+        # Mission completion summary (task 29)
+        completion_summary=completion_summary,
     )
 
 

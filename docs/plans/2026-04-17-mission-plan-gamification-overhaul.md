@@ -487,13 +487,13 @@ After completing all phases, show a rich summary: XP earned, badges unlocked, ra
 - Modify: `app/words/routes.py` (compile summary data)
 - Modify: `app/static/css/design-system.css`
 
-- [ ] `dash-completion-summary` section replacing the current simple "All done" banner
-- [ ] Show: total XP earned today, new badges (if any), race position, rank progress bar, streak flame with day count
-- [ ] Animated entrance: cards flip in one by one
-- [ ] "Share" button generating a shareable image/text of today's results
-- [ ] Motivational closing message varying by mission type and performance
-- [ ] Write tests: summary renders with correct XP total; badges section shows when badges earned; race position displayed
-- [ ] Run project test suite - must pass before task 30
+- [x] `dash-completion-summary` section replacing the current simple "All done" banner
+- [x] Show: total XP earned today, new badges (if any), race position, rank progress bar, streak flame with day count
+- [x] Animated entrance: cards flip in one by one
+- [x] "Share" button generating a shareable image/text of today's results
+- [x] Motivational closing message varying by mission type and performance
+- [x] Write tests: summary renders with correct XP total; badges section shows when badges earned; race position displayed
+- [x] Run project test suite - must pass before task 30
 
 ### Task 30: Weekly progress digest widget
 

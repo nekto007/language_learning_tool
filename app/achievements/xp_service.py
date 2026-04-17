@@ -314,3 +314,23 @@ def award_xp(user_id: int, base_amount: int, source: str) -> XPAward:
         new_level=new_info.current_level,
         leveled_up=leveled_up,
     )
+
+
+def get_today_xp(user_id: int, for_date: date) -> int:
+    """Sum all XP awarded to a user on a given date from StreakEvents."""
+    from app.achievements.models import StreakEvent
+    from sqlalchemy import Integer, func
+
+    total = (
+        StreakEvent.query
+        .filter(
+            StreakEvent.user_id == user_id,
+            StreakEvent.event_date == for_date,
+            StreakEvent.event_type.in_(['xp_phase', 'xp_perfect_day', 'xp_surprise']),
+        )
+        .with_entities(
+            func.sum(StreakEvent.details['xp'].astext.cast(Integer))
+        )
+        .scalar()
+    )
+    return int(total or 0)

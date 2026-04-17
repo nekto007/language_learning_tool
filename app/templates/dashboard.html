@@ -379,8 +379,120 @@
         {% endif %}
         {% endif %}
 
-        {# Completion banner #}
-        {% if m_all_done %}
+        {# Completion summary (task 29) #}
+        {% if m_all_done and completion_summary %}
+        <div class="dash-completion-summary" data-completion-summary="true" aria-label="Итоги дня">
+            <div class="dash-completion-summary__header">
+                <span class="dash-completion-summary__trophy" aria-hidden="true">&#127942;</span>
+                <h3 class="dash-completion-summary__title">Миссия выполнена!</h3>
+                {% if completion_summary.mission_title %}
+                <p class="dash-completion-summary__mission-name">{{ completion_summary.mission_title }}</p>
+                {% endif %}
+            </div>
+
+            <div class="dash-completion-summary__cards" data-completion-cards="true">
+
+                {# XP earned today #}
+                <div class="dash-completion-summary__card dash-completion-summary__card--xp" style="--card-delay: 0">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">&#9889;</div>
+                    <div class="dash-completion-summary__card-value" data-xp-total="{{ completion_summary.today_xp }}">
+                        +{{ completion_summary.today_xp }} XP
+                    </div>
+                    <div class="dash-completion-summary__card-label">Заработано сегодня</div>
+                    {% if completion_summary.streak_multiplier and completion_summary.streak_multiplier > 1.01 %}
+                    <div class="dash-completion-summary__card-sub">x{{ completion_summary.streak_multiplier }} streak-бонус</div>
+                    {% endif %}
+                </div>
+
+                {# Level progress #}
+                {% if completion_summary.level %}
+                <div class="dash-completion-summary__card dash-completion-summary__card--level" style="--card-delay: 1">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">&#11088;</div>
+                    <div class="dash-completion-summary__card-value">Уровень {{ completion_summary.level }}</div>
+                    {% if completion_summary.xp_to_next %}
+                    <div class="dash-completion-summary__progress-bar" role="progressbar"
+                         aria-valuenow="{{ completion_summary.xp_progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+                        <div class="dash-completion-summary__progress-fill" style="width: {{ completion_summary.xp_progress_percent }}%"></div>
+                    </div>
+                    <div class="dash-completion-summary__card-sub">{{ completion_summary.xp_to_next }} XP до следующего</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {# Streak #}
+                <div class="dash-completion-summary__card dash-completion-summary__card--streak" style="--card-delay: 2">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">&#128293;</div>
+                    <div class="dash-completion-summary__card-value">{{ completion_summary.streak }} дн.</div>
+                    <div class="dash-completion-summary__card-label">Серия</div>
+                </div>
+
+                {# Race position #}
+                {% if completion_summary.race_rank %}
+                <div class="dash-completion-summary__card dash-completion-summary__card--race" style="--card-delay: 3">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">
+                        {% if completion_summary.race_rank == 1 %}&#129351;
+                        {% elif completion_summary.race_rank == 2 %}&#129352;
+                        {% elif completion_summary.race_rank == 3 %}&#129353;
+                        {% else %}&#127937;{% endif %}
+                    </div>
+                    <div class="dash-completion-summary__card-value">{{ completion_summary.race_rank }}/{{ completion_summary.race_total }}</div>
+                    <div class="dash-completion-summary__card-label">Место в гонке</div>
+                </div>
+                {% endif %}
+
+                {# Rank progress #}
+                {% if completion_summary.rank_display_name %}
+                <div class="dash-completion-summary__card dash-completion-summary__card--rank" style="--card-delay: 4">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">{{ completion_summary.rank_icon }}</div>
+                    <div class="dash-completion-summary__card-value">{{ completion_summary.rank_display_name }}</div>
+                    {% if not completion_summary.rank_is_max and completion_summary.rank_plans_to_next %}
+                    <div class="dash-completion-summary__progress-bar" role="progressbar"
+                         aria-valuenow="{{ completion_summary.rank_progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+                        <div class="dash-completion-summary__progress-fill" style="width: {{ completion_summary.rank_progress_percent }}%"></div>
+                    </div>
+                    <div class="dash-completion-summary__card-sub">{{ completion_summary.rank_plans_to_next }} дн. до «{{ completion_summary.rank_next_display_name }}»</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {# New badges #}
+                {% if completion_summary.new_badges %}
+                <div class="dash-completion-summary__card dash-completion-summary__card--badges" style="--card-delay: 5">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">&#127942;</div>
+                    <div class="dash-completion-summary__card-value">{{ completion_summary.new_badges | length }}</div>
+                    <div class="dash-completion-summary__card-label">
+                        {% if completion_summary.new_badges | length == 1 %}Новый значок{% else %}Новых значков{% endif %}
+                    </div>
+                    <div class="dash-completion-summary__badge-list">
+                        {% for badge in completion_summary.new_badges[:3] %}
+                        <span class="dash-completion-summary__badge-icon" title="{{ badge.name }}">{{ badge.icon }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {# Bonus done #}
+                {% if completion_summary.bonus_done %}
+                <div class="dash-completion-summary__card dash-completion-summary__card--bonus" style="--card-delay: 6">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">&#10024;</div>
+                    <div class="dash-completion-summary__card-value">2x XP</div>
+                    <div class="dash-completion-summary__card-label">Бонус-этап!</div>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <div class="dash-completion-summary__footer">
+                <p class="dash-completion-summary__closing">{{ completion_summary.closing_message }}</p>
+                <button class="dash-completion-summary__share-btn"
+                        data-share-text="{{ completion_summary.share_text }}"
+                        onclick="(function(btn){var txt=btn.getAttribute('data-share-text');if(navigator.share){navigator.share({text:txt})}else if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){btn.textContent='Скопировано!'});setTimeout(function(){btn.textContent='Поделиться'},2000)}})(this)"
+                        type="button" aria-label="Поделиться результатами дня">
+                    Поделиться
+                </button>
+            </div>
+        </div>
+        {% elif m_all_done %}
         <div class="dash-plan-complete">
             <span class="dash-plan-complete__icon">&#127881;</span>
             <span class="dash-plan-complete__text">Отличная работа! Всё на сегодня сделано.</span>
