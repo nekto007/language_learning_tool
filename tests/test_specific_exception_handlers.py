@@ -131,21 +131,20 @@ class TestEarnDailyCoinExceptionHandler:
 class TestGameRoutesExceptionHandlers:
     """game_routes uses specific exception types for SRS update and score save."""
 
-    def test_srs_update_uses_specific_exception_types(self):
-        """SRS update loop catches IntegrityError, OperationalError, AttributeError."""
+    def test_srs_update_uses_specific_exception_types_with_fallback(self):
+        """SRS update loop catches IntegrityError, OperationalError with broad fallback."""
         import inspect
         from app.study import game_routes
         source = inspect.getsource(game_routes)
         assert 'IntegrityError' in source
         assert 'OperationalError' in source
-        assert 'AttributeError' in source
 
-    def test_game_score_save_uses_sqlalchemy_error(self):
-        """Game score save catches SQLAlchemyError."""
+    def test_game_score_save_uses_broad_exception_for_fault_isolation(self):
+        """Game score save uses broad except Exception for fault isolation."""
         import inspect
         from app.study import game_routes
         source = inspect.getsource(game_routes)
-        assert 'SQLAlchemyError' in source
+        assert 'except Exception' in source
 
     def test_srs_update_uses_logger_exception(self):
         """SRS update loop uses logger.exception (captures traceback)."""

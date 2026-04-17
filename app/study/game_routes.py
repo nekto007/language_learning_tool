@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.study.blueprint import study, get_audio_url_for_word
 from app.study.models import GameScore, StudySession, StudySettings, UserCardDirection, UserWord
@@ -480,9 +480,12 @@ def complete_matching_game():
 
                         direction.update_after_review(quality)
 
-            except (IntegrityError, OperationalError, AttributeError, ValueError) as e:
+            except (IntegrityError, OperationalError) as e:
                 srs_errors.append(f'word_id={word_id}: {e}')
                 logger.exception('SRS update failed for word %s in matching game: %s', word_id, e)
+            except Exception as e:
+                srs_errors.append(f'word_id={word_id}: {e}')
+                logger.exception('Unexpected error in SRS update for word %s in matching game: %s', word_id, e)
 
         if srs_errors:
             logger.warning(f'Matching game SRS update had {len(srs_errors)} errors out of {len(word_ids)} words')
@@ -537,7 +540,7 @@ def complete_matching_game():
             'total_xp': user_xp.total_xp,
             'level': user_xp.level
         })
-    except (SQLAlchemyError, AttributeError, ValueError) as e:
+    except Exception as e:
         logger.exception('Error saving matching game score: %s', e)
         db.session.rollback()
 

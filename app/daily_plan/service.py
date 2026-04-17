@@ -63,6 +63,11 @@ def _mission_plan_to_dict(plan: MissionPlan) -> dict[str, Any]:
                 'mode': p.mode,
                 'required': p.required,
                 'completed': p.completed,
+                'preview': {
+                    'item_count': p.preview.item_count,
+                    'content_title': p.preview.content_title,
+                    'estimated_minutes': p.preview.estimated_minutes,
+                } if p.preview else None,
             }
             for p in plan.phases
         ],

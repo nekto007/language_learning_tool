@@ -37,6 +37,7 @@ def log_admin_action(
 
     Failures are swallowed so the primary operation is never blocked.
     """
+    nested = None
     try:
         nested = db.session.begin_nested()
         entry = AdminAuditLog(
@@ -49,5 +50,6 @@ def log_admin_action(
         db.session.flush()
         nested.commit()
     except Exception:
-        nested.rollback()
+        if nested is not None:
+            nested.rollback()
         logger.exception('Failed to write admin audit log entry: action=%s', action)
