@@ -222,11 +222,11 @@ Increment plan completion counter when all required phases are done. Detect rank
 - Modify: `app/achievements/ranks.py` (rank-up detection)
 - Modify: `app/notifications/services.py` (rank-up notification)
 
-- [ ] In `earn_daily_coin()` (or a new `record_plan_completion()`), increment `plans_completed_total` and check for rank-up
-- [ ] `check_rank_up(user_id)`: compare old rank vs new rank, return rank-up info if changed
-- [ ] On rank-up: create notification "You earned the title: {rank_name}!"
-- [ ] Write tests: completing a plan increments counter; crossing threshold triggers rank-up; notification created
-- [ ] Run project test suite - must pass before task 14
+- [x] In `earn_daily_coin()` (or a new `record_plan_completion()`), increment `plans_completed_total` and check for rank-up
+- [x] `check_rank_up(user_id)`: compare old rank vs new rank, return rank-up info if changed
+- [x] On rank-up: create notification "You earned the title: {rank_name}!"
+- [x] Write tests: completing a plan increments counter; crossing threshold triggers rank-up; notification created
+- [x] Run project test suite - must pass before task 14
 
 ### Task 14: Rank display on dashboard
 

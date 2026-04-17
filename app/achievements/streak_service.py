@@ -168,11 +168,32 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     # is due), which should not count as real study.
     real_activity = has_activity_today(user_id, tz=tz)
 
+    rank_up = None
     if steps_done > 0 and real_activity:
         earn_daily_coin(user_id, for_date=user_today,
                         steps_done=steps_done, steps_total=steps_total)
         save_daily_completion(user_id, steps_done, steps_total,
                               for_date=user_today)
+
+        # Full plan completion: every required step is done.
+        if steps_total > 0 and steps_done >= steps_total:
+            try:
+                from app.achievements.ranks import record_plan_completion
+                rank_up = record_plan_completion(user_id, for_date=user_today)
+                if rank_up is not None:
+                    try:
+                        from app.notifications.services import notify_rank_up
+                        notify_rank_up(user_id, rank_up.new_name)
+                    except Exception:
+                        logger.warning(
+                            "Failed to send rank-up notification for user %s",
+                            user_id, exc_info=True,
+                        )
+            except Exception:
+                logger.warning(
+                    "Failed to record plan completion for user %s",
+                    user_id, exc_info=True,
+                )
 
     streak_status = get_streak_status(user_id, tz=tz, steps_total=max(steps_total, 1))
     required_steps = streak_status.get('required_steps', 1)
@@ -203,6 +224,13 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
         'steps_done': steps_done,
         'steps_total': steps_total,
         'milestone_reward': milestone_reward,
+        'rank_up': {
+            'previous_code': rank_up.previous_code,
+            'previous_name': rank_up.previous_name,
+            'new_code': rank_up.new_code,
+            'new_name': rank_up.new_name,
+            'plans_completed': rank_up.plans_completed,
+        } if rank_up else None,
     }
 
 
