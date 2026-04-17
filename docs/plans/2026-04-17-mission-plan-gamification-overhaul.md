@@ -186,12 +186,12 @@ Ensure roadmap looks good and is usable on mobile screens (primary use case).
 **Files:**
 - Modify: `app/static/css/design-system.css` (media queries)
 
-- [ ] Mobile (< 640px): vertical serpentine layout, nodes are 48px circles, full-width info cards expand on tap
-- [ ] Tablet (640-1024px): horizontal scroll with snap points
-- [ ] Desktop (> 1024px): horizontal layout, all nodes visible
-- [ ] Touch targets minimum 44px; swipe hint on mobile for horizontal layouts
-- [ ] Write tests: CSS media query breakpoints exist for roadmap classes
-- [ ] Run project test suite - must pass before task 12
+- [x] Mobile (< 640px): vertical serpentine layout, nodes are 48px circles, full-width info cards expand on tap
+- [x] Tablet (640-1024px): horizontal scroll with snap points
+- [x] Desktop (> 1024px): horizontal layout, all nodes visible
+- [x] Touch targets minimum 44px; swipe hint on mobile for horizontal layouts
+- [x] Write tests: CSS media query breakpoints exist for roadmap classes
+- [x] Run project test suite - must pass before task 12
 
 ---
 

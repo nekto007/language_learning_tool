@@ -627,3 +627,84 @@ class TestDashboardMissionRender:
         # Celebration keyframes
         assert '@keyframes roadmap-finish-pulse' in css
         assert '@keyframes roadmap-finish-burst' in css
+
+    # ---- Task 11: mobile-responsive roadmap breakpoints ----
+
+    def _read_dashboard_template(self):
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def _find_roadmap_mobile_block(self, css):
+        """Locate the roadmap-scoped @media (max-width: 640px) rule (not heatmap)."""
+        anchor = 'Task 11: Mobile-responsive roadmap breakpoints'
+        anchor_start = css.find(anchor)
+        assert anchor_start != -1, "Task 11 anchor comment missing from template CSS"
+        # Search forward from the anchor for the mobile media rule
+        mobile_start = css.find('@media (max-width: 640px)', anchor_start)
+        assert mobile_start != -1
+        # Cap at next @media or next top-level comment
+        next_media = css.find('@media', mobile_start + 10)
+        end = next_media if next_media != -1 else mobile_start + 4000
+        return css[mobile_start:end]
+
+    def test_roadmap_mobile_breakpoint_present(self):
+        """Task 11: mobile (< 640px) media query with vertical serpentine + 48px nodes."""
+        css = self._read_dashboard_template()
+        mobile_block = self._find_roadmap_mobile_block(css)
+        assert 'width: 48px' in mobile_block
+        assert 'height: 48px' in mobile_block
+        assert 'min-width: 44px' in mobile_block
+        assert 'min-height: 44px' in mobile_block
+        # Vertical serpentine: track becomes a column
+        assert 'flex-direction: column' in mobile_block
+        # Roadmap-scoped (references dash-roadmap selectors inside)
+        assert '.dash-roadmap' in mobile_block
+
+    def test_roadmap_tablet_breakpoint_present(self):
+        """Task 11: tablet (641-1024px) media query with horizontal scroll + snap."""
+        css = self._read_dashboard_template()
+        assert '@media (min-width: 641px) and (max-width: 1024px)' in css
+        tablet_start = css.find('@media (min-width: 641px) and (max-width: 1024px)')
+        tablet_end = css.find('@media', tablet_start + 10)
+        tablet_block = css[tablet_start:tablet_end if tablet_end != -1 else tablet_start + 2500]
+        # Horizontal scroll with snap points
+        assert 'overflow-x: auto' in tablet_block
+        assert 'scroll-snap-type: x mandatory' in tablet_block
+        assert 'scroll-snap-align' in tablet_block
+        # Touch targets
+        assert 'min-width: 44px' in tablet_block
+        assert 'min-height: 44px' in tablet_block
+
+    def test_roadmap_desktop_breakpoint_present(self):
+        """Task 11: desktop (> 1024px) shows a fully expanded horizontal layout with no scroll."""
+        css = self._read_dashboard_template()
+        assert '@media (min-width: 1025px)' in css
+        desktop_start = css.find('@media (min-width: 1025px)')
+        desktop_end = css.find('@media', desktop_start + 10)
+        desktop_block = css[desktop_start:desktop_end if desktop_end != -1 else desktop_start + 1500]
+        assert 'flex-direction: row' in desktop_block
+        assert 'overflow: visible' in desktop_block
+
+    def test_roadmap_swipe_hint_element_present(self, client, app, db_session, test_user, words_module_access):
+        """Task 11: roadmap emits a swipe hint element used on tablet horizontal layouts."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-roadmap-swipe-hint="true"' in html
+        assert 'dash-roadmap__swipe-hint' in html
+
+    def test_roadmap_swipe_hint_css_present(self):
+        """Task 11: swipe hint has default display:none and is revealed only in tablet breakpoint."""
+        css = self._read_dashboard_template()
+        assert '.dash-roadmap__swipe-hint' in css
+        # Default state is hidden
+        hint_start = css.find('.dash-roadmap__swipe-hint {')
+        assert hint_start != -1
+        hint_block = css[hint_start:hint_start + 300]
+        assert 'display: none' in hint_block
+        # Tablet breakpoint reveals the hint
+        tablet_start = css.find('@media (min-width: 641px) and (max-width: 1024px)')
+        tablet_block = css[tablet_start:tablet_start + 2500]
+        assert 'display: block' in tablet_block
