@@ -22,7 +22,10 @@ def rl_app():
         SQLALCHEMY_DATABASE_URI = Config.SQLALCHEMY_DATABASE_URI
 
     app = create_app(config_class=RLTestConfig)
-    return app
+    yield app
+    # Re-disable rate limiting on the global limiter to avoid polluting
+    # other test modules that share the same limiter singleton.
+    limiter.enabled = False
 
 
 @pytest.fixture

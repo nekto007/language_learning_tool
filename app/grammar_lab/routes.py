@@ -127,7 +127,14 @@ def practice(topic_id=None):
     topic = None
 
     # return_url: after practice completion, redirect here (e.g., back to book course lesson)
-    return_url = request.args.get('return_url', '')
+    # Validate return_url to prevent open redirect attacks
+    raw_return_url = request.args.get('return_url', '')
+    return_url = ''
+    if raw_return_url:
+        from urllib.parse import urlparse
+        parsed = urlparse(raw_return_url)
+        if not parsed.scheme and not parsed.netloc and raw_return_url.startswith('/'):
+            return_url = raw_return_url
 
     if topic_id:
         # Topic-specific practice
