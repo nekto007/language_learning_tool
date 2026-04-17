@@ -393,7 +393,7 @@ def update_study_item():
     from app.srs.constants import CardState
 
     if not request.is_json:
-        return jsonify({'success': False, 'error': 'Expected JSON'}), 400
+        return jsonify({'success': False, 'error': 'Content-Type must be application/json'}), 415
     data = request.json or {}
     word_id = data.get('word_id')
     if not word_id:

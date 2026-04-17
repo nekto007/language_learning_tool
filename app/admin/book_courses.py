@@ -840,6 +840,7 @@ def register_book_course_routes(admin_bp):
         errors = []
 
         for course in courses:
+            nested = None
             try:
                 nested = db.session.begin_nested()
 
@@ -861,27 +862,44 @@ def register_book_course_routes(admin_bp):
 
                 elif operation == 'delete_permanently':
                     # Hard delete - physically remove from database
+                    module_ids = [m.id for m in course.modules]
+                    daily_lesson_ids = db.session.query(DailyLesson.id).filter(
+                        DailyLesson.book_course_module_id.in_(module_ids)
+                    )
+
+                    UserLessonProgress.query.filter(
+                        UserLessonProgress.daily_lesson_id.in_(daily_lesson_ids)
+                    ).delete(synchronize_session=False)
+
+                    SliceVocabulary.query.filter(
+                        SliceVocabulary.daily_lesson_id.in_(daily_lesson_ids)
+                    ).delete(synchronize_session=False)
+
                     DailyLesson.query.filter(
-                        DailyLesson.book_course_module_id.in_(
-                            [m.id for m in course.modules]
-                        )
+                        DailyLesson.book_course_module_id.in_(module_ids)
                     ).delete(synchronize_session=False)
 
                     BookModuleProgress.query.filter(
-                        BookModuleProgress.module_id.in_(
-                            [m.id for m in course.modules]
-                        )
+                        BookModuleProgress.module_id.in_(module_ids)
                     ).delete(synchronize_session=False)
 
                     BookCourseEnrollment.query.filter_by(course_id=course.id).delete()
                     BookCourseModule.query.filter_by(course_id=course.id).delete()
+
+                    log_admin_action(
+                        admin_id=current_user.id,
+                        action='delete_book_course',
+                        target_type='BookCourse',
+                        target_id=course.id,
+                    )
                     db.session.delete(course)
 
                 nested.commit()
                 success_count += 1
 
             except Exception as e:
-                nested.rollback()
+                if nested is not None:
+                    nested.rollback()
                 logger.error(f"Error processing course {course.id} in bulk op '{operation}': {str(e)}")
                 errors.append({'course_id': course.id, 'title': course.title, 'error': str(e)})
 

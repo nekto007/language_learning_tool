@@ -4,16 +4,17 @@ from flask_babel import gettext as _
 from flask_login import current_user, login_required
 
 from app.study.blueprint import study, is_auto_deck
-
-def _sanitize(value: str) -> str:
-    """Strip all HTML tags from user-provided text to prevent stored XSS."""
-    return bleach.clean(value, tags=[], strip=True)
 from app.study.models import StudySettings
 from app.utils.db import db
 from app.words.forms import CollectionFilterForm
 from app.words.models import Collection, CollectionWords, Topic
 from app.modules.decorators import module_required
 from app.study.services import DeckService, CollectionTopicService
+
+
+def _sanitize(value: str) -> str:
+    """Strip all HTML tags from user-provided text to prevent stored XSS."""
+    return bleach.clean(value, tags=[], strip=True)
 
 
 @study.route('/my-decks/create', methods=['GET', 'POST'])

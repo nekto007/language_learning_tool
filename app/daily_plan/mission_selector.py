@@ -219,6 +219,6 @@ def _find_rotation_alternative(
             return MissionType.reading
     elif current_type == MissionType.reading:
         track = detect_primary_track(user_id)
-        if track in (SourceKind.normal_course, SourceKind.book_course, SourceKind.books):
+        if track in (SourceKind.normal_course, SourceKind.book_course):
             return MissionType.progress
     return None

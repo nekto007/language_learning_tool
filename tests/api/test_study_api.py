@@ -109,7 +109,7 @@ def test_submit_card_answer_missing_json(authenticated_client):
         data='word_id=1&quality=3',
         content_type='application/x-www-form-urlencoded'
     )
-    assert response.status_code == 400
+    assert response.status_code == 415
     data = response.get_json()
     assert data['success'] is False
 

@@ -127,7 +127,7 @@ class TestMissionPlanToDict:
         plan = _make_progress_plan()
         d = _mission_plan_to_dict(plan)
         phase = d['phases'][0]
-        assert set(phase.keys()) == {'id', 'phase', 'title', 'source_kind', 'mode', 'required', 'completed'}
+        assert set(phase.keys()) == {'id', 'phase', 'title', 'source_kind', 'mode', 'required', 'completed', 'preview'}
 
     def test_legacy_block_preserved(self):
         plan = _make_progress_plan()

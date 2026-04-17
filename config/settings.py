@@ -185,13 +185,6 @@ SLOW_QUERY_MS: int = int(os.getenv('SLOW_QUERY_MS', 100))
 # Minimum score (0–100) a user must achieve to pass a lesson or module
 PASSING_SCORE_PERCENT: int = 70
 
-# SRS interval (days) at which a word is considered fully mastered
-# Mirrors app/srs/constants.py MASTERED_THRESHOLD_DAYS — kept in sync manually
-SRS_MASTERED_INTERVAL_DAYS: int = 180
-
-# Weighted repair-pressure score (0–1) that triggers a Repair mission in
-# the daily plan; mirrors app/daily_plan/repair_pressure.py REPAIR_THRESHOLD
-REPAIR_PRESSURE_THRESHOLD: float = 0.6
 
 class Config:
     """

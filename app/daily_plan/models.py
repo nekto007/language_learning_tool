@@ -52,6 +52,7 @@ MODE_CATEGORY_MAP: dict[str, str] = {
     'grammar_practice': 'grammar',
     'targeted_quiz': 'grammar',
     'book_reading': 'books',
+    'success_marker': 'meta',
 }
 
 

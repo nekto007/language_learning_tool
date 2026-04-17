@@ -414,7 +414,7 @@ def _calculate_matching_score(difficulty, pairs_matched, total_pairs, time_taken
 @login_required
 def complete_matching_game():
     if not request.is_json:
-        return jsonify({'success': False, 'error': 'Expected JSON'}), 400
+        return jsonify({'success': False, 'error': 'Content-Type must be application/json'}), 415
     data = request.json or {}
     session_id = data.get('session_id')
     difficulty = data.get('difficulty', 'easy')
@@ -554,7 +554,7 @@ def complete_quiz():
     from app.study.xp_service import XPService
 
     if not request.is_json:
-        return jsonify({'success': False, 'error': 'Expected JSON'}), 400
+        return jsonify({'success': False, 'error': 'Content-Type must be application/json'}), 415
     data = request.json or {}
     session_id = data.get('session_id')
     deck_id = data.get('deck_id')
@@ -630,7 +630,7 @@ def complete_quiz():
             'icon': ach.icon,
             'xp_reward': ach.xp_reward
         }
-        for ach in newly_earned
+        for ach in newly_earned if ach is not None
     ] if newly_earned else []
 
     return jsonify({
