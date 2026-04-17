@@ -1,6 +1,6 @@
 """Unit tests for app.achievements.xp_service."""
 import pytest
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import patch, MagicMock
 
 from app.achievements.xp_service import (
@@ -385,8 +385,8 @@ class TestAwardPerfectDayXpIdempotent:
 class TestProcessStreakActivityXp:
     def _make_phases(self):
         return [
-            {'id': 'phase_recall', 'mode': 'words', 'required': True},
-            {'id': 'phase_learn', 'mode': 'lesson', 'required': True},
+            {'id': 'phase_recall', 'phase': 'recall', 'mode': 'srs_review', 'required': True},
+            {'id': 'phase_learn', 'phase': 'learn', 'mode': 'curriculum_lesson', 'required': True},
         ]
 
     def _ensure_stats(self, db_session, user_id):
@@ -422,6 +422,9 @@ class TestProcessStreakActivityXp:
             user_id=test_user.id, event_type='xp_phase'
         ).all()
         assert len(xp_events) == 2
+        awarded = {event.details['phase_id']: event.details['xp'] for event in xp_events}
+        assert awarded['phase_recall'] == PHASE_XP['recall']
+        assert awarded['phase_learn'] == PHASE_XP['learn']
 
     def test_perfect_day_bonus_awarded_when_all_done(self, db_session, test_user):
         from app.achievements.streak_service import process_streak_on_activity
@@ -488,6 +491,31 @@ class TestProcessStreakActivityXp:
             user_id=test_user.id, event_type='xp_phase'
         ).all()
         assert len(xp_events) == 2
+
+    def test_bonus_phase_awards_xp_once_completed(self, db_session, test_user):
+        from app.achievements.streak_service import process_streak_on_activity
+        from app.achievements.models import StreakEvent
+        self._ensure_stats(db_session, test_user.id)
+        phases = [
+            {'id': 'phase_learn', 'phase': 'learn', 'mode': 'curriculum_lesson', 'required': True},
+            {'id': 'phase_bonus', 'phase': 'bonus', 'mode': 'fun_fact_quiz', 'required': False},
+        ]
+        plan_completion = {'phase_learn': True, 'phase_bonus': True}
+        daily_plan = {'phases': phases}
+
+        with patch('app.telegram.queries.has_activity_today', return_value=True), \
+             patch('app.telegram.queries.get_current_streak', return_value=0):
+            process_streak_on_activity(
+                test_user.id, 1, 1,
+                daily_plan=daily_plan, plan_completion=plan_completion,
+            )
+
+        xp_events = StreakEvent.query.filter_by(
+            user_id=test_user.id, event_type='xp_phase'
+        ).all()
+        awarded = {event.details['phase_id']: event.details['xp'] for event in xp_events}
+        assert awarded['phase_learn'] == PHASE_XP['learn']
+        assert awarded['phase_bonus'] == PHASE_XP['fun_fact_quiz']
 
     def test_level_up_notification_sent(self, db_session, test_user):
         from app.achievements.streak_service import process_streak_on_activity
@@ -608,6 +636,27 @@ class TestGetPerfectDayInfo:
 
         info = get_perfect_day_info(test_user.id)
         assert info['next_multiplier'] > info['current_multiplier']
+
+    def test_stale_stats_reset_when_last_perfect_day_is_old(self, db_session, test_user):
+        from app.achievements.models import StreakEvent, UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=test_user.id)
+            db.session.add(stats)
+        stats.consecutive_perfect_days = 6
+        db.session.add(StreakEvent(
+            user_id=test_user.id,
+            event_type='xp_perfect_day',
+            event_date=date.today() - timedelta(days=3),
+            coins_delta=0,
+            details={'xp': 50, 'consecutive_days': 6, 'perfect_day_multiplier': 2.0},
+        ))
+        db.session.flush()
+
+        info = get_perfect_day_info(test_user.id)
+        assert info['consecutive_days'] == 0
+        assert info['current_multiplier'] == 1.0
 
 
 # ---------------------------------------------------------------------------

@@ -125,19 +125,28 @@ class MissionPlan:
         if not isinstance(self.primary_source, PrimarySource):
             raise TypeError("primary_source must be a PrimarySource instance")
 
-        # Warn if duplicate activity categories slip through deduplication.
-        # Reading missions intentionally have multiple 'words' phases — skip warning for them.
-        # 'bonus' and 'meta' categories are always exempt from duplicate checks.
+        # Warn only for suspicious duplicate categories. Some mission flows
+        # intentionally reuse a category for distinct steps, for example:
+        # curriculum lesson -> lesson practice, or SRS recall -> micro check.
         skip_dup_warning = self.mission.type == MissionType.reading
         _EXEMPT_CATEGORIES = {'bonus', 'meta'}
+        _ALLOWED_DUPLICATE_MODE_PAIRS = {
+            frozenset({'curriculum_lesson', 'lesson_practice'}),
+            frozenset({'book_course_lesson', 'book_course_practice'}),
+            frozenset({'srs_review', 'micro_check'}),
+        }
         seen_categories: dict[str, int] = {}
         for i, phase in enumerate(self.phases):
             cat = MODE_CATEGORY_MAP.get(phase.mode)
             if cat is not None and cat in seen_categories and not skip_dup_warning and cat not in _EXEMPT_CATEGORIES:
+                previous_phase = self.phases[seen_categories[cat]]
+                allowed_pair = frozenset({previous_phase.mode, phase.mode}) in _ALLOWED_DUPLICATE_MODE_PAIRS
+                if allowed_pair:
+                    continue
                 logger.warning(
                     "MissionPlan duplicate category %r in phases[%d] (mode=%s) "
                     "and phases[%d] (mode=%s)",
-                    cat, seen_categories[cat], self.phases[seen_categories[cat]].mode,
+                    cat, seen_categories[cat], previous_phase.mode,
                     i, phase.mode,
                 )
             elif cat is not None:

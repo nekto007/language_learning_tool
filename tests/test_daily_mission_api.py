@@ -219,9 +219,10 @@ class TestComputePlanStepsWithMissionPhases:
                    'grammar_exercises': 0, 'books_read': []}
         completion, available, done, total = compute_plan_steps(plan, summary)
         assert total == 3
-        assert done == 2
+        assert done == 1
+        assert completion['p1'] is False
         assert completion['p2'] is True
-        assert completion['p3'] is True
+        assert completion['p3'] is False
 
     def test_reading_mission_real_modes_counts_each_phase(self):
         from app.achievements.streak_service import compute_plan_steps
@@ -236,7 +237,10 @@ class TestComputePlanStepsWithMissionPhases:
                    'grammar_exercises': 0, 'books_read': ['book1']}
         completion, available, done, total = compute_plan_steps(plan, summary)
         assert total == 3
-        assert done == 3
+        assert done == 2
+        assert completion['p1'] is False
+        assert completion['p2'] is True
+        assert completion['p3'] is True
 
     def test_repair_mission_real_modes_counts_each_phase(self):
         from app.achievements.streak_service import compute_plan_steps
@@ -252,7 +256,31 @@ class TestComputePlanStepsWithMissionPhases:
                    'grammar_exercises': 2, 'books_read': []}
         completion, available, done, total = compute_plan_steps(plan, summary)
         assert total == 3
-        assert done == 3
+        assert done == 1
+        assert completion['p1'] is False
+        assert completion['p2'] is True
+        assert completion['p3'] is False
+
+    def test_lesson_completion_does_not_auto_complete_practice(self):
+        from app.achievements.streak_service import compute_plan_steps
+        plan = {
+            'phases': [
+                {'id': 'p1', 'phase': 'learn', 'mode': 'curriculum_lesson', 'required': True},
+                {'id': 'p2', 'phase': 'use', 'mode': 'lesson_practice', 'required': True},
+            ],
+        }
+        summary = {
+            'lessons_count': 1,
+            'words_reviewed': 0,
+            'srs_words_reviewed': 0,
+            'grammar_exercises': 0,
+            'books_read': [],
+            'book_course_lessons_today': 0,
+        }
+        completion, _available, done, total = compute_plan_steps(plan, summary)
+        assert total == 2
+        assert done == 1
+        assert completion == {'p1': True, 'p2': False}
 
     def test_legacy_plan_still_works(self):
         from app.achievements.streak_service import compute_plan_steps

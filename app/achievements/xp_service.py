@@ -85,10 +85,20 @@ def get_perfect_day_info(user_id: int) -> dict:
     Returns a dict with consecutive_days, current_multiplier, next_multiplier,
     and a human-readable message about tomorrow's bonus.
     """
-    from app.achievements.models import UserStatistics
+    from app.achievements.models import StreakEvent, UserStatistics
 
     stats = UserStatistics.query.filter_by(user_id=user_id).first()
     consecutive = int(getattr(stats, 'consecutive_perfect_days', 0) or 0) if stats else 0
+    latest_perfect_day = (
+        StreakEvent.query.filter_by(user_id=user_id, event_type='xp_perfect_day')
+        .order_by(StreakEvent.event_date.desc(), StreakEvent.id.desc())
+        .first()
+    )
+    if latest_perfect_day is not None:
+        today = date.today()
+        gap_days = (today - latest_perfect_day.event_date).days
+        if gap_days > 1:
+            consecutive = 0
     current_mult = get_perfect_day_multiplier(consecutive)
     next_mult = get_perfect_day_multiplier(consecutive + 1)
 

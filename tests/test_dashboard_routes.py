@@ -1424,6 +1424,16 @@ class TestDailyRaceWidget:
         fake_streak = 3
 
         with patch('app.words.routes._compute_daily_race_state') as mock_state, \
+             patch('app.achievements.daily_race.get_race_standings', return_value={
+                 'race_id': 11,
+                 'race_date': '2026-04-17',
+                 'my_rank': 1,
+                 'participants': [
+                     {'user_id': test_user.id, 'username': test_user.username, 'points': 22, 'rank': 1, 'is_me': True, 'is_ghost': False},
+                     {'user_id': None, 'username': 'Луна', 'points': 18, 'rank': 2, 'is_me': False, 'is_ghost': True},
+                     {'user_id': None, 'username': 'Комета', 'points': 10, 'rank': 3, 'is_me': False, 'is_ghost': True},
+                 ],
+             }), \
              patch('app.daily_plan.service.get_daily_plan_unified', return_value=fake_plan), \
              patch('app.telegram.queries.get_daily_summary', return_value=fake_summary), \
              patch('app.telegram.queries.get_current_streak', return_value=fake_streak):
@@ -1448,6 +1458,88 @@ class TestDailyRaceWidget:
                 assert 'initials' in row
                 assert 'place_class' in row
                 assert 'is_complete' in row
+
+    def test_build_daily_race_widget_uses_persisted_race_cohort(self, app, db_session, test_user):
+        from unittest.mock import patch
+        from app.words.routes import _build_daily_race_widget
+
+        fake_plan = {'steps': {'lesson': {'title': 'Урок', 'state': 'done'}}}
+        fake_summary = {}
+
+        with patch('app.achievements.daily_race.get_race_standings', return_value={
+            'race_id': 17,
+            'race_date': '2026-04-17',
+            'my_rank': 2,
+            'participants': [
+                {'user_id': None, 'username': 'Луна', 'points': 24, 'rank': 1, 'is_me': False, 'is_ghost': True},
+                {'user_id': test_user.id, 'username': test_user.username, 'points': 22, 'rank': 2, 'is_me': True, 'is_ghost': False},
+                {'user_id': None, 'username': 'Комета', 'points': 10, 'rank': 3, 'is_me': False, 'is_ghost': True},
+            ],
+        }), \
+             patch('app.words.routes._compute_daily_race_state', return_value={
+                 'score': 22,
+                 'steps_done': 1,
+                 'steps_total': 1,
+                 'next_step_title': None,
+                 'next_step_points': 0,
+             }), \
+             patch('app.daily_plan.service.get_daily_plan_unified', return_value=fake_plan), \
+             patch('app.telegram.queries.get_daily_summary', return_value=fake_summary), \
+             patch('app.telegram.queries.get_current_streak', return_value=3):
+            result = _build_daily_race_widget(test_user.id, tz='Europe/Moscow')
+
+        assert result is not None
+        assert result['rank'] == 2
+        assert [row['username'] for row in result['leaderboard']] == ['Луна', test_user.username, 'Комета']
+
+    def test_build_daily_race_widget_skips_failed_participant_without_rollback(self, app, db_session, test_user):
+        from unittest.mock import patch
+        from app.auth.models import User
+        from app.words.routes import _build_daily_race_widget
+
+        other_user = User(
+            username='other_racer',
+            email='other_racer@example.com',
+            password_hash='x',
+            salt='x',
+            onboarding_completed=True,
+            active=True,
+        )
+        db_session.add(other_user)
+        db_session.commit()
+
+        fake_plan = {'steps': {'lesson': {'title': 'Урок', 'state': 'done'}}}
+
+        def summary_side_effect(user_id, tz=None):
+            if user_id == other_user.id:
+                raise RuntimeError('summary failed')
+            return {}
+
+        with patch('app.achievements.daily_race.get_race_standings', return_value={
+            'race_id': 17,
+            'race_date': '2026-04-17',
+            'my_rank': 1,
+            'participants': [
+                {'user_id': other_user.id, 'username': other_user.username, 'points': 30, 'rank': 1, 'is_me': False, 'is_ghost': False},
+                {'user_id': test_user.id, 'username': test_user.username, 'points': 22, 'rank': 2, 'is_me': True, 'is_ghost': False},
+            ],
+        }), \
+             patch('app.words.routes._compute_daily_race_state', return_value={
+                 'score': 22,
+                 'steps_done': 1,
+                 'steps_total': 1,
+                 'next_step_title': None,
+                 'next_step_points': 0,
+             }), \
+             patch('app.daily_plan.service.get_daily_plan_unified', return_value=fake_plan), \
+             patch('app.telegram.queries.get_daily_summary', side_effect=summary_side_effect), \
+             patch('app.telegram.queries.get_current_streak', return_value=3):
+            result = _build_daily_race_widget(test_user.id, tz='Europe/Moscow')
+
+        assert result is not None
+        assert result['rank'] == 2
+        assert len(result['leaderboard']) == 1
+        assert result['leaderboard'][0]['user_id'] == test_user.id
 
     def test_race_widget_template_structure(self, client, app, db_session, test_user, words_module_access):
         """When daily_race data is injected, template renders initials and position badges."""

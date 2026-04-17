@@ -522,6 +522,30 @@ class TestMissionPlanDuplicateWarning:
             )
         assert any("duplicate category" in r.message for r in caplog.records)
 
+    def test_no_warning_for_allowed_progress_duplicate_pairs(self, caplog):
+        from app.daily_plan.models import Mission, PrimaryGoal, PrimarySource
+        with caplog.at_level(logging.WARNING, logger="app.daily_plan.models"):
+            MissionPlan(
+                plan_version="1",
+                mission=Mission(
+                    type=MissionType.progress, title="T",
+                    reason_code="test", reason_text="test",
+                ),
+                primary_goal=PrimaryGoal(type="t", title="T", success_criterion="t"),
+                primary_source=PrimarySource(kind=SourceKind.normal_course, id="1", label="L"),
+                phases=[
+                    MissionPhase(phase=PhaseKind.recall, title="A",
+                                 source_kind=SourceKind.srs, mode="srs_review"),
+                    MissionPhase(phase=PhaseKind.learn, title="B",
+                                 source_kind=SourceKind.normal_course, mode="curriculum_lesson"),
+                    MissionPhase(phase=PhaseKind.use, title="C",
+                                 source_kind=SourceKind.normal_course, mode="lesson_practice"),
+                    MissionPhase(phase=PhaseKind.check, title="D",
+                                 source_kind=SourceKind.srs, mode="micro_check", required=False),
+                ],
+            )
+        assert not any("duplicate category" in r.message for r in caplog.records)
+
     def test_no_warning_when_categories_unique(self, caplog):
         from app.daily_plan.models import Mission, PrimaryGoal, PrimarySource
         with caplog.at_level(logging.WARNING, logger="app.daily_plan.models"):

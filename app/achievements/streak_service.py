@@ -36,25 +36,56 @@ def get_required_steps(streak_length: int, steps_total: int) -> int:
 
 _MODE_DONE_CHECK = {k: v for k, v in MODE_CATEGORY_MAP.items() if k != 'success_marker'}
 
+_MODE_COMPLETION_BUCKET: dict[str, str] = {
+    'srs_review': 'srs',
+    'book_vocab_recall': 'srs',
+    'micro_check': 'srs',
+    'guided_recall': 'warmup',
+    'curriculum_lesson': 'lesson',
+    'lesson_practice': 'practice',
+    'book_course_lesson': 'book_course',
+    'book_course_practice': 'practice',
+    'grammar_practice': 'grammar',
+    'targeted_quiz': 'grammar',
+    'book_reading': 'books',
+    'reading_vocab_extract': 'practice',
+    'meaning_prompt': 'practice',
+    'vocab_drill': 'practice',
+}
+
 
 def _compute_phase_completion(phases: list[dict], daily_summary: dict) -> dict[str, bool]:
     """Infer phase completion from daily_summary activity data."""
-    checks = {
-        'words': (daily_summary.get('words_reviewed', 0) > 0
-                  or daily_summary.get('srs_words_reviewed', 0) > 0),
-        'lesson': daily_summary.get('lessons_count', 0) > 0,
-        'grammar': daily_summary.get('grammar_exercises', 0) > 0,
-        'books': len(daily_summary.get('books_read', [])) > 0,
-        'book_course': daily_summary.get('book_course_lessons_today', 0) > 0,
+    words_reviewed = int(daily_summary.get('words_reviewed', 0) or 0)
+    srs_words_reviewed = int(daily_summary.get('srs_words_reviewed', 0) or 0)
+    non_srs_words_reviewed = max(0, words_reviewed - srs_words_reviewed)
+    has_any_activity = any((
+        int(daily_summary.get('lessons_count', 0) or 0) > 0,
+        int(daily_summary.get('grammar_exercises', 0) or 0) > 0,
+        words_reviewed > 0,
+        len(daily_summary.get('books_read', []) or []) > 0,
+        int(daily_summary.get('book_course_lessons_today', 0) or 0) > 0,
+    ))
+    buckets = {
+        'srs': 1 if (int(daily_summary.get('srs_review_reviewed', 0) or 0) > 0 or srs_words_reviewed > 0) else 0,
+        'lesson': 1 if int(daily_summary.get('lessons_count', 0) or 0) > 0 else 0,
+        'grammar': 1 if int(daily_summary.get('grammar_exercises', 0) or 0) > 0 else 0,
+        'books': 1 if len(daily_summary.get('books_read', []) or []) > 0 else 0,
+        'book_course': 1 if int(daily_summary.get('book_course_lessons_today', 0) or 0) > 0 else 0,
+        'practice': 1 if (non_srs_words_reviewed > 0 or int(daily_summary.get('grammar_exercises', 0) or 0) > 0) else 0,
+        'warmup': 1 if has_any_activity else 0,
     }
 
     result: dict[str, bool] = {}
     deferred: list[dict] = []
     for p in phases:
         mode = p.get('mode', '')
-        category = _MODE_DONE_CHECK.get(mode)
-        if category:
-            result[p['id']] = checks.get(category, False)
+        bucket = _MODE_COMPLETION_BUCKET.get(mode)
+        if bucket:
+            is_done = buckets.get(bucket, 0) > 0
+            result[p['id']] = is_done
+            if is_done:
+                buckets[bucket] = max(0, buckets[bucket] - 1)
         elif mode == 'success_marker':
             deferred.append(p)
         else:
@@ -205,12 +236,18 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
                 for phase in phases:
                     if not plan_completion.get(phase['id']):
                         continue
-                    if not phase.get('required', True):
+                    phase_kind = phase.get('phase', '')
+                    if not phase.get('required', True) and phase_kind != 'bonus':
                         continue
+                    xp_key = (
+                        phase.get('mode', '')
+                        if phase_kind == 'bonus'
+                        else (phase_kind or phase.get('mode', ''))
+                    )
                     xp_result = award_phase_xp_idempotent(
                         user_id,
                         phase['id'],
-                        phase.get('mode', ''),
+                        xp_key,
                         user_today,
                     )
                     if xp_result and xp_result.leveled_up:

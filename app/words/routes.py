@@ -1,6 +1,7 @@
 import logging
 import time
 import threading
+from datetime import datetime
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -347,27 +348,35 @@ def _compute_daily_race_state(plan: dict, daily_summary: dict, streak: int) -> d
 
 def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     from app.auth.models import User
+    from app.achievements.daily_race import get_race_standings
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_current_streak, get_daily_summary
+    import pytz
 
-    candidates = (
-        User.query
-        .filter(
-            User.active.is_(True),
-            User.is_admin.is_(False),
-            User.onboarding_completed.is_(True),
-        )
-        .order_by(User.last_login.desc().nullslast(), User.created_at.desc())
-        .limit(18)
-        .all()
-    )
+    try:
+        tz_obj = pytz.timezone(tz or DEFAULT_TIMEZONE)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
+    local_today = datetime.now(tz_obj).date()
 
-    current_user_row = User.query.get(current_user_id)
-    if current_user_row and not any(user.id == current_user_id for user in candidates):
-        candidates.append(current_user_row)
+    standings = get_race_standings(current_user_id, local_today, tz=tz)
+    if not standings:
+        return None
 
-    entries = []
-    for user in candidates:
+    participant_rows = standings.get('participants') or []
+    if not participant_rows:
+        return None
+
+    human_entries: dict[int, dict] = {}
+    current_user_max_score = 1
+
+    for row in participant_rows:
+        if row.get('is_ghost') or row.get('user_id') is None:
+            continue
+        participant_user_id = int(row['user_id'])
+        user = User.query.get(participant_user_id)
+        if user is None:
+            continue
         user_tz = user.timezone or tz
         try:
             plan = get_daily_plan_unified(user.id, tz=user_tz)
@@ -375,19 +384,30 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
             streak = get_current_streak(user.id, tz=user_tz)
             race_state = _compute_daily_race_state(plan, summary, streak)
         except Exception as e:
-            db.session.rollback()
-            logger.exception("Failed to build daily race entry for user %s: %s", user.id, e)
+            logger.exception(
+                "Failed to build daily race entry for user %s: %s",
+                participant_user_id,
+                e,
+            )
             continue
 
         if race_state['steps_total'] <= 0:
             continue
 
         uname = user.username or ''
-        entries.append({
+        max_score = 0
+        for phase in plan.get('phases') or []:
+            if not phase.get('required', True):
+                continue
+            max_score += _MISSION_PHASE_POINTS.get(phase.get('phase', ''), 12)
+        if user.id == current_user_id:
+            current_user_max_score = max(1, max_score)
+
+        human_entries[user.id] = {
             'user_id': user.id,
             'username': uname,
             'initials': _participant_initials(uname),
-            'score': race_state['score'],
+            'score': int(row.get('points', 0) or 0),
             'steps_done': race_state['steps_done'],
             'steps_total': race_state['steps_total'],
             'streak': streak,
@@ -395,44 +415,46 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
             'next_step_points': race_state['next_step_points'],
             'is_me': user.id == current_user_id,
             'is_bot': False,
-        })
+            'max_score': max(1, max_score),
+        }
 
-    current_index = next((i for i, item in enumerate(entries) if item['is_me']), None)
-    if current_index is None:
-        return None
-
-    me_seed = entries[current_index]
-
-    if len(entries) < 4:
-        bot_names = ['Молния', 'Ракета', 'Спринтер']
-        bot_offsets = [8, -6, 15]
-        bot_steps = [0, 0, 1]
-        for idx, name in enumerate(bot_names):
+    entries = []
+    for row in participant_rows:
+        if row.get('is_ghost') or row.get('user_id') is None:
+            ghost_score = int(row.get('points', 0) or 0)
+            route_position = min(100, int(round(ghost_score / max(1, current_user_max_score) * 100)))
             entries.append({
-                'user_id': -(idx + 1),
-                'username': name,
-                'initials': name[:2].upper(),
-                'score': max(0, me_seed['score'] + bot_offsets[idx]),
-                'steps_done': min(me_seed['steps_total'], max(0, me_seed['steps_done'] + bot_steps[idx])),
-                'steps_total': me_seed['steps_total'],
-                'streak': max(0, me_seed['streak'] + idx + 1),
-                'next_step_title': me_seed['next_step_title'],
-                'next_step_points': me_seed['next_step_points'],
+                'user_id': row.get('user_id'),
+                'username': row.get('username') or 'Тренировочный соперник',
+                'initials': _participant_initials(row.get('username')),
+                'score': ghost_score,
+                'steps_done': 0,
+                'steps_total': 0,
+                'streak': 0,
+                'next_step_title': None,
+                'next_step_points': 0,
                 'is_me': False,
                 'is_bot': True,
+                'rank': row.get('rank'),
+                'place_class': _MEDAL_BY_RANK.get(row.get('rank'), ''),
+                'is_complete': False,
+                'route_position': route_position,
             })
+            continue
 
-    entries.sort(key=lambda item: (-item['score'], -item['steps_done'], -item['streak'], item['username'].lower()))
+        human = human_entries.get(row.get('user_id'))
+        if human is None:
+            continue
+        human['rank'] = row.get('rank')
+        human['place_class'] = _MEDAL_BY_RANK.get(row.get('rank'), '')
+        human['is_complete'] = human['steps_done'] >= human['steps_total'] and human['steps_total'] > 0
+        st = human['steps_total']
+        human['route_position'] = int(human['steps_done'] / st * 100) if st > 0 else 0
+        entries.append(human)
+
     current_index = next((i for i, item in enumerate(entries) if item['is_me']), None)
     if current_index is None:
         return None
-
-    for idx, entry in enumerate(entries, start=1):
-        entry['rank'] = idx
-        entry['place_class'] = _MEDAL_BY_RANK.get(idx, '')
-        entry['is_complete'] = entry['steps_done'] >= entry['steps_total'] and entry['steps_total'] > 0
-        st = entry['steps_total']
-        entry['route_position'] = int(entry['steps_done'] / st * 100) if st > 0 else 0
 
     me = entries[current_index]
     rival_above = entries[current_index - 1] if current_index > 0 else None

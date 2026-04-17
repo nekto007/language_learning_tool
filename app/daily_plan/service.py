@@ -126,7 +126,9 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
             )
             return None
 
-        # Persist selected mission type for rotation logic.
+        # Persist selected mission type for rotation logic without committing the
+        # outer request transaction. This helper is used inside dashboard/widget
+        # code paths that may already be running under a savepoint.
         from app.utils.db import db
         try:
             from datetime import datetime
@@ -137,14 +139,8 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
             except pytz.UnknownTimeZoneError:
                 tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
             user_today = datetime.now(tz_obj).date()
-            nested = db.session.begin_nested()
-            try:
+            with db.session.begin_nested():
                 save_mission_type(user_id, mission_type, user_today)
-                nested.commit()
-            except Exception:
-                nested.rollback()
-                raise
-            db.session.commit()
         except Exception:
             logger.warning(
                 "Failed to persist mission type for user %s", user_id,
