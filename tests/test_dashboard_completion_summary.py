@@ -331,7 +331,7 @@ class TestCompletionSummaryTemplate:
         ua = UserAchievement(
             user_id=test_user.id,
             achievement_id=ach.id,
-            seen=False,
+            seen_at=None,
         )
         db_session.add(ua)
         db_session.commit()

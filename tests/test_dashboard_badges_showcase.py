@@ -55,18 +55,21 @@ def _award(db_session, user_id, achievement, earned_at=None, seen_at=None):
 
 class TestGetBadgesShowcase:
     def test_empty_when_no_achievements(self, db_session, test_user):
+        Achievement.query.delete()
+        db_session.commit()
+
         result = StatsService.get_badges_showcase(test_user.id)
 
         assert result['recent'] == []
         assert result['teasers'] == []
         assert result['earned_count'] == 0
-        assert result['total_count'] >= 0
+        assert result['total_count'] == 0
 
     def test_returns_total_count_from_all_achievements(self, db_session, test_user):
         a1 = _make_achievement(db_session)
         a2 = _make_achievement(db_session)
 
-        result = StatsService.get_badges_showcase(test_user.id)
+        result = StatsService.get_badges_showcase(test_user.id, teaser_limit=20)
 
         assert result['total_count'] >= 2
         assert result['earned_count'] == 0
@@ -104,7 +107,7 @@ class TestGetBadgesShowcase:
         ach_unearned = _make_achievement(db_session, name='Не получен')
         _award(db_session, test_user.id, ach_earned)
 
-        result = StatsService.get_badges_showcase(test_user.id, teaser_limit=5)
+        result = StatsService.get_badges_showcase(test_user.id, teaser_limit=50)
 
         teaser_codes = {t['code'] for t in result['teasers']}
         assert ach_earned.code not in teaser_codes
@@ -256,7 +259,7 @@ class TestDashboardBadgesShowcaseRender:
     def test_showcase_shows_locked_teasers_for_unearned(
         self, client, app, db_session, test_user, words_module_access,
     ):
-        ach = _make_achievement(db_session, name='Скрытый значок', icon='🔥')
+        ach = _make_achievement(db_session, name='Скрытый значок', icon='🔥', xp_reward=1)
 
         response = self._get_dashboard(client, test_user)
         html = response.data.decode('utf-8')
@@ -288,7 +291,7 @@ class TestDashboardBadgesShowcaseRender:
         self, client, app, db_session, test_user, words_module_access,
     ):
         # No user achievements earned, but badges exist in the system.
-        _make_achievement(db_session, name='Можно получить', icon='🎖')
+        _make_achievement(db_session, name='Можно получить', icon='🎖', xp_reward=1)
 
         response = self._get_dashboard(client, test_user)
         html = response.data.decode('utf-8')

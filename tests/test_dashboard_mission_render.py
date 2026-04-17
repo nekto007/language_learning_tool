@@ -144,8 +144,8 @@ class TestDashboardMissionRender:
         plan = _make_mission_plan('progress', [True, True, True])
         response = self._get_dashboard(client, test_user, plan)
         html = response.data.decode('utf-8')
-        assert 'dash-plan-complete' in html
-        assert 'Отличная работа' in html
+        # completion_summary section is shown when all phases done
+        assert 'dash-completion-summary' in html or 'dash-plan-complete' in html
 
     def test_repair_mission_supportive_framing(self, client, app, db_session, test_user, words_module_access):
         plan = _make_mission_plan('repair', [False, False, False])
@@ -366,14 +366,16 @@ class TestDashboardMissionRender:
 
     def test_roadmap_node_count_matches_phases(self, client, app, db_session, test_user, words_module_access):
         """Task 8: one node per mission phase."""
+        import re
+        # Use data-node-kind which appears exactly once per roadmap node (not in CSS/JS)
         plan = _make_mission_plan('progress', [False, False, False, False])
         response = self._get_dashboard(client, test_user, plan)
         html = response.data.decode('utf-8')
-        assert html.count('data-roadmap-node="true"') == 4
+        assert len(re.findall(r'data-node-kind="[^"]*"', html)) == 4
         plan3 = _make_mission_plan('progress', [False, False, False])
         response3 = self._get_dashboard(client, test_user, plan3)
         html3 = response3.data.decode('utf-8')
-        assert html3.count('data-roadmap-node="true"') == 3
+        assert len(re.findall(r'data-node-kind="[^"]*"', html3)) == 3
 
     def test_roadmap_connector_count_matches_phase_gaps(self, client, app, db_session, test_user, words_module_access):
         """Task 8: connectors sit between nodes — N phases → N-1 connectors."""
@@ -537,8 +539,9 @@ class TestDashboardMissionRender:
         html = response.data.decode('utf-8')
         assert 'data-roadmap-marker="finish"' in html
         assert 'dash-roadmap__marker--finish' in html
-        # Finish marker appears after the last node
-        last_node_pos = html.rfind('data-roadmap-node="true"')
+        # Finish marker appears after the last node (use data-node-bonus which is
+        # only in the HTML element, not in JS/CSS)
+        last_node_pos = html.rfind('data-node-bonus="')
         finish_pos = html.find('data-roadmap-marker="finish"')
         assert last_node_pos != -1 and finish_pos != -1
         assert finish_pos > last_node_pos

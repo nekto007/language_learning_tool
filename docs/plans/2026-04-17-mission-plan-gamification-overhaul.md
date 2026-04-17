@@ -589,11 +589,11 @@ If the user has already entered a lesson through the daily plan, the lesson must
 
 ### Task 37: Verify acceptance criteria
 
-- [ ] Run full test suite: `pytest`
-- [ ] Run smoke tests: `pytest -m smoke`
-- [ ] Verify test coverage meets 80%+ for new files
-- [ ] Verify no duplicate activity categories in any assembled mission plan
-- [ ] Verify roadmap renders correctly in dashboard template tests
+- [x] Run full test suite: `pytest`
+- [x] Run smoke tests: `pytest -m smoke`
+- [x] Verify test coverage meets 80%+ for new files
+- [x] Verify no duplicate activity categories in any assembled mission plan
+- [x] Verify roadmap renders correctly in dashboard template tests
 
 ### Task 38: Update documentation
 
