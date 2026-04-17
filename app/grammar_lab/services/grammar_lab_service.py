@@ -14,8 +14,6 @@ from typing import Dict, List, Optional, Any
 import uuid
 import logging
 
-from sqlalchemy.orm import joinedload
-
 from app.utils.db import db
 
 

@@ -1,4 +1,11 @@
-"""add use_mission_plan flag to users
+"""Add use_mission_plan feature flag to the users table.
+
+Introduces the mission-based daily plan experience (Progress, Repair, Reading missions)
+as an opt-in feature controlled per user. The flag defaults to false so all existing
+users continue receiving the legacy v2 plan until explicitly migrated.
+
+Routing logic in app/daily_plan/service.py reads this flag to call
+get_daily_plan_unified() -> mission pipeline or fall back to get_daily_plan_v2().
 
 Revision ID: c7f1a2b3d4e5
 Revises: a5832ad173e0

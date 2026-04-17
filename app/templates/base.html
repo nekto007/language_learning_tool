@@ -447,7 +447,11 @@ function loadNotifications() {
             if (!data.success) return;
             var list = document.getElementById('notif-list');
             if (!data.notifications.length) {
-                list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:1rem;font-size:0.85rem;">Нет уведомлений</div>';
+                list.textContent = '';
+                var emptyMsg = document.createElement('div');
+                emptyMsg.style.cssText = 'text-align:center;color:#94a3b8;padding:1rem;font-size:0.85rem;';
+                emptyMsg.textContent = 'Нет уведомлений';
+                list.appendChild(emptyMsg);
                 return;
             }
             list.textContent = '';

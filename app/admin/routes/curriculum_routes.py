@@ -8,7 +8,6 @@ import json
 import logging
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import current_user
 from sqlalchemy import distinct, func
 
 from app.admin.services.curriculum_import_service import CurriculumImportService

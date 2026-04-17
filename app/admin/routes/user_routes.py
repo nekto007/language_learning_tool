@@ -99,7 +99,11 @@ def toggle_mission_plan(user_id):
     else:
         flash('Пользователь не найден.', 'danger')
 
-    next_url = request.form.get('next') or request.referrer or url_for('user_admin.users')
+    from app.auth.routes import get_safe_redirect_url
+    next_url = get_safe_redirect_url(
+        request.form.get('next') or request.referrer,
+        fallback='user_admin.users'
+    )
     return redirect(next_url)
 
 

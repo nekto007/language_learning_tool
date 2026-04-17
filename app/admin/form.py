@@ -2,10 +2,10 @@
 
 from flask_wtf import FlaskForm
 from wtforms import (
-    BooleanField, DateTimeField, FieldList, FloatField, FormField,
-    IntegerField, SelectField, StringField, TextAreaField, HiddenField
+    DateTimeField,
+    IntegerField, SelectField, StringField, TextAreaField
 )
-from wtforms.validators import DataRequired, NumberRange, Optional, Length
+from wtforms.validators import DataRequired, NumberRange, Optional
 
 
 class CEFRLevelForm(FlaskForm):

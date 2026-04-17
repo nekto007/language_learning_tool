@@ -1,8 +1,12 @@
+import logging
 import os
 
 from flask import Flask
+from flask_compress import Compress
+
+logger = logging.getLogger(__name__)
 from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 from flask_jwt_extended import JWTManager
@@ -45,13 +49,16 @@ limiter = Limiter(
     storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
     # Customizable error messages
     headers_enabled=True,  # Enable X-RateLimit headers
-    swallow_errors=False,  # Raise errors in development
+    swallow_errors=not os.environ.get('FLASK_DEBUG', ''),  # Raise in debug, degrade gracefully in prod
     # Strategy for rate limit windows
     strategy="fixed-window"
 )
 
 
 def create_app(config_class=Config):
+    from config.logging_config import configure_logging
+    configure_logging()
+
     app = Flask(__name__)
     app.config.from_object(config_class)
 
@@ -76,20 +83,31 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     init_babel(app)
 
+    # Enable gzip compression for HTTP responses
+    app.config.setdefault('COMPRESS_MIMETYPES', [
+        'text/html', 'text/css', 'text/xml', 'text/javascript',
+        'application/json', 'application/javascript',
+    ])
+    app.config.setdefault('COMPRESS_LEVEL', 6)
+    app.config.setdefault('COMPRESS_MIN_SIZE', 500)
+    Compress(app)
+
     # Import all models in dependency order - MUST happen before any blueprint that uses models
-    from app.auth import models as auth_models
-    from app.books import models as books_models
-    from app.words import models as words_models  # Also defines word_book_link table
-    from app.study import models as study_models
-    from app.curriculum import models as curriculum_models
-    from app.curriculum import book_courses as book_courses_models
-    from app.curriculum import daily_lessons as daily_lessons_models
-    from app.modules import models as modules_models
-    from app.grammar_lab import models as grammar_models
-    from app.reminders import models as reminders_models
-    from app.telegram import models as telegram_models
-    from app.achievements import models as achievements_models
-    from app.notifications import models as notifications_models
+    from app.auth import models as auth_models  # noqa: F401
+    from app.books import models as books_models  # noqa: F401
+    from app.words import models as words_models  # noqa: F401  # Also defines word_book_link table
+    from app.study import models as study_models  # noqa: F401
+    from app.curriculum import models as curriculum_models  # noqa: F401
+    from app.curriculum import book_courses as book_courses_models  # noqa: F401
+    from app.curriculum import daily_lessons as daily_lessons_models  # noqa: F401
+    from app.modules import models as modules_models  # noqa: F401
+    from app.grammar_lab import models as grammar_models  # noqa: F401
+    from app.reminders import models as reminders_models  # noqa: F401
+    from app.telegram import models as telegram_models  # noqa: F401
+    from app.achievements import models as achievements_models  # noqa: F401
+    from app.achievements import daily_race as achievements_daily_race  # noqa: F401
+    from app.notifications import models as notifications_models  # noqa: F401
+    from app.admin import audit as admin_audit  # noqa: F401
 
     # In production, schema is managed by Alembic (`flask db upgrade head`).
     # In testing, create tables directly so tests don't need migrations.
@@ -104,6 +122,10 @@ def create_app(config_class=Config):
     # Initialize security middleware
     from app.middleware.security import add_security_headers
     add_security_headers(app)
+
+    # Initialize request ID middleware
+    from app.middleware.request_id import add_request_id
+    add_request_id(app)
 
     # Ensure directories exist
     os.makedirs(app.config['AUDIO_UPLOAD_FOLDER'], exist_ok=True)
@@ -223,20 +245,10 @@ def create_app(config_class=Config):
         from flask_wtf.csrf import generate_csrf
         return _jsonify({'csrf_token': generate_csrf()})
 
-    # Health check endpoint (no auth, no CSRF)
-    @app.route('/health', methods=['GET'])
-    def health_check():
-        import logging
-        from flask import jsonify
-        logger = logging.getLogger(__name__)
-        try:
-            db.session.execute(db.text('SELECT 1'))
-            return jsonify({'status': 'healthy', 'database': 'connected'}), 200
-        except Exception as e:
-            logger.error('Health check failed: %s', e)
-            return jsonify({'status': 'unhealthy', 'db': 'error'}), 503
-
-    csrf.exempt(app.view_functions['health_check'])
+    # Health check blueprint (no auth, no CSRF)
+    from app.health import health_bp
+    app.register_blueprint(health_bp)
+    csrf.exempt(app.view_functions['health_check.health'])
 
     # Add CSRF error handler for AJAX requests
     from flask_wtf.csrf import CSRFError

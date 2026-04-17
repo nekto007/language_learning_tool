@@ -337,21 +337,99 @@ INITIAL_ACHIEVEMENTS = [
         'xp_reward': 25,
         'category': 'special'
     },
+
+    # Daily plan mission badges
+    {
+        'code': 'mission_first',
+        'name': 'Первая миссия',
+        'description': 'Завершите первую ежедневную миссию',
+        'icon': '🚀',
+        'xp_reward': 25,
+        'category': 'mission'
+    },
+    {
+        'code': 'mission_progress_5',
+        'name': 'Исследователь',
+        'description': 'Завершите 5 миссий прогресса',
+        'icon': '🧭',
+        'xp_reward': 100,
+        'category': 'mission'
+    },
+    {
+        'code': 'mission_repair_5',
+        'name': 'Мастер ремонта',
+        'description': 'Завершите 5 миссий восстановления',
+        'icon': '🔧',
+        'xp_reward': 100,
+        'category': 'mission'
+    },
+    {
+        'code': 'mission_reading_5',
+        'name': 'Читатель',
+        'description': 'Завершите 5 миссий чтения',
+        'icon': '📖',
+        'xp_reward': 100,
+        'category': 'mission'
+    },
+    {
+        'code': 'mission_week_perfect',
+        'name': 'Идеальная неделя',
+        'description': 'Завершите миссии 7 дней подряд',
+        'icon': '🌟',
+        'xp_reward': 300,
+        'category': 'mission'
+    },
+    {
+        'code': 'mission_early_bird',
+        'name': 'Утренняя миссия',
+        'description': 'Завершите ежедневную миссию до 9:00 утра',
+        'icon': '🌄',
+        'xp_reward': 50,
+        'category': 'mission'
+    },
+    {
+        'code': 'mission_night_owl',
+        'name': 'Ночная миссия',
+        'description': 'Завершите ежедневную миссию после 22:00',
+        'icon': '🌙',
+        'xp_reward': 50,
+        'category': 'mission'
+    },
+    {
+        'code': 'mission_variety_3',
+        'name': 'Разносторонний',
+        'description': 'За неделю завершите все 3 типа миссий',
+        'icon': '🎭',
+        'xp_reward': 150,
+        'category': 'mission'
+    },
+    {
+        'code': 'mission_speed_demon',
+        'name': 'Молниеносный',
+        'description': 'Завершите все этапы миссии менее чем за 30 минут',
+        'icon': '⚡',
+        'xp_reward': 100,
+        'category': 'mission'
+    },
 ]
 
 
 def seed_achievements():
     """
-    Seed initial achievements data
-    Safe to call multiple times - only inserts missing achievements
+    Seed initial achievements data.
+
+    Idempotent: inserts only achievements whose code is missing from the
+    database, so calling repeatedly after adding new badge definitions will
+    add only the new ones.
     """
-    # Check if already seeded
-    if Achievement.query.count() > 0:
-        return
+    existing_codes = {code for (code,) in db.session.query(Achievement.code).all()}
 
-    # Add all achievements
+    added = 0
     for achievement_data in INITIAL_ACHIEVEMENTS:
-        achievement = Achievement(**achievement_data)
-        db.session.add(achievement)
+        if achievement_data['code'] in existing_codes:
+            continue
+        db.session.add(Achievement(**achievement_data))
+        added += 1
 
-    db.session.commit()
+    if added:
+        db.session.commit()

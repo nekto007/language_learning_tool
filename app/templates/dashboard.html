@@ -5,6 +5,41 @@
 {% block content %}
 <div class="dash-page">
 
+    {% if unseen_badges %}
+    <!-- Badge popup: celebratory stack for badges earned since last visit -->
+    <div class="dash-badge-popup" id="dash-badge-popup" role="dialog" aria-live="polite" aria-label="Новые награды">
+      {% for badge in unseen_badges %}
+      <div class="dash-badge-popup__card" data-badge-code="{{ badge.code }}" data-user-achievement-id="{{ badge.user_achievement_id }}" style="animation-delay: {{ loop.index0 * 0.15 }}s">
+        <button type="button" class="dash-badge-popup__dismiss" aria-label="Закрыть" onclick="this.closest('.dash-badge-popup__card').classList.add('dash-badge-popup__card--dismissed')">&times;</button>
+        <div class="dash-badge-popup__icon" aria-hidden="true">{{ badge.icon or '🏆' }}</div>
+        <div class="dash-badge-popup__body">
+          <div class="dash-badge-popup__title">Новая награда!</div>
+          <div class="dash-badge-popup__name">{{ badge.name }}</div>
+          {% if badge.description %}
+          <div class="dash-badge-popup__desc">{{ badge.description }}</div>
+          {% endif %}
+          {% if badge.xp_reward %}
+          <div class="dash-badge-popup__xp">+{{ badge.xp_reward }} XP</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <script>
+      (function () {
+        var popup = document.getElementById('dash-badge-popup');
+        if (!popup) return;
+        var cards = popup.querySelectorAll('.dash-badge-popup__card');
+        cards.forEach(function (card, idx) {
+          var baseDelay = 5000 + idx * 150;
+          setTimeout(function () {
+            card.classList.add('dash-badge-popup__card--dismissed');
+          }, baseDelay);
+        });
+      })();
+    </script>
+    {% endif %}
+
     <!-- Hero: Greeting + Streak -->
     <div class="dash-hero">
         <div class="dash-hero__bg-shapes">
@@ -94,10 +129,61 @@
                         </div>
                     </div>
                     {% endif %}
+                    {% if rank_info %}
+                    <div class="dash-rank dash-rank--{{ rank_info.code }}"
+                         data-rank-code="{{ rank_info.code }}"
+                         data-rank-plans="{{ rank_info.plans_completed }}"
+                         title="Титул за выполненные дневные планы">
+                        <span class="dash-rank__badge" style="--rank-color: {{ rank_info.color }}">
+                            <span class="dash-rank__icon" aria-hidden="true">{{ rank_info.icon }}</span>
+                            <span class="dash-rank__name">{{ rank_info.display_name }}</span>
+                        </span>
+                        {% if rank_info.is_max %}
+                        <span class="dash-rank__progress dash-rank__progress--max" data-rank-progress="true">
+                            <span class="dash-rank__progress-text">Максимальный титул — {{ rank_info.plans_completed }} планов</span>
+                        </span>
+                        {% else %}
+                        <span class="dash-rank__progress" data-rank-progress="true">
+                            <span class="dash-rank__progress-text">{{ rank_info.plans_completed }}/{{ rank_info.next_threshold }} до «{{ rank_info.next_display_name }}»</span>
+                            <span class="dash-rank__progress-track" aria-hidden="true">
+                                <span class="dash-rank__progress-fill" style="width: {{ rank_info.progress_percent }}%; --rank-color: {{ rank_info.color }}"></span>
+                            </span>
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
+
+    {# ── Task 26: Mission XP / level widget ── #}
+    {% if mission_level_info %}
+    <div class="dash-xp" data-xp-widget="true" title="Опыт и уровень за дневные миссии">
+        <span class="dash-xp__level" data-xp-level="true">Уровень {{ mission_level_info.level }}</span>
+        <div class="dash-xp__progress">
+            <span class="dash-xp__text">{{ mission_level_info.xp_in_level }}/{{ mission_level_info.xp_for_level }} XP</span>
+            <div class="dash-xp__bar" data-xp-progress="true" data-xp-pct="{{ mission_level_info.progress_percent }}">
+                <div class="dash-xp__bar-fill" style="width: {{ mission_level_info.progress_percent }}%"></div>
+            </div>
+        </div>
+        {% if mission_level_info.streak_multiplier > 1.0 %}
+        <span class="dash-xp__multiplier" data-xp-multiplier="true">x{{ mission_level_info.streak_multiplier }} бонус серии</span>
+        {% else %}
+        <span class="dash-xp__multiplier dash-xp__multiplier--base" data-xp-multiplier="true">x{{ mission_level_info.streak_multiplier }} бонус серии</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# ── Task 26: Level-up golden flash overlay ── #}
+    {% if xp_level_up %}
+    <div class="dash-xp-levelup" data-xp-levelup="true" role="status" aria-live="polite">
+        <div class="dash-xp-levelup__inner">
+            <div class="dash-xp-levelup__icon">&#11088;</div>
+            <div class="dash-xp-levelup__text">Новый уровень {{ xp_level_up.new_level }}!</div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Welcome Card for New Users -->
     {% if words_total == 0 and grammar_studied == 0 and books_reading == 0 and courses_enrolled == 0 %}
@@ -112,19 +198,34 @@
     {% endif %}
 
     {% if daily_race %}
-    <section class="dash-race">
+    <section class="dash-race{% if daily_race.is_complete %} dash-race--complete{% endif %}">
         <div class="dash-race__header">
             <div>
                 <div class="dash-race__eyebrow">Гонка дня</div>
+                {% if daily_race.is_complete %}
+                <h2 class="dash-race__title">Гонка завершена — ты финишировал {{ daily_race.rank }}-м!</h2>
+                {% else %}
                 <h2 class="dash-race__title">Что сделать сегодня, чтобы подняться выше</h2>
+                {% endif %}
                 {% if daily_race.has_bot_rivals %}
                 <div class="dash-race__note">Тренировочный режим: соперники временные.</div>
                 {% endif %}
             </div>
-            <div class="dash-race__badge">Место {{ daily_race.rank }}/{{ daily_race.total }}</div>
+            <div class="dash-race__badge dash-race__badge--{{ daily_race.place_class or 'default' }}">Место {{ daily_race.rank }}/{{ daily_race.total }}</div>
         </div>
 
         <div class="dash-race__hero">
+            {% if daily_race.is_complete %}
+            <div class="dash-race__final">
+                <div class="dash-race__final-place dash-race__final-place--{{ daily_race.place_class or 'default' }}">
+                    {% if daily_race.rank == 1 %}🥇{% elif daily_race.rank == 2 %}🥈{% elif daily_race.rank == 3 %}🥉{% else %}{{ daily_race.rank }}-е место{% endif %}
+                </div>
+                <div class="dash-race__final-score">{{ daily_race.score }} очков</div>
+                <div class="dash-race__final-message">
+                    {% if daily_race.rank == 1 %}Отличная работа — сегодня ты первый!{% elif daily_race.rank <= 3 %}Хороший результат, ты в тройке лидеров!{% else %}Продолжай в том же духе — завтра будет лучше!{% endif %}
+                </div>
+            </div>
+            {% else %}
             <div class="dash-race__stats">
                 <div>
                     <div class="dash-race__score">{{ daily_race.score }}</div>
@@ -138,7 +239,7 @@
                 </div>
             </div>
 
-            <div class="dash-race__callout">{{ daily_race.callout }}</div>
+            <div class="dash-race__nudge">{{ daily_race.callout }}</div>
 
             <div class="dash-race__tasks">
                 {% if daily_race.next_step_title %}
@@ -175,13 +276,15 @@
                 {% if daily_race.next_action_title %}Открыть: {{ daily_race.next_action_title }}{% else %}Сделать следующий шаг{% endif %}
             </a>
             {% endif %}
+            {% endif %}
 
-            <div class="dash-race__board">
-                <div class="dash-race__board-title">Позиции рядом</div>
+            <details class="dash-race__board dash-race__board--compact" {% if daily_race.is_complete %}open{% endif %}>
+                <summary class="dash-race__board-title">{% if daily_race.is_complete %}Итоги гонки{% else %}Позиции рядом{% endif %}</summary>
                 <div class="dash-race__list">
                     {% for rival in daily_race.leaderboard %}
                     <div class="dash-race__row {% if rival.is_me %}dash-race__row--me{% endif %}">
-                        <div class="dash-race__place">{{ rival.rank }}</div>
+                        <div class="dash-race__place dash-race__place--{{ rival.place_class or 'default' }}">{{ rival.rank }}</div>
+                        <div class="dash-race__avatar">{{ rival.initials }}</div>
                         <div class="dash-race__user">
                             <div class="dash-race__name">{% if rival.is_me %}Ты{% else %}{{ rival.username }}{% endif %}</div>
                             <div class="dash-race__user-meta">{{ rival.steps_done }}/{{ rival.steps_total }} этапов · 🔥 {{ rival.streak }}{% if rival.is_bot %} · тренировка{% endif %}</div>
@@ -190,7 +293,7 @@
                     </div>
                     {% endfor %}
                 </div>
-            </div>
+            </details>
         </div>
     </section>
     {% endif %}
@@ -258,9 +361,9 @@
         {# Progress bar #}
         {% if m_total > 0 %}
         {% set m_pct = (m_done / m_total * 100) | int %}
-        <div class="dash-progress">
+        <div class="dash-progress" data-plan-progress="true" data-progress-pct="{{ m_pct }}">
             <div class="dash-progress__bar">
-                <div class="dash-progress__fill {% if m_all_done %}dash-progress__fill--done{% endif %}" style="width: {{ m_pct }}%"></div>
+                <div class="dash-progress__fill {% if m_all_done %}dash-progress__fill--done{% endif %}" style="width: {{ m_pct }}%" data-progress-fill="true"></div>
             </div>
             <span class="dash-progress__count">{{ m_done }}/{{ m_total }}</span>
         </div>
@@ -276,8 +379,120 @@
         {% endif %}
         {% endif %}
 
-        {# Completion banner #}
-        {% if m_all_done %}
+        {# Completion summary (task 29) #}
+        {% if m_all_done and completion_summary %}
+        <div class="dash-completion-summary" data-completion-summary="true" aria-label="Итоги дня">
+            <div class="dash-completion-summary__header">
+                <span class="dash-completion-summary__trophy" aria-hidden="true">&#127942;</span>
+                <h3 class="dash-completion-summary__title">Миссия выполнена!</h3>
+                {% if completion_summary.mission_title %}
+                <p class="dash-completion-summary__mission-name">{{ completion_summary.mission_title }}</p>
+                {% endif %}
+            </div>
+
+            <div class="dash-completion-summary__cards" data-completion-cards="true">
+
+                {# XP earned today #}
+                <div class="dash-completion-summary__card dash-completion-summary__card--xp" style="--card-delay: 0">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">&#9889;</div>
+                    <div class="dash-completion-summary__card-value" data-xp-total="{{ completion_summary.today_xp }}">
+                        +{{ completion_summary.today_xp }} XP
+                    </div>
+                    <div class="dash-completion-summary__card-label">Заработано сегодня</div>
+                    {% if completion_summary.streak_multiplier and completion_summary.streak_multiplier > 1.01 %}
+                    <div class="dash-completion-summary__card-sub">x{{ completion_summary.streak_multiplier }} streak-бонус</div>
+                    {% endif %}
+                </div>
+
+                {# Level progress #}
+                {% if completion_summary.level %}
+                <div class="dash-completion-summary__card dash-completion-summary__card--level" style="--card-delay: 1">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">&#11088;</div>
+                    <div class="dash-completion-summary__card-value">Уровень {{ completion_summary.level }}</div>
+                    {% if completion_summary.xp_to_next %}
+                    <div class="dash-completion-summary__progress-bar" role="progressbar"
+                         aria-valuenow="{{ completion_summary.xp_progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+                        <div class="dash-completion-summary__progress-fill" style="width: {{ completion_summary.xp_progress_percent }}%"></div>
+                    </div>
+                    <div class="dash-completion-summary__card-sub">{{ completion_summary.xp_to_next }} XP до следующего</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {# Streak #}
+                <div class="dash-completion-summary__card dash-completion-summary__card--streak" style="--card-delay: 2">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">&#128293;</div>
+                    <div class="dash-completion-summary__card-value">{{ completion_summary.streak }} дн.</div>
+                    <div class="dash-completion-summary__card-label">Серия</div>
+                </div>
+
+                {# Race position #}
+                {% if completion_summary.race_rank %}
+                <div class="dash-completion-summary__card dash-completion-summary__card--race" style="--card-delay: 3">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">
+                        {% if completion_summary.race_rank == 1 %}&#129351;
+                        {% elif completion_summary.race_rank == 2 %}&#129352;
+                        {% elif completion_summary.race_rank == 3 %}&#129353;
+                        {% else %}&#127937;{% endif %}
+                    </div>
+                    <div class="dash-completion-summary__card-value">{{ completion_summary.race_rank }}/{{ completion_summary.race_total }}</div>
+                    <div class="dash-completion-summary__card-label">Место в гонке</div>
+                </div>
+                {% endif %}
+
+                {# Rank progress #}
+                {% if completion_summary.rank_display_name %}
+                <div class="dash-completion-summary__card dash-completion-summary__card--rank" style="--card-delay: 4">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">{{ completion_summary.rank_icon }}</div>
+                    <div class="dash-completion-summary__card-value">{{ completion_summary.rank_display_name }}</div>
+                    {% if not completion_summary.rank_is_max and completion_summary.rank_plans_to_next %}
+                    <div class="dash-completion-summary__progress-bar" role="progressbar"
+                         aria-valuenow="{{ completion_summary.rank_progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+                        <div class="dash-completion-summary__progress-fill" style="width: {{ completion_summary.rank_progress_percent }}%"></div>
+                    </div>
+                    <div class="dash-completion-summary__card-sub">{{ completion_summary.rank_plans_to_next }} дн. до «{{ completion_summary.rank_next_display_name }}»</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {# New badges #}
+                {% if completion_summary.new_badges %}
+                <div class="dash-completion-summary__card dash-completion-summary__card--badges" style="--card-delay: 5">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">&#127942;</div>
+                    <div class="dash-completion-summary__card-value">{{ completion_summary.new_badges | length }}</div>
+                    <div class="dash-completion-summary__card-label">
+                        {% if completion_summary.new_badges | length == 1 %}Новый значок{% else %}Новых значков{% endif %}
+                    </div>
+                    <div class="dash-completion-summary__badge-list">
+                        {% for badge in completion_summary.new_badges[:3] %}
+                        <span class="dash-completion-summary__badge-icon" title="{{ badge.name }}">{{ badge.icon }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {# Bonus done #}
+                {% if completion_summary.bonus_done %}
+                <div class="dash-completion-summary__card dash-completion-summary__card--bonus" style="--card-delay: 6">
+                    <div class="dash-completion-summary__card-icon" aria-hidden="true">&#10024;</div>
+                    <div class="dash-completion-summary__card-value">2x XP</div>
+                    <div class="dash-completion-summary__card-label">Бонус-этап!</div>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <div class="dash-completion-summary__footer">
+                <p class="dash-completion-summary__closing">{{ completion_summary.closing_message }}</p>
+                <button class="dash-completion-summary__share-btn"
+                        data-share-text="{{ completion_summary.share_text }}"
+                        onclick="(function(btn){var txt=btn.getAttribute('data-share-text');if(navigator.share){navigator.share({text:txt})}else if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){btn.textContent='Скопировано!'});setTimeout(function(){btn.textContent='Поделиться'},2000)}})(this)"
+                        type="button" aria-label="Поделиться результатами дня">
+                    Поделиться
+                </button>
+            </div>
+        </div>
+        {% elif m_all_done %}
         <div class="dash-plan-complete">
             <span class="dash-plan-complete__icon">&#127881;</span>
             <span class="dash-plan-complete__text">Отличная работа! Всё на сегодня сделано.</span>
@@ -285,15 +500,154 @@
         {% endif %}
 
         {# Phase cards #}
-        {% set phase_icons = {'recall': '&#128260;', 'learn': '&#127919;', 'use': '&#129504;', 'read': '&#128213;', 'check': '&#127937;', 'close': '&#127775;'} %}
+        {% set phase_icons = {
+            'recall': '<svg class="dash-step__svg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 4V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>',
+            'learn': '<svg class="dash-step__svg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/></svg>',
+            'use': '<svg class="dash-step__svg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>',
+            'read': '<svg class="dash-step__svg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1z"/></svg>',
+            'check': '<svg class="dash-step__svg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm-2 14l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>',
+            'close': '<svg class="dash-step__svg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>',
+            'bonus': '<svg class="dash-step__svg-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M11.5 2C6.81 2 3 5.81 3 10.5S6.81 19 11.5 19h.5v3c4.86-2.34 8-7 8-11.5C20 5.81 16.19 2 11.5 2zm1 14.5h-2v-2h2v2zm0-4h-2c0-3.25 3-3 3-5 0-1.1-.9-2-2-2s-2 .9-2 2h-2c0-2.21 1.79-4 4-4s4 1.79 4 4c0 2.5-3 2.75-3 5z"/></svg>'
+        } %}
         {% set phase_hints = {
             'recall': 'Быстрый старт: набираем темп и не роняем серию',
             'learn': 'Главный шаг дня: идём за новым прогрессом и очками',
             'use': 'Здесь решаем сами и набираем уверенность перед следующим уровнем',
             'read': 'Идём через живой текст, детали и понимание смысла',
             'check': 'Финальный раунд: проверяем, что действительно закрепилось',
-            'close': 'Фиксируем победу дня и готовим почву для следующего рывка'
+            'close': 'Фиксируем победу дня и готовим почву для следующего рывка',
+            'bonus': 'Бонус: необязательный этап с удвоенным XP — только для смельчаков!'
         } %}
+        {% set phase_action_labels = {
+            'recall': 'Повторение',
+            'learn': 'Урок',
+            'use': 'Практика',
+            'read': 'Чтение',
+            'check': 'Проверка',
+            'close': 'Завершение',
+            'bonus': 'Бонус'
+        } %}
+
+        {# Task 33: Route board container — wraps visual roadmap + checkpoint cards into a single
+           connected route. data-route-container provides the JS/test anchor; data attributes
+           expose total-checkpoints, current-checkpoint-index, and finish-state for animation
+           hooks. Compact fallback class (dash-route--compact) activates single-column mobile. #}
+        {% if m_phases %}
+        <div class="dash-route{% if m_all_done %} dash-route--done{% endif %}{% if m_phases | length <= 3 %} dash-route--compact{% endif %}"
+             data-route-container="true"
+             data-total-checkpoints="{{ route_metadata.total_checkpoints if route_metadata else m_phases | length }}"
+             data-current-checkpoint="{{ route_metadata.current_checkpoint_index if route_metadata else 0 }}"
+             data-finish-state="{{ route_metadata.finish_state if route_metadata else 'in_progress' }}"
+             aria-label="Маршрут миссии">
+
+        {# Task 8/9/10: Visual roadmap — nodes + connectors showing the learning path.
+           Node state (done/current/upcoming) mirrors phase completion; bonus
+           modifier marks optional phases (required=False). Start/finish markers
+           frame the journey: start flag at the beginning, finish trophy (gold
+           on completion, target with remaining-steps hint otherwise) at the end. #}
+        {% set m_steps_remaining = (m_total - m_done) if m_total > m_done else 0 %}
+        <div class="dash-roadmap{% if m_all_done %} dash-roadmap--complete{% endif %}" data-roadmap="true" data-roadmap-complete="{{ 'true' if m_all_done else 'false' }}" aria-label="Маршрут миссии">
+            <div class="dash-roadmap__track">
+                <div class="dash-roadmap__marker dash-roadmap__marker--start"
+                     data-roadmap-marker="start"
+                     aria-label="Старт"
+                     title="Старт">
+                    <span class="dash-roadmap__marker-inner">
+                        <span class="dash-roadmap__marker-icon" aria-hidden="true">&#127937;</span>
+                    </span>
+                </div>
+                <div class="dash-roadmap__connector dash-roadmap__connector--{% if m_done > 0 %}done{% else %}upcoming{% endif %} dash-roadmap__connector--edge"
+                     data-roadmap-edge-connector="start"
+                     data-connector-state="{% if m_done > 0 %}done{% else %}upcoming{% endif %}"
+                     aria-hidden="true"></div>
+                {% set rns = namespace(current_found=false) %}
+                {% for phase in m_phases %}
+                    {% set is_done = plan_completion.get(phase.get('id', ''), false) %}
+                    {% if is_done %}
+                        {% set node_state = 'done' %}
+                    {% elif not rns.current_found %}
+                        {% set node_state = 'current' %}
+                        {% set rns.current_found = true %}
+                    {% else %}
+                        {% set node_state = 'upcoming' %}
+                    {% endif %}
+                    {% set node_kind = phase.get('phase', '') %}
+                    {% set is_bonus = (phase.get('required', true) == false) %}
+                    <div class="dash-roadmap__node dash-roadmap__node--{{ node_state }}{% if node_kind %} dash-roadmap__node--{{ node_kind }}{% endif %}{% if is_bonus %} dash-roadmap__node--bonus{% endif %}"
+                         data-roadmap-node="true"
+                         data-node-index="{{ loop.index0 }}"
+                         data-node-kind="{{ node_kind }}"
+                         data-node-state="{{ node_state }}"
+                         data-node-bonus="{{ 'true' if is_bonus else 'false' }}"
+                         data-phase-id="{{ phase.get('id', '') }}"
+                         title="{{ phase.get('title', '') }}">
+                        <span class="dash-roadmap__node-inner">
+                            <span class="dash-roadmap__node-icon" aria-hidden="true">{{ phase_icons.get(node_kind, '&#128204;')|safe }}</span>
+                            <span class="dash-roadmap__node-index">{% if is_done %}&#10003;{% else %}{{ loop.index }}{% endif %}</span>
+                            {% if is_done %}<span class="dash-roadmap__node-check" aria-hidden="true">&#10003;</span>{% endif %}
+                            {% if is_bonus %}<span class="dash-roadmap__node-sparkle" aria-hidden="true">&#10022;</span>{% endif %}
+                        </span>
+                    </div>
+                    {% if not loop.last %}
+                    <div class="dash-roadmap__connector dash-roadmap__connector--{% if is_done %}done{% else %}upcoming{% endif %}"
+                         data-roadmap-connector="true"
+                         data-connector-state="{% if is_done %}done{% else %}upcoming{% endif %}"
+                         aria-hidden="true"></div>
+                    {% endif %}
+                {% endfor %}
+                <div class="dash-roadmap__connector dash-roadmap__connector--{% if m_all_done %}done{% else %}upcoming{% endif %} dash-roadmap__connector--edge"
+                     data-roadmap-edge-connector="finish"
+                     data-connector-state="{% if m_all_done %}done{% else %}upcoming{% endif %}"
+                     aria-hidden="true"></div>
+                <div class="dash-roadmap__marker dash-roadmap__marker--finish dash-roadmap__marker--{% if m_all_done %}complete{% else %}pending{% endif %}"
+                     data-roadmap-marker="finish"
+                     data-marker-state="{% if m_all_done %}complete{% else %}pending{% endif %}"
+                     data-steps-remaining="{{ m_steps_remaining }}"
+                     aria-label="{% if m_all_done %}Финиш достигнут{% else %}Финиш{% endif %}"
+                     title="{% if m_all_done %}Финиш достигнут{% else %}Финиш{% endif %}">
+                    <span class="dash-roadmap__marker-inner">
+                        <span class="dash-roadmap__marker-icon" aria-hidden="true">{% if m_all_done %}&#127942;{% else %}&#127919;{% endif %}</span>
+                        {% if m_all_done %}
+                        <span class="dash-roadmap__marker-burst" aria-hidden="true">
+                            <span class="dash-roadmap__marker-burst-piece" style="--i:0"></span>
+                            <span class="dash-roadmap__marker-burst-piece" style="--i:1"></span>
+                            <span class="dash-roadmap__marker-burst-piece" style="--i:2"></span>
+                            <span class="dash-roadmap__marker-burst-piece" style="--i:3"></span>
+                            <span class="dash-roadmap__marker-burst-piece" style="--i:4"></span>
+                            <span class="dash-roadmap__marker-burst-piece" style="--i:5"></span>
+                        </span>
+                        {% endif %}
+                    </span>
+                    {% if not m_all_done and m_steps_remaining > 0 %}
+                    <span class="dash-roadmap__marker-distance" data-marker-distance="true">
+                        {% if m_steps_remaining == 1 %}1 шаг до финиша
+                        {% elif m_steps_remaining in [2, 3, 4] %}{{ m_steps_remaining }} шага до финиша
+                        {% else %}{{ m_steps_remaining }} шагов до финиша{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="dash-roadmap__swipe-hint" data-roadmap-swipe-hint="true" aria-hidden="true">Листайте, чтобы увидеть все шаги</div>
+        </div>
+
+        {# Rival tokens on the route: user + nearby rivals by route_position #}
+        {% if daily_race and daily_race.route_rivals %}
+        <div class="dash-route-tokens" data-route-tokens="true" aria-label="Позиции участников на маршруте">
+            {% for rival in daily_race.route_rivals %}
+            <div class="dash-route-token dash-route-token--{{ rival.rival_role }}{% if rival.is_bot %} dash-route-token--training{% endif %}"
+                 style="left: {{ rival.route_position }}%"
+                 data-route-token="true"
+                 data-animate-token="true"
+                 data-token-role="{{ rival.rival_role }}"
+                 data-route-position="{{ rival.route_position }}"
+                 title="{% if rival.is_me %}Ты: {{ rival.route_position }}% маршрута{% else %}{{ rival.username }}: {{ rival.route_position }}% маршрута{% endif %}">
+                <div class="dash-route-token__avatar">{{ rival.initials }}</div>
+                <div class="dash-route-token__label">{% if rival.is_me %}Ты{% else %}{{ rival.username }}{% endif %}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <div class="dash-timeline" data-mission-plan="true">
         {% set mns = namespace(current_found=false) %}
         {% for phase in m_phases %}
@@ -307,13 +661,36 @@
                 {% set phase_css = 'upcoming' %}
             {% endif %}
 
-            <div class="dash-step dash-step--phase dash-step--{{ phase_css }}" style="animation-delay: {{ loop.index * 0.08 }}s" data-phase-id="{{ phase.get('id', '') }}">
-                <div class="dash-step__num">{% if is_done %}&#10003;{% else %}{{ loop.index }}{% endif %}</div>
+            {% set phase_preview = phase.get('preview') %}
+            {% set phase_kind = phase.get('phase', '') %}
+            <div class="dash-step dash-step--phase{% if phase_kind %} dash-step--{{ phase_kind }}{% endif %} dash-step--{{ phase_css }}" style="animation-delay: {{ loop.index * 0.08 }}s" data-phase-id="{{ phase.get('id', '') }}" data-phase-kind="{{ phase_kind }}" data-phase-state="{{ phase_css }}" data-phase-index="{{ loop.index0 }}" data-route-checkpoint="true" data-checkpoint-index="{{ loop.index0 }}" data-checkpoint-kind="{{ phase_kind }}" data-checkpoint-state="{{ phase_css }}">
+                <div class="dash-step__num">{% if is_done %}<span class="dash-step__check" data-phase-check="true">&#10003;</span>{% else %}{{ loop.index }}{% endif %}</div>
                 <div class="dash-step__body">
-                    <div class="dash-step__icon">{{ phase_icons.get(phase.get('phase', ''), '&#128204;')|safe }}</div>
+                    <div class="dash-step__icon">{{ phase_icons.get(phase_kind, '&#128204;')|safe }}</div>
                     <div class="dash-step__info">
                         <div class="dash-step__title">{{ phase.get('title', '') }}</div>
-                        <div class="dash-step__meta">{{ phase_hints.get(phase.get('phase', ''), 'Последовательный этап миссии') }}</div>
+                        <div class="dash-step__meta">{{ phase_hints.get(phase_kind, 'Последовательный этап миссии') }}</div>
+                        {% if phase_preview %}
+                        <div class="dash-step__preview" data-phase-preview="true">
+                            <span class="dash-step__preview-label">Что сделаем:</span>
+                            {% set _action_prefix = phase_action_labels.get(phase_kind, '') %}
+                            {% if phase_preview.get('content_title') %}
+                            <span class="dash-step__preview-title">{% if _action_prefix %}{{ _action_prefix }}: {% endif %}{{ phase_preview['content_title'] }}</span>
+                            {% elif _action_prefix %}
+                            <span class="dash-step__preview-title">{{ _action_prefix }}</span>
+                            {% endif %}
+                            {% if phase_preview.get('item_count') or phase_preview.get('estimated_minutes') %}
+                            <span class="dash-step__preview-chips">
+                                {% if phase_preview.get('item_count') %}
+                                <span class="dash-step__chip dash-step__chip--count" aria-label="Количество заданий">&#128196; {{ phase_preview['item_count'] }}</span>
+                                {% endif %}
+                                {% if phase_preview.get('estimated_minutes') %}
+                                <span class="dash-step__chip dash-step__chip--time" aria-label="Время выполнения">&#9201; ~{{ phase_preview['estimated_minutes'] }} мин</span>
+                                {% endif %}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
                         {% if is_done %}
                         <div class="dash-step__result">&#10003; Этап закрыт</div>
                         {% elif phase_css == 'current' %}
@@ -322,6 +699,9 @@
                     </div>
                     {% if is_done %}
                     <span class="dash-step__btn">Готово &#10003;</span>
+                    {% if mission_level_info and phase_kind in mission_level_info.phase_xp %}
+                    <span class="dash-step__xp-gain" data-phase-xp="true" data-xp-amount="{{ mission_level_info.phase_xp[phase_kind] }}">+{{ mission_level_info.phase_xp[phase_kind] }} XP</span>
+                    {% endif %}
                     {% elif phase_css == 'current' %}
                     <a href="{{ phase_urls.get(phase.get('id', ''), '/dashboard?from=daily_plan') }}" class="dash-step__btn">Вперёд к очкам</a>
                     {% endif %}
@@ -329,6 +709,8 @@
             </div>
         {% endfor %}
         </div><!-- /dash-timeline -->
+        </div><!-- /dash-route -->
+        {% endif %}
 
     {% else %}
         {# ══════════════════════════════════════════
@@ -617,6 +999,33 @@
     {% endif %}
     </div>
 
+    <!-- Badges Showcase -->
+    {% if badges_showcase and (badges_showcase.total_count or badges_showcase.recent) %}
+    <div class="dash-badges" data-badges-showcase="true">
+        <div class="dash-badges__header">
+            <h3 class="dash-badges__heading">&#127941; Значки</h3>
+            <span class="dash-badges__count" data-badges-count="true">
+                {{ badges_showcase.earned_count }} из {{ badges_showcase.total_count }}
+            </span>
+        </div>
+        <div class="dash-badges__grid">
+            {% for badge in badges_showcase.recent %}
+            <div class="dash-badges__item dash-badges__item--earned" data-badge-item="earned" title="{{ badge.name }}{% if badge.description %} — {{ badge.description }}{% endif %}">
+                <span class="dash-badges__icon">{{ badge.icon or '&#127942;'|safe }}</span>
+                <span class="dash-badges__name">{{ badge.name }}</span>
+            </div>
+            {% endfor %}
+            {% for badge in badges_showcase.teasers %}
+            <div class="dash-badges__item dash-badges__item--locked" data-badge-item="locked" title="{{ badge.name }}{% if badge.description %} — {{ badge.description }}{% endif %}">
+                <span class="dash-badges__icon dash-badges__icon--locked" aria-hidden="true">&#128274;</span>
+                <span class="dash-badges__name dash-badges__name--locked">{{ badge.name }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        <a href="{{ url_for('study.achievements') }}" class="dash-badges__link">Все значки &rarr;</a>
+    </div>
+    {% endif %}
+
     <!-- Weekly Challenge -->
     {% if weekly_challenge is defined and weekly_challenge %}
     <div class="dash-challenge">
@@ -636,6 +1045,70 @@
         </div>
         <div class="dash-challenge__title">Нет активного челленджа</div>
         <div class="dash-challenge__desc">Новый челлендж появится в начале следующей недели</div>
+    </div>
+    {% endif %}
+
+    <!-- Weekly Progress Digest -->
+    {% if weekly_digest is defined and weekly_digest %}
+    <div class="dash-weekly" data-weekly-digest="true" aria-label="Прогресс за неделю">
+        <div class="dash-weekly__header">
+            <h3 class="dash-weekly__heading">&#128197; Неделя</h3>
+            {% if weekly_digest.xp_diff > 0 %}
+            <span class="dash-weekly__xp-diff dash-weekly__xp-diff--up" title="По сравнению с прошлой неделей">+{{ weekly_digest.xp_diff }} XP</span>
+            {% elif weekly_digest.xp_diff < 0 %}
+            <span class="dash-weekly__xp-diff dash-weekly__xp-diff--down" title="По сравнению с прошлой неделей">{{ weekly_digest.xp_diff }} XP</span>
+            {% else %}
+            <span class="dash-weekly__xp-diff" title="По сравнению с прошлой неделей">= XP</span>
+            {% endif %}
+        </div>
+
+        <!-- 7-day grid -->
+        <div class="dash-weekly__grid" data-weekly-grid="true">
+            {% for day in weekly_digest.days %}
+            <div class="dash-weekly__day dash-weekly__day--{{ day.state }}{% if day.is_today %} dash-weekly__day--today{% endif %}"
+                 data-day-state="{{ day.state }}"
+                 title="{{ day.date }}{% if day.state == 'complete' %} — выполнено{% elif day.state == 'partial' %} — частично{% elif day.state == 'missed' %} — пропущено{% elif day.state == 'future' %} — впереди{% endif %}">
+                <div class="dash-weekly__dot"></div>
+                <span class="dash-weekly__label">{{ day.label }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Weekly XP total -->
+        <div class="dash-weekly__xp" data-weekly-xp="true">
+            <span class="dash-weekly__xp-value">{{ weekly_digest.week_xp }} XP</span>
+            <span class="dash-weekly__xp-label">за эту неделю</span>
+        </div>
+
+        <!-- Mission type distribution -->
+        {% set total_missions = weekly_digest.mission_counts.progress + weekly_digest.mission_counts.repair + weekly_digest.mission_counts.reading %}
+        {% if total_missions > 0 %}
+        <div class="dash-weekly__missions" data-weekly-missions="true">
+            {% if weekly_digest.mission_counts.progress > 0 %}
+            <span class="dash-weekly__mission-tag dash-weekly__mission-tag--progress">&#128218; {{ weekly_digest.mission_counts.progress }}</span>
+            {% endif %}
+            {% if weekly_digest.mission_counts.repair > 0 %}
+            <span class="dash-weekly__mission-tag dash-weekly__mission-tag--repair">&#128295; {{ weekly_digest.mission_counts.repair }}</span>
+            {% endif %}
+            {% if weekly_digest.mission_counts.reading > 0 %}
+            <span class="dash-weekly__mission-tag dash-weekly__mission-tag--reading">&#128214; {{ weekly_digest.mission_counts.reading }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Weekly challenge progress embedded -->
+        {% if weekly_challenge is defined and weekly_challenge %}
+        <div class="dash-weekly__challenge" data-weekly-challenge-progress="true">
+            <div class="dash-weekly__challenge-header">
+                <span>{{ weekly_challenge.icon }} {{ weekly_challenge.title }}</span>
+                <span class="dash-weekly__challenge-count">{{ weekly_challenge.current }}/{{ weekly_challenge.target }}</span>
+            </div>
+            <div class="dash-weekly__challenge-bar">
+                <div class="dash-weekly__challenge-fill{% if weekly_challenge.completed %} dash-weekly__challenge-fill--done{% endif %}"
+                     style="width: {{ [weekly_challenge.current / weekly_challenge.target * 100, 100] | min }}%"></div>
+            </div>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 
@@ -999,7 +1472,7 @@
                 <a href="{{ url_for('study.index') }}" class="dash-progress__card dash-progress__card--words">
                     <div class="dash-progress__emoji">&#127183;</div>
                     <div class="dash-progress__data">
-                        <div class="dash-progress__value">{{ words_total }}</div>
+                        <div class="dash-progress__value">{{ words_total | default(0) }}</div>
                         <div class="dash-progress__label">&#1089;&#1083;&#1086;&#1074; &#1074; &#1082;&#1086;&#1083;&#1083;&#1077;&#1082;&#1094;&#1080;&#1080;</div>
                     </div>
                     <div class="dash-progress__arrow">&rsaquo;</div>
@@ -1009,7 +1482,7 @@
                 <a href="{{ url_for('grammar_lab.index') }}" class="dash-progress__card dash-progress__card--grammar">
                     <div class="dash-progress__emoji">&#129504;</div>
                     <div class="dash-progress__data">
-                        <div class="dash-progress__value">{{ grammar_studied }}<span class="dash-progress__total">/{{ grammar_total }}</span></div>
+                        <div class="dash-progress__value">{{ grammar_studied | default(0) }}<span class="dash-progress__total">/{{ grammar_total | default(0) }}</span></div>
                         <div class="dash-progress__label">&#1090;&#1077;&#1084; &#1075;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1080;</div>
                     </div>
                     <div class="dash-progress__arrow">&rsaquo;</div>
@@ -1029,8 +1502,8 @@
                 <a href="{{ url_for('books.book_list') }}" class="dash-progress__card dash-progress__card--books">
                     <div class="dash-progress__emoji">&#128218;</div>
                     <div class="dash-progress__data">
-                        <div class="dash-progress__value">{{ books_reading }}</div>
-                        <div class="dash-progress__label">{% if books_reading == 1 %}&#1082;&#1085;&#1080;&#1075;&#1072;{% elif books_reading < 5 %}&#1082;&#1085;&#1080;&#1075;&#1080;{% else %}&#1082;&#1085;&#1080;&#1075;{% endif %} &#1095;&#1080;&#1090;&#1072;&#1102;</div>
+                        <div class="dash-progress__value">{{ books_reading | default(0) }}</div>
+                        <div class="dash-progress__label">{% if books_reading == 1 %}&#1082;&#1085;&#1080;&#1075;&#1072;{% elif books_reading and books_reading < 5 %}&#1082;&#1085;&#1080;&#1075;&#1080;{% else %}&#1082;&#1085;&#1080;&#1075;{% endif %} &#1095;&#1080;&#1090;&#1072;&#1102;</div>
                     </div>
                     <div class="dash-progress__arrow">&rsaquo;</div>
                 </a>
@@ -1328,6 +1801,108 @@
 .dash-streak__fire { font-size: 1.125rem; }
 
 /* ============================================
+   Rank / Title badge (Task 14)
+   ============================================ */
+
+.dash-rank {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin-top: 0.625rem;
+}
+
+.dash-rank__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+    box-shadow: 0 0 0 2px var(--rank-color, rgba(255, 255, 255, 0.1)) inset;
+    backdrop-filter: blur(4px);
+    white-space: nowrap;
+}
+
+.dash-rank__icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.dash-rank__name {
+    white-space: nowrap;
+}
+
+.dash-rank__progress {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 150px;
+    max-width: 240px;
+    flex: 1 1 160px;
+    font-size: 0.75rem;
+    opacity: 0.95;
+}
+
+.dash-rank__progress-text {
+    color: rgba(255, 255, 255, 0.92);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+.dash-rank__progress-track {
+    display: block;
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.dash-rank__progress-fill {
+    display: block;
+    height: 100%;
+    background: var(--rank-color, #fff);
+    border-radius: 4px;
+    transition: width 0.6s ease-out;
+    box-shadow: 0 0 6px var(--rank-color, rgba(255, 255, 255, 0.4));
+}
+
+.dash-rank__progress--max .dash-rank__progress-text {
+    color: #fde68a;
+    font-weight: 600;
+}
+
+/* Per-rank colour accents used when --rank-color inline var is unavailable */
+.dash-rank--novice .dash-rank__badge { box-shadow: 0 0 0 2px #94a3b8 inset; }
+.dash-rank--explorer .dash-rank__badge { box-shadow: 0 0 0 2px #38bdf8 inset; }
+.dash-rank--student .dash-rank__badge { box-shadow: 0 0 0 2px #22c55e inset; }
+.dash-rank--expert .dash-rank__badge { box-shadow: 0 0 0 2px #a855f7 inset; }
+.dash-rank--master .dash-rank__badge { box-shadow: 0 0 0 2px #f59e0b inset; }
+.dash-rank--legend .dash-rank__badge { box-shadow: 0 0 0 2px #ef4444 inset; }
+.dash-rank--grandmaster .dash-rank__badge {
+    box-shadow: 0 0 0 2px #facc15 inset, 0 0 12px rgba(250, 204, 21, 0.5);
+}
+
+@media (max-width: 640px) {
+    .dash-rank {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.35rem;
+    }
+    .dash-rank__progress {
+        min-width: 0;
+        max-width: 100%;
+        width: 100%;
+    }
+}
+
+/* ============================================
    Daily Plan
    ============================================ */
 
@@ -1541,10 +2116,120 @@
 }
 
 .dash-step--phase .dash-step__body { border-left: 3px solid var(--dash-accent); }
+
+/* Phase-kind palette (recall=blue, learn=green, use=purple, read=amber, check=orange, close=gold).
+   Placed before state overrides so .dash-step--done / --current win on equal specificity via source order. */
+.dash-step--phase.dash-step--recall .dash-step__body { border-left: 3px solid #2563eb; }
+.dash-step--phase.dash-step--recall .dash-step__num { color: #2563eb; border-color: rgba(37, 99, 235, 0.2); background: rgba(37, 99, 235, 0.06); }
+.dash-step--phase.dash-step--recall .dash-step__icon { color: #2563eb; background: rgba(37, 99, 235, 0.12); }
+
+.dash-step--phase.dash-step--learn .dash-step__body { border-left: 3px solid #16a34a; }
+.dash-step--phase.dash-step--learn .dash-step__num { color: #16a34a; border-color: rgba(22, 163, 74, 0.2); background: rgba(22, 163, 74, 0.06); }
+.dash-step--phase.dash-step--learn .dash-step__icon { color: #16a34a; background: rgba(22, 163, 74, 0.12); }
+
+.dash-step--phase.dash-step--use .dash-step__body { border-left: 3px solid #9333ea; }
+.dash-step--phase.dash-step--use .dash-step__num { color: #9333ea; border-color: rgba(147, 51, 234, 0.2); background: rgba(147, 51, 234, 0.06); }
+.dash-step--phase.dash-step--use .dash-step__icon { color: #9333ea; background: rgba(147, 51, 234, 0.12); }
+
+.dash-step--phase.dash-step--read .dash-step__body { border-left: 3px solid #d97706; }
+.dash-step--phase.dash-step--read .dash-step__num { color: #d97706; border-color: rgba(217, 119, 6, 0.2); background: rgba(217, 119, 6, 0.06); }
+.dash-step--phase.dash-step--read .dash-step__icon { color: #d97706; background: rgba(217, 119, 6, 0.12); }
+
+.dash-step--phase.dash-step--check .dash-step__body { border-left: 3px solid #ea580c; }
+.dash-step--phase.dash-step--check .dash-step__num { color: #ea580c; border-color: rgba(234, 88, 12, 0.2); background: rgba(234, 88, 12, 0.06); }
+.dash-step--phase.dash-step--check .dash-step__icon { color: #ea580c; background: rgba(234, 88, 12, 0.12); }
+
+.dash-step--phase.dash-step--close .dash-step__body { border-left: 3px solid #ca8a04; }
+.dash-step--phase.dash-step--close .dash-step__num { color: #ca8a04; border-color: rgba(202, 138, 4, 0.2); background: rgba(202, 138, 4, 0.06); }
+.dash-step--phase.dash-step--close .dash-step__icon { color: #ca8a04; background: rgba(202, 138, 4, 0.12); }
+
+.dash-step--phase.dash-step--bonus .dash-step__body { border-left: 3px solid #f97316; border-style: dashed; }
+.dash-step--phase.dash-step--bonus .dash-step__num { color: #f97316; border-color: rgba(249, 115, 22, 0.3); background: rgba(249, 115, 22, 0.08); border-style: dashed; }
+.dash-step--phase.dash-step--bonus .dash-step__icon { color: #f97316; background: rgba(249, 115, 22, 0.12); }
+
+/* Icon bubble for mission phase cards (wraps emoji or SVG). */
+.dash-step--phase .dash-step__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+.dash-step--phase .dash-step__svg-icon {
+    width: 22px;
+    height: 22px;
+    display: block;
+}
+.dash-step--phase.dash-step--current .dash-step__icon { transform: scale(1.05); }
+
 .dash-step--phase.dash-step--done .dash-step__body { border-left: 3px solid var(--dash-success); }
 .dash-step--phase.dash-step--done .dash-step__num { color: var(--dash-success); border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.06); }
 .dash-step--phase.dash-step--current .dash-step__num { color: var(--dash-accent); border-color: rgba(80, 70, 229, 0.2); background: rgba(80, 70, 229, 0.06); }
 .dash-step--phase.dash-step--upcoming .dash-step__body { opacity: 0.6; }
+
+.dash-step__preview {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    margin-top: 0.5rem;
+    padding: 0.45rem 0.65rem;
+    background: rgba(80, 70, 229, 0.04);
+    border: 1px solid rgba(80, 70, 229, 0.08);
+    border-radius: var(--dash-radius-sm);
+}
+
+.dash-step__preview-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--dash-accent);
+    flex-shrink: 0;
+}
+
+.dash-step__preview-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--dash-text);
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.dash-step__preview-chips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-left: auto;
+}
+
+.dash-step__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.dash-step__chip--count {
+    background: rgba(80, 70, 229, 0.08);
+    color: var(--dash-accent);
+}
+
+.dash-step__chip--time {
+    background: rgba(245, 158, 11, 0.1);
+    color: #b45309;
+}
+
+.dash-step--done .dash-step__preview {
+    opacity: 0.75;
+}
 
 /* ============================================
    Today Summary
@@ -2673,6 +3358,9 @@
     .dash-step--current .dash-step__btn,
     .dash-step--upcoming .dash-step__btn { width: 100%; text-align: center; }
 
+    .dash-step__preview { flex-direction: column; align-items: flex-start; }
+    .dash-step__preview-chips { margin-left: 0; }
+
     .dash-summary__grid { gap: 1rem; }
 
     .dash-progress-overview__grid { grid-template-columns: 1fr; }
@@ -2840,6 +3528,714 @@
     background: var(--dash-accent-soft);
     color: var(--dash-accent);
 }
+
+/* ============================================
+   Task 7: Phase transition animations
+   ============================================ */
+
+/* Smooth progress-fill transition on the stepper (complements width: inline-style) */
+@keyframes dashPhaseProgressFill {
+    from { width: var(--dash-progress-from, 0%); }
+    to { width: var(--dash-progress-to, 100%); }
+}
+.dash-progress__fill[data-progress-fill="true"] {
+    transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dash-progress[data-plan-progress="true"].dash-progress--animate .dash-progress__fill {
+    animation: dashPhaseProgressFill 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Completed-phase checkmark pop-in animation */
+@keyframes dashPhaseComplete {
+    0%   { transform: scale(0.2); opacity: 0; }
+    50%  { transform: scale(1.25); opacity: 1; }
+    80%  { transform: scale(0.95); opacity: 1; }
+    100% { transform: scale(1);    opacity: 1; }
+}
+.dash-step__check {
+    display: inline-block;
+    transform-origin: center center;
+}
+.dash-step--phase.dash-step--just-completed .dash-step__check {
+    animation: dashPhaseComplete 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.dash-step--phase.dash-step--just-completed .dash-step__body {
+    animation: dashPhaseCompleteSlide 0.45s ease-out both;
+}
+@keyframes dashPhaseCompleteSlide {
+    0%   { transform: translateY(4px); opacity: 0.85; }
+    100% { transform: translateY(0);   opacity: 0.6; }
+}
+
+/* Active-phase pulse glow */
+@keyframes dashPhaseActivate {
+    0%   { box-shadow: 0 0 0 0 rgba(80, 70, 229, 0.45), 0 4px 20px rgba(80, 70, 229, 0.12); }
+    70%  { box-shadow: 0 0 0 12px rgba(80, 70, 229, 0), 0 4px 20px rgba(80, 70, 229, 0.12); }
+    100% { box-shadow: 0 0 0 0 rgba(80, 70, 229, 0), 0 4px 20px rgba(80, 70, 229, 0.12); }
+}
+.dash-step--phase.dash-step--current.dash-step--newly-active .dash-step__body {
+    animation: dashPhaseActivate 1.2s ease-out 2;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    .dash-progress__fill[data-progress-fill="true"],
+    .dash-step--phase.dash-step--just-completed .dash-step__check,
+    .dash-step--phase.dash-step--just-completed .dash-step__body,
+    .dash-step--phase.dash-step--current.dash-step--newly-active .dash-step__body {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* ============================================
+   Task 8: Mission roadmap — nodes + connectors
+   ============================================ */
+
+.dash-roadmap {
+    margin: 0.25rem 0 1rem;
+    padding: 0.75rem 0.5rem;
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius-sm);
+    box-shadow: var(--dash-shadow);
+}
+
+.dash-roadmap__track {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: 0.25rem;
+    min-height: 64px;
+}
+
+.dash-roadmap__node {
+    flex: 0 0 auto;
+    position: relative;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--dash-surface-alt);
+    border: 2px solid var(--dash-border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dash-roadmap__node-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dash-roadmap__node-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dash-text-muted);
+}
+
+.dash-roadmap__node-icon .dash-step__svg-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.dash-roadmap__node-index {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: 10px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--dash-text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+/* Connector between nodes (CSS-drawn line). Defaults to an upcoming
+   (dashed, muted) look; switches to solid on the completed journey trail. */
+.dash-roadmap__connector {
+    flex: 1 1 auto;
+    align-self: center;
+    height: 3px;
+    min-width: 16px;
+    max-width: 72px;
+    background: var(--dash-border);
+    border-radius: 2px;
+    transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.dash-roadmap__connector--done {
+    background: var(--dash-success, #10b981);
+}
+
+.dash-roadmap__connector--upcoming {
+    background: transparent;
+    background-image: linear-gradient(
+        to right,
+        var(--dash-border) 0,
+        var(--dash-border) 6px,
+        transparent 6px,
+        transparent 12px
+    );
+    background-size: 12px 3px;
+    background-repeat: repeat-x;
+    opacity: 0.75;
+}
+
+/* Task 9: Node state styles ------------------------------------------------ */
+
+/* Done: solid fill, contrasting check overlay, success tint */
+.dash-roadmap__node--done {
+    background: var(--dash-success, #10b981);
+    border-color: var(--dash-success, #10b981);
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+}
+.dash-roadmap__node--done .dash-roadmap__node-icon { color: #ffffff; }
+.dash-roadmap__node--done .dash-roadmap__node-index {
+    background: #ffffff;
+    color: var(--dash-success, #10b981);
+    border-color: var(--dash-success, #10b981);
+}
+.dash-roadmap__node-check {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    width: 22px;
+    height: 22px;
+    background: var(--dash-success, #10b981);
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.35);
+    animation: roadmap-node-check 0.45s cubic-bezier(.22,1,.36,1) both;
+}
+
+/* Current: 1.2x scale, accent glow, subtle pulse */
+.dash-roadmap__node--current {
+    background: var(--dash-accent-soft);
+    border-color: var(--dash-accent);
+    transform: scale(1.2);
+    box-shadow: 0 0 0 4px rgba(80, 70, 229, 0.18), 0 6px 14px rgba(80, 70, 229, 0.25);
+    animation: roadmap-node-pulse 2.4s ease-in-out infinite;
+    z-index: 1;
+}
+.dash-roadmap__node--current .dash-roadmap__node-icon { color: var(--dash-accent); }
+.dash-roadmap__node--current .dash-roadmap__node-index {
+    background: var(--dash-accent);
+    color: #fff;
+    border-color: var(--dash-accent);
+}
+
+/* Upcoming: gray fill, dimmed, locked feel */
+.dash-roadmap__node--upcoming {
+    background: var(--dash-surface-alt);
+    border-color: var(--dash-border);
+    border-style: dashed;
+    opacity: 0.55;
+}
+.dash-roadmap__node--upcoming .dash-roadmap__node-icon { color: var(--dash-text-muted); }
+.dash-roadmap__node--upcoming .dash-roadmap__node-index {
+    background: var(--dash-surface);
+    color: var(--dash-text-muted);
+    border-color: var(--dash-border);
+}
+
+/* Bonus: sparkle border (dashed gold), layered on top of base state */
+.dash-roadmap__node--bonus {
+    border-style: dashed;
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25), 0 0 14px rgba(245, 158, 11, 0.35);
+}
+.dash-roadmap__node--bonus.dash-roadmap__node--upcoming {
+    opacity: 0.85;
+}
+.dash-roadmap__node-sparkle {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #fde68a 0%, #f59e0b 100%);
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.4);
+    animation: roadmap-node-sparkle 2.2s ease-in-out infinite;
+}
+
+@keyframes roadmap-node-pulse {
+    0%, 100% {
+        transform: scale(1.2);
+        box-shadow: 0 0 0 4px rgba(80, 70, 229, 0.18), 0 6px 14px rgba(80, 70, 229, 0.25);
+    }
+    50% {
+        transform: scale(1.26);
+        box-shadow: 0 0 0 7px rgba(80, 70, 229, 0.14), 0 8px 18px rgba(80, 70, 229, 0.32);
+    }
+}
+
+@keyframes roadmap-node-check {
+    0%   { transform: scale(0.2); opacity: 0; }
+    70%  { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes roadmap-node-sparkle {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50%      { transform: scale(1.18); opacity: 1; }
+}
+
+/* ============================================
+   Task 10: Start & finish markers
+   ============================================ */
+
+.dash-roadmap__marker {
+    flex: 0 0 auto;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+}
+
+.dash-roadmap__marker-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: var(--dash-surface-alt);
+    border: 2px solid var(--dash-border);
+}
+
+.dash-roadmap__marker-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dash-roadmap__marker--start .dash-roadmap__marker-inner {
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    border-color: #38bdf8;
+    box-shadow: 0 2px 6px rgba(56, 189, 248, 0.25);
+}
+
+.dash-roadmap__marker--finish .dash-roadmap__marker-inner {
+    background: var(--dash-surface-alt);
+    border-color: var(--dash-border);
+    border-style: dashed;
+}
+
+.dash-roadmap__marker--finish.dash-roadmap__marker--pending .dash-roadmap__marker-icon {
+    color: var(--dash-text-muted);
+    opacity: 0.8;
+}
+
+.dash-roadmap__marker--finish.dash-roadmap__marker--complete .dash-roadmap__marker-inner {
+    background: linear-gradient(135deg, #fde68a 0%, #f59e0b 100%);
+    border-color: #f59e0b;
+    border-style: solid;
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2), 0 4px 12px rgba(245, 158, 11, 0.35);
+    animation: roadmap-finish-pulse 2.4s ease-in-out infinite;
+}
+
+.dash-roadmap__marker--finish.dash-roadmap__marker--complete .dash-roadmap__marker-icon {
+    color: #ffffff;
+    filter: drop-shadow(0 1px 1px rgba(120, 53, 15, 0.35));
+    animation: roadmap-finish-icon 0.9s cubic-bezier(.22,1,.36,1) both;
+}
+
+.dash-roadmap__marker-distance {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--dash-text-muted);
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: 999px;
+    padding: 2px 8px;
+    line-height: 1.2;
+}
+
+/* Confetti-style burst for the completed finish marker */
+.dash-roadmap__marker-burst {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+}
+
+.dash-roadmap__marker-burst-piece {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+    background: #f59e0b;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    animation: roadmap-finish-burst 1.6s ease-out infinite;
+    animation-delay: calc(var(--i, 0) * 0.12s);
+}
+
+.dash-roadmap__marker-burst-piece:nth-child(1) { --angle: 0deg;   background: #f59e0b; }
+.dash-roadmap__marker-burst-piece:nth-child(2) { --angle: 60deg;  background: #fbbf24; }
+.dash-roadmap__marker-burst-piece:nth-child(3) { --angle: 120deg; background: #fde68a; }
+.dash-roadmap__marker-burst-piece:nth-child(4) { --angle: 180deg; background: #f97316; }
+.dash-roadmap__marker-burst-piece:nth-child(5) { --angle: 240deg; background: #fb923c; }
+.dash-roadmap__marker-burst-piece:nth-child(6) { --angle: 300deg; background: #fcd34d; }
+
+@keyframes roadmap-finish-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2), 0 4px 12px rgba(245, 158, 11, 0.35);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.14), 0 6px 16px rgba(245, 158, 11, 0.45);
+    }
+}
+
+@keyframes roadmap-finish-icon {
+    0%   { transform: scale(0.4) rotate(-12deg); opacity: 0; }
+    60%  { transform: scale(1.15) rotate(4deg);  opacity: 1; }
+    100% { transform: scale(1) rotate(0deg);     opacity: 1; }
+}
+
+@keyframes roadmap-finish-burst {
+    0% {
+        transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) translateY(0) scale(0.4);
+        opacity: 0;
+    }
+    15% {
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) translateY(-42px) scale(0.9);
+        opacity: 0;
+    }
+}
+
+/* ============================================
+   Task 11: Mobile-responsive roadmap breakpoints
+   ============================================ */
+
+/* Swipe hint — shown only on tablets where horizontal scroll is active */
+.dash-roadmap__swipe-hint {
+    display: none;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--dash-text-muted);
+    margin-top: 0.5rem;
+    letter-spacing: 0.02em;
+    user-select: none;
+}
+
+.dash-roadmap__swipe-hint::before {
+    content: "\2190\2003\2192";
+    margin-right: 0.35em;
+    opacity: 0.75;
+}
+
+/* Mobile (< 640px): zigzag vertical layout, 48px nodes, full-width info cards.
+   DOM order now includes start/finish markers and edge connectors in addition
+   to nodes and inner connectors. Zigzag targets nodes by their explicit
+   data-node-index (0,2,4... left; 1,3,5... right) so markers/edge connectors
+   don't disrupt the alternation. Node/marker hit areas stay >= 44px via min-* to
+   meet touch target guidelines even though visual chips shrink to 48px. */
+@media (max-width: 640px) {
+    .dash-roadmap {
+        padding: 1rem 0.75rem;
+    }
+    .dash-roadmap__track {
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        gap: 0.25rem;
+        overflow: visible;
+    }
+    .dash-roadmap__node {
+        align-self: center;
+        width: 48px;
+        height: 48px;
+        min-width: 44px;
+        min-height: 44px;
+    }
+    .dash-roadmap__node[data-node-index="0"],
+    .dash-roadmap__node[data-node-index="2"],
+    .dash-roadmap__node[data-node-index="4"],
+    .dash-roadmap__node[data-node-index="6"],
+    .dash-roadmap__node[data-node-index="8"] {
+        align-self: flex-start;
+        margin-left: 12%;
+    }
+    .dash-roadmap__node[data-node-index="1"],
+    .dash-roadmap__node[data-node-index="3"],
+    .dash-roadmap__node[data-node-index="5"],
+    .dash-roadmap__node[data-node-index="7"],
+    .dash-roadmap__node[data-node-index="9"] {
+        align-self: flex-end;
+        margin-right: 12%;
+    }
+    .dash-roadmap__node-icon .dash-step__svg-icon {
+        width: 20px;
+        height: 20px;
+    }
+    .dash-roadmap__connector {
+        flex: 0 0 auto;
+        width: 3px;
+        height: 20px;
+        min-width: 0;
+        max-width: none;
+        margin: 0 auto;
+    }
+    .dash-roadmap__marker {
+        align-self: center;
+        min-width: 44px;
+        min-height: 44px;
+    }
+    .dash-roadmap__marker-distance {
+        position: static;
+        transform: none;
+        margin-top: 4px;
+    }
+    .dash-roadmap__marker--finish {
+        margin-bottom: 1.25rem;
+    }
+    .dash-roadmap__swipe-hint {
+        display: none;
+    }
+}
+
+/* Tablet (641-1024px): horizontal scroll with snap points.
+   Nodes remain in a single row that exceeds viewport width; scroll-snap keeps
+   each node or marker aligned to the container start so partial taps don't land
+   users between checkpoints. Swipe hint surfaces for touch users. */
+@media (min-width: 641px) and (max-width: 1024px) {
+    .dash-roadmap {
+        padding: 0.75rem 0.5rem;
+    }
+    .dash-roadmap__track {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: flex-start;
+        overflow-x: auto;
+        overflow-y: visible;
+        scroll-snap-type: x mandatory;
+        scroll-padding-inline: 1rem;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 0.25rem;
+    }
+    .dash-roadmap__node,
+    .dash-roadmap__marker {
+        scroll-snap-align: center;
+        min-width: 44px;
+        min-height: 44px;
+    }
+    .dash-roadmap__swipe-hint {
+        display: block;
+    }
+}
+
+/* Desktop (> 1024px): full horizontal layout, all nodes visible inline,
+   no scroll required. */
+@media (min-width: 1025px) {
+    .dash-roadmap__track {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: center;
+        overflow: visible;
+    }
+    .dash-roadmap__swipe-hint {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dash-roadmap__node,
+    .dash-roadmap__connector,
+    .dash-roadmap__node-check,
+    .dash-roadmap__node-sparkle,
+    .dash-roadmap__marker--finish.dash-roadmap__marker--complete .dash-roadmap__marker-inner,
+    .dash-roadmap__marker--finish.dash-roadmap__marker--complete .dash-roadmap__marker-icon,
+    .dash-roadmap__marker-burst-piece {
+        transition: none !important;
+        animation: none !important;
+    }
+    .dash-roadmap__node--current {
+        transform: scale(1.08);
+    }
+    .dash-roadmap__marker-burst-piece {
+        opacity: 0;
+    }
+}
+
+/* Task 33: Route board container ------------------------------------------- */
+.dash-route {
+    position: relative;
+    margin-bottom: 16px;
+}
+.dash-route--done .dash-timeline .dash-step--current {
+    /* No current step when all done */
+    border-left-color: #10b981;
+}
+
+/* Compact fallback: single-column mobile route, no horizontal overflow */
+.dash-route--compact .dash-roadmap__track {
+    flex-direction: column;
+    overflow-x: hidden;
+}
+.dash-route--compact .dash-roadmap__connector {
+    width: 2px;
+    height: 24px;
+    min-width: 2px;
+}
+
+@media (max-width: 640px) {
+    .dash-route {
+        overflow-x: hidden;
+    }
+    .dash-route .dash-roadmap {
+        overflow-x: hidden;
+    }
+    .dash-route--compact .dash-roadmap__track {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* ============================================
+   Task 35: Overtake and checkpoint animations
+   ============================================ */
+
+/* Token bounce when the user's token moves forward on the route */
+@keyframes route-token-move {
+    0%   { transform: translateX(-50%) translateY(0) scale(1); }
+    30%  { transform: translateX(-50%) translateY(-8px) scale(1.15); }
+    55%  { transform: translateX(-50%) translateY(-4px) scale(1.08); }
+    75%  { transform: translateX(-50%) translateY(-2px) scale(1.04); }
+    100% { transform: translateX(-50%) translateY(0) scale(1); }
+}
+.dash-route-token--just-moved {
+    animation: route-token-move 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    z-index: 5;
+}
+
+/* Overtake flash: user avatar glows when passing a rival */
+@keyframes route-token-overtake {
+    0%   { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.65); transform: scale(1); }
+    40%  { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); transform: scale(1.28); }
+    70%  { transform: scale(1.12); }
+    100% { transform: scale(1); box-shadow: none; }
+}
+.dash-route-token--overtaking .dash-route-token__avatar {
+    animation: route-token-overtake 0.7s ease-out both;
+}
+
+/* Brief toast that appears below the token strip on overtake */
+.dash-route-overtake-toast {
+    position: absolute;
+    bottom: -26px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    background: var(--dash-accent, #5046e5);
+    color: #fff;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(80, 70, 229, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    animation: route-overtake-toast-in 2.4s ease-out both;
+    z-index: 10;
+}
+@keyframes route-overtake-toast-in {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(6px); }
+    15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+    75%  { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* Newly reached checkpoint: roadmap current node pulses strongly on arrival */
+@keyframes roadmap-node-just-reached {
+    0%   { transform: scale(1.2);  box-shadow: 0 0 0 4px rgba(80,70,229,.18), 0 6px 14px rgba(80,70,229,.25); }
+    35%  { transform: scale(1.38); box-shadow: 0 0 0 12px rgba(80,70,229,.06), 0 8px 22px rgba(80,70,229,.38); }
+    65%  { transform: scale(1.22); }
+    100% { transform: scale(1.2);  box-shadow: 0 0 0 4px rgba(80,70,229,.18), 0 6px 14px rgba(80,70,229,.25); }
+}
+.dash-roadmap__node--current.dash-roadmap__node--just-reached {
+    animation: roadmap-node-just-reached 0.65s cubic-bezier(.22,1,.36,1) both;
+}
+
+/* Newly completed checkpoint: done node pops in with a satisfying scale */
+@keyframes roadmap-node-completed {
+    0%   { transform: scale(0.8); opacity: 0.55; }
+    55%  { transform: scale(1.12); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+.dash-roadmap__node--done.dash-roadmap__node--just-completed {
+    animation: roadmap-node-completed 0.45s cubic-bezier(.22,1,.36,1) both;
+}
+
+/* Calm finish-state: gentle opacity breathe instead of full celebration */
+@keyframes route-finish-calm {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.88; }
+}
+.dash-route--finish-calm .dash-roadmap__marker--finish.dash-roadmap__marker--complete .dash-roadmap__marker-inner {
+    animation: route-finish-calm 3.2s ease-in-out infinite;
+}
+
+/* Reduced-motion guard for Task 35 animations */
+@media (prefers-reduced-motion: reduce) {
+    .dash-route-token--just-moved,
+    .dash-route-token--overtaking .dash-route-token__avatar,
+    .dash-route-overtake-toast,
+    .dash-roadmap__node--current.dash-roadmap__node--just-reached,
+    .dash-roadmap__node--done.dash-roadmap__node--just-completed,
+    .dash-route--finish-calm .dash-roadmap__marker--finish.dash-roadmap__marker--complete .dash-roadmap__marker-inner {
+        animation: none !important;
+    }
+}
+
 /* Streak recovery */
 .dash-streak__coins { margin-left: 12px; font-size: 0.85em; opacity: 0.8; }
 .dash-streak--restored .dash-streak__restored {
@@ -3159,6 +4555,111 @@
 }
 
 /* ============================================
+   Badges Showcase
+   ============================================ */
+.dash-badges {
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--dash-shadow);
+    animation: dashSlideUp 0.45s ease-out both;
+    animation-delay: 0.08s;
+}
+.dash-badges__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+.dash-badges__heading {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--dash-text);
+}
+.dash-badges__count {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--dash-text-muted);
+    background: #f1f5f9;
+    padding: 2px 10px;
+    border-radius: 999px;
+}
+.dash-badges__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+.dash-badges__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem;
+    border-radius: 10px;
+    background: #f9fafb;
+    border: 1px solid transparent;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    text-align: center;
+}
+.dash-badges__item--earned {
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.14), rgba(245, 158, 11, 0.08));
+    border-color: rgba(245, 158, 11, 0.25);
+}
+.dash-badges__item--earned:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(245, 158, 11, 0.18);
+}
+.dash-badges__item--locked {
+    opacity: 0.55;
+    filter: grayscale(0.5);
+}
+.dash-badges__icon {
+    font-size: 1.75rem;
+    line-height: 1;
+}
+.dash-badges__icon--locked {
+    font-size: 1.5rem;
+    color: var(--dash-text-muted);
+}
+.dash-badges__name {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--dash-text);
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+.dash-badges__name--locked {
+    color: var(--dash-text-muted);
+}
+.dash-badges__link {
+    display: inline-block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--dash-accent);
+    text-decoration: none;
+}
+.dash-badges__link:hover {
+    text-decoration: underline;
+}
+@media (max-width: 640px) {
+    .dash-badges__grid {
+        grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+        gap: 0.5rem;
+    }
+    .dash-badges__icon { font-size: 1.5rem; }
+    .dash-badges__name { font-size: 0.625rem; }
+}
+
+/* ============================================
    Weekly Challenge Card
    ============================================ */
 .dash-challenge {
@@ -3176,6 +4677,105 @@
 .dash-challenge__bar { height: 8px; background: #e5e7eb; border-radius: 4px; margin-top: 8px; overflow: hidden; }
 .dash-challenge__fill { height: 100%; background: linear-gradient(90deg, #5046e5, #7c3aed); border-radius: 4px; transition: width 0.5s; }
 .dash-challenge__progress-text { font-weight: 700; color: #5046e5; }
+
+/* ============================================
+   Weekly Progress Digest (Task 30)
+   ============================================ */
+.dash-weekly {
+    background: var(--color-surface, #fff);
+    border-radius: 14px;
+    padding: 1rem 1.125rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    animation: dashSlideUp 0.5s ease-out both;
+    animation-delay: 0.38s;
+}
+.dash-weekly__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+.dash-weekly__heading {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--color-text, #111827);
+}
+.dash-weekly__xp-diff {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+.dash-weekly__xp-diff--up { background: #dcfce7; color: #15803d; }
+.dash-weekly__xp-diff--down { background: #fee2e2; color: #dc2626; }
+.dash-weekly__grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 0.75rem;
+}
+.dash-weekly__day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.dash-weekly__dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    transition: transform 0.2s;
+}
+.dash-weekly__day--complete .dash-weekly__dot { background: #22c55e; border-color: #16a34a; }
+.dash-weekly__day--partial .dash-weekly__dot { background: #fde047; border-color: #ca8a04; }
+.dash-weekly__day--missed .dash-weekly__dot { background: #e5e7eb; border-color: #d1d5db; }
+.dash-weekly__day--future .dash-weekly__dot { background: #f3f4f6; border-color: #e5e7eb; opacity: 0.5; }
+.dash-weekly__day--today .dash-weekly__dot { box-shadow: 0 0 0 3px rgba(99,102,241,0.3); }
+.dash-weekly__label {
+    font-size: 0.6875rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+.dash-weekly__day--today .dash-weekly__label { color: #6366f1; font-weight: 700; }
+.dash-weekly__xp {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 0.5rem;
+}
+.dash-weekly__xp-value { font-size: 1.125rem; font-weight: 800; color: #6366f1; }
+.dash-weekly__xp-label { font-size: 0.8125rem; color: #6b7280; }
+.dash-weekly__missions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+.dash-weekly__mission-tag {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+.dash-weekly__mission-tag--progress { background: #eff6ff; color: #2563eb; }
+.dash-weekly__mission-tag--repair { background: #fef3c7; color: #b45309; }
+.dash-weekly__mission-tag--reading { background: #f0fdf4; color: #15803d; }
+.dash-weekly__challenge { margin-top: 0.5rem; }
+.dash-weekly__challenge-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    color: #6b7280;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.dash-weekly__challenge-count { font-weight: 700; color: #5046e5; }
+.dash-weekly__challenge-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
+.dash-weekly__challenge-fill { height: 100%; background: linear-gradient(90deg, #5046e5, #7c3aed); border-radius: 3px; transition: width 0.5s; }
+.dash-weekly__challenge-fill--done { background: linear-gradient(90deg, #22c55e, #16a34a); }
 
 /* ============================================
    Insights Row (Reading Speed + Grammar Levels)
@@ -3333,6 +4933,118 @@
     color: var(--dash-accent);
     text-align: right;
 }
+
+/* ── Task 26: Mission XP / Level widget ── */
+.dash-xp {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: var(--dash-card-bg);
+    border-radius: 10px;
+    margin: 0 0 12px;
+    border: 1px solid var(--dash-border);
+    flex-wrap: wrap;
+}
+.dash-xp__level {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--dash-accent);
+    white-space: nowrap;
+    background: rgba(var(--dash-accent-rgb, 99,102,241), 0.12);
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+.dash-xp__progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 120px;
+}
+.dash-xp__text {
+    font-size: 0.75rem;
+    color: var(--dash-text-muted);
+    white-space: nowrap;
+}
+.dash-xp__bar {
+    flex: 1;
+    height: 6px;
+    background: var(--dash-border);
+    border-radius: 3px;
+    overflow: hidden;
+    min-width: 60px;
+}
+.dash-xp__bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #a78bfa);
+    border-radius: 3px;
+    transition: width 0.6s ease;
+}
+.dash-xp__multiplier {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+.dash-xp__multiplier--base {
+    color: var(--dash-text-muted);
+    background: transparent;
+}
+
+/* Phase XP gain indicator */
+.dash-step__xp-gain {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+
+/* ── Task 26: Level-up golden flash overlay ── */
+@keyframes xpLevelUpFlash {
+    0%   { opacity: 0; transform: translateY(-20px) scale(0.9); }
+    15%  { opacity: 1; transform: translateY(0)     scale(1.05); }
+    80%  { opacity: 1; transform: translateY(0)     scale(1); }
+    100% { opacity: 0; transform: translateY(0)     scale(1); }
+}
+.dash-xp-levelup {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    background: linear-gradient(135deg, #f59e0b, #fcd34d);
+    color: #1f2937;
+    padding: 14px 28px;
+    border-radius: 14px;
+    box-shadow: 0 4px 30px rgba(245,158,11,0.45);
+    animation: xpLevelUpFlash 3.5s ease forwards;
+    pointer-events: none;
+}
+.dash-xp-levelup__inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.dash-xp-levelup__icon {
+    font-size: 1.4rem;
+}
+.dash-xp-levelup__text {
+    font-size: 1rem;
+    font-weight: 700;
+}
+@media (prefers-reduced-motion: reduce) {
+    .dash-xp-levelup { animation: none; }
+    .dash-xp__bar-fill { transition: none; }
+}
 </style>
 
 <script>
@@ -3384,6 +5096,184 @@ async function repairStreak() {
         }
     }
 })();
+
+{% if mission_plan %}
+// Task 7: Phase transition animations triggered when returning from a daily-plan step.
+// Strategy: persist last-seen done-phase-ids per URL in sessionStorage. On load, diff
+// against current done phases — any new done phase gets a one-shot "just-completed"
+// class, and the newly-current phase gets a "newly-active" pulse.
+(function() {
+    var missionAttr = 'data-mission' + '-plan';
+    var timeline = document.querySelector('[' + missionAttr + '="true"]');
+    if (!timeline) return;
+
+    var steps = timeline.querySelectorAll('.dash-step--phase[data-phase-id]');
+    if (!steps.length) return;
+
+    var storeKey = 'mission_phase_states_v1';
+    var currentDone = [];
+    steps.forEach(function(step) {
+        if (step.getAttribute('data-phase-state') === 'done') {
+            currentDone.push(step.getAttribute('data-phase-id'));
+        }
+    });
+
+    var params = new URLSearchParams(window.location.search);
+    var cameFromPlan = params.get('from') === 'daily_plan';
+
+    var previousDone = [];
+    try {
+        var raw = sessionStorage.getItem(storeKey);
+        if (raw) {
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) previousDone = parsed;
+        }
+    } catch (e) {
+        previousDone = [];
+    }
+
+    if (cameFromPlan) {
+        var newlyDone = currentDone.filter(function(id) { return previousDone.indexOf(id) === -1; });
+        if (newlyDone.length) {
+            steps.forEach(function(step) {
+                var id = step.getAttribute('data-phase-id');
+                if (newlyDone.indexOf(id) !== -1) {
+                    step.classList.add('dash-step--just-completed');
+                }
+                if (step.getAttribute('data-phase-state') === 'current') {
+                    step.classList.add('dash-step--newly-active');
+                }
+            });
+            var progress = document.querySelector('[data-plan-progress="true"]');
+            if (progress) {
+                progress.classList.add('dash-progress--animate');
+                var fill = progress.querySelector('[data-progress-fill="true"]');
+                if (fill) {
+                    var pct = progress.getAttribute('data-progress-pct') || '0';
+                    fill.style.setProperty('--dash-progress-to', pct + '%');
+                    fill.style.setProperty('--dash-progress-from', '0%');
+                }
+            }
+        }
+    }
+
+    try {
+        sessionStorage.setItem(storeKey, JSON.stringify(currentDone));
+    } catch (e) { /* storage full or disabled — non-fatal */ }
+})();
+
+// Task 35: Route overtake and checkpoint animations.
+// Persists route positions in sessionStorage; on ?from=daily_plan detects:
+//   - newly reached checkpoint → pulse the current roadmap node
+//   - newly completed checkpoint → pop-in animation on done roadmap node
+//   - overtake (user moved past a rival) → bounce + flash on user token
+//   - calm finish on first all-done visit
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    var cameFromPlan = params.get('from') === 'daily_plan';
+    var routeContainer = document.querySelector('[data-route-container="true"]');
+    if (!routeContainer || !cameFromPlan) {
+        // Still persist current state even if not animating, so next visit has a baseline
+        if (routeContainer) {
+            var tokens35 = routeContainer.querySelectorAll('[data-animate-token="true"]');
+            var pos35 = {};
+            tokens35.forEach(function(tok) {
+                pos35[tok.getAttribute('data-token-role')] = parseFloat(tok.getAttribute('data-route-position') || '0');
+            });
+            try {
+                sessionStorage.setItem('mission_route_state_v1', JSON.stringify({
+                    positions: pos35,
+                    checkpoint: parseInt(routeContainer.getAttribute('data-current-checkpoint') || '0', 10),
+                    finishState: routeContainer.getAttribute('data-finish-state') || ''
+                }));
+            } catch (e) { /* non-fatal */ }
+        }
+        return;
+    }
+
+    var storeKey35 = 'mission_route_state_v1';
+    var finishState = routeContainer.getAttribute('data-finish-state') || '';
+    var currentCheckpoint = parseInt(routeContainer.getAttribute('data-current-checkpoint') || '0', 10);
+
+    var tokens = routeContainer.querySelectorAll('[data-animate-token="true"]');
+    var currentPositions = {};
+    tokens.forEach(function(tok) {
+        currentPositions[tok.getAttribute('data-token-role')] = parseFloat(tok.getAttribute('data-route-position') || '0');
+    });
+
+    var prev = {};
+    try {
+        var raw = sessionStorage.getItem(storeKey35);
+        if (raw) prev = JSON.parse(raw);
+    } catch (e) { prev = {}; }
+
+    var prevPositions  = prev.positions  || {};
+    var prevCheckpoint = (prev.checkpoint != null) ? prev.checkpoint : currentCheckpoint;
+    var prevFinish     = prev.finishState || '';
+
+    // Detect user token movement
+    var myCurrentPos = currentPositions['me'];
+    var myPrevPos    = prevPositions['me'];
+    var userMoved    = (myCurrentPos != null && myPrevPos != null && myCurrentPos > myPrevPos);
+
+    if (userMoved) {
+        tokens.forEach(function(tok) {
+            if (tok.getAttribute('data-token-role') === 'me') {
+                tok.classList.add('dash-route-token--just-moved');
+            }
+        });
+
+        // Overtake detection: rival was ahead of user before, now is at or behind user
+        tokens.forEach(function(tok) {
+            var role = tok.getAttribute('data-token-role');
+            if (role === 'me' || role === 'behind') return;
+            var rivalCurrent = parseFloat(tok.getAttribute('data-route-position') || '0');
+            var rivalPrev    = prevPositions[role];
+            if (rivalPrev != null && rivalPrev > myPrevPos && rivalCurrent <= myCurrentPos) {
+                tokens.forEach(function(t) {
+                    if (t.getAttribute('data-token-role') === 'me') {
+                        t.classList.add('dash-route-token--overtaking');
+                        var toast = document.createElement('span');
+                        toast.className = 'dash-route-overtake-toast';
+                        toast.setAttribute('data-overtake-toast', 'true');
+                        toast.textContent = 'Обгон!';
+                        t.appendChild(toast);
+                    }
+                });
+            }
+        });
+    }
+
+    // Checkpoint transition animations
+    if (currentCheckpoint !== prevCheckpoint) {
+        var nodes = routeContainer.querySelectorAll('[data-roadmap-node="true"]');
+        nodes.forEach(function(node) {
+            var idx   = parseInt(node.getAttribute('data-node-index') || '0', 10);
+            var state = node.getAttribute('data-node-state');
+            if (state === 'current' && idx === currentCheckpoint) {
+                node.classList.add('dash-roadmap__node--just-reached');
+            }
+            if (state === 'done' && idx === prevCheckpoint) {
+                node.classList.add('dash-roadmap__node--just-completed');
+            }
+        });
+    }
+
+    // Calm finish animation on first all-done visit
+    if (finishState === 'done' && prevFinish !== 'done') {
+        routeContainer.classList.add('dash-route--finish-calm');
+    }
+
+    // Persist current state
+    try {
+        sessionStorage.setItem(storeKey35, JSON.stringify({
+            positions: currentPositions,
+            checkpoint: currentCheckpoint,
+            finishState: finishState
+        }));
+    } catch (e) { /* non-fatal */ }
+})();
+{% endif %}
 </script>
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/share.js') }}" defer></script>{% endblock %}

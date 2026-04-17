@@ -3,9 +3,9 @@
 {% block title %}{{ level.code }} {{ level.name }} — Курс английского | LLT English{% endblock %}
 
 {% block head_extra %}
-<meta name="description" content="{{ meta_description }}">
+<meta name="description" content="{{ meta_description | default('')}}">
 <meta property="og:title" content="{{ level.code }} {{ level.name }} — Курс английского | LLT English">
-<meta property="og:description" content="{{ meta_description }}">
+<meta property="og:description" content="{{ meta_description | default('')}}">
 <meta property="og:type" content="website">
 <link rel="canonical" href="https://llt-english.com/courses/{{ level.code }}">
 <script type="application/ld+json">

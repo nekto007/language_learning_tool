@@ -14,7 +14,7 @@ This ensures 100% book coverage over ~100-200+ days instead of just 7.5%.
 import logging
 import re
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 
 import pytz
 

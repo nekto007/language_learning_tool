@@ -33,7 +33,6 @@ def api_auth_required(f):
             try:
                 verify_jwt_in_request()
                 user_id = get_jwt_identity()
-                from app.auth.models import User
                 user = db_get_user(user_id)
                 if user is None:
                     return jsonify({

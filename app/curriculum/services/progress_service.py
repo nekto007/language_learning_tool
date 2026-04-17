@@ -12,6 +12,15 @@ from app.utils.db import db
 logger = logging.getLogger(__name__)
 
 
+def _invalidate_user_progress_cache(user_id: int) -> None:
+    """Invalidate all per-user curriculum caches after progress mutation."""
+    try:
+        from app.curriculum.cache import CurriculumCache
+        CurriculumCache.invalidate_user_cache(user_id)
+    except Exception as exc:
+        logger.warning("Failed to invalidate user cache for user_id=%s: %s", user_id, exc)
+
+
 class ProgressService:
     """Service for managing user progress through curriculum"""
 
@@ -202,6 +211,7 @@ class ProgressService:
                 progress.completed_at = datetime.now(UTC)
 
             db.session.commit()
+            _invalidate_user_progress_cache(user_id)
             return progress
 
         except Exception as e:
@@ -264,6 +274,7 @@ class ProgressService:
             db.session.add(progress)
 
         db.session.commit()
+        _invalidate_user_progress_cache(user_id)
 
         # Process grading and achievements if lesson completed
         completion_result = None

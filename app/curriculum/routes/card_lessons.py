@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 
 from flask import jsonify, render_template, request
 from flask_login import current_user, login_required
-from marshmallow import ValidationError
 
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.routes.lessons import lessons_bp
@@ -288,6 +287,7 @@ def render_card_lesson(lesson):
         fc_show_book_context=False,
         fc_nothing_to_study=len(fc_cards) == 0,
         fc_extra_study=True,
+        fc_lesson_mode=True,
     )
 
 
@@ -451,6 +451,7 @@ def card_lesson(lesson_id):
         fc_show_book_context=False,
         fc_nothing_to_study=len(fc_cards) == 0,
         fc_extra_study=True,
+        fc_lesson_mode=True,
     )
 
 

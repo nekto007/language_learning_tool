@@ -336,6 +336,18 @@
     line-height: 1.4;
 }
 
+.ss-form__error {
+    font-size: 0.8125rem;
+    color: var(--ss-danger);
+    line-height: 1.4;
+    display: none;
+}
+
+.ss-form__input--error {
+    border-color: var(--ss-danger) !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, .15) !important;
+}
+
 /* ── Toggle Switch ── */
 .ss-toggle {
     display: flex;
@@ -940,7 +952,8 @@
                             </svg>
                             {{ form.new_words_per_day.label }}
                         </label>
-                        {{ form.new_words_per_day(class="ss-form__input") }}
+                        {{ form.new_words_per_day(class="ss-form__input", data_min="1", data_max="50") }}
+                        <span class="ss-form__error" id="error-new_words_per_day"></span>
                         <span class="ss-form__hint">
                             {{ _('Максимальное количество новых слов в день') }}
                         </span>
@@ -953,7 +966,8 @@
                             </svg>
                             {{ form.reviews_per_day.label }}
                         </label>
-                        {{ form.reviews_per_day(class="ss-form__input") }}
+                        {{ form.reviews_per_day(class="ss-form__input", data_min="5", data_max="500") }}
+                        <span class="ss-form__error" id="error-reviews_per_day"></span>
                         <span class="ss-form__hint">
                             {{ _('Максимальное количество повторений в день') }}
                         </span>
@@ -998,7 +1012,8 @@
                         </svg>
                         {{ form.show_hint_time.label }}
                     </label>
-                    {{ form.show_hint_time(class="ss-form__input") }}
+                    {{ form.show_hint_time(class="ss-form__input", data_min="0", data_max="60") }}
+                    <span class="ss-form__error" id="error-show_hint_time"></span>
                     <span class="ss-form__hint">
                         {{ _('Время в секундах до появления подсказок (0 для отключения)') }}
                     </span>
@@ -1252,5 +1267,78 @@ function unlinkTelegram() {
 }
 
 document.addEventListener('DOMContentLoaded', checkTelegramStatus);
+
+// ── Form validation ──
+(function () {
+    const FIELD_RULES = [
+        { id: 'new_words_per_day', min: 1, max: 50,  label: 'Новых слов в день' },
+        { id: 'reviews_per_day',   min: 5, max: 500, label: 'Повторений в день' },
+        { id: 'show_hint_time',    min: 0, max: 60,  label: 'Подсказка (сек)' },
+    ];
+
+    function clearError(fieldId) {
+        const input = document.getElementById(fieldId);
+        const errEl = document.getElementById('error-' + fieldId);
+        if (!input || !errEl) return;
+        input.classList.remove('ss-form__input--error');
+        errEl.textContent = '';
+        errEl.style.display = 'none';
+    }
+
+    function showError(fieldId, message) {
+        const input = document.getElementById(fieldId);
+        const errEl = document.getElementById('error-' + fieldId);
+        if (!input || !errEl) return;
+        input.classList.add('ss-form__input--error');
+        errEl.textContent = message;
+        errEl.style.display = 'block';
+    }
+
+    function validateField(rule) {
+        const input = document.getElementById(rule.id);
+        if (!input) return true;
+        const raw = input.value.trim();
+        if (raw === '') {
+            showError(rule.id, rule.label + ': поле обязательно для заполнения');
+            return false;
+        }
+        const val = Number(raw);
+        if (!Number.isInteger(val) || isNaN(val)) {
+            showError(rule.id, rule.label + ': введите целое число');
+            return false;
+        }
+        if (val < rule.min || val > rule.max) {
+            showError(rule.id, rule.label + ': допустимый диапазон ' + rule.min + '–' + rule.max);
+            return false;
+        }
+        clearError(rule.id);
+        return true;
+    }
+
+    const form = document.querySelector('form[action*="settings"]');
+    if (form) {
+        // Live validation on blur
+        FIELD_RULES.forEach(function (rule) {
+            const input = document.getElementById(rule.id);
+            if (input) {
+                input.addEventListener('blur', function () { validateField(rule); });
+                input.addEventListener('input', function () { clearError(rule.id); });
+            }
+        });
+
+        // Block submission if any field is invalid
+        form.addEventListener('submit', function (e) {
+            let valid = true;
+            FIELD_RULES.forEach(function (rule) {
+                if (!validateField(rule)) valid = false;
+            });
+            if (!valid) {
+                e.preventDefault();
+                const firstErr = form.querySelector('.ss-form__input--error');
+                if (firstErr) firstErr.focus();
+            }
+        });
+    }
+})();
 </script>
 {% endblock %}

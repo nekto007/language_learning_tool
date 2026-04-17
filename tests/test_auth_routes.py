@@ -14,7 +14,7 @@ import pytest
 import uuid
 from unittest.mock import patch, MagicMock
 
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.auth.models import User
 from app.utils.db import db
@@ -58,6 +58,26 @@ class TestLogin:
             'password': 'whatever',
         }, follow_redirects=False)
         assert r.status_code == 401
+
+    def test_failed_login_emits_warning_log(self, client, test_user, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING, logger='app.auth.routes'):
+            client.post('/login', data={
+                'username_or_email': test_user.username,
+                'password': 'wrongpassword',
+            }, follow_redirects=False)
+        assert 'failed login attempt' in caplog.text
+        assert test_user.username in caplog.text
+
+    def test_failed_login_nonexistent_user_emits_warning_log(self, client, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING, logger='app.auth.routes'):
+            client.post('/login', data={
+                'username_or_email': 'ghost_user_xyz',
+                'password': 'whatever',
+            }, follow_redirects=False)
+        assert 'failed login attempt' in caplog.text
+        assert 'ghost_user_xyz' in caplog.text
 
     def test_login_inactive_user(self, client, db_session, test_user):
         test_user.active = False
@@ -115,6 +135,26 @@ class TestSafeRedirect:
         assert r.status_code == 302
         loc = r.headers.get('Location', '')
         assert 'javascript' not in loc
+
+    def test_blocks_https_external_url(self, client, test_user):
+        """login with next=https://evil.com must redirect to home, not evil.com."""
+        r = client.post('/login?next=https://evil.com', data={
+            'username_or_email': test_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=False)
+        assert r.status_code == 302
+        loc = r.headers.get('Location', '')
+        assert 'evil.com' not in loc
+
+    def test_allows_safe_internal_path(self, client, test_user):
+        """login with next=/study/ must redirect to /study/."""
+        r = client.post('/login?next=/study/', data={
+            'username_or_email': test_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=False)
+        assert r.status_code == 302
+        loc = r.headers.get('Location', '')
+        assert '/study/' in loc
 
 
 # ---------------------------------------------------------------------------
@@ -341,6 +381,87 @@ class TestTokenHelpers:
         with app.app_context():
             assert verify_reset_token('totally_invalid') is None
 
+    def test_token_stored_in_db(self, app, db_session, test_user):
+        """get_reset_token must store a hash in PasswordResetToken table."""
+        from app.auth.routes import get_reset_token, _hash_token
+        from app.auth.models import PasswordResetToken
+        with app.app_context():
+            token = get_reset_token(test_user.id)
+            token_hash = _hash_token(token)
+            record = PasswordResetToken.query.filter_by(token_hash=token_hash).first()
+            assert record is not None
+            assert record.user_id == test_user.id
+            assert record.used_at is None
+
+    def test_token_single_use_rejected_after_use(self, app, db_session, test_user):
+        """verify_reset_token must return None after token is marked as used."""
+        from datetime import datetime, timezone
+        from app.auth.routes import get_reset_token, verify_reset_token, _hash_token
+        from app.auth.models import PasswordResetToken
+        with app.app_context():
+            token = get_reset_token(test_user.id)
+            # Verify once — should succeed
+            uid = verify_reset_token(token)
+            assert uid == test_user.id
+
+            # Mark token as used
+            token_hash = _hash_token(token)
+            record = PasswordResetToken.query.filter_by(token_hash=token_hash).first()
+            record.used_at = datetime.now(timezone.utc)
+            db_session.commit()
+
+            # Verify again — must be rejected
+            uid2 = verify_reset_token(token)
+            assert uid2 is None
+
+
+class TestPasswordResetSingleUse:
+    """Integration tests: using the same reset token twice must fail."""
+
+    def test_second_use_of_token_rejected(self, client, db_session, test_user):
+        """GET /reset_password/<token> must redirect away if token already used."""
+        from app.auth.routes import get_reset_token, _hash_token
+        from app.auth.models import PasswordResetToken
+        from datetime import datetime, timezone
+
+        with client.application.app_context():
+            token = get_reset_token(test_user.id)
+
+            # Simulate first use: mark token as used
+            token_hash = _hash_token(token)
+            record = PasswordResetToken.query.filter_by(token_hash=token_hash).first()
+            record.used_at = datetime.now(timezone.utc)
+            db_session.commit()
+
+        # Second GET with the same token must redirect (token now invalid)
+        r = client.get(f'/reset_password/{token}')
+        assert r.status_code == 302
+
+    @patch('app.auth.routes.email_sender')
+    def test_successful_reset_marks_token_used(self, mock_email, client, db_session, test_user):
+        """After a successful password reset, the token must be marked as used."""
+        from app.auth.routes import get_reset_token, _hash_token
+        from app.auth.models import PasswordResetToken
+
+        mock_email.send_email.return_value = True
+
+        with client.application.app_context():
+            token = get_reset_token(test_user.id)
+
+        # Submit the reset form (password must pass strength check: no sequences like 123)
+        r = client.post(f'/reset_password/{token}', data={
+            'password': 'Xk9$mP2vL!qw',
+            'password2': 'Xk9$mP2vL!qw',
+        }, follow_redirects=False)
+        assert r.status_code == 302
+
+        # Token record must now have used_at set
+        with client.application.app_context():
+            token_hash = _hash_token(token)
+            record = PasswordResetToken.query.filter_by(token_hash=token_hash).first()
+            assert record is not None
+            assert record.used_at is not None
+
 
 
 # ---------------------------------------------------------------------------
@@ -405,3 +526,67 @@ class TestAuthExceptionHandling:
                 except Exception:
                     pass
             assert 'Failed to change password' in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Duplicate email registration — DB-level IntegrityError handling (task 41)
+# ---------------------------------------------------------------------------
+
+class TestDuplicateEmailRegistration:
+    """Tests for race-condition duplicate email handling at the DB constraint level."""
+
+    def _make_integrity_error(self, msg: str) -> IntegrityError:
+        """Helper: build an IntegrityError whose orig.lower() contains `msg`."""
+        orig = Exception(msg)
+        return IntegrityError("INSERT INTO users ...", {}, orig)
+
+    @pytest.mark.smoke
+    def test_duplicate_email_db_constraint_returns_400(self, client, db_session):
+        """When DB-level IntegrityError fires for email, route returns 400 with duplicate email message."""
+        unique = uuid.uuid4().hex[:8]
+        err = self._make_integrity_error(f"UNIQUE constraint failed: users.email")
+        with patch('app.auth.routes.db.session.commit', side_effect=err):
+            r = client.post('/register', data={
+                'username': f'newuser_{unique}',
+                'email': f'newuser_{unique}@example.com',
+                'password': 'Xk9$mP2vL!qw',
+                'password2': 'Xk9$mP2vL!qw',
+            }, follow_redirects=True)
+        assert r.status_code == 400
+        assert 'уже зарегистрирован' in r.data.decode()
+
+    def test_duplicate_email_db_session_clean_after_error(self, client, db_session):
+        """DB session must be clean (rollback called) after duplicate email IntegrityError."""
+        unique = uuid.uuid4().hex[:8]
+        err = self._make_integrity_error("UNIQUE constraint failed: users.email")
+        rollback_called = []
+
+        original_rollback = db.session.rollback
+
+        def tracking_rollback():
+            rollback_called.append(True)
+            return original_rollback()
+
+        with patch('app.auth.routes.db.session.commit', side_effect=err):
+            with patch.object(db.session, 'rollback', side_effect=tracking_rollback):
+                client.post('/register', data={
+                    'username': f'newuser_{unique}',
+                    'email': f'newuser_{unique}@example.com',
+                    'password': 'Xk9$mP2vL!qw',
+                    'password2': 'Xk9$mP2vL!qw',
+                }, follow_redirects=True)
+        assert rollback_called, "db.session.rollback() must be called on duplicate email error"
+
+    def test_non_email_integrity_error_shows_generic_message(self, client, db_session):
+        """IntegrityError unrelated to email shows generic error, not duplicate email message."""
+        unique = uuid.uuid4().hex[:8]
+        err = self._make_integrity_error("UNIQUE constraint failed: users.username")
+        with patch('app.auth.routes.db.session.commit', side_effect=err):
+            r = client.post('/register', data={
+                'username': f'newuser_{unique}',
+                'email': f'newuser_{unique}@example.com',
+                'password': 'Xk9$mP2vL!qw',
+                'password2': 'Xk9$mP2vL!qw',
+            }, follow_redirects=True)
+        assert r.status_code == 200
+        assert 'уже зарегистрирован' not in r.data.decode()

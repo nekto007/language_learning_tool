@@ -435,6 +435,15 @@ class TestCompleteSession:
 
         assert response.status_code == 302
 
+    def test_requires_json_content_type(self, authenticated_client):
+        """Test that non-JSON request returns 415"""
+        response = authenticated_client.post(
+            '/study/api/complete-session',
+            data='session_id=1',
+            content_type='application/x-www-form-urlencoded'
+        )
+        assert response.status_code == 415
+
 
 class TestCompleteMatchingGame:
     """Test /api/complete-matching-game POST endpoint - Lines 1610-1743"""
@@ -715,3 +724,89 @@ class TestCompleteQuiz:
         })
 
         assert response.status_code == 302
+
+
+class TestLessonModeDailyLimit:
+    """Test lesson_mode flag on /api/update-study-item bypasses daily new-card limits."""
+
+    def test_lesson_mode_bypasses_daily_limit(self, authenticated_client, test_words_list, study_settings, db_session):
+        """A card graded with lesson_mode=True proceeds past the daily new-card threshold."""
+        study_settings.new_words_per_day = 0
+        db_session.commit()
+
+        word = test_words_list[0]
+        response = authenticated_client.post('/study/api/update-study-item', json={
+            'word_id': word.id,
+            'direction': 'eng-rus',
+            'quality': 3,
+            'is_new': True,
+            'lesson_mode': True,
+        })
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['success'] is True
+
+    def test_generic_free_study_blocked_at_threshold(self, authenticated_client, test_words_list, study_settings, db_session):
+        """Without lesson_mode, a brand-new card is blocked when the daily limit is 0."""
+        study_settings.new_words_per_day = 0
+        db_session.commit()
+
+        word = test_words_list[0]
+        response = authenticated_client.post('/study/api/update-study-item', json={
+            'word_id': word.id,
+            'direction': 'eng-rus',
+            'quality': 3,
+            'is_new': True,
+        })
+
+        assert response.status_code in [200, 429]
+        data = json.loads(response.data)
+        if response.status_code == 200:
+            assert data.get('success') is False
+            assert 'daily_limit' in data.get('error', '').lower()
+        else:
+            assert data.get('error') == 'daily_limit_exceeded'
+
+    def test_lesson_mode_false_still_enforces_limit(self, authenticated_client, test_words_list, study_settings, db_session):
+        """Explicitly passing lesson_mode=False still enforces the daily limit."""
+        study_settings.new_words_per_day = 0
+        db_session.commit()
+
+        word = test_words_list[0]
+        response = authenticated_client.post('/study/api/update-study-item', json={
+            'word_id': word.id,
+            'direction': 'eng-rus',
+            'quality': 3,
+            'is_new': True,
+            'lesson_mode': False,
+        })
+
+        assert response.status_code in [200, 429]
+        data = json.loads(response.data)
+        if response.status_code == 200:
+            assert data.get('success') is False
+        else:
+            assert data.get('error') == 'daily_limit_exceeded'
+
+    def test_lesson_mode_reviews_not_affected(self, authenticated_client, user_words, user_card_directions, study_settings, db_session):
+        """Cards that already have first_reviewed set are never blocked by daily new-card limits."""
+        from datetime import datetime, timezone
+        study_settings.new_words_per_day = 0
+        db_session.commit()
+
+        # Mark the direction as already reviewed so is_first_review=False
+        direction = user_card_directions[0]
+        direction.first_reviewed = datetime.now(timezone.utc)
+        db_session.commit()
+
+        response = authenticated_client.post('/study/api/update-study-item', json={
+            'word_id': direction.user_word.word_id,
+            'direction': direction.direction,
+            'quality': 3,
+            'is_new': False,
+        })
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['success'] is True

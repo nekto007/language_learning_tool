@@ -64,6 +64,117 @@ def _notify_challenge_completed(user_id: int, challenge: dict, week_start: date)
         logger.exception("Failed to commit weekly challenge completion for user %s", user_id)
 
 
+def get_weekly_digest(user_id: int) -> dict[str, Any]:
+    """Return weekly progress digest data for the dashboard widget.
+
+    Returns:
+        days: list of 7 dicts (Mon-Sun) with keys: label, date, state
+              (state: 'complete', 'partial', 'missed', 'future')
+        week_xp: total XP earned this week
+        prev_week_xp: total XP earned last week
+        xp_diff: week_xp - prev_week_xp
+        mission_counts: dict {progress: N, repair: N, reading: N}
+    """
+    from app.achievements.models import StreakEvent
+    from app.achievements.xp_service import get_today_xp
+    from sqlalchemy import Integer, func
+
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())  # Monday
+    prev_week_start = week_start - timedelta(days=7)
+    prev_week_end = week_start - timedelta(days=1)
+
+    # 7-day grid
+    day_labels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+    days: list[dict[str, Any]] = []
+
+    # Fetch all StreakEvents for this week once
+    week_events = StreakEvent.query.filter(
+        StreakEvent.user_id == user_id,
+        StreakEvent.event_date >= week_start,
+        StreakEvent.event_date <= today,
+        StreakEvent.event_type.in_(['earned_daily', 'plan_completed', 'free_repair', 'spent_repair']),
+    ).all()
+
+    # Group by date
+    events_by_date: dict[date, list[StreakEvent]] = {}
+    for ev in week_events:
+        events_by_date.setdefault(ev.event_date, []).append(ev)
+
+    # Fetch plan_completed events for full completion indicator
+    completed_dates: set[date] = {
+        ev.event_date for ev in week_events
+        if ev.event_type == 'plan_completed'
+    }
+    # earned_daily = at least partial activity
+    active_dates: set[date] = {
+        ev.event_date for ev in week_events
+        if ev.event_type in ('earned_daily', 'free_repair')
+    }
+
+    for i in range(7):
+        day_date = week_start + timedelta(days=i)
+        if day_date > today:
+            state = 'future'
+        elif day_date in completed_dates:
+            state = 'complete'
+        elif day_date in active_dates:
+            state = 'partial'
+        else:
+            state = 'missed'
+        days.append({
+            'label': day_labels[i],
+            'date': day_date.isoformat(),
+            'state': state,
+            'is_today': day_date == today,
+        })
+
+    # Weekly XP sums
+    def _sum_xp_for_range(start: date, end: date) -> int:
+        result = (
+            StreakEvent.query
+            .filter(
+                StreakEvent.user_id == user_id,
+                StreakEvent.event_date >= start,
+                StreakEvent.event_date <= end,
+                StreakEvent.event_type.in_(['xp_phase', 'xp_perfect_day', 'xp_surprise']),
+            )
+            .with_entities(
+                func.sum(StreakEvent.details['xp'].astext.cast(Integer))
+            )
+            .scalar()
+        )
+        return int(result or 0)
+
+    week_xp = _sum_xp_for_range(week_start, today)
+    prev_week_xp = _sum_xp_for_range(prev_week_start, prev_week_end)
+    xp_diff = week_xp - prev_week_xp
+
+    # Mission type distribution for this week
+    mission_events = StreakEvent.query.filter(
+        StreakEvent.user_id == user_id,
+        StreakEvent.event_date >= week_start,
+        StreakEvent.event_date <= today,
+        StreakEvent.event_type == 'mission_selected',
+    ).all()
+
+    mission_counts: dict[str, int] = {'progress': 0, 'repair': 0, 'reading': 0}
+    for ev in mission_events:
+        if ev.details:
+            mt = ev.details.get('mission_type', '')
+            if mt in mission_counts:
+                mission_counts[mt] += 1
+
+    return {
+        'days': days,
+        'week_xp': week_xp,
+        'prev_week_xp': prev_week_xp,
+        'xp_diff': xp_diff,
+        'mission_counts': mission_counts,
+        'week_start': week_start.isoformat(),
+    }
+
+
 def _count_progress(user_id: int, challenge_type: str, week_start: date) -> int:
     """Count progress towards *challenge_type* since *week_start*."""
     from app.curriculum.models import LessonProgress

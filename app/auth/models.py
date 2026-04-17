@@ -223,6 +223,27 @@ class User(db.Model, UserMixin):
         return f'<User {self.username}>'
 
 
+class PasswordResetToken(db.Model):
+    """Tracks password reset tokens to enforce single-use."""
+    __tablename__ = 'password_reset_tokens'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    token_hash = Column(String(64), nullable=False, unique=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    used_at = Column(DateTime, nullable=True)
+
+    user = relationship('User', foreign_keys=[user_id])
+
+    __table_args__ = (
+        Index('idx_prt_token_hash', 'token_hash'),
+        Index('idx_prt_user_id', 'user_id'),
+    )
+
+    def __repr__(self):
+        return f'<PasswordResetToken user_id={self.user_id} used={self.used_at is not None}>'
+
+
 class ReferralLog(db.Model):
     __tablename__ = 'referral_logs'
 

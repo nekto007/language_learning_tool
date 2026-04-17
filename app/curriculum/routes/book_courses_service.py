@@ -7,7 +7,7 @@ from sqlalchemy import case
 from sqlalchemy.orm import joinedload
 
 from app.curriculum.book_courses import (
-    BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress,
+    BookCourse, BookCourseEnrollment, BookCourseModule,
 )
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
 from app.curriculum.services.book_srs_integration import BookSRSIntegration

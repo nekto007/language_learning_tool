@@ -5,9 +5,8 @@
 """
 import logging
 from functools import wraps
-from datetime import datetime, timezone
 
-from flask import abort, flash, redirect, request, url_for, jsonify
+from flask import flash, redirect, request, url_for, jsonify
 from flask_login import current_user, login_required
 
 from app.utils.db import db

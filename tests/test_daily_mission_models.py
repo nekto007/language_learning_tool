@@ -1,6 +1,7 @@
 import pytest
 
 from app.daily_plan.models import (
+    MODE_CATEGORY_MAP,
     MissionType,
     PhaseKind,
     SourceKind,
@@ -73,13 +74,70 @@ def _make_plan(num_phases: int = 3, **kwargs) -> MissionPlan:
     return MissionPlan(**defaults)
 
 
+class TestModeCategoryMap:
+    """Verify MODE_CATEGORY_MAP covers all modes and is used by streak_service and routes."""
+
+    EXPECTED_CATEGORIES = {'words', 'lesson', 'book_course', 'grammar', 'books', 'meta', 'bonus'}
+
+    def test_all_categories_present(self):
+        assert set(MODE_CATEGORY_MAP.values()) == self.EXPECTED_CATEGORIES
+
+    def test_all_modes_mapped(self):
+        expected_modes = {
+            'srs_review', 'guided_recall', 'book_vocab_recall', 'micro_check',
+            'meaning_prompt', 'vocab_drill', 'reading_vocab_extract',
+            'curriculum_lesson', 'lesson_practice',
+            'book_course_lesson', 'book_course_practice',
+            'grammar_practice', 'targeted_quiz',
+            'book_reading',
+            'success_marker',
+            'fun_fact_quiz', 'speed_review', 'word_scramble',
+        }
+        assert set(MODE_CATEGORY_MAP.keys()) == expected_modes
+
+    def test_words_modes(self):
+        words_modes = [m for m, c in MODE_CATEGORY_MAP.items() if c == 'words']
+        assert 'srs_review' in words_modes
+        assert 'guided_recall' in words_modes
+        assert 'vocab_drill' in words_modes
+
+    def test_lesson_modes(self):
+        lesson_modes = [m for m, c in MODE_CATEGORY_MAP.items() if c == 'lesson']
+        assert set(lesson_modes) == {'curriculum_lesson', 'lesson_practice'}
+
+    def test_grammar_modes(self):
+        grammar_modes = [m for m, c in MODE_CATEGORY_MAP.items() if c == 'grammar']
+        assert set(grammar_modes) == {'grammar_practice', 'targeted_quiz'}
+
+    def test_books_modes(self):
+        books_modes = [m for m, c in MODE_CATEGORY_MAP.items() if c == 'books']
+        assert set(books_modes) == {'book_reading'}
+
+    def test_book_course_modes(self):
+        bc_modes = [m for m, c in MODE_CATEGORY_MAP.items() if c == 'book_course']
+        assert set(bc_modes) == {'book_course_lesson', 'book_course_practice'}
+
+    def test_streak_service_uses_registry(self):
+        """streak_service._MODE_DONE_CHECK derives from MODE_CATEGORY_MAP (excludes success_marker)."""
+        from app.achievements.streak_service import _MODE_DONE_CHECK
+        assert 'success_marker' not in _MODE_DONE_CHECK
+        for k, v in _MODE_DONE_CHECK.items():
+            assert MODE_CATEGORY_MAP[k] == v
+
+    def test_routes_imports_registry(self):
+        """routes module should import MODE_CATEGORY_MAP (verified via module attribute)."""
+        import app.words.routes as routes_mod
+        assert hasattr(routes_mod, 'MODE_CATEGORY_MAP')
+        assert routes_mod.MODE_CATEGORY_MAP is MODE_CATEGORY_MAP
+
+
 class TestEnums:
     def test_mission_type_values(self):
         assert set(m.value for m in MissionType) == {"progress", "repair", "reading"}
 
     def test_phase_kind_values(self):
         assert set(p.value for p in PhaseKind) == {
-            "recall", "learn", "use", "read", "check", "close",
+            "recall", "learn", "use", "read", "check", "close", "bonus",
         }
 
     def test_source_kind_values(self):
@@ -156,20 +214,24 @@ class TestMissionPlan:
         assert len(plan.phases) == 4
 
     def test_empty_phases_rejected(self):
-        with pytest.raises(ValueError, match="3-4 phases"):
+        with pytest.raises(ValueError, match="3-5 phases"):
             _make_plan(phases=[])
 
     def test_1_phase_rejected(self):
-        with pytest.raises(ValueError, match="3-4 phases"):
+        with pytest.raises(ValueError, match="3-5 phases"):
             _make_plan(phases=[_make_phase()])
 
     def test_2_phases_rejected(self):
-        with pytest.raises(ValueError, match="3-4 phases"):
+        with pytest.raises(ValueError, match="3-5 phases"):
             _make_plan(phases=[_make_phase(), _make_phase()])
 
-    def test_5_phases_rejected(self):
-        with pytest.raises(ValueError, match="3-4 phases"):
-            _make_plan(phases=[_make_phase() for _ in range(5)])
+    def test_valid_5_phases(self):
+        plan = _make_plan(phases=[_make_phase() for _ in range(5)])
+        assert len(plan.phases) == 5
+
+    def test_6_phases_rejected(self):
+        with pytest.raises(ValueError, match="3-5 phases"):
+            _make_plan(phases=[_make_phase() for _ in range(6)])
 
     def test_legacy_default_none(self):
         plan = _make_plan()

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import random
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -7,6 +9,8 @@ from sqlalchemy import func
 
 from app.utils.db import db
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
+from app.daily_plan.level_utils import get_user_current_cefr_level, _cefr_code_to_order
+from app.daily_plan.mission_selector import detect_primary_track
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
 from app.grammar_lab.models import (
@@ -19,19 +23,145 @@ from app.study.models import UserWord, UserCardDirection
 from app.books.models import Book, Chapter, UserChapterProgress
 
 from app.daily_plan.models import (
+    MODE_CATEGORY_MAP,
     Mission,
     MissionPhase,
     MissionPlan,
     MissionType,
     PhaseKind,
+    PhasePreview,
     PrimaryGoal,
     PrimarySource,
     SourceKind,
 )
 from app.daily_plan.repair_pressure import RepairBreakdown
 
+logger = logging.getLogger(__name__)
+
+
+# Fallback substitution rules: when a category appears twice,
+# replace the second occurrence with an alternative (mode, SourceKind).
+_CATEGORY_SUBSTITUTIONS: dict[str, list[tuple[str, SourceKind]]] = {
+    'words': [
+        ('grammar_practice', SourceKind.grammar_lab),
+        ('targeted_quiz', SourceKind.grammar_lab),
+        ('book_reading', SourceKind.books),
+    ],
+    'lesson': [
+        ('vocab_drill', SourceKind.vocab),
+        ('grammar_practice', SourceKind.grammar_lab),
+    ],
+    'grammar': [
+        ('vocab_drill', SourceKind.vocab),
+        ('meaning_prompt', SourceKind.vocab),
+        ('book_reading', SourceKind.books),
+    ],
+    'books': [
+        ('vocab_drill', SourceKind.vocab),
+        ('grammar_practice', SourceKind.grammar_lab),
+    ],
+    'book_course': [
+        ('vocab_drill', SourceKind.vocab),
+        ('grammar_practice', SourceKind.grammar_lab),
+    ],
+}
+
+_SUBSTITUTE_MODE_TITLES: dict[str, str] = {
+    'grammar_practice': 'Практика грамматики',
+    'targeted_quiz': 'Грамматический квиз',
+    'book_reading': 'Читаем книгу',
+    'vocab_drill': 'Тренировка слов',
+    'meaning_prompt': 'Угадай значение',
+}
+
+# Bonus phase: 20% chance, one of three fun mini-modes.
+BONUS_PHASE_CHANCE = 0.20
+BONUS_MODES: list[tuple[str, str]] = [
+    ('fun_fact_quiz', 'Викторина: факты языка'),
+    ('speed_review', 'Спидран: быстрое повторение'),
+    ('word_scramble', 'Анаграмма: собери слово'),
+]
+
+
+def _maybe_add_bonus_phase(
+    phases: list[MissionPhase],
+    rng: Optional[random.Random] = None,
+) -> list[MissionPhase]:
+    """Append a random bonus phase with BONUS_PHASE_CHANCE probability.
+
+    The bonus phase is always required=False and uses PhaseKind.bonus.
+    Callers pass a seeded `rng` in tests for deterministic behaviour.
+    """
+    _rng = rng or random
+    if _rng.random() >= BONUS_PHASE_CHANCE:
+        return phases
+    mode, title = _rng.choice(BONUS_MODES)
+    bonus = MissionPhase(
+        phase=PhaseKind.bonus,
+        title=title,
+        source_kind=SourceKind.vocab,
+        mode=mode,
+        required=False,
+        preview=PhasePreview(
+            content_title=title,
+            estimated_minutes=3,
+        ),
+    )
+    return phases + [bonus]
+
+
+def _deduplicate_phases(phases: list[MissionPhase]) -> list[MissionPhase]:
+    """Ensure no two phases share the same activity category.
+
+    When a duplicate is detected, the later phase is replaced with an
+    alternative mode from ``_CATEGORY_SUBSTITUTIONS`` whose category has
+    not been seen yet.  If no viable substitute exists the phase is kept
+    as-is (``MissionPlan.__post_init__`` will log a warning).
+    """
+    seen_categories: set[str] = set()
+    used_modes: set[str] = {p.mode for p in phases}
+    result: list[MissionPhase] = []
+
+    for phase in phases:
+        cat = MODE_CATEGORY_MAP.get(phase.mode)
+        if cat is None or cat not in seen_categories:
+            if cat is not None:
+                seen_categories.add(cat)
+            result.append(phase)
+            continue
+
+        # Duplicate category — try to substitute.
+        substituted = False
+        for alt_mode, alt_source in _CATEGORY_SUBSTITUTIONS.get(cat, []):
+            alt_cat = MODE_CATEGORY_MAP.get(alt_mode)
+            if alt_cat in seen_categories or alt_mode in used_modes:
+                continue
+            result.append(MissionPhase(
+                phase=phase.phase,
+                title=_SUBSTITUTE_MODE_TITLES.get(alt_mode, phase.title),
+                source_kind=alt_source,
+                mode=alt_mode,
+                required=phase.required,
+                completed=phase.completed,
+                preview=None,
+            ))
+            if alt_cat is not None:
+                seen_categories.add(alt_cat)
+            used_modes.add(alt_mode)
+            substituted = True
+            break
+
+        if not substituted:
+            # No viable substitute; keep the original.
+            result.append(phase)
+            seen_categories.add(cat)
+
+    return result
+
+
 def _count_srs_due(user_id: int) -> int:
-    now = datetime.now(timezone.utc)
+    # next_review is stored as naive UTC (Column(DateTime)), so now must be naive UTC too
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     mix_word_ids = get_daily_plan_mix_word_ids(user_id)
 
     query = (
@@ -51,7 +181,8 @@ def _count_srs_due(user_id: int) -> int:
 
 
 def _count_grammar_due(user_id: int) -> int:
-    now = datetime.now(timezone.utc)
+    # next_review is stored as naive UTC (Column(DateTime)), so now must be naive UTC too
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     return (
         db.session.query(func.count(UserGrammarExercise.id))
         .filter(
@@ -63,46 +194,113 @@ def _count_grammar_due(user_id: int) -> int:
     ) or 0
 
 
+def _next_unfinished_lesson_in_module(user_id: int, module_id: int) -> Optional[Any]:
+    """Return the next unfinished lesson in a module for a user.
+
+    Checks for prior completed progress and resumes after the last completed lesson.
+    Returns None if the module is empty or all lessons are already completed.
+    """
+    last_in_mod = (
+        LessonProgress.query
+        .join(Lessons, LessonProgress.lesson_id == Lessons.id)
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+            Lessons.module_id == module_id,
+        )
+        .order_by(Lessons.number.desc())
+        .first()
+    )
+    if last_in_mod:
+        completed_l = Lessons.query.get(last_in_mod.lesson_id)
+        if completed_l:
+            return Lessons.query.filter(
+                Lessons.module_id == module_id,
+                Lessons.number > completed_l.number,
+            ).order_by(Lessons.number).first()
+        return None  # broken FK — skip module
+    return Lessons.query.filter_by(module_id=module_id).order_by(Lessons.number).first()
+
+
 def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
     last_completed = LessonProgress.query.filter(
         LessonProgress.user_id == user_id,
         LessonProgress.status == 'completed',
-    ).order_by(LessonProgress.completed_at.desc()).first()
+    ).order_by(LessonProgress.completed_at.desc().nullslast(), LessonProgress.id.desc()).first()
 
     if last_completed:
         lesson = Lessons.query.get(last_completed.lesson_id)
         if lesson:
             module = Module.query.get(lesson.module_id)
             if module:
+                # Determine the user's effective CEFR level (max of progress and onboarding).
+                # If onboarding level exceeds the current module's level, jump ahead instead
+                # of continuing sequentially — handles "A2 progress + C1 onboarding" case.
+                current_level = CEFRLevel.query.get(module.level_id)
+                effective_level_code = get_user_current_cefr_level(user_id, db)
+                effective_level_order = _cefr_code_to_order(effective_level_code, db)
+                if current_level and effective_level_order > current_level.order:
+                    eligible_modules = Module.query.join(CEFRLevel).filter(
+                        CEFRLevel.order >= effective_level_order,
+                    ).order_by(CEFRLevel.order.asc(), Module.number.asc()).all()
+                    if eligible_modules:
+                        for m in eligible_modules:
+                            next_l = _next_unfinished_lesson_in_module(user_id, m.id)
+                            if next_l:
+                                jm = Module.query.get(next_l.module_id)
+                                return {
+                                    'title': next_l.title,
+                                    'lesson_id': next_l.id,
+                                    'module_id': next_l.module_id,
+                                    'module_number': jm.number if jm else None,
+                                    'lesson_type': next_l.type,
+                                }
+                        # No unfinished lesson found in any eligible module.
+                        # If any of those modules actually contains lessons, all content at
+                        # the target level is complete — do not regress to lower-level content.
+                        # If all are empty shells, fall through to the sequential scan below.
+                        if any(
+                            Lessons.query.filter_by(module_id=m.id).first() is not None
+                            for m in eligible_modules
+                        ):
+                            return None
+                    # No target-level modules in DB yet, or all are empty shells
+                    # — fall through to sequential scan.
+
                 next_l = Lessons.query.filter(
                     Lessons.module_id == module.id,
                     Lessons.number > lesson.number,
                 ).order_by(Lessons.number).first()
 
                 if not next_l:
-                    next_module = Module.query.filter(
+                    # Iterate through all next modules in same CEFR level.
+                    # Resume from the next unfinished lesson if the user already has
+                    # progress in a later module (e.g. unlocked early via 80% rule).
+                    next_modules = Module.query.filter(
                         Module.level_id == module.level_id,
-                        Module.number == module.number + 1,
-                    ).first()
-                    if next_module:
-                        next_l = Lessons.query.filter(
-                            Lessons.module_id == next_module.id,
-                        ).order_by(Lessons.number).first()
+                        Module.number > module.number,
+                    ).order_by(Module.number).all()
+                    for nm in next_modules:
+                        next_l = _next_unfinished_lesson_in_module(user_id, nm.id)
+                        if next_l:
+                            break
 
-                if not next_l:
-                    current_level = CEFRLevel.query.get(module.level_id)
-                    if current_level:
-                        next_level = CEFRLevel.query.filter(
-                            CEFRLevel.order > current_level.order,
-                        ).order_by(CEFRLevel.order).first()
-                        if next_level:
-                            next_lvl_module = Module.query.filter_by(
-                                level_id=next_level.id,
-                            ).order_by(Module.number).first()
-                            if next_lvl_module:
-                                next_l = Lessons.query.filter_by(
-                                    module_id=next_lvl_module.id,
-                                ).order_by(Lessons.number).first()
+                if not next_l and current_level:
+                    # Iterate through all higher CEFR levels in order.
+                    # Resume from next unfinished lesson to handle cross-level early unlocks.
+                    higher_levels = CEFRLevel.query.filter(
+                        CEFRLevel.order > current_level.order,
+                    ).order_by(CEFRLevel.order).all()
+                    for next_level in higher_levels:
+                        next_level_modules = Module.query.filter_by(
+                            level_id=next_level.id,
+                        ).order_by(Module.number).all()
+                        for nlm in next_level_modules:
+                            next_l = _next_unfinished_lesson_in_module(user_id, nlm.id)
+                            if next_l:
+                                break
+                        if next_l:
+                            break
 
                 if next_l:
                     nl_module = Module.query.get(next_l.module_id)
@@ -113,11 +311,20 @@ def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
                         'module_number': nl_module.number if nl_module else None,
                         'lesson_type': next_l.type,
                     }
+        # User has progress but no next lesson found (all lessons done or broken FK).
+        # Do not fall through to cold start — signal to caller that there is nothing to advance.
+        return None
 
-    first_module = Module.query.join(CEFRLevel).order_by(
-        CEFRLevel.order, Module.number,
-    ).first()
-    if first_module:
+    # Cold start: pick first module at or above the user's effective CEFR level.
+    level_code = get_user_current_cefr_level(user_id, db)
+    user_level_order = _cefr_code_to_order(level_code, db)
+
+    cold_query = Module.query.join(CEFRLevel)
+    if user_level_order >= 0:
+        cold_query = cold_query.filter(CEFRLevel.order >= user_level_order)
+    eligible_modules = cold_query.order_by(CEFRLevel.order.asc(), Module.number.asc()).all()
+
+    for first_module in eligible_modules:
         first_lesson = Lessons.query.filter_by(
             module_id=first_module.id,
         ).order_by(Lessons.number).first()
@@ -152,6 +359,13 @@ def _find_next_book_course_lesson(user_id: int) -> Optional[dict[str, Any]]:
     ).filter(
         BookCourseModule.course_id == enrollment.course_id,
     ).order_by(DailyLesson.day_number).all()
+
+    if not lessons:
+        logger.warning(
+            "_find_next_book_course_lesson: no lessons found for enrollment %s (user_id=%s)",
+            enrollment.id, user_id,
+        )
+        return None
 
     for dl in lessons:
         if dl.id not in completed_ids:
@@ -191,7 +405,7 @@ def _find_weak_grammar_topic(user_id: int) -> Optional[dict[str, Any]]:
     ).filter(
         UserGrammarTopicStatus.user_id == user_id,
         UserGrammarTopicStatus.status.in_(['theory_completed', 'practicing']),
-    ).order_by(GrammarTopic.order).first()
+    ).order_by(GrammarTopic.order, GrammarTopic.id).first()
 
     if weak:
         topic = GrammarTopic.query.get(weak.topic_id)
@@ -201,19 +415,33 @@ def _find_weak_grammar_topic(user_id: int) -> Optional[dict[str, Any]]:
     return None
 
 
-def _make_recall_phase(source_kind: SourceKind, has_srs: bool) -> MissionPhase:
+def _estimate_srs_minutes(count: int) -> int:
+    """Estimate minutes for SRS review: ~1 min per 10 cards, min 2."""
+    return max(2, (count + 9) // 10)
+
+
+def _make_recall_phase(source_kind: SourceKind, has_srs: bool, srs_due: int = 0) -> MissionPhase:
     if has_srs:
         return MissionPhase(
             phase=PhaseKind.recall,
             title="Разогрев серии",
             source_kind=SourceKind.srs,
             mode="srs_review",
+            preview=PhasePreview(
+                item_count=srs_due,
+                content_title="Повторение карточек",
+                estimated_minutes=_estimate_srs_minutes(srs_due),
+            ),
         )
     return MissionPhase(
         phase=PhaseKind.recall,
         title="Вспоминаем главное",
         source_kind=source_kind,
         mode="guided_recall",
+        preview=PhasePreview(
+            content_title="Быстрый разогрев",
+            estimated_minutes=3,
+        ),
     )
 
 
@@ -224,6 +452,10 @@ def _make_close_phase() -> MissionPhase:
         source_kind=SourceKind.vocab,
         mode="success_marker",
         required=False,
+        preview=PhasePreview(
+            content_title="Завершение миссии",
+            estimated_minutes=1,
+        ),
     )
 
 
@@ -242,19 +474,28 @@ def assemble_progress_mission(
         if not bc_lesson:
             return None
 
+        bc_title = bc_lesson.get('course_title') or "Книжный курс"
         phases = [
-            _make_recall_phase(SourceKind.book_course, srs_due > 0),
+            _make_recall_phase(SourceKind.book_course, srs_due > 0, srs_due),
             MissionPhase(
                 phase=PhaseKind.learn,
                 title="Главный шаг миссии",
                 source_kind=SourceKind.book_course,
                 mode="book_course_lesson",
+                preview=PhasePreview(
+                    content_title=bc_title,
+                    estimated_minutes=10,
+                ),
             ),
             MissionPhase(
                 phase=PhaseKind.use,
                 title="Практика без подсказок",
                 source_kind=SourceKind.book_course,
                 mode="book_course_practice",
+                preview=PhasePreview(
+                    content_title=bc_title,
+                    estimated_minutes=5,
+                ),
             ),
         ]
 
@@ -265,8 +506,14 @@ def assemble_progress_mission(
                 source_kind=SourceKind.srs,
                 mode="micro_check",
                 required=False,
+                preview=PhasePreview(
+                    item_count=min(srs_due, 10),
+                    content_title="Мини-проверка",
+                    estimated_minutes=3,
+                ),
             ))
 
+        phases = _maybe_add_bonus_phase(phases)
         return MissionPlan(
             plan_version="1",
             mission=Mission(
@@ -293,31 +540,66 @@ def assemble_progress_mission(
     if not next_lesson:
         return None
 
+    lesson_title = next_lesson['title']
+    lesson_type = next_lesson.get('lesson_type', '')
+    lesson_is_card_based = lesson_type in ('card', 'flashcards')
+
+    # When the learn phase is a card-based lesson and there are SRS cards due, both
+    # phases would look like identical card sessions to the user. Relabel the recall
+    # phase so it's clear these are different activities (SRS review vs. new lesson).
+    recall_phase = _make_recall_phase(SourceKind.normal_course, srs_due > 0, srs_due)
+    if lesson_is_card_based and srs_due > 0:
+        recall_phase = MissionPhase(
+            phase=PhaseKind.recall,
+            title="Карточки SRS: повторение",
+            source_kind=SourceKind.srs,
+            mode="srs_review",
+            preview=PhasePreview(
+                item_count=srs_due,
+                content_title="Повторение из вашей колоды",
+                estimated_minutes=_estimate_srs_minutes(srs_due),
+            ),
+        )
+
     phases = [
-        _make_recall_phase(SourceKind.normal_course, srs_due > 0),
+        recall_phase,
         MissionPhase(
             phase=PhaseKind.learn,
             title="Главный шаг миссии",
             source_kind=SourceKind.normal_course,
             mode="curriculum_lesson",
+            preview=PhasePreview(
+                content_title=lesson_title,
+                estimated_minutes=10,
+            ),
         ),
         MissionPhase(
             phase=PhaseKind.use,
             title="Практика без подсказок",
             source_kind=SourceKind.normal_course,
             mode="lesson_practice",
+            preview=PhasePreview(
+                content_title=lesson_title,
+                estimated_minutes=5,
+            ),
         ),
     ]
 
     if srs_due > 0:
-            phases.append(MissionPhase(
-                phase=PhaseKind.check,
-                title="Контрольный раунд",
-                source_kind=SourceKind.srs,
-                mode="micro_check",
-                required=False,
-            ))
+        phases.append(MissionPhase(
+            phase=PhaseKind.check,
+            title="Контрольный раунд",
+            source_kind=SourceKind.srs,
+            mode="micro_check",
+            required=False,
+            preview=PhasePreview(
+                item_count=min(srs_due, 10),
+                content_title="Мини-проверка",
+                estimated_minutes=3,
+            ),
+        ))
 
+    phases = _maybe_add_bonus_phase(phases)
     return MissionPlan(
         plan_version="1",
         mission=Mission(
@@ -353,16 +635,52 @@ def assemble_repair_mission(
     grammar_due = _count_grammar_due(user_id)
 
     if srs_due == 0 and grammar_due == 0:
-        return None
+        track = detect_primary_track(user_id)
+        logger.warning(
+            "assemble_repair_mission: no SRS or grammar due for user_id=%s, degrading to %s mission",
+            user_id,
+            "reading" if track == SourceKind.books else "progress",
+        )
+        if track == SourceKind.books:
+            reading_plan = assemble_reading_mission(
+                user_id,
+                reason_code="progress_next_step",
+                reason_text="Всё повторено — продолжаем чтение",
+                tz=tz,
+            )
+            if reading_plan is not None:
+                return reading_plan
+            logger.warning(
+                "assemble_repair_mission: reading mission returned None for user_id=%s, degrading to progress",
+                user_id,
+            )
+            track = SourceKind.normal_course
+        primary_source = (
+            track if track in (SourceKind.normal_course, SourceKind.book_course)
+            else SourceKind.normal_course
+        )
+        return assemble_progress_mission(
+            user_id,
+            primary_source,
+            reason_code="progress_next_step",
+            reason_text="Всё повторено — двигаемся дальше по курсу",
+            tz=tz,
+        )
 
     grammar_topic = _find_weak_grammar_topic(user_id)
 
+    recall_mode = "srs_review" if srs_due > 0 else "guided_recall"
     phases: list[MissionPhase] = [
         MissionPhase(
             phase=PhaseKind.recall,
             title="Возвращаем забытое",
             source_kind=SourceKind.srs,
-            mode="srs_review" if srs_due > 0 else "guided_recall",
+            mode=recall_mode,
+            preview=PhasePreview(
+                item_count=srs_due if srs_due > 0 else None,
+                content_title="Повторение карточек" if srs_due > 0 else "Быстрый разогрев",
+                estimated_minutes=_estimate_srs_minutes(srs_due) if srs_due > 0 else 3,
+            ),
         ),
     ]
 
@@ -372,6 +690,10 @@ def assemble_repair_mission(
             title="Разбираем слабое место",
             source_kind=SourceKind.grammar_lab,
             mode="grammar_practice",
+            preview=PhasePreview(
+                content_title=grammar_topic['title'],
+                estimated_minutes=7,
+            ),
         ))
     else:
         phases.append(MissionPhase(
@@ -379,6 +701,10 @@ def assemble_repair_mission(
             title="Подтягиваем слова",
             source_kind=SourceKind.vocab,
             mode="vocab_drill",
+            preview=PhasePreview(
+                content_title="Тренировка слов",
+                estimated_minutes=5,
+            ),
         ))
 
     phases.append(MissionPhase(
@@ -386,9 +712,16 @@ def assemble_repair_mission(
         title="Сразу применяем",
         source_kind=SourceKind.grammar_lab if grammar_topic else SourceKind.vocab,
         mode="targeted_quiz" if grammar_topic else "meaning_prompt",
+        preview=PhasePreview(
+            content_title=grammar_topic['title'] if grammar_topic else "Проверка значений",
+            estimated_minutes=5,
+        ),
     ))
 
     phases.append(_make_close_phase())
+
+    phases = _deduplicate_phases(phases)
+    phases = _maybe_add_bonus_phase(phases)
 
     return MissionPlan(
         plan_version="1",
@@ -404,7 +737,7 @@ def assemble_repair_mission(
             success_criterion="repair_session_done",
         ),
         primary_source=PrimarySource(
-            kind=SourceKind.srs if srs_due > 0 else SourceKind.grammar_lab,
+            kind=SourceKind.srs if srs_due > 0 else (SourceKind.grammar_lab if grammar_topic else SourceKind.vocab),
             id=str(grammar_topic['topic_id']) if grammar_topic else None,
             label=grammar_topic['title'] if grammar_topic else "Повторение слов",
         ),
@@ -429,6 +762,7 @@ def assemble_reading_mission(
         return None
 
     srs_due = _count_srs_due(user_id)
+    book_title = book['title']
 
     phases = [
         MissionPhase(
@@ -436,18 +770,31 @@ def assemble_reading_mission(
             title="Входим в контекст",
             source_kind=SourceKind.vocab,
             mode="book_vocab_recall" if srs_due > 0 else "guided_recall",
+            preview=PhasePreview(
+                item_count=srs_due if srs_due > 0 else None,
+                content_title="Слова из книги" if srs_due > 0 else "Быстрый разогрев",
+                estimated_minutes=_estimate_srs_minutes(srs_due) if srs_due > 0 else 3,
+            ),
         ),
         MissionPhase(
             phase=PhaseKind.read,
             title="Читаем следующий фрагмент",
             source_kind=SourceKind.books,
             mode="book_reading",
+            preview=PhasePreview(
+                content_title=book_title,
+                estimated_minutes=10,
+            ),
         ),
         MissionPhase(
             phase=PhaseKind.use,
             title="Вытаскиваем язык из текста",
             source_kind=SourceKind.vocab,
             mode="reading_vocab_extract",
+            preview=PhasePreview(
+                content_title=book_title,
+                estimated_minutes=5,
+            ),
         ),
     ]
 
@@ -458,8 +805,14 @@ def assemble_reading_mission(
             source_kind=SourceKind.vocab,
             mode="meaning_prompt",
             required=False,
+            preview=PhasePreview(
+                item_count=min(srs_due, 10),
+                content_title="Мини-проверка",
+                estimated_minutes=3,
+            ),
         ))
 
+    phases = _maybe_add_bonus_phase(phases)
     return MissionPlan(
         plan_version="1",
         mission=Mission(

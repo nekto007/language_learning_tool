@@ -8,13 +8,14 @@ Responsibilities:
 """
 from typing import List, Dict, Optional
 from datetime import UTC, datetime, timedelta
-from sqlalchemy import func, distinct
+from sqlalchemy import func
 
 from app.utils.db import db
 from app.auth.models import User, ReferralLog
 from app.study.models import UserWord
 from app.curriculum.models import LessonProgress
 from app.modules.models import UserModule
+from app.admin.audit import log_admin_action
 
 
 class UserManagementService:
@@ -274,7 +275,7 @@ class UserManagementService:
         return True
 
     @classmethod
-    def delete_user(cls, user_id: int) -> bool:
+    def delete_user(cls, user_id: int, admin_id: Optional[int] = None) -> bool:
         """Delete a user and all associated data"""
         user = User.query.get(user_id)
         if not user:
@@ -282,6 +283,12 @@ class UserManagementService:
 
         # Cascade deletes will handle related data
         db.session.delete(user)
+        log_admin_action(
+            admin_id=admin_id,
+            action='delete_user',
+            target_type='User',
+            target_id=user_id,
+        )
         db.session.commit()
         return True
 

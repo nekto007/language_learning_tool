@@ -6,9 +6,7 @@ from flask_login import login_required, current_user
 from functools import wraps
 
 from app.modules.service import ModuleService
-from app.modules.models import SystemModule
 from app.auth.models import User
-from app.utils.db import db
 
 
 def admin_required(f):

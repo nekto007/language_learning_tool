@@ -9,7 +9,6 @@ Responsibilities:
 from typing import List, Dict, Optional, Callable
 import random
 
-from app.utils.db import db
 from app.words.models import CollectionWords
 
 

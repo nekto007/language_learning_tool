@@ -1,6 +1,4 @@
 from typing import List, Optional
-from flask_login import current_user
-from sqlalchemy import and_
 
 from app.utils.db import db
 from app.modules.models import SystemModule, UserModule

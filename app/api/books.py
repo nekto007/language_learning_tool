@@ -7,8 +7,8 @@ from flask import Blueprint, jsonify, make_response, request, url_for
 from flask_login import current_user
 from sqlalchemy import func
 
-from app import csrf
 from app.api.decorators import api_auth_required
+from app.api.errors import api_error
 from app.books.models import Book, Chapter, UserChapterProgress, Task, Block
 from app.curriculum.cache import cached
 from app.utils.db import db
@@ -206,23 +206,23 @@ def update_chapter_progress():
     data = request.get_json()
 
     if not data:
-        return jsonify({'success': False, 'error': 'No data provided'}), 400
+        return api_error('no_data', 'No data provided', 400)
 
     book_id = data.get('book_id')
     chapter_id = data.get('chapter_id')
     offset_pct = data.get('offset_pct')
 
     if book_id is None or chapter_id is None or offset_pct is None:
-        return jsonify({'success': False, 'error': 'Missing required fields: book_id, chapter_id, offset_pct'}), 400
+        return api_error('missing_fields', 'Missing required fields: book_id, chapter_id, offset_pct', 400)
 
     # Validate offset percentage
     if not 0 <= offset_pct <= 1:
-        return jsonify({'success': False, 'error': 'offset_pct must be between 0 and 1'}), 400
+        return api_error('invalid_value', 'offset_pct must be between 0 and 1', 400)
 
     # Verify chapter exists and belongs to book
     chapter = Chapter.query.get_or_404(chapter_id)
     if chapter.book_id != book_id:
-        return jsonify({'success': False, 'error': 'Chapter does not belong to the specified book'}), 400
+        return api_error('chapter_book_mismatch', 'Chapter does not belong to the specified book', 400)
 
     try:
         # Update or create progress
@@ -253,7 +253,7 @@ def update_chapter_progress():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error updating chapter progress: {str(e)}")
-        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'}), 500
+        return api_error('server_error', 'Внутренняя ошибка сервера', 500)
 
 
 @api_books.route('/books/<int:book_id>/progress', methods=['GET'])
@@ -537,7 +537,7 @@ def get_book_content(book_id):
 
     except Exception as e:
         logger.error(f"Error getting book content: {str(e)}")
-        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'}), 500
+        return api_error('server_error', 'Внутренняя ошибка сервера', 500)
 
 
 @api_books.route('/tasks/<int:task_id>', methods=['GET'])
@@ -564,11 +564,11 @@ def get_task(task_id):
         })
 
     except NotFound:
-        return jsonify({'success': False, 'error': 'Task not found'}), 404
+        return api_error('not_found', 'Task not found', 404)
 
     except Exception as e:
         logger.error(f"Error getting task {task_id}: {str(e)}")
-        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'}), 500
+        return api_error('server_error', 'Внутренняя ошибка сервера', 500)
 
 
 @api_books.route('/blocks/<int:block_id>/tasks', methods=['GET'])
@@ -601,11 +601,11 @@ def get_block_tasks(block_id):
         })
 
     except NotFound:
-        return jsonify({'success': False, 'error': 'Block not found'}), 404
+        return api_error('not_found', 'Block not found', 404)
 
     except Exception as e:
         logger.error(f"Error getting tasks for block {block_id}: {str(e)}")
-        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'}), 500
+        return api_error('server_error', 'Внутренняя ошибка сервера', 500)
 
 
 @api_books.route('/blocks/<int:block_id>', methods=['GET'])
@@ -637,11 +637,11 @@ def get_block(block_id):
         })
 
     except NotFound:
-        return jsonify({'success': False, 'error': 'Block not found'}), 404
+        return api_error('not_found', 'Block not found', 404)
 
     except Exception as e:
         logger.error(f"Error getting block {block_id}: {str(e)}")
-        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'}), 500
+        return api_error('server_error', 'Внутренняя ошибка сервера', 500)
 
 
 @api_books.route('/chapters/<int:chapter_id>', methods=['GET'])
@@ -670,8 +670,8 @@ def get_chapter_by_id(chapter_id):
         })
 
     except NotFound:
-        return jsonify({'success': False, 'error': 'Chapter not found'}), 404
+        return api_error('not_found', 'Chapter not found', 404)
 
     except Exception as e:
         logger.error(f"Error getting chapter {chapter_id}: {str(e)}")
-        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера'}), 500
+        return api_error('server_error', 'Внутренняя ошибка сервера', 500)

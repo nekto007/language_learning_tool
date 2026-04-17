@@ -4,7 +4,7 @@ import logging
 from typing import Any, Optional
 
 from app.daily_plan.models import MissionPlan, MissionType, SourceKind
-from app.daily_plan.mission_selector import select_mission, detect_primary_track
+from app.daily_plan.mission_selector import select_mission, detect_primary_track, save_mission_type
 from app.daily_plan.assembler import (
     assemble_progress_mission,
     assemble_reading_mission,
@@ -63,6 +63,11 @@ def _mission_plan_to_dict(plan: MissionPlan) -> dict[str, Any]:
                 'mode': p.mode,
                 'required': p.required,
                 'completed': p.completed,
+                'preview': {
+                    'item_count': p.preview.item_count,
+                    'content_title': p.preview.content_title,
+                    'estimated_minutes': p.preview.estimated_minutes,
+                } if p.preview else None,
             }
             for p in plan.phases
         ],
@@ -114,7 +119,33 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
             )
 
         if plan is None:
+            logger.warning(
+                "%s assembler returned None for user_id=%s, falling back to legacy",
+                mission_type.value,
+                user_id,
+            )
             return None
+
+        # Persist selected mission type for rotation logic without committing the
+        # outer request transaction. This helper is used inside dashboard/widget
+        # code paths that may already be running under a savepoint.
+        from app.utils.db import db
+        try:
+            from datetime import datetime
+            import pytz
+            from config.settings import DEFAULT_TIMEZONE
+            try:
+                tz_obj = pytz.timezone(tz or DEFAULT_TIMEZONE)
+            except pytz.UnknownTimeZoneError:
+                tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
+            user_today = datetime.now(tz_obj).date()
+            with db.session.begin_nested():
+                save_mission_type(user_id, mission_type, user_today)
+        except Exception:
+            logger.warning(
+                "Failed to persist mission type for user %s", user_id,
+                exc_info=True,
+            )
 
         return _mission_plan_to_dict(plan)
 
@@ -136,7 +167,7 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
                 mission_plan_enabled=True,
                 effective_mode='mission',
             )
-        logger.warning("Mission plan enabled but fallback to legacy plan for user %s", user_id)
+        logger.warning("mission assembler failed for user_id=%s, falling back to legacy", user_id)
         from app.telegram.queries import get_daily_plan_v2
         legacy_payload = get_daily_plan_v2(user_id, tz) if tz else get_daily_plan_v2(user_id)
         return _with_plan_meta(

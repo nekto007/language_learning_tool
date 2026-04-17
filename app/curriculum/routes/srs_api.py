@@ -14,7 +14,7 @@ from flask_login import current_user, login_required
 from app.curriculum.book_courses import BookCourseEnrollment
 from app.curriculum.daily_lessons import DailyLesson
 from app.curriculum.services.book_srs_integration import BookSRSIntegration
-from app.srs import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW, MAX_SESSION_ATTEMPTS
+from app.srs import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW
 from app.srs.service import unified_srs_service
 
 logger = logging.getLogger(__name__)

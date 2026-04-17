@@ -536,8 +536,6 @@ class DatabaseRepository:
         Returns:
             int: Number of updated records.
         """
-        import os
-
         # Get list of words/phrases for which files are not downloaded
         query = f"SELECT {column_name}, listening FROM {table_name} WHERE (get_download = 0 or get_download isnull)"
 
@@ -588,8 +586,6 @@ class DatabaseRepository:
         Returns:
             int: Number of processed records.
         """
-        import os
-
         if not os.path.exists(translate_file):
             logger.error(f"Translate file not found: {translate_file}")
             return 0
@@ -650,8 +646,6 @@ class DatabaseRepository:
         Returns:
             int: Number of processed records.
         """
-        import os
-
         if not os.path.exists(phrasal_verb_file):
             logger.error(f"Phrasal verb file not found: {phrasal_verb_file}")
             return 0

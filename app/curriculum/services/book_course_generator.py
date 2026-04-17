@@ -14,7 +14,6 @@ NEW ARCHITECTURE (v3.0):
 
 import logging
 from typing import Any, Dict, List, Optional
-import math
 
 from app.books.models import Block, BlockChapter, BlockVocab, Book, Task
 from app.curriculum.book_courses import BookCourse, BookCourseModule

@@ -4,7 +4,8 @@ from datetime import datetime, timezone, timedelta
 
 from flask import jsonify, request
 from flask_login import current_user, login_required
-from sqlalchemy import func, or_, and_, case
+from sqlalchemy import func, or_
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
 from app.study.blueprint import study, get_audio_url_for_word
@@ -392,7 +393,7 @@ def update_study_item():
     from app.srs.constants import CardState
 
     if not request.is_json:
-        return jsonify({'success': False, 'error': 'Expected JSON'}), 400
+        return jsonify({'success': False, 'error': 'Content-Type must be application/json'}), 415
     data = request.json or {}
     word_id = data.get('word_id')
     if not word_id:
@@ -407,6 +408,8 @@ def update_study_item():
     deck_id = data.get('deck_id')
 
     extra_study = request.args.get('extra_study') == 'true' or data.get('extra_study', False)
+    # lesson_mode bypasses new-card daily limits: once a lesson has started it must be completable
+    lesson_mode = data.get('lesson_mode', False)
 
     user_word = UserWord.get_or_create(current_user.id, word_id)
 
@@ -417,7 +420,7 @@ def update_study_item():
 
     is_first_review = (not direction) or (direction and direction.first_reviewed is None)
 
-    if is_first_review and not extra_study:
+    if is_first_review and not extra_study and not lesson_mode:
         settings = StudySettings.query.filter_by(user_id=current_user.id).with_for_update().first()
         if not settings:
             settings = StudySettings(user_id=current_user.id)
@@ -484,8 +487,8 @@ def update_study_item():
     try:
         from app.achievements.streak_service import earn_daily_coin
         earn_daily_coin(current_user.id)
-    except Exception:
-        logger.exception("Failed to award daily coin for user %s", current_user.id)
+    except (SQLAlchemyError, ValueError, AttributeError) as e:
+        logger.exception("Failed to award daily coin for user %s: %s", current_user.id, e)
 
     db.session.commit()
 
@@ -538,13 +541,20 @@ def update_study_item():
 def complete_session():
     from app.study.xp_service import XPService
 
-    data = request.json
+    if not request.is_json:
+        return jsonify({'error': 'Content-Type must be application/json'}), 415
+    data = request.json or {}
     session_id = data.get('session_id')
 
     session = StudySession.query.get(session_id)
     if session and session.user_id == current_user.id:
         session.complete_session()
         db.session.commit()
+
+        logger.info(
+            'study_session_complete user=%s session=%s session_type=%s duration=%s words_studied=%s',
+            current_user.id, session.id, session.session_type, session.duration, session.words_studied
+        )
 
         xp_breakdown = XPService.calculate_flashcard_xp(
             cards_reviewed=session.words_studied or 0,

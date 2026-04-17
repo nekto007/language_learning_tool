@@ -3,9 +3,9 @@
 {% block title %}{{ profile_user.username }} — LLT English{% endblock %}
 
 {% block head_extra %}
-<meta name="description" content="{{ meta_description }}">
+<meta name="description" content="{{ meta_description | default('')}}">
 <meta property="og:title" content="{{ profile_user.username }} — Level {{ level }} | LLT English">
-<meta property="og:description" content="{{ meta_description }}">
+<meta property="og:description" content="{{ meta_description | default('')}}">
 <meta property="og:type" content="profile">
 <link rel="canonical" href="https://llt-english.com/u/{{ profile_user.username }}">
 <script type="application/ld+json">

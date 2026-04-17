@@ -440,7 +440,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
             Tuple of (interval_days, requeue_minutes) for scheduling
         """
         from app.srs.constants import (
-            RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW,
+            RATING_DONT_KNOW, RATING_DOUBT,
             LEARNING_STEPS, RELEARNING_STEPS,
             GRADUATING_INTERVAL, EASY_INTERVAL,
             MIN_EASE_FACTOR, MAX_EASE_FACTOR,
@@ -549,7 +549,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
 
     def _handle_new_card(self, rating, learning_steps, easy_interval):
         """Handle rating for a NEW card."""
-        from app.srs.constants import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW, CardState
+        from app.srs.constants import RATING_DONT_KNOW, RATING_KNOW, CardState
 
         if rating == RATING_KNOW:
             # Easy: skip learning, go straight to review
@@ -746,7 +746,13 @@ class QuizDeck(db.Model):
 
     @property
     def word_count(self):
-        """Get total number of words in deck"""
+        """Get total number of words in deck.
+
+        Returns the cached value set by batch-preloading in routes (via _word_count)
+        to avoid N+1 queries when iterating over multiple decks.
+        """
+        if '_word_count' in self.__dict__:
+            return self.__dict__['_word_count']
         return self.words.count()
 
     def sync_from_parent(self):
@@ -1060,6 +1066,7 @@ class UserAchievement(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     achievement_id = db.Column(db.Integer, db.ForeignKey('achievements.id', ondelete='CASCADE'), nullable=False)
     earned_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    seen_at = db.Column(db.DateTime, nullable=True)
 
     # Relationships
     user = db.relationship('User', backref=db.backref('achievements', lazy='dynamic', cascade='all, delete-orphan'))

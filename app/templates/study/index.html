@@ -193,7 +193,7 @@
                     <label for="deck-search" class="visually-hidden">Поиск колод</label>
                     <svg class="decks-search__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                     <input type="text" class="decks-search__input" id="deck-search" placeholder="Поиск колод...">
-                    <button class="decks-search__clear" type="button" id="clear-search" style="display: none;">
+                    <button class="decks-search__clear" type="button" id="clear-search" style="display: none;" aria-label="Очистить поиск">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
                     </button>
                 </div>
@@ -404,12 +404,12 @@
     </div>
 
     <!-- Quiz Modal -->
-    <div class="modal fade" id="quizLimitModal" tabindex="-1">
+    <div class="modal fade" id="quizLimitModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="quizLimitModalTitle">
         <div class="modal-dialog">
             <div class="modal-content decks-modal">
                 <div class="decks-modal__header">
-                    <h3 class="decks-modal__title">Настройки квиза</h3>
-                    <button type="button" class="decks-modal__close" data-bs-dismiss="modal">
+                    <h3 class="decks-modal__title" id="quizLimitModalTitle">Настройки квиза</h3>
+                    <button type="button" class="decks-modal__close" data-bs-dismiss="modal" aria-label="Закрыть">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
                     </button>
                 </div>

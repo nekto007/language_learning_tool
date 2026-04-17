@@ -3,11 +3,12 @@
 import logging
 from datetime import UTC, datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.curriculum.security import check_module_access, require_lesson_access, require_module_access
+from app.curriculum.security import require_lesson_access
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
@@ -111,10 +112,7 @@ def learn_by_level(level_code):
         return redirect(url_for('learn.learn_index'))
 
     # Получаем уровень из БД
-    level = CEFRLevel.query.filter_by(code=level_code_upper).first()
-    if not level:
-        flash('Уровень не найден', 'error')
-        return redirect(url_for('learn.learn_index'))
+    level = CEFRLevel.query.filter_by(code=level_code_upper).first_or_404()
 
     try:
         # Получаем все данные через существующий сервис и фильтруем
@@ -175,18 +173,13 @@ def learn_by_module(level_code, module_number):
     # Валидация уровня
     level_code_upper = level_code.upper()
     if not CEFRLevel.query.filter_by(code=level_code_upper).first():
-        flash('Уровень не найден', 'error')
-        return redirect(url_for('learn.learn_index'))
+        abort(404)
 
-    # Находим модуль
-    module = Module.query.join(CEFRLevel).filter(
+    # Находим модуль — eager-load lessons to avoid lazy N+1 on module.lessons
+    module = Module.query.options(joinedload(Module.lessons)).join(CEFRLevel).filter(
         CEFRLevel.code == level_code_upper,
         Module.number == module_number
-    ).first()
-
-    if not module:
-        flash('Модуль не найден', 'error')
-        return redirect(url_for('learn.learn_by_level', level_code=level_code))
+    ).first_or_404()
 
     # Сортируем уроки по номеру
     sorted_lessons = sorted(module.lessons, key=lambda l: l.number)

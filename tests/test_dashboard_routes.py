@@ -1352,3 +1352,372 @@ class TestDashboardPerformance:
 
         result = _safe_widget_call('test_widget', lambda x: x * 2, 5, default=0)
         assert result == 10
+
+
+class TestDailyRaceWidget:
+    """Tests for the daily race widget data and template rendering."""
+
+    def test_compute_daily_race_state_legacy_plan(self, app):
+        """_compute_daily_race_state returns correct steps and score for legacy plan."""
+        from app.words.routes import _compute_daily_race_state
+
+        plan = {
+            'steps': {
+                'lesson': {'title': 'Урок', 'state': 'completed'},
+                'grammar': {'title': 'Грамматика', 'state': 'open'},
+            }
+        }
+        summary = {}
+        result = _compute_daily_race_state(plan, summary, streak=3)
+        assert result['steps_total'] == 2
+        assert result['steps_done'] == 1
+        assert result['score'] == 22  # lesson = 22 pts
+        assert result['next_step_title'] is not None
+
+    def test_compute_daily_race_state_mission_plan(self, app):
+        """_compute_daily_race_state correctly scores completed mission phases."""
+        from app.words.routes import _compute_daily_race_state, _MISSION_PHASE_POINTS
+
+        phases = [
+            {'id': 'p1', 'phase': 'recall', 'title': 'Повторение', 'required': True, 'mode': 'srs_words'},
+            {'id': 'p2', 'phase': 'learn', 'title': 'Урок', 'required': True, 'mode': 'lesson'},
+        ]
+        plan = {'phases': phases}
+        summary = {'words_reviewed': 10}  # enough to mark recall done
+        result = _compute_daily_race_state(plan, summary, streak=5)
+        assert result['steps_total'] == 2
+        assert isinstance(result['score'], int)
+        assert result['score'] >= 0
+
+    def test_participant_initials_basic(self, app):
+        """_participant_initials returns 1-2 uppercase letters."""
+        from app.words.routes import _participant_initials
+
+        assert _participant_initials('alice') == 'AL'
+        assert _participant_initials('Alice Bob') == 'AB'
+        assert _participant_initials('a') == 'A'
+        assert _participant_initials('') == '?'
+        assert _participant_initials(None) == '?'
+
+    def test_participant_initials_underscore_name(self, app):
+        """_participant_initials splits on underscores for compound names."""
+        from app.words.routes import _participant_initials
+
+        assert _participant_initials('john_doe') == 'JD'
+
+    def test_medal_by_rank_mapping(self, app):
+        """_MEDAL_BY_RANK maps top 3 places to medal class names."""
+        from app.words.routes import _MEDAL_BY_RANK
+
+        assert _MEDAL_BY_RANK[1] == 'gold'
+        assert _MEDAL_BY_RANK[2] == 'silver'
+        assert _MEDAL_BY_RANK[3] == 'bronze'
+        assert 4 not in _MEDAL_BY_RANK
+
+    def test_build_daily_race_widget_returns_correct_structure(self, app, db_session, test_user):
+        """_build_daily_race_widget returns dict with required keys including new fields."""
+        from unittest.mock import patch
+        from app.words.routes import _build_daily_race_widget
+
+        fake_plan = {'steps': {'lesson': {'title': 'Урок', 'state': 'done'}}}
+        fake_summary = {}
+        fake_streak = 3
+
+        with patch('app.words.routes._compute_daily_race_state') as mock_state, \
+             patch('app.achievements.daily_race.get_race_standings', return_value={
+                 'race_id': 11,
+                 'race_date': '2026-04-17',
+                 'my_rank': 1,
+                 'participants': [
+                     {'user_id': test_user.id, 'username': test_user.username, 'points': 22, 'rank': 1, 'is_me': True, 'is_ghost': False},
+                     {'user_id': None, 'username': 'Луна', 'points': 18, 'rank': 2, 'is_me': False, 'is_ghost': True},
+                     {'user_id': None, 'username': 'Комета', 'points': 10, 'rank': 3, 'is_me': False, 'is_ghost': True},
+                 ],
+             }), \
+             patch('app.daily_plan.service.get_daily_plan_unified', return_value=fake_plan), \
+             patch('app.telegram.queries.get_daily_summary', return_value=fake_summary), \
+             patch('app.telegram.queries.get_current_streak', return_value=fake_streak):
+
+            mock_state.return_value = {
+                'score': 22,
+                'steps_done': 1,
+                'steps_total': 1,
+                'next_step_title': None,
+                'next_step_points': 0,
+            }
+
+            result = _build_daily_race_widget(test_user.id, tz='Europe/Moscow')
+
+        if result is not None:
+            assert 'rank' in result
+            assert 'place_class' in result
+            assert 'is_complete' in result
+            assert 'leaderboard' in result
+            assert isinstance(result['leaderboard'], list)
+            for row in result['leaderboard']:
+                assert 'initials' in row
+                assert 'place_class' in row
+                assert 'is_complete' in row
+
+    def test_build_daily_race_widget_uses_persisted_race_cohort(self, app, db_session, test_user):
+        from unittest.mock import patch
+        from app.words.routes import _build_daily_race_widget
+
+        fake_plan = {'steps': {'lesson': {'title': 'Урок', 'state': 'done'}}}
+        fake_summary = {}
+
+        with patch('app.achievements.daily_race.get_race_standings', return_value={
+            'race_id': 17,
+            'race_date': '2026-04-17',
+            'my_rank': 2,
+            'participants': [
+                {'user_id': None, 'username': 'Луна', 'points': 24, 'rank': 1, 'is_me': False, 'is_ghost': True},
+                {'user_id': test_user.id, 'username': test_user.username, 'points': 22, 'rank': 2, 'is_me': True, 'is_ghost': False},
+                {'user_id': None, 'username': 'Комета', 'points': 10, 'rank': 3, 'is_me': False, 'is_ghost': True},
+            ],
+        }), \
+             patch('app.words.routes._compute_daily_race_state', return_value={
+                 'score': 22,
+                 'steps_done': 1,
+                 'steps_total': 1,
+                 'next_step_title': None,
+                 'next_step_points': 0,
+             }), \
+             patch('app.daily_plan.service.get_daily_plan_unified', return_value=fake_plan), \
+             patch('app.telegram.queries.get_daily_summary', return_value=fake_summary), \
+             patch('app.telegram.queries.get_current_streak', return_value=3):
+            result = _build_daily_race_widget(test_user.id, tz='Europe/Moscow')
+
+        assert result is not None
+        assert result['rank'] == 2
+        assert [row['username'] for row in result['leaderboard']] == ['Луна', test_user.username, 'Комета']
+
+    def test_build_daily_race_widget_skips_failed_participant_without_rollback(self, app, db_session, test_user):
+        from unittest.mock import patch
+        from app.auth.models import User
+        from app.words.routes import _build_daily_race_widget
+
+        other_user = User(
+            username='other_racer',
+            email='other_racer@example.com',
+            password_hash='x',
+            salt='x',
+            onboarding_completed=True,
+            active=True,
+        )
+        db_session.add(other_user)
+        db_session.commit()
+
+        fake_plan = {'steps': {'lesson': {'title': 'Урок', 'state': 'done'}}}
+
+        def summary_side_effect(user_id, tz=None):
+            if user_id == other_user.id:
+                raise RuntimeError('summary failed')
+            return {}
+
+        with patch('app.achievements.daily_race.get_race_standings', return_value={
+            'race_id': 17,
+            'race_date': '2026-04-17',
+            'my_rank': 1,
+            'participants': [
+                {'user_id': other_user.id, 'username': other_user.username, 'points': 30, 'rank': 1, 'is_me': False, 'is_ghost': False},
+                {'user_id': test_user.id, 'username': test_user.username, 'points': 22, 'rank': 2, 'is_me': True, 'is_ghost': False},
+            ],
+        }), \
+             patch('app.words.routes._compute_daily_race_state', return_value={
+                 'score': 22,
+                 'steps_done': 1,
+                 'steps_total': 1,
+                 'next_step_title': None,
+                 'next_step_points': 0,
+             }), \
+             patch('app.daily_plan.service.get_daily_plan_unified', return_value=fake_plan), \
+             patch('app.telegram.queries.get_daily_summary', side_effect=summary_side_effect), \
+             patch('app.telegram.queries.get_current_streak', return_value=3):
+            result = _build_daily_race_widget(test_user.id, tz='Europe/Moscow')
+
+        assert result is not None
+        assert result['rank'] == 2
+        assert len(result['leaderboard']) == 1
+        assert result['leaderboard'][0]['user_id'] == test_user.id
+
+    def test_race_widget_template_structure(self, client, app, db_session, test_user, words_module_access):
+        """When daily_race data is injected, template renders initials and position badges."""
+        from unittest.mock import patch
+
+        fake_race = {
+            'rank': 2,
+            'place_class': 'silver',
+            'total': 4,
+            'score': 30,
+            'steps_done': 1,
+            'steps_total': 3,
+            'streak': 5,
+            'is_complete': False,
+            'rival_above': {'username': 'Leader', 'score': 38},
+            'rival_below': None,
+            'gap_up': 8,
+            'gap_down': None,
+            'callout': 'Ещё 8 очков до лидера.',
+            'next_step_title': 'Урок',
+            'next_step_points': 22,
+            'duel_target': {'username': 'Leader'},
+            'has_bot_rivals': True,
+            'next_action_title': None,
+            'next_action_url': None,
+            'leaderboard': [
+                {'rank': 1, 'username': 'Leader', 'initials': 'LE', 'score': 38,
+                 'steps_done': 2, 'steps_total': 3, 'streak': 7,
+                 'place_class': 'gold', 'is_complete': False, 'is_me': False, 'is_bot': False},
+                {'rank': 2, 'username': 'me_user', 'initials': 'ME', 'score': 30,
+                 'steps_done': 1, 'steps_total': 3, 'streak': 5,
+                 'place_class': 'silver', 'is_complete': False, 'is_me': True, 'is_bot': False},
+                {'rank': 3, 'username': 'Bot', 'initials': 'BO', 'score': 18,
+                 'steps_done': 0, 'steps_total': 3, 'streak': 4,
+                 'place_class': 'bronze', 'is_complete': False, 'is_me': False, 'is_bot': True},
+            ],
+        }
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.words.routes._build_daily_race_widget', return_value=fake_race):
+            response = client.get('/dashboard')
+
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+
+        assert 'dash-race' in html
+        assert 'dash-race__avatar' in html
+        assert 'dash-race__row--me' in html
+        assert 'dash-race__place--gold' in html
+        assert 'dash-race__place--silver' in html
+        assert 'dash-race__place--bronze' in html
+        assert 'ME' in html
+        assert 'Тренировочный режим' in html
+
+    def test_race_widget_complete_state(self, client, app, db_session, test_user, words_module_access):
+        """When race is complete, template shows final results with place message."""
+        from unittest.mock import patch
+
+        fake_race = {
+            'rank': 1,
+            'place_class': 'gold',
+            'total': 4,
+            'score': 80,
+            'steps_done': 3,
+            'steps_total': 3,
+            'streak': 10,
+            'is_complete': True,
+            'rival_above': None,
+            'rival_below': None,
+            'gap_up': 0,
+            'gap_down': None,
+            'callout': 'Ты впереди.',
+            'next_step_title': None,
+            'next_step_points': 0,
+            'duel_target': None,
+            'has_bot_rivals': False,
+            'next_action_title': None,
+            'next_action_url': None,
+            'leaderboard': [
+                {'rank': 1, 'username': 'me_user', 'initials': 'ME', 'score': 80,
+                 'steps_done': 3, 'steps_total': 3, 'streak': 10,
+                 'place_class': 'gold', 'is_complete': True, 'is_me': True, 'is_bot': False},
+            ],
+        }
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.words.routes._build_daily_race_widget', return_value=fake_race):
+            response = client.get('/dashboard')
+
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+
+        assert 'dash-race--complete' in html
+        assert 'dash-race__final' in html
+        assert 'Гонка завершена' in html
+        assert 'Итоги гонки' in html
+
+    def test_race_widget_nudge_text(self, client, app, db_session, test_user, words_module_access):
+        """Motivational nudge is rendered in the dash-race__nudge element."""
+        from unittest.mock import patch
+
+        fake_race = {
+            'rank': 3,
+            'place_class': 'bronze',
+            'total': 4,
+            'score': 10,
+            'steps_done': 0,
+            'steps_total': 3,
+            'streak': 2,
+            'is_complete': False,
+            'rival_above': {'username': 'FastUser', 'score': 18},
+            'rival_below': None,
+            'gap_up': 8,
+            'gap_down': None,
+            'callout': 'Ты на 8 очков позади FastUser.',
+            'next_step_title': 'Повторение слов',
+            'next_step_points': 8,
+            'duel_target': {'username': 'FastUser'},
+            'has_bot_rivals': False,
+            'next_action_title': None,
+            'next_action_url': None,
+            'leaderboard': [
+                {'rank': 3, 'username': 'me_user', 'initials': 'ME', 'score': 10,
+                 'steps_done': 0, 'steps_total': 3, 'streak': 2,
+                 'place_class': 'bronze', 'is_complete': False, 'is_me': True, 'is_bot': False},
+            ],
+        }
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.words.routes._build_daily_race_widget', return_value=fake_race):
+            response = client.get('/dashboard')
+
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+
+        assert 'dash-race__nudge' in html
+        assert 'Ты на 8 очков позади FastUser.' in html
+
+    def test_race_widget_position_count(self, client, app, db_session, test_user, words_module_access):
+        """Race leaderboard renders correct number of participant rows."""
+        from unittest.mock import patch
+
+        leaderboard = [
+            {'rank': i, 'username': f'User{i}', 'initials': f'U{i}', 'score': 50 - i * 10,
+             'steps_done': 1, 'steps_total': 3, 'streak': i,
+             'place_class': {1: 'gold', 2: 'silver', 3: 'bronze'}.get(i, ''),
+             'is_complete': False, 'is_me': i == 2, 'is_bot': False}
+            for i in range(1, 5)
+        ]
+        fake_race = {
+            'rank': 2, 'place_class': 'silver', 'total': 4,
+            'score': 30, 'steps_done': 1, 'steps_total': 3, 'streak': 2,
+            'is_complete': False, 'rival_above': None, 'rival_below': None,
+            'gap_up': 0, 'gap_down': None, 'callout': 'Ты лидируешь.',
+            'next_step_title': None, 'next_step_points': 0,
+            'duel_target': None, 'has_bot_rivals': False,
+            'next_action_title': None, 'next_action_url': None,
+            'leaderboard': leaderboard,
+        }
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.words.routes._build_daily_race_widget', return_value=fake_race):
+            response = client.get('/dashboard')
+
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        import re
+        row_divs = re.findall(r'class="dash-race__row(?:\s|")', html)
+        assert len(row_divs) == 4

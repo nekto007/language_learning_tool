@@ -4,19 +4,18 @@
 Административная панель для управления курсами-книгами (Book Courses)
 """
 
-import json
 import logging
 from datetime import UTC, datetime, timedelta
 from functools import wraps
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for, abort
-from flask_login import current_user, login_required
-from sqlalchemy import desc, func, and_, or_
+from flask import flash, jsonify, render_template, request, url_for
+from flask_login import current_user
+from sqlalchemy import desc, func
 from sqlalchemy.orm import joinedload
-from werkzeug.utils import secure_filename
 
 from app.utils.db import db
 from app.admin.utils.decorators import admin_required, handle_admin_errors
+from app.admin.audit import log_admin_action
 from app.books.models import Book, Chapter, Task, TaskType
 from app.curriculum.book_courses import BookCourse, BookCourseModule, BookCourseEnrollment, BookModuleProgress
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary, UserLessonProgress
@@ -438,8 +437,14 @@ def register_book_course_routes(admin_bp):
                 # Delete the course itself
                 course_title = course.title
                 db.session.delete(course)
+                log_admin_action(
+                    admin_id=current_user.id,
+                    action='delete_book_course',
+                    target_type='BookCourse',
+                    target_id=course_id,
+                )
                 db.session.commit()
-                
+
                 logger.info(f"Successfully deleted course {course_id}: {course_title}")
                 flash(f'Курс "{course_title}" полностью удален!', 'success')
                 
@@ -827,87 +832,93 @@ def register_book_course_routes(admin_bp):
         if not course_ids:
             return jsonify({'success': False, 'error': 'Выберите курсы'}), 400
 
-        try:
-            courses = BookCourse.query.filter(BookCourse.id.in_(course_ids)).all()
+        if operation not in ('activate', 'deactivate', 'feature', 'unfeature', 'delete', 'delete_permanently'):
+            return jsonify({'success': False, 'error': 'Неизвестная операция'}), 400
 
-            if operation == 'activate':
-                for course in courses:
+        courses = BookCourse.query.filter(BookCourse.id.in_(course_ids)).all()
+        success_count = 0
+        errors = []
+
+        for course in courses:
+            nested = None
+            try:
+                nested = db.session.begin_nested()
+
+                if operation == 'activate':
                     course.is_active = True
-                message = f'Активировано {len(courses)} курсов'
 
-            elif operation == 'deactivate':
-                for course in courses:
+                elif operation == 'deactivate':
                     course.is_active = False
-                message = f'Деактивировано {len(courses)} курсов'
 
-            elif operation == 'feature':
-                for course in courses:
+                elif operation == 'feature':
                     course.is_featured = True
-                message = f'Добавлено в рекомендуемые {len(courses)} курсов'
 
-            elif operation == 'unfeature':
-                for course in courses:
+                elif operation == 'unfeature':
                     course.is_featured = False
-                message = f'Убрано из рекомендуемых {len(courses)} курсов'
 
-            elif operation == 'delete':
-                # Soft delete - deactivate instead
-                for course in courses:
+                elif operation == 'delete':
+                    # Soft delete - deactivate instead
                     course.is_active = False
-                message = f'Деактивировано {len(courses)} курсов'
-                
-            elif operation == 'delete_permanently':
-                # Hard delete - physically remove from database
-                deleted_count = 0
-                for course in courses:
-                    try:
-                        # Delete related data first
-                        # Delete daily lessons and their vocabulary
-                        DailyLesson.query.filter(
-                            DailyLesson.book_course_module_id.in_(
-                                [m.id for m in course.modules]
-                            )
-                        ).delete(synchronize_session=False)
-                        
-                        # Delete module progress
-                        BookModuleProgress.query.filter(
-                            BookModuleProgress.module_id.in_(
-                                [m.id for m in course.modules]
-                            )
-                        ).delete(synchronize_session=False)
-                        
-                        # Delete enrollments
-                        BookCourseEnrollment.query.filter_by(course_id=course.id).delete()
-                        
-                        # Delete modules
-                        BookCourseModule.query.filter_by(course_id=course.id).delete()
-                        
-                        # Delete the course itself
-                        db.session.delete(course)
-                        deleted_count += 1
-                        
-                    except Exception as e:
-                        logger.error(f"Error deleting course {course.id}: {str(e)}")
-                        
-                message = f'Полностью удалено {deleted_count} курсов'
 
-            else:
-                return jsonify({'success': False, 'error': 'Неизвестная операция'}), 400
+                elif operation == 'delete_permanently':
+                    # Hard delete - physically remove from database
+                    module_ids = [m.id for m in course.modules]
+                    daily_lesson_ids = db.session.query(DailyLesson.id).filter(
+                        DailyLesson.book_course_module_id.in_(module_ids)
+                    )
 
+                    UserLessonProgress.query.filter(
+                        UserLessonProgress.daily_lesson_id.in_(daily_lesson_ids)
+                    ).delete(synchronize_session=False)
+
+                    SliceVocabulary.query.filter(
+                        SliceVocabulary.daily_lesson_id.in_(daily_lesson_ids)
+                    ).delete(synchronize_session=False)
+
+                    DailyLesson.query.filter(
+                        DailyLesson.book_course_module_id.in_(module_ids)
+                    ).delete(synchronize_session=False)
+
+                    BookModuleProgress.query.filter(
+                        BookModuleProgress.module_id.in_(module_ids)
+                    ).delete(synchronize_session=False)
+
+                    BookCourseEnrollment.query.filter_by(course_id=course.id).delete()
+                    BookCourseModule.query.filter_by(course_id=course.id).delete()
+
+                    log_admin_action(
+                        admin_id=current_user.id,
+                        action='delete_book_course',
+                        target_type='BookCourse',
+                        target_id=course.id,
+                    )
+                    db.session.delete(course)
+
+                nested.commit()
+                success_count += 1
+
+            except Exception as e:
+                if nested is not None:
+                    nested.rollback()
+                logger.error(f"Error processing course {course.id} in bulk op '{operation}': {str(e)}")
+                errors.append({'course_id': course.id, 'title': course.title, 'error': str(e)})
+
+        try:
             db.session.commit()
-
-            return jsonify({
-                'success': True,
-                'message': message
-            })
-
         except Exception as e:
-            logger.error(f"Error in bulk course operation: {str(e)}", exc_info=True)
+            logger.error(f"Error committing bulk course operation: {str(e)}", exc_info=True)
             db.session.rollback()
             return jsonify({
                 'success': False,
-                'error': f'Ошибка при выполнении операции: {str(e)}'
+                'error': f'Ошибка при сохранении: {str(e)}'
             }), 500
+
+        return jsonify({
+            'success': True,
+            'message': f'Операция выполнена: {success_count} из {len(courses)} курсов обработано',
+            'success_count': success_count,
+            'errors': errors
+        })
 
     # ====================
     # DAILY LESSON EDITING

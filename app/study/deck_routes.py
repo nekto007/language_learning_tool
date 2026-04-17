@@ -1,9 +1,10 @@
+import bleach
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
 
 from app.study.blueprint import study, is_auto_deck
-from app.study.models import StudySettings, UserWord
+from app.study.models import StudySettings
 from app.utils.db import db
 from app.words.forms import CollectionFilterForm
 from app.words.models import Collection, CollectionWords, Topic
@@ -11,13 +12,18 @@ from app.modules.decorators import module_required
 from app.study.services import DeckService, CollectionTopicService
 
 
+def _sanitize(value: str) -> str:
+    """Strip all HTML tags from user-provided text to prevent stored XSS."""
+    return bleach.clean(value, tags=[], strip=True)
+
+
 @study.route('/my-decks/create', methods=['GET', 'POST'])
 @login_required
 @module_required('study')
 def create_deck():
     if request.method == 'POST':
-        title = request.form.get('title', '').strip()
-        description = request.form.get('description', '').strip()
+        title = _sanitize(request.form.get('title', '').strip())
+        description = _sanitize(request.form.get('description', '').strip())
         is_public = request.form.get('is_public') == 'on'
 
         if not title:
@@ -54,8 +60,8 @@ def edit_deck(deck_id):
         return redirect(url_for('study.index'))
 
     if request.method == 'POST':
-        title = request.form.get('title', '').strip()
-        description = request.form.get('description', '').strip()
+        title = _sanitize(request.form.get('title', '').strip())
+        description = _sanitize(request.form.get('description', '').strip())
         is_public = request.form.get('is_public') == 'on'
 
         new_words_limit_str = request.form.get('new_words_per_day', '').strip()
@@ -188,9 +194,9 @@ def copy_deck(deck_id):
 @module_required('study')
 def add_word_to_deck(deck_id):
     word_id = request.form.get('word_id', type=int)
-    custom_english = request.form.get('custom_english', '').strip()
-    custom_russian = request.form.get('custom_russian', '').strip()
-    custom_sentences = request.form.get('custom_sentences', '').strip()
+    custom_english = _sanitize(request.form.get('custom_english', '').strip())
+    custom_russian = _sanitize(request.form.get('custom_russian', '').strip())
+    custom_sentences = _sanitize(request.form.get('custom_sentences', '').strip())
 
     deck_word, error = DeckService.add_word_to_deck(
         deck_id=deck_id,
@@ -229,9 +235,9 @@ def add_word_to_deck(deck_id):
 @login_required
 @module_required('study')
 def edit_deck_word(deck_id, word_id):
-    custom_english = request.form.get('custom_english', '').strip()
-    custom_russian = request.form.get('custom_russian', '').strip()
-    custom_sentences = request.form.get('custom_sentences', '').strip()
+    custom_english = _sanitize(request.form.get('custom_english', '').strip())
+    custom_russian = _sanitize(request.form.get('custom_russian', '').strip())
+    custom_sentences = _sanitize(request.form.get('custom_sentences', '').strip())
 
     deck_word, error = DeckService.edit_deck_word(
         deck_id=deck_id,
@@ -573,7 +579,7 @@ def api_default_deck():
 @login_required
 def api_create_deck():
     data = request.get_json()
-    name = data.get('name', '').strip()
+    name = _sanitize(data.get('name', '').strip())
 
     if not name:
         return jsonify({
@@ -658,9 +664,9 @@ def api_add_phrase_to_deck():
     if not data:
         return jsonify({'success': False, 'error': 'No data'}), 400
 
-    english = (data.get('english') or '').strip()
-    russian = (data.get('russian') or '').strip()
-    context = (data.get('context') or '').strip()
+    english = _sanitize((data.get('english') or '').strip())
+    russian = _sanitize((data.get('russian') or '').strip())
+    context = _sanitize((data.get('context') or '').strip())
 
     if not english or not russian:
         return jsonify({'success': False, 'error': 'english and russian required'}), 400

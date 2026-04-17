@@ -95,11 +95,10 @@ def lessons_sequence(db_session, level_and_module):
 class TestEmptyContentValidation:
     """Test empty content handling before rendering lessons."""
 
-    @patch('app.curriculum.routes.main.check_module_access', return_value=True)
     @patch('app.curriculum.security.check_lesson_access', return_value=True)
     @patch('app.curriculum.security.check_module_access', return_value=True)
     def test_empty_content_shows_unavailable_page(
-        self, mock_sec_module, mock_sec_lesson, mock_main_module,
+        self, mock_sec_module, mock_sec_lesson,
         authenticated_client, empty_content_lesson, db_session
     ):
         """Lesson with no content should render empty_content template."""
@@ -108,11 +107,10 @@ class TestEmptyContentValidation:
         html = response.data.decode()
         assert 'Содержимое урока недоступно' in html
 
-    @patch('app.curriculum.routes.main.check_module_access', return_value=True)
     @patch('app.curriculum.security.check_lesson_access', return_value=True)
     @patch('app.curriculum.security.check_module_access', return_value=True)
     def test_lesson_with_content_renders_normally(
-        self, mock_sec_module, mock_sec_lesson, mock_main_module,
+        self, mock_sec_module, mock_sec_lesson,
         authenticated_client, vocabulary_lesson, db_session
     ):
         """Lesson with valid content should render normally (not empty page)."""
@@ -121,11 +119,10 @@ class TestEmptyContentValidation:
         html = response.data.decode()
         assert 'Содержимое урока недоступно' not in html
 
-    @patch('app.curriculum.routes.main.check_module_access', return_value=True)
     @patch('app.curriculum.security.check_lesson_access', return_value=True)
     @patch('app.curriculum.security.check_module_access', return_value=True)
     def test_card_lesson_without_content_still_renders(
-        self, mock_sec_module, mock_sec_lesson, mock_main_module,
+        self, mock_sec_module, mock_sec_lesson,
         authenticated_client, db_session, level_and_module
     ):
         """Card lessons without content should not show empty page (they use collection_id)."""
@@ -149,11 +146,10 @@ class TestEmptyContentValidation:
 class TestProgressSaveIndicator:
     """Test that the auto-save toast element is present in lesson templates."""
 
-    @patch('app.curriculum.routes.main.check_module_access', return_value=True)
     @patch('app.curriculum.security.check_lesson_access', return_value=True)
     @patch('app.curriculum.security.check_module_access', return_value=True)
     def test_save_toast_in_empty_content_page(
-        self, mock_sec_module, mock_sec_lesson, mock_main_module,
+        self, mock_sec_module, mock_sec_lesson,
         authenticated_client, empty_content_lesson, db_session
     ):
         """Even the empty content page (extends lesson_base_template) has save-toast."""
@@ -163,11 +159,10 @@ class TestProgressSaveIndicator:
         assert 'id="save-toast"' in html
         assert 'showSaveToast' in html
 
-    @patch('app.curriculum.routes.main.check_module_access', return_value=True)
     @patch('app.curriculum.security.check_lesson_access', return_value=True)
     @patch('app.curriculum.security.check_module_access', return_value=True)
     def test_completion_element_in_empty_content_page(
-        self, mock_sec_module, mock_sec_lesson, mock_main_module,
+        self, mock_sec_module, mock_sec_lesson,
         authenticated_client, empty_content_lesson, db_session
     ):
         """Even the empty content page has completion confirmation element."""
@@ -181,10 +176,9 @@ class TestProgressSaveIndicator:
 class TestModuleLessonsLockedReasons:
     """Test that locked lessons show the reason on module lessons page."""
 
-    @patch('app.curriculum.routes.main.check_module_access', return_value=True)
     @patch('app.curriculum.security.check_module_access', return_value=True)
     def test_locked_lesson_shows_reason(
-        self, mock_sec_module, mock_main_module,
+        self, mock_sec_module,
         authenticated_client, lessons_sequence, level_and_module, db_session
     ):
         """Locked lessons should show which lesson to complete first."""
@@ -197,10 +191,9 @@ class TestModuleLessonsLockedReasons:
         assert 'ml-lesson__locked-reason' in html
         assert 'Завершите урок' in html
 
-    @patch('app.curriculum.routes.main.check_module_access', return_value=True)
     @patch('app.curriculum.security.check_module_access', return_value=True)
     def test_first_lesson_not_locked(
-        self, mock_sec_module, mock_main_module,
+        self, mock_sec_module,
         authenticated_client, lessons_sequence, level_and_module, db_session
     ):
         """First lesson in module should not be locked."""
@@ -216,10 +209,9 @@ class TestModuleLessonsLockedReasons:
 class TestContinueWhereLeftOff:
     """Test in-progress lessons show progress hints on module page."""
 
-    @patch('app.curriculum.routes.main.check_module_access', return_value=True)
     @patch('app.curriculum.security.check_module_access', return_value=True)
     def test_in_progress_quiz_shows_question_number(
-        self, mock_sec_module, mock_main_module,
+        self, mock_sec_module,
         authenticated_client, db_session, level_and_module
     ):
         """In-progress quiz lesson shows current question number."""
@@ -252,10 +244,9 @@ class TestContinueWhereLeftOff:
         html = response.data.decode()
         assert 'Вопрос 3/10' in html  # current_question + 1
 
-    @patch('app.curriculum.routes.main.check_module_access', return_value=True)
     @patch('app.curriculum.security.check_module_access', return_value=True)
     def test_completed_lesson_shows_score(
-        self, mock_sec_module, mock_main_module,
+        self, mock_sec_module,
         authenticated_client, db_session, level_and_module
     ):
         """Completed lesson shows score percentage."""

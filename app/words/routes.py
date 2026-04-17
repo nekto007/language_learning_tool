@@ -1,6 +1,7 @@
 import logging
 import time
 import threading
+from datetime import datetime
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -10,8 +11,10 @@ from sqlalchemy import case, func, or_
 from app.study.models import GameScore
 from app.utils.db import db
 from app.words.forms import WordFilterForm, WordSearchForm
-from app.words.models import CollectionWords, Topic
+from app.words.models import CollectionWords
 from app.modules.decorators import module_required
+from app.daily_plan.models import MODE_CATEGORY_MAP
+from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +36,34 @@ _LEGACY_STEP_POINTS = {
     'books': 20,
     'book_course_practice': 18,
 }
+
+# Route progress weights: contribution of each phase kind to overall route progress (0-100 scale).
+# recall+learn+use+check = 100; read/close/bonus fill remaining proportionally when present.
+ROUTE_PROGRESS_WEIGHTS: dict[str, int] = {
+    'recall': 15,
+    'learn': 40,
+    'use': 30,
+    'check': 15,
+    'read': 25,
+    'close': 10,
+    'bonus': 5,
+}
+
+
+def _build_route_metadata(phases: list[dict], plan_completion: dict) -> dict:
+    """Compute route board metadata for the mission plan dashboard display."""
+    total = len(phases)
+    current_idx = total  # past-end means all done
+    for i, phase in enumerate(phases):
+        if not plan_completion.get(phase.get('id', ''), False):
+            current_idx = i
+            break
+    finish_state = 'done' if current_idx == total and total > 0 else 'in_progress'
+    return {
+        'total_checkpoints': total,
+        'current_checkpoint_index': current_idx,
+        'finish_state': finish_state,
+    }
 
 words = Blueprint('words', __name__)
 
@@ -123,7 +154,8 @@ def _process_referral_reward_on_first_visit(user) -> None:
         _check_referral_achievements(user.referred_by_id)
 
         db.session.commit()
-    except Exception:
+    except Exception as e:
+        logger.exception("Referral reward processing failed for user %s: %s", user.referred_by_id, e)
         db.session.rollback()
 
 
@@ -137,9 +169,9 @@ def _safe_widget_call(name: str, fn, *args, default=None, **kwargs):
     try:
         with db.session.begin_nested():
             return fn(*args, **kwargs)
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        logger.exception("Dashboard widget '%s' failed", name)
+        logger.exception("Dashboard widget '%s' failed: %s", name, e)
         return default
 
 
@@ -158,52 +190,55 @@ def _get_cached_leaderboard(stats_service_cls, limit: int = 5):
     return data
 
 
-def _compute_daily_race_state(daily_plan: dict, daily_summary: dict, streak: int) -> dict:
-    from app.achievements.streak_service import compute_plan_steps
+_MEDAL_BY_RANK = {1: 'gold', 2: 'silver', 3: 'bronze'}
 
-    plan_completion, _, steps_done, steps_total = compute_plan_steps(daily_plan, daily_summary)
-    score = 0
-    next_step_title = None
-    next_step_points = 0
 
-    phases = daily_plan.get('phases') or []
+def _participant_initials(username: str | None) -> str:
+    """Return 1-2 uppercase initials from a username for avatar display."""
+    if not username:
+        return '?'
+    clean = username.strip()
+    if not clean:
+        return '?'
+    # If the username contains separators, take the first letter of first two parts.
+    parts = [p for p in clean.replace('_', ' ').replace('.', ' ').split() if p]
+    if len(parts) >= 2:
+        return (parts[0][0] + parts[1][0]).upper()
+    return clean[:2].upper() if len(clean) >= 2 else clean[0].upper()
+
+
+def _format_place_label(rank: int | None) -> str:
+    if not rank:
+        return ''
+    if rank == 1:
+        return '1-е место'
+    if rank == 2:
+        return '2-е место'
+    if rank == 3:
+        return '3-е место'
+    return f'{rank}-е место'
+
+
+def _next_phase_points(plan: dict, plan_completion: dict) -> tuple[str | None, int]:
+    """Return (title, points) for the first incomplete required phase."""
+    phases = plan.get('phases') or []
     if phases:
-        required_phases = [p for p in phases if p.get('required', True)]
-        for phase in required_phases:
-            points = _MISSION_PHASE_POINTS.get(phase.get('phase', ''), 12)
-            if plan_completion.get(phase.get('id'), False):
-                score += points
-            elif next_step_title is None:
-                next_step_title = phase.get('title') or 'Следующий этап'
-                next_step_points = points
-
-        if steps_total > 0 and steps_done >= steps_total:
-            score += 12
-    else:
-        steps = daily_plan.get('steps') or {}
-        for key in ('lesson', 'grammar', 'words', 'books', 'book_course_practice'):
-            step = steps.get(key)
-            if not step:
+        for phase in phases:
+            if not phase.get('required', True):
                 continue
-            points = _LEGACY_STEP_POINTS.get(key, 15)
-            if plan_completion.get(key, False):
-                score += points
-            elif next_step_title is None:
-                next_step_title = step.get('title') or 'Следующий шаг'
-                next_step_points = points
+            if plan_completion.get(phase.get('id'), False):
+                continue
+            points = _MISSION_PHASE_POINTS.get(phase.get('phase', ''), 12)
+            return phase.get('title') or 'Следующий этап', points
 
-        if steps_total > 0 and steps_done >= steps_total:
-            score += 12
-
-    score += min(max(streak, 0), 10)
-
-    return {
-        'score': score,
-        'steps_done': steps_done,
-        'steps_total': steps_total,
-        'next_step_title': next_step_title,
-        'next_step_points': next_step_points,
-    }
+    steps = plan.get('steps') or {}
+    for key in ('lesson', 'grammar', 'words', 'books', 'book_course_practice'):
+        step = steps.get(key)
+        if not step or plan_completion.get(key, False):
+            continue
+        title = step.get('title') or 'Следующий шаг'
+        return title, _LEGACY_STEP_POINTS.get(key, 15)
+    return None, 0
 
 
 def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, str | None]:
@@ -226,47 +261,153 @@ def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, 
     return None, None
 
 
-def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
-    from app.auth.models import User
-    from app.daily_plan.service import get_daily_plan_unified
-    from app.telegram.queries import get_current_streak, get_daily_summary
-
-    candidates = (
-        User.query
-        .filter(
-            User.active.is_(True),
-            User.is_admin.is_(False),
-            User.onboarding_completed.is_(True),
-        )
-        .order_by(User.last_login.desc().nullslast(), User.created_at.desc())
-        .limit(18)
-        .all()
+def _build_rank_info(current_user_id: int) -> dict | None:
+    from app.achievements.models import UserStatistics
+    from app.achievements.ranks import (
+        RANK_COLORS,
+        RANK_ICONS,
+        RANK_RU_NAMES,
+        get_user_rank,
     )
 
-    current_user_row = User.query.get(current_user_id)
-    if current_user_row and not any(user.id == current_user_id for user in candidates):
-        candidates.append(current_user_row)
+    stats = UserStatistics.query.filter_by(user_id=current_user_id).first()
+    plans_completed = int(stats.plans_completed_total) if stats and stats.plans_completed_total else 0
+    info = get_user_rank(plans_completed)
 
-    entries = []
-    for user in candidates:
+    return {
+        'code': info.code,
+        'name': info.name,
+        'display_name': RANK_RU_NAMES.get(info.code, info.name),
+        'icon': RANK_ICONS.get(info.code, '\U0001F3C6'),
+        'color': RANK_COLORS.get(info.code, '#64748b'),
+        'plans_completed': info.plans_completed,
+        'threshold': info.threshold,
+        'next_code': info.next_code,
+        'next_name': info.next_name,
+        'next_display_name': RANK_RU_NAMES.get(info.next_code) if info.next_code else None,
+        'next_threshold': info.next_threshold,
+        'progress_percent': info.progress_percent,
+        'plans_to_next': info.plans_to_next,
+        'is_max': info.next_code is None,
+    }
+
+
+def _build_mission_level_info(user_id: int) -> dict | None:
+    """Return XP level info for the dash-xp widget."""
+    from app.achievements.models import UserStatistics
+    from app.achievements.xp_service import get_level_info, get_streak_multiplier, PHASE_XP
+
+    stats = UserStatistics.query.filter_by(user_id=user_id).first()
+    total_xp = int(stats.total_xp or 0) if stats else 0
+    streak_days = int(stats.current_streak_days or 0) if stats else 0
+
+    info = get_level_info(total_xp)
+    multiplier = get_streak_multiplier(streak_days)
+
+    return {
+        'level': info.current_level,
+        'total_xp': info.total_xp,
+        'xp_in_level': info.xp_in_level,
+        'xp_to_next': info.xp_to_next,
+        'xp_for_level': info.xp_in_level + info.xp_to_next,
+        'progress_percent': info.progress_percent,
+        'streak_multiplier': round(multiplier, 2),
+        'phase_xp': PHASE_XP,
+    }
+
+
+def _compute_daily_race_state(plan: dict, daily_summary: dict, streak: int) -> dict:
+    """Compute score, step counts, and next-step info for a single user in the daily race."""
+    from app.achievements.streak_service import compute_plan_steps
+
+    plan_completion, _steps_available, steps_done, steps_total = compute_plan_steps(plan, daily_summary)
+
+    score = 0
+    phases = plan.get('phases') or []
+    if phases:
+        for phase in phases:
+            if not phase.get('required', True):
+                continue
+            if plan_completion.get(phase.get('id'), False):
+                score += _MISSION_PHASE_POINTS.get(phase.get('phase', ''), 12)
+    else:
+        for key, pts in _LEGACY_STEP_POINTS.items():
+            if plan_completion.get(key, False):
+                score += pts
+
+    next_step_title, next_step_points = _next_phase_points(plan, plan_completion)
+
+    return {
+        'score': score,
+        'steps_done': steps_done,
+        'steps_total': steps_total,
+        'next_step_title': next_step_title,
+        'next_step_points': next_step_points,
+    }
+
+
+def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
+    from app.auth.models import User
+    from app.achievements.daily_race import get_race_standings
+    from app.daily_plan.service import get_daily_plan_unified
+    from app.telegram.queries import get_current_streak, get_daily_summary
+    import pytz
+
+    try:
+        tz_obj = pytz.timezone(tz or DEFAULT_TIMEZONE)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
+    local_today = datetime.now(tz_obj).date()
+
+    standings = get_race_standings(current_user_id, local_today, tz=tz)
+    if not standings:
+        return None
+
+    participant_rows = standings.get('participants') or []
+    if not participant_rows:
+        return None
+
+    human_entries: dict[int, dict] = {}
+    current_user_max_score = 1
+
+    for row in participant_rows:
+        if row.get('is_ghost') or row.get('user_id') is None:
+            continue
+        participant_user_id = int(row['user_id'])
+        user = User.query.get(participant_user_id)
+        if user is None:
+            continue
         user_tz = user.timezone or tz
         try:
-            with db.session.begin_nested():
-                plan = get_daily_plan_unified(user.id, tz=user_tz)
-                summary = get_daily_summary(user.id, tz=user_tz)
-                streak = get_current_streak(user.id, tz=user_tz)
-                race_state = _compute_daily_race_state(plan, summary, streak)
-        except Exception:
-            logger.exception("Failed to build daily race entry for user %s", user.id)
+            plan = get_daily_plan_unified(user.id, tz=user_tz)
+            summary = get_daily_summary(user.id, tz=user_tz)
+            streak = get_current_streak(user.id, tz=user_tz)
+            race_state = _compute_daily_race_state(plan, summary, streak)
+        except Exception as e:
+            logger.exception(
+                "Failed to build daily race entry for user %s: %s",
+                participant_user_id,
+                e,
+            )
             continue
 
         if race_state['steps_total'] <= 0:
             continue
 
-        entries.append({
+        uname = user.username or ''
+        max_score = 0
+        for phase in plan.get('phases') or []:
+            if not phase.get('required', True):
+                continue
+            max_score += _MISSION_PHASE_POINTS.get(phase.get('phase', ''), 12)
+        if user.id == current_user_id:
+            current_user_max_score = max(1, max_score)
+
+        human_entries[user.id] = {
             'user_id': user.id,
-            'username': user.username,
-            'score': race_state['score'],
+            'username': uname,
+            'initials': _participant_initials(uname),
+            'score': int(row.get('points', 0) or 0),
             'steps_done': race_state['steps_done'],
             'steps_total': race_state['steps_total'],
             'streak': streak,
@@ -274,39 +415,46 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
             'next_step_points': race_state['next_step_points'],
             'is_me': user.id == current_user_id,
             'is_bot': False,
-        })
+            'max_score': max(1, max_score),
+        }
 
-    current_index = next((i for i, item in enumerate(entries) if item['is_me']), None)
-    if current_index is None:
-        return None
-
-    me_seed = entries[current_index]
-
-    if len(entries) < 4:
-        bot_names = ['Молния', 'Ракета', 'Спринтер']
-        bot_offsets = [8, -6, 15]
-        bot_steps = [0, 0, 1]
-        for idx, name in enumerate(bot_names):
+    entries = []
+    for row in participant_rows:
+        if row.get('is_ghost') or row.get('user_id') is None:
+            ghost_score = int(row.get('points', 0) or 0)
+            route_position = min(100, int(round(ghost_score / max(1, current_user_max_score) * 100)))
             entries.append({
-                'user_id': -(idx + 1),
-                'username': name,
-                'score': max(0, me_seed['score'] + bot_offsets[idx]),
-                'steps_done': min(me_seed['steps_total'], max(0, me_seed['steps_done'] + bot_steps[idx])),
-                'steps_total': me_seed['steps_total'],
-                'streak': max(0, me_seed['streak'] + idx + 1),
-                'next_step_title': me_seed['next_step_title'],
-                'next_step_points': me_seed['next_step_points'],
+                'user_id': row.get('user_id'),
+                'username': row.get('username') or 'Тренировочный соперник',
+                'initials': _participant_initials(row.get('username')),
+                'score': ghost_score,
+                'steps_done': 0,
+                'steps_total': 0,
+                'streak': 0,
+                'next_step_title': None,
+                'next_step_points': 0,
                 'is_me': False,
                 'is_bot': True,
+                'rank': row.get('rank'),
+                'place_class': _MEDAL_BY_RANK.get(row.get('rank'), ''),
+                'is_complete': False,
+                'route_position': route_position,
             })
+            continue
 
-    entries.sort(key=lambda item: (-item['score'], -item['steps_done'], -item['streak'], item['username'].lower()))
+        human = human_entries.get(row.get('user_id'))
+        if human is None:
+            continue
+        human['rank'] = row.get('rank')
+        human['place_class'] = _MEDAL_BY_RANK.get(row.get('rank'), '')
+        human['is_complete'] = human['steps_done'] >= human['steps_total'] and human['steps_total'] > 0
+        st = human['steps_total']
+        human['route_position'] = int(human['steps_done'] / st * 100) if st > 0 else 0
+        entries.append(human)
+
     current_index = next((i for i, item in enumerate(entries) if item['is_me']), None)
     if current_index is None:
         return None
-
-    for idx, entry in enumerate(entries, start=1):
-        entry['rank'] = idx
 
     me = entries[current_index]
     rival_above = entries[current_index - 1] if current_index > 0 else None
@@ -332,13 +480,33 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     start = max(0, current_index - 2)
     end = min(len(entries), current_index + 3)
 
+    me_is_complete = me['steps_done'] >= me['steps_total'] and me['steps_total'] > 0
+
+    # Build route_rivals: compact set for on-route token display (one ahead, one behind, optional leader)
+    entries_by_pos = sorted(entries, key=lambda e: (-e['route_position'], -e['score']))
+    me_pos_idx = next((i for i, e in enumerate(entries_by_pos) if e['is_me']), None)
+    route_rivals: list[dict] = []
+    if me_pos_idx is not None:
+        ahead = entries_by_pos[me_pos_idx - 1] if me_pos_idx > 0 else None
+        behind = entries_by_pos[me_pos_idx + 1] if me_pos_idx + 1 < len(entries_by_pos) else None
+        leader = entries_by_pos[0] if not entries_by_pos[0]['is_me'] else None
+        if ahead:
+            route_rivals.append({**ahead, 'rival_role': 'ahead'})
+        route_rivals.append({**entries_by_pos[me_pos_idx], 'rival_role': 'me'})
+        if behind:
+            route_rivals.append({**behind, 'rival_role': 'behind'})
+        if leader and leader['user_id'] not in {e['user_id'] for e in route_rivals}:
+            route_rivals.append({**leader, 'rival_role': 'leader'})
+
     return {
         'rank': me['rank'],
+        'place_class': me['place_class'],
         'total': len(entries),
         'score': me['score'],
         'steps_done': me['steps_done'],
         'steps_total': me['steps_total'],
         'streak': me['streak'],
+        'is_complete': me_is_complete,
         'rival_above': rival_above,
         'rival_below': rival_below,
         'gap_up': gap_up,
@@ -349,6 +517,116 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
         'duel_target': rival_above or rival_below,
         'has_bot_rivals': any(entry.get('is_bot') for entry in entries),
         'leaderboard': entries[start:end],
+        'route_rivals': route_rivals,
+    }
+
+
+_MISSION_CLOSING_MESSAGES: dict[str, list[str]] = {
+    'progress': [
+        'Прогресс сделан — ещё один шаг к свободному английскому.',
+        'Ты вложил время — оно работает на тебя.',
+        'Сегодняшний урок стал частью тебя.',
+    ],
+    'repair': [
+        'Ты не сдался — это и есть настоящее обучение.',
+        'Пробел закрыт. Фундамент стал крепче.',
+        'Починил сегодня — завтра двигаешься дальше.',
+    ],
+    'reading': [
+        'Каждый текст — это новый мир слов внутри.',
+        'Понимание растёт. Ты это чувствуешь.',
+        'Читать — значит мыслить. Отличная работа.',
+    ],
+    'default': [
+        'Ещё один день — ещё один шаг вперёд.',
+        'Постоянство — твоя суперсила.',
+        'Сделано. Следующий уровень ближе.',
+    ],
+}
+
+
+def _get_closing_message(mission_type: str | None, plans_completed: int) -> str:
+    import random
+    messages = _MISSION_CLOSING_MESSAGES.get(
+        mission_type or 'default',
+        _MISSION_CLOSING_MESSAGES['default'],
+    )
+    return messages[plans_completed % len(messages)]
+
+
+def _build_completion_summary(
+    user_id: int,
+    daily_plan: dict,
+    mission_level_info: dict | None,
+    rank_info: dict | None,
+    daily_race: dict | None,
+    unseen_badges: list,
+    streak: int,
+    plan_completion: dict,
+    tz: str,
+) -> dict:
+    """Compile rich completion summary for the mission plan completion screen."""
+    from datetime import date as date_cls
+    from app.achievements.xp_service import get_today_xp
+
+    try:
+        import pytz
+        tz_obj = pytz.timezone(tz)
+        from datetime import datetime
+        today = datetime.now(tz_obj).date()
+    except Exception:
+        today = date_cls.today()
+
+    today_xp_mission = _safe_widget_call(
+        'today_xp_mission', get_today_xp, user_id, today, default=0)
+
+    mission = daily_plan.get('mission') or {}
+    mission_type = mission.get('type')
+
+    plans_completed = (rank_info or {}).get('plans_completed', 0)
+    closing_message = _get_closing_message(mission_type, plans_completed)
+
+    race_rank = (daily_race or {}).get('rank')
+    race_total = (daily_race or {}).get('total')
+
+    bonus_done = False
+    phases = daily_plan.get('phases') or []
+    for phase in phases:
+        if not phase.get('required', True) and plan_completion.get(phase.get('id'), False):
+            bonus_done = True
+            break
+
+    share_parts = [f'Миссия выполнена! {streak} дней подряд.']
+    if today_xp_mission:
+        share_parts.append(f'+{today_xp_mission} XP сегодня.')
+    if mission_level_info:
+        share_parts.append(f'Уровень {mission_level_info["level"]}.')
+    if race_rank:
+        share_parts.append(f'Место в гонке: {race_rank}/{race_total}.')
+
+    return {
+        'today_xp': today_xp_mission,
+        'mission_type': mission_type,
+        'mission_title': mission.get('title', ''),
+        'streak': streak,
+        'level': (mission_level_info or {}).get('level'),
+        'xp_in_level': (mission_level_info or {}).get('xp_in_level'),
+        'xp_to_next': (mission_level_info or {}).get('xp_to_next'),
+        'xp_progress_percent': (mission_level_info or {}).get('progress_percent'),
+        'streak_multiplier': (mission_level_info or {}).get('streak_multiplier'),
+        'race_rank': race_rank,
+        'race_total': race_total,
+        'rank_code': (rank_info or {}).get('code'),
+        'rank_display_name': (rank_info or {}).get('display_name'),
+        'rank_icon': (rank_info or {}).get('icon'),
+        'rank_progress_percent': (rank_info or {}).get('progress_percent'),
+        'rank_plans_to_next': (rank_info or {}).get('plans_to_next'),
+        'rank_next_display_name': (rank_info or {}).get('next_display_name'),
+        'rank_is_max': (rank_info or {}).get('is_max', False),
+        'new_badges': unseen_badges,
+        'bonus_done': bonus_done,
+        'closing_message': closing_message,
+        'share_text': ' '.join(share_parts),
     }
 
 
@@ -358,14 +636,14 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
 def dashboard():
     """Main dashboard with daily plan, streak and activity summary."""
     t_start = time.time()
-    tz = current_user.timezone or 'Europe/Moscow'
+    tz = current_user.timezone or DEFAULT_TIMEZONE
 
     # Process deferred referral reward on first visit
     _process_referral_reward_on_first_visit(current_user)
 
-    from app.study.models import UserWord, Achievement, UserAchievement
+    from app.study.models import Achievement, UserAchievement
     from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
-    from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
+    from app.curriculum.book_courses import BookCourseEnrollment
     from app.telegram.models import TelegramUser
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_current_streak, get_daily_summary
@@ -385,8 +663,9 @@ def dashboard():
     from datetime import datetime as dt
     import pytz
     try:
-        local_hour = dt.now(pytz.timezone('Europe/Moscow')).hour
-    except Exception:
+        local_hour = dt.now(pytz.timezone(DEFAULT_TIMEZONE)).hour
+    except (pytz.exceptions.UnknownTimeZoneError, OverflowError, OSError) as e:
+        logger.warning("Failed to determine local hour via pytz, using UTC fallback: %s", e)
         local_hour = dt.utcnow().hour + 3
     if local_hour < 6:
         greeting = 'Доброй ночи'
@@ -406,7 +685,10 @@ def dashboard():
 
     plan_completion, steps_available, steps_done, steps_total = compute_plan_steps(daily_plan, daily_summary)
 
-    streak_result = process_streak_on_activity(current_user.id, steps_done, steps_total, tz=tz)
+    streak_result = process_streak_on_activity(
+        current_user.id, steps_done, steps_total, tz=tz,
+        daily_plan=daily_plan, plan_completion=plan_completion,
+    )
     streak_status = streak_result['streak_status']
     required_steps = streak_result['required_steps']
     streak_repaired = streak_result['streak_repaired']
@@ -475,6 +757,9 @@ def dashboard():
         'achievements_by_category', StatsService.get_achievements_by_category, current_user.id, default={})
     milestone_history = _safe_widget_call(
         'milestone_history', get_milestone_history, current_user.id, default=[])
+    badges_showcase = _safe_widget_call(
+        'badges_showcase', StatsService.get_badges_showcase, current_user.id,
+        default={'recent': [], 'teasers': [], 'earned_count': 0, 'total_count': 0})
 
     # === READING SPEED TREND & GRAMMAR BY LEVEL ===
     reading_speed_trend = _safe_widget_call(
@@ -560,8 +845,11 @@ def dashboard():
     grammar_user_stats = srs_stats_service.get_grammar_user_stats(current_user.id)
 
     # === WEEKLY CHALLENGE ===
-    from app.achievements.weekly_challenge import get_weekly_challenge
+    from app.achievements.weekly_challenge import get_weekly_challenge, get_weekly_digest
     weekly_challenge = get_weekly_challenge(current_user.id)
+
+    # === WEEKLY DIGEST (task 30) ===
+    weekly_digest = _safe_widget_call('weekly_digest', get_weekly_digest, current_user.id, default=None)
 
     # === GAME SCORES (single query via union: best matching + best quiz) ===
     q_matching = GameScore.query.filter_by(
@@ -586,6 +874,39 @@ def dashboard():
         ).exists()
     ).scalar()
 
+    # === RANK / TITLE (daily plan cumulative) ===
+    rank_info = _safe_widget_call('rank_info', _build_rank_info, current_user.id, default=None)
+
+    # === MISSION XP / LEVEL (task 26) ===
+    mission_level_info = _safe_widget_call(
+        'mission_level_info', _build_mission_level_info, current_user.id, default=None)
+    xp_level_up = streak_result.get('xp_level_up')
+
+    # === UNSEEN BADGES POPUP ===
+    # Collect every badge earned since the last dashboard visit, then mark them
+    # seen so the popup fires exactly once per awarding.
+    from app.achievements.services import AchievementService
+    unseen_badges = _safe_widget_call(
+        'unseen_badges', AchievementService.get_unseen_badges, current_user.id, default=[])
+    if unseen_badges:
+        try:
+            AchievementService.mark_badges_seen(
+                current_user.id,
+                [b['user_achievement_id'] for b in unseen_badges],
+            )
+        except Exception as e:
+            db.session.rollback()
+            logger.exception("Failed to mark unseen badges as seen for user %s: %s", current_user.id, e)
+
+    # === COMPLETION SUMMARY (task 29) ===
+    completion_summary = _safe_widget_call(
+        'completion_summary',
+        _build_completion_summary,
+        current_user.id, daily_plan, mission_level_info, rank_info,
+        daily_race, unseen_badges, streak, plan_completion, tz,
+        default=None,
+    )
+
     # === PERFORMANCE LOGGING ===
     t_elapsed = time.time() - t_start
     logger.info("Dashboard data loaded in %.3fs for user_id=%s", t_elapsed, current_user.id)
@@ -596,6 +917,10 @@ def dashboard():
     if mission_plan:
         for p in daily_plan.get('phases', []):
             phase_urls[p.get('id', '')] = _phase_url(p, daily_plan)
+    route_metadata = (
+        _build_route_metadata(daily_plan.get('phases', []), plan_completion)
+        if mission_plan else None
+    )
     next_plan_title, next_plan_url = _get_next_plan_action(daily_plan, daily_summary)
     if daily_race:
         daily_race['next_action_title'] = next_plan_title
@@ -674,6 +999,21 @@ def dashboard():
         weekly_analytics=weekly_analytics,
         continue_lesson=continue_lesson,
         grammar_user_stats=grammar_user_stats,
+        # Rank badge (daily plan title system)
+        rank_info=rank_info,
+        # Badges earned since last dashboard visit (popup)
+        unseen_badges=unseen_badges,
+        # Badges showcase (recent + teasers)
+        badges_showcase=badges_showcase,
+        # Mission XP / level widget (task 26)
+        mission_level_info=mission_level_info,
+        xp_level_up=xp_level_up,
+        # Mission completion summary (task 29)
+        completion_summary=completion_summary,
+        # Weekly progress digest (task 30)
+        weekly_digest=weekly_digest,
+        # Route board metadata (task 33)
+        route_metadata=route_metadata,
     )
 
 
@@ -692,7 +1032,7 @@ def word_list():
 
     # Параметры пагинации
     page = request.args.get('page', 1, type=int)
-    per_page = 50  # Увеличиваем для таблицы
+    per_page = max(1, min(request.args.get('per_page', 50, type=int), 200))
 
     # Создаем формы фильтров с параметрами запроса
     search_form = WordSearchForm(request.args)
@@ -944,7 +1284,7 @@ def daily_plan_next_step() -> tuple:
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_daily_summary
 
-    tz = current_user.timezone or 'Europe/Moscow'
+    tz = current_user.timezone or DEFAULT_TIMEZONE
     daily_plan = get_daily_plan_unified(current_user.id, tz=tz)
     daily_summary = get_daily_summary(current_user.id, tz=tz)
 
@@ -997,21 +1337,23 @@ def _next_step_from_mission(plan: dict, daily_summary: dict) -> tuple:
 def _phase_url(phase: dict, plan: dict) -> str:
     """Build URL for a mission phase based on its mode and legacy data."""
     mode = phase.get('mode', '')
-    cards_url = url_for('study.cards')
-    if current_user.default_study_deck_id:
-        cards_url = url_for('study.cards_deck', deck_id=current_user.default_study_deck_id)
+    category = MODE_CATEGORY_MAP.get(mode)
 
-    if mode in ('srs_review', 'guided_recall', 'book_vocab_recall',
-                'micro_check', 'meaning_prompt', 'vocab_drill'):
+    # reading_vocab_extract is categorised as 'words' for completion checks,
+    # but the user navigates to a book page to do the activity.
+    if mode == 'reading_vocab_extract':
+        category = 'books'
+
+    if category == 'words':
         return url_for('study.cards', source='daily_plan_mix') + '&from=daily_plan'
 
-    if mode in ('curriculum_lesson', 'lesson_practice'):
+    if category == 'lesson':
         nl = plan.get('next_lesson')
         if nl and nl.get('lesson_id'):
             return url_for('curriculum_lessons.lesson_detail',
                            lesson_id=nl['lesson_id']) + '?from=daily_plan'
 
-    if mode in ('book_course_lesson', 'book_course_practice'):
+    if category == 'book_course':
         bc = plan.get('book_course_lesson')
         if bc and bc.get('course_id') and bc.get('module_id') and bc.get('lesson_id'):
             return url_for('book_courses.view_lesson_by_id',
@@ -1019,14 +1361,14 @@ def _phase_url(phase: dict, plan: dict) -> str:
                            module_id=bc['module_id'],
                            lesson_id=bc['lesson_id']) + '?from=daily_plan'
 
-    if mode in ('grammar_practice', 'targeted_quiz'):
+    if category == 'grammar':
         gt = plan.get('grammar_topic')
         if gt and gt.get('topic_id'):
             return url_for('grammar_lab.practice',
                            topic_id=gt['topic_id']) + '?from=daily_plan'
         return url_for('grammar_lab.practice') + '?from=daily_plan'
 
-    if mode in ('book_reading', 'reading_vocab_extract'):
+    if category == 'books':
         book = plan.get('book_to_read')
         if book and book.get('id'):
             return url_for('books.read_book_chapters',
@@ -1124,7 +1466,7 @@ def streak_repair_web():
     from app.achievements.streak_service import find_missed_date, apply_paid_repair
     from app.telegram.queries import get_current_streak
 
-    tz = request.json.get('tz', 'Europe/Moscow') if request.is_json else 'Europe/Moscow'
+    tz = request.json.get('tz', DEFAULT_TIMEZONE) if request.is_json else DEFAULT_TIMEZONE
 
     missed = find_missed_date(current_user.id, tz=tz)
     if not missed:

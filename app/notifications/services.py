@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 _PREF_MAP = {
     'achievement': 'notify_in_app_achievements',
     'level_up': 'notify_in_app_achievements',
+    'rank_up': 'notify_in_app_achievements',
     'streak_milestone': 'notify_in_app_streaks',
     'weekly_challenge': 'notify_in_app_weekly',
     'referral': None,  # always send referral notifications
@@ -64,6 +65,16 @@ def notify_level_up(user_id: int, new_level: int) -> Notification:
         title=f'Уровень {new_level}!',
         message='Поздравляем с новым уровнем!',
         icon='🎉',
+        link='/dashboard',
+    )
+
+
+def notify_rank_up(user_id: int, rank_name: str) -> Notification | None:
+    return create_notification(
+        user_id, 'rank_up',
+        title=f'Новый титул: {rank_name}!',
+        message='Ты поднялся на новый уровень ежедневного плана',
+        icon='🎖️',
         link='/dashboard',
     )
 

@@ -2,11 +2,11 @@
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
-from sqlalchemy import case, func, and_, desc
+from sqlalchemy import case, func, desc
 
-from app.curriculum.models import LessonAttempt, Lessons, Module, CEFRLevel, LessonProgress
+from app.curriculum.models import LessonAttempt, Lessons, Module, LessonProgress
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)

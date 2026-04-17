@@ -5,7 +5,7 @@ Exercise grader for Grammar Lab.
 Grades different types of grammar exercises.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any
 import re
 import logging
 

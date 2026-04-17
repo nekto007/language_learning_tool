@@ -1517,7 +1517,7 @@
             <ul class="vocab-pagination__list">
                 {% if words.has_prev %}
                 <li>
-                    <a class="vocab-pagination__link" href="{{ url_for('words.word_list', page=words.prev_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}">
+                    <a class="vocab-pagination__link" href="{{ url_for('words.word_list', page=words.prev_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), per_page=request.args.get('per_page', '')) }}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
                     </a>
                 </li>
@@ -1527,7 +1527,7 @@
                     {% if page_num %}
                         {% if page_num != words.page %}
                         <li>
-                            <a class="vocab-pagination__link" href="{{ url_for('words.word_list', page=page_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}">{{ page_num }}</a>
+                            <a class="vocab-pagination__link" href="{{ url_for('words.word_list', page=page_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), per_page=request.args.get('per_page', '')) }}">{{ page_num }}</a>
                         </li>
                         {% else %}
                         <li>
@@ -1543,7 +1543,7 @@
 
                 {% if words.has_next %}
                 <li>
-                    <a class="vocab-pagination__link" href="{{ url_for('words.word_list', page=words.next_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}">
+                    <a class="vocab-pagination__link" href="{{ url_for('words.word_list', page=words.next_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), per_page=request.args.get('per_page', '')) }}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
                     </a>
                 </li>
@@ -1744,7 +1744,11 @@ function showSetDefaultDeckModal(wordIdToAddAfter, status) {
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast-notification toast-${type}`;
-    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>${message}`;
+    const icon = document.createElement('i');
+    icon.className = `fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2`;
+    const msgNode = document.createTextNode(message);
+    toast.appendChild(icon);
+    toast.appendChild(msgNode);
     document.body.appendChild(toast);
 
     setTimeout(() => toast.classList.add('show'), 10);

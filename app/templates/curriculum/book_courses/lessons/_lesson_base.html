@@ -623,7 +623,7 @@
 <script>
 const courseId = {{ course.id }};
 const moduleId = {{ module.id }};
-const lessonNumber = {{ lesson_number }};
+const lessonNumber = {{ lesson_number | default(0) }};
 const dailyLessonId = {{ lesson.daily_lesson_id or 'null' }};
 
 function enableCompleteButton() {

@@ -1,7 +1,5 @@
 from flask import Response, current_app
 from xml.etree.ElementTree import Element, SubElement, tostring
-from urllib.parse import urlparse
-
 from . import seo_bp
 
 
@@ -75,7 +73,6 @@ def sitemap() -> Response:
 
     # Dictionary pages (top 500 words)
     from app.words.models import CollectionWords
-    from sqlalchemy import func as sqla_func
     top_words = (
         CollectionWords.query
         .filter(CollectionWords.item_type == 'word')

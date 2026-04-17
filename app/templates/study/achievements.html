@@ -32,7 +32,7 @@
       </div>
 
       <div class="ach-hero__stats">
-        <div class="ach-hero__counter">{{ earned_count }}/{{ total_achievements }}</div>
+        <div class="ach-hero__counter">{{ earned_count | default(0) }}/{{ total_achievements | default(0) }}</div>
         <div class="ach-hero__counter-label">Получено</div>
         <div class="ach-hero__progress">
           <div class="ach-hero__progress-fill" style="width: {{ (earned_count / total_achievements * 100) if total_achievements > 0 else 0 }}%;"></div>
@@ -46,8 +46,8 @@
     <div class="ach-stats__card">
       <div class="ach-stats__emoji">&#9889;</div>
       <div class="ach-stats__info">
-        <div class="ach-stats__value ach-stats__value--xp">{{ earned_xp }} XP</div>
-        <div class="ach-stats__label">Заработано из {{ total_xp_available }} XP</div>
+        <div class="ach-stats__value ach-stats__value--xp">{{ earned_xp | default(0) }} XP</div>
+        <div class="ach-stats__label">Заработано из {{ total_xp_available | default(0) }} XP</div>
       </div>
     </div>
     <div class="ach-stats__card">

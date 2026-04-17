@@ -111,8 +111,6 @@ def log_user_access(access_data: Dict[str, Any]):
     """Log user access to database"""
     try:
         # Create access log entry (you might want to create a separate table for this)
-        from app.curriculum.models import LessonProgress
-
         # For now, we'll just log to application logs
         # In production, you might want to use a separate analytics service
         logger.info(

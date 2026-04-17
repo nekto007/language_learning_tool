@@ -9,6 +9,7 @@ from sqlalchemy.orm import backref, relationship
 
 from app.utils.db import db
 from app.utils.types import JSONBCompat
+from config.settings import PASSING_SCORE_PERCENT
 
 
 class LessonGrade(db.Model):
@@ -47,7 +48,7 @@ class LessonGrade(db.Model):
             return 'A'
         elif score >= 80:
             return 'B'
-        elif score >= 70:
+        elif score >= PASSING_SCORE_PERCENT:
             return 'C'
         elif score >= 60:
             return 'D'
@@ -109,6 +110,17 @@ class UserStatistics(db.Model):
     # Badges
     total_badges = Column(Integer, default=0)
     total_badge_points = Column(Integer, default=0)
+
+    # Daily plan rank progression
+    plans_completed_total = Column(Integer, default=0, nullable=False, server_default='0')
+    current_rank = Column(String(32), default='novice', nullable=False, server_default='novice')
+
+    # XP and level progression
+    total_xp = Column(Integer, default=0, nullable=False, server_default='0')
+    current_level = Column(Integer, default=1, nullable=False, server_default='1')
+
+    # Consecutive perfect days (all required phases done on consecutive dates)
+    consecutive_perfect_days = Column(Integer, default=0, nullable=False, server_default='0')
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),

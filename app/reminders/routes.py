@@ -6,7 +6,6 @@ import os
 import re
 import smtplib
 import socket
-import uuid
 from datetime import datetime, timedelta, timezone
 from email import charset
 from email.mime.multipart import MIMEMultipart

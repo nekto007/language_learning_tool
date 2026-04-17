@@ -15,8 +15,6 @@ from app.admin.utils.cache import clear_admin_cache
 from app.admin.utils.export_helpers import export_words_csv, export_words_json, export_words_txt
 from app.admin.utils.import_helpers import delete_import_data, load_import_data, save_import_data
 from app.auth.models import User
-from app.words.models import CollectionWords
-from app.utils.db import db
 
 # Создаем blueprint для word routes
 word_bp = Blueprint('word_admin', __name__)

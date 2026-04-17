@@ -44,7 +44,7 @@
                     <path d="M14 2v4M10 2v4M4 9h16"/>
                 </svg>
             </div>
-            <div class="stats-card__value">{{ total_items }}</div>
+            <div class="stats-card__value">{{ total_items | default(0) }}</div>
             <div class="stats-card__label">{{ _('Слов в коллекции') }}</div>
         </div>
 
@@ -54,7 +54,7 @@
                     <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </div>
-            <div class="stats-card__value">{{ mastered_items }}</div>
+            <div class="stats-card__value">{{ mastered_items | default(0) }}</div>
             <div class="stats-card__label">{{ _('Изученные слова') }}</div>
             <div class="stats-card__hint">{{ _('интервал') }} ≥ 30 {{ _('дней') }}</div>
         </div>
@@ -65,7 +65,7 @@
                     <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </div>
-            <div class="stats-card__value">{{ mastery_percentage }}%</div>
+            <div class="stats-card__value">{{ mastery_percentage | default(0) }}%</div>
             <div class="stats-card__label">{{ _('Уровень освоения') }}</div>
         </div>
 
@@ -76,7 +76,7 @@
                     <path d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </div>
-            <div class="stats-card__value">{{ study_streak }}</div>
+            <div class="stats-card__value">{{ study_streak | default(0) }}</div>
             <div class="stats-card__label">{{ _('Дней подряд') }}</div>
             <div class="stats-card__hint">{{ _('последовательно') }}</div>
         </div>
@@ -155,7 +155,7 @@
                 <tbody>
                     {% for session in recent_sessions %}
                     <tr>
-                        <td>{{ session.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ session.start_time.strftime('%Y-%m-%d %H:%M') if session.start_time else '—' }}</td>
                         <td>
                             <span class="stats-table__type-badge">{{ session.session_type|capitalize }}</span>
                         </td>

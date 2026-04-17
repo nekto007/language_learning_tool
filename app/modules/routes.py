@@ -1,11 +1,10 @@
 import logging
 
-from flask import render_template, jsonify, request, flash, redirect, url_for
+from flask import render_template, jsonify
 from flask_login import login_required, current_user
 
 from app.modules import modules_bp
 from app.modules.service import ModuleService
-from app.modules.decorators import module_required
 
 logger = logging.getLogger(__name__)
 

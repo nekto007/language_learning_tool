@@ -32,6 +32,7 @@ class FlashcardSession {
             newCardsToday: 0,
             deckId: null,
             extraStudy: false,
+            lessonMode: false,
             ...config
         };
 
@@ -44,7 +45,8 @@ class FlashcardSession {
                 session_id: sessionId,
                 is_new: card.is_new,
                 deck_id: extraParams.deckId,
-                extra_study: extraParams.extraStudy
+                extra_study: extraParams.extraStudy,
+                lesson_mode: extraParams.lessonMode || false
             });
         }
 
@@ -754,7 +756,8 @@ class FlashcardSession {
         try {
             const extraParams = {
                 deckId: this.config.deckId,
-                extraStudy: this.config.extraStudy
+                extraStudy: this.config.extraStudy,
+                lessonMode: this.config.lessonMode
             };
             const body = this.config.gradePayload(card, rating, this.config.sessionId, extraParams);
 
@@ -773,8 +776,13 @@ class FlashcardSession {
             if (!contentType || !contentType.includes('application/json')) {
                 const text = await response.text();
                 console.error('Server error:', response.status, 'Content-Type:', contentType, 'Body:', text.substring(0, 500));
-                alert('Сессия истекла. Перезагрузите страницу.');
-                window.location.reload();
+                if (this.config.lessonMode) {
+                    // In lesson mode, session expiry should not block progress — navigate back cleanly
+                    window.location.href = this.config.backUrl;
+                } else {
+                    alert('Сессия истекла. Перезагрузите страницу.');
+                    window.location.reload();
+                }
                 return;
             }
 
@@ -784,14 +792,21 @@ class FlashcardSession {
                 console.error('Server error:', response.status, 'Content-Type:', contentType, 'Body:', data);
 
                 if (response.status === 429 && data.error === 'daily_limit_exceeded') {
-                    alert('Дневной лимит новых карточек достигнут. Эта карточка не засчитана.');
+                    // In lesson mode the backend should never return 429, but if it does, continue silently
+                    if (!this.config.lessonMode) {
+                        alert('Дневной лимит новых карточек достигнут. Эта карточка не засчитана.');
+                    }
                     this.showCard(this.currentCardIndex + 1);
                     return;
                 }
 
                 if (response.status === 400 || response.status === 401 || response.status === 403) {
-                    alert('Сессия истекла. Перезагрузите страницу.');
-                    window.location.reload();
+                    if (this.config.lessonMode) {
+                        window.location.href = this.config.backUrl;
+                    } else {
+                        alert('Сессия истекла. Перезагрузите страницу.');
+                        window.location.reload();
+                    }
                     return;
                 }
 
@@ -809,7 +824,9 @@ class FlashcardSession {
 
             // Check daily limit exceeded
             if (!data.success && data.error === 'daily_limit_exceeded') {
-                alert('Дневной лимит новых карточек достигнут. Эта карточка не засчитана.');
+                if (!this.config.lessonMode) {
+                    alert('Дневной лимит новых карточек достигнут. Эта карточка не засчитана.');
+                }
                 this.showCard(this.currentCardIndex + 1);
                 return;
             }

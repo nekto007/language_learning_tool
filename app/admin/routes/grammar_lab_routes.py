@@ -8,9 +8,11 @@ import json
 import logging
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
-from flask_login import login_required
+from flask_login import current_user, login_required
+from sqlalchemy.exc import IntegrityError
 
 from app.admin.utils.decorators import admin_required
+from app.admin.audit import log_admin_action
 from app.utils.db import db
 from app.grammar_lab.models import GrammarTopic, GrammarExercise
 
@@ -103,6 +105,10 @@ def create_topic():
             flash(f'Topic "{title}" created successfully!', 'success')
             return redirect(url_for('grammar_lab_admin.edit_topic', topic_id=topic.id))
 
+        except IntegrityError:
+            db.session.rollback()
+            logger.warning("Duplicate slug '%s' on grammar topic create", slug)
+            flash(f'Error: slug "{slug}" is already taken. Choose a different slug.', 'danger')
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error creating topic: {e}")
@@ -165,6 +171,12 @@ def delete_topic(topic_id):
     title = topic.title
 
     try:
+        log_admin_action(
+            admin_id=current_user.id,
+            action='delete_grammar_topic',
+            target_type='GrammarTopic',
+            target_id=topic_id,
+        )
         db.session.delete(topic)
         db.session.commit()
         flash(f'Topic "{title}" deleted successfully!', 'success')

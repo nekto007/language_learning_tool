@@ -8,11 +8,13 @@ Uses UnifiedSRSService for Anki-like spaced repetition.
 
 from flask import render_template, jsonify, request, redirect, url_for
 from flask_login import login_required, current_user
+from sqlalchemy.exc import IntegrityError
 import logging
 
 from app.grammar_lab import grammar_lab_bp
-from app.grammar_lab.models import GrammarTopic, GrammarExercise, UserGrammarExercise, UserGrammarTopicStatus
+from app.grammar_lab.models import GrammarTopic, GrammarExercise, UserGrammarExercise
 from app.grammar_lab.services import GrammarLabService
+from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +127,10 @@ def practice(topic_id=None):
     topic = None
 
     # return_url: after practice completion, redirect here (e.g., back to book course lesson)
-    return_url = request.args.get('return_url', '')
+    # Validate return_url to prevent open redirect attacks (including backslash tricks)
+    from app.auth.routes import get_safe_redirect_url
+    raw_return_url = request.args.get('return_url', '')
+    return_url = get_safe_redirect_url(raw_return_url, fallback='grammar_lab.topics') if raw_return_url else ''
 
     if topic_id:
         # Topic-specific practice
@@ -365,3 +370,71 @@ def api_exercise_srs_info(exercise_id):
         })
 
     return jsonify(progress.to_dict())
+
+
+@grammar_lab_bp.route('/api/topics', methods=['POST'])
+@login_required
+def api_create_topic():
+    """
+    POST: Create a new grammar topic (admin use).
+
+    Request body (JSON):
+        slug: str - unique slug identifier
+        title: str - English title
+        title_ru: str - Russian title
+        level: str - CEFR level (A1-C2)
+        order: int - display order (default 0)
+        estimated_time: int - minutes (default 15)
+        difficulty: int - 1-5 (default 1)
+        content: dict - topic content (optional)
+
+    Returns:
+        201 with topic dict on success
+        409 {'error': 'slug_taken', 'suggestion': '...'} on duplicate slug
+        400 on missing required fields
+        403 if user is not admin
+    """
+    if not getattr(current_user, 'is_admin', False):
+        return jsonify({'error': 'admin access required'}), 403
+
+    if not request.is_json:
+        return jsonify({'error': 'Content-Type must be application/json'}), 415
+
+    data = request.get_json()
+    slug = (data.get('slug') or '').strip()
+    title = (data.get('title') or '').strip()
+
+    if not slug or not title:
+        return jsonify({'error': 'slug and title are required'}), 400
+
+    try:
+        order = int(data.get('order', 0))
+        estimated_time = int(data.get('estimated_time', 15))
+        difficulty = int(data.get('difficulty', 1))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'order, estimated_time, and difficulty must be integers'}), 400
+
+    topic = GrammarTopic(
+        slug=slug,
+        title=title,
+        title_ru=(data.get('title_ru') or '').strip(),
+        level=data.get('level', 'A1'),
+        order=order,
+        estimated_time=estimated_time,
+        difficulty=difficulty,
+        content=data.get('content') or {},
+    )
+    db.session.add(topic)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        logger.warning("Duplicate slug '%s' on grammar topic API create", slug)
+        suggestion = f'{slug}_2'
+        return jsonify({
+            'error': 'slug_taken',
+            'message': f'Slug "{slug}" is already taken.',
+            'suggestion': suggestion,
+        }), 409
+
+    return jsonify(topic.to_dict()), 201

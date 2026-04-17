@@ -1,11 +1,14 @@
 # app/curriculum/service.py
 import logging
 from datetime import datetime, UTC
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.utils.db import db
+from app.utils.db_utils import query_by_ids
 from app.utils.normalization import normalize_text  # noqa: F401 — re-export
 
 logger = logging.getLogger(__name__)
@@ -28,7 +31,7 @@ from app.curriculum.card_service import (  # noqa: E402, F401
 )
 
 
-def get_user_level_progress(user_id):
+def get_user_level_progress(user_id: int) -> Dict[int, Dict[str, Any]]:
     """
     Получает прогресс пользователя по всем уровням CEFR
 
@@ -45,11 +48,11 @@ def get_user_level_progress(user_id):
     level_ids = [level.id for level in levels]
 
     # Получаем все модули для этих уровней
-    modules = Module.query.filter(Module.level_id.in_(level_ids)).all()
+    modules = query_by_ids(Module.query, Module.level_id, level_ids)
     module_ids = [module.id for module in modules]
 
     # Получаем все уроки для этих модулей
-    lessons = Lessons.query.filter(Lessons.module_id.in_(module_ids)).all()
+    lessons = query_by_ids(Lessons.query, Lessons.module_id, module_ids)
     lesson_ids = [lesson.id for lesson in lessons]
 
     # Получаем статистику по завершенным урокам
@@ -89,7 +92,7 @@ def get_user_level_progress(user_id):
     return level_progress
 
 
-def get_user_active_lessons(user_id, limit=5):
+def get_user_active_lessons(user_id: int, limit: int = 5) -> List[Dict[str, Any]]:
     """
     Получает список активных уроков пользователя
 
@@ -131,7 +134,7 @@ def get_user_active_lessons(user_id, limit=5):
     return active_lessons
 
 
-def get_next_lesson(current_lesson_id):
+def get_next_lesson(current_lesson_id: int) -> Optional[Lessons]:
     """
     Находит следующий урок после текущего в рамках модуля
 
@@ -167,7 +170,7 @@ def get_next_lesson(current_lesson_id):
     return next_lesson
 
 
-def complete_lesson(user_id, lesson_id, score=100.0):
+def complete_lesson(user_id: int, lesson_id: int, score: float = 100.0) -> Optional[LessonProgress]:
     """
     Отмечает урок как завершенный для пользователя
 
@@ -256,12 +259,13 @@ def complete_lesson(user_id, lesson_id, score=100.0):
             logger.warning("XP service not available, skipping XP award")
 
         return progress
-    except Exception as e:
+    except SQLAlchemyError as e:
+        logger.exception("Lesson completion recording failed for user=%s lesson=%s: %s", user_id, lesson_id, e)
         db.session.rollback()
         return None
 
 
-def get_lesson_statistics():
+def get_lesson_statistics() -> Dict[str, Any]:
     """
     Получает статистику по всем урокам
 
@@ -307,7 +311,7 @@ def get_lesson_statistics():
     }
 
 
-def calculate_user_curriculum_progress(user_id):
+def calculate_user_curriculum_progress(user_id: int) -> Dict[str, Any]:
     """
     Рассчитывает общий прогресс пользователя по учебному плану
 

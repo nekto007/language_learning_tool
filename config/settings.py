@@ -109,7 +109,6 @@ DEFAULT_SQLALCHEMY_ENGINE_OPTIONS = {
     # Additional PostgreSQL optimizations
     'connect_args': {
         'connect_timeout': 10,    # Connection timeout in seconds
-        'options': '-c statement_timeout=0',  # No query timeout (needed for long book processing)
         'keepalives': 1,          # Enable TCP keepalive
         'keepalives_idle': 30,    # Seconds before sending keepalive
         'keepalives_interval': 10,  # Seconds between keepalive probes
@@ -161,6 +160,31 @@ MAX_SYNC_PROCESSING_SIZE = 50000  # ~50 KB
 # Таймаут для блокирующих операций при синхронной обработке (в секундах)
 SYNC_PROCESSING_TIMEOUT = 30
 
+# =============================================================================
+# Timezone defaults
+# =============================================================================
+
+# Default application timezone — used as fallback when user has none set.
+# Configurable via DEFAULT_TIMEZONE environment variable.
+DEFAULT_TIMEZONE: str = os.getenv('DEFAULT_TIMEZONE', 'Europe/Moscow')
+
+# =============================================================================
+# Performance monitoring thresholds
+# =============================================================================
+
+# Queries exceeding this threshold (milliseconds) are logged as slow queries.
+# Configurable via SLOW_QUERY_MS environment variable.
+SLOW_QUERY_MS: int = int(os.getenv('SLOW_QUERY_MS', 100))
+
+# =============================================================================
+# Domain thresholds — named constants for values used across multiple modules.
+# Import from here instead of hardcoding literals.
+# =============================================================================
+
+# Minimum score (0–100) a user must achieve to pass a lesson or module
+PASSING_SCORE_PERCENT: int = 70
+
+
 class Config:
     """
     Flask application configuration (production defaults).
@@ -206,6 +230,8 @@ class Config:
     GOOGLE_ANALYTICS_ID = os.environ.get("GOOGLE_ANALYTICS_ID", "")
 
     SQLALCHEMY_ENGINE_OPTIONS = DEFAULT_SQLALCHEMY_ENGINE_OPTIONS
+    SLOW_QUERY_MS: int = SLOW_QUERY_MS
+    DEFAULT_TIMEZONE: str = DEFAULT_TIMEZONE
 
 
 class TestConfig(Config):

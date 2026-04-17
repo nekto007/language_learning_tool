@@ -13,10 +13,10 @@ from flask import Blueprint, jsonify, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
-from app.books.models import Book, Bookmark, Chapter
+from app.books.models import Bookmark, Chapter
 from app.study.models import UserWord
 from app.utils.db import db
-from app.words.models import CollectionWords, word_book_link
+from app.words.models import CollectionWords
 
 books_api = Blueprint('books_api', __name__)
 

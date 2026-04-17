@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import enum
+import logging
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class MissionType(enum.Enum):
@@ -14,13 +17,14 @@ class MissionType(enum.Enum):
 
 
 class PhaseKind(enum.Enum):
-    """Canonical learning phases: recall → learn → use/read → check/close."""
+    """Canonical learning phases: recall → learn → use/read → check/close → bonus."""
     recall = "recall"
     learn = "learn"
     use = "use"
     read = "read"
     check = "check"
     close = "close"
+    bonus = "bonus"
 
 
 class SourceKind(enum.Enum):
@@ -32,6 +36,38 @@ class SourceKind(enum.Enum):
     vocab = "vocab"
 
 
+# Central registry: every mission-plan mode → its activity category.
+# Used by streak_service (completion checks) and routes (URL grouping).
+MODE_CATEGORY_MAP: dict[str, str] = {
+    'srs_review': 'words',
+    'guided_recall': 'words',
+    'book_vocab_recall': 'words',
+    'micro_check': 'words',
+    'meaning_prompt': 'words',
+    'vocab_drill': 'words',
+    'reading_vocab_extract': 'words',
+    'curriculum_lesson': 'lesson',
+    'lesson_practice': 'lesson',
+    'book_course_lesson': 'book_course',
+    'book_course_practice': 'book_course',
+    'grammar_practice': 'grammar',
+    'targeted_quiz': 'grammar',
+    'book_reading': 'books',
+    'success_marker': 'meta',
+    'fun_fact_quiz': 'bonus',
+    'speed_review': 'bonus',
+    'word_scramble': 'bonus',
+}
+
+
+@dataclass
+class PhasePreview:
+    """Preview metadata shown to the user before starting a phase."""
+    item_count: Optional[int] = None
+    content_title: Optional[str] = None
+    estimated_minutes: Optional[int] = None
+
+
 @dataclass
 class MissionPhase:
     phase: PhaseKind
@@ -41,6 +77,7 @@ class MissionPhase:
     required: bool = True
     completed: bool = False
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
+    preview: Optional[PhasePreview] = None
 
 
 @dataclass
@@ -77,9 +114,9 @@ class MissionPlan:
     legacy: Optional[dict[str, Any]] = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.phases, list) or not (3 <= len(self.phases) <= 4):
+        if not isinstance(self.phases, list) or not (3 <= len(self.phases) <= 5):
             raise ValueError(
-                f"MissionPlan requires 3-4 phases, got {len(self.phases) if isinstance(self.phases, list) else 'non-list'}"
+                f"MissionPlan requires 3-5 phases, got {len(self.phases) if isinstance(self.phases, list) else 'non-list'}"
             )
         if not isinstance(self.mission, Mission):
             raise TypeError("mission must be a Mission instance")
@@ -87,3 +124,30 @@ class MissionPlan:
             raise TypeError("primary_goal must be a PrimaryGoal instance")
         if not isinstance(self.primary_source, PrimarySource):
             raise TypeError("primary_source must be a PrimarySource instance")
+
+        # Warn only for suspicious duplicate categories. Some mission flows
+        # intentionally reuse a category for distinct steps, for example:
+        # curriculum lesson -> lesson practice, or SRS recall -> micro check.
+        skip_dup_warning = self.mission.type == MissionType.reading
+        _EXEMPT_CATEGORIES = {'bonus', 'meta'}
+        _ALLOWED_DUPLICATE_MODE_PAIRS = {
+            frozenset({'curriculum_lesson', 'lesson_practice'}),
+            frozenset({'book_course_lesson', 'book_course_practice'}),
+            frozenset({'srs_review', 'micro_check'}),
+        }
+        seen_categories: dict[str, int] = {}
+        for i, phase in enumerate(self.phases):
+            cat = MODE_CATEGORY_MAP.get(phase.mode)
+            if cat is not None and cat in seen_categories and not skip_dup_warning and cat not in _EXEMPT_CATEGORIES:
+                previous_phase = self.phases[seen_categories[cat]]
+                allowed_pair = frozenset({previous_phase.mode, phase.mode}) in _ALLOWED_DUPLICATE_MODE_PAIRS
+                if allowed_pair:
+                    continue
+                logger.warning(
+                    "MissionPlan duplicate category %r in phases[%d] (mode=%s) "
+                    "and phases[%d] (mode=%s)",
+                    cat, seen_categories[cat], previous_phase.mode,
+                    i, phase.mode,
+                )
+            elif cat is not None:
+                seen_categories[cat] = i

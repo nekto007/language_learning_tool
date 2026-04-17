@@ -348,18 +348,24 @@ class TestCurriculumCacheInvalidateUserCache:
     """Тесты метода invalidate_user_cache"""
 
     def test_invalidate_user_cache_clears_cache(self):
-        """Тест что invalidate_user_cache очищает кеш"""
+        """Тест что invalidate_user_cache очищает user-specific кеш"""
         from app.curriculum.cache import cache
 
-        # Добавляем данные в кеш
-        cache.set('test_key', 'test_value')
-        assert cache.get('test_key') == 'test_value'
+        # Добавляем user-specific и unrelated данные в кеш
+        cache.set('curriculum:get_user_progress:user_123:abc', 'progress_value')
+        cache.set('curriculum:get_all_levels:def', 'levels_value')
+        assert cache.get('curriculum:get_user_progress:user_123:abc') == 'progress_value'
+        assert cache.get('curriculum:get_all_levels:def') == 'levels_value'
 
-        # Инвалидируем кеш
+        # Инвалидируем кеш пользователя 123
         CurriculumCache.invalidate_user_cache(123)
 
-        # Кеш должен быть очищен
-        assert cache.get('test_key') is None
+        # User-specific кеш должен быть очищен
+        assert cache.get('curriculum:get_user_progress:user_123:abc') is None
+        # Общий кеш должен остаться
+        assert cache.get('curriculum:get_all_levels:def') == 'levels_value'
+        # Cleanup
+        cache.clear()
 
 
 class TestCurriculumCacheMethodsStructure:

@@ -16,12 +16,9 @@ import re
 from collections import Counter
 from typing import Dict, List, Optional, Set, Tuple
 
-from app.books.models import Block, BlockVocab, Chapter
+from app.books.models import Block, BlockVocab
 from app.curriculum.services.word_scorer import (
     WordScorer,
-    VOCABULARY_WORDS_PER_BLOCK,
-    VOCABULARY_WORDS_PER_MODULE,
-    CEFR_LEVELS,
     DEFAULT_LEVEL
 )
 from app.utils.db import db

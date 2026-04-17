@@ -4,7 +4,6 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user
 from sqlalchemy import func, or_
 
-from app import csrf
 from app.api.decorators import api_auth_required
 from app.study.models import UserWord
 from app.study.services.srs_service import get_user_word_ids

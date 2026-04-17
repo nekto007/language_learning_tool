@@ -3,14 +3,15 @@
 Service for managing lesson grades, user statistics, and achievement tracking
 """
 import logging
-from datetime import date, datetime, timezone
-from typing import Optional, Dict, List
+from datetime import date, datetime, timedelta, timezone
+from typing import Dict, List, Optional
 
 from sqlalchemy import func
 
 from app.achievements.models import LessonGrade, UserStatistics
-from app.study.models import Achievement, UserAchievement, UserXP
+from app.study.models import Achievement, UserAchievement
 from app.utils.db import db
+from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
 
@@ -230,8 +231,8 @@ class AchievementService:
                     try:
                         from app.notifications.services import notify_achievement
                         notify_achievement(user_id, achievement.name, achievement.icon)
-                    except Exception:
-                        logger.exception("Failed to send achievement notification for user %s", user_id)
+                    except Exception as e:
+                        logger.exception("Failed to send achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
             db.session.commit()
@@ -285,14 +286,268 @@ class AchievementService:
                     try:
                         from app.notifications.services import notify_achievement
                         notify_achievement(user_id, achievement.name, achievement.icon)
-                    except Exception:
-                        logger.exception("Failed to send streak achievement notification for user %s", user_id)
+                    except Exception as e:
+                        logger.exception("Failed to send streak achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
             db.session.commit()
             StatisticsService.update_badge_stats(user_id)
 
         return newly_awarded
+
+    @staticmethod
+    def check_mission_achievements(
+        user_id: int,
+        mission_type: str,
+        completion_time: Optional[datetime] = None,
+        duration_minutes: Optional[int] = None,
+        tz: str = DEFAULT_TIMEZONE,
+    ) -> List[Achievement]:
+        """Award daily-plan mission-specific achievements after a plan completion.
+
+        Evaluates:
+        - mission_first: first-ever full plan completion
+        - mission_progress_5 / mission_repair_5 / mission_reading_5:
+          5 completions of the corresponding mission type
+        - mission_week_perfect: 7 consecutive days of plan completions
+        - mission_early_bird: plan completed before 09:00 local time
+        - mission_night_owl: plan completed at or after 22:00 local time
+        - mission_variety_3: all three mission types completed within last 7 days
+        - mission_speed_demon: duration from first to last phase < 30 minutes
+
+        Idempotent: never re-awards an existing badge (UserAchievement unique
+        constraint on user_id + achievement_id is respected).
+        """
+        import pytz
+
+        from app.achievements.models import StreakEvent
+        from app.daily_plan.models import MissionType
+
+        if isinstance(mission_type, MissionType):
+            mission_type_value = mission_type.value
+        else:
+            mission_type_value = str(mission_type)
+
+        if completion_time is None:
+            completion_time = datetime.now(timezone.utc)
+        elif completion_time.tzinfo is None:
+            completion_time = completion_time.replace(tzinfo=timezone.utc)
+
+        try:
+            tz_obj = pytz.timezone(tz)
+        except pytz.UnknownTimeZoneError:
+            tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
+
+        local_dt = completion_time.astimezone(tz_obj)
+        today_local = local_dt.date()
+
+        codes_to_award: set[str] = {'mission_first'}
+
+        type_counts = AchievementService._count_mission_completions_by_type(user_id)
+        if type_counts.get('progress', 0) >= 5:
+            codes_to_award.add('mission_progress_5')
+        if type_counts.get('repair', 0) >= 5:
+            codes_to_award.add('mission_repair_5')
+        if type_counts.get('reading', 0) >= 5:
+            codes_to_award.add('mission_reading_5')
+
+        if AchievementService._is_perfect_week(user_id, today_local):
+            codes_to_award.add('mission_week_perfect')
+
+        if local_dt.hour < 9:
+            codes_to_award.add('mission_early_bird')
+        if local_dt.hour >= 22:
+            codes_to_award.add('mission_night_owl')
+
+        recent_types = AchievementService._get_recent_mission_types(
+            user_id, today_local, days=7,
+        )
+        if recent_types >= {'progress', 'repair', 'reading'}:
+            codes_to_award.add('mission_variety_3')
+
+        if duration_minutes is not None and duration_minutes < 30:
+            codes_to_award.add('mission_speed_demon')
+
+        return AchievementService._award_badges(user_id, codes_to_award)
+
+    @staticmethod
+    def _count_mission_completions_by_type(user_id: int) -> Dict[str, int]:
+        """Count completed plans per mission type.
+
+        Joins `plan_completed` StreakEvents to `mission_selected` events by
+        date. Returns a dict like {'progress': 7, 'repair': 3, 'reading': 1}.
+        """
+        from app.achievements.models import StreakEvent
+
+        completed_dates = {
+            e.event_date
+            for e in StreakEvent.query.filter_by(
+                user_id=user_id, event_type='plan_completed',
+            )
+        }
+        if not completed_dates:
+            return {}
+
+        counts: Dict[str, int] = {}
+        selected_events = StreakEvent.query.filter(
+            StreakEvent.user_id == user_id,
+            StreakEvent.event_type == 'mission_selected',
+            StreakEvent.event_date.in_(completed_dates),
+        )
+        for event in selected_events:
+            mt = (event.details or {}).get('mission_type')
+            if mt:
+                counts[mt] = counts.get(mt, 0) + 1
+        return counts
+
+    @staticmethod
+    def _is_perfect_week(user_id: int, today_local: date) -> bool:
+        """Return True if a plan was completed on each of the last 7 days."""
+        from app.achievements.models import StreakEvent
+
+        required_dates = {today_local - timedelta(days=i) for i in range(7)}
+        completed_dates = {
+            e.event_date
+            for e in StreakEvent.query.filter(
+                StreakEvent.user_id == user_id,
+                StreakEvent.event_type == 'plan_completed',
+                StreakEvent.event_date.in_(required_dates),
+            )
+        }
+        return required_dates.issubset(completed_dates)
+
+    @staticmethod
+    def _get_recent_mission_types(
+        user_id: int, today_local: date, days: int = 7,
+    ) -> set[str]:
+        """Return the set of mission types completed in the last `days` days."""
+        from app.achievements.models import StreakEvent
+
+        from_date = today_local - timedelta(days=days - 1)
+
+        completed_dates = {
+            e.event_date
+            for e in StreakEvent.query.filter(
+                StreakEvent.user_id == user_id,
+                StreakEvent.event_type == 'plan_completed',
+                StreakEvent.event_date >= from_date,
+                StreakEvent.event_date <= today_local,
+            )
+        }
+        if not completed_dates:
+            return set()
+
+        types: set[str] = set()
+        for event in StreakEvent.query.filter(
+            StreakEvent.user_id == user_id,
+            StreakEvent.event_type == 'mission_selected',
+            StreakEvent.event_date.in_(completed_dates),
+        ):
+            mt = (event.details or {}).get('mission_type')
+            if mt:
+                types.add(mt)
+        return types
+
+    @staticmethod
+    def _award_badges(user_id: int, codes: set[str]) -> List[Achievement]:
+        """Award each listed badge if not already owned. Flushes on change."""
+        if not codes:
+            return []
+
+        achievements = Achievement.query.filter(Achievement.code.in_(codes)).all()
+        if not achievements:
+            return []
+
+        by_id = {a.id: a for a in achievements}
+        already_owned_ids = {
+            ua.achievement_id
+            for ua in UserAchievement.query.filter(
+                UserAchievement.user_id == user_id,
+                UserAchievement.achievement_id.in_(by_id.keys()),
+            )
+        }
+
+        newly_awarded: List[Achievement] = []
+        for achievement in achievements:
+            if achievement.id in already_owned_ids:
+                continue
+            db.session.add(UserAchievement(
+                user_id=user_id,
+                achievement_id=achievement.id,
+                earned_at=datetime.now(timezone.utc),
+            ))
+            newly_awarded.append(achievement)
+
+            try:
+                from app.notifications.services import notify_achievement
+                notify_achievement(user_id, achievement.name, achievement.icon)
+            except Exception:
+                logger.exception(
+                    "Failed to send mission badge notification for user %s "
+                    "(badge %s)", user_id, achievement.code,
+                )
+
+        if newly_awarded:
+            db.session.flush()
+            StatisticsService.update_badge_stats(user_id)
+
+        return newly_awarded
+
+    @staticmethod
+    def get_unseen_badges(user_id: int) -> List[Dict]:
+        """Return badges awarded to the user that have not yet been displayed.
+
+        "Unseen" means UserAchievement.seen_at IS NULL — the user has not
+        visited the dashboard since this badge was earned.
+
+        Returns a list of dicts (safe for Jinja) ordered oldest-first so the
+        popup stacks them naturally.
+        """
+        rows = (
+            db.session.query(UserAchievement, Achievement)
+            .join(Achievement, Achievement.id == UserAchievement.achievement_id)
+            .filter(
+                UserAchievement.user_id == user_id,
+                UserAchievement.seen_at.is_(None),
+            )
+            .order_by(UserAchievement.earned_at.asc())
+            .all()
+        )
+        return [
+            {
+                'user_achievement_id': ua.id,
+                'id': a.id,
+                'code': a.code,
+                'name': a.name,
+                'description': a.description,
+                'icon': a.icon,
+                'xp_reward': a.xp_reward,
+                'category': a.category,
+            }
+            for ua, a in rows
+        ]
+
+    @staticmethod
+    def mark_badges_seen(user_id: int, user_achievement_ids: Optional[List[int]] = None) -> int:
+        """Stamp seen_at = now() on the user's unseen badges.
+
+        If `user_achievement_ids` is None, marks every unseen badge owned by
+        the user. Returns the number of rows updated. Commits on success.
+        """
+        now = datetime.now(timezone.utc)
+        query = UserAchievement.query.filter(
+            UserAchievement.user_id == user_id,
+            UserAchievement.seen_at.is_(None),
+        )
+        if user_achievement_ids is not None:
+            if not user_achievement_ids:
+                return 0
+            query = query.filter(UserAchievement.id.in_(user_achievement_ids))
+
+        updated = query.update({UserAchievement.seen_at: now}, synchronize_session=False)
+        if updated:
+            db.session.commit()
+        return updated
 
     @staticmethod
     def check_all_achievements(user_id: int) -> Dict[str, List[Achievement]]:

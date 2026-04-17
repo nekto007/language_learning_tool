@@ -230,7 +230,7 @@ def api_get_lesson_info(lesson_id):
             }
         elif lesson.type == 'vocabulary' and lesson.collection_id:
             # Get word count
-            from app.words.models import Collection, CollectionWordLink
+            from app.words.models import CollectionWordLink
             word_count = CollectionWordLink.query.filter_by(
                 collection_id=lesson.collection_id
             ).count()

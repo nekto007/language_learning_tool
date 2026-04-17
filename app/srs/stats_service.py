@@ -9,14 +9,11 @@ Single source of truth for SRS statistics across all modules:
 Uses count_srs_states() utility for all state counting.
 """
 
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 import logging
 
-from sqlalchemy import func
-
 from app.utils.db import db
-from app.study.models import UserWord, UserCardDirection, QuizDeck, QuizDeckWord
+from app.study.models import UserWord, UserCardDirection, QuizDeckWord
 from app.grammar_lab.models import (
     UserGrammarExercise, GrammarExercise, GrammarTopic, UserGrammarTopicStatus
 )
@@ -207,8 +204,6 @@ class SRSStatsService:
         Returns:
             Dict with aggregated stats, topics progress, and by-level breakdown.
         """
-        from app.srs.constants import CardState, MASTERED_THRESHOLD_DAYS
-
         statuses = UserGrammarTopicStatus.query.filter_by(user_id=user_id).all()
         all_progress = UserGrammarExercise.query.filter_by(user_id=user_id).all()
 

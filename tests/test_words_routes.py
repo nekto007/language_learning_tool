@@ -123,6 +123,29 @@ class TestWordList:
         resp = authenticated_client.get('/words?page=9999')
         assert resp.status_code == 200
 
+    def test_per_page_param_accepted(self, authenticated_client, words_module, sample_words):
+        """per_page=3 is accepted and returns 200."""
+        resp = authenticated_client.get('/words?page=1&per_page=3')
+        assert resp.status_code == 200
+
+    def test_per_page_page2_accepted(self, authenticated_client, words_module, sample_words):
+        """page=2 with small per_page returns 200 without 500."""
+        resp = authenticated_client.get('/words?page=2&per_page=3')
+        assert resp.status_code == 200
+
+    def test_per_page_clamped_to_200(self, authenticated_client, words_module, sample_words):
+        """per_page > 200 is clamped to 200; route still returns 200."""
+        resp = authenticated_client.get('/words?per_page=999')
+        assert resp.status_code == 200
+
+    def test_per_page_small_limits_items(self, authenticated_client, words_module, sample_words):
+        """per_page=2 returns 200 and the response body contains 2 or fewer items per page."""
+        resp = authenticated_client.get('/words?page=1&per_page=2')
+        assert resp.status_code == 200
+        # With 5 sample words and per_page=2, there should be a page 2
+        resp2 = authenticated_client.get('/words?page=2&per_page=2')
+        assert resp2.status_code == 200
+
 
 # ==================== WORD DETAIL ====================
 

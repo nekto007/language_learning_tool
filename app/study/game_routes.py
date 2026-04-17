@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func, or_
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.study.blueprint import study, get_audio_url_for_word
 from app.study.models import GameScore, StudySession, StudySettings, UserCardDirection, UserWord
@@ -288,7 +289,9 @@ def get_quiz_questions():
 @study.route('/api/submit-quiz-answer', methods=['POST'])
 @login_required
 def submit_quiz_answer():
-    data = request.json
+    if not request.is_json:
+        return jsonify({'error': 'Content-Type must be application/json'}), 415
+    data = request.json or {}
     session_id = data.get('session_id')
     is_correct = data.get('is_correct', False)
 
@@ -411,7 +414,7 @@ def _calculate_matching_score(difficulty, pairs_matched, total_pairs, time_taken
 @login_required
 def complete_matching_game():
     if not request.is_json:
-        return jsonify({'success': False, 'error': 'Expected JSON'}), 400
+        return jsonify({'success': False, 'error': 'Content-Type must be application/json'}), 415
     data = request.json or {}
     session_id = data.get('session_id')
     difficulty = data.get('difficulty', 'easy')
@@ -477,9 +480,12 @@ def complete_matching_game():
 
                         direction.update_after_review(quality)
 
+            except (IntegrityError, OperationalError) as e:
+                srs_errors.append(f'word_id={word_id}: {e}')
+                logger.exception('SRS update failed for word %s in matching game: %s', word_id, e)
             except Exception as e:
                 srs_errors.append(f'word_id={word_id}: {e}')
-                logger.error(f'SRS update failed for word {word_id} in matching game: {e}', exc_info=True)
+                logger.exception('Unexpected error in SRS update for word %s in matching game: %s', word_id, e)
 
         if srs_errors:
             logger.warning(f'Matching game SRS update had {len(srs_errors)} errors out of {len(word_ids)} words')
@@ -493,6 +499,10 @@ def complete_matching_game():
             session.correct_answers = pairs_matched
             session.complete_session()
             db.session.commit()
+            logger.info(
+                'study_session_complete user=%s session=%s session_type=%s duration=%s words_studied=%s',
+                current_user.id, session.id, session.session_type, session.duration, session.words_studied
+            )
 
     try:
         game_score = GameScore(
@@ -531,7 +541,7 @@ def complete_matching_game():
             'level': user_xp.level
         })
     except Exception as e:
-        logger.error(f'Error saving matching game score: {e}', exc_info=True)
+        logger.exception('Error saving matching game score: %s', e)
         db.session.rollback()
 
         return jsonify({
@@ -547,7 +557,7 @@ def complete_quiz():
     from app.study.xp_service import XPService
 
     if not request.is_json:
-        return jsonify({'success': False, 'error': 'Expected JSON'}), 400
+        return jsonify({'success': False, 'error': 'Content-Type must be application/json'}), 415
     data = request.json or {}
     session_id = data.get('session_id')
     deck_id = data.get('deck_id')
@@ -561,6 +571,10 @@ def complete_quiz():
         session = StudySession.query.get(session_id)
         if session and session.user_id == current_user.id:
             session.complete_session()
+            logger.info(
+                'study_session_complete user=%s session=%s session_type=%s duration=%s words_studied=%s',
+                current_user.id, session.id, session.session_type, session.duration, session.words_studied
+            )
 
     if deck_id:
         deck = QuizDeck.query.get(deck_id)
@@ -619,7 +633,7 @@ def complete_quiz():
             'icon': ach.icon,
             'xp_reward': ach.xp_reward
         }
-        for ach in newly_earned
+        for ach in newly_earned if ach is not None
     ] if newly_earned else []
 
     return jsonify({

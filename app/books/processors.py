@@ -9,13 +9,13 @@ from typing import Dict, List
 
 from bs4 import BeautifulSoup
 
-from app.books.models import Book, Block, BlockVocab
+from app.books.models import Book
 from app.words.models import CollectionWords
 from app.nlp.processor import prepare_word_data, process_text
 from app.nlp.setup import download_nltk_resources, initialize_nltk
 from app.repository import DatabaseRepository
 from app.utils.db import db
-from sqlalchemy import func, desc, text
+from sqlalchemy import text
 from config.settings import (
     MAX_CONCURRENT_PROCESSING, MAX_PROCESSING_TIME, MAX_STATUS_AGE, MAX_SYNC_PROCESSING_SIZE, STATUS_CLEANUP_INTERVAL,
     SYNC_PROCESSING_TIMEOUT,

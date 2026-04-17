@@ -69,7 +69,6 @@ def send_day3_email(user: User) -> bool:
 def send_day7_email(user: User) -> bool:
     """Send Day 7 inactive email with progress summary."""
     from app.curriculum.models import LessonProgress
-    from sqlalchemy import func
 
     completed = LessonProgress.query.filter_by(
         user_id=user.id, status='completed'
@@ -106,7 +105,6 @@ def send_day30_email(user: User) -> bool:
 
 def run_reengagement_job() -> None:
     """Main job: check for inactive users and send appropriate emails."""
-    from flask import current_app
     logger.info('Running re-engagement email job')
 
     sent = 0

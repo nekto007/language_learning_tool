@@ -1,8 +1,6 @@
 import logging
 import warnings
 
-from app.utils.db import db
-
 logger = logging.getLogger(__name__)
 
 

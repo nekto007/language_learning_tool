@@ -8,6 +8,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app.utils.db import db
 from app.achievements.models import StreakCoins, StreakEvent
+from app.daily_plan.models import MODE_CATEGORY_MAP
+from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
 
@@ -32,42 +34,58 @@ def get_required_steps(streak_length: int, steps_total: int) -> int:
     return min(required, steps_total)
 
 
-_MODE_DONE_CHECK: dict[str, str] = {
-    'srs_review': 'words',
-    'guided_recall': 'words',
-    'book_vocab_recall': 'words',
-    'micro_check': 'words',
-    'meaning_prompt': 'words',
-    'vocab_drill': 'words',
-    'reading_vocab_extract': 'words',
+_MODE_DONE_CHECK = {k: v for k, v in MODE_CATEGORY_MAP.items() if k != 'success_marker'}
+
+_MODE_COMPLETION_BUCKET: dict[str, str] = {
+    'srs_review': 'srs',
+    'book_vocab_recall': 'srs',
+    'micro_check': 'srs',
+    'guided_recall': 'warmup',
     'curriculum_lesson': 'lesson',
-    'lesson_practice': 'lesson',
+    'lesson_practice': 'practice',
     'book_course_lesson': 'book_course',
-    'book_course_practice': 'book_course',
+    'book_course_practice': 'practice',
     'grammar_practice': 'grammar',
     'targeted_quiz': 'grammar',
     'book_reading': 'books',
+    'reading_vocab_extract': 'practice',
+    'meaning_prompt': 'practice',
+    'vocab_drill': 'practice',
 }
 
 
 def _compute_phase_completion(phases: list[dict], daily_summary: dict) -> dict[str, bool]:
     """Infer phase completion from daily_summary activity data."""
-    checks = {
-        'words': (daily_summary.get('words_reviewed', 0) > 0
-                  or daily_summary.get('srs_words_reviewed', 0) > 0),
-        'lesson': daily_summary.get('lessons_count', 0) > 0,
-        'grammar': daily_summary.get('grammar_exercises', 0) > 0,
-        'books': len(daily_summary.get('books_read', [])) > 0,
-        'book_course': daily_summary.get('book_course_lessons_today', 0) > 0,
+    words_reviewed = int(daily_summary.get('words_reviewed', 0) or 0)
+    srs_words_reviewed = int(daily_summary.get('srs_words_reviewed', 0) or 0)
+    non_srs_words_reviewed = max(0, words_reviewed - srs_words_reviewed)
+    has_any_activity = any((
+        int(daily_summary.get('lessons_count', 0) or 0) > 0,
+        int(daily_summary.get('grammar_exercises', 0) or 0) > 0,
+        words_reviewed > 0,
+        len(daily_summary.get('books_read', []) or []) > 0,
+        int(daily_summary.get('book_course_lessons_today', 0) or 0) > 0,
+    ))
+    buckets = {
+        'srs': 1 if (int(daily_summary.get('srs_review_reviewed', 0) or 0) > 0 or srs_words_reviewed > 0) else 0,
+        'lesson': 1 if int(daily_summary.get('lessons_count', 0) or 0) > 0 else 0,
+        'grammar': 1 if int(daily_summary.get('grammar_exercises', 0) or 0) > 0 else 0,
+        'books': 1 if len(daily_summary.get('books_read', []) or []) > 0 else 0,
+        'book_course': 1 if int(daily_summary.get('book_course_lessons_today', 0) or 0) > 0 else 0,
+        'practice': 1 if (non_srs_words_reviewed > 0 or int(daily_summary.get('grammar_exercises', 0) or 0) > 0) else 0,
+        'warmup': 1 if has_any_activity else 0,
     }
 
     result: dict[str, bool] = {}
     deferred: list[dict] = []
     for p in phases:
         mode = p.get('mode', '')
-        category = _MODE_DONE_CHECK.get(mode)
-        if category:
-            result[p['id']] = checks.get(category, False)
+        bucket = _MODE_COMPLETION_BUCKET.get(mode)
+        if bucket:
+            is_done = buckets.get(bucket, 0) > 0
+            result[p['id']] = is_done
+            if is_done:
+                buckets[bucket] = max(0, buckets[bucket] - 1)
         elif mode == 'success_marker':
             deferred.append(p)
         else:
@@ -157,11 +175,17 @@ def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dic
 
 
 def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
-                               tz: str = 'Europe/Moscow') -> dict:
+                               tz: str = DEFAULT_TIMEZONE,
+                               daily_plan: dict | None = None,
+                               plan_completion: dict | None = None) -> dict:
     """Process streak: save completion, award coin, attempt free repair.
 
     Call this from any entry point (dashboard, API, bot).
     Returns dict with streak info and whether repair happened.
+
+    When ``daily_plan`` and ``plan_completion`` are supplied the race
+    scoreboard for the user is updated from the current plan view — points
+    stay in sync with completed phases without a separate round trip.
     """
     import pytz
     from app.telegram.queries import get_current_streak, has_activity_today
@@ -171,7 +195,7 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     try:
         tz_obj = pytz.timezone(tz)
     except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone('Europe/Moscow')
+        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
     user_today = datetime.now(tz_obj).date()
 
     # Only award coins and record completion when the user has genuine
@@ -181,11 +205,136 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     # is due), which should not count as real study.
     real_activity = has_activity_today(user_id, tz=tz)
 
+    xp_level_up: dict | None = None
+    perfect_day_info: dict | None = None
+    if real_activity and daily_plan is not None and plan_completion is not None:
+        phases = daily_plan.get('phases') or []
+        if phases:
+            try:
+                from app.achievements.daily_race import (
+                    update_race_points_from_plan,
+                )
+                update_race_points_from_plan(
+                    user_id,
+                    user_today,
+                    phases,
+                    plan_completion,
+                )
+            except Exception:
+                logger.warning(
+                    "Failed to update race points for user %s",
+                    user_id, exc_info=True,
+                )
+
+            try:
+                from app.achievements.xp_service import (
+                    award_phase_xp_idempotent,
+                    award_perfect_day_xp_idempotent,
+                    get_perfect_day_info,
+                )
+                last_level_up: dict | None = None
+                for phase in phases:
+                    if not plan_completion.get(phase['id']):
+                        continue
+                    phase_kind = phase.get('phase', '')
+                    if not phase.get('required', True) and phase_kind != 'bonus':
+                        continue
+                    xp_key = (
+                        phase.get('mode', '')
+                        if phase_kind == 'bonus'
+                        else (phase_kind or phase.get('mode', ''))
+                    )
+                    xp_result = award_phase_xp_idempotent(
+                        user_id,
+                        phase['id'],
+                        xp_key,
+                        user_today,
+                    )
+                    if xp_result and xp_result.leveled_up:
+                        last_level_up = {
+                            'new_level': xp_result.new_level,
+                            'xp': xp_result.new_total_xp,
+                        }
+
+                required_phases = [p for p in phases if p.get('required', True)]
+                all_required_done = bool(required_phases) and all(
+                    plan_completion.get(p['id']) for p in required_phases
+                )
+                if all_required_done:
+                    bonus = award_perfect_day_xp_idempotent(user_id, user_today)
+                    if bonus and bonus.leveled_up:
+                        last_level_up = {
+                            'new_level': bonus.new_level,
+                            'xp': bonus.new_total_xp,
+                        }
+
+                if last_level_up:
+                    xp_level_up = last_level_up
+                    try:
+                        from app.notifications.services import notify_level_up
+                        notify_level_up(user_id, last_level_up['new_level'])
+                    except Exception:
+                        logger.warning(
+                            "Failed to send level-up notification for user %s",
+                            user_id, exc_info=True,
+                        )
+
+                # Capture perfect day info for dashboard display
+                try:
+                    perfect_day_info = get_perfect_day_info(user_id)
+                except Exception:
+                    perfect_day_info = None
+            except Exception:
+                logger.warning(
+                    "Failed to award XP for user %s",
+                    user_id, exc_info=True,
+                )
+                perfect_day_info = None
+
+    rank_up = None
     if steps_done > 0 and real_activity:
         earn_daily_coin(user_id, for_date=user_today,
                         steps_done=steps_done, steps_total=steps_total)
         save_daily_completion(user_id, steps_done, steps_total,
                               for_date=user_today)
+
+        # Full plan completion: every required step is done.
+        if steps_total > 0 and steps_done >= steps_total:
+            try:
+                from app.achievements.ranks import (
+                    _has_plan_completion_marker, record_plan_completion,
+                )
+
+                was_already_completed = _has_plan_completion_marker(
+                    user_id, user_today,
+                )
+                rank_up = record_plan_completion(user_id, for_date=user_today)
+                if rank_up is not None:
+                    try:
+                        from app.notifications.services import notify_rank_up
+                        notify_rank_up(user_id, rank_up.new_name)
+                    except Exception:
+                        logger.warning(
+                            "Failed to send rank-up notification for user %s",
+                            user_id, exc_info=True,
+                        )
+
+                # First completion for this date — evaluate mission badges.
+                if not was_already_completed:
+                    try:
+                        _check_mission_badges_for_today(
+                            user_id, user_today, tz,
+                        )
+                    except Exception:
+                        logger.warning(
+                            "Failed to check mission badges for user %s",
+                            user_id, exc_info=True,
+                        )
+            except Exception:
+                logger.warning(
+                    "Failed to record plan completion for user %s",
+                    user_id, exc_info=True,
+                )
 
     streak_status = get_streak_status(user_id, tz=tz, steps_total=max(steps_total, 1))
     required_steps = streak_status.get('required_steps', 1)
@@ -216,6 +365,15 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
         'steps_done': steps_done,
         'steps_total': steps_total,
         'milestone_reward': milestone_reward,
+        'rank_up': {
+            'previous_code': rank_up.previous_code,
+            'previous_name': rank_up.previous_name,
+            'new_code': rank_up.new_code,
+            'new_name': rank_up.new_name,
+            'plans_completed': rank_up.plans_completed,
+        } if rank_up else None,
+        'xp_level_up': xp_level_up,
+        'perfect_day_info': perfect_day_info,
     }
 
 
@@ -291,7 +449,7 @@ def get_milestone_history(user_id: int) -> list[dict]:
     ]
 
 
-def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow') -> dict:
+def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE) -> dict:
     """Get streak calendar data for the last N days.
 
     Uses a single batched UNION query to find all active dates (same 5
@@ -317,7 +475,7 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = 'Europe/Moscow')
     try:
         tz_obj = pytz.timezone(tz)
     except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone('Europe/Moscow')
+        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
     tz = tz_obj.zone
 
     local_today = datetime.now(tz_obj).date()
@@ -578,7 +736,7 @@ def apply_paid_repair(user_id: int, missed_date: date) -> dict:
     return {'success': True, 'cost': cost, 'balance': coins.balance, 'error': None}
 
 
-def find_missed_date(user_id: int, tz: str = 'Europe/Moscow',
+def find_missed_date(user_id: int, tz: str = DEFAULT_TIMEZONE,
                      max_days: int = 7) -> date | None:
     """Find the most recent missed date that could be repaired.
 
@@ -607,7 +765,70 @@ def find_missed_date(user_id: int, tz: str = 'Europe/Moscow',
     return None
 
 
-def get_streak_status(user_id: int, tz: str = 'Europe/Moscow',
+def _get_today_mission_type(user_id: int, today_local: date) -> str | None:
+    """Return the mission type selected for the user on `today_local`."""
+    event = StreakEvent.query.filter_by(
+        user_id=user_id,
+        event_type='mission_selected',
+        event_date=today_local,
+    ).first()
+    if event and event.details:
+        return event.details.get('mission_type')
+    return None
+
+
+def _compute_plan_duration_minutes(
+    user_id: int, today_local: date,
+) -> int | None:
+    """Duration from first earned_daily to plan_completed for the given date.
+
+    Uses StreakEvent.created_at timestamps: earned_daily is written on the
+    user's first activity-bearing request of the day, plan_completed on the
+    request that finishes the plan. The delta approximates total time spent
+    in the day's plan.
+    """
+    events = StreakEvent.query.filter(
+        StreakEvent.user_id == user_id,
+        StreakEvent.event_date == today_local,
+        StreakEvent.event_type.in_(['earned_daily', 'plan_completed']),
+    ).all()
+
+    earned = next((e for e in events if e.event_type == 'earned_daily'), None)
+    completed = next((e for e in events if e.event_type == 'plan_completed'), None)
+
+    if (earned is None or completed is None
+            or earned.created_at is None or completed.created_at is None):
+        return None
+
+    start = earned.created_at
+    end = completed.created_at
+    if start.tzinfo is not None:
+        start = start.astimezone(timezone.utc).replace(tzinfo=None)
+    if end.tzinfo is not None:
+        end = end.astimezone(timezone.utc).replace(tzinfo=None)
+    delta = end - start
+    return max(0, int(delta.total_seconds() // 60))
+
+
+def _check_mission_badges_for_today(
+    user_id: int, user_today: date, tz: str,
+) -> None:
+    """Invoke the mission badge check for the plan just completed today."""
+    mission_type = _get_today_mission_type(user_id, user_today)
+    if mission_type is None:
+        return
+
+    duration = _compute_plan_duration_minutes(user_id, user_today)
+    from app.achievements.services import AchievementService
+    AchievementService.check_mission_achievements(
+        user_id=user_id,
+        mission_type=mission_type,
+        duration_minutes=duration,
+        tz=tz,
+    )
+
+
+def get_streak_status(user_id: int, tz: str = DEFAULT_TIMEZONE,
                       steps_total: int = 4) -> dict:
     """Get full streak status for dashboard display."""
     from app.telegram.queries import get_current_streak, has_activity_today

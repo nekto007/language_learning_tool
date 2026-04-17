@@ -1,23 +1,22 @@
 import logging
 from datetime import UTC, datetime
 
-from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
 from app.curriculum.book_courses import (
-    BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress, generate_slug,
+    BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress,
 )
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
 from app.curriculum.routes.book_courses_service import (
     LESSON_ORDER, _build_linked_topics_and_return_url, _build_vocabulary_fc_vars,
     _parse_lesson_scaffold, build_daily_lesson_dict, ensure_words_in_book_deck,
     find_next_lesson_url, get_course_by_slug_or_id, get_lesson_type_display,
-    get_pretty_lesson_url, get_ui_lang, load_vocabulary_data, truncate_context,
+    get_ui_lang, load_vocabulary_data, truncate_context,
 )
 from app.curriculum.services.book_srs_integration import BookSRSIntegration
 from app.curriculum.services.comprehension_generator import ClozePracticeGenerator, ComprehensionMCQGenerator
-from app.curriculum.services.grammar_focus_generator import GrammarFocusGenerator
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)

@@ -8,6 +8,7 @@ from app.daily_plan.models import (
     MissionPlan,
     MissionType,
     PhaseKind,
+    PhasePreview,
     PrimaryGoal,
     PrimarySource,
     SourceKind,
@@ -127,7 +128,7 @@ class TestMissionPlanToDict:
         plan = _make_progress_plan()
         d = _mission_plan_to_dict(plan)
         phase = d['phases'][0]
-        assert set(phase.keys()) == {'id', 'phase', 'title', 'source_kind', 'mode', 'required', 'completed'}
+        assert set(phase.keys()) == {'id', 'phase', 'title', 'source_kind', 'mode', 'required', 'completed', 'preview'}
 
     def test_legacy_block_preserved(self):
         plan = _make_progress_plan()
@@ -139,6 +140,27 @@ class TestMissionPlanToDict:
         plan.legacy = None
         d = _mission_plan_to_dict(plan)
         assert 'legacy' not in d
+
+    def test_phase_preview_serialized_when_present(self):
+        plan = _make_progress_plan()
+        plan.phases[0].preview = PhasePreview(
+            item_count=12,
+            content_title="Повторение карточек",
+            estimated_minutes=4,
+        )
+        d = _mission_plan_to_dict(plan)
+        preview = d['phases'][0]['preview']
+        assert preview is not None
+        assert preview['item_count'] == 12
+        assert preview['content_title'] == "Повторение карточек"
+        assert preview['estimated_minutes'] == 4
+
+    def test_phase_preview_is_none_when_missing(self):
+        plan = _make_progress_plan()
+        # Default MissionPhase construction leaves preview=None.
+        d = _mission_plan_to_dict(plan)
+        for phase in d['phases']:
+            assert phase['preview'] is None
 
 
 class TestPlanMetaHelper:
@@ -173,10 +195,12 @@ class TestPlanMetaHelper:
 
 
 class TestGetMissionPlan:
+    @patch("app.utils.db.db")
+    @patch(f"{MODULE}.save_mission_type")
     @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
     @patch(f"{MODULE}.assemble_progress_mission")
     @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "primary_track_progress", "Вперёд", None))
-    def test_progress_happy_path(self, _sel, mock_asm, _track):
+    def test_progress_happy_path(self, _sel, mock_asm, _track, _save, _db):
         mock_asm.return_value = _make_progress_plan()
         result = get_mission_plan(1)
         assert result is not None
@@ -190,9 +214,11 @@ class TestGetMissionPlan:
             tz=None,
         )
 
+    @patch("app.utils.db.db")
+    @patch(f"{MODULE}.save_mission_type")
     @patch(f"{MODULE}.assemble_repair_mission")
     @patch(f"{MODULE}.select_mission")
-    def test_repair_happy_path(self, mock_sel, mock_asm):
+    def test_repair_happy_path(self, mock_sel, mock_asm, _save, _db):
         breakdown = _high_breakdown()
         mock_sel.return_value = (MissionType.repair, "repair_pressure_high", "Слабые места", breakdown)
         mock_asm.return_value = _make_repair_plan()
@@ -207,9 +233,11 @@ class TestGetMissionPlan:
             tz=None,
         )
 
+    @patch("app.utils.db.db")
+    @patch(f"{MODULE}.save_mission_type")
     @patch(f"{MODULE}.assemble_reading_mission")
     @patch(f"{MODULE}.select_mission", return_value=(MissionType.reading, "primary_track_reading", "Чтение", None))
-    def test_reading_happy_path(self, _sel, mock_asm):
+    def test_reading_happy_path(self, _sel, mock_asm, _save, _db):
         mock_asm.return_value = _make_reading_plan()
         result = get_mission_plan(1)
         assert result is not None
@@ -270,6 +298,169 @@ class TestGetMissionPlan:
         )
 
 
+ASSEMBLER_MODULE = "app.daily_plan.assembler"
+
+
+MISSION_SELECTOR_MODULE = "app.daily_plan.mission_selector"
+
+
+class TestRepairMissionDegradation:
+    """Repair mission degrades to progress when SRS=0 and grammar=0."""
+
+    @patch(f"{ASSEMBLER_MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
+    @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
+    @patch(f"{ASSEMBLER_MODULE}._count_grammar_due", return_value=0)
+    @patch(f"{ASSEMBLER_MODULE}._count_srs_due", return_value=0)
+    def test_zero_srs_and_grammar_delegates_to_progress(self, _srs, _gram, mock_progress, _track):
+        from app.daily_plan.assembler import assemble_repair_mission
+        from app.daily_plan.repair_pressure import RepairBreakdown
+
+        breakdown = RepairBreakdown(
+            overdue_srs_count=0, overdue_srs_score=0.0,
+            grammar_weak_count=0, grammar_weak_score=0.0,
+            failure_cluster_count=0, failure_cluster_score=0.0,
+            total_score=0.0,
+        )
+        mock_progress.return_value = _make_progress_plan()
+
+        result = assemble_repair_mission(1, breakdown)
+
+        assert result is not None
+        assert result.mission.type == MissionType.progress
+        mock_progress.assert_called_once_with(1, SourceKind.normal_course, reason_code="progress_next_step", reason_text="Всё повторено — двигаемся дальше по курсу", tz=None)
+
+    @patch(f"{ASSEMBLER_MODULE}.detect_primary_track", return_value=SourceKind.book_course)
+    @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
+    @patch(f"{ASSEMBLER_MODULE}._count_grammar_due", return_value=0)
+    @patch(f"{ASSEMBLER_MODULE}._count_srs_due", return_value=0)
+    def test_zero_srs_and_grammar_book_course_track(self, _srs, _gram, mock_progress, _track):
+        from app.daily_plan.assembler import assemble_repair_mission
+        from app.daily_plan.repair_pressure import RepairBreakdown
+
+        breakdown = RepairBreakdown(
+            overdue_srs_count=0, overdue_srs_score=0.0,
+            grammar_weak_count=0, grammar_weak_score=0.0,
+            failure_cluster_count=0, failure_cluster_score=0.0,
+            total_score=0.0,
+        )
+        mock_progress.return_value = _make_progress_plan()
+
+        result = assemble_repair_mission(1, breakdown)
+
+        assert result is not None
+        assert result.mission.type == MissionType.progress
+        mock_progress.assert_called_once_with(1, SourceKind.book_course, reason_code="progress_next_step", reason_text="Всё повторено — двигаемся дальше по курсу", tz=None)
+
+    @patch(f"{ASSEMBLER_MODULE}.detect_primary_track", return_value=SourceKind.books)
+    @patch(f"{ASSEMBLER_MODULE}.assemble_reading_mission")
+    @patch(f"{ASSEMBLER_MODULE}._count_grammar_due", return_value=0)
+    @patch(f"{ASSEMBLER_MODULE}._count_srs_due", return_value=0)
+    def test_zero_srs_and_grammar_books_track_delegates_to_reading(self, _srs, _gram, mock_reading, _track):
+        from app.daily_plan.assembler import assemble_repair_mission
+        from app.daily_plan.repair_pressure import RepairBreakdown
+
+        breakdown = RepairBreakdown(
+            overdue_srs_count=0, overdue_srs_score=0.0,
+            grammar_weak_count=0, grammar_weak_score=0.0,
+            failure_cluster_count=0, failure_cluster_score=0.0,
+            total_score=0.0,
+        )
+        mock_reading.return_value = _make_reading_plan()
+
+        result = assemble_repair_mission(1, breakdown)
+
+        assert result is not None
+        assert result.mission.type == MissionType.reading
+        mock_reading.assert_called_once_with(1, reason_code="progress_next_step", reason_text="Всё повторено — продолжаем чтение", tz=None)
+
+    @patch(f"{ASSEMBLER_MODULE}.detect_primary_track", return_value=SourceKind.books)
+    @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
+    @patch(f"{ASSEMBLER_MODULE}.assemble_reading_mission", return_value=None)
+    @patch(f"{ASSEMBLER_MODULE}._count_grammar_due", return_value=0)
+    @patch(f"{ASSEMBLER_MODULE}._count_srs_due", return_value=0)
+    def test_zero_srs_and_grammar_books_track_reading_none_falls_back_to_progress(
+        self, _srs, _gram, _reading, mock_progress, _track
+    ):
+        from app.daily_plan.assembler import assemble_repair_mission
+        from app.daily_plan.repair_pressure import RepairBreakdown
+
+        breakdown = RepairBreakdown(
+            overdue_srs_count=0, overdue_srs_score=0.0,
+            grammar_weak_count=0, grammar_weak_score=0.0,
+            failure_cluster_count=0, failure_cluster_score=0.0,
+            total_score=0.0,
+        )
+        mock_progress.return_value = _make_progress_plan()
+
+        result = assemble_repair_mission(1, breakdown)
+
+        assert result is not None
+        assert result.mission.type == MissionType.progress
+        mock_progress.assert_called_once_with(
+            1, SourceKind.normal_course,
+            reason_code="progress_next_step",
+            reason_text="Всё повторено — двигаемся дальше по курсу",
+            tz=None,
+        )
+
+    @patch(f"{ASSEMBLER_MODULE}.detect_primary_track", return_value=None)
+    @patch(f"{ASSEMBLER_MODULE}.assemble_progress_mission")
+    @patch(f"{ASSEMBLER_MODULE}._count_grammar_due", return_value=0)
+    @patch(f"{ASSEMBLER_MODULE}._count_srs_due", return_value=0)
+    def test_zero_srs_and_grammar_no_track_defaults_to_normal_course(self, _srs, _gram, mock_progress, _track):
+        from app.daily_plan.assembler import assemble_repair_mission
+        from app.daily_plan.repair_pressure import RepairBreakdown
+
+        breakdown = RepairBreakdown(
+            overdue_srs_count=0, overdue_srs_score=0.0,
+            grammar_weak_count=0, grammar_weak_score=0.0,
+            failure_cluster_count=0, failure_cluster_score=0.0,
+            total_score=0.0,
+        )
+        mock_progress.return_value = _make_progress_plan()
+
+        result = assemble_repair_mission(1, breakdown)
+
+        assert result is not None
+        assert result.mission.type == MissionType.progress
+        mock_progress.assert_called_once_with(1, SourceKind.normal_course, reason_code="progress_next_step", reason_text="Всё повторено — двигаемся дальше по курсу", tz=None)
+
+
+class TestAssemblerWarningLogs:
+    """Assembler failures produce structured warning logs in get_mission_plan."""
+
+    @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
+    @patch(f"{MODULE}.assemble_progress_mission", return_value=None)
+    @patch(f"{MODULE}.select_mission", return_value=(MissionType.progress, "cold_start", "Start", None))
+    def test_progress_assembler_none_emits_warning(self, _sel, _asm, _track, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING, logger="app.daily_plan.service"):
+            result = get_mission_plan(1)
+        assert result is None
+        assert any("assembler returned None" in r.message for r in caplog.records)
+
+    @patch(f"{MODULE}.assemble_repair_mission", return_value=None)
+    @patch(f"{MODULE}.select_mission")
+    def test_repair_assembler_none_emits_warning(self, mock_sel, _asm, caplog):
+        import logging
+        breakdown = _high_breakdown()
+        mock_sel.return_value = (MissionType.repair, "repair_pressure_high", "Слабые места", breakdown)
+
+        with caplog.at_level(logging.WARNING, logger="app.daily_plan.service"):
+            result = get_mission_plan(1)
+        assert result is None
+        assert any("assembler returned None" in r.message for r in caplog.records)
+
+    @patch(f"{MODULE}.assemble_reading_mission", return_value=None)
+    @patch(f"{MODULE}.select_mission", return_value=(MissionType.reading, "primary_track_reading", "Чтение", None))
+    def test_reading_assembler_none_emits_warning(self, _sel, _asm, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING, logger="app.daily_plan.service"):
+            result = get_mission_plan(1)
+        assert result is None
+        assert any("assembler returned None" in r.message for r in caplog.records)
+
+
 LEGACY_MODULE = "app.telegram.queries"
 
 
@@ -295,6 +486,8 @@ class TestGetDailyPlanUnified:
         result = get_daily_plan_unified(test_user.id)
         assert 'steps' in result
         mock_mission.assert_not_called()
+        assert result['_plan_meta']['mission_plan_enabled'] is False
+        assert result['_plan_meta']['effective_mode'] == 'legacy'
 
     @patch(f"{MODULE}.get_mission_plan", return_value=None)
     @patch(f"{LEGACY_MODULE}.get_daily_plan_v2", return_value={'steps': []})
@@ -305,6 +498,9 @@ class TestGetDailyPlanUnified:
         result = get_daily_plan_unified(test_user.id)
         assert 'steps' in result
         mock_legacy.assert_called_once()
+        assert result['_plan_meta']['mission_plan_enabled'] is True
+        assert result['_plan_meta']['effective_mode'] == 'legacy_fallback'
+        assert result['_plan_meta']['fallback_reason'] == 'mission_build_failed'
 
     @patch(f"{LEGACY_MODULE}.get_daily_plan_v2", return_value={'steps': []})
     def test_nonexistent_user_returns_legacy(self, mock_legacy, app):

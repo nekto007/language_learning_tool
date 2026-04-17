@@ -13,8 +13,9 @@ from app.grammar_lab.models import UserGrammarExercise, UserGrammarTopicStatus, 
 from app.study.models import UserWord, UserCardDirection
 from app.books.models import UserChapterProgress, Book
 from app.telegram.notifications import LESSON_TIME
+from config.settings import DEFAULT_TIMEZONE
 
-DEFAULT_TZ = 'Europe/Moscow'
+DEFAULT_TZ = DEFAULT_TIMEZONE
 
 
 def _user_day_boundaries(tz_name: str = DEFAULT_TZ,
@@ -1209,7 +1210,6 @@ def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
 
     # Books read today
     from app.books.models import Chapter
-    from sqlalchemy import distinct
     books_read_today = db.session.query(Book.title).join(
         Chapter, Chapter.book_id == Book.id
     ).join(

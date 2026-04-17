@@ -16,25 +16,50 @@ branch_labels = None
 depends_on = None
 
 
+def _table_exists(table_name):
+    insp = sa.inspect(op.get_bind())
+    return table_name in insp.get_table_names()
+
+
+def _column_exists(table_name, column_name):
+    insp = sa.inspect(op.get_bind())
+    return any(column['name'] == column_name for column in insp.get_columns(table_name))
+
+
+def _index_exists(table_name, index_name):
+    insp = sa.inspect(op.get_bind())
+    return any(index.get('name') == index_name for index in insp.get_indexes(table_name))
+
+
 def upgrade():
+    if not _table_exists('daily_lessons'):
+        return
+
     # Add audio_url column to daily_lessons table
-    op.add_column('daily_lessons',
-        sa.Column('audio_url', sa.Text(), nullable=True)
-    )
+    if not _column_exists('daily_lessons', 'audio_url'):
+        op.add_column('daily_lessons',
+            sa.Column('audio_url', sa.Text(), nullable=True)
+        )
 
     # Add index for faster queries on lessons with audio
-    op.create_index(
-        'idx_daily_lessons_audio_url',
-        'daily_lessons',
-        ['audio_url'],
-        unique=False,
-        postgresql_where=sa.text('audio_url IS NOT NULL')
-    )
+    if not _index_exists('daily_lessons', 'idx_daily_lessons_audio_url'):
+        op.create_index(
+            'idx_daily_lessons_audio_url',
+            'daily_lessons',
+            ['audio_url'],
+            unique=False,
+            postgresql_where=sa.text('audio_url IS NOT NULL')
+        )
 
 
 def downgrade():
+    if not _table_exists('daily_lessons'):
+        return
+
     # Remove index first
-    op.drop_index('idx_daily_lessons_audio_url', table_name='daily_lessons')
+    if _index_exists('daily_lessons', 'idx_daily_lessons_audio_url'):
+        op.drop_index('idx_daily_lessons_audio_url', table_name='daily_lessons')
 
     # Remove column
-    op.drop_column('daily_lessons', 'audio_url')
+    if _column_exists('daily_lessons', 'audio_url'):
+        op.drop_column('daily_lessons', 'audio_url')

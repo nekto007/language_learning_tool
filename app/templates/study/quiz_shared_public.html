@@ -3,9 +3,9 @@
 {% block title %}{{ deck.title }} — Quiz | LLT English{% endblock %}
 
 {% block head_extra %}
-<meta name="description" content="{{ meta_description }}">
+<meta name="description" content="{{ meta_description | default('')}}">
 <meta property="og:title" content="Quiz: {{ deck.title }} — {{ word_count }} слов{% if deck_level %}, {{ deck_level }}{% endif %} | LLT English">
-<meta property="og:description" content="{{ meta_description }}">
+<meta property="og:description" content="{{ meta_description | default('')}}">
 <meta property="og:type" content="website">
 <link rel="canonical" href="https://llt-english.com/study/quiz/shared/{{ deck.share_code }}">
 {% endblock %}

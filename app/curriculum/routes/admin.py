@@ -11,10 +11,8 @@ from sqlalchemy import or_
 from app.admin.services.curriculum_import_service import CurriculumImportService
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.security import (safe_int, sanitize_json_content, validate_file_upload)
-from app.curriculum.validators import ImportDataSchema, validate_request_data
 from app.utils.db import db
 from app.admin.utils.decorators import admin_required
-from app.words.models import Collection
 
 logger = logging.getLogger(__name__)
 

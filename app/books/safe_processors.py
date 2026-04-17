@@ -138,7 +138,7 @@ def diagnose_import_issue():
     # Пробуем импортировать и смотрим что происходит
     try:
         logger.info("[SAFE_PROCESSOR] Testing import of app.books.processors...")
-        import app.books.processors
+        import app.books.processors  # noqa: F401
         logger.info("[SAFE_PROCESSOR] Import successful")
     except Exception as e:
         logger.error(f"[SAFE_PROCESSOR] Import failed: {str(e)}")

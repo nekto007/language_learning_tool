@@ -183,6 +183,110 @@ class TestProfileRoute:
         assert 'notify_email_reminders' in html
 
 
+class TestProfileRankSection:
+    """Profile page shows the rank badge, progress bar, and history timeline."""
+
+    def test_rank_section_present_for_new_user(self, app, auth_client, profile_user):
+        """A user with no completions still sees the Novice badge."""
+        with patch('app.telegram.queries.get_current_streak', return_value=0):
+            resp = auth_client.get('/profile')
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        assert 'Звание' in html
+        assert 'pf-rank' in html
+        assert 'Новичок' in html
+
+    def test_rank_section_shows_current_rank_and_days(
+        self, app, db_session, auth_client, profile_user,
+    ):
+        """Current rank and days-at-rank are rendered from StreakEvents."""
+        from datetime import date, timedelta
+
+        from app.achievements.models import StreakEvent, UserStatistics
+
+        db_session.add(UserStatistics(
+            user_id=profile_user.id,
+            plans_completed_total=8,
+            current_rank='explorer',
+        ))
+        db_session.add(StreakEvent(
+            user_id=profile_user.id,
+            event_type='plan_completed',
+            coins_delta=0,
+            event_date=date.today() - timedelta(days=3),
+            details={'plans_completed_total': 7, 'rank_code': 'explorer'},
+        ))
+        db_session.flush()
+
+        with patch('app.telegram.queries.get_current_streak', return_value=0):
+            resp = auth_client.get('/profile')
+        assert resp.status_code == 200
+        html = resp.data.decode()
+
+        assert 'Исследователь' in html
+        assert 'data-rank-days="3"' in html
+        # progress text: 8 / 21 to student
+        assert '8/21' in html
+        assert 'Ученик' in html  # next rank display
+
+    def test_rank_section_shows_history_timeline(
+        self, app, db_session, auth_client, profile_user,
+    ):
+        """Rank history timeline lists every distinct promotion."""
+        from datetime import date, timedelta
+
+        from app.achievements.models import StreakEvent, UserStatistics
+
+        today = date.today()
+        db_session.add(UserStatistics(
+            user_id=profile_user.id,
+            plans_completed_total=21,
+            current_rank='student',
+        ))
+        for offset, total, code in [
+            (-10, 1, 'novice'),
+            (-5, 7, 'explorer'),
+            (-1, 21, 'student'),
+        ]:
+            db_session.add(StreakEvent(
+                user_id=profile_user.id,
+                event_type='plan_completed',
+                coins_delta=0,
+                event_date=today + timedelta(days=offset),
+                details={'plans_completed_total': total, 'rank_code': code},
+            ))
+        db_session.flush()
+
+        with patch('app.telegram.queries.get_current_streak', return_value=0):
+            resp = auth_client.get('/profile')
+        html = resp.data.decode()
+        assert 'История званий' in html
+        assert 'pf-rank__timeline' in html
+        assert 'Новичок' in html
+        assert 'Исследователь' in html
+        assert 'Ученик' in html
+        assert (today - timedelta(days=10)).strftime('%d.%m.%Y') in html
+
+    def test_rank_section_hides_progress_for_grandmaster(
+        self, app, db_session, auth_client, profile_user,
+    ):
+        """When a user maxes out, we show the max-rank hint instead of a bar."""
+        from app.achievements.models import UserStatistics
+
+        db_session.add(UserStatistics(
+            user_id=profile_user.id,
+            plans_completed_total=400,
+            current_rank='grandmaster',
+        ))
+        db_session.flush()
+
+        with patch('app.telegram.queries.get_current_streak', return_value=0):
+            resp = auth_client.get('/profile')
+        html = resp.data.decode()
+        assert 'Грандмастер' in html
+        assert 'Максимальное звание достигнуто' in html
+
+
 class TestProfileSettingsSave:
     """Test saving profile settings via POST."""
 
