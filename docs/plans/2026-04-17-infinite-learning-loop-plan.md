@@ -126,14 +126,14 @@ Go/no-go: if continuation rate increases by ≥15% vs baseline after 2 weeks, pr
 - Create: `app/daily_plan/next_step.py`
 - Modify: `app/daily_plan/routes.py`
 
-- [ ] implement `get_next_best_step(user_id, db)` returning 1 recommended task with `reason` string
-- [ ] priority order: unfinished lesson > SRS due > grammar weak > reading progress > vocab
-- [ ] reason must be a human-readable 1-sentence string ("You have 12 cards due" not "srs_review")
-- [ ] if no good next step exists (genuinely), return None — do not force a fake step
-- [ ] expose via `GET /api/daily-plan/next-step`
-- [ ] write unit tests for each priority branch
-- [ ] write test for None case when all sources exhausted
-- [ ] run pytest — must pass
+- [x] implement `get_next_best_step(user_id, db)` returning 1 recommended task with `reason` string
+- [x] priority order: unfinished lesson > SRS due > grammar weak > reading progress > vocab
+- [x] reason must be a human-readable 1-sentence string ("You have 12 cards due" not "srs_review")
+- [x] if no good next step exists (genuinely), return None — do not force a fake step
+- [x] expose via `GET /api/daily-plan/continuation` (URL changed from /next-step to avoid conflict with existing words route at the same path)
+- [x] write unit tests for each priority branch
+- [x] write test for None case when all sources exhausted
+- [x] run pytest — must pass
 
 ### Task 8: Add Phase 1 tracking
 
