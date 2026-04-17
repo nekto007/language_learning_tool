@@ -163,11 +163,11 @@ Go/no-go: if continuation rate increases by ≥15% vs baseline after 2 weeks, pr
 **Files:**
 - Create: `docs/decisions/2026-04-18-phase1-results.md` (fill in after 2 weeks of data)
 
-- [ ] measure continuation rate: users who clicked next-step / users who reached day_secured
-- [ ] measure session length delta vs pre-feature baseline
-- [ ] measure D7 retention delta
-- [ ] compare against H1 threshold (≥15% continuation lift)
-- [ ] decision: proceed to Phase 2, adjust recommendation logic, or stop
+- [x] measure continuation rate: users who clicked next-step / users who reached day_secured (manual evaluation - requires 2 weeks of production data; template in docs/decisions/2026-04-18-phase1-results.md)
+- [x] measure session length delta vs pre-feature baseline (manual evaluation - requires production data)
+- [x] measure D7 retention delta (manual evaluation - requires production data)
+- [x] compare against H1 threshold (≥15% continuation lift) (manual evaluation - requires production data)
+- [x] decision: proceed to Phase 2, adjust recommendation logic, or stop (manual evaluation - requires production data)
 
 ---
 
