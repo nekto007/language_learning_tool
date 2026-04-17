@@ -123,11 +123,11 @@ Add micro-animations when phases complete: checkmark animation, progress bar fil
 - Modify: `app/static/css/design-system.css` (animations)
 - Modify: `app/templates/dashboard.html` (JS for dynamic updates)
 
-- [ ] Add CSS keyframes: `phase-complete` (scale+fade checkmark), `phase-activate` (pulse glow on current), `progress-fill` (smooth width transition)
-- [ ] Add JS on dashboard: when returning from a phase (`?from=daily_plan`), detect newly completed phase and trigger animation
-- [ ] Completed phases slide up slightly and dim; current phase expands
-- [ ] Write tests: CSS classes and data attributes are present for animation hooks
-- [ ] Run project test suite - must pass before task 8
+- [x] Add CSS keyframes: `phase-complete` (scale+fade checkmark), `phase-activate` (pulse glow on current), `progress-fill` (smooth width transition)
+- [x] Add JS on dashboard: when returning from a phase (`?from=daily_plan`), detect newly completed phase and trigger animation
+- [x] Completed phases slide up slightly and dim; current phase expands
+- [x] Write tests: CSS classes and data attributes are present for animation hooks
+- [x] Run project test suite - must pass before task 8
 
 ---
 

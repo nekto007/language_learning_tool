@@ -281,3 +281,68 @@ class TestDashboardMissionRender:
             assert f'.dash-step--phase.dash-step--{kind} .dash-step__icon' in css, (
                 f'Missing icon rule for phase kind {kind!r}'
             )
+
+    def test_phase_state_data_attributes_rendered(self, client, app, db_session, test_user, words_module_access):
+        """Task 7: data-phase-state and data-phase-index attributes present for JS animation hooks."""
+        plan = _make_mission_plan('progress', [True, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-phase-state="done"' in html
+        assert 'data-phase-state="current"' in html
+        assert 'data-phase-state="upcoming"' in html
+        assert 'data-phase-index="0"' in html
+        assert 'data-phase-index="1"' in html
+
+    def test_phase_check_element_rendered_for_done(self, client, app, db_session, test_user, words_module_access):
+        """Task 7: completed phases render a dedicated checkmark element for animation targeting."""
+        plan = _make_mission_plan('progress', [True, True, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'dash-step__check' in html
+        assert 'data-phase-check="true"' in html
+        # Two done phases -> at least two check elements
+        assert html.count('data-phase-check="true"') >= 2
+
+    def test_phase_check_absent_for_active_phases(self, client, app, db_session, test_user, words_module_access):
+        """Task 7: non-done phases should not render a check element (only numeric index)."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-phase-check="true"' not in html
+
+    def test_progress_bar_animation_attributes(self, client, app, db_session, test_user, words_module_access):
+        """Task 7: plan progress bar exposes data attributes so JS can trigger the fill animation."""
+        plan = _make_mission_plan('progress', [True, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-plan-progress="true"' in html
+        assert 'data-progress-fill="true"' in html
+        assert 'data-progress-pct="' in html
+
+    def test_phase_animation_css_keyframes_present(self):
+        """Task 7: required keyframes and animation CSS classes live in the dashboard template."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        assert '@keyframes dashPhaseComplete' in css
+        assert '@keyframes dashPhaseActivate' in css
+        assert '@keyframes dashPhaseProgressFill' in css
+        # The JS-toggled hooks must have associated CSS rules
+        assert '.dash-step--phase.dash-step--just-completed' in css
+        assert '.dash-step--phase.dash-step--current.dash-step--newly-active' in css
+        assert '.dash-progress[data-plan-progress="true"].dash-progress--animate' in css
+        # Reduced-motion guard
+        assert '@media (prefers-reduced-motion: reduce)' in css
+
+    def test_phase_animation_js_hook_present(self):
+        """Task 7: JS that detects ?from=daily_plan and toggles animation classes is in the template."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            html = f.read()
+        assert "from=daily_plan" in html or "params.get('from')" in html
+        assert 'dash-step--just-completed' in html
+        assert 'dash-step--newly-active' in html
+        assert 'dash-progress--animate' in html
+        assert 'mission_phase_states_v1' in html

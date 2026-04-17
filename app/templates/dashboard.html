@@ -258,9 +258,9 @@
         {# Progress bar #}
         {% if m_total > 0 %}
         {% set m_pct = (m_done / m_total * 100) | int %}
-        <div class="dash-progress">
+        <div class="dash-progress" data-plan-progress="true" data-progress-pct="{{ m_pct }}">
             <div class="dash-progress__bar">
-                <div class="dash-progress__fill {% if m_all_done %}dash-progress__fill--done{% endif %}" style="width: {{ m_pct }}%"></div>
+                <div class="dash-progress__fill {% if m_all_done %}dash-progress__fill--done{% endif %}" style="width: {{ m_pct }}%" data-progress-fill="true"></div>
             </div>
             <span class="dash-progress__count">{{ m_done }}/{{ m_total }}</span>
         </div>
@@ -324,8 +324,8 @@
 
             {% set phase_preview = phase.get('preview') %}
             {% set phase_kind = phase.get('phase', '') %}
-            <div class="dash-step dash-step--phase{% if phase_kind %} dash-step--{{ phase_kind }}{% endif %} dash-step--{{ phase_css }}" style="animation-delay: {{ loop.index * 0.08 }}s" data-phase-id="{{ phase.get('id', '') }}" data-phase-kind="{{ phase_kind }}">
-                <div class="dash-step__num">{% if is_done %}&#10003;{% else %}{{ loop.index }}{% endif %}</div>
+            <div class="dash-step dash-step--phase{% if phase_kind %} dash-step--{{ phase_kind }}{% endif %} dash-step--{{ phase_css }}" style="animation-delay: {{ loop.index * 0.08 }}s" data-phase-id="{{ phase.get('id', '') }}" data-phase-kind="{{ phase_kind }}" data-phase-state="{{ phase_css }}" data-phase-index="{{ loop.index0 }}">
+                <div class="dash-step__num">{% if is_done %}<span class="dash-step__check" data-phase-check="true">&#10003;</span>{% else %}{{ loop.index }}{% endif %}</div>
                 <div class="dash-step__body">
                     <div class="dash-step__icon">{{ phase_icons.get(phase_kind, '&#128204;')|safe }}</div>
                     <div class="dash-step__info">
@@ -2987,6 +2987,66 @@
     background: var(--dash-accent-soft);
     color: var(--dash-accent);
 }
+
+/* ============================================
+   Task 7: Phase transition animations
+   ============================================ */
+
+/* Smooth progress-fill transition on the stepper (complements width: inline-style) */
+@keyframes dashPhaseProgressFill {
+    from { width: var(--dash-progress-from, 0%); }
+    to { width: var(--dash-progress-to, 100%); }
+}
+.dash-progress__fill[data-progress-fill="true"] {
+    transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dash-progress[data-plan-progress="true"].dash-progress--animate .dash-progress__fill {
+    animation: dashPhaseProgressFill 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Completed-phase checkmark pop-in animation */
+@keyframes dashPhaseComplete {
+    0%   { transform: scale(0.2); opacity: 0; }
+    50%  { transform: scale(1.25); opacity: 1; }
+    80%  { transform: scale(0.95); opacity: 1; }
+    100% { transform: scale(1);    opacity: 1; }
+}
+.dash-step__check {
+    display: inline-block;
+    transform-origin: center center;
+}
+.dash-step--phase.dash-step--just-completed .dash-step__check {
+    animation: dashPhaseComplete 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.dash-step--phase.dash-step--just-completed .dash-step__body {
+    animation: dashPhaseCompleteSlide 0.45s ease-out both;
+}
+@keyframes dashPhaseCompleteSlide {
+    0%   { transform: translateY(4px); opacity: 0.85; }
+    100% { transform: translateY(0);   opacity: 0.6; }
+}
+
+/* Active-phase pulse glow */
+@keyframes dashPhaseActivate {
+    0%   { box-shadow: 0 0 0 0 rgba(80, 70, 229, 0.45), 0 4px 20px rgba(80, 70, 229, 0.12); }
+    70%  { box-shadow: 0 0 0 12px rgba(80, 70, 229, 0), 0 4px 20px rgba(80, 70, 229, 0.12); }
+    100% { box-shadow: 0 0 0 0 rgba(80, 70, 229, 0), 0 4px 20px rgba(80, 70, 229, 0.12); }
+}
+.dash-step--phase.dash-step--current.dash-step--newly-active .dash-step__body {
+    animation: dashPhaseActivate 1.2s ease-out 2;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    .dash-progress__fill[data-progress-fill="true"],
+    .dash-step--phase.dash-step--just-completed .dash-step__check,
+    .dash-step--phase.dash-step--just-completed .dash-step__body,
+    .dash-step--phase.dash-step--current.dash-step--newly-active .dash-step__body {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
 /* Streak recovery */
 .dash-streak__coins { margin-left: 12px; font-size: 0.85em; opacity: 0.8; }
 .dash-streak--restored .dash-streak__restored {
@@ -3531,6 +3591,72 @@ async function repairStreak() {
         }
     }
 })();
+
+{% if mission_plan %}
+// Task 7: Phase transition animations triggered when returning from a daily-plan step.
+// Strategy: persist last-seen done-phase-ids per URL in sessionStorage. On load, diff
+// against current done phases — any new done phase gets a one-shot "just-completed"
+// class, and the newly-current phase gets a "newly-active" pulse.
+(function() {
+    var missionAttr = 'data-mission' + '-plan';
+    var timeline = document.querySelector('[' + missionAttr + '="true"]');
+    if (!timeline) return;
+
+    var steps = timeline.querySelectorAll('.dash-step--phase[data-phase-id]');
+    if (!steps.length) return;
+
+    var storeKey = 'mission_phase_states_v1';
+    var currentDone = [];
+    steps.forEach(function(step) {
+        if (step.getAttribute('data-phase-state') === 'done') {
+            currentDone.push(step.getAttribute('data-phase-id'));
+        }
+    });
+
+    var params = new URLSearchParams(window.location.search);
+    var cameFromPlan = params.get('from') === 'daily_plan';
+
+    var previousDone = [];
+    try {
+        var raw = sessionStorage.getItem(storeKey);
+        if (raw) {
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) previousDone = parsed;
+        }
+    } catch (e) {
+        previousDone = [];
+    }
+
+    if (cameFromPlan) {
+        var newlyDone = currentDone.filter(function(id) { return previousDone.indexOf(id) === -1; });
+        if (newlyDone.length) {
+            steps.forEach(function(step) {
+                var id = step.getAttribute('data-phase-id');
+                if (newlyDone.indexOf(id) !== -1) {
+                    step.classList.add('dash-step--just-completed');
+                }
+                if (step.getAttribute('data-phase-state') === 'current') {
+                    step.classList.add('dash-step--newly-active');
+                }
+            });
+            var progress = document.querySelector('[data-plan-progress="true"]');
+            if (progress) {
+                progress.classList.add('dash-progress--animate');
+                var fill = progress.querySelector('[data-progress-fill="true"]');
+                if (fill) {
+                    var pct = progress.getAttribute('data-progress-pct') || '0';
+                    fill.style.setProperty('--dash-progress-to', pct + '%');
+                    fill.style.setProperty('--dash-progress-from', '0%');
+                }
+            }
+        }
+    }
+
+    try {
+        sessionStorage.setItem(storeKey, JSON.stringify(currentDone));
+    } catch (e) { /* storage full or disabled — non-fatal */ }
+})();
+{% endif %}
 </script>
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/share.js') }}" defer></script>{% endblock %}
