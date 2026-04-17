@@ -109,7 +109,6 @@ DEFAULT_SQLALCHEMY_ENGINE_OPTIONS = {
     # Additional PostgreSQL optimizations
     'connect_args': {
         'connect_timeout': 10,    # Connection timeout in seconds
-        'options': '-c statement_timeout=0',  # No query timeout (needed for long book processing)
         'keepalives': 1,          # Enable TCP keepalive
         'keepalives_idle': 30,    # Seconds before sending keepalive
         'keepalives_interval': 10,  # Seconds between keepalive probes

@@ -50,8 +50,8 @@ def configure_postgresql(app, db):
             cursor = dbapi_conn.cursor()
 
             try:
-                # Only disable synchronous_commit in non-production environments
-                if os.environ.get('FLASK_ENV') != 'production':
+                # Only disable synchronous_commit in development (explicit opt-in)
+                if os.environ.get('FLASK_ENV') == 'development':
                     cursor.execute("SET synchronous_commit = OFF")
 
                 # Prevents long-running queries from blocking
