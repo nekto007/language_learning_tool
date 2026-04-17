@@ -53,12 +53,12 @@ Design sprint only. No code. Output: locked product rules docs and 5 falsifiable
 **Files:**
 - Create: `docs/decisions/2026-04-18-day-secured-definition.md`
 
-- [ ] write the exact definition of "day secured" (which mission types count, what minimum effort = secured)
-- [ ] answer: does completing only easy tasks secure the day?
-- [ ] answer: does minimum optimize for streak preservation or learning quality? (pick one)
-- [ ] answer: is minimum fixed or adaptive per user state?
-- [ ] define what rewards unlock at minimum completion and what stays exclusive to continuation
-- [ ] list at least 5 edge cases and their correct behavior
+- [x] write the exact definition of "day secured" (which mission types count, what minimum effort = secured)
+- [x] answer: does completing only easy tasks secure the day?
+- [x] answer: does minimum optimize for streak preservation or learning quality? (pick one)
+- [x] answer: is minimum fixed or adaptive per user state?
+- [x] define what rewards unlock at minimum completion and what stays exclusive to continuation
+- [x] list at least 5 edge cases and their correct behavior
 
 ### Task 3: Write 5 falsifiable hypotheses
 
