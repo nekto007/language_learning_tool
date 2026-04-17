@@ -436,12 +436,12 @@ Show XP bar, current level, and XP gains on the dashboard.
 - Modify: `app/words/routes.py` (pass XP data)
 - Modify: `app/static/css/design-system.css`
 
-- [ ] `dash-xp` widget near top of dashboard: level badge, XP progress bar, "Level 14 - 340/500 XP"
-- [ ] XP gain indicators on completed phase cards: "+40 XP" floating text
-- [ ] Streak multiplier displayed: "x1.28 streak bonus active"
-- [ ] Level-up celebration: golden flash overlay when user levels up
-- [ ] Write tests: XP widget renders with correct level and progress; gain indicators appear on completed phases
-- [ ] Run project test suite - must pass before task 27
+- [x] `dash-xp` widget near top of dashboard: level badge, XP progress bar, "Level 14 - 340/500 XP"
+- [x] XP gain indicators on completed phase cards: "+40 XP" floating text
+- [x] Streak multiplier displayed: "x1.28 streak bonus active"
+- [x] Level-up celebration: golden flash overlay when user levels up
+- [x] Write tests: XP widget renders with correct level and progress; gain indicators appear on completed phases
+- [x] Run project test suite - must pass before task 27
 
 ### Task 27: Daily bonus and perfect day mechanics
 

@@ -157,6 +157,34 @@
         </div>
     </div>
 
+    {# ── Task 26: Mission XP / level widget ── #}
+    {% if mission_level_info %}
+    <div class="dash-xp" data-xp-widget="true" title="Опыт и уровень за дневные миссии">
+        <span class="dash-xp__level" data-xp-level="true">Уровень {{ mission_level_info.level }}</span>
+        <div class="dash-xp__progress">
+            <span class="dash-xp__text">{{ mission_level_info.xp_in_level }}/{{ mission_level_info.xp_for_level }} XP</span>
+            <div class="dash-xp__bar" data-xp-progress="true" data-xp-pct="{{ mission_level_info.progress_percent }}">
+                <div class="dash-xp__bar-fill" style="width: {{ mission_level_info.progress_percent }}%"></div>
+            </div>
+        </div>
+        {% if mission_level_info.streak_multiplier > 1.0 %}
+        <span class="dash-xp__multiplier" data-xp-multiplier="true">x{{ mission_level_info.streak_multiplier }} бонус серии</span>
+        {% else %}
+        <span class="dash-xp__multiplier dash-xp__multiplier--base" data-xp-multiplier="true">x{{ mission_level_info.streak_multiplier }} бонус серии</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# ── Task 26: Level-up golden flash overlay ── #}
+    {% if xp_level_up %}
+    <div class="dash-xp-levelup" data-xp-levelup="true" role="status" aria-live="polite">
+        <div class="dash-xp-levelup__inner">
+            <div class="dash-xp-levelup__icon">&#11088;</div>
+            <div class="dash-xp-levelup__text">Новый уровень {{ xp_level_up.new_level }}!</div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Welcome Card for New Users -->
     {% if words_total == 0 and grammar_studied == 0 and books_reading == 0 and courses_enrolled == 0 %}
     <div class="dash-welcome">
@@ -528,6 +556,9 @@
                     </div>
                     {% if is_done %}
                     <span class="dash-step__btn">Готово &#10003;</span>
+                    {% if mission_level_info and phase_kind in mission_level_info.phase_xp %}
+                    <span class="dash-step__xp-gain" data-phase-xp="true" data-xp-amount="{{ mission_level_info.phase_xp[phase_kind] }}">+{{ mission_level_info.phase_xp[phase_kind] }} XP</span>
+                    {% endif %}
                     {% elif phase_css == 'current' %}
                     <a href="{{ phase_urls.get(phase.get('id', ''), '/dashboard?from=daily_plan') }}" class="dash-step__btn">Вперёд к очкам</a>
                     {% endif %}
@@ -4459,6 +4490,118 @@
     font-weight: 600;
     color: var(--dash-accent);
     text-align: right;
+}
+
+/* ── Task 26: Mission XP / Level widget ── */
+.dash-xp {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: var(--dash-card-bg);
+    border-radius: 10px;
+    margin: 0 0 12px;
+    border: 1px solid var(--dash-border);
+    flex-wrap: wrap;
+}
+.dash-xp__level {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--dash-accent);
+    white-space: nowrap;
+    background: rgba(var(--dash-accent-rgb, 99,102,241), 0.12);
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+.dash-xp__progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 120px;
+}
+.dash-xp__text {
+    font-size: 0.75rem;
+    color: var(--dash-text-muted);
+    white-space: nowrap;
+}
+.dash-xp__bar {
+    flex: 1;
+    height: 6px;
+    background: var(--dash-border);
+    border-radius: 3px;
+    overflow: hidden;
+    min-width: 60px;
+}
+.dash-xp__bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #a78bfa);
+    border-radius: 3px;
+    transition: width 0.6s ease;
+}
+.dash-xp__multiplier {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+.dash-xp__multiplier--base {
+    color: var(--dash-text-muted);
+    background: transparent;
+}
+
+/* Phase XP gain indicator */
+.dash-step__xp-gain {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+
+/* ── Task 26: Level-up golden flash overlay ── */
+@keyframes xpLevelUpFlash {
+    0%   { opacity: 0; transform: translateY(-20px) scale(0.9); }
+    15%  { opacity: 1; transform: translateY(0)     scale(1.05); }
+    80%  { opacity: 1; transform: translateY(0)     scale(1); }
+    100% { opacity: 0; transform: translateY(0)     scale(1); }
+}
+.dash-xp-levelup {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    background: linear-gradient(135deg, #f59e0b, #fcd34d);
+    color: #1f2937;
+    padding: 14px 28px;
+    border-radius: 14px;
+    box-shadow: 0 4px 30px rgba(245,158,11,0.45);
+    animation: xpLevelUpFlash 3.5s ease forwards;
+    pointer-events: none;
+}
+.dash-xp-levelup__inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.dash-xp-levelup__icon {
+    font-size: 1.4rem;
+}
+.dash-xp-levelup__text {
+    font-size: 1rem;
+    font-weight: 700;
+}
+@media (prefers-reduced-motion: reduce) {
+    .dash-xp-levelup { animation: none; }
+    .dash-xp__bar-fill { transition: none; }
 }
 </style>
 

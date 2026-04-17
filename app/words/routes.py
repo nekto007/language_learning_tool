@@ -263,6 +263,30 @@ def _build_rank_info(current_user_id: int) -> dict | None:
     }
 
 
+def _build_mission_level_info(user_id: int) -> dict | None:
+    """Return XP level info for the dash-xp widget."""
+    from app.achievements.models import UserStatistics
+    from app.achievements.xp_service import get_level_info, get_streak_multiplier, PHASE_XP
+
+    stats = UserStatistics.query.filter_by(user_id=user_id).first()
+    total_xp = int(stats.total_xp or 0) if stats else 0
+    streak_days = int(stats.current_streak_days or 0) if stats else 0
+
+    info = get_level_info(total_xp)
+    multiplier = get_streak_multiplier(streak_days)
+
+    return {
+        'level': info.current_level,
+        'total_xp': info.total_xp,
+        'xp_in_level': info.xp_in_level,
+        'xp_to_next': info.xp_to_next,
+        'xp_for_level': info.xp_in_level + info.xp_to_next,
+        'progress_percent': info.progress_percent,
+        'streak_multiplier': round(multiplier, 2),
+        'phase_xp': PHASE_XP,
+    }
+
+
 def _compute_daily_race_state(plan: dict, daily_summary: dict, streak: int) -> dict:
     """Compute score, step counts, and next-step info for a single user in the daily race."""
     from app.achievements.streak_service import compute_plan_steps
@@ -672,6 +696,11 @@ def dashboard():
     # === RANK / TITLE (daily plan cumulative) ===
     rank_info = _safe_widget_call('rank_info', _build_rank_info, current_user.id, default=None)
 
+    # === MISSION XP / LEVEL (task 26) ===
+    mission_level_info = _safe_widget_call(
+        'mission_level_info', _build_mission_level_info, current_user.id, default=None)
+    xp_level_up = streak_result.get('xp_level_up')
+
     # === UNSEEN BADGES POPUP ===
     # Collect every badge earned since the last dashboard visit, then mark them
     # seen so the popup fires exactly once per awarding.
@@ -782,6 +811,9 @@ def dashboard():
         unseen_badges=unseen_badges,
         # Badges showcase (recent + teasers)
         badges_showcase=badges_showcase,
+        # Mission XP / level widget (task 26)
+        mission_level_info=mission_level_info,
+        xp_level_up=xp_level_up,
     )
 
 
