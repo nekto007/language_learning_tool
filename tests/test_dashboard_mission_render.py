@@ -1067,3 +1067,86 @@ class TestDashboardMissionRender:
         response = self._get_dashboard_with_race(client, test_user, plan, race)
         html = response.data.decode('utf-8')
         assert 'dash-race__board--compact' in html
+
+    # ---- Task 35: Overtake and checkpoint animations ----
+
+    def test_route_token_has_animate_attribute(self, client, app, db_session, test_user, words_module_access):
+        """Task 35: each route token carries data-animate-token for JS animation targeting."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        race = self._make_race_payload()
+        response = self._get_dashboard_with_race(client, test_user, plan, race)
+        html = response.data.decode('utf-8')
+        assert 'data-animate-token="true"' in html
+        # Three tokens from route_rivals; attribute also appears inside <script>, so >= 3
+        assert html.count('data-animate-token="true"') >= 3
+
+    def test_route_container_exposes_checkpoint_and_finish_data(self, client, app, db_session, test_user, words_module_access):
+        """Task 35: route container has data-current-checkpoint and data-finish-state for JS."""
+        plan = _make_mission_plan('progress', [True, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-current-checkpoint=' in html
+        assert 'data-finish-state=' in html
+        assert 'data-current-checkpoint="1"' in html
+        assert 'data-finish-state="in_progress"' in html
+
+    def test_route_finish_state_done_when_all_complete(self, client, app, db_session, test_user, words_module_access):
+        """Task 35: finish-state is 'done' when all phases complete — triggers calm finish JS."""
+        plan = _make_mission_plan('progress', [True, True, True])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-finish-state="done"' in html
+
+    def test_route_animation_css_keyframes_present(self):
+        """Task 35: token-move, overtake, checkpoint, and finish-calm keyframes in template."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        assert '@keyframes route-token-move' in css
+        assert '@keyframes route-token-overtake' in css
+        assert '@keyframes roadmap-node-just-reached' in css
+        assert '@keyframes roadmap-node-completed' in css
+        assert '@keyframes route-finish-calm' in css
+        assert '@keyframes route-overtake-toast-in' in css
+
+    def test_route_animation_css_classes_present(self):
+        """Task 35: animation state CSS classes for token move, overtake, checkpoint, finish exist."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        assert '.dash-route-token--just-moved' in css
+        assert '.dash-route-token--overtaking' in css
+        assert '.dash-route-overtake-toast' in css
+        assert '.dash-roadmap__node--current.dash-roadmap__node--just-reached' in css
+        assert '.dash-roadmap__node--done.dash-roadmap__node--just-completed' in css
+        assert '.dash-route--finish-calm' in css
+
+    def test_route_animation_reduced_motion_guard_present(self):
+        """Task 35: animation classes are suppressed under prefers-reduced-motion."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        # Find the Task 35 reduced-motion block by anchoring on an earlier Task 35 marker
+        task35_anchor = css.find('Task 35: Overtake and checkpoint animations')
+        assert task35_anchor != -1, 'Task 35 CSS anchor comment missing'
+        reduced_start = css.find('@media (prefers-reduced-motion: reduce)', task35_anchor)
+        assert reduced_start != -1
+        reduced_block = css[reduced_start:reduced_start + 600]
+        assert 'dash-route-token--just-moved' in reduced_block
+
+    def test_route_animation_js_hook_present(self):
+        """Task 35: JS for route overtake/checkpoint detection is in the template."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            html = f.read()
+        assert 'mission_route_state_v1' in html
+        assert 'dash-route-token--just-moved' in html
+        assert 'dash-route-token--overtaking' in html
+        assert 'dash-roadmap__node--just-reached' in html
+        assert 'dash-roadmap__node--just-completed' in html
+        assert 'dash-route--finish-calm' in html
+        assert 'data-animate-token' in html

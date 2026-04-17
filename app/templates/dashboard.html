@@ -637,6 +637,7 @@
             <div class="dash-route-token dash-route-token--{{ rival.rival_role }}{% if rival.is_bot %} dash-route-token--training{% endif %}"
                  style="left: {{ rival.route_position }}%"
                  data-route-token="true"
+                 data-animate-token="true"
                  data-token-role="{{ rival.rival_role }}"
                  data-route-position="{{ rival.route_position }}"
                  title="{% if rival.is_me %}Ты: {{ rival.route_position }}% маршрута{% else %}{{ rival.username }}: {{ rival.route_position }}% маршрута{% endif %}">
@@ -4139,6 +4140,102 @@
     }
 }
 
+/* ============================================
+   Task 35: Overtake and checkpoint animations
+   ============================================ */
+
+/* Token bounce when the user's token moves forward on the route */
+@keyframes route-token-move {
+    0%   { transform: translateX(-50%) translateY(0) scale(1); }
+    30%  { transform: translateX(-50%) translateY(-8px) scale(1.15); }
+    55%  { transform: translateX(-50%) translateY(-4px) scale(1.08); }
+    75%  { transform: translateX(-50%) translateY(-2px) scale(1.04); }
+    100% { transform: translateX(-50%) translateY(0) scale(1); }
+}
+.dash-route-token--just-moved {
+    animation: route-token-move 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    z-index: 5;
+}
+
+/* Overtake flash: user avatar glows when passing a rival */
+@keyframes route-token-overtake {
+    0%   { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.65); transform: scale(1); }
+    40%  { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); transform: scale(1.28); }
+    70%  { transform: scale(1.12); }
+    100% { transform: scale(1); box-shadow: none; }
+}
+.dash-route-token--overtaking .dash-route-token__avatar {
+    animation: route-token-overtake 0.7s ease-out both;
+}
+
+/* Brief toast that appears below the token strip on overtake */
+.dash-route-overtake-toast {
+    position: absolute;
+    bottom: -26px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    background: var(--dash-accent, #5046e5);
+    color: #fff;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(80, 70, 229, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    animation: route-overtake-toast-in 2.4s ease-out both;
+    z-index: 10;
+}
+@keyframes route-overtake-toast-in {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(6px); }
+    15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+    75%  { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* Newly reached checkpoint: roadmap current node pulses strongly on arrival */
+@keyframes roadmap-node-just-reached {
+    0%   { transform: scale(1.2);  box-shadow: 0 0 0 4px rgba(80,70,229,.18), 0 6px 14px rgba(80,70,229,.25); }
+    35%  { transform: scale(1.38); box-shadow: 0 0 0 12px rgba(80,70,229,.06), 0 8px 22px rgba(80,70,229,.38); }
+    65%  { transform: scale(1.22); }
+    100% { transform: scale(1.2);  box-shadow: 0 0 0 4px rgba(80,70,229,.18), 0 6px 14px rgba(80,70,229,.25); }
+}
+.dash-roadmap__node--current.dash-roadmap__node--just-reached {
+    animation: roadmap-node-just-reached 0.65s cubic-bezier(.22,1,.36,1) both;
+}
+
+/* Newly completed checkpoint: done node pops in with a satisfying scale */
+@keyframes roadmap-node-completed {
+    0%   { transform: scale(0.8); opacity: 0.55; }
+    55%  { transform: scale(1.12); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+.dash-roadmap__node--done.dash-roadmap__node--just-completed {
+    animation: roadmap-node-completed 0.45s cubic-bezier(.22,1,.36,1) both;
+}
+
+/* Calm finish-state: gentle opacity breathe instead of full celebration */
+@keyframes route-finish-calm {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.88; }
+}
+.dash-route--finish-calm .dash-roadmap__marker--finish.dash-roadmap__marker--complete .dash-roadmap__marker-inner {
+    animation: route-finish-calm 3.2s ease-in-out infinite;
+}
+
+/* Reduced-motion guard for Task 35 animations */
+@media (prefers-reduced-motion: reduce) {
+    .dash-route-token--just-moved,
+    .dash-route-token--overtaking .dash-route-token__avatar,
+    .dash-route-overtake-toast,
+    .dash-roadmap__node--current.dash-roadmap__node--just-reached,
+    .dash-roadmap__node--done.dash-roadmap__node--just-completed,
+    .dash-route--finish-calm .dash-roadmap__marker--finish.dash-roadmap__marker--complete .dash-roadmap__marker-inner {
+        animation: none !important;
+    }
+}
+
 /* Streak recovery */
 .dash-streak__coins { margin-left: 12px; font-size: 0.85em; opacity: 0.8; }
 .dash-streak--restored .dash-streak__restored {
@@ -5063,6 +5160,118 @@ async function repairStreak() {
     try {
         sessionStorage.setItem(storeKey, JSON.stringify(currentDone));
     } catch (e) { /* storage full or disabled — non-fatal */ }
+})();
+
+// Task 35: Route overtake and checkpoint animations.
+// Persists route positions in sessionStorage; on ?from=daily_plan detects:
+//   - newly reached checkpoint → pulse the current roadmap node
+//   - newly completed checkpoint → pop-in animation on done roadmap node
+//   - overtake (user moved past a rival) → bounce + flash on user token
+//   - calm finish on first all-done visit
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    var cameFromPlan = params.get('from') === 'daily_plan';
+    var routeContainer = document.querySelector('[data-route-container="true"]');
+    if (!routeContainer || !cameFromPlan) {
+        // Still persist current state even if not animating, so next visit has a baseline
+        if (routeContainer) {
+            var tokens35 = routeContainer.querySelectorAll('[data-animate-token="true"]');
+            var pos35 = {};
+            tokens35.forEach(function(tok) {
+                pos35[tok.getAttribute('data-token-role')] = parseFloat(tok.getAttribute('data-route-position') || '0');
+            });
+            try {
+                sessionStorage.setItem('mission_route_state_v1', JSON.stringify({
+                    positions: pos35,
+                    checkpoint: parseInt(routeContainer.getAttribute('data-current-checkpoint') || '0', 10),
+                    finishState: routeContainer.getAttribute('data-finish-state') || ''
+                }));
+            } catch (e) { /* non-fatal */ }
+        }
+        return;
+    }
+
+    var storeKey35 = 'mission_route_state_v1';
+    var finishState = routeContainer.getAttribute('data-finish-state') || '';
+    var currentCheckpoint = parseInt(routeContainer.getAttribute('data-current-checkpoint') || '0', 10);
+
+    var tokens = routeContainer.querySelectorAll('[data-animate-token="true"]');
+    var currentPositions = {};
+    tokens.forEach(function(tok) {
+        currentPositions[tok.getAttribute('data-token-role')] = parseFloat(tok.getAttribute('data-route-position') || '0');
+    });
+
+    var prev = {};
+    try {
+        var raw = sessionStorage.getItem(storeKey35);
+        if (raw) prev = JSON.parse(raw);
+    } catch (e) { prev = {}; }
+
+    var prevPositions  = prev.positions  || {};
+    var prevCheckpoint = (prev.checkpoint != null) ? prev.checkpoint : currentCheckpoint;
+    var prevFinish     = prev.finishState || '';
+
+    // Detect user token movement
+    var myCurrentPos = currentPositions['me'];
+    var myPrevPos    = prevPositions['me'];
+    var userMoved    = (myCurrentPos != null && myPrevPos != null && myCurrentPos > myPrevPos);
+
+    if (userMoved) {
+        tokens.forEach(function(tok) {
+            if (tok.getAttribute('data-token-role') === 'me') {
+                tok.classList.add('dash-route-token--just-moved');
+            }
+        });
+
+        // Overtake detection: rival was ahead of user before, now is at or behind user
+        tokens.forEach(function(tok) {
+            var role = tok.getAttribute('data-token-role');
+            if (role === 'me' || role === 'behind') return;
+            var rivalCurrent = parseFloat(tok.getAttribute('data-route-position') || '0');
+            var rivalPrev    = prevPositions[role];
+            if (rivalPrev != null && rivalPrev > myPrevPos && rivalCurrent <= myCurrentPos) {
+                tokens.forEach(function(t) {
+                    if (t.getAttribute('data-token-role') === 'me') {
+                        t.classList.add('dash-route-token--overtaking');
+                        var toast = document.createElement('span');
+                        toast.className = 'dash-route-overtake-toast';
+                        toast.setAttribute('data-overtake-toast', 'true');
+                        toast.textContent = 'Обгон!';
+                        t.appendChild(toast);
+                    }
+                });
+            }
+        });
+    }
+
+    // Checkpoint transition animations
+    if (currentCheckpoint !== prevCheckpoint) {
+        var nodes = routeContainer.querySelectorAll('[data-roadmap-node="true"]');
+        nodes.forEach(function(node) {
+            var idx   = parseInt(node.getAttribute('data-node-index') || '0', 10);
+            var state = node.getAttribute('data-node-state');
+            if (state === 'current' && idx === currentCheckpoint) {
+                node.classList.add('dash-roadmap__node--just-reached');
+            }
+            if (state === 'done' && idx === prevCheckpoint) {
+                node.classList.add('dash-roadmap__node--just-completed');
+            }
+        });
+    }
+
+    // Calm finish animation on first all-done visit
+    if (finishState === 'done' && prevFinish !== 'done') {
+        routeContainer.classList.add('dash-route--finish-calm');
+    }
+
+    // Persist current state
+    try {
+        sessionStorage.setItem(storeKey35, JSON.stringify({
+            positions: currentPositions,
+            checkpoint: currentCheckpoint,
+            finishState: finishState
+        }));
+    } catch (e) { /* non-fatal */ }
 })();
 {% endif %}
 </script>

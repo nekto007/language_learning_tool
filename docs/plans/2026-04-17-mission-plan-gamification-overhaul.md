@@ -559,13 +559,13 @@ Make route movement legible and satisfying. Completing a checkpoint should move 
 - Modify: `app/static/css/design-system.css`
 - Modify: `app/templates/dashboard.html`
 
-- [ ] Add token movement animation for checkpoint completion
-- [ ] Add overtaking animation when the user passes a rival token
-- [ ] Add checkpoint activation/completion animation for current and newly completed route points
-- [ ] Add explicit "checkpoint reached" and "overtake achieved" states that can be triggered after return from a plan step (`?from=daily_plan`)
-- [ ] Add finish-state animation that is calmer than full-screen celebration and fits both kids and adults
-- [ ] Write tests: dashboard includes animation hook classes/data attributes for route movement and overtakes
-- [ ] Run project test suite - must pass before task 36
+- [x] Add token movement animation for checkpoint completion
+- [x] Add overtaking animation when the user passes a rival token
+- [x] Add checkpoint activation/completion animation for current and newly completed route points
+- [x] Add explicit "checkpoint reached" and "overtake achieved" states that can be triggered after return from a plan step (`?from=daily_plan`)
+- [x] Add finish-state animation that is calmer than full-screen celebration and fits both kids and adults
+- [x] Write tests: dashboard includes animation hook classes/data attributes for route movement and overtakes
+- [x] Run project test suite - must pass before task 36
 
 ### Task 36: Do not interrupt a started lesson with daily limits
 
