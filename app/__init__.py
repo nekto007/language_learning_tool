@@ -49,7 +49,7 @@ limiter = Limiter(
     storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
     # Customizable error messages
     headers_enabled=True,  # Enable X-RateLimit headers
-    swallow_errors=False,  # Raise errors in development
+    swallow_errors=not os.environ.get('FLASK_DEBUG', ''),  # Raise in debug, degrade gracefully in prod
     # Strategy for rate limit windows
     strategy="fixed-window"
 )
