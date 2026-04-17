@@ -317,12 +317,12 @@ Add a badges section to the dashboard showing recently earned badges and total b
 - Modify: `app/words/routes.py` (query recent badges)
 - Modify: `app/static/css/design-system.css`
 
-- [ ] Add `dash-badges` section after the roadmap: last 3-5 badges as circular icons
-- [ ] Show total count: "12 of 35 badges earned"
-- [ ] Unearned badges shown as grayed-out silhouettes (teaser)
-- [ ] "View all badges" link to full achievements page
-- [ ] Write tests: badges section renders with correct count; recent badges display
-- [ ] Run project test suite - must pass before task 20
+- [x] Add `dash-badges` section after the roadmap: last 3-5 badges as circular icons
+- [x] Show total count: "12 of 35 badges earned"
+- [x] Unearned badges shown as grayed-out silhouettes (teaser)
+- [x] "View all badges" link to full achievements page
+- [x] Write tests: badges section renders with correct count; recent badges display
+- [x] Run project test suite - must pass before task 20
 
 ---
 

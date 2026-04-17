@@ -510,6 +510,9 @@ def dashboard():
         'achievements_by_category', StatsService.get_achievements_by_category, current_user.id, default={})
     milestone_history = _safe_widget_call(
         'milestone_history', get_milestone_history, current_user.id, default=[])
+    badges_showcase = _safe_widget_call(
+        'badges_showcase', StatsService.get_badges_showcase, current_user.id,
+        default={'recent': [], 'teasers': [], 'earned_count': 0, 'total_count': 0})
 
     # === READING SPEED TREND & GRAMMAR BY LEVEL ===
     reading_speed_trend = _safe_widget_call(
@@ -732,6 +735,8 @@ def dashboard():
         rank_info=rank_info,
         # Badges earned since last dashboard visit (popup)
         unseen_badges=unseen_badges,
+        # Badges showcase (recent + teasers)
+        badges_showcase=badges_showcase,
     )
 
 

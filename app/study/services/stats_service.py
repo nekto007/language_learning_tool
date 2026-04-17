@@ -502,3 +502,68 @@ class StatsService:
             'progress_percentage': round(earned_count / total_achievements * 100) if total_achievements > 0 else 0,
             'total_xp_earned': total_xp_earned
         }
+
+    @staticmethod
+    def get_badges_showcase(user_id: int, recent_limit: int = 5, teaser_limit: int = 3) -> Dict:
+        """Badges showcase for dashboard: recent earned + teaser of next unearned.
+
+        Returns:
+            dict with:
+              - recent: list of most recently earned badges (up to recent_limit)
+              - teasers: list of not-yet-earned badges shown as silhouettes
+              - earned_count, total_count
+        """
+        total_count = db.session.query(func.count(Achievement.id)).scalar() or 0
+
+        earned_rows = (
+            db.session.query(UserAchievement, Achievement)
+            .join(Achievement, Achievement.id == UserAchievement.achievement_id)
+            .filter(UserAchievement.user_id == user_id)
+            .order_by(UserAchievement.earned_at.desc())
+            .all()
+        )
+        earned_ids = {a.id for _ua, a in earned_rows}
+        earned_count = len(earned_ids)
+
+        recent = [
+            {
+                'id': a.id,
+                'code': a.code,
+                'name': a.name,
+                'description': a.description,
+                'icon': a.icon,
+                'category': a.category,
+                'xp_reward': a.xp_reward,
+                'earned_at': ua.earned_at,
+            }
+            for ua, a in earned_rows[:recent_limit]
+        ]
+
+        teasers = []
+        if earned_count < total_count and teaser_limit > 0:
+            unearned = (
+                Achievement.query
+                .filter(~Achievement.id.in_(earned_ids) if earned_ids else True)
+                .order_by(Achievement.xp_reward.asc(), Achievement.id.asc())
+                .limit(teaser_limit)
+                .all()
+            )
+            teasers = [
+                {
+                    'id': a.id,
+                    'code': a.code,
+                    'name': a.name,
+                    'description': a.description,
+                    'icon': a.icon,
+                    'category': a.category,
+                    'xp_reward': a.xp_reward,
+                }
+                for a in unearned
+            ]
+
+        return {
+            'recent': recent,
+            'teasers': teasers,
+            'earned_count': earned_count,
+            'total_count': total_count,
+        }
