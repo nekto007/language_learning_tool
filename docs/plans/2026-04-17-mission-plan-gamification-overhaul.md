@@ -172,12 +172,12 @@ Add decorative start flag and finish line markers at the beginning and end of th
 - Modify: `app/templates/dashboard.html`
 - Modify: `app/static/css/design-system.css`
 
-- [ ] Add start marker node (flag icon) before first phase
-- [ ] Add finish marker node (trophy icon) after last phase
-- [ ] When all done: finish node bursts with confetti-style CSS animation, trophy turns gold
-- [ ] When not all done: finish node shows target with distance ("2 steps to go")
-- [ ] Write tests: start/finish markers render; finish state changes when all_done
-- [ ] Run project test suite - must pass before task 11
+- [x] Add start marker node (flag icon) before first phase
+- [x] Add finish marker node (trophy icon) after last phase
+- [x] When all done: finish node bursts with confetti-style CSS animation, trophy turns gold
+- [x] When not all done: finish node shows target with distance ("2 steps to go")
+- [x] Write tests: start/finish markers render; finish state changes when all_done
+- [x] Run project test suite - must pass before task 11
 
 ### Task 11: Mobile-responsive roadmap
 

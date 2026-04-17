@@ -514,3 +514,116 @@ class TestDashboardMissionRender:
         assert 'transform: scale(1.2)' in css
         # Reduced-motion guard covers roadmap animations
         assert '@media (prefers-reduced-motion: reduce)' in css
+
+    # ---- Task 10: roadmap start & finish markers ----
+
+    def test_roadmap_start_marker_rendered(self, client, app, db_session, test_user, words_module_access):
+        """Task 10: the roadmap emits a start marker before the first phase node."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-roadmap-marker="start"' in html
+        assert 'dash-roadmap__marker--start' in html
+        # Start marker appears in markup before any roadmap node
+        start_pos = html.find('data-roadmap-marker="start"')
+        first_node_pos = html.find('data-roadmap-node="true"')
+        assert start_pos != -1 and first_node_pos != -1
+        assert start_pos < first_node_pos
+
+    def test_roadmap_finish_marker_rendered(self, client, app, db_session, test_user, words_module_access):
+        """Task 10: the roadmap emits a finish marker after the last phase node."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-roadmap-marker="finish"' in html
+        assert 'dash-roadmap__marker--finish' in html
+        # Finish marker appears after the last node
+        last_node_pos = html.rfind('data-roadmap-node="true"')
+        finish_pos = html.find('data-roadmap-marker="finish"')
+        assert last_node_pos != -1 and finish_pos != -1
+        assert finish_pos > last_node_pos
+
+    def test_roadmap_finish_marker_pending_state(self, client, app, db_session, test_user, words_module_access):
+        """Task 10: when plan is incomplete, finish marker is in pending state with distance label."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        # Data attributes (markup-only — avoids collision with CSS selector text)
+        assert 'data-marker-state="pending"' in html
+        assert 'data-marker-state="complete"' not in html
+        assert 'data-steps-remaining="3"' in html
+        assert 'data-marker-distance="true"' in html
+        assert '3 шага до финиша' in html
+        assert 'data-roadmap-complete="false"' in html
+
+    def test_roadmap_finish_marker_complete_state(self, client, app, db_session, test_user, words_module_access):
+        """Task 10: when all phases are done, finish shows complete state with confetti burst."""
+        plan = _make_mission_plan('progress', [True, True, True])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-marker-state="complete"' in html
+        assert 'data-marker-state="pending"' not in html
+        assert 'data-roadmap-complete="true"' in html
+        # Burst particles for the confetti animation (class appears once per piece element)
+        assert 'class="dash-roadmap__marker-burst"' in html
+        assert html.count('class="dash-roadmap__marker-burst-piece"') >= 6
+        # No distance hint when complete
+        assert 'data-marker-distance="true"' not in html
+        assert 'data-steps-remaining="0"' in html
+
+    def test_roadmap_finish_distance_label_pluralization(self, client, app, db_session, test_user, words_module_access):
+        """Task 10: the distance hint pluralizes the remaining-steps count correctly (RU grammar)."""
+        # 1 step remaining — singular form
+        plan1 = _make_mission_plan('progress', [True, True, False])
+        html1 = self._get_dashboard(client, test_user, plan1).data.decode('utf-8')
+        assert '1 шаг до финиша' in html1
+        assert 'data-steps-remaining="1"' in html1
+
+        # 2 steps remaining — few form
+        plan2 = _make_mission_plan('progress', [True, False, False])
+        html2 = self._get_dashboard(client, test_user, plan2).data.decode('utf-8')
+        assert '2 шага до финиша' in html2
+
+        # 5 steps remaining (four phases, none done + one extra path) — many form
+        # Use four-phase plan with zero done to approximate: 4 шага (few form)
+        plan4 = _make_mission_plan('progress', [False, False, False, False])
+        html4 = self._get_dashboard(client, test_user, plan4).data.decode('utf-8')
+        assert '4 шага до финиша' in html4
+
+    def test_roadmap_marker_absent_in_legacy_plan(self, client, app, db_session, test_user, words_module_access):
+        """Task 10: legacy (non-mission) plans do not emit start/finish markers."""
+        legacy_plan = {'steps': {}, 'next_lesson': None, 'words_due': 0}
+        response = self._get_dashboard(client, test_user, legacy_plan)
+        html = response.data.decode('utf-8')
+        assert 'data-roadmap-marker="start"' not in html
+        assert 'data-roadmap-marker="finish"' not in html
+        assert 'data-marker-state=' not in html
+
+    def test_roadmap_inner_connector_count_unchanged(self, client, app, db_session, test_user, words_module_access):
+        """Task 10: adding start/finish edge connectors must not break the between-nodes count."""
+        plan = _make_mission_plan('progress', [False, False, False, False])
+        html = self._get_dashboard(client, test_user, plan).data.decode('utf-8')
+        # Between-node connectors keep their stable data attribute
+        assert html.count('data-roadmap-connector="true"') == 3
+        # Edge connectors live under a different attribute so as not to pollute the count
+        assert html.count('data-roadmap-edge-connector="start"') == 1
+        assert html.count('data-roadmap-edge-connector="finish"') == 1
+
+    def test_roadmap_marker_css_rules_present(self):
+        """Task 10: start/finish marker styles and finish animations live in the template."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        # Marker base + variants
+        assert '.dash-roadmap__marker' in css
+        assert '.dash-roadmap__marker--start' in css
+        assert '.dash-roadmap__marker--finish' in css
+        assert '.dash-roadmap__marker--complete' in css
+        assert '.dash-roadmap__marker--pending' in css
+        # Distance label + burst
+        assert '.dash-roadmap__marker-distance' in css
+        assert '.dash-roadmap__marker-burst' in css
+        # Celebration keyframes
+        assert '@keyframes roadmap-finish-pulse' in css
+        assert '@keyframes roadmap-finish-burst' in css

@@ -310,13 +310,27 @@
             'close': 'Завершение'
         } %}
 
-        {# Task 8/9: Visual roadmap — nodes + connectors showing the learning path.
+        {# Task 8/9/10: Visual roadmap — nodes + connectors showing the learning path.
            Node state (done/current/upcoming) mirrors phase completion; bonus
-           modifier marks optional phases (required=False). Rendered above
-           detailed phase cards as a spatial summary of today's journey. #}
+           modifier marks optional phases (required=False). Start/finish markers
+           frame the journey: start flag at the beginning, finish trophy (gold
+           on completion, target with remaining-steps hint otherwise) at the end. #}
         {% if m_phases %}
-        <div class="dash-roadmap" data-roadmap="true" aria-label="Маршрут миссии">
+        {% set m_steps_remaining = (m_total - m_done) if m_total > m_done else 0 %}
+        <div class="dash-roadmap{% if m_all_done %} dash-roadmap--complete{% endif %}" data-roadmap="true" data-roadmap-complete="{{ 'true' if m_all_done else 'false' }}" aria-label="Маршрут миссии">
             <div class="dash-roadmap__track">
+                <div class="dash-roadmap__marker dash-roadmap__marker--start"
+                     data-roadmap-marker="start"
+                     aria-label="Старт"
+                     title="Старт">
+                    <span class="dash-roadmap__marker-inner">
+                        <span class="dash-roadmap__marker-icon" aria-hidden="true">&#127937;</span>
+                    </span>
+                </div>
+                <div class="dash-roadmap__connector dash-roadmap__connector--{% if m_done > 0 %}done{% else %}upcoming{% endif %} dash-roadmap__connector--edge"
+                     data-roadmap-edge-connector="start"
+                     data-connector-state="{% if m_done > 0 %}done{% else %}upcoming{% endif %}"
+                     aria-hidden="true"></div>
                 {% set rns = namespace(current_found=false) %}
                 {% for phase in m_phases %}
                     {% set is_done = plan_completion.get(phase.get('id', ''), false) %}
@@ -352,6 +366,37 @@
                          aria-hidden="true"></div>
                     {% endif %}
                 {% endfor %}
+                <div class="dash-roadmap__connector dash-roadmap__connector--{% if m_all_done %}done{% else %}upcoming{% endif %} dash-roadmap__connector--edge"
+                     data-roadmap-edge-connector="finish"
+                     data-connector-state="{% if m_all_done %}done{% else %}upcoming{% endif %}"
+                     aria-hidden="true"></div>
+                <div class="dash-roadmap__marker dash-roadmap__marker--finish dash-roadmap__marker--{% if m_all_done %}complete{% else %}pending{% endif %}"
+                     data-roadmap-marker="finish"
+                     data-marker-state="{% if m_all_done %}complete{% else %}pending{% endif %}"
+                     data-steps-remaining="{{ m_steps_remaining }}"
+                     aria-label="{% if m_all_done %}Финиш достигнут{% else %}Финиш{% endif %}"
+                     title="{% if m_all_done %}Финиш достигнут{% else %}Финиш{% endif %}">
+                    <span class="dash-roadmap__marker-inner">
+                        <span class="dash-roadmap__marker-icon" aria-hidden="true">{% if m_all_done %}&#127942;{% else %}&#127919;{% endif %}</span>
+                        {% if m_all_done %}
+                        <span class="dash-roadmap__marker-burst" aria-hidden="true">
+                            <span class="dash-roadmap__marker-burst-piece" style="--i:0"></span>
+                            <span class="dash-roadmap__marker-burst-piece" style="--i:1"></span>
+                            <span class="dash-roadmap__marker-burst-piece" style="--i:2"></span>
+                            <span class="dash-roadmap__marker-burst-piece" style="--i:3"></span>
+                            <span class="dash-roadmap__marker-burst-piece" style="--i:4"></span>
+                            <span class="dash-roadmap__marker-burst-piece" style="--i:5"></span>
+                        </span>
+                        {% endif %}
+                    </span>
+                    {% if not m_all_done and m_steps_remaining > 0 %}
+                    <span class="dash-roadmap__marker-distance" data-marker-distance="true">
+                        {% if m_steps_remaining == 1 %}1 шаг до финиша
+                        {% elif m_steps_remaining in [2, 3, 4] %}{{ m_steps_remaining }} шага до финиша
+                        {% else %}{{ m_steps_remaining }} шагов до финиша{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
             </div>
         </div>
         {% endif %}
@@ -3317,10 +3362,150 @@
     50%      { transform: scale(1.18); opacity: 1; }
 }
 
+/* ============================================
+   Task 10: Start & finish markers
+   ============================================ */
+
+.dash-roadmap__marker {
+    flex: 0 0 auto;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+}
+
+.dash-roadmap__marker-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: var(--dash-surface-alt);
+    border: 2px solid var(--dash-border);
+}
+
+.dash-roadmap__marker-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dash-roadmap__marker--start .dash-roadmap__marker-inner {
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    border-color: #38bdf8;
+    box-shadow: 0 2px 6px rgba(56, 189, 248, 0.25);
+}
+
+.dash-roadmap__marker--finish .dash-roadmap__marker-inner {
+    background: var(--dash-surface-alt);
+    border-color: var(--dash-border);
+    border-style: dashed;
+}
+
+.dash-roadmap__marker--finish.dash-roadmap__marker--pending .dash-roadmap__marker-icon {
+    color: var(--dash-text-muted);
+    opacity: 0.8;
+}
+
+.dash-roadmap__marker--finish.dash-roadmap__marker--complete .dash-roadmap__marker-inner {
+    background: linear-gradient(135deg, #fde68a 0%, #f59e0b 100%);
+    border-color: #f59e0b;
+    border-style: solid;
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2), 0 4px 12px rgba(245, 158, 11, 0.35);
+    animation: roadmap-finish-pulse 2.4s ease-in-out infinite;
+}
+
+.dash-roadmap__marker--finish.dash-roadmap__marker--complete .dash-roadmap__marker-icon {
+    color: #ffffff;
+    filter: drop-shadow(0 1px 1px rgba(120, 53, 15, 0.35));
+    animation: roadmap-finish-icon 0.9s cubic-bezier(.22,1,.36,1) both;
+}
+
+.dash-roadmap__marker-distance {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--dash-text-muted);
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: 999px;
+    padding: 2px 8px;
+    line-height: 1.2;
+}
+
+/* Confetti-style burst for the completed finish marker */
+.dash-roadmap__marker-burst {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+}
+
+.dash-roadmap__marker-burst-piece {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+    background: #f59e0b;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    animation: roadmap-finish-burst 1.6s ease-out infinite;
+    animation-delay: calc(var(--i, 0) * 0.12s);
+}
+
+.dash-roadmap__marker-burst-piece:nth-child(1) { --angle: 0deg;   background: #f59e0b; }
+.dash-roadmap__marker-burst-piece:nth-child(2) { --angle: 60deg;  background: #fbbf24; }
+.dash-roadmap__marker-burst-piece:nth-child(3) { --angle: 120deg; background: #fde68a; }
+.dash-roadmap__marker-burst-piece:nth-child(4) { --angle: 180deg; background: #f97316; }
+.dash-roadmap__marker-burst-piece:nth-child(5) { --angle: 240deg; background: #fb923c; }
+.dash-roadmap__marker-burst-piece:nth-child(6) { --angle: 300deg; background: #fcd34d; }
+
+@keyframes roadmap-finish-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2), 0 4px 12px rgba(245, 158, 11, 0.35);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.14), 0 6px 16px rgba(245, 158, 11, 0.45);
+    }
+}
+
+@keyframes roadmap-finish-icon {
+    0%   { transform: scale(0.4) rotate(-12deg); opacity: 0; }
+    60%  { transform: scale(1.15) rotate(4deg);  opacity: 1; }
+    100% { transform: scale(1) rotate(0deg);     opacity: 1; }
+}
+
+@keyframes roadmap-finish-burst {
+    0% {
+        transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) translateY(0) scale(0.4);
+        opacity: 0;
+    }
+    15% {
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) translateY(-42px) scale(0.9);
+        opacity: 0;
+    }
+}
+
 /* Mobile: zigzag vertical layout.
-   DOM order: node, connector, node, connector, ..., node.
-   Nodes sit at child positions 1, 3, 5, 7, ... → offset alternately left/right.
-   Connectors sit at positions 2, 4, 6, ... and become short vertical bars. */
+   DOM order now includes start/finish markers and edge connectors in addition
+   to nodes and inner connectors. Zigzag targets nodes by their explicit
+   data-node-index (0,2,4... left; 1,3,5... right) so markers/edge connectors
+   don't disrupt the alternation. */
 @media (max-width: 640px) {
     .dash-roadmap {
         padding: 1rem 0.75rem;
@@ -3335,11 +3520,19 @@
     .dash-roadmap__node {
         align-self: center;
     }
-    .dash-roadmap__node:nth-child(4n+1) {
+    .dash-roadmap__node[data-node-index="0"],
+    .dash-roadmap__node[data-node-index="2"],
+    .dash-roadmap__node[data-node-index="4"],
+    .dash-roadmap__node[data-node-index="6"],
+    .dash-roadmap__node[data-node-index="8"] {
         align-self: flex-start;
         margin-left: 12%;
     }
-    .dash-roadmap__node:nth-child(4n+3) {
+    .dash-roadmap__node[data-node-index="1"],
+    .dash-roadmap__node[data-node-index="3"],
+    .dash-roadmap__node[data-node-index="5"],
+    .dash-roadmap__node[data-node-index="7"],
+    .dash-roadmap__node[data-node-index="9"] {
         align-self: flex-end;
         margin-right: 12%;
     }
@@ -3351,18 +3544,35 @@
         max-width: none;
         margin: 0 auto;
     }
+    .dash-roadmap__marker {
+        align-self: center;
+    }
+    .dash-roadmap__marker-distance {
+        position: static;
+        transform: none;
+        margin-top: 4px;
+    }
+    .dash-roadmap__marker--finish {
+        margin-bottom: 1.25rem;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .dash-roadmap__node,
     .dash-roadmap__connector,
     .dash-roadmap__node-check,
-    .dash-roadmap__node-sparkle {
+    .dash-roadmap__node-sparkle,
+    .dash-roadmap__marker--finish.dash-roadmap__marker--complete .dash-roadmap__marker-inner,
+    .dash-roadmap__marker--finish.dash-roadmap__marker--complete .dash-roadmap__marker-icon,
+    .dash-roadmap__marker-burst-piece {
         transition: none !important;
         animation: none !important;
     }
     .dash-roadmap__node--current {
         transform: scale(1.08);
+    }
+    .dash-roadmap__marker-burst-piece {
+        opacity: 0;
     }
 }
 
