@@ -65,6 +65,62 @@ def test_daily_plan_valid_timezone(authenticated_client):
     assert data['success'] is True
 
 
+def test_daily_plan_returns_phase_preview(authenticated_client):
+    """Task 5: each mission phase carries preview metadata through the API response."""
+    plan_with_preview = dict(MOCK_PLAN)
+    plan_with_preview['mission'] = {'type': 'progress', 'title': 'X', 'reason_code': 'r', 'reason_text': 't'}
+    plan_with_preview['phases'] = [
+        {
+            'id': 'p1',
+            'phase': 'recall',
+            'title': 'Разогрев',
+            'source_kind': 'srs',
+            'mode': 'srs_review',
+            'required': True,
+            'completed': False,
+            'preview': {
+                'item_count': 18,
+                'content_title': 'Повторение карточек',
+                'estimated_minutes': 3,
+            },
+        },
+        {
+            'id': 'p2',
+            'phase': 'learn',
+            'title': 'Главный шаг',
+            'source_kind': 'normal_course',
+            'mode': 'curriculum_lesson',
+            'required': True,
+            'completed': False,
+            'preview': {
+                'item_count': None,
+                'content_title': 'Present Perfect',
+                'estimated_minutes': 10,
+            },
+        },
+    ]
+
+    with patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan_with_preview):
+        response = authenticated_client.get('/api/daily-plan')
+
+    assert response.status_code == 200
+    data = response.get_json()
+    phases = data.get('phases') or []
+    assert len(phases) == 2
+
+    recall_preview = phases[0].get('preview')
+    assert recall_preview == {
+        'item_count': 18,
+        'content_title': 'Повторение карточек',
+        'estimated_minutes': 3,
+    }
+
+    learn_preview = phases[1].get('preview')
+    assert learn_preview['content_title'] == 'Present Perfect'
+    assert learn_preview['estimated_minutes'] == 10
+    assert learn_preview['item_count'] is None
+
+
 def test_daily_plan_cold_start_user(authenticated_client):
     """Cold-start user with no progress still gets a valid plan dict."""
     cold_start_plan = dict(MOCK_PLAN)

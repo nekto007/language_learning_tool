@@ -94,12 +94,12 @@ Replace the current minimal phase cards with rich cards showing preview info: wh
 - Modify: `app/words/routes.py` (pass preview data to template)
 - Modify: `app/daily_plan/service.py` (serialize preview in `_mission_plan_to_dict`)
 
-- [ ] Serialize `PhasePreview` in `_mission_plan_to_dict`
-- [ ] Pass preview data through dashboard route context
-- [ ] Update phase card template: show item count badge, content title, estimated time chip
-- [ ] Add "What you'll do" subtitle text per phase type (e.g., "Review 12 words", "Lesson: Present Perfect")
-- [ ] Write tests: API returns preview data; dashboard renders preview elements
-- [ ] Run project test suite - must pass before task 6
+- [x] Serialize `PhasePreview` in `_mission_plan_to_dict`
+- [x] Pass preview data through dashboard route context
+- [x] Update phase card template: show item count badge, content title, estimated time chip
+- [x] Add "What you'll do" subtitle text per phase type (e.g., "Review 12 words", "Lesson: Present Perfect")
+- [x] Write tests: API returns preview data; dashboard renders preview elements
+- [x] Run project test suite - must pass before task 6
 
 ### Task 6: Phase-specific icons and color coding
 

@@ -8,6 +8,7 @@ from app.daily_plan.models import (
     MissionPlan,
     MissionType,
     PhaseKind,
+    PhasePreview,
     PrimaryGoal,
     PrimarySource,
     SourceKind,
@@ -139,6 +140,27 @@ class TestMissionPlanToDict:
         plan.legacy = None
         d = _mission_plan_to_dict(plan)
         assert 'legacy' not in d
+
+    def test_phase_preview_serialized_when_present(self):
+        plan = _make_progress_plan()
+        plan.phases[0].preview = PhasePreview(
+            item_count=12,
+            content_title="Повторение карточек",
+            estimated_minutes=4,
+        )
+        d = _mission_plan_to_dict(plan)
+        preview = d['phases'][0]['preview']
+        assert preview is not None
+        assert preview['item_count'] == 12
+        assert preview['content_title'] == "Повторение карточек"
+        assert preview['estimated_minutes'] == 4
+
+    def test_phase_preview_is_none_when_missing(self):
+        plan = _make_progress_plan()
+        # Default MissionPhase construction leaves preview=None.
+        d = _mission_plan_to_dict(plan)
+        for phase in d['phases']:
+            assert phase['preview'] is None
 
 
 class TestPlanMetaHelper:

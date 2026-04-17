@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 
-def _make_mission_plan(mission_type='progress', phases_completed=None):
+def _make_mission_plan(mission_type='progress', phases_completed=None, previews=None):
     if phases_completed is None:
         phases_completed = [False, False, False]
     phases = []
@@ -14,7 +14,7 @@ def _make_mission_plan(mission_type='progress', phases_completed=None):
     ]
     for i, done in enumerate(phases_completed):
         d = phase_defs[i]
-        phases.append({
+        phase_dict = {
             'id': f'ph{i}',
             'phase': d['phase'],
             'title': d['title'],
@@ -22,7 +22,11 @@ def _make_mission_plan(mission_type='progress', phases_completed=None):
             'mode': 'default',
             'required': True,
             'completed': done,
-        })
+            'preview': None,
+        }
+        if previews is not None and i < len(previews):
+            phase_dict['preview'] = previews[i]
+        phases.append(phase_dict)
 
     titles = {
         'progress': 'Продвигаемся вперёд',
@@ -179,3 +183,52 @@ class TestDashboardMissionRender:
         html = response.data.decode('utf-8')
         assert 'data-phase-id="ph3"' in html
         assert 'Подведение итогов' in html
+
+    def test_phase_preview_chips_render(self, client, app, db_session, test_user, words_module_access):
+        """Task 5: preview chips with item_count and estimated_minutes render on phase cards."""
+        previews = [
+            {'item_count': 14, 'content_title': 'Повторение карточек', 'estimated_minutes': 3},
+            {'item_count': None, 'content_title': 'Present Perfect', 'estimated_minutes': 10},
+            {'item_count': None, 'content_title': None, 'estimated_minutes': None},
+        ]
+        plan = _make_mission_plan('progress', [False, False, False], previews=previews)
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+
+        # Recall phase: content title shown with action prefix, count and time chips
+        assert 'dash-step__preview' in html
+        assert 'data-phase-preview="true"' in html
+        assert 'Что сделаем:' in html
+        assert 'Повторение: Повторение карточек' in html
+        assert 'dash-step__chip--count' in html
+        assert '14' in html
+        assert 'dash-step__chip--time' in html
+        assert '~3 мин' in html
+
+        # Learn phase: content title with action prefix and time chip, no count chip
+        assert 'Урок: Present Perfect' in html
+        assert '~10 мин' in html
+
+    def test_phase_preview_absent_when_no_data(self, client, app, db_session, test_user, words_module_access):
+        """When all previews are None no preview block is emitted for that phase."""
+        plan = _make_mission_plan('progress', [False, False, False], previews=[None, None, None])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-phase-preview="true"' not in html
+        assert 'Что сделаем:' not in html
+
+    def test_phase_preview_without_chip_data(self, client, app, db_session, test_user, words_module_access):
+        """Preview with only content_title renders title block but no chips for that phase."""
+        previews = [
+            {'item_count': None, 'content_title': 'Быстрый разогрев', 'estimated_minutes': None},
+            None,
+            None,
+        ]
+        plan = _make_mission_plan('progress', [False, False, False], previews=previews)
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'Повторение: Быстрый разогрев' in html
+        # Exactly one preview block rendered (the recall one), no chips inside it.
+        assert html.count('data-phase-preview="true"') == 1
+        assert 'aria-label="Количество заданий"' not in html
+        assert 'aria-label="Время выполнения"' not in html
