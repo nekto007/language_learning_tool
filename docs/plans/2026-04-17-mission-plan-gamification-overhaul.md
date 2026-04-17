@@ -351,12 +351,12 @@ Match users into daily race groups based on similar streak length and activity l
 **Files:**
 - Modify: `app/achievements/daily_race.py` (matchmaking logic)
 
-- [ ] `get_or_create_race(user_id, date)`: if user already in a race today, return it; otherwise find/create a race with open slots
-- [ ] Matchmaking criteria: similar streak_days range (+-10), similar plans_completed range (+-20); if no match found, create new race
-- [ ] Race capacity: 3-5 participants
-- [ ] If fewer than 3 humans available, fill with "ghost" participants (bot names with typical point patterns)
-- [ ] Write tests: matchmaking creates races, respects capacity, fills with ghosts, returns existing race on second call
-- [ ] Run project test suite - must pass before task 22
+- [x] `get_or_create_race(user_id, date)`: if user already in a race today, return it; otherwise find/create a race with open slots
+- [x] Matchmaking criteria: similar streak_days range (+-10), similar plans_completed range (+-20); if no match found, create new race
+- [x] Race capacity: 3-5 participants
+- [x] If fewer than 3 humans available, fill with "ghost" participants (bot names with typical point patterns)
+- [x] Write tests: matchmaking creates races, respects capacity, fills with ghosts, returns existing race on second call
+- [x] Run project test suite - must pass before task 22
 
 ### Task 22: Race progress tracking
 
