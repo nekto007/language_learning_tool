@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -37,6 +37,16 @@ STREAK_MULTIPLIER_BASE = 1.0
 STREAK_MULTIPLIER_STEP = 0.02
 STREAK_MULTIPLIER_MAX = 2.0
 
+# Perfect day multipliers: (min_consecutive_days, multiplier)
+# Applied on top of the streak multiplier to the perfect day bonus XP.
+PERFECT_DAY_MULTIPLIERS: list[tuple[int, float]] = [
+    (7, 2.5),
+    (5, 2.0),
+    (3, 1.5),
+    (2, 1.2),
+    (1, 1.0),
+]
+
 
 # ---------------------------------------------------------------------------
 # Level thresholds
@@ -53,6 +63,44 @@ def xp_for_level(level: int) -> int:
         return 0
     n = level - 1
     return 100 * n * (n + 1) // 2
+
+
+def get_perfect_day_multiplier(consecutive_days: int) -> float:
+    """Return the perfect day XP multiplier for a consecutive perfect day count."""
+    if consecutive_days is None or consecutive_days < 1:
+        return 1.0
+    for threshold, mult in PERFECT_DAY_MULTIPLIERS:
+        if consecutive_days >= threshold:
+            return mult
+    return 1.0
+
+
+def get_perfect_day_info(user_id: int) -> dict:
+    """Return current perfect day streak info for dashboard display.
+
+    Returns a dict with consecutive_days, current_multiplier, next_multiplier,
+    and a human-readable message about tomorrow's bonus.
+    """
+    from app.achievements.models import UserStatistics
+
+    stats = UserStatistics.query.filter_by(user_id=user_id).first()
+    consecutive = int(getattr(stats, 'consecutive_perfect_days', 0) or 0) if stats else 0
+    current_mult = get_perfect_day_multiplier(consecutive)
+    next_mult = get_perfect_day_multiplier(consecutive + 1)
+
+    if consecutive > 0 and next_mult > current_mult:
+        message = f'Perfect day streak: {consecutive} days! Tomorrow: {next_mult:.1f}x bonus'
+    elif consecutive > 0:
+        message = f'Perfect day streak: {consecutive} days! {current_mult:.1f}x bonus active'
+    else:
+        message = ''
+
+    return {
+        'consecutive_days': consecutive,
+        'current_multiplier': current_mult,
+        'next_multiplier': next_mult,
+        'message': message,
+    }
 
 
 def get_streak_multiplier(streak_days: int) -> float:
@@ -158,12 +206,16 @@ def award_perfect_day_xp_idempotent(
     user_id: int,
     for_date: date,
 ) -> XPAward | None:
-    """Award perfect day bonus XP (50 XP), once per day.
+    """Award perfect day bonus XP, once per day.
+
+    Tracks consecutive perfect days and applies an escalating multiplier:
+    2 days=1.2x, 3 days=1.5x, 5 days=2.0x, 7+ days=2.5x (on top of streak
+    multiplier). Missing a day resets the counter to 1.
 
     Returns XPAward if awarded, None if already awarded today.
     Caller must commit the session.
     """
-    from app.achievements.models import StreakEvent
+    from app.achievements.models import UserStatistics, StreakEvent
     from app.utils.db import db
 
     already = StreakEvent.query.filter_by(
@@ -174,14 +226,39 @@ def award_perfect_day_xp_idempotent(
     if already:
         return None
 
-    result = award_xp(user_id, PERFECT_DAY_BONUS_XP, 'perfect_day')
+    # Determine consecutive perfect day count
+    yesterday = for_date - timedelta(days=1)
+    had_yesterday = StreakEvent.query.filter_by(
+        user_id=user_id,
+        event_type='xp_perfect_day',
+        event_date=yesterday,
+    ).first() is not None
+
+    stats = UserStatistics.query.filter_by(user_id=user_id).first()
+    if stats is None:
+        stats = UserStatistics(user_id=user_id)
+        db.session.add(stats)
+        db.session.flush()
+
+    current_consecutive = int(stats.consecutive_perfect_days or 0)
+    new_consecutive = current_consecutive + 1 if had_yesterday else 1
+    stats.consecutive_perfect_days = new_consecutive
+
+    perfect_mult = get_perfect_day_multiplier(new_consecutive)
+    adjusted_base = max(1, int(PERFECT_DAY_BONUS_XP * perfect_mult))
+
+    result = award_xp(user_id, adjusted_base, 'perfect_day')
 
     db.session.add(StreakEvent(
         user_id=user_id,
         event_type='xp_perfect_day',
         event_date=for_date,
         coins_delta=0,
-        details={'xp': result.xp_awarded},
+        details={
+            'xp': result.xp_awarded,
+            'consecutive_days': new_consecutive,
+            'perfect_day_multiplier': perfect_mult,
+        },
     ))
     return result
 

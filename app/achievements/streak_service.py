@@ -175,6 +175,7 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     real_activity = has_activity_today(user_id, tz=tz)
 
     xp_level_up: dict | None = None
+    perfect_day_info: dict | None = None
     if real_activity and daily_plan is not None and plan_completion is not None:
         phases = daily_plan.get('phases') or []
         if phases:
@@ -198,6 +199,7 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
                 from app.achievements.xp_service import (
                     award_phase_xp_idempotent,
                     award_perfect_day_xp_idempotent,
+                    get_perfect_day_info,
                 )
                 last_level_up: dict | None = None
                 for phase in phases:
@@ -239,11 +241,18 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
                             "Failed to send level-up notification for user %s",
                             user_id, exc_info=True,
                         )
+
+                # Capture perfect day info for dashboard display
+                try:
+                    perfect_day_info = get_perfect_day_info(user_id)
+                except Exception:
+                    perfect_day_info = None
             except Exception:
                 logger.warning(
                     "Failed to award XP for user %s",
                     user_id, exc_info=True,
                 )
+                perfect_day_info = None
 
     rank_up = None
     if steps_done > 0 and real_activity:
@@ -327,6 +336,7 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
             'plans_completed': rank_up.plans_completed,
         } if rank_up else None,
         'xp_level_up': xp_level_up,
+        'perfect_day_info': perfect_day_info,
     }
 
 

@@ -119,6 +119,9 @@ class UserStatistics(db.Model):
     total_xp = Column(Integer, default=0, nullable=False, server_default='0')
     current_level = Column(Integer, default=1, nullable=False, server_default='1')
 
+    # Consecutive perfect days (all required phases done on consecutive dates)
+    consecutive_perfect_days = Column(Integer, default=0, nullable=False, server_default='0')
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))

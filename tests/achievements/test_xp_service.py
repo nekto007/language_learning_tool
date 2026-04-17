@@ -8,6 +8,7 @@ from app.achievements.xp_service import (
     PERFECT_DAY_BONUS_XP,
     FIRST_OF_DAY_BONUS_XP,
     STREAK_MULTIPLIER_MAX,
+    PERFECT_DAY_MULTIPLIERS,
     LevelInfo,
     XPAward,
     award_xp,
@@ -15,6 +16,8 @@ from app.achievements.xp_service import (
     award_perfect_day_xp_idempotent,
     get_level_info,
     get_streak_multiplier,
+    get_perfect_day_multiplier,
+    get_perfect_day_info,
     xp_for_level,
 )
 
@@ -511,3 +514,274 @@ class TestProcessStreakActivityXp:
         assert result.get('xp_level_up') is not None
         assert result['xp_level_up']['new_level'] == 2
         mock_notify.assert_called_once_with(test_user.id, 2)
+
+
+# ---------------------------------------------------------------------------
+# get_perfect_day_multiplier
+# ---------------------------------------------------------------------------
+
+class TestGetPerfectDayMultiplier:
+    def test_zero_or_none_returns_1x(self):
+        assert get_perfect_day_multiplier(0) == 1.0
+        assert get_perfect_day_multiplier(None) == 1.0
+        assert get_perfect_day_multiplier(-1) == 1.0
+
+    def test_day_1_returns_1x(self):
+        assert get_perfect_day_multiplier(1) == 1.0
+
+    def test_day_2_returns_1_2x(self):
+        assert get_perfect_day_multiplier(2) == 1.2
+
+    def test_day_3_returns_1_5x(self):
+        assert get_perfect_day_multiplier(3) == 1.5
+
+    def test_day_4_returns_1_5x(self):
+        # 4 is >= 3 but < 5, so still 1.5x
+        assert get_perfect_day_multiplier(4) == 1.5
+
+    def test_day_5_returns_2x(self):
+        assert get_perfect_day_multiplier(5) == 2.0
+
+    def test_day_6_returns_2x(self):
+        assert get_perfect_day_multiplier(6) == 2.0
+
+    def test_day_7_returns_2_5x(self):
+        assert get_perfect_day_multiplier(7) == 2.5
+
+    def test_day_100_returns_2_5x(self):
+        assert get_perfect_day_multiplier(100) == 2.5
+
+    def test_multiplier_is_non_decreasing(self):
+        prev = get_perfect_day_multiplier(0)
+        for d in range(1, 20):
+            curr = get_perfect_day_multiplier(d)
+            assert curr >= prev
+            prev = curr
+
+
+# ---------------------------------------------------------------------------
+# get_perfect_day_info
+# ---------------------------------------------------------------------------
+
+class TestGetPerfectDayInfo:
+    def test_returns_zero_for_new_user(self, db_session, test_user):
+        info = get_perfect_day_info(test_user.id)
+        assert info['consecutive_days'] == 0
+        assert info['current_multiplier'] == 1.0
+
+    def test_reflects_consecutive_days_from_stats(self, db_session, test_user):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=test_user.id)
+            db.session.add(stats)
+        stats.consecutive_perfect_days = 3
+        db.session.flush()
+
+        info = get_perfect_day_info(test_user.id)
+        assert info['consecutive_days'] == 3
+        assert info['current_multiplier'] == 1.5
+
+    def test_message_includes_streak_count(self, db_session, test_user):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=test_user.id)
+            db.session.add(stats)
+        stats.consecutive_perfect_days = 5
+        db.session.flush()
+
+        info = get_perfect_day_info(test_user.id)
+        assert '5' in info['message']
+
+    def test_next_multiplier_greater_when_milestone_ahead(self, db_session, test_user):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=test_user.id)
+            db.session.add(stats)
+        stats.consecutive_perfect_days = 1
+        db.session.flush()
+
+        info = get_perfect_day_info(test_user.id)
+        assert info['next_multiplier'] > info['current_multiplier']
+
+
+# ---------------------------------------------------------------------------
+# award_perfect_day_xp_idempotent - consecutive tracking
+# ---------------------------------------------------------------------------
+
+class TestAwardPerfectDayConsecutive:
+    def _ensure_stats(self, db_session, user_id):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=user_id, total_xp=0, current_streak_days=0)
+            db.session.add(stats)
+            db.session.flush()
+        return stats
+
+    def test_first_perfect_day_sets_consecutive_to_1(self, db_session, test_user):
+        from app.achievements.models import UserStatistics
+        self._ensure_stats(db_session, test_user.id)
+        today = date.today()
+        award_perfect_day_xp_idempotent(test_user.id, today)
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        assert stats.consecutive_perfect_days == 1
+
+    def test_consecutive_day_increments_counter(self, db_session, test_user):
+        from app.achievements.models import UserStatistics, StreakEvent
+        from app.utils.db import db
+        from datetime import timedelta
+        self._ensure_stats(db_session, test_user.id)
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+
+        # Seed yesterday's perfect day event
+        db.session.add(StreakEvent(
+            user_id=test_user.id,
+            event_type='xp_perfect_day',
+            event_date=yesterday,
+            coins_delta=0,
+            details={'xp': 50, 'consecutive_days': 1, 'perfect_day_multiplier': 1.0},
+        ))
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        stats.consecutive_perfect_days = 1
+        db.session.flush()
+
+        award_perfect_day_xp_idempotent(test_user.id, today)
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        assert stats.consecutive_perfect_days == 2
+
+    def test_missing_day_resets_counter_to_1(self, db_session, test_user):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = self._ensure_stats(db_session, test_user.id)
+        stats.consecutive_perfect_days = 4  # had 4 days before a gap
+        db.session.flush()
+
+        # Award today with no yesterday event (gap)
+        today = date.today()
+        award_perfect_day_xp_idempotent(test_user.id, today)
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        assert stats.consecutive_perfect_days == 1
+
+    def test_consecutive_bonus_increases_xp(self, db_session, test_user):
+        from app.achievements.models import UserStatistics, StreakEvent
+        from app.utils.db import db
+        from datetime import timedelta
+        self._ensure_stats(db_session, test_user.id)
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+        two_days_ago = today - timedelta(days=2)
+
+        # Seed 2 consecutive prior days so today becomes day 3 (1.5x)
+        for d in (two_days_ago, yesterday):
+            db.session.add(StreakEvent(
+                user_id=test_user.id,
+                event_type='xp_perfect_day',
+                event_date=d,
+                coins_delta=0,
+                details={'xp': 50, 'consecutive_days': 1, 'perfect_day_multiplier': 1.0},
+            ))
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        stats.consecutive_perfect_days = 2
+        stats.current_streak_days = 0
+        db.session.flush()
+
+        result = award_perfect_day_xp_idempotent(test_user.id, today)
+        assert result is not None
+        # Day 3 = 1.5x perfect multiplier, streak=0 so streak mult=1.0
+        # Base = 50 * 1.5 = 75, streak mult = 1.0 → awarded = 75
+        assert result.xp_awarded == int(PERFECT_DAY_BONUS_XP * 1.5)
+
+    def test_day_7_applies_2_5x_multiplier(self, db_session, test_user):
+        from app.achievements.models import UserStatistics, StreakEvent
+        from app.utils.db import db
+        from datetime import timedelta
+        self._ensure_stats(db_session, test_user.id)
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+
+        # Seed yesterday to make today day 7
+        db.session.add(StreakEvent(
+            user_id=test_user.id,
+            event_type='xp_perfect_day',
+            event_date=yesterday,
+            coins_delta=0,
+            details={'xp': 50, 'consecutive_days': 6, 'perfect_day_multiplier': 2.0},
+        ))
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        stats.consecutive_perfect_days = 6
+        stats.current_streak_days = 0
+        db.session.flush()
+
+        result = award_perfect_day_xp_idempotent(test_user.id, today)
+        assert result is not None
+        assert result.xp_awarded == int(PERFECT_DAY_BONUS_XP * 2.5)
+
+    def test_event_stores_consecutive_days(self, db_session, test_user):
+        from app.achievements.models import StreakEvent
+        self._ensure_stats(db_session, test_user.id)
+        today = date.today()
+        award_perfect_day_xp_idempotent(test_user.id, today)
+        event = StreakEvent.query.filter_by(
+            user_id=test_user.id,
+            event_type='xp_perfect_day',
+            event_date=today,
+        ).first()
+        assert event is not None
+        assert event.details.get('consecutive_days') == 1
+        assert event.details.get('perfect_day_multiplier') == 1.0
+
+
+# ---------------------------------------------------------------------------
+# process_streak_on_activity returns perfect_day_info
+# ---------------------------------------------------------------------------
+
+class TestProcessStreakPerfectDayInfo:
+    def _ensure_stats(self, db_session, user_id):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=user_id, total_xp=0, current_streak_days=0)
+            db.session.add(stats)
+            db.session.flush()
+        return stats
+
+    def test_perfect_day_info_in_result_when_all_done(self, db_session, test_user):
+        from app.achievements.streak_service import process_streak_on_activity
+        self._ensure_stats(db_session, test_user.id)
+        phases = [
+            {'id': 'p1', 'mode': 'learn', 'required': True},
+            {'id': 'p2', 'mode': 'recall', 'required': True},
+        ]
+        plan_completion = {'p1': True, 'p2': True}
+        daily_plan = {'phases': phases}
+
+        with patch('app.telegram.queries.has_activity_today', return_value=True), \
+             patch('app.telegram.queries.get_current_streak', return_value=1):
+            result = process_streak_on_activity(
+                test_user.id, 2, 2,
+                daily_plan=daily_plan, plan_completion=plan_completion,
+            )
+
+        assert 'perfect_day_info' in result
+        assert result['perfect_day_info'] is not None
+        assert result['perfect_day_info']['consecutive_days'] >= 1
+
+    def test_perfect_day_info_none_when_no_phases(self, db_session, test_user):
+        from app.achievements.streak_service import process_streak_on_activity
+        self._ensure_stats(db_session, test_user.id)
+
+        with patch('app.telegram.queries.has_activity_today', return_value=True), \
+             patch('app.telegram.queries.get_current_streak', return_value=1):
+            result = process_streak_on_activity(test_user.id, 1, 2)
+
+        # No phases in daily_plan → perfect_day_info should be None
+        assert result.get('perfect_day_info') is None

@@ -451,12 +451,12 @@ Reward daily consistency with escalating bonuses: consecutive perfect days multi
 - Modify: `app/achievements/xp_service.py` (bonus logic)
 - Modify: `app/achievements/streak_service.py` (track perfect days)
 
-- [ ] Track `consecutive_perfect_days` in StreakEvent details or UserStatistics
-- [ ] Bonus XP: 2 perfect days = 1.2x, 3 = 1.5x, 5 = 2.0x, 7+ = 2.5x (on top of streak multiplier)
-- [ ] Show "Perfect day streak: 4 days! Tomorrow: 2.0x bonus" on completion banner
-- [ ] Missing one day resets perfect streak but not the regular streak
-- [ ] Write tests: perfect day counter increments; bonus multipliers correct; reset on missed day; stacks with streak multiplier
-- [ ] Run project test suite - must pass before task 28
+- [x] Track `consecutive_perfect_days` in StreakEvent details or UserStatistics
+- [x] Bonus XP: 2 perfect days = 1.2x, 3 = 1.5x, 5 = 2.0x, 7+ = 2.5x (on top of streak multiplier)
+- [x] Show "Perfect day streak: 4 days! Tomorrow: 2.0x bonus" on completion banner
+- [x] Missing one day resets perfect streak but not the regular streak
+- [x] Write tests: perfect day counter increments; bonus multipliers correct; reset on missed day; stacks with streak multiplier
+- [x] Run project test suite - must pass before task 28
 
 ---
 
