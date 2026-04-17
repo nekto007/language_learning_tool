@@ -59,6 +59,9 @@ class User(db.Model, UserMixin):
     # Null = unknown age (treated as adult for backward compatibility).
     birth_year = Column(Integer, nullable=True)
 
+    # Phase 3: permanently dismiss the rival strip per user.
+    rival_strip_dismissed = Column(Boolean, default=False, nullable=False, server_default='false')
+
     referred_by = relationship('User', remote_side='User.id', foreign_keys=[referred_by_id])
 
     __table_args__ = (

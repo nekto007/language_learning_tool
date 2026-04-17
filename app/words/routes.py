@@ -941,6 +941,34 @@ def dashboard():
         daily_race['next_action_title'] = next_plan_title
         daily_race['next_action_url'] = next_plan_url
 
+    # Phase 3: ghost rival strip context — adults only, not dismissed, day secured.
+    rival_strip = None
+    if mission_plan and daily_plan.get('day_secured'):
+        try:
+            from app.daily_plan.rivals import (
+                get_ghost_rival, get_rival_strip_framing, is_adult_user,
+            )
+            _is_adult = is_adult_user(getattr(current_user, 'birth_year', None))
+            _dismissed = getattr(current_user, 'rival_strip_dismissed', False)
+            if _is_adult and not _dismissed:
+                import pytz as _pytz
+                _tz_name = getattr(current_user, 'timezone', None) or 'Europe/Moscow'
+                _today = datetime.now(_pytz.timezone(_tz_name)).date()
+                _ghost = get_ghost_rival(current_user.id, _today, tz=_tz_name)
+                _user_pos = (
+                    int(daily_race['steps_done'] / max(1, daily_race['steps_total']) * 100)
+                    if daily_race and daily_race.get('steps_total', 0) > 0
+                    else 0
+                )
+                _framing = get_rival_strip_framing(_user_pos, _ghost)
+                rival_strip = {
+                    'ghost': _ghost,
+                    'framing': _framing,
+                    'dismiss_url': url_for('api_daily_plan.dismiss_rival_strip'),
+                }
+        except Exception:
+            rival_strip = None
+
     return render_template('dashboard.html',
         # Daily plan
         greeting=greeting,
@@ -1031,6 +1059,8 @@ def dashboard():
         route_metadata=route_metadata,
         # Route progress state for task 14 route board UI
         route_progress_state=route_progress_state,
+        # Phase 3: ghost rival strip (adults only, opt-out)
+        rival_strip=rival_strip,
     )
 
 

@@ -403,6 +403,27 @@ def emit_minimum_completed(user_id: int, mission_type: str | None, plan_date) ->
     db.session.add(event)
 
 
+@api_daily_plan.route('/daily-plan/dismiss-rival-strip', methods=['POST'])
+@csrf.exempt
+@api_auth_required
+def dismiss_rival_strip():
+    """Permanently dismiss the ghost rival strip for the current user."""
+    from app.auth.models import User
+
+    user = db.session.get(User, current_user.id)
+    if user is None:
+        return api_error('not_found', 'User not found', 404)
+
+    user.rival_strip_dismissed = True
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return api_error('db_error', 'Failed to dismiss rival strip', 500)
+
+    return jsonify({'status': 'ok'})
+
+
 @api_daily_plan.route('/streak/repair', methods=['POST'])
 @csrf.exempt
 @api_auth_required

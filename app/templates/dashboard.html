@@ -788,6 +788,24 @@
         </div>
         {% endif %}
 
+        {# Phase 3: Ghost rival strip — adults only, opt-out, positive framing only.
+           Shown only when day_secured=True. Never rendered for child users. #}
+        {% if rival_strip and m_day_secured %}
+        <div class="dash-rival-strip" data-rival-strip="true"
+             data-dismiss-url="{{ rival_strip.dismiss_url }}">
+            <div class="dash-rival-strip__content">
+                <span class="dash-rival-strip__avatar" aria-hidden="true">&#127942;</span>
+                <div class="dash-rival-strip__body">
+                    <span class="dash-rival-strip__label">{{ rival_strip.ghost.display_label }}</span>
+                    <span class="dash-rival-strip__message">{{ rival_strip.framing.message }}</span>
+                </div>
+            </div>
+            <button type="button" class="dash-rival-strip__dismiss"
+                    data-rival-strip-dismiss="true"
+                    aria-label="Скрыть навсегда">&times;</button>
+        </div>
+        {% endif %}
+
     {% else %}
         {# ══════════════════════════════════════════
            LEGACY PLAN (flat steps)
@@ -5355,6 +5373,66 @@
         width: 100%;
     }
 }
+/* Phase 3: Ghost rival strip */
+.dash-rival-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--dash-surface-2, #f9fafb);
+    border: 1px solid var(--dash-border, #e5e7eb);
+}
+.dash-rival-strip__content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+.dash-rival-strip__avatar {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+.dash-rival-strip__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.dash-rival-strip__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--dash-text-muted, #6b7280);
+}
+.dash-rival-strip__message {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--dash-text, #111827);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dash-rival-strip__dismiss {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--dash-text-muted, #9ca3af);
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+}
+.dash-rival-strip__dismiss:hover {
+    color: var(--dash-text, #374151);
+    background: var(--dash-border, #e5e7eb);
+}
 </style>
 
 <script>
@@ -5704,6 +5782,30 @@ async function repairStreak() {
     }
 })();
 {% endif %}
+
+// Phase 3: Ghost rival strip dismiss (permanent, POST to server).
+(function() {
+    var strip = document.querySelector('[data-rival-strip="true"]');
+    if (!strip) return;
+    var btn = strip.querySelector('[data-rival-strip-dismiss="true"]');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+        strip.style.display = 'none';
+        var dismissUrl = strip.getAttribute('data-dismiss-url');
+        if (!dismissUrl) return;
+        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        var csrfToken = csrfMeta ? csrfMeta.content : '';
+        var headers = {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken};
+        var jwtToken = localStorage.getItem('jwt_token');
+        if (jwtToken) headers['Authorization'] = 'Bearer ' + jwtToken;
+        fetch(dismissUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: headers,
+            body: '{}',
+        }).catch(function() {});
+    });
+})();
 </script>
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/share.js') }}" defer></script>{% endblock %}

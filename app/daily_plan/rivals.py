@@ -148,3 +148,55 @@ def get_ghost_rival(
         avatar_seed=avatar_seed,
         route_position=position,
     )
+
+
+# ---------------------------------------------------------------------------
+# Rival strip framing (Task 17)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class RivalStripContext:
+    """Framing data for the rival strip UI."""
+
+    ghost: GhostRival
+    message: str  # Human-readable, positive-framing only
+    user_is_ahead: bool
+    steps_gap: int  # Absolute difference of route positions
+
+
+def _plural_steps(n: int) -> str:
+    """Russian plural form for route steps."""
+    if n % 10 == 1 and n % 100 != 11:
+        return f"{n} шаг"
+    if 2 <= n % 10 <= 4 and not (12 <= n % 100 <= 14):
+        return f"{n} шага"
+    return f"{n} шагов"
+
+
+def get_rival_strip_framing(user_route_position: int, ghost: GhostRival) -> RivalStripContext:
+    """Return positive-framing context for the rival strip.
+
+    Rules enforced here (from Task 17 spec):
+    - Never say 'you are losing' or 'you are behind'.
+    - When ghost is ahead: show 'steps to overtake', not 'steps behind'.
+    - When user is ahead: celebrate with 'you're leading by X steps'.
+    - When tied: neutral positive message.
+    """
+    gap = abs(user_route_position - ghost.route_position)
+
+    if user_route_position >= ghost.route_position:
+        user_is_ahead = True
+        if gap == 0:
+            message = f"Вы идёте вровень с {ghost.display_label}!"
+        else:
+            message = f"Ты ведёшь: обгоняешь {ghost.display_label} на {_plural_steps(gap)}!"
+    else:
+        user_is_ahead = False
+        message = f"До обгона {ghost.display_label}: {_plural_steps(gap)}"
+
+    return RivalStripContext(
+        ghost=ghost,
+        message=message,
+        user_is_ahead=user_is_ahead,
+        steps_gap=gap,
+    )

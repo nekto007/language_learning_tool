@@ -1,4 +1,4 @@
-"""Tests for the ghost rival system (Task 16 / Phase 3).
+"""Tests for the ghost rival system (Task 16 / Phase 3) and rival strip framing (Task 17).
 
 Covers:
 - is_adult_user: various birth_year scenarios including None (unknown age)
@@ -8,6 +8,7 @@ Covers:
 - Past date: position equals target
 - Future date: position is 0
 - Child-gating: callers must not call get_ghost_rival for child users
+- Framing logic: positive-only messages, no negative phrasing, correct user_is_ahead flag
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ import pytest
 from app.daily_plan.rivals import (
     GhostRival,
     GHOST_RIVAL_LABEL,
+    RivalStripContext,
     _ADULT_AGE_THRESHOLD,
     _RIVAL_START_HOUR,
     _RIVAL_END_HOUR,
@@ -25,6 +27,7 @@ from app.daily_plan.rivals import (
     _progress_fraction,
     _ghost_target_position,
     get_ghost_rival,
+    get_rival_strip_framing,
     is_adult_user,
 )
 
@@ -198,4 +201,67 @@ class TestChildGating:
         assert is_adult_user(2008, reference_year=2026) is True
 
     def test_null_birth_year_is_adult_by_default(self):
+        assert is_adult_user(None, reference_year=2026) is True
+
+
+class TestRivalStripFraming:
+    """Tests for positive-framing message generation (Task 17)."""
+
+    def _ghost(self, position: int = 50) -> GhostRival:
+        return GhostRival(name="Луна", avatar_seed=1, route_position=position)
+
+    def test_returns_rival_strip_context(self):
+        ctx = get_rival_strip_framing(60, self._ghost(40))
+        assert isinstance(ctx, RivalStripContext)
+
+    def test_user_ahead_is_flagged(self):
+        ctx = get_rival_strip_framing(60, self._ghost(40))
+        assert ctx.user_is_ahead is True
+
+    def test_ghost_ahead_is_flagged(self):
+        ctx = get_rival_strip_framing(30, self._ghost(70))
+        assert ctx.user_is_ahead is False
+
+    def test_tied_user_is_ahead(self):
+        ctx = get_rival_strip_framing(50, self._ghost(50))
+        assert ctx.user_is_ahead is True
+        assert ctx.steps_gap == 0
+
+    def test_steps_gap_absolute(self):
+        ctx = get_rival_strip_framing(30, self._ghost(70))
+        assert ctx.steps_gap == 40
+
+    def test_user_ahead_message_positive(self):
+        ctx = get_rival_strip_framing(70, self._ghost(40))
+        msg = ctx.message.lower()
+        # Must say leading / obgonyaesh' or equivalent, not losing
+        assert "ведёшь" in msg or "обгоняешь" in msg
+
+    def test_ghost_ahead_shows_steps_to_overtake(self):
+        ctx = get_rival_strip_framing(20, self._ghost(60))
+        msg = ctx.message
+        # Must mention overtake, not "you're behind"
+        assert "До обгона" in msg or "обгон" in msg.lower()
+
+    def test_ghost_ahead_no_negative_framing(self):
+        ctx = get_rival_strip_framing(10, self._ghost(80))
+        msg = ctx.message.lower()
+        for bad_word in ("проигрыва", "отстаёшь", "позади", "хуже", "losing"):
+            assert bad_word not in msg, f"Negative framing '{bad_word}' found in: {msg!r}"
+
+    def test_user_ahead_no_negative_framing(self):
+        ctx = get_rival_strip_framing(90, self._ghost(20))
+        msg = ctx.message.lower()
+        for bad_word in ("проигрыва", "отстаёшь", "позади", "хуже", "losing"):
+            assert bad_word not in msg, f"Negative framing '{bad_word}' found in: {msg!r}"
+
+    def test_ghost_display_label_in_message(self):
+        ghost = self._ghost(80)
+        ctx = get_rival_strip_framing(50, ghost)
+        assert ghost.display_label in ctx.message
+
+    def test_child_gating_prevents_adult_check_fail(self):
+        # Child users must be blocked before calling get_rival_strip_framing.
+        assert is_adult_user(2015, reference_year=2026) is False
+        assert is_adult_user(1990, reference_year=2026) is True
         assert is_adult_user(None, reference_year=2026) is True

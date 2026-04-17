@@ -261,12 +261,12 @@ Go/no-go: if adult continuation depth increases and churn/stress indicators do n
 **Files:**
 - Modify: dashboard template
 
-- [ ] show rival strip only when `day_secured=True` (not during minimum)
-- [ ] show: "Training Rival is 3 steps ahead" — no "you're losing" framing
-- [ ] never show how far behind the user is relative to a rival — only "steps to overtake"
-- [ ] if user is ahead: "You're leading your Training Rival by X steps" — positive framing only
-- [ ] rival strip is permanently dismissable per user
-- [ ] write tests for framing logic and child-gating
+- [x] show rival strip only when `day_secured=True` (not during minimum)
+- [x] show: "Training Rival is 3 steps ahead" — no "you're losing" framing
+- [x] never show how far behind the user is relative to a rival — only "steps to overtake"
+- [x] if user is ahead: "You're leading your Training Rival by X steps" — positive framing only
+- [x] rival strip is permanently dismissable per user
+- [x] write tests for framing logic and child-gating
 
 ### Task 18: Phase 3 tracking and go/no-go
 
