@@ -89,11 +89,11 @@ Design sprint only. No code. Output: locked product rules docs and 5 falsifiable
 **Files:**
 - Create: `docs/decisions/2026-04-18-v1-scope.md`
 
-- [ ] in v1: "day secured" state, 1 next-best-step recommendation, basic route board (position + checkpoint), ghost rivals (adult only, opt-in)
-- [ ] deferred to v2+: endless queue engine, batch generation, full rival matching, seasonal leagues, boss rounds, speed rounds, mixed-block mode
-- [ ] deferred to v3+: real-time rivalry, overtake events, child vs adult product divergence
-- [ ] write explicit rationale for each deferral
-- [ ] confirm no v1 architecture decisions that would block the deferrals later
+- [x] in v1: "day secured" state, 1 next-best-step recommendation, basic route board (position + checkpoint), ghost rivals (adult only, opt-in)
+- [x] deferred to v2+: endless queue engine, batch generation, full rival matching, seasonal leagues, boss rounds, speed rounds, mixed-block mode
+- [x] deferred to v3+: real-time rivalry, overtake events, child vs adult product divergence
+- [x] write explicit rationale for each deferral
+- [x] confirm no v1 architecture decisions that would block the deferrals later
 
 ---
 
