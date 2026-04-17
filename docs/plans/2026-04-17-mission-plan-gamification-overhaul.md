@@ -367,12 +367,12 @@ Update race points in real-time as users complete phases. Show live standings.
 - Modify: `app/achievements/streak_service.py` (hook point updates)
 - Modify: `app/api/daily_plan.py` (race status endpoint)
 
-- [ ] `update_race_points(user_id, date, points)`: update participant points
-- [ ] Hook into phase completion detection: when `compute_plan_steps` detects a newly done phase, award points
-- [ ] Ghost participants accumulate points gradually throughout the day (calculated, not stored)
-- [ ] API endpoint `GET /api/daily-race`: return current race standings
-- [ ] Write tests: points update correctly; ghost points are time-based; API returns standings
-- [ ] Run project test suite - must pass before task 23
+- [x] `update_race_points(user_id, date, points)`: update participant points
+- [x] Hook into phase completion detection: when `compute_plan_steps` detects a newly done phase, award points
+- [x] Ghost participants accumulate points gradually throughout the day (calculated, not stored)
+- [x] API endpoint `GET /api/daily-race`: return current race standings
+- [x] Write tests: points update correctly; ghost points are time-based; API returns standings
+- [x] Run project test suite - must pass before task 23
 
 ### Task 23: Race display on dashboard
 

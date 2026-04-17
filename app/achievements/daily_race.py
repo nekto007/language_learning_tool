@@ -12,10 +12,13 @@ humans.
 """
 from __future__ import annotations
 
+import logging
 import random
 from dataclasses import dataclass, field
-from datetime import date as date_cls, datetime, timezone
-from typing import List, Mapping, Optional
+from datetime import date as date_cls, datetime, time as time_cls, timezone
+from typing import Iterable, List, Mapping, Optional
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy import (
     Column,
@@ -305,3 +308,235 @@ def get_or_create_race(user_id: int, race_date: date_cls) -> RaceCohort:
     db.session.flush()
 
     return _build_cohort(race)
+
+
+# ---------------------------------------------------------------------------
+# Point updates
+# ---------------------------------------------------------------------------
+
+
+def _points_from_plan(
+    phases: Iterable[Mapping], plan_completion: Mapping[str, bool],
+) -> tuple[int, bool]:
+    """Sum points for completed phases and report whether all required are done.
+
+    Returns (total_points, all_required_done).
+    """
+    total = 0
+    all_required_done = True
+    saw_required = False
+    for phase in phases:
+        phase_id = phase.get('id')
+        done = bool(plan_completion.get(phase_id, False))
+        if phase.get('required', True):
+            saw_required = True
+            if not done:
+                all_required_done = False
+        if done:
+            total += phase_points(phase.get('phase'))
+    if not saw_required:
+        all_required_done = False
+    return total, all_required_done
+
+
+def update_race_points(
+    user_id: int,
+    race_date: date_cls,
+    points: int,
+    *,
+    finished: bool = False,
+    now_utc: datetime | None = None,
+) -> Optional[DailyRaceParticipant]:
+    """Set a participant's race points and optionally mark them as finished.
+
+    Silently returns ``None`` when the user is not enrolled in a race for
+    ``race_date`` (so legacy users who never triggered matchmaking do not
+    explode phase completion). Point totals are absolute, not deltas — this
+    function is safe to call repeatedly with the same aggregate.
+    """
+    participant = (
+        db.session.query(DailyRaceParticipant)
+        .filter_by(user_id=user_id, race_date=race_date)
+        .first()
+    )
+    if participant is None:
+        return None
+    participant.points = max(0, int(points))
+    if finished and participant.finished_at is None:
+        participant.finished_at = now_utc or datetime.now(timezone.utc)
+    return participant
+
+
+def update_race_points_from_plan(
+    user_id: int,
+    race_date: date_cls,
+    phases: Iterable[Mapping],
+    plan_completion: Mapping[str, bool],
+    *,
+    now_utc: datetime | None = None,
+) -> Optional[DailyRaceParticipant]:
+    """Recompute participant points from the current plan+completion view.
+
+    Called on every dashboard/API request that rebuilds the plan, so point
+    totals stay in sync with whichever phases have been completed today.
+    """
+    phase_list = list(phases)
+    total, all_required_done = _points_from_plan(phase_list, plan_completion)
+    return update_race_points(
+        user_id,
+        race_date,
+        total,
+        finished=all_required_done,
+        now_utc=now_utc,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Ghost point calculation
+# ---------------------------------------------------------------------------
+
+
+# Ghost points grow linearly between these two local hours. Before the
+# start hour ghosts have trivial points, after the end hour they sit at
+# their full target. Kept as constants so tests can assert specific values
+# at known local times without touching the wall clock.
+_GHOST_START_HOUR = 8
+_GHOST_END_HOUR = 20
+_GHOST_MIN_TARGET = 30
+_GHOST_MAX_TARGET = 90
+
+
+def _ghost_target_points(seed: int) -> int:
+    """Deterministic per-ghost ceiling of daily points.
+
+    Uses the ghost's seed so every render shows the same ceiling for the
+    same race, but different ghosts in the same cohort differ.
+    """
+    span = _GHOST_MAX_TARGET - _GHOST_MIN_TARGET
+    return _GHOST_MIN_TARGET + (abs(int(seed)) % (span + 1))
+
+
+def _progress_fraction(local_time: time_cls) -> float:
+    """Fraction of the ghost-active window that has elapsed (0.0 - 1.0)."""
+    if _GHOST_END_HOUR <= _GHOST_START_HOUR:
+        return 1.0
+    current = local_time.hour + local_time.minute / 60.0
+    if current <= _GHOST_START_HOUR:
+        return 0.0
+    if current >= _GHOST_END_HOUR:
+        return 1.0
+    window = _GHOST_END_HOUR - _GHOST_START_HOUR
+    return (current - _GHOST_START_HOUR) / window
+
+
+def compute_ghost_points(
+    ghost: GhostParticipant,
+    race_date: date_cls,
+    now: datetime | None = None,
+    *,
+    tz: str | None = None,
+) -> int:
+    """Time-based, deterministic point total for a ghost participant.
+
+    Ghosts do not persist points. Every read derives them from the seed and
+    the fraction of the day that has elapsed in the user's local timezone.
+    Returns 0 for past/future dates outside the race window.
+    """
+    import pytz
+    from config.settings import DEFAULT_TIMEZONE
+
+    tz_name = tz or DEFAULT_TIMEZONE
+    try:
+        tz_obj = pytz.timezone(tz_name)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
+
+    if now is None:
+        now = datetime.now(tz_obj)
+    elif now.tzinfo is None:
+        now = tz_obj.localize(now)
+    else:
+        now = now.astimezone(tz_obj)
+
+    local_today = now.date()
+    if local_today < race_date:
+        # Race hasn't started in local time yet.
+        return 0
+    if local_today > race_date:
+        # Race is over; ghost stays at full target for display.
+        return _ghost_target_points(ghost.seed)
+
+    target = _ghost_target_points(ghost.seed)
+    return int(round(target * _progress_fraction(now.time())))
+
+
+# ---------------------------------------------------------------------------
+# Standings
+# ---------------------------------------------------------------------------
+
+
+def get_race_standings(
+    user_id: int,
+    race_date: date_cls,
+    *,
+    tz: str | None = None,
+    now: datetime | None = None,
+) -> Optional[dict]:
+    """Return the current race view for ``user_id`` on ``race_date``.
+
+    Enrolls the user if necessary (via ``get_or_create_race``) and returns a
+    serializable dict suitable for the dashboard and API response:
+
+    - ``race_id``, ``race_date``
+    - ``participants``: list of entries sorted by points desc, each with
+      ``user_id``, ``username``, ``points``, ``is_me``, ``is_ghost``,
+      ``rank``, ``finished_at``
+    - ``my_rank``: current user's 1-indexed rank
+    """
+    from app.auth.models import User
+
+    cohort = get_or_create_race(user_id, race_date)
+
+    entries: list[dict] = []
+
+    for p in cohort.participants:
+        username: Optional[str] = None
+        user_obj = db.session.get(User, p.user_id) if p.user_id else None
+        if user_obj is not None:
+            username = user_obj.username
+        entries.append({
+            'user_id': p.user_id,
+            'username': username or f'user_{p.user_id}',
+            'points': int(p.points or 0),
+            'is_me': p.user_id == user_id,
+            'is_ghost': False,
+            'finished_at': p.finished_at.isoformat() if p.finished_at else None,
+        })
+
+    for ghost in cohort.ghosts:
+        entries.append({
+            'user_id': None,
+            'username': ghost.name,
+            'points': compute_ghost_points(ghost, race_date, now=now, tz=tz),
+            'is_me': False,
+            'is_ghost': True,
+            'finished_at': None,
+        })
+
+    entries.sort(
+        key=lambda e: (-e['points'], 0 if e['is_me'] else 1, e['username'].lower()),
+    )
+
+    my_rank: Optional[int] = None
+    for idx, entry in enumerate(entries, start=1):
+        entry['rank'] = idx
+        if entry['is_me']:
+            my_rank = idx
+
+    return {
+        'race_id': cohort.race.id,
+        'race_date': race_date.isoformat(),
+        'participants': entries,
+        'my_rank': my_rank,
+        'total_participants': len(entries),
+    }

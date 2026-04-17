@@ -42,7 +42,10 @@ def daily_status():
     yesterday = get_yesterday_summary(user_id, tz=tz)
 
     plan_completion, steps_available, steps_done, steps_total = compute_plan_steps(plan, summary)
-    streak_result = process_streak_on_activity(user_id, steps_done, steps_total, tz=tz)
+    streak_result = process_streak_on_activity(
+        user_id, steps_done, steps_total, tz=tz,
+        daily_plan=plan, plan_completion=plan_completion,
+    )
 
     return jsonify({
         'success': True,
@@ -139,6 +142,57 @@ def streak():
     status = get_streak_status(user_id, tz=tz)
 
     return jsonify({'success': True, **status})
+
+
+@api_daily_plan.route('/daily-race')
+@api_auth_required
+def daily_race_status():
+    """Return current daily race standings for the authenticated user.
+
+    Query params:
+        tz (str): User timezone, e.g. 'Europe/Moscow'. Default: project default.
+
+    Enrolls the caller into a race cohort on first visit of the local day,
+    recomputes points from their current plan snapshot, and returns the
+    sorted leaderboard with ghost fillers included.
+    """
+    from datetime import datetime
+    import pytz
+    from app.daily_plan.service import get_daily_plan_unified
+    from app.telegram.queries import get_daily_summary
+    from app.achievements.streak_service import compute_plan_steps
+    from app.achievements.daily_race import (
+        get_race_standings,
+        update_race_points_from_plan,
+    )
+
+    tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
+    user_id = current_user.id
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TZ)
+    local_today = datetime.now(tz_obj).date()
+
+    plan = get_daily_plan_unified(user_id, tz=tz)
+    summary = get_daily_summary(user_id, tz=tz)
+    plan_completion, _, _, _ = compute_plan_steps(plan, summary)
+
+    phases = plan.get('phases') or []
+    if phases:
+        try:
+            update_race_points_from_plan(
+                user_id, local_today, phases, plan_completion,
+            )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    standings = get_race_standings(user_id, local_today, tz=tz)
+    db.session.commit()
+
+    return jsonify({'success': True, 'race': standings})
 
 
 @api_daily_plan.route('/streak/repair', methods=['POST'])

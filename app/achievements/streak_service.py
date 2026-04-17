@@ -144,11 +144,17 @@ def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dic
 
 
 def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
-                               tz: str = DEFAULT_TIMEZONE) -> dict:
+                               tz: str = DEFAULT_TIMEZONE,
+                               daily_plan: dict | None = None,
+                               plan_completion: dict | None = None) -> dict:
     """Process streak: save completion, award coin, attempt free repair.
 
     Call this from any entry point (dashboard, API, bot).
     Returns dict with streak info and whether repair happened.
+
+    When ``daily_plan`` and ``plan_completion`` are supplied the race
+    scoreboard for the user is updated from the current plan view — points
+    stay in sync with completed phases without a separate round trip.
     """
     import pytz
     from app.telegram.queries import get_current_streak, has_activity_today
@@ -167,6 +173,25 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     # auto-completed plan steps (e.g. words 'all_reviewed' when nothing
     # is due), which should not count as real study.
     real_activity = has_activity_today(user_id, tz=tz)
+
+    if real_activity and daily_plan is not None and plan_completion is not None:
+        phases = daily_plan.get('phases') or []
+        if phases:
+            try:
+                from app.achievements.daily_race import (
+                    update_race_points_from_plan,
+                )
+                update_race_points_from_plan(
+                    user_id,
+                    user_today,
+                    phases,
+                    plan_completion,
+                )
+            except Exception:
+                logger.warning(
+                    "Failed to update race points for user %s",
+                    user_id, exc_info=True,
+                )
 
     rank_up = None
     if steps_done > 0 and real_activity:

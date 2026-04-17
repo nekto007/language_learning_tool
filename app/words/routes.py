@@ -441,7 +441,10 @@ def dashboard():
 
     plan_completion, steps_available, steps_done, steps_total = compute_plan_steps(daily_plan, daily_summary)
 
-    streak_result = process_streak_on_activity(current_user.id, steps_done, steps_total, tz=tz)
+    streak_result = process_streak_on_activity(
+        current_user.id, steps_done, steps_total, tz=tz,
+        daily_plan=daily_plan, plan_completion=plan_completion,
+    )
     streak_status = streak_result['streak_status']
     required_steps = streak_result['required_steps']
     streak_repaired = streak_result['streak_repaired']
