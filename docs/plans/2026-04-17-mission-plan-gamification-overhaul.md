@@ -524,14 +524,14 @@ Reframe the daily plan as a route made of checkpoints instead of a flat list of 
 - Modify: `app/static/css/design-system.css`
 - Modify: `app/words/routes.py`
 
-- [ ] Introduce a `dash-route` container that renders the mission plan as a connected route with start, checkpoints, and finish
-- [ ] Map mission phases to route checkpoints: `recall`, `learn`, `use`, `check`, optional `close`
-- [ ] Define route progress weights per phase (for example: recall 15, learn 40, use 30, check 15) so the route supports partial movement, not only discrete step jumps
-- [ ] Preserve existing completion logic, but render it through route semantics rather than stacked cards
-- [ ] Add route metadata to the dashboard context: total checkpoints, current checkpoint index, finish state
-- [ ] Add a compact fallback layout for low-density mode (single-column mobile route, no horizontal overflow for MVP)
-- [ ] Write tests: dashboard renders route container and correct number of checkpoints for a mission plan
-- [ ] Run project test suite - must pass before task 34
+- [x] Introduce a `dash-route` container that renders the mission plan as a connected route with start, checkpoints, and finish
+- [x] Map mission phases to route checkpoints: `recall`, `learn`, `use`, `check`, optional `close`
+- [x] Define route progress weights per phase (for example: recall 15, learn 40, use 30, check 15) so the route supports partial movement, not only discrete step jumps
+- [x] Preserve existing completion logic, but render it through route semantics rather than stacked cards
+- [x] Add route metadata to the dashboard context: total checkpoints, current checkpoint index, finish state
+- [x] Add a compact fallback layout for low-density mode (single-column mobile route, no horizontal overflow for MVP)
+- [x] Write tests: dashboard renders route container and correct number of checkpoints for a mission plan
+- [x] Run project test suite - must pass before task 34
 
 ### Task 34: Add rival tokens to the route
 

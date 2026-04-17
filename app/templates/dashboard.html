@@ -528,12 +528,23 @@
             'bonus': 'Бонус'
         } %}
 
+        {# Task 33: Route board container — wraps visual roadmap + checkpoint cards into a single
+           connected route. data-route-container provides the JS/test anchor; data attributes
+           expose total-checkpoints, current-checkpoint-index, and finish-state for animation
+           hooks. Compact fallback class (dash-route--compact) activates single-column mobile. #}
+        {% if m_phases %}
+        <div class="dash-route{% if m_all_done %} dash-route--done{% endif %}{% if m_phases | length <= 3 %} dash-route--compact{% endif %}"
+             data-route-container="true"
+             data-total-checkpoints="{{ route_metadata.total_checkpoints if route_metadata else m_phases | length }}"
+             data-current-checkpoint="{{ route_metadata.current_checkpoint_index if route_metadata else 0 }}"
+             data-finish-state="{{ route_metadata.finish_state if route_metadata else 'in_progress' }}"
+             aria-label="Маршрут миссии">
+
         {# Task 8/9/10: Visual roadmap — nodes + connectors showing the learning path.
            Node state (done/current/upcoming) mirrors phase completion; bonus
            modifier marks optional phases (required=False). Start/finish markers
            frame the journey: start flag at the beginning, finish trophy (gold
            on completion, target with remaining-steps hint otherwise) at the end. #}
-        {% if m_phases %}
         {% set m_steps_remaining = (m_total - m_done) if m_total > m_done else 0 %}
         <div class="dash-roadmap{% if m_all_done %} dash-roadmap--complete{% endif %}" data-roadmap="true" data-roadmap-complete="{{ 'true' if m_all_done else 'false' }}" aria-label="Маршрут миссии">
             <div class="dash-roadmap__track">
@@ -618,7 +629,6 @@
             </div>
             <div class="dash-roadmap__swipe-hint" data-roadmap-swipe-hint="true" aria-hidden="true">Листайте, чтобы увидеть все шаги</div>
         </div>
-        {% endif %}
 
         <div class="dash-timeline" data-mission-plan="true">
         {% set mns = namespace(current_found=false) %}
@@ -635,7 +645,7 @@
 
             {% set phase_preview = phase.get('preview') %}
             {% set phase_kind = phase.get('phase', '') %}
-            <div class="dash-step dash-step--phase{% if phase_kind %} dash-step--{{ phase_kind }}{% endif %} dash-step--{{ phase_css }}" style="animation-delay: {{ loop.index * 0.08 }}s" data-phase-id="{{ phase.get('id', '') }}" data-phase-kind="{{ phase_kind }}" data-phase-state="{{ phase_css }}" data-phase-index="{{ loop.index0 }}">
+            <div class="dash-step dash-step--phase{% if phase_kind %} dash-step--{{ phase_kind }}{% endif %} dash-step--{{ phase_css }}" style="animation-delay: {{ loop.index * 0.08 }}s" data-phase-id="{{ phase.get('id', '') }}" data-phase-kind="{{ phase_kind }}" data-phase-state="{{ phase_css }}" data-phase-index="{{ loop.index0 }}" data-route-checkpoint="true" data-checkpoint-index="{{ loop.index0 }}" data-checkpoint-kind="{{ phase_kind }}" data-checkpoint-state="{{ phase_css }}">
                 <div class="dash-step__num">{% if is_done %}<span class="dash-step__check" data-phase-check="true">&#10003;</span>{% else %}{{ loop.index }}{% endif %}</div>
                 <div class="dash-step__body">
                     <div class="dash-step__icon">{{ phase_icons.get(phase_kind, '&#128204;')|safe }}</div>
@@ -681,6 +691,8 @@
             </div>
         {% endfor %}
         </div><!-- /dash-timeline -->
+        </div><!-- /dash-route -->
+        {% endif %}
 
     {% else %}
         {# ══════════════════════════════════════════
@@ -4073,6 +4085,40 @@
     }
     .dash-roadmap__marker-burst-piece {
         opacity: 0;
+    }
+}
+
+/* Task 33: Route board container ------------------------------------------- */
+.dash-route {
+    position: relative;
+    margin-bottom: 16px;
+}
+.dash-route--done .dash-timeline .dash-step--current {
+    /* No current step when all done */
+    border-left-color: #10b981;
+}
+
+/* Compact fallback: single-column mobile route, no horizontal overflow */
+.dash-route--compact .dash-roadmap__track {
+    flex-direction: column;
+    overflow-x: hidden;
+}
+.dash-route--compact .dash-roadmap__connector {
+    width: 2px;
+    height: 24px;
+    min-width: 2px;
+}
+
+@media (max-width: 640px) {
+    .dash-route {
+        overflow-x: hidden;
+    }
+    .dash-route .dash-roadmap {
+        overflow-x: hidden;
+    }
+    .dash-route--compact .dash-roadmap__track {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
 

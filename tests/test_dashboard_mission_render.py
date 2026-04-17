@@ -807,3 +807,115 @@ class TestDashboardMissionRender:
         assert 'dash-rank__progress-fill' in html
         # At threshold start, progress within new rank is 0%
         assert 'width: 0' in html
+
+    # ---- Task 33: Route board container ----
+
+    def test_route_container_rendered_for_mission_plan(self, client, app, db_session, test_user, words_module_access):
+        """Task 33: dash-route container is emitted when a mission plan is present."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'data-route-container="true"' in html
+        assert 'class="dash-route' in html
+
+    def test_route_container_absent_for_legacy_plan(self, client, app, db_session, test_user, words_module_access):
+        """Task 33: legacy plans must not emit the route container."""
+        legacy_plan = {'steps': {}, 'next_lesson': None, 'words_due': 0}
+        response = self._get_dashboard(client, test_user, legacy_plan)
+        html = response.data.decode('utf-8')
+        assert 'data-route-container="true"' not in html
+
+    def test_route_checkpoint_count_matches_phases(self, client, app, db_session, test_user, words_module_access):
+        """Task 33: one route checkpoint per mission phase."""
+        plan4 = _make_mission_plan('progress', [False, False, False, False])
+        html4 = self._get_dashboard(client, test_user, plan4).data.decode('utf-8')
+        assert html4.count('data-route-checkpoint="true"') == 4
+
+        plan3 = _make_mission_plan('progress', [False, False, False])
+        html3 = self._get_dashboard(client, test_user, plan3).data.decode('utf-8')
+        assert html3.count('data-route-checkpoint="true"') == 3
+
+    def test_route_metadata_total_checkpoints(self, client, app, db_session, test_user, words_module_access):
+        """Task 33: data-total-checkpoints attribute matches phase count."""
+        plan = _make_mission_plan('progress', [False, False, False, False])
+        html = self._get_dashboard(client, test_user, plan).data.decode('utf-8')
+        assert 'data-total-checkpoints="4"' in html
+
+    def test_route_metadata_current_checkpoint(self, client, app, db_session, test_user, words_module_access):
+        """Task 33: data-current-checkpoint reflects the index of the first incomplete phase."""
+        plan = _make_mission_plan('progress', [True, False, False])
+        html = self._get_dashboard(client, test_user, plan).data.decode('utf-8')
+        assert 'data-current-checkpoint="1"' in html
+
+    def test_route_metadata_finish_state_in_progress(self, client, app, db_session, test_user, words_module_access):
+        """Task 33: finish state is in_progress when plan is not complete."""
+        plan = _make_mission_plan('progress', [True, False, False])
+        html = self._get_dashboard(client, test_user, plan).data.decode('utf-8')
+        assert 'data-finish-state="in_progress"' in html
+
+    def test_route_metadata_finish_state_done(self, client, app, db_session, test_user, words_module_access):
+        """Task 33: finish state is done when all phases are complete."""
+        plan = _make_mission_plan('progress', [True, True, True])
+        html = self._get_dashboard(client, test_user, plan).data.decode('utf-8')
+        assert 'data-finish-state="done"' in html
+
+    def test_route_checkpoint_kind_attributes(self, client, app, db_session, test_user, words_module_access):
+        """Task 33: each checkpoint carries data-checkpoint-kind and data-checkpoint-state."""
+        plan = _make_mission_plan('progress', [True, False, False, False])
+        html = self._get_dashboard(client, test_user, plan).data.decode('utf-8')
+        assert 'data-checkpoint-kind="recall"' in html
+        assert 'data-checkpoint-kind="learn"' in html
+        assert 'data-checkpoint-state="done"' in html
+        assert 'data-checkpoint-state="current"' in html
+        assert 'data-checkpoint-state="upcoming"' in html
+
+    def test_route_compact_class_for_small_plans(self, client, app, db_session, test_user, words_module_access):
+        """Task 33: dash-route--compact applied to plans with 3 or fewer phases."""
+        plan3 = _make_mission_plan('progress', [False, False, False])
+        html3 = self._get_dashboard(client, test_user, plan3).data.decode('utf-8')
+        # Check the class appears in the opening tag's class attribute, not just CSS
+        assert 'class="dash-route dash-route--compact"' in html3 or 'class="dash-route  dash-route--compact"' in html3 or 'dash-route--compact"' in html3
+
+    def test_route_compact_absent_for_large_plans(self, client, app, db_session, test_user, words_module_access):
+        """Task 33: dash-route--compact not applied to plans with more than 3 phases."""
+        plan4 = _make_mission_plan('progress', [False, False, False, False])
+        html4 = self._get_dashboard(client, test_user, plan4).data.decode('utf-8')
+        # Find the route container opening tag (up to >) and check compact is absent from it
+        import re
+        route_tag_match = re.search(r'data-route-container="true"[^>]*>', html4)
+        assert route_tag_match is not None
+        assert 'dash-route--compact' not in route_tag_match.group(0)
+
+    def test_route_contains_roadmap_and_timeline(self, client, app, db_session, test_user, words_module_access):
+        """Task 33: dash-route wraps both roadmap and timeline — both must be inside it."""
+        plan = _make_mission_plan('progress', [False, False, False])
+        html = self._get_dashboard(client, test_user, plan).data.decode('utf-8')
+        route_start = html.find('data-route-container="true"')
+        roadmap_pos = html.find('data-roadmap="true"')
+        timeline_pos = html.find('data-mission-plan="true"')
+        route_end_marker = html.find('/dash-route -->', route_start)
+        assert route_start < roadmap_pos
+        assert route_start < timeline_pos
+        # Roadmap and timeline must come after the opening route container
+        assert roadmap_pos > route_start
+        assert timeline_pos > route_start
+
+    def test_route_css_rules_present(self):
+        """Task 33: dash-route CSS rules (container, compact, mobile fallback) live in template."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        assert '.dash-route {' in css
+        assert '.dash-route--compact' in css
+
+    def test_route_progress_weights_defined(self):
+        """Task 33: ROUTE_PROGRESS_WEIGHTS constant is defined and covers core phase kinds."""
+        from app.words.routes import ROUTE_PROGRESS_WEIGHTS
+        for kind in ('recall', 'learn', 'use', 'check'):
+            assert kind in ROUTE_PROGRESS_WEIGHTS, f'Missing weight for phase kind {kind!r}'
+            assert isinstance(ROUTE_PROGRESS_WEIGHTS[kind], int)
+        assert ROUTE_PROGRESS_WEIGHTS['recall'] == 15
+        assert ROUTE_PROGRESS_WEIGHTS['learn'] == 40
+        assert ROUTE_PROGRESS_WEIGHTS['use'] == 30
+        assert ROUTE_PROGRESS_WEIGHTS['check'] == 15

@@ -36,6 +36,34 @@ _LEGACY_STEP_POINTS = {
     'book_course_practice': 18,
 }
 
+# Route progress weights: contribution of each phase kind to overall route progress (0-100 scale).
+# recall+learn+use+check = 100; read/close/bonus fill remaining proportionally when present.
+ROUTE_PROGRESS_WEIGHTS: dict[str, int] = {
+    'recall': 15,
+    'learn': 40,
+    'use': 30,
+    'check': 15,
+    'read': 25,
+    'close': 10,
+    'bonus': 5,
+}
+
+
+def _build_route_metadata(phases: list[dict], plan_completion: dict) -> dict:
+    """Compute route board metadata for the mission plan dashboard display."""
+    total = len(phases)
+    current_idx = total  # past-end means all done
+    for i, phase in enumerate(phases):
+        if not plan_completion.get(phase.get('id', ''), False):
+            current_idx = i
+            break
+    finish_state = 'done' if current_idx == total and total > 0 else 'in_progress'
+    return {
+        'total_checkpoints': total,
+        'current_checkpoint_index': current_idx,
+        'finish_state': finish_state,
+    }
+
 words = Blueprint('words', __name__)
 
 
@@ -848,6 +876,10 @@ def dashboard():
     if mission_plan:
         for p in daily_plan.get('phases', []):
             phase_urls[p.get('id', '')] = _phase_url(p, daily_plan)
+    route_metadata = (
+        _build_route_metadata(daily_plan.get('phases', []), plan_completion)
+        if mission_plan else None
+    )
     next_plan_title, next_plan_url = _get_next_plan_action(daily_plan, daily_summary)
     if daily_race:
         daily_race['next_action_title'] = next_plan_title
@@ -939,6 +971,8 @@ def dashboard():
         completion_summary=completion_summary,
         # Weekly progress digest (task 30)
         weekly_digest=weekly_digest,
+        # Route board metadata (task 33)
+        route_metadata=route_metadata,
     )
 
 
