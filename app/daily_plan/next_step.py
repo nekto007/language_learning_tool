@@ -135,7 +135,10 @@ def _check_unfinished_lesson(user_id: int, db) -> Optional[NextStep]:
         .first()
     )
     if not next_l:
-        next_module = Module.query.filter(Module.number == module.number + 1).first()
+        next_module = Module.query.filter(
+            Module.level_id == module.level_id,
+            Module.number == module.number + 1,
+        ).first()
         if next_module:
             next_l = (
                 Lessons.query
@@ -188,7 +191,6 @@ def _check_srs_due(user_id: int, db) -> Optional[NextStep]:
         .filter(
             UserCardDirection.user_word_id.in_(user_word_subq),
             UserCardDirection.next_review <= now,
-            UserCardDirection.direction == 'eng-rus',
         )
         .scalar() or 0
     )

@@ -337,9 +337,14 @@ def _compute_daily_race_state(plan: dict, daily_summary: dict, streak: int) -> d
 def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     from app.auth.models import User
     from app.achievements.daily_race import get_race_standings
+    from app.daily_plan.rivals import is_adult_user
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_current_streak, get_daily_summary
     import pytz
+
+    user = User.query.get(current_user_id)
+    if user is None or not is_adult_user(getattr(user, 'birth_year', None)):
+        return None
 
     try:
         tz_obj = pytz.timezone(tz or DEFAULT_TIMEZONE)
@@ -898,6 +903,15 @@ def dashboard():
     # === PERFORMANCE LOGGING ===
     t_elapsed = time.time() - t_start
     logger.info("Dashboard data loaded in %.3fs for user_id=%s", t_elapsed, current_user.id)
+
+    # Recompute day_secured from actual activity; plan payload always has completed=False
+    # at assembly time (phases are built before any activity is recorded).
+    if daily_plan.get('_plan_meta', {}).get('effective_mode') == 'mission':
+        _phases = daily_plan.get('phases', [])
+        _required = [p for p in _phases if p.get('required', True)]
+        daily_plan['day_secured'] = bool(_required) and all(
+            plan_completion.get(p.get('id', ''), False) for p in _required
+        )
 
     mission_plan = daily_plan if daily_plan.get('mission') else None
     plan_meta = daily_plan.get('_plan_meta', {})
