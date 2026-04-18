@@ -5696,13 +5696,15 @@ async function repairStreak() {
         return labels[kind] || kind;
     }
 
+    var PLAN_DATE = "{{ plan_today }}";
+
     function postEvent(eventType, stepKind, reasonText) {
         var csrfMeta = document.querySelector('meta[name="csrf-token"]');
         var csrfToken = csrfMeta ? csrfMeta.content : '';
         var headers = {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken};
         var jwtToken = localStorage.getItem('jwt_token');
         if (jwtToken) headers['Authorization'] = 'Bearer ' + jwtToken;
-        var body = {event_type: eventType};
+        var body = {event_type: eventType, plan_date: PLAN_DATE};
         if (stepKind) body.step_kind = stepKind;
         if (reasonText) body.reason_text = reasonText;
         fetch('/api/daily-plan/events', {
@@ -5807,6 +5809,8 @@ async function repairStreak() {
     var strip = document.querySelector('[data-rival-strip="true"]');
     if (!strip) return;
 
+    var _rivalPlanDate = "{{ plan_today }}";
+
     function postRivalEvent(eventType) {
         var csrfMeta = document.querySelector('meta[name="csrf-token"]');
         var csrfToken = csrfMeta ? csrfMeta.content : '';
@@ -5815,11 +5819,11 @@ async function repairStreak() {
         if (jwtToken) headers['Authorization'] = 'Bearer ' + jwtToken;
         fetch('/api/daily-plan/events', {
             method: 'POST', credentials: 'same-origin',
-            headers: headers, body: JSON.stringify({event_type: eventType})
+            headers: headers, body: JSON.stringify({event_type: eventType, plan_date: _rivalPlanDate})
         }).catch(function() {});
     }
 
-    var _rivalStripKey = 'rivalStripShown_' + (new Date().toISOString().slice(0, 10));
+    var _rivalStripKey = 'rivalStripShown_' + _rivalPlanDate;
     if (!sessionStorage.getItem(_rivalStripKey)) {
         sessionStorage.setItem(_rivalStripKey, '1');
         postRivalEvent('rival_strip_shown');

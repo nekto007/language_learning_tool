@@ -652,6 +652,13 @@ def dashboard():
     daily_plan = get_daily_plan_unified(current_user.id, tz=tz)
     daily_summary = get_daily_summary(current_user.id, tz=tz)
 
+    import pytz as _pytz_dash
+    try:
+        _tz_dash = _pytz_dash.timezone(tz)
+    except Exception:
+        _tz_dash = _pytz_dash.timezone(DEFAULT_TIMEZONE)
+    plan_today = datetime.now(_tz_dash).date().isoformat()
+
     # Time-based greeting
     from datetime import datetime as dt
     import pytz
@@ -943,10 +950,27 @@ def dashboard():
         if mission_plan else None
     )
     # Route progress state for Task 14 route board UI.
+    # Also syncs route progress from server-side activity data (idempotent per phase/day).
     route_progress_state = None
     if mission_plan:
         try:
-            from app.daily_plan.route_progress import get_route_state, get_phase_step_weight
+            from app.daily_plan.route_progress import (
+                add_route_steps_idempotent, get_route_state, get_phase_step_weight,
+                PHASE_STEP_WEIGHTS,
+            )
+            import pytz as _pytz_rp
+            _tz_name_rp = getattr(current_user, 'timezone', None) or 'Europe/Moscow'
+            try:
+                _tz_obj_rp = _pytz_rp.timezone(_tz_name_rp)
+            except Exception:
+                _tz_obj_rp = _pytz_rp.timezone('Europe/Moscow')
+            _route_today = datetime.now(_tz_obj_rp).date()
+            for _p in daily_plan.get('phases', []):
+                if plan_completion.get(_p.get('id', ''), False):
+                    _pk = _p.get('phase', '')
+                    if _pk in PHASE_STEP_WEIGHTS:
+                        add_route_steps_idempotent(current_user.id, _pk, _route_today, db.session)
+            db.session.commit()
             _weighted_steps_today = sum(
                 get_phase_step_weight(p.get('phase', ''))
                 for p in daily_plan.get('phases', [])
@@ -956,6 +980,7 @@ def dashboard():
                 current_user.id, _weighted_steps_today, db.session
             )
         except Exception:
+            db.session.rollback()
             route_progress_state = None
     next_plan_title, next_plan_url = _get_next_plan_action(daily_plan, daily_summary)
     if daily_race:
@@ -1082,6 +1107,8 @@ def dashboard():
         route_progress_state=route_progress_state,
         # Phase 3: ghost rival strip (adults only, opt-out)
         rival_strip=rival_strip,
+        # Plan date for JS event attribution (prevents midnight boundary misattribution)
+        plan_today=plan_today,
     )
 
 
@@ -1355,6 +1382,26 @@ def daily_plan_next_step() -> tuple:
     tz = current_user.timezone or DEFAULT_TIMEZONE
     daily_plan = get_daily_plan_unified(current_user.id, tz=tz)
     daily_summary = get_daily_summary(current_user.id, tz=tz)
+
+    # Write route steps for completed mission phases at completion time so
+    # progress is not lost if the user never returns to the dashboard that day.
+    if daily_plan.get('mission'):
+        try:
+            from datetime import datetime as _dt
+            import pytz as _pytz
+            from app.achievements.streak_service import _compute_phase_completion
+            from app.daily_plan.route_progress import add_route_steps_idempotent, PHASE_STEP_WEIGHTS
+            _tz_obj = _pytz.timezone(tz)
+            _route_today = _dt.now(_tz_obj).date()
+            _completion = _compute_phase_completion(daily_plan.get('phases', []), daily_summary)
+            for _p in daily_plan.get('phases', []):
+                if _completion.get(_p.get('id', ''), False):
+                    _pk = _p.get('phase', '')
+                    if _pk in PHASE_STEP_WEIGHTS:
+                        add_route_steps_idempotent(current_user.id, _pk, _route_today, db.session)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     if daily_plan.get('phases'):
         return _next_step_from_mission(daily_plan, daily_summary)

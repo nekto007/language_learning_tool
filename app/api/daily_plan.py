@@ -36,7 +36,7 @@ def daily_status():
     from app.telegram.queries import get_daily_summary, get_yesterday_summary
     from app.achievements.streak_service import compute_plan_steps, process_streak_on_activity
 
-    tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
+    tz = _validate_timezone(request.args.get('tz', current_user.timezone or DEFAULT_TZ))
 
     user_id = current_user.id
 
@@ -61,6 +61,28 @@ def daily_status():
     else:
         day_secured = plan.get('day_secured', False)
     plan['day_secured'] = day_secured
+
+    # Sync route progress for completed phases so steps are recorded even if
+    # the user never reloads /api/daily-plan after finishing their mission.
+    if plan.get('mission'):
+        try:
+            from datetime import datetime as _dt_rp
+            import pytz as _pytz_rp
+            from app.daily_plan.route_progress import add_route_steps_idempotent, PHASE_STEP_WEIGHTS
+            _user_tz_name = current_user.timezone or DEFAULT_TZ
+            try:
+                _tz_obj = _pytz_rp.timezone(_user_tz_name)
+            except Exception:
+                _tz_obj = _pytz_rp.timezone(DEFAULT_TZ)
+            _route_today = _dt_rp.now(_tz_obj).date()
+            for _p in phases:
+                if plan_completion.get(_p.get('id', ''), False):
+                    _pk = _p.get('phase', '')
+                    if _pk in PHASE_STEP_WEIGHTS:
+                        add_route_steps_idempotent(user_id, _pk, _route_today, db.session)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     if day_secured:
         from datetime import datetime
@@ -118,11 +140,14 @@ def daily_plan():
         route_state: Current route progress state
     """
     from app.daily_plan.service import get_daily_plan_unified
-    from app.daily_plan.route_progress import get_route_state, get_phase_step_weight
+    from app.daily_plan.route_progress import (
+        get_route_state, get_phase_step_weight,
+        add_route_steps_idempotent, PHASE_STEP_WEIGHTS,
+    )
     from app.telegram.queries import get_daily_summary
     from app.achievements.streak_service import compute_plan_steps
 
-    tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
+    tz = _validate_timezone(request.args.get('tz', current_user.timezone or DEFAULT_TZ))
     user_id = current_user.id
     plan = get_daily_plan_unified(user_id, tz=tz)
     summary = get_daily_summary(user_id, tz=tz)
@@ -135,6 +160,28 @@ def daily_plan():
         for p in phases
         if plan_completion.get(p.get('id', ''), False)
     )
+
+    # Sync route progress before reading state so total_steps stays consistent
+    # with steps_today when the user hasn't visited the dashboard yet today.
+    if plan.get('mission'):
+        try:
+            from datetime import datetime
+            import pytz as _pytz_rp
+            _user_tz_name = current_user.timezone or DEFAULT_TZ
+            try:
+                _tz_obj = _pytz_rp.timezone(_user_tz_name)
+            except Exception:
+                _tz_obj = _pytz_rp.timezone(DEFAULT_TZ)
+            _route_today = datetime.now(_tz_obj).date()
+            for _p in phases:
+                if plan_completion.get(_p.get('id', ''), False):
+                    _pk = _p.get('phase', '')
+                    if _pk in PHASE_STEP_WEIGHTS:
+                        add_route_steps_idempotent(user_id, _pk, _route_today, db.session)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     route_state = get_route_state(user_id, steps_today, db.session)
 
     return jsonify({'success': True, 'route_state': route_state, **plan})
@@ -283,55 +330,6 @@ def daily_plan_continuation():
         'step': _serialize(steps[0]) if steps else None,
     })
 
-
-@api_daily_plan.route('/daily-plan/phase-complete', methods=['POST'])
-@csrf.exempt
-@api_auth_required
-def daily_plan_phase_complete():
-    """Record a completed mission phase and update route progress.
-
-    Body JSON:
-        phase_kind (str): one of learn, recall, use, read, check, close, bonus
-
-    Returns JSON:
-        route_state: updated route state dict
-        checkpoint_reached: bool — True if this completion crossed a checkpoint
-    """
-    from app.daily_plan.route_progress import add_route_steps, get_route_state, PHASE_STEP_WEIGHTS
-
-    if not request.is_json:
-        return api_error('invalid_content_type', 'Request must be JSON', 400)
-
-    body = request.get_json(silent=True) or {}
-    phase_kind = body.get('phase_kind', '')
-
-    if phase_kind not in PHASE_STEP_WEIGHTS:
-        return api_error(
-            'invalid_phase_kind',
-            f'phase_kind must be one of: {", ".join(sorted(PHASE_STEP_WEIGHTS))}',
-            400,
-        )
-
-    user_id = current_user.id
-    try:
-        row, checkpoint_reached = add_route_steps(user_id, phase_kind, db.session)
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        return api_error('db_error', 'Failed to update route progress', 500)
-
-    try:
-        steps_today = max(0, int(body.get('steps_today', 0)))
-    except (TypeError, ValueError):
-        steps_today = 0
-    route_state = get_route_state(user_id, steps_today, db.session)
-    return jsonify({
-        'success': True,
-        'route_state': route_state,
-        'checkpoint_reached': checkpoint_reached,
-    })
-
-
 _CLIENT_EVENTS = {
     'next_step_shown',
     'next_step_accepted',
@@ -374,17 +372,24 @@ def record_daily_plan_event():
             400,
         )
 
+    import pytz as _pytz_ev
+    _tz_name_ev = getattr(current_user, 'timezone', None) or 'Europe/Moscow'
+    try:
+        _tz_obj_ev = _pytz_ev.timezone(_tz_name_ev)
+    except Exception:
+        _tz_obj_ev = _pytz_ev.timezone('Europe/Moscow')
+    user_today = datetime_cls.now(_tz_obj_ev).date()
+
     plan_date_str = body.get('plan_date')
     if plan_date_str:
         try:
             plan_date = date_cls.fromisoformat(plan_date_str)
-            today = datetime_cls.now(timezone.utc).date()
-            if plan_date > today or plan_date < today - timedelta(days=2):
-                plan_date = today
+            if plan_date > user_today or plan_date < user_today - timedelta(days=2):
+                plan_date = user_today
         except ValueError:
-            plan_date = None
+            plan_date = user_today
     else:
-        plan_date = None
+        plan_date = user_today
 
     step_kind = body.get('step_kind')
     if step_kind:
@@ -434,11 +439,12 @@ def emit_minimum_completed(user_id: int, mission_type: str | None, plan_date) ->
         plan_date=plan_date,
         mission_type=mission_type,
     )
+    savepoint = db.session.begin_nested()
     db.session.add(event)
     try:
-        db.session.flush()
+        savepoint.commit()
     except IntegrityError:
-        db.session.rollback()
+        savepoint.rollback()
         logger.debug(
             'minimum_completed already recorded for user=%s date=%s (concurrent insert)',
             user_id,

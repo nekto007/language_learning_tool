@@ -63,9 +63,6 @@
 
   // Listen for completion event from each page's own logic
   document.addEventListener('dailyPlanStepComplete', function(e) {
-    // Guard: only fire when event includes {completed: true}
-    if (!e.detail || !e.detail.completed) return;
-
     // Debounce: ignore if already shown in last 3 seconds
     var now = Date.now();
     if (now - lastShownAt < 3000) return;

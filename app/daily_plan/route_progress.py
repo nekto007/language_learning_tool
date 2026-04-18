@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, UniqueConstraint
+from sqlalchemy.exc import IntegrityError
 
 from app.utils.db import db
 
@@ -71,7 +72,7 @@ def add_route_steps(user_id: int, phase_kind: str, db_session) -> tuple[UserRout
         row = _get_or_create(user_id, db_session)
         return row, False
 
-    row = _get_or_create(user_id, db_session)
+    row = _get_or_create(user_id, db_session, for_update=True)
     old_checkpoint = row.checkpoint_number
     row.total_steps += weight
     row.checkpoint_number = row.total_steps // CHECKPOINT_INTERVAL
@@ -82,8 +83,11 @@ def add_route_steps(user_id: int, phase_kind: str, db_session) -> tuple[UserRout
     return row, checkpoint_reached
 
 
-def _get_or_create(user_id: int, db_session) -> UserRouteProgress:
-    row = db_session.query(UserRouteProgress).filter_by(user_id=user_id).first()
+def _get_or_create(user_id: int, db_session, for_update: bool = False) -> UserRouteProgress:
+    q = db_session.query(UserRouteProgress).filter_by(user_id=user_id)
+    if for_update:
+        q = q.with_for_update()
+    row = q.first()
     if row is None:
         row = UserRouteProgress(
             user_id=user_id,
@@ -95,6 +99,90 @@ def _get_or_create(user_id: int, db_session) -> UserRouteProgress:
         db_session.add(row)
         db_session.flush()
     return row
+
+
+def add_route_steps_idempotent(
+    user_id: int,
+    phase_kind: str,
+    plan_date,
+    db_session,
+) -> tuple["UserRouteProgress", bool]:
+    """Idempotent wrapper around add_route_steps keyed by (user_id, phase_kind, plan_date).
+
+    Safe to call on every dashboard load: skips the update if a route_step_added event
+    already exists for this (user_id, phase_kind, plan_date).  When a checkpoint boundary
+    is crossed a checkpoint_reached event is also persisted for H5 analysis.
+
+    Returns (progress_row, checkpoint_reached).
+    """
+    from app.daily_plan.models import DailyPlanEvent
+
+    existing = db_session.query(DailyPlanEvent).filter_by(
+        user_id=user_id,
+        event_type='route_step_added',
+        step_kind=phase_kind,
+        plan_date=plan_date,
+    ).first()
+
+    if existing:
+        row = _get_or_create(user_id, db_session)
+        return row, False
+
+    savepoint = db_session.begin_nested()
+    try:
+        row, checkpoint_reached = add_route_steps(user_id, phase_kind, db_session)
+
+        marker = DailyPlanEvent(
+            user_id=user_id,
+            event_type='route_step_added',
+            plan_date=plan_date,
+            step_kind=phase_kind,
+        )
+        db_session.add(marker)
+
+        if checkpoint_reached:
+            db_session.add(DailyPlanEvent(
+                user_id=user_id,
+                event_type='checkpoint_reached',
+                plan_date=plan_date,
+                step_kind=phase_kind,
+            ))
+
+        savepoint.commit()
+    except IntegrityError:
+        savepoint.rollback()
+        # Two distinct races can cause IntegrityError:
+        # 1. Duplicate DailyPlanEvent marker (same phase/date already recorded) → idempotent skip.
+        # 2. Duplicate UserRouteProgress row (two requests racing to create the first row for
+        #    this user) → the other request won row creation, but did NOT record this phase's
+        #    marker, so we must retry the increment now that the row exists.
+        duplicate_event = db_session.query(DailyPlanEvent).filter_by(
+            user_id=user_id,
+            event_type='route_step_added',
+            step_kind=phase_kind,
+            plan_date=plan_date,
+        ).first()
+        if duplicate_event:
+            row = _get_or_create(user_id, db_session)
+            return row, False
+        # UserRouteProgress row now exists (created by the other request); retry increment.
+        row, checkpoint_reached = add_route_steps(user_id, phase_kind, db_session)
+        db_session.add(DailyPlanEvent(
+            user_id=user_id,
+            event_type='route_step_added',
+            plan_date=plan_date,
+            step_kind=phase_kind,
+        ))
+        if checkpoint_reached:
+            db_session.add(DailyPlanEvent(
+                user_id=user_id,
+                event_type='checkpoint_reached',
+                plan_date=plan_date,
+                step_kind=phase_kind,
+            ))
+        return row, checkpoint_reached
+
+    return row, checkpoint_reached
 
 
 def get_route_state(user_id: int, steps_today: int, db_session) -> Optional[dict]:
