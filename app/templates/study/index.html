@@ -1953,14 +1953,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Study mode card selected state toggle
-    document.querySelectorAll('.decks-mode').forEach(card => {
-        card.addEventListener('click', function(e) {
-            // Only toggle visual state; navigation still proceeds via href
-            document.querySelectorAll('.decks-mode').forEach(c => c.classList.remove('decks-mode--selected'));
-            this.classList.add('decks-mode--selected');
-        });
-    });
+
 });
 </script>
 {% endblock %}

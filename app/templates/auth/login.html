@@ -457,7 +457,7 @@ function togglePasswordVisibility(btn) {
 }
 
 document.getElementById('login-submit-btn').closest('form').addEventListener('submit', function(e) {
-  if (!this.checkValidity()) return;
+  if (!this.checkValidity()) { this.reportValidity(); return; }
   const btn = document.getElementById('login-submit-btn');
   btn.disabled = true;
   btn.textContent = 'Вход...';
