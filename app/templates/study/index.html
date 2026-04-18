@@ -478,6 +478,10 @@
     to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
 @keyframes decks-float-1 {
     0%, 100% { transform: translate(0, 0) scale(1); }
     50%      { transform: translate(-20px, 15px) scale(1.08); }
@@ -994,7 +998,7 @@
     color: var(--decks-text-light);
     display: flex;
     align-items: center;
-    transition: color .2s;
+    transition: color .2s, opacity .2s, visibility .2s;
 }
 
 .decks-search__clear:hover {
@@ -1022,6 +1026,11 @@
     color: #fff;
 }
 
+.decks-section__add-btn:focus-visible {
+    outline: 2px solid var(--decks-blue);
+    outline-offset: 2px;
+}
+
 /* ── Deck Cards ── */
 .decks-list {
     display: flex;
@@ -1038,12 +1047,13 @@
     border-radius: var(--decks-radius);
     padding: 1rem 1.25rem;
     box-shadow: var(--decks-shadow);
-    transition: box-shadow .2s, border-color .2s;
+    transition: box-shadow .2s, border-color .2s, transform 0.15s ease;
 }
 
 .decks-card:hover {
     box-shadow: var(--decks-shadow-md);
     border-color: #cbd5e1;
+    transform: scale(1.02);
 }
 
 .decks-card__icon {
@@ -1277,6 +1287,11 @@
     box-shadow: var(--decks-shadow-md);
     border-color: #cbd5e1;
     transform: translateY(-2px);
+}
+
+.decks-mode--selected {
+    border-color: var(--decks-blue);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.15), var(--decks-shadow-md);
 }
 
 .decks-mode__icon {
@@ -1737,6 +1752,12 @@ function startQuiz() {
     const allWords = document.getElementById('quiz-all-words').checked;
     const limit = document.getElementById('quiz-limit').value;
 
+    const startBtn = document.querySelector('.decks-modal__btn--start');
+    if (startBtn) {
+        startBtn.disabled = true;
+        startBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .6s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Загрузка...';
+    }
+
     let url = `/study/quiz/deck/${selectedDeckId}`;
     if (!allWords && limit) {
         url += `?limit=${limit}`;
@@ -1788,6 +1809,18 @@ document.addEventListener('DOMContentLoaded', function() {
             const wordCount = parseInt(this.dataset.wordCount);
             const deckTitle = this.dataset.deckTitle;
             openQuizModal(deckId, wordCount, deckTitle);
+        });
+    });
+
+    // Copy deck form loading state
+    document.querySelectorAll('.decks-card__copy-form').forEach(form => {
+        form.addEventListener('submit', function() {
+            const btn = this.querySelector('button[type="submit"]');
+            if (btn) {
+                btn.disabled = true;
+                const label = btn.querySelector('.decks-card__btn-label');
+                if (label) label.textContent = 'Копирую...';
+            }
         });
     });
 
@@ -1886,6 +1919,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Study mode card selected state toggle
+    document.querySelectorAll('.decks-mode').forEach(card => {
+        card.addEventListener('click', function(e) {
+            // Only toggle visual state; navigation still proceeds via href
+            document.querySelectorAll('.decks-mode').forEach(c => c.classList.remove('decks-mode--selected'));
+            this.classList.add('decks-mode--selected');
+        });
+    });
 });
 </script>
 {% endblock %}
