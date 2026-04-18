@@ -1,5 +1,7 @@
 """API endpoints for daily plan and summary."""
 
+import logging
+
 from flask import Blueprint, jsonify, request
 from flask_login import current_user
 from zoneinfo import ZoneInfo
@@ -12,6 +14,7 @@ from app.utils.db import db
 from config.settings import DEFAULT_TIMEZONE
 
 api_daily_plan = Blueprint('api_daily_plan', __name__)
+logger = logging.getLogger(__name__)
 
 DEFAULT_TZ = DEFAULT_TIMEZONE
 
@@ -355,7 +358,7 @@ def record_daily_plan_event():
         reason_text (str, optional): human-readable reason string for next_step_shown
         plan_date (str, optional): ISO date string; defaults to today in user tz
     """
-    from datetime import date as date_cls
+    from datetime import date as date_cls, datetime as datetime_cls, timezone, timedelta
     from app.daily_plan.models import DailyPlanEvent
 
     if not request.is_json:
@@ -375,8 +378,7 @@ def record_daily_plan_event():
     if plan_date_str:
         try:
             plan_date = date_cls.fromisoformat(plan_date_str)
-            today = date_cls.today()
-            from datetime import timedelta
+            today = datetime_cls.now(timezone.utc).date()
             if plan_date > today or plan_date < today - timedelta(days=2):
                 plan_date = today
         except ValueError:
@@ -413,7 +415,9 @@ def emit_minimum_completed(user_id: int, mission_type: str | None, plan_date) ->
 
     Called internally when the plan payload indicates day_secured=True.
     Idempotent per (user_id, plan_date): inserts only if no prior event exists.
+    Uses savepoint so concurrent requests don't corrupt the outer transaction.
     """
+    from sqlalchemy.exc import IntegrityError
     from app.daily_plan.models import DailyPlanEvent
 
     existing = DailyPlanEvent.query.filter_by(
@@ -431,6 +435,15 @@ def emit_minimum_completed(user_id: int, mission_type: str | None, plan_date) ->
         mission_type=mission_type,
     )
     db.session.add(event)
+    try:
+        db.session.flush()
+    except IntegrityError:
+        db.session.rollback()
+        logger.debug(
+            'minimum_completed already recorded for user=%s date=%s (concurrent insert)',
+            user_id,
+            plan_date,
+        )
 
 
 @api_daily_plan.route('/daily-plan/dismiss-rival-strip', methods=['POST'])

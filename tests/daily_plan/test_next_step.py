@@ -362,12 +362,11 @@ class TestCheckReadingProgress:
             mock_book.title = 'Harry Potter'
 
             db = MagicMock()
-            db.session.query.return_value.join.return_value.filter.return_value.all.return_value = [(7,)]
+            db.session.query.return_value.join.return_value.filter.return_value.group_by.return_value.order_by.return_value.all.return_value = [(7,)]
 
             with patch('app.books.models.Book') as MockBook, \
                  patch('app.books.models.Chapter'), \
-                 patch('app.books.models.UserChapterProgress'), \
-                 patch('app.daily_plan.next_step.distinct'):
+                 patch('app.books.models.UserChapterProgress'):
 
                 MockBook.query.get.return_value = mock_book
 
@@ -384,12 +383,11 @@ class TestCheckReadingProgress:
             from app.daily_plan.next_step import _check_reading_progress
 
             db = MagicMock()
-            db.session.query.return_value.join.return_value.filter.return_value.all.return_value = []
+            db.session.query.return_value.join.return_value.filter.return_value.group_by.return_value.order_by.return_value.all.return_value = []
 
             with patch('app.books.models.Book'), \
                  patch('app.books.models.Chapter'), \
-                 patch('app.books.models.UserChapterProgress'), \
-                 patch('app.daily_plan.next_step.distinct'):
+                 patch('app.books.models.UserChapterProgress'):
 
                 step = _check_reading_progress(1, db)
 

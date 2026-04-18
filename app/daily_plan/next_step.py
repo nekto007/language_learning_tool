@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import func, distinct
+from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 
