@@ -1095,6 +1095,11 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .practice-header { animation: slideUp 0.4s ease-out; }
 .practice-hero { animation: slideUp 0.4s ease-out; }
 .practice-stats { animation: slideUp 0.4s ease-out 0.1s both; }
@@ -1592,6 +1597,7 @@ document.getElementById('check-btn').addEventListener('click', async function() 
   const exercise = exercises[currentIndex];
   const exerciseType = (exercise.exercise_type || '').toLowerCase();
   let answer;
+  const checkBtn = this;
 
   if (exerciseType === 'multiple_choice') {
     const selected = document.querySelector('input[name="answer"]:checked');
@@ -1625,6 +1631,12 @@ document.getElementById('check-btn').addEventListener('click', async function() 
       return;
     }
   }
+
+  // Show loading state on button
+  const originalHTML = checkBtn.innerHTML;
+  checkBtn.disabled = true;
+  checkBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 0.8s linear infinite"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Проверка...`;
+  checkBtn.style.opacity = '0.7';
 
   try {
     const response = await fetch(`/grammar-lab/api/exercise/${exercise.id}/submit`, {
@@ -1671,7 +1683,9 @@ document.getElementById('check-btn').addEventListener('click', async function() 
     }
     feedback.style.display = 'block';
 
-    this.style.display = 'none';
+    checkBtn.innerHTML = originalHTML;
+    checkBtn.style.opacity = '';
+    checkBtn.style.display = 'none';
     document.getElementById('next-btn').style.display = 'inline-flex';
 
     // Disable inputs
@@ -1682,6 +1696,9 @@ document.getElementById('check-btn').addEventListener('click', async function() 
 
   } catch (error) {
     console.error('Error:', error);
+    checkBtn.innerHTML = originalHTML;
+    checkBtn.disabled = false;
+    checkBtn.style.opacity = '';
   }
 });
 
