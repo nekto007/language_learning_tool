@@ -6,6 +6,19 @@ import pytest
 ASSEMBLER_MOD = "app.daily_plan.assembler"
 
 
+@pytest.fixture(autouse=True)
+def _assume_recall_content():
+    """Treat guided_recall as having content unless a test opts out.
+
+    Tests in this file drive the assembler with mocks for lesson/SRS counts
+    and don't set up the daily-plan card pool; without this patch every
+    no-SRS scenario would skip the recall phase and break pre-existing
+    expectations.
+    """
+    with patch(f"{ASSEMBLER_MOD}._has_guided_recall_content", return_value=True):
+        yield
+
+
 # ---------------------------------------------------------------------------
 # assemble_repair_mission — normal (non-degenerate) path
 # ---------------------------------------------------------------------------

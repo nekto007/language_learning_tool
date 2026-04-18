@@ -107,6 +107,29 @@ class TestGetStudyItems:
         # Should return items even with limits at 0
         assert data['status'] == 'success'
 
+    def test_daily_plan_mix_does_not_terminate_on_limit(
+        self, authenticated_client, user_words, study_settings, db_session,
+    ):
+        """Daily-plan sessions must not be cut off mid-flow by the limit banner.
+
+        Regression for bug: passing cards in "Быстрый разогрев" showed the
+        "Дневной лимит достигнут" message. Selection by daily limits belongs
+        to plan formation — once the session has begun, the API should just
+        return whatever items are available and let the frontend show a
+        neutral "session complete" state when empty.
+        """
+        study_settings.new_words_per_day = 0
+        study_settings.reviews_per_day = 0
+        db_session.commit()
+
+        response = authenticated_client.get(
+            '/study/api/get-study-items?source=daily_plan_mix'
+        )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['status'] != 'daily_limit_reached'
+
     def test_prioritizes_due_reviews(self, authenticated_client, user_words, user_card_directions, study_settings):
         """Test that due reviews are prioritized over new cards"""
         response = authenticated_client.get('/study/api/get-study-items?source=auto')

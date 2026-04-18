@@ -194,6 +194,27 @@ def _count_grammar_due(user_id: int) -> int:
     ) or 0
 
 
+def _has_guided_recall_content(user_id: int) -> bool:
+    """Return True when a `guided_recall` phase would have cards to show.
+
+    Used at plan formation to skip the recall phase when there is literally
+    nothing for the user to study right now — either because the daily-plan
+    mix pool is empty/fully studied today, or because the new-card budget is
+    already spent elsewhere. Without this check, a user can land in an empty
+    card session and see the daily-limit banner mid-flow.
+    """
+    from app.study.services.srs_service import SRSService
+
+    mix_word_ids = get_daily_plan_mix_word_ids(user_id)
+    if not mix_word_ids:
+        return False
+
+    counts = SRSService.get_card_counts(user_id, deck_word_ids=mix_word_ids)
+    if counts['due_count'] > 0:
+        return True
+    return counts['new_count'] > 0 and counts['can_study_new']
+
+
 def _next_unfinished_lesson_in_module(user_id: int, module_id: int) -> Optional[Any]:
     """Return the next unfinished lesson in a module for a user.
 
@@ -475,8 +496,12 @@ def assemble_progress_mission(
             return None
 
         bc_title = bc_lesson.get('course_title') or "Книжный курс"
-        phases = [
-            _make_recall_phase(SourceKind.book_course, srs_due > 0, srs_due),
+        phases: list[MissionPhase] = []
+        if srs_due > 0 or _has_guided_recall_content(user_id):
+            phases.append(
+                _make_recall_phase(SourceKind.book_course, srs_due > 0, srs_due)
+            )
+        phases.extend([
             MissionPhase(
                 phase=PhaseKind.learn,
                 title="Главный шаг миссии",
@@ -497,7 +522,7 @@ def assemble_progress_mission(
                     estimated_minutes=5,
                 ),
             ),
-        ]
+        ])
 
         if srs_due > 0:
             phases.append(MissionPhase(
@@ -512,6 +537,11 @@ def assemble_progress_mission(
                     estimated_minutes=3,
                 ),
             ))
+
+        # Skipping the recall phase can drop the plan below the 3-phase
+        # minimum; bring in a soft close phase so the plan still validates.
+        if len(phases) < 3:
+            phases.append(_make_close_phase())
 
         phases = _maybe_add_bonus_phase(phases)
         return MissionPlan(
@@ -547,7 +577,7 @@ def assemble_progress_mission(
     # When the learn phase is a card-based lesson and there are SRS cards due, both
     # phases would look like identical card sessions to the user. Relabel the recall
     # phase so it's clear these are different activities (SRS review vs. new lesson).
-    recall_phase = _make_recall_phase(SourceKind.normal_course, srs_due > 0, srs_due)
+    recall_phase: Optional[MissionPhase]
     if lesson_is_card_based and srs_due > 0:
         recall_phase = MissionPhase(
             phase=PhaseKind.recall,
@@ -560,9 +590,17 @@ def assemble_progress_mission(
                 estimated_minutes=_estimate_srs_minutes(srs_due),
             ),
         )
+    elif srs_due > 0 or _has_guided_recall_content(user_id):
+        recall_phase = _make_recall_phase(
+            SourceKind.normal_course, srs_due > 0, srs_due
+        )
+    else:
+        recall_phase = None
 
-    phases = [
-        recall_phase,
+    phases = []
+    if recall_phase is not None:
+        phases.append(recall_phase)
+    phases.extend([
         MissionPhase(
             phase=PhaseKind.learn,
             title="Главный шаг миссии",
@@ -583,7 +621,7 @@ def assemble_progress_mission(
                 estimated_minutes=5,
             ),
         ),
-    ]
+    ])
 
     if srs_due > 0:
         phases.append(MissionPhase(
@@ -598,6 +636,11 @@ def assemble_progress_mission(
                 estimated_minutes=3,
             ),
         ))
+
+    # Skipping the recall phase can drop the plan below the 3-phase minimum;
+    # bring in a soft close phase so the plan still validates.
+    if len(phases) < 3:
+        phases.append(_make_close_phase())
 
     phases = _maybe_add_bonus_phase(phases)
     return MissionPlan(
@@ -669,9 +712,10 @@ def assemble_repair_mission(
 
     grammar_topic = _find_weak_grammar_topic(user_id)
 
-    recall_mode = "srs_review" if srs_due > 0 else "guided_recall"
-    phases: list[MissionPhase] = [
-        MissionPhase(
+    phases: list[MissionPhase] = []
+    if srs_due > 0 or _has_guided_recall_content(user_id):
+        recall_mode = "srs_review" if srs_due > 0 else "guided_recall"
+        phases.append(MissionPhase(
             phase=PhaseKind.recall,
             title="Возвращаем забытое",
             source_kind=SourceKind.srs,
@@ -681,8 +725,7 @@ def assemble_repair_mission(
                 content_title="Повторение карточек" if srs_due > 0 else "Быстрый разогрев",
                 estimated_minutes=_estimate_srs_minutes(srs_due) if srs_due > 0 else 3,
             ),
-        ),
-    ]
+        ))
 
     if grammar_topic:
         phases.append(MissionPhase(
@@ -764,8 +807,9 @@ def assemble_reading_mission(
     srs_due = _count_srs_due(user_id)
     book_title = book['title']
 
-    phases = [
-        MissionPhase(
+    phases: list[MissionPhase] = []
+    if srs_due > 0 or _has_guided_recall_content(user_id):
+        phases.append(MissionPhase(
             phase=PhaseKind.recall,
             title="Входим в контекст",
             source_kind=SourceKind.vocab,
@@ -775,7 +819,8 @@ def assemble_reading_mission(
                 content_title="Слова из книги" if srs_due > 0 else "Быстрый разогрев",
                 estimated_minutes=_estimate_srs_minutes(srs_due) if srs_due > 0 else 3,
             ),
-        ),
+        ))
+    phases.extend([
         MissionPhase(
             phase=PhaseKind.read,
             title="Читаем следующий фрагмент",
@@ -796,7 +841,7 @@ def assemble_reading_mission(
                 estimated_minutes=5,
             ),
         ),
-    ]
+    ])
 
     if srs_due > 0:
         phases.append(MissionPhase(
@@ -811,6 +856,11 @@ def assemble_reading_mission(
                 estimated_minutes=3,
             ),
         ))
+
+    # Skipping the recall phase can drop the plan below the 3-phase minimum;
+    # bring in a soft close phase so the plan still validates.
+    if len(phases) < 3:
+        phases.append(_make_close_phase())
 
     phases = _maybe_add_bonus_phase(phases)
     return MissionPlan(
