@@ -66,7 +66,7 @@ def is_adult_user(birth_year: Optional[int], reference_year: Optional[int] = Non
     if birth_year is None:
         return True
     current_year = reference_year or datetime.now(timezone.utc).year
-    return current_year - birth_year > _ADULT_AGE_THRESHOLD
+    return current_year - birth_year >= _ADULT_AGE_THRESHOLD
 
 
 def _rival_seed(user_id: int, race_date: date_cls) -> int:

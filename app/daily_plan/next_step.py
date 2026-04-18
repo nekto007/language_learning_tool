@@ -38,7 +38,6 @@ def get_next_best_step(user_id: int, db, max_steps: int = 3) -> list[NextStep]:
         _check_srs_due(user_id, db),
         _check_grammar_weak(user_id, db),
         _check_reading_progress(user_id, db),
-        _check_vocab(user_id, db),
     ] if s is not None]
 
     return _apply_queue_filters(candidates, max_steps)

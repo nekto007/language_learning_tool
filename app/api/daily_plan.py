@@ -82,6 +82,7 @@ def daily_status():
                         add_route_steps_idempotent(user_id, _pk, _route_today, db.session)
             db.session.commit()
         except Exception:
+            logger.warning("route_step sync failed in daily_status", exc_info=True)
             db.session.rollback()
 
     if day_secured:
@@ -100,6 +101,7 @@ def daily_status():
             write_secured_at(user_id, today, mission_type)
             db.session.commit()
         except Exception:
+            logger.warning("secured_at write failed in daily_status", exc_info=True)
             db.session.rollback()
 
     return jsonify({

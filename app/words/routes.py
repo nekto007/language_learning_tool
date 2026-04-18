@@ -1001,11 +1001,7 @@ def dashboard():
                 _tz_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
                 _today = datetime.now(_pytz.timezone(_tz_name)).date()
                 _ghost = get_ghost_rival(current_user.id, _today, tz=_tz_name)
-                _user_pos = (
-                    int(daily_race['steps_done'] / max(1, daily_race['steps_total']) * 100)
-                    if daily_race and daily_race.get('steps_total', 0) > 0
-                    else 0
-                )
+                _user_pos = int(steps_done / max(1, steps_total) * 100) if steps_total > 0 else 0
                 _framing = get_rival_strip_framing(_user_pos, _ghost)
                 rival_strip = {
                     'ghost': _ghost,
