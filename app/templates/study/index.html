@@ -192,7 +192,8 @@
                 <div class="decks-search">
                     <label for="deck-search" class="visually-hidden">Поиск колод</label>
                     <svg class="decks-search__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                    <input type="text" class="decks-search__input" id="deck-search" placeholder="Поиск колод...">
+                    <input type="text" class="decks-search__input" id="deck-search" placeholder="Поиск колод..." aria-describedby="search-help">
+                    <span id="search-help" class="visually-hidden">Введите название колоды для фильтрации списка</span>
                     <button class="decks-search__clear" type="button" id="clear-search" style="display: none;" aria-label="Очистить поиск">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
                     </button>
@@ -348,13 +349,13 @@
                 </div>
 
                 <div class="decks-card__actions">
-                    <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="decks-card__btn decks-card__btn--quiz" title="Квиз">
+                    <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="decks-card__btn decks-card__btn--quiz" title="Квиз" aria-label="Квиз для колоды {{ deck.title }}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                         <span class="decks-card__btn-label">Квиз</span>
                     </a>
                     <form method="POST" action="{{ url_for('study.copy_deck', deck_id=deck.id) }}" class="decks-card__copy-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <button type="submit" class="decks-card__btn decks-card__btn--copy" title="Копировать">
+                        <button type="submit" class="decks-card__btn decks-card__btn--copy" title="Копировать" aria-label="Копировать колоду {{ deck.title }}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                             <span class="decks-card__btn-label">Копировать</span>
                         </button>

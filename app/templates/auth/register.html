@@ -249,6 +249,15 @@ document.querySelector('form[action*="register"]').addEventListener('submit', fu
   btn.textContent = 'Регистрация...';
   btn.classList.add('auth-btn--loading');
 });
+
+document.addEventListener('DOMContentLoaded', function() {
+  const firstError = document.querySelector('.auth-field__error');
+  if (firstError) {
+    const field = firstError.closest('.auth-field');
+    const input = field ? field.querySelector('.auth-field__input') : null;
+    if (input) input.focus();
+  }
+});
 </script>
 {% endblock %}
 
