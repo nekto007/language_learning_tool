@@ -41,7 +41,7 @@
 
         <div class="auth-field">
           <label class="auth-field__label" for="{{ form.username_or_email.id }}">{{ form.username_or_email.label.text }}</label>
-          <input type="text" class="auth-field__input" id="{{ form.username_or_email.id }}" name="{{ form.username_or_email.name }}" placeholder="Введите имя пользователя или email" value="{{ form.username_or_email.data or '' }}">
+          <input type="text" class="auth-field__input" id="{{ form.username_or_email.id }}" name="{{ form.username_or_email.name }}" placeholder="Введите имя пользователя или email" title="Введите имя пользователя или email" value="{{ form.username_or_email.data or '' }}">
           {% for error in form.username_or_email.errors %}
             <span class="auth-field__error">{{ error }}</span>
           {% endfor %}
@@ -333,6 +333,12 @@
   text-decoration: underline;
 }
 
+.auth-link:focus-visible {
+  outline: 2px solid var(--auth-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* Footer */
 .auth-card__footer {
   padding: 1.25rem 2rem;
@@ -426,6 +432,27 @@
 
   .auth-card__footer {
     padding: 1rem 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-card__header {
+    padding: 1rem 1.25rem 0.875rem;
+  }
+
+  .auth-card__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    margin-bottom: 0.625rem;
+  }
+
+  .auth-card__title {
+    font-size: 1.25rem;
+  }
+
+  .auth-field__input {
+    font-size: 0.9rem;
   }
 }
 </style>

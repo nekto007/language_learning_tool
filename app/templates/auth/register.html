@@ -182,6 +182,7 @@
 
 .auth-link { font-size: 0.8125rem; font-weight: 500; color: var(--auth-primary); text-decoration: none; transition: color 0.2s ease; }
 .auth-link:hover { color: var(--auth-primary-dark); text-decoration: underline; }
+.auth-link:focus-visible { outline: 2px solid var(--auth-primary); outline-offset: 2px; border-radius: 2px; }
 
 .auth-card__footer { padding: 1.25rem 2rem; border-top: 1px solid var(--auth-border); text-align: center; }
 .auth-card__footer p { margin: 0; font-size: 0.875rem; color: var(--auth-text-muted); }
@@ -222,6 +223,13 @@
   .auth-card__header { padding: 1.5rem 1.5rem 1.25rem; }
   .auth-card__body { padding: 1.5rem; }
   .auth-card__footer { padding: 1rem 1.5rem; }
+}
+
+@media (max-width: 480px) {
+  .auth-card__header { padding: 1rem 1.25rem 0.875rem; }
+  .auth-card__icon { width: 44px; height: 44px; border-radius: 10px; margin-bottom: 0.625rem; }
+  .auth-card__title { font-size: 1.25rem; }
+  .auth-field__input { font-size: 0.9rem; }
 }
 </style>
 
