@@ -194,6 +194,64 @@ def _count_grammar_due(user_id: int) -> int:
     ) or 0
 
 
+
+def _get_remaining_card_budget(user_id: int) -> tuple[int, int]:
+    """Return (remaining_new, remaining_reviews) the user can still study today.
+
+    Mirrors the daily-budget math in app/study/api_routes.py so plan previews
+    promise only what the card API can actually serve. Without this, the
+    plan advertises e.g. 109 SRS cards while the user's reviews_per_day is
+    capped at 40 — the remaining 69 get pushed to tomorrow, growing the
+    backlog.
+    """
+    from app.study.services import SRSService
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    user_word_ids_subq = db.session.query(UserWord.id).filter_by(user_id=user_id)
+    new_cards_today = (
+        db.session.query(func.count(UserCardDirection.id))
+        .filter(
+            UserCardDirection.user_word_id.in_(user_word_ids_subq),
+            UserCardDirection.first_reviewed >= today_start,
+            UserCardDirection.first_reviewed.isnot(None),
+        ).scalar() or 0
+    )
+    reviews_today = (
+        db.session.query(func.count(UserCardDirection.id))
+        .filter(
+            UserCardDirection.user_word_id.in_(user_word_ids_subq),
+            UserCardDirection.last_reviewed >= today_start,
+            UserCardDirection.first_reviewed < today_start,
+            UserCardDirection.first_reviewed.isnot(None),
+        ).scalar() or 0
+    )
+
+    adaptive_new, adaptive_reviews = SRSService.get_adaptive_limits(user_id)
+    return (
+        max(0, adaptive_new - new_cards_today),
+        max(0, adaptive_reviews - reviews_today),
+    )
+
+
+def _allocate_srs_budget(srs_due: int, remaining_reviews: int) -> tuple[int, int]:
+    """Split the daily review budget between recall and micro_check phases.
+
+    Returns (recall_count, check_count). Unique review cards across the plan
+    stay within ``remaining_reviews``. About 1/3 of the budget (capped at
+    10) is reserved for the final micro_check; the recall phase takes the
+    rest. When the pool is tiny (<3), check is skipped so we don't promise
+    a phase we can't honor.
+    """
+    effective = max(0, min(srs_due, remaining_reviews))
+    if effective <= 0:
+        return 0, 0
+    check_count = min(10, effective // 3)
+    recall_count = effective - check_count
+    return recall_count, check_count
+
+
 def _has_guided_recall_content(user_id: int) -> bool:
     """Return True when a `guided_recall` phase would have cards to show.
 
@@ -489,6 +547,9 @@ def assemble_progress_mission(
 ) -> Optional[MissionPlan]:
     """Build Progress mission: Recall → Learn (next lesson) → Use (practice) → optional Check."""
     srs_due = _count_srs_due(user_id)
+    _, remaining_reviews = _get_remaining_card_budget(user_id)
+    recall_count, check_count = _allocate_srs_budget(srs_due, remaining_reviews)
+    has_srs_recall = recall_count > 0
 
     if primary_source == SourceKind.book_course:
         bc_lesson = _find_next_book_course_lesson(user_id)
@@ -497,9 +558,9 @@ def assemble_progress_mission(
 
         bc_title = bc_lesson.get('course_title') or "Книжный курс"
         phases: list[MissionPhase] = []
-        if srs_due > 0 or _has_guided_recall_content(user_id):
+        if has_srs_recall or _has_guided_recall_content(user_id):
             phases.append(
-                _make_recall_phase(SourceKind.book_course, srs_due > 0, srs_due)
+                _make_recall_phase(SourceKind.book_course, has_srs_recall, recall_count)
             )
         phases.extend([
             MissionPhase(
@@ -524,7 +585,7 @@ def assemble_progress_mission(
             ),
         ])
 
-        if srs_due > 0:
+        if check_count > 0:
             phases.append(MissionPhase(
                 phase=PhaseKind.check,
                 title="Контрольный раунд",
@@ -532,7 +593,7 @@ def assemble_progress_mission(
                 mode="micro_check",
                 required=False,
                 preview=PhasePreview(
-                    item_count=min(srs_due, 10),
+                    item_count=check_count,
                     content_title="Мини-проверка",
                     estimated_minutes=3,
                 ),
@@ -578,21 +639,21 @@ def assemble_progress_mission(
     # phases would look like identical card sessions to the user. Relabel the recall
     # phase so it's clear these are different activities (SRS review vs. new lesson).
     recall_phase: Optional[MissionPhase]
-    if lesson_is_card_based and srs_due > 0:
+    if lesson_is_card_based and has_srs_recall:
         recall_phase = MissionPhase(
             phase=PhaseKind.recall,
             title="Карточки SRS: повторение",
             source_kind=SourceKind.srs,
             mode="srs_review",
             preview=PhasePreview(
-                item_count=srs_due,
+                item_count=recall_count,
                 content_title="Повторение из вашей колоды",
-                estimated_minutes=_estimate_srs_minutes(srs_due),
+                estimated_minutes=_estimate_srs_minutes(recall_count),
             ),
         )
-    elif srs_due > 0 or _has_guided_recall_content(user_id):
+    elif has_srs_recall or _has_guided_recall_content(user_id):
         recall_phase = _make_recall_phase(
-            SourceKind.normal_course, srs_due > 0, srs_due
+            SourceKind.normal_course, has_srs_recall, recall_count
         )
     else:
         recall_phase = None
@@ -623,7 +684,7 @@ def assemble_progress_mission(
         ),
     ])
 
-    if srs_due > 0:
+    if check_count > 0:
         phases.append(MissionPhase(
             phase=PhaseKind.check,
             title="Контрольный раунд",
@@ -631,7 +692,7 @@ def assemble_progress_mission(
             mode="micro_check",
             required=False,
             preview=PhasePreview(
-                item_count=min(srs_due, 10),
+                item_count=check_count,
                 content_title="Мини-проверка",
                 estimated_minutes=3,
             ),
@@ -676,6 +737,9 @@ def assemble_repair_mission(
     """Build Repair mission: Recall (overdue SRS) → Learn (weak grammar/vocab) → Use (quiz) → Close."""
     srs_due = _count_srs_due(user_id)
     grammar_due = _count_grammar_due(user_id)
+    _, remaining_reviews = _get_remaining_card_budget(user_id)
+    recall_count, _check_reserve = _allocate_srs_budget(srs_due, remaining_reviews)
+    has_srs_recall = recall_count > 0
 
     if srs_due == 0 and grammar_due == 0:
         track = detect_primary_track(user_id)
@@ -713,17 +777,17 @@ def assemble_repair_mission(
     grammar_topic = _find_weak_grammar_topic(user_id)
 
     phases: list[MissionPhase] = []
-    if srs_due > 0 or _has_guided_recall_content(user_id):
-        recall_mode = "srs_review" if srs_due > 0 else "guided_recall"
+    if has_srs_recall or _has_guided_recall_content(user_id):
+        recall_mode = "srs_review" if has_srs_recall else "guided_recall"
         phases.append(MissionPhase(
             phase=PhaseKind.recall,
             title="Возвращаем забытое",
             source_kind=SourceKind.srs,
             mode=recall_mode,
             preview=PhasePreview(
-                item_count=srs_due if srs_due > 0 else None,
-                content_title="Повторение карточек" if srs_due > 0 else "Быстрый разогрев",
-                estimated_minutes=_estimate_srs_minutes(srs_due) if srs_due > 0 else 3,
+                item_count=recall_count if has_srs_recall else None,
+                content_title="Повторение карточек" if has_srs_recall else "Быстрый разогрев",
+                estimated_minutes=_estimate_srs_minutes(recall_count) if has_srs_recall else 3,
             ),
         ))
 
@@ -805,19 +869,22 @@ def assemble_reading_mission(
         return None
 
     srs_due = _count_srs_due(user_id)
+    _, remaining_reviews = _get_remaining_card_budget(user_id)
+    recall_count, check_count = _allocate_srs_budget(srs_due, remaining_reviews)
+    has_srs_recall = recall_count > 0
     book_title = book['title']
 
     phases: list[MissionPhase] = []
-    if srs_due > 0 or _has_guided_recall_content(user_id):
+    if has_srs_recall or _has_guided_recall_content(user_id):
         phases.append(MissionPhase(
             phase=PhaseKind.recall,
             title="Входим в контекст",
             source_kind=SourceKind.vocab,
-            mode="book_vocab_recall" if srs_due > 0 else "guided_recall",
+            mode="book_vocab_recall" if has_srs_recall else "guided_recall",
             preview=PhasePreview(
-                item_count=srs_due if srs_due > 0 else None,
-                content_title="Слова из книги" if srs_due > 0 else "Быстрый разогрев",
-                estimated_minutes=_estimate_srs_minutes(srs_due) if srs_due > 0 else 3,
+                item_count=recall_count if has_srs_recall else None,
+                content_title="Слова из книги" if has_srs_recall else "Быстрый разогрев",
+                estimated_minutes=_estimate_srs_minutes(recall_count) if has_srs_recall else 3,
             ),
         ))
     phases.extend([
@@ -843,7 +910,7 @@ def assemble_reading_mission(
         ),
     ])
 
-    if srs_due > 0:
+    if check_count > 0:
         phases.append(MissionPhase(
             phase=PhaseKind.check,
             title="Закрываем чтение короткой проверкой",
@@ -851,7 +918,7 @@ def assemble_reading_mission(
             mode="meaning_prompt",
             required=False,
             preview=PhasePreview(
-                item_count=min(srs_due, 10),
+                item_count=check_count,
                 content_title="Мини-проверка",
                 estimated_minutes=3,
             ),

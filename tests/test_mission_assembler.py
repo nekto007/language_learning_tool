@@ -37,6 +37,19 @@ def _assume_recall_content():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _generous_card_budget():
+    """Give assembler tests an effectively-unlimited daily card budget.
+
+    Tests drive counts via `_count_srs_due` mocks and don't set up real
+    StudySettings / card history; the default lets pre-existing scenarios
+    see the same item_count they always have.
+    """
+    with patch(f"{MODULE}._get_remaining_card_budget",
+               return_value=(1000, 1000)):
+        yield
+
+
 def _low_repair() -> RepairBreakdown:
     return RepairBreakdown(
         overdue_srs_count=5,
@@ -392,6 +405,85 @@ class TestRecallPhaseSkippedWhenNoContent:
         assert not any(p.phase == PhaseKind.recall for p in plan.phases)
 
 
+class TestAllocateSrsBudget:
+    """_allocate_srs_budget: split review budget across recall + micro_check.
+
+    Unique cards across a plan must stay within the user's daily review
+    budget. Regression for the UI case where the plan promised 109 cards
+    while reviews_per_day capped real delivery at 40.
+    """
+
+    def test_budget_unlimited_splits_with_one_third_reserve(self):
+        from app.daily_plan.assembler import _allocate_srs_budget
+        # 25 SRS due, unlimited budget → check = 25//3 = 8, recall = 17
+        assert _allocate_srs_budget(25, 1000) == (17, 8)
+
+    def test_budget_caps_at_user_limit(self):
+        from app.daily_plan.assembler import _allocate_srs_budget
+        # 109 SRS due but only 40 reviews remaining → effective=40,
+        # check=10, recall=30. Total=40 fits the limit exactly.
+        recall, check = _allocate_srs_budget(109, 40)
+        assert recall + check == 40
+        assert check == 10
+        assert recall == 30
+
+    def test_check_count_capped_at_10(self):
+        from app.daily_plan.assembler import _allocate_srs_budget
+        # With huge budget the check phase should never grow past 10.
+        recall, check = _allocate_srs_budget(500, 500)
+        assert check == 10
+        assert recall == 490
+
+    def test_tiny_pool_skips_check_phase(self):
+        from app.daily_plan.assembler import _allocate_srs_budget
+        # srs_due=2 → check = 2//3 = 0. Check phase should be skipped.
+        assert _allocate_srs_budget(2, 100) == (2, 0)
+
+    def test_zero_budget_returns_zeros(self):
+        from app.daily_plan.assembler import _allocate_srs_budget
+        assert _allocate_srs_budget(50, 0) == (0, 0)
+        assert _allocate_srs_budget(0, 100) == (0, 0)
+
+
+class TestPlanRespectsDailyLimit:
+    """End-to-end: assembler previews must not promise more review cards
+    than the user can actually study today.
+    """
+
+    @patch(f"{MODULE}._get_remaining_card_budget", return_value=(10, 40))
+    @patch(f"{MODULE}._count_srs_due", return_value=109)
+    @patch(f"{MODULE}._find_next_lesson", return_value={
+        'title': 'L', 'lesson_id': 1, 'module_id': 1,
+        'module_number': 1, 'lesson_type': 'grammar',
+    })
+    def test_progress_caps_srs_phases_by_review_budget(
+        self, _lesson, _srs, _budget,
+    ):
+        plan = assemble_progress_mission(1, SourceKind.normal_course)
+        recall_count = plan.phases[0].preview.item_count
+        check = next(
+            (p for p in plan.phases if p.phase == PhaseKind.check), None,
+        )
+        check_count = check.preview.item_count if check else 0
+        assert recall_count + check_count <= 40
+
+    @patch(f"{MODULE}._get_remaining_card_budget", return_value=(0, 0))
+    @patch(f"{MODULE}._has_guided_recall_content", return_value=False)
+    @patch(f"{MODULE}._count_srs_due", return_value=50)
+    @patch(f"{MODULE}._find_next_lesson", return_value={
+        'title': 'L', 'lesson_id': 1, 'module_id': 1,
+        'module_number': 1, 'lesson_type': 'grammar',
+    })
+    def test_progress_drops_recall_when_budget_zero(
+        self, _lesson, _srs, _content, _budget,
+    ):
+        plan = assemble_progress_mission(1, SourceKind.normal_course)
+        # No SRS budget + no guided_recall content → recall phase skipped.
+        assert not any(p.phase == PhaseKind.recall for p in plan.phases)
+        # And no orphaned micro_check promising cards it can't deliver.
+        assert not any(p.mode == "micro_check" for p in plan.phases)
+
+
 class TestDeduplicatePhases:
     """Tests for _deduplicate_phases and duplicate category prevention."""
 
@@ -642,12 +734,14 @@ class TestPhasePreviewData:
     })
     def test_progress_normal_course_preview(self, _lesson, _srs):
         plan = assemble_progress_mission(1, SourceKind.normal_course)
-        # Recall phase: SRS review with item count
+        # Recall + micro_check split the SRS budget so unique cards across
+        # the plan stay within the daily review limit. With srs_due=25:
+        # check_count = min(10, 25 // 3) = 8, recall_count = 25 - 8 = 17.
         recall = plan.phases[0]
         assert recall.preview is not None
-        assert recall.preview.item_count == 25
+        assert recall.preview.item_count == 17
         assert recall.preview.content_title == "Повторение карточек"
-        assert recall.preview.estimated_minutes == 3  # ceil(25/10)
+        assert recall.preview.estimated_minutes == 2  # ceil(17/10) -> min 2
 
         # Learn phase: lesson title
         learn = plan.phases[1]
@@ -664,7 +758,7 @@ class TestPhasePreviewData:
         # Check phase: micro check
         check = plan.phases[3]
         assert check.preview is not None
-        assert check.preview.item_count == 10  # capped at 10
+        assert check.preview.item_count == 8
         assert check.preview.estimated_minutes == 3
 
     @patch(f"{MODULE}._count_srs_due", return_value=0)
@@ -702,10 +796,10 @@ class TestPhasePreviewData:
     @patch(f"{MODULE}._count_srs_due", return_value=20)
     def test_repair_with_grammar_preview(self, _srs, _grammar, _topic):
         plan = assemble_repair_mission(1, _high_repair())
-        # Recall
+        # SRS budget split: srs_due=20 → check=min(10, 20//3)=6, recall=14.
         recall = plan.phases[0]
         assert recall.preview is not None
-        assert recall.preview.item_count == 20
+        assert recall.preview.item_count == 14
         assert recall.preview.content_title == "Повторение карточек"
 
         # Learn: grammar topic
@@ -730,18 +824,18 @@ class TestPhasePreviewData:
     @patch(f"{MODULE}._count_srs_due", return_value=15)
     def test_repair_no_grammar_preview(self, _srs, _grammar, _topic):
         plan = assemble_repair_mission(1, _high_repair())
-        # Recall has SRS preview
+        # SRS budget split: srs_due=15 → check=min(10, 15//3)=5, recall=10.
         recall = plan.phases[0]
-        assert recall.preview.item_count == 15
+        assert recall.preview.item_count == 10
 
     @patch(f"{MODULE}._count_srs_due", return_value=10)
     @patch(f"{MODULE}._find_next_book", return_value={'title': 'Alice in Wonderland', 'id': 7})
     def test_reading_preview(self, _book, _srs):
         plan = assemble_reading_mission(1)
-        # Recall: book vocab
+        # SRS budget split: srs_due=10 → check=min(10, 10//3)=3, recall=7.
         recall = plan.phases[0]
         assert recall.preview is not None
-        assert recall.preview.item_count == 10
+        assert recall.preview.item_count == 7
         assert recall.preview.content_title == "Слова из книги"
 
         # Read phase: book title
@@ -756,10 +850,11 @@ class TestPhasePreviewData:
         assert use.preview.content_title == "Alice in Wonderland"
         assert use.preview.estimated_minutes == 5
 
-        # Check: meaning prompt
+        # Check: meaning prompt — shares the SRS budget with recall,
+        # so check gets min(10, 10//3) = 3 items.
         check = plan.phases[3]
         assert check.preview is not None
-        assert check.preview.item_count == 10
+        assert check.preview.item_count == 3
         assert check.preview.estimated_minutes == 3
 
     @patch(f"{MODULE}._count_srs_due", return_value=0)
