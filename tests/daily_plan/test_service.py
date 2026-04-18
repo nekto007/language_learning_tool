@@ -28,6 +28,18 @@ SERVICE_MOD = "app.daily_plan.service"
 LEGACY_MOD = "app.telegram.queries"
 
 
+@pytest.fixture(autouse=True)
+def _assume_recall_content():
+    """Treat guided_recall as having content unless a test opts out.
+
+    Tests in this file mock assembler dependencies without setting up the
+    daily-plan card pool; the real _has_guided_recall_content would return
+    False and skip the recall phase, breaking pre-existing expectations.
+    """
+    with patch(f"{ASSEMBLER_MOD}._has_guided_recall_content", return_value=True):
+        yield
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

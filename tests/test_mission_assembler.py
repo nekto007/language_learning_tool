@@ -24,6 +24,19 @@ from app.daily_plan.assembler import (
 MODULE = "app.daily_plan.assembler"
 
 
+@pytest.fixture(autouse=True)
+def _assume_recall_content():
+    """Treat guided_recall as having content unless a test opts out.
+
+    Tests in this file drive the assembler with mocks for lesson/SRS counts
+    and don't set up the daily-plan card pool; without this patch every
+    no-SRS scenario would skip the recall phase and break pre-existing
+    expectations.
+    """
+    with patch(f"{MODULE}._has_guided_recall_content", return_value=True):
+        yield
+
+
 def _low_repair() -> RepairBreakdown:
     return RepairBreakdown(
         overdue_srs_count=5,
@@ -327,6 +340,56 @@ class TestFallbackHelpers:
         close = next(p for p in plan.phases if p.phase == PhaseKind.close)
         assert close.mode == "success_marker"
         assert close.required is False
+
+
+class TestRecallPhaseSkippedWhenNoContent:
+    """When there's nothing to study for guided_recall, skip the phase
+    so the user doesn't land on an empty session that would trigger the
+    daily-limit banner mid-flow.
+    """
+
+    @patch(f"{MODULE}._has_guided_recall_content", return_value=False)
+    @patch(f"{MODULE}._count_srs_due", return_value=0)
+    @patch(f"{MODULE}._find_next_lesson", return_value={
+        'title': 'L', 'lesson_id': 1, 'module_id': 1,
+        'module_number': 1, 'lesson_type': 'grammar',
+    })
+    def test_progress_skips_recall_when_no_cards(self, _lesson, _srs, _content):
+        plan = assemble_progress_mission(1, SourceKind.normal_course)
+        assert not any(p.phase == PhaseKind.recall for p in plan.phases)
+
+    @patch(f"{MODULE}._has_guided_recall_content", return_value=False)
+    @patch(f"{MODULE}._count_srs_due", return_value=0)
+    @patch(f"{MODULE}._find_next_book_course_lesson", return_value={
+        'course_id': 1, 'module_id': 1, 'lesson_id': 1,
+        'course_title': 'BC', 'lesson_title': 'L',
+    })
+    def test_progress_book_course_skips_recall_when_no_cards(self, _bc, _srs, _content):
+        plan = assemble_progress_mission(1, SourceKind.book_course)
+        assert not any(p.phase == PhaseKind.recall for p in plan.phases)
+
+    @patch(f"{MODULE}._has_guided_recall_content", return_value=False)
+    @patch(f"{MODULE}._find_weak_grammar_topic", return_value={
+        'title': 'T', 'topic_id': 1,
+    })
+    @patch(f"{MODULE}._count_grammar_due", return_value=3)
+    @patch(f"{MODULE}._count_srs_due", return_value=0)
+    def test_repair_skips_recall_when_no_srs_and_no_cards(
+        self, _srs, _gram, _topic, _content,
+    ):
+        plan = assemble_repair_mission(1, _high_repair())
+        assert plan is not None
+        assert not any(p.phase == PhaseKind.recall for p in plan.phases)
+
+    @patch(f"{MODULE}._has_guided_recall_content", return_value=False)
+    @patch(f"{MODULE}._count_srs_due", return_value=0)
+    @patch(f"{MODULE}._find_next_book", return_value={
+        'id': 1, 'title': 'Book', 'next_chapter': {'id': 1, 'title': 'Ch1'},
+    })
+    def test_reading_skips_recall_when_no_cards(self, _book, _srs, _content):
+        plan = assemble_reading_mission(1)
+        assert plan is not None
+        assert not any(p.phase == PhaseKind.recall for p in plan.phases)
 
 
 class TestDeduplicatePhases:

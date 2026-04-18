@@ -85,7 +85,16 @@ def get_study_items():
     new_cards_limit_reached = new_cards_today >= new_cards_limit
     reviews_limit_reached = reviews_today >= reviews_limit
 
-    if not extra_study and new_cards_limit_reached and reviews_limit_reached:
+    # Daily plan sessions own their own budget via the phase assembler, so
+    # never terminate a plan session mid-way with the daily_limit_reached
+    # banner — let the flow return empty items when done and the frontend
+    # renders "session complete" instead of the scary limit message.
+    is_daily_plan_session = word_source == 'daily_plan_mix'
+
+    if (not extra_study
+            and not is_daily_plan_session
+            and new_cards_limit_reached
+            and reviews_limit_reached):
         return jsonify({
             'status': 'daily_limit_reached',
             'message': 'Daily limits reached',
