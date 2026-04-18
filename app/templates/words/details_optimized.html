@@ -379,6 +379,13 @@
   margin-top: 0.125rem;
 }
 
+.wdet-empty-text {
+  color: var(--wdet-text-muted);
+  font-size: 0.875rem;
+  padding: 0.75rem 0;
+  margin: 0;
+}
+
 /* ── Status Card ── */
 .wdet-status {
   background: var(--wdet-surface);
@@ -636,18 +643,14 @@
         </div>
       </div>
       {% else %}
-      <div class="wdet-card wdet-animate wdet-animate--d2" aria-hidden="true">
+      <div class="wdet-card wdet-animate wdet-animate--d2">
         <div class="wdet-card__header">
-          <div class="skeleton-box" style="width: 40px; height: 40px; border-radius: 10px;"></div>
-          <div class="skeleton-text" style="width: 120px; height: 18px; border-radius: 4px;"></div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: var(--wdet-surface-alt); border-radius: var(--wdet-radius-sm);">
-          <div class="skeleton-box" style="width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;"></div>
-          <div style="flex: 1;">
-            <div class="skeleton-text" style="width: 80%; height: 14px; border-radius: 4px; margin-bottom: 0.5rem;"></div>
-            <div class="skeleton-text" style="width: 55%; height: 12px; border-radius: 4px;"></div>
+          <div class="wdet-card__icon wdet-card__icon--audio">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
           </div>
+          <h3 class="wdet-card__title">{{ _('Произношение') }}</h3>
         </div>
+        <p class="wdet-empty-text">{{ _('Произношение недоступно') }}</p>
       </div>
       {% endif %}
 
@@ -665,16 +668,14 @@
         </div>
       </div>
       {% else %}
-      <div class="wdet-card wdet-animate wdet-animate--d3" aria-hidden="true">
+      <div class="wdet-card wdet-animate wdet-animate--d3">
         <div class="wdet-card__header">
-          <div class="skeleton-box" style="width: 40px; height: 40px; border-radius: 10px;"></div>
-          <div class="skeleton-text" style="width: 160px; height: 18px; border-radius: 4px;"></div>
+          <div class="wdet-card__icon wdet-card__icon--examples">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/></svg>
+          </div>
+          <h3 class="wdet-card__title">{{ _('Примеры использования') }}</h3>
         </div>
-        <div style="padding: 1.25rem; background: var(--wdet-surface-alt); border-radius: var(--wdet-radius-sm); border-left: 3px solid var(--wdet-border);">
-          <div class="skeleton-text" style="width: 100%; height: 14px; border-radius: 4px; margin-bottom: 0.625rem;"></div>
-          <div class="skeleton-text" style="width: 85%; height: 14px; border-radius: 4px; margin-bottom: 0.625rem;"></div>
-          <div class="skeleton-text" style="width: 70%; height: 14px; border-radius: 4px;"></div>
-        </div>
+        <p class="wdet-empty-text">{{ _('Примеры недоступны') }}</p>
       </div>
       {% endif %}
 
@@ -697,19 +698,14 @@
         </div>
       </div>
       {% else %}
-      <div class="wdet-card wdet-animate wdet-animate--d4" aria-hidden="true">
+      <div class="wdet-card wdet-animate wdet-animate--d4">
         <div class="wdet-card__header">
-          <div class="skeleton-box" style="width: 40px; height: 40px; border-radius: 10px;"></div>
-          <div class="skeleton-text" style="width: 140px; height: 18px; border-radius: 4px;"></div>
-        </div>
-        <div class="wdet-related-grid">
-          {% for _ in range(4) %}
-          <div style="padding: 0.875rem; border: 1px solid var(--wdet-border); border-radius: var(--wdet-radius-sm);">
-            <div class="skeleton-text" style="width: 70%; height: 14px; border-radius: 4px; margin-bottom: 0.375rem;"></div>
-            <div class="skeleton-text" style="width: 50%; height: 12px; border-radius: 4px;"></div>
+          <div class="wdet-card__icon wdet-card__icon--related">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
           </div>
-          {% endfor %}
+          <h3 class="wdet-card__title">{{ _('Похожие слова') }}</h3>
         </div>
+        <p class="wdet-empty-text">{{ _('Похожие слова не найдены') }}</p>
       </div>
       {% endif %}
     </div>

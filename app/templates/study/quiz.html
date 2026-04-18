@@ -1569,18 +1569,10 @@
 
         hintBtn.addEventListener('click', function() {
             if (this.disabled) return;
-            const isVisible = hintText.style.display === 'block';
-            if (isVisible) {
-                hintText.style.display = 'none';
-                this.setAttribute('aria-expanded', 'false');
-                this.classList.remove('hint-btn--active');
-                this.disabled = false;
-            } else {
-                hintText.style.display = 'block';
-                this.setAttribute('aria-expanded', 'true');
-                this.classList.add('hint-btn--active');
-                this.disabled = true;
-            }
+            hintText.style.display = 'block';
+            this.setAttribute('aria-expanded', 'true');
+            this.classList.add('hint-btn--active');
+            this.disabled = true;
         });
 
         endSessionBtn.addEventListener('click', function() {

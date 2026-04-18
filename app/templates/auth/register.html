@@ -207,17 +207,6 @@
 /* Error message polish */
 .auth-field__error::before { content: '⚠ '; }
 
-/* Flash error block */
-.alert--form-error {
-  border-left: 3px solid var(--auth-error);
-  background: rgba(239, 68, 68, 0.06);
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  color: var(--auth-error);
-  font-size: 0.875rem;
-  margin-bottom: 1rem;
-}
-
 @media (max-width: 640px) {
   .auth-page { padding: 1rem 0.75rem 2rem; }
   .auth-card__header { padding: 1.5rem 1.5rem 1.25rem; }
@@ -235,7 +224,7 @@
 
 <script>
 function togglePasswordVisibility(btn) {
-  const input = btn.previousElementSibling;
+  const input = btn.closest('.auth-password-wrapper').querySelector('input');
   const isPassword = input.type === 'password';
   input.type = isPassword ? 'text' : 'password';
   btn.setAttribute('aria-label', isPassword ? 'Скрыть пароль' : 'Показать пароль');
@@ -243,7 +232,7 @@ function togglePasswordVisibility(btn) {
   btn.querySelector('.eye-off-icon').style.display = isPassword ? '' : 'none';
 }
 
-document.querySelector('form[action*="register"]').addEventListener('submit', function() {
+document.querySelector('form').addEventListener('submit', function() {
   const btn = document.getElementById('register-submit-btn');
   btn.disabled = true;
   btn.textContent = 'Регистрация...';
