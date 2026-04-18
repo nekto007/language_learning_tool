@@ -21,6 +21,19 @@ from app.daily_plan.service import (
 )
 
 MODULE = "app.daily_plan.service"
+ASSEMBLER_MOD = "app.daily_plan.assembler"
+
+
+@pytest.fixture(autouse=True)
+def _generous_card_budget():
+    """Tests drive the service with mocks for SRS/lesson counts and don't
+    set up StudySettings or card history; give the assembler an effectively
+    unlimited daily card budget so pre-existing scenarios keep their shape.
+    """
+    with patch(f"{ASSEMBLER_MOD}._get_remaining_card_budget",
+               return_value=(1000, 1000)), \
+         patch(f"{ASSEMBLER_MOD}._has_guided_recall_content", return_value=True):
+        yield
 
 
 def _make_progress_plan() -> MissionPlan:

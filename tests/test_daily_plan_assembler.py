@@ -19,6 +19,14 @@ def _assume_recall_content():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _generous_card_budget():
+    """Give assembler tests an effectively-unlimited daily card budget."""
+    with patch(f"{ASSEMBLER_MOD}._get_remaining_card_budget",
+               return_value=(1000, 1000)):
+        yield
+
+
 # ---------------------------------------------------------------------------
 # assemble_repair_mission — normal (non-degenerate) path
 # ---------------------------------------------------------------------------
