@@ -277,9 +277,11 @@ def _check_reading_progress(user_id: int, db) -> Optional[NextStep]:
 
     started_book_ids = [
         r[0]
-        for r in db.session.query(distinct(Chapter.book_id))
+        for r in db.session.query(Chapter.book_id)
         .join(UserChapterProgress, UserChapterProgress.chapter_id == Chapter.id)
         .filter(UserChapterProgress.user_id == user_id)
+        .group_by(Chapter.book_id)
+        .order_by(func.max(UserChapterProgress.updated_at).desc())
         .all()
     ]
 

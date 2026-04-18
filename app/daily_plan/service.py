@@ -28,25 +28,20 @@ def write_secured_at(user_id: int, plan_date: date, mission_type: Optional[str] 
 
     Creates the log row if it doesn't exist; updates only if secured_at is null.
     This is idempotent — calling it multiple times is safe.
+    Callers are responsible for wrapping in try/except and rolling back on failure.
     """
     from app.utils.db import db
-    try:
-        log = DailyPlanLog.query.filter_by(user_id=user_id, plan_date=plan_date).first()
-        if log is None:
-            log = DailyPlanLog(
-                user_id=user_id,
-                plan_date=plan_date,
-                mission_type=mission_type,
-            )
-            db.session.add(log)
-        if log.secured_at is None:
-            log.secured_at = datetime.now(timezone.utc)
-        db.session.flush()
-    except Exception:
-        logger.warning(
-            "Failed to write secured_at for user %s on %s", user_id, plan_date,
-            exc_info=True,
+    log = DailyPlanLog.query.filter_by(user_id=user_id, plan_date=plan_date).first()
+    if log is None:
+        log = DailyPlanLog(
+            user_id=user_id,
+            plan_date=plan_date,
+            mission_type=mission_type,
         )
+        db.session.add(log)
+    if log.secured_at is None:
+        log.secured_at = datetime.now(timezone.utc)
+    db.session.flush()
 
 
 def _with_plan_meta(

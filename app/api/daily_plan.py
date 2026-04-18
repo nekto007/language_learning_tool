@@ -219,7 +219,7 @@ def daily_race_status():
     user_id = current_user.id
 
     user = User.query.get(user_id)
-    if user and not is_adult_user(user.birth_year):
+    if user is None or not is_adult_user(user.birth_year):
         return api_error('age_restricted', 'Race feature not available', 403)
 
     try:
@@ -375,6 +375,10 @@ def record_daily_plan_event():
     if plan_date_str:
         try:
             plan_date = date_cls.fromisoformat(plan_date_str)
+            today = date_cls.today()
+            from datetime import timedelta
+            if plan_date > today or plan_date < today - timedelta(days=2):
+                plan_date = today
         except ValueError:
             plan_date = None
     else:
