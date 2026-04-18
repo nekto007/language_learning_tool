@@ -1565,6 +1565,16 @@
     </div>
     {% endif %}
 
+    <!-- Error Fallback (hidden by default, shown via JS on fetch error) -->
+    <div id="vocab-error-fallback" style="display: none;" class="vocab-empty" role="alert">
+        <div class="vocab-empty__icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h3 class="vocab-empty__title">{{ _('Не удалось загрузить слова') }}</h3>
+        <p class="vocab-empty__text">{{ _('Обновите страницу.') }}</p>
+        <button onclick="window.location.reload()" class="vocab-empty__btn">{{ _('Обновить страницу') }}</button>
+    </div>
+
 </div>
 
 <!-- Audio Element -->
@@ -1576,6 +1586,11 @@
 <script src="{{ url_for('static', filename='js/deck-select-modal.js') }}"></script>
 
 <script>
+function showVocabError() {
+    const fallback = document.getElementById('vocab-error-fallback');
+    if (fallback) fallback.style.display = '';
+}
+
 function playAudio(audioUrl) {
     const audio = document.getElementById('audioPlayer');
     if (!audio) return;
