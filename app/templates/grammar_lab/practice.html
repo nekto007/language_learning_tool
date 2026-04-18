@@ -1650,6 +1650,12 @@ document.getElementById('check-btn').addEventListener('click', async function() 
       checkBtn.innerHTML = originalHTML;
       checkBtn.disabled = false;
       checkBtn.style.opacity = '';
+      const feedback = document.getElementById('feedback-area');
+      if (feedback) {
+        feedback.className = 'practice-exercise__feedback error';
+        feedback.textContent = 'Ошибка при отправке ответа. Попробуйте снова.';
+        feedback.style.display = 'block';
+      }
       return;
     }
 
