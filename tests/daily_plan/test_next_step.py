@@ -154,6 +154,8 @@ class TestCheckUnfinishedLesson:
                 MockL.order = _make_col_mock()
                 MockL.module_id = _make_col_mock()
                 MockL.number = _make_col_mock()
+                MockM.number = _make_col_mock()
+                MockM.level_id = _make_col_mock()
 
                 MockLP.query.filter_by.return_value.order_by.return_value.first.side_effect = [
                     None,
@@ -164,7 +166,7 @@ class TestCheckUnfinishedLesson:
                 # No next lesson in same module
                 MockL.query.filter.return_value.order_by.return_value.first.return_value = None
                 # No next module
-                MockM.query.filter.return_value.first.return_value = None
+                MockM.query.filter.return_value.order_by.return_value.first.return_value = None
 
                 step = _check_unfinished_lesson(1, db)
 

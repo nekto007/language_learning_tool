@@ -621,8 +621,8 @@
                     </span>
                     {% if not m_all_done and m_steps_remaining > 0 %}
                     <span class="dash-roadmap__marker-distance" data-marker-distance="true">
-                        {% if m_steps_remaining == 1 %}1 шаг до финиша
-                        {% elif m_steps_remaining in [2, 3, 4] %}{{ m_steps_remaining }} шага до финиша
+                        {% if m_steps_remaining % 10 == 1 and m_steps_remaining % 100 != 11 %}{{ m_steps_remaining }} шаг до финиша
+                        {% elif m_steps_remaining % 10 in [2, 3, 4] and m_steps_remaining % 100 not in [12, 13, 14] %}{{ m_steps_remaining }} шага до финиша
                         {% else %}{{ m_steps_remaining }} шагов до финиша{% endif %}
                     </span>
                     {% endif %}
@@ -748,11 +748,11 @@
             <div class="dash-route-board__meta">
                 <span class="dash-route-board__steps-today" data-steps-today-label="true">
                     Сегодня: {{ rp.steps_today }}
-                    {% if rp.steps_today == 1 %}шаг{% elif rp.steps_today in [2, 3, 4] %}шага{% else %}шагов{% endif %}
+                    {% if rp.steps_today % 10 == 1 and rp.steps_today % 100 != 11 %}шаг{% elif rp.steps_today % 10 in [2, 3, 4] and rp.steps_today % 100 not in [12, 13, 14] %}шага{% else %}шагов{% endif %}
                 </span>
                 <span class="dash-route-board__steps-to-cp" data-steps-to-checkpoint="true">
                     До точки: {{ rp.steps_to_next_checkpoint }}
-                    {% if rp.steps_to_next_checkpoint == 1 %}шаг{% elif rp.steps_to_next_checkpoint in [2, 3, 4] %}шага{% else %}шагов{% endif %}
+                    {% if rp.steps_to_next_checkpoint % 10 == 1 and rp.steps_to_next_checkpoint % 100 != 11 %}шаг{% elif rp.steps_to_next_checkpoint % 10 in [2, 3, 4] and rp.steps_to_next_checkpoint % 100 not in [12, 13, 14] %}шага{% else %}шагов{% endif %}
                 </span>
             </div>
             {# Checkpoint reached label — shown if user is at an exact checkpoint boundary. #}
