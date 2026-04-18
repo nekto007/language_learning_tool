@@ -913,6 +913,25 @@ def dashboard():
             plan_completion.get(p.get('id', ''), False) for p in _required
         )
 
+    if daily_plan.get('day_secured') and daily_plan.get('mission'):
+        try:
+            from app.api.daily_plan import emit_minimum_completed
+            from app.daily_plan.service import write_secured_at
+            import pytz as _pytz
+            _tz_name = getattr(current_user, 'timezone', None) or 'Europe/Moscow'
+            try:
+                _tz_obj = _pytz.timezone(_tz_name)
+            except Exception:
+                _tz_obj = _pytz.timezone('Europe/Moscow')
+            _today = datetime.now(_tz_obj).date()
+            _mission = daily_plan.get('mission') or {}
+            _mission_type = _mission.get('type') if isinstance(_mission, dict) else None
+            emit_minimum_completed(current_user.id, _mission_type, _today)
+            write_secured_at(current_user.id, _today, _mission_type)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     mission_plan = daily_plan if daily_plan.get('mission') else None
     plan_meta = daily_plan.get('_plan_meta', {})
     phase_urls = {}

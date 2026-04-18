@@ -5679,11 +5679,11 @@ async function repairStreak() {
         var d = step.data || {};
         switch (step.kind) {
             case 'lesson':
-                return '/lesson/' + d.lesson_id + '?from=daily_plan';
+                return '/curriculum/lesson/' + d.lesson_id + '?from=daily_plan';
             case 'grammar':
                 return '/grammar-lab/topic/' + d.topic_id + '?from=daily_plan';
             case 'reading':
-                return '/books/read/' + d.book_id + '?from=daily_plan';
+                return '/read/' + d.book_id + '?from=daily_plan';
             case 'srs':
             case 'vocab':
             default:
@@ -5764,6 +5764,7 @@ async function repairStreak() {
     // users with an empty queue had no choice, so including them inflates the H1 denominator.
     var _continuationAccepted = false;
     var _continuationAvailable = false;
+    var _minimumEndedEmitted = false;
 
     fetch('/api/daily-plan/continuation', {credentials: 'same-origin', headers: apiHeaders})
         .then(function(r) { return r.json(); })
@@ -5793,7 +5794,8 @@ async function repairStreak() {
 
     queue.addEventListener('click', function() { _continuationAccepted = true; }, {capture: true});
     document.addEventListener('visibilitychange', function() {
-        if (document.visibilityState === 'hidden' && _continuationAvailable && !_continuationAccepted) {
+        if (document.visibilityState === 'hidden' && _continuationAvailable && !_continuationAccepted && !_minimumEndedEmitted) {
+            _minimumEndedEmitted = true;
             postEvent('session_ended_at_minimum', '', '');
         }
     });
@@ -5817,7 +5819,11 @@ async function repairStreak() {
         }).catch(function() {});
     }
 
-    postRivalEvent('rival_strip_shown');
+    var _rivalStripKey = 'rivalStripShown_' + (new Date().toISOString().slice(0, 10));
+    if (!sessionStorage.getItem(_rivalStripKey)) {
+        sessionStorage.setItem(_rivalStripKey, '1');
+        postRivalEvent('rival_strip_shown');
+    }
 
     var btn = strip.querySelector('[data-rival-strip-dismiss="true"]');
     if (!btn) return;
