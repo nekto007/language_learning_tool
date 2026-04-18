@@ -517,7 +517,7 @@ class TestStreakServiceIntegration:
     ):
         from app.achievements.streak_service import process_streak_on_activity
 
-        today = date.today()
+        today = datetime.now(timezone.utc).date()
         db_session.add(StreakEvent(
             user_id=mission_user.id,
             event_type='mission_selected',

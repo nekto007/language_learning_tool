@@ -318,6 +318,7 @@
         {% set m_total = plan_steps_total if plan_steps_total is defined else m_phases | length %}
         {% set m_done = plan_steps_done if plan_steps_done is defined else 0 %}
         {% set m_all_done = (m_done >= m_total and m_total > 0) %}
+        {% set m_day_secured = mission_plan.get('day_secured', false) %}
 
         {# Mission header: title + reason #}
         {% set m = mission_plan.get('mission', {}) %}
@@ -620,8 +621,8 @@
                     </span>
                     {% if not m_all_done and m_steps_remaining > 0 %}
                     <span class="dash-roadmap__marker-distance" data-marker-distance="true">
-                        {% if m_steps_remaining == 1 %}1 шаг до финиша
-                        {% elif m_steps_remaining in [2, 3, 4] %}{{ m_steps_remaining }} шага до финиша
+                        {% if m_steps_remaining % 10 == 1 and m_steps_remaining % 100 != 11 %}{{ m_steps_remaining }} шаг до финиша
+                        {% elif m_steps_remaining % 10 in [2, 3, 4] and m_steps_remaining % 100 not in [12, 13, 14] %}{{ m_steps_remaining }} шага до финиша
                         {% else %}{{ m_steps_remaining }} шагов до финиша{% endif %}
                     </span>
                     {% endif %}
@@ -710,6 +711,99 @@
         {% endfor %}
         </div><!-- /dash-timeline -->
         </div><!-- /dash-route -->
+        {% endif %}
+
+        {# Task 14: Route board — shows long-term route progress (UserRouteProgress).
+           Visible regardless of day_secured state so users see their running checkpoint. #}
+        {% if route_progress_state %}
+        {% set rp = route_progress_state %}
+        <div class="dash-route-board" data-route-board="true"
+             data-checkpoint-number="{{ rp.checkpoint_number }}"
+             data-steps-today="{{ rp.steps_today }}"
+             data-percent-to-checkpoint="{{ rp.percent_to_checkpoint }}">
+            <div class="dash-route-board__header">
+                <span class="dash-route-board__label">Маршрут</span>
+                <span class="dash-route-board__position" data-route-position="true">
+                    {% if rp.checkpoint_number > 0 %}
+                    Контрольная точка {{ rp.checkpoint_number }}
+                    {% else %}
+                    До первой точки
+                    {% endif %}
+                </span>
+            </div>
+            {# Progress bar within current checkpoint stretch #}
+            <div class="dash-route-board__bar-wrap" role="progressbar"
+                 aria-valuenow="{{ rp.percent_to_checkpoint }}"
+                 aria-valuemin="0" aria-valuemax="100"
+                 aria-label="Прогресс до следующей контрольной точки: {{ rp.percent_to_checkpoint }}%">
+                <div class="dash-route-board__bar-fill" data-route-bar-fill="true"
+                     style="width: {{ rp.percent_to_checkpoint }}%"></div>
+                {# Day secured marker: position on the bar where minimum was reached. #}
+                {% if m_day_secured and rp.steps_today > 0 %}
+                <div class="dash-route-board__secured-marker" data-secured-marker="true"
+                     style="left: {{ [rp.percent_to_checkpoint, 100] | min }}%"
+                     title="День закрыт здесь" aria-label="Серия закреплена"></div>
+                {% endif %}
+            </div>
+            <div class="dash-route-board__meta">
+                <span class="dash-route-board__steps-today" data-steps-today-label="true">
+                    Сегодня: {{ rp.steps_today }}
+                    {% if rp.steps_today % 10 == 1 and rp.steps_today % 100 != 11 %}шаг{% elif rp.steps_today % 10 in [2, 3, 4] and rp.steps_today % 100 not in [12, 13, 14] %}шага{% else %}шагов{% endif %}
+                </span>
+                <span class="dash-route-board__steps-to-cp" data-steps-to-checkpoint="true">
+                    До точки: {{ rp.steps_to_next_checkpoint }}
+                    {% if rp.steps_to_next_checkpoint % 10 == 1 and rp.steps_to_next_checkpoint % 100 != 11 %}шаг{% elif rp.steps_to_next_checkpoint % 10 in [2, 3, 4] and rp.steps_to_next_checkpoint % 100 not in [12, 13, 14] %}шага{% else %}шагов{% endif %}
+                </span>
+            </div>
+            {# Checkpoint reached label — shown if user is at an exact checkpoint boundary. #}
+            {% if rp.percent_to_checkpoint == 0 and rp.checkpoint_number > 0 %}
+            <div class="dash-route-board__checkpoint-reached" data-checkpoint-reached="true">
+                &#127381; Контрольная точка {{ rp.checkpoint_number }} достигнута!
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {# Task 9: Day secured banner + 3-step continuation queue (Task 14).
+           Shown when required phases are complete but the full mission is not yet done. #}
+        {% if m_day_secured and not m_all_done %}
+        <div class="dash-day-secured" data-day-secured="true"
+             data-cards-url="{{ cards_url }}?from=daily_plan"
+             aria-live="polite">
+            <div class="dash-day-secured__banner">
+                <span class="dash-day-secured__icon" aria-hidden="true">&#128737;</span>
+                <div class="dash-day-secured__text">
+                    <div class="dash-day-secured__title">День закрыт!</div>
+                    <div class="dash-day-secured__sub">Серия сохранена. Хочешь пойти дальше?</div>
+                </div>
+            </div>
+            {# 3-task continuation queue — populated by JS from /api/daily-plan/continuation #}
+            <div class="dash-next-step" data-next-step-container="true" style="display:none">
+                <div class="dash-next-step__header">Что дальше</div>
+                <div class="dash-next-step__queue" data-next-step-queue="true"></div>
+                <div class="dash-next-step__actions">
+                    <button type="button" class="dash-next-step__btn dash-next-step__btn--dismiss" data-next-step-dismiss="true">Продолжить позже</button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Phase 3: Ghost rival strip — adults only, opt-out, positive framing only.
+           Shown only when day_secured=True. Never rendered for child users. #}
+        {% if rival_strip and m_day_secured %}
+        <div class="dash-rival-strip" data-rival-strip="true"
+             data-dismiss-url="{{ rival_strip.dismiss_url }}">
+            <div class="dash-rival-strip__content">
+                <span class="dash-rival-strip__avatar" aria-hidden="true">&#127942;</span>
+                <div class="dash-rival-strip__body">
+                    <span class="dash-rival-strip__label">{{ rival_strip.ghost.display_label }}</span>
+                    <span class="dash-rival-strip__message">{{ rival_strip.framing.message }}</span>
+                </div>
+            </div>
+            <button type="button" class="dash-rival-strip__dismiss"
+                    data-rival-strip-dismiss="true"
+                    aria-label="Скрыть навсегда">&times;</button>
+        </div>
         {% endif %}
 
     {% else %}
@@ -5045,6 +5139,300 @@
     .dash-xp-levelup { animation: none; }
     .dash-xp__bar-fill { transition: none; }
 }
+
+/* Task 9: Day secured banner + next-step continuation card */
+.dash-route-board {
+    margin-top: 12px;
+    border-radius: 12px;
+    border: 1.5px solid var(--dash-border, #e5e7eb);
+    background: var(--dash-card-bg, #fff);
+    padding: 12px 16px;
+}
+.dash-route-board__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.dash-route-board__label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--dash-text-muted, #6b7280);
+}
+.dash-route-board__position {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #4f46e5;
+}
+.dash-route-board__bar-wrap {
+    position: relative;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--dash-border, #e5e7eb);
+    overflow: visible;
+    margin-bottom: 6px;
+}
+.dash-route-board__bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    transition: width 0.4s ease;
+    min-width: 0;
+}
+.dash-route-board__secured-marker {
+    position: absolute;
+    top: -4px;
+    width: 4px;
+    height: 16px;
+    border-radius: 2px;
+    background: #10b981;
+    transform: translateX(-50%);
+    box-shadow: 0 0 0 2px #fff, 0 0 0 3px #10b981;
+}
+.dash-route-board__meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--dash-text-muted, #6b7280);
+}
+.dash-route-board__checkpoint-reached {
+    margin-top: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #059669;
+    text-align: center;
+    padding: 6px 0 2px;
+}
+.dash-day-secured {
+    margin-top: 16px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1.5px solid rgba(16, 185, 129, 0.3);
+    background: var(--dash-card-bg, #fff);
+}
+.dash-day-secured__banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(5, 150, 105, 0.05));
+    border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+}
+.dash-day-secured__icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.dash-day-secured__title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #065f46;
+}
+.dash-day-secured__sub {
+    font-size: 0.8125rem;
+    color: var(--dash-text-muted, #6b7280);
+    margin-top: 1px;
+}
+.dash-next-step {
+    padding: 14px 16px;
+}
+.dash-next-step__header {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--dash-text-muted, #6b7280);
+    margin-bottom: 8px;
+}
+.dash-next-step__queue {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.dash-next-step__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--dash-border, #e5e7eb);
+    background: var(--dash-card-bg, #fff);
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s, border-color 0.15s;
+}
+.dash-next-step__item:hover {
+    background: rgba(99, 102, 241, 0.04);
+    border-color: rgba(99, 102, 241, 0.3);
+    text-decoration: none;
+}
+.dash-next-step__item--primary {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.03);
+}
+.dash-next-step__item-body {
+    flex: 1;
+    min-width: 0;
+}
+.dash-next-step__item-kind {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 20px;
+    background: rgba(99, 102, 241, 0.1);
+    color: #4f46e5;
+    margin-bottom: 3px;
+}
+.dash-next-step__item-reason {
+    font-size: 0.875rem;
+    color: var(--dash-text, #1f2937);
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dash-next-step__item-time {
+    font-size: 0.76rem;
+    color: var(--dash-text-muted, #6b7280);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.dash-next-step__item-arrow {
+    font-size: 0.9rem;
+    color: var(--dash-text-muted, #6b7280);
+    flex-shrink: 0;
+}
+.dash-next-step__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+.dash-next-step__kind-pill {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: rgba(99, 102, 241, 0.1);
+    color: #4f46e5;
+    width: fit-content;
+}
+.dash-next-step__reason {
+    font-size: 0.9rem;
+    color: var(--dash-text, #1f2937);
+    margin: 0;
+    line-height: 1.4;
+}
+.dash-next-step__time {
+    font-size: 0.8rem;
+    color: var(--dash-text-muted, #6b7280);
+}
+.dash-next-step__actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.dash-next-step__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+    transition: opacity 0.15s, transform 0.12s;
+    line-height: 1;
+}
+.dash-next-step__btn:hover {
+    opacity: 0.88;
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+.dash-next-step__btn--go {
+    background: #10b981;
+    color: #fff;
+}
+.dash-next-step__btn--dismiss {
+    background: transparent;
+    color: var(--dash-text-muted, #6b7280);
+    border: 1px solid var(--dash-border, #e5e7eb);
+}
+@media (max-width: 480px) {
+    .dash-next-step__actions {
+        flex-direction: column;
+    }
+    .dash-next-step__btn {
+        width: 100%;
+    }
+}
+/* Phase 3: Ghost rival strip */
+.dash-rival-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--dash-surface-2, #f9fafb);
+    border: 1px solid var(--dash-border, #e5e7eb);
+}
+.dash-rival-strip__content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+.dash-rival-strip__avatar {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+.dash-rival-strip__body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.dash-rival-strip__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--dash-text-muted, #6b7280);
+}
+.dash-rival-strip__message {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--dash-text, #111827);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dash-rival-strip__dismiss {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--dash-text-muted, #9ca3af);
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+}
+.dash-rival-strip__dismiss:hover {
+    color: var(--dash-text, #374151);
+    background: var(--dash-border, #e5e7eb);
+}
 </style>
 
 <script>
@@ -5273,7 +5661,194 @@ async function repairStreak() {
         }));
     } catch (e) { /* non-fatal */ }
 })();
+
+// Task 9/14: Day secured — load and render the 3-step continuation queue.
+(function() {
+    var wrapper = document.querySelector('[data-day-secured="true"]');
+    if (!wrapper) return;
+
+    var container = wrapper.querySelector('[data-next-step-container="true"]');
+    if (!container) return;
+
+    var queue = container.querySelector('[data-next-step-queue="true"]');
+    if (!queue) return;
+
+    var cardsUrl = wrapper.getAttribute('data-cards-url') || '/study/cards?from=daily_plan';
+
+    function stepUrl(step) {
+        var d = step.data || {};
+        switch (step.kind) {
+            case 'lesson':
+                return '/curriculum/lesson/' + d.lesson_id + '?from=daily_plan';
+            case 'grammar':
+                return '/grammar-lab/topic/' + d.topic_id + '?from=daily_plan';
+            case 'reading':
+                return '/read/' + d.book_id + '?from=daily_plan';
+            case 'srs':
+            case 'vocab':
+            default:
+                return cardsUrl;
+        }
+    }
+
+    function kindLabel(kind) {
+        var labels = {lesson: 'Урок', srs: 'Повторение', grammar: 'Грамматика', reading: 'Чтение', vocab: 'Слова'};
+        return labels[kind] || kind;
+    }
+
+    var PLAN_DATE = "{{ plan_today }}";
+
+    function postEvent(eventType, stepKind, reasonText) {
+        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        var csrfToken = csrfMeta ? csrfMeta.content : '';
+        var headers = {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken};
+        var jwtToken = localStorage.getItem('jwt_token');
+        if (jwtToken) headers['Authorization'] = 'Bearer ' + jwtToken;
+        var body = {event_type: eventType, plan_date: PLAN_DATE};
+        if (stepKind) body.step_kind = stepKind;
+        if (reasonText) body.reason_text = reasonText;
+        fetch('/api/daily-plan/events', {
+            method: 'POST', credentials: 'same-origin',
+            headers: headers, body: JSON.stringify(body)
+        }).catch(function() {});
+    }
+
+    function buildQueueItem(step, isPrimary) {
+        var a = document.createElement('a');
+        a.href = stepUrl(step);
+        a.className = 'dash-next-step__item' + (isPrimary ? ' dash-next-step__item--primary' : '');
+        a.setAttribute('data-queue-item', 'true');
+        a.setAttribute('data-queue-kind', step.kind);
+
+        var body = document.createElement('div');
+        body.className = 'dash-next-step__item-body';
+
+        var pill = document.createElement('span');
+        pill.className = 'dash-next-step__item-kind';
+        pill.textContent = kindLabel(step.kind);
+
+        var reason = document.createElement('div');
+        reason.className = 'dash-next-step__item-reason';
+        reason.textContent = step.reason || '';
+
+        body.appendChild(pill);
+        body.appendChild(reason);
+        a.appendChild(body);
+
+        if (step.estimated_minutes) {
+            var time = document.createElement('span');
+            time.className = 'dash-next-step__item-time';
+            time.textContent = '~' + step.estimated_minutes + ' мин';
+            a.appendChild(time);
+        }
+
+        var arrow = document.createElement('span');
+        arrow.className = 'dash-next-step__item-arrow';
+        arrow.setAttribute('aria-hidden', 'true');
+        arrow.textContent = '›';
+        a.appendChild(arrow);
+
+        a.addEventListener('click', function() {
+            postEvent('next_step_accepted', step.kind, '');
+            var rivalVisible = document.querySelector('[data-rival-strip="true"]');
+            if (rivalVisible && rivalVisible.style.display !== 'none') {
+                postEvent('steps_taken_while_rival_visible', step.kind, '');
+            }
+        });
+        return a;
+    }
+
+    var apiHeaders = {};
+    var jwt = localStorage.getItem('jwt_token');
+    if (jwt) apiHeaders['Authorization'] = 'Bearer ' + jwt;
+
+    // Only emit session_ended_at_minimum when continuation steps were actually available —
+    // users with an empty queue had no choice, so including them inflates the H1 denominator.
+    var _continuationAccepted = false;
+    var _continuationAvailable = false;
+    var _minimumEndedEmitted = false;
+
+    fetch('/api/daily-plan/continuation', {credentials: 'same-origin', headers: apiHeaders})
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data || !data.steps || !data.steps.length) return;
+            _continuationAvailable = true;
+            var steps = data.steps;
+            steps.forEach(function(step, idx) {
+                queue.appendChild(buildQueueItem(step, idx === 0));
+            });
+            container.style.display = '';
+            if (steps[0]) {
+                postEvent('next_step_shown', steps[0].kind, steps[0].reason);
+            }
+        })
+        .catch(function() {});
+
+    var dismissBtn = wrapper.querySelector('[data-next-step-dismiss="true"]');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', function() {
+            container.style.display = 'none';
+            var firstItem = queue.querySelector('[data-queue-item]');
+            var kind = firstItem ? firstItem.getAttribute('data-queue-kind') : '';
+            postEvent('next_step_dismissed', kind, '');
+        });
+    }
+
+    queue.addEventListener('click', function() { _continuationAccepted = true; }, {capture: true});
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden' && _continuationAvailable && !_continuationAccepted && !_minimumEndedEmitted) {
+            _minimumEndedEmitted = true;
+            postEvent('session_ended_at_minimum', '', '');
+        }
+    });
+})();
 {% endif %}
+
+// Phase 3: Ghost rival strip — show event + dismiss (permanent, POST to server).
+(function() {
+    var strip = document.querySelector('[data-rival-strip="true"]');
+    if (!strip) return;
+
+    var _rivalPlanDate = "{{ plan_today }}";
+
+    function postRivalEvent(eventType) {
+        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        var csrfToken = csrfMeta ? csrfMeta.content : '';
+        var headers = {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken};
+        var jwtToken = localStorage.getItem('jwt_token');
+        if (jwtToken) headers['Authorization'] = 'Bearer ' + jwtToken;
+        fetch('/api/daily-plan/events', {
+            method: 'POST', credentials: 'same-origin',
+            headers: headers, body: JSON.stringify({event_type: eventType, plan_date: _rivalPlanDate})
+        }).catch(function() {});
+    }
+
+    var _rivalStripKey = 'rivalStripShown_' + _rivalPlanDate;
+    if (!sessionStorage.getItem(_rivalStripKey)) {
+        sessionStorage.setItem(_rivalStripKey, '1');
+        postRivalEvent('rival_strip_shown');
+    }
+
+    var btn = strip.querySelector('[data-rival-strip-dismiss="true"]');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+        strip.style.display = 'none';
+        postRivalEvent('rival_strip_dismissed');
+        var dismissUrl = strip.getAttribute('data-dismiss-url');
+        if (!dismissUrl) return;
+        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        var csrfToken = csrfMeta ? csrfMeta.content : '';
+        var headers = {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken};
+        var jwtToken = localStorage.getItem('jwt_token');
+        if (jwtToken) headers['Authorization'] = 'Bearer ' + jwtToken;
+        fetch(dismissUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: headers,
+            body: '{}',
+        }).catch(function() {});
+    });
+})();
 </script>
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/share.js') }}" defer></script>{% endblock %}

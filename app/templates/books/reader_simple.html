@@ -1108,6 +1108,8 @@ function updateSidebarProgress(progress) {
     }
 }
 
+var _readingStepCompleteDispatched = false;
+
 function saveProgress(offsetPct) {
     fetch('/api/progress', {
         method: 'PATCH',
@@ -1130,6 +1132,10 @@ function saveProgress(offsetPct) {
         if (indicator) {
             indicator.style.display = 'inline';
             setTimeout(() => { indicator.style.display = 'none'; }, 2000);
+        }
+        if (!_readingStepCompleteDispatched && offsetPct >= 0.5) {
+            _readingStepCompleteDispatched = true;
+            document.dispatchEvent(new Event('dailyPlanStepComplete'));
         }
     })
     .catch(error => {
@@ -1344,10 +1350,6 @@ document.addEventListener('keydown', (e) => {
 })();
 </script>
 <script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>
-<script>
-// Dispatch after daily-plan-next.js has loaded its listener
-document.dispatchEvent(new Event('dailyPlanStepComplete'));
-</script>
 {% if current_chapter.audio_url %}
 <script>
 (function() {

@@ -186,6 +186,78 @@ def test_daily_summary_unauthenticated(client):
     assert response.status_code == 401
 
 
+class TestRouteStateInDailyPlan:
+    """Task 12: route_state is included in /api/daily-plan response."""
+
+    def test_route_state_present_no_completed_phases(self, authenticated_client):
+        """route_state key is always present; steps_today=0 when no phases completed."""
+        plan = dict(MOCK_PLAN)
+        plan['phases'] = [
+            {'id': 'p1', 'phase': 'recall', 'required': True, 'completed': False},
+        ]
+        with patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan), \
+             patch('app.daily_plan.route_progress.get_route_state', return_value={
+                 'steps_today': 0,
+                 'total_steps': 0,
+                 'checkpoint_number': 0,
+                 'steps_to_next_checkpoint': 20,
+                 'percent_to_checkpoint': 0,
+             }) as mock_rs:
+            response = authenticated_client.get('/api/daily-plan')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'route_state' in data
+        assert data['route_state']['steps_today'] == 0
+        mock_rs.assert_called_once()
+        _, call_steps_today, _ = mock_rs.call_args.args
+        assert call_steps_today == 0
+
+    def test_route_state_steps_today_from_completed_phases(self, authenticated_client):
+        """steps_today sums weights of completed phases only."""
+        plan = dict(MOCK_PLAN)
+        plan['phases'] = [
+            {'id': 'p1', 'phase': 'recall', 'required': True, 'completed': True},
+            {'id': 'p2', 'phase': 'learn', 'required': True, 'completed': False},
+        ]
+        with patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan), \
+             patch('app.daily_plan.route_progress.get_route_state', return_value={
+                 'steps_today': 2,
+                 'total_steps': 2,
+                 'checkpoint_number': 0,
+                 'steps_to_next_checkpoint': 18,
+                 'percent_to_checkpoint': 10,
+             }) as mock_rs:
+            response = authenticated_client.get('/api/daily-plan')
+
+        assert response.status_code == 200
+        _, call_steps_today, _ = mock_rs.call_args.args
+        assert call_steps_today == 2  # recall=2, learn not completed
+
+    def test_route_state_multiple_completed_phases(self, authenticated_client):
+        """steps_today sums all completed phase weights correctly."""
+        plan = dict(MOCK_PLAN)
+        plan['phases'] = [
+            {'id': 'p1', 'phase': 'recall', 'required': True, 'completed': True},
+            {'id': 'p2', 'phase': 'learn', 'required': True, 'completed': True},
+            {'id': 'p3', 'phase': 'check', 'required': False, 'completed': True},
+        ]
+        # recall=2 + learn=3 + check=1 = 6
+        with patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan), \
+             patch('app.daily_plan.route_progress.get_route_state', return_value={
+                 'steps_today': 6,
+                 'total_steps': 6,
+                 'checkpoint_number': 0,
+                 'steps_to_next_checkpoint': 14,
+                 'percent_to_checkpoint': 30,
+             }) as mock_rs:
+            response = authenticated_client.get('/api/daily-plan')
+
+        assert response.status_code == 200
+        _, call_steps_today, _ = mock_rs.call_args.args
+        assert call_steps_today == 6
+
+
 class TestParseDateParam:
     """Unit tests for parse_date_param utility."""
 

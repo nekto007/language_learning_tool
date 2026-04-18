@@ -4,9 +4,73 @@ import enum
 import logging
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Optional
 
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from app.utils.db import db
+from app.utils.types import JSONBCompat
+
 logger = logging.getLogger(__name__)
+
+
+class DailyPlanLog(db.Model):
+    """One row per user per calendar day recording mission selection and secured state."""
+    __tablename__ = 'daily_plan_log'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    plan_date = Column(Date, nullable=False)
+    mission_type = Column(String(20), nullable=True)
+    secured_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    user = relationship('User', backref='daily_plan_logs')
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'plan_date', name='uq_daily_plan_log_user_date'),
+        Index('idx_daily_plan_log_user_date', 'user_id', 'plan_date'),
+    )
+
+
+class DailyPlanEventType(enum.Enum):
+    minimum_completed = "minimum_completed"
+    next_step_shown = "next_step_shown"
+    next_step_accepted = "next_step_accepted"
+    next_step_dismissed = "next_step_dismissed"
+    session_ended_at_minimum = "session_ended_at_minimum"
+    rival_strip_shown = "rival_strip_shown"
+    rival_strip_dismissed = "rival_strip_dismissed"
+    steps_taken_while_rival_visible = "steps_taken_while_rival_visible"
+    # Server-only: idempotency marker for route step additions (one per phase_kind per day).
+    route_step_added = "route_step_added"
+    # Server-only: emitted when route progress crosses a checkpoint boundary (H5 measurement).
+    checkpoint_reached = "checkpoint_reached"
+
+
+class DailyPlanEvent(db.Model):
+    """One row per behavioral event emitted during Phase 1 tracking.
+
+    Stores user interaction events for H1 hypothesis measurement:
+    continuation rate = next_step_accepted / minimum_completed.
+    """
+    __tablename__ = 'daily_plan_events'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    event_type = Column(String(40), nullable=False)
+    plan_date = Column(Date, nullable=True)
+    mission_type = Column(String(20), nullable=True)
+    step_kind = Column(String(40), nullable=True)
+    reason_text = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_daily_plan_events_user_date', 'user_id', 'plan_date'),
+        Index('idx_daily_plan_events_type', 'event_type'),
+    )
 
 
 class MissionType(enum.Enum):
