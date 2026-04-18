@@ -502,6 +502,18 @@
     animation: decks-slideUp .5s ease both;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .slideUp,
+    .decks-hero,
+    .decks-hero__circle--1,
+    .decks-hero__circle--2,
+    .decks-hero__circle--3 {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+}
+
 /* ── Hero ── */
 .decks-hero {
     position: relative;
