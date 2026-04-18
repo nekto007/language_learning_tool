@@ -1499,8 +1499,10 @@
                     }
                 }
 
+                let confettiFired = false;
                 if (scorePercentage >= 85) {
                     setTimeout(() => celebrateWithConfetti(), 500);
+                    confettiFired = true;
                 }
 
                 if (data.achievements && data.achievements.length > 0) {
@@ -1508,17 +1510,20 @@
                     const badgesContainer = document.getElementById('achievement-badges');
                     badgesContainer.innerHTML = '';
 
-                    if (scorePercentage < 85) {
+                    if (!confettiFired) {
                         setTimeout(() => celebrateWithConfetti(), 500);
                     }
 
                     data.achievements.forEach((achievement, index) => {
                         const badge = document.createElement('div');
                         badge.style.cssText = `background: #fff; border: 2px solid #ffd700; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; animation: qzSlideUp 0.5s ease-out ${index * 0.1}s both;`;
-                        badge.innerHTML = `
-                            <span style="font-size: 18px;">${achievement.icon}</span>
-                            <span>${achievement.name}</span>
-                        `;
+                        const iconSpan = document.createElement('span');
+                        iconSpan.style.fontSize = '18px';
+                        iconSpan.textContent = achievement.icon;
+                        const nameSpan = document.createElement('span');
+                        nameSpan.textContent = achievement.name;
+                        badge.appendChild(iconSpan);
+                        badge.appendChild(nameSpan);
                         badgesContainer.appendChild(badge);
                     });
 
