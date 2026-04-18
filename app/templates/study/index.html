@@ -1873,7 +1873,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const decksList = document.getElementById('decks-list');
     const deckCountBadge = document.getElementById('deck-count');
 
-    if (searchInput && decksList) {
+    if (searchInput && decksList && clearButton) {
         const cards = Array.from(decksList.querySelectorAll('.decks-card'));
         const totalDecks = cards.length;
 

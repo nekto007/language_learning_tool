@@ -1648,6 +1648,13 @@ document.getElementById('check-btn').addEventListener('click', async function() 
     });
     const data = await response.json();
 
+    if (!response.ok) {
+      checkBtn.innerHTML = originalHTML;
+      checkBtn.disabled = false;
+      checkBtn.style.opacity = '';
+      return;
+    }
+
     const feedback = document.getElementById('feedback-area');
     if (data.is_correct) {
       correctCount++;
