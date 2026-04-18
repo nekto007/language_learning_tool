@@ -653,15 +653,22 @@ class TestDashboardMissionRender:
         return css[mobile_start:end]
 
     def test_roadmap_mobile_breakpoint_present(self):
-        """Task 11: mobile (< 640px) media query with vertical serpentine + 48px nodes."""
+        """Mobile (< 640px) uses horizontal scroll with snap points.
+
+        The vertical zig-zag variant was dropped because it ballooned the
+        roadmap's height and broke absolute-positioned route-tokens that
+        align to the horizontal axis via `left: %`.
+        """
         css = self._read_dashboard_template()
         mobile_block = self._find_roadmap_mobile_block(css)
         assert 'width: 48px' in mobile_block
         assert 'height: 48px' in mobile_block
         assert 'min-width: 44px' in mobile_block
         assert 'min-height: 44px' in mobile_block
-        # Vertical serpentine: track becomes a column
-        assert 'flex-direction: column' in mobile_block
+        # Horizontal scroll (same pattern as tablet)
+        assert 'flex-direction: row' in mobile_block
+        assert 'overflow-x: auto' in mobile_block
+        assert 'scroll-snap-type: x mandatory' in mobile_block
         # Roadmap-scoped (references dash-roadmap selectors inside)
         assert '.dash-roadmap' in mobile_block
 
