@@ -5760,10 +5760,16 @@ async function repairStreak() {
     var jwt = localStorage.getItem('jwt_token');
     if (jwt) apiHeaders['Authorization'] = 'Bearer ' + jwt;
 
+    // Only emit session_ended_at_minimum when continuation steps were actually available —
+    // users with an empty queue had no choice, so including them inflates the H1 denominator.
+    var _continuationAccepted = false;
+    var _continuationAvailable = false;
+
     fetch('/api/daily-plan/continuation', {credentials: 'same-origin', headers: apiHeaders})
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data || !data.steps || !data.steps.length) return;
+            _continuationAvailable = true;
             var steps = data.steps;
             steps.forEach(function(step, idx) {
                 queue.appendChild(buildQueueItem(step, idx === 0));
@@ -5785,12 +5791,9 @@ async function repairStreak() {
         });
     }
 
-    // Emit session_ended_at_minimum when user leaves page after securing the day
-    // without accepting any continuation step.
-    var _continuationAccepted = false;
     queue.addEventListener('click', function() { _continuationAccepted = true; }, {capture: true});
     document.addEventListener('visibilitychange', function() {
-        if (document.visibilityState === 'hidden' && !_continuationAccepted) {
+        if (document.visibilityState === 'hidden' && _continuationAvailable && !_continuationAccepted) {
             postEvent('session_ended_at_minimum', '', '');
         }
     });

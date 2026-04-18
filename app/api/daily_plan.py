@@ -92,15 +92,6 @@ def daily_status():
     })
 
 
-def _compute_steps_today(phases: list) -> int:
-    """Sum weighted steps for all completed phases in the plan payload."""
-    from app.daily_plan.route_progress import get_phase_step_weight
-    return sum(
-        get_phase_step_weight(p.get('phase', ''))
-        for p in phases
-        if p.get('completed', False)
-    )
-
 
 @api_daily_plan.route('/daily-plan')
 @api_auth_required
