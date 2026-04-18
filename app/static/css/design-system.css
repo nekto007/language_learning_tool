@@ -12240,21 +12240,6 @@ footer .col-md-4 {
     outline-offset: 2px;
 }
 
-.btn--loading {
-    opacity: 0.7;
-    cursor: not-allowed;
-    pointer-events: none;
-}
-
-.alert--form-error {
-    border-left: 3px solid var(--color-danger, #ef4444);
-    background: rgba(239, 68, 68, 0.06);
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    color: var(--color-danger, #ef4444);
-    font-size: 0.875rem;
-    margin-bottom: 1rem;
-}
 
 /* ============================================
    Skeleton Loader

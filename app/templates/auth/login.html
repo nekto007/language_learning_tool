@@ -456,7 +456,8 @@ function togglePasswordVisibility(btn) {
   btn.querySelector('.eye-off-icon').style.display = isPassword ? '' : 'none';
 }
 
-document.querySelector('form').addEventListener('submit', function() {
+document.querySelector('form').addEventListener('submit', function(e) {
+  if (!this.checkValidity()) return;
   const btn = document.getElementById('login-submit-btn');
   btn.disabled = true;
   btn.textContent = 'Вход...';
