@@ -912,17 +912,6 @@ class TestDashboardMissionRender:
         assert '.dash-route {' in css
         assert '.dash-route--compact' in css
 
-    def test_route_progress_weights_defined(self):
-        """Task 33: ROUTE_PROGRESS_WEIGHTS constant is defined and covers core phase kinds."""
-        from app.words.routes import ROUTE_PROGRESS_WEIGHTS
-        for kind in ('recall', 'learn', 'use', 'check'):
-            assert kind in ROUTE_PROGRESS_WEIGHTS, f'Missing weight for phase kind {kind!r}'
-            assert isinstance(ROUTE_PROGRESS_WEIGHTS[kind], int)
-        assert ROUTE_PROGRESS_WEIGHTS['recall'] == 15
-        assert ROUTE_PROGRESS_WEIGHTS['learn'] == 40
-        assert ROUTE_PROGRESS_WEIGHTS['use'] == 30
-        assert ROUTE_PROGRESS_WEIGHTS['check'] == 15
-
     # ---- Task 34: Rival tokens on the route ----
 
     def _get_dashboard_with_race(self, client, test_user, mission_plan, race_data):

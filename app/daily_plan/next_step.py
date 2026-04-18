@@ -130,7 +130,7 @@ def _check_unfinished_lesson(user_id: int, db) -> Optional[NextStep]:
 
     next_l = (
         Lessons.query
-        .filter(Lessons.module_id == module.id, Lessons.order > lesson.order)
+        .filter(Lessons.module_id == module.id, Lessons.number > lesson.number)
         .order_by(Lessons.number)
         .first()
     )

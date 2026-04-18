@@ -37,18 +37,6 @@ _LEGACY_STEP_POINTS = {
     'book_course_practice': 18,
 }
 
-# Route progress weights: contribution of each phase kind to overall route progress (0-100 scale).
-# recall+learn+use+check = 100; read/close/bonus fill remaining proportionally when present.
-ROUTE_PROGRESS_WEIGHTS: dict[str, int] = {
-    'recall': 15,
-    'learn': 40,
-    'use': 30,
-    'check': 15,
-    'read': 25,
-    'close': 10,
-    'bonus': 5,
-}
-
 
 def _build_route_metadata(phases: list[dict], plan_completion: dict) -> dict:
     """Compute route board metadata for the mission plan dashboard display."""

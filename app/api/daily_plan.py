@@ -47,11 +47,22 @@ def daily_status():
         daily_plan=plan, plan_completion=plan_completion,
     )
 
-    day_secured = plan.get('day_secured', False)
+    # Recompute day_secured from actual activity (plan payload always has completed=False
+    # because the assembler constructs phases before activity is recorded).
+    phases = plan.get('phases', [])
+    if phases and plan.get('_plan_meta', {}).get('effective_mode') == 'mission':
+        required_phases = [p for p in phases if p.get('required', True)]
+        day_secured = bool(required_phases) and all(
+            plan_completion.get(p.get('id', ''), False) for p in required_phases
+        )
+    else:
+        day_secured = plan.get('day_secured', False)
+    plan['day_secured'] = day_secured
 
     if day_secured:
         from datetime import datetime
         import pytz
+        from app.daily_plan.service import write_secured_at
         try:
             tz_obj = pytz.timezone(tz)
         except pytz.UnknownTimeZoneError:
@@ -61,6 +72,7 @@ def daily_status():
         mission_type = mission.get('type') if isinstance(mission, dict) else None
         try:
             emit_minimum_completed(user_id, mission_type, today)
+            write_secured_at(user_id, today, mission_type)
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -112,14 +124,23 @@ def daily_plan():
         route_state: Current route progress state
     """
     from app.daily_plan.service import get_daily_plan_unified
-    from app.daily_plan.route_progress import get_route_state
+    from app.daily_plan.route_progress import get_route_state, get_phase_step_weight
+    from app.telegram.queries import get_daily_summary
+    from app.achievements.streak_service import compute_plan_steps
 
     tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
     user_id = current_user.id
     plan = get_daily_plan_unified(user_id, tz=tz)
+    summary = get_daily_summary(user_id, tz=tz)
+
+    plan_completion, _, _, _ = compute_plan_steps(plan, summary)
 
     phases = plan.get('phases') or []
-    steps_today = _compute_steps_today(phases)
+    steps_today = sum(
+        get_phase_step_weight(p.get('phase', ''))
+        for p in phases
+        if plan_completion.get(p.get('id', ''), False)
+    )
     route_state = get_route_state(user_id, steps_today, db.session)
 
     return jsonify({'success': True, 'route_state': route_state, **plan})
@@ -193,6 +214,8 @@ def daily_race_status():
     """
     from datetime import datetime
     import pytz
+    from app.auth.models import User
+    from app.daily_plan.rivals import is_adult_user
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_daily_summary
     from app.achievements.streak_service import compute_plan_steps
@@ -203,6 +226,10 @@ def daily_race_status():
 
     tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
     user_id = current_user.id
+
+    user = User.query.get(user_id)
+    if user and not is_adult_user(user.birth_year):
+        return api_error('age_restricted', 'Race feature not available', 403)
 
     try:
         tz_obj = pytz.timezone(tz)
@@ -299,7 +326,10 @@ def daily_plan_phase_complete():
         db.session.rollback()
         return api_error('db_error', 'Failed to update route progress', 500)
 
-    steps_today = body.get('steps_today', 0)
+    try:
+        steps_today = max(0, int(body.get('steps_today', 0)))
+    except (TypeError, ValueError):
+        steps_today = 0
     route_state = get_route_state(user_id, steps_today, db.session)
     return jsonify({
         'success': True,
@@ -335,7 +365,7 @@ def record_daily_plan_event():
         plan_date (str, optional): ISO date string; defaults to today in user tz
     """
     from datetime import date as date_cls
-    from app.daily_plan.models import DailyPlanEvent, DailyPlanEventType
+    from app.daily_plan.models import DailyPlanEvent
 
     if not request.is_json:
         return api_error('invalid_content_type', 'Request must be JSON', 400)
@@ -360,6 +390,8 @@ def record_daily_plan_event():
         plan_date = None
 
     step_kind = body.get('step_kind')
+    if step_kind:
+        step_kind = str(step_kind)[:40]
     reason_text = body.get('reason_text')
     if reason_text:
         reason_text = str(reason_text)[:500]

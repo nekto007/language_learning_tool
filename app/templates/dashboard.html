@@ -5748,6 +5748,10 @@ async function repairStreak() {
 
         a.addEventListener('click', function() {
             postEvent('next_step_accepted', step.kind, '');
+            var rivalVisible = document.querySelector('[data-rival-strip="true"]');
+            if (rivalVisible && rivalVisible.style.display !== 'none') {
+                postEvent('steps_taken_while_rival_visible', step.kind, '');
+            }
         });
         return a;
     }
@@ -5780,17 +5784,43 @@ async function repairStreak() {
             postEvent('next_step_dismissed', kind, '');
         });
     }
+
+    // Emit session_ended_at_minimum when user leaves page after securing the day
+    // without accepting any continuation step.
+    var _continuationAccepted = false;
+    queue.addEventListener('click', function() { _continuationAccepted = true; }, {capture: true});
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden' && !_continuationAccepted) {
+            postEvent('session_ended_at_minimum', '', '');
+        }
+    });
 })();
 {% endif %}
 
-// Phase 3: Ghost rival strip dismiss (permanent, POST to server).
+// Phase 3: Ghost rival strip — show event + dismiss (permanent, POST to server).
 (function() {
     var strip = document.querySelector('[data-rival-strip="true"]');
     if (!strip) return;
+
+    function postRivalEvent(eventType) {
+        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        var csrfToken = csrfMeta ? csrfMeta.content : '';
+        var headers = {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken};
+        var jwtToken = localStorage.getItem('jwt_token');
+        if (jwtToken) headers['Authorization'] = 'Bearer ' + jwtToken;
+        fetch('/api/daily-plan/events', {
+            method: 'POST', credentials: 'same-origin',
+            headers: headers, body: JSON.stringify({event_type: eventType})
+        }).catch(function() {});
+    }
+
+    postRivalEvent('rival_strip_shown');
+
     var btn = strip.querySelector('[data-rival-strip-dismiss="true"]');
     if (!btn) return;
     btn.addEventListener('click', function() {
         strip.style.display = 'none';
+        postRivalEvent('rival_strip_dismissed');
         var dismissUrl = strip.getAttribute('data-dismiss-url');
         if (!dismissUrl) return;
         var csrfMeta = document.querySelector('meta[name="csrf-token"]');
