@@ -190,7 +190,7 @@
   height: 100%;
   background: #fff !important;
   border-radius: 3px;
-  transition: width 0.4s ease;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ── Quiz Container ── */
@@ -235,12 +235,14 @@
 .qz-page .timer-icon {
   color: var(--qz-text-muted);
   flex-shrink: 0;
+  transition: color 0.3s;
 }
 
 .qz-page .timer-value {
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--qz-text);
+  transition: color 0.3s;
 }
 
 /* ── Question ── */
@@ -435,6 +437,17 @@
   color: var(--qz-warning);
 }
 
+.qz-page .hint-btn--active {
+  background: #fffbeb;
+  border-color: var(--qz-warning);
+  color: var(--qz-warning);
+}
+
+.qz-page .hint-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .qz-page .submit-answer-btn {
   padding: 0.625rem 1.5rem;
   background: var(--qz-gradient);
@@ -454,7 +467,7 @@
 }
 
 .qz-page .submit-answer-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -753,11 +766,11 @@
             </div>
 
             <!-- Multiple choice options (2x2 grid) -->
-            <div class="options-container quiz-options-grid" id="multiple-choice-container" style="display: none;">
-                <button class="option-btn quiz-option-btn" data-option="0">Option 1</button>
-                <button class="option-btn quiz-option-btn" data-option="1">Option 2</button>
-                <button class="option-btn quiz-option-btn" data-option="2">Option 3</button>
-                <button class="option-btn quiz-option-btn" data-option="3">Option 4</button>
+            <div class="options-container quiz-options-grid" id="multiple-choice-container" role="radiogroup" aria-label="Варианты ответа" style="display: none;">
+                <button class="option-btn quiz-option-btn" role="radio" aria-checked="false" data-option="0">Option 1</button>
+                <button class="option-btn quiz-option-btn" role="radio" aria-checked="false" data-option="1">Option 2</button>
+                <button class="option-btn quiz-option-btn" role="radio" aria-checked="false" data-option="2">Option 3</button>
+                <button class="option-btn quiz-option-btn" role="radio" aria-checked="false" data-option="3">Option 4</button>
             </div>
 
             <!-- Fill in the blank -->
@@ -769,7 +782,7 @@
 
             <!-- Buttons row - centered -->
             <div class="quiz-buttons-row" style="display: flex; justify-content: center; gap: 16px; margin: 24px 0;">
-                <button id="hint-btn" class="hint-btn">Подсказка</button>
+                <button id="hint-btn" class="hint-btn" aria-expanded="false" aria-controls="hint-text">Подсказка</button>
                 <button id="submit-answer-btn" class="submit-answer-btn">Отправить</button>
                 <button id="next-btn" class="next-btn">Далее</button>
             </div>
@@ -1195,8 +1208,12 @@
             optionButtons.forEach(button => {
                 button.onclick = function() {
                     if (this.style.display !== 'none' && nextBtn.style.display === 'none') {
-                        optionButtons.forEach(btn => btn.classList.remove('selected'));
+                        optionButtons.forEach(btn => {
+                            btn.classList.remove('selected');
+                            btn.setAttribute('aria-checked', 'false');
+                        });
                         this.classList.add('selected');
+                        this.setAttribute('aria-checked', 'true');
                         selectedOption = this.getAttribute('data-option');
                         submitAnswer();
                     }
@@ -1240,6 +1257,13 @@
             feedbackContainer.className = 'feedback-container';
 
             hintText.style.display = 'none';
+            hintBtn.setAttribute('aria-expanded', 'false');
+            hintBtn.classList.remove('hint-btn--active');
+            hintBtn.disabled = false;
+
+            multipleChoiceContainer.querySelectorAll('.option-btn').forEach(btn => {
+                btn.setAttribute('aria-checked', 'false');
+            });
 
             multipleChoiceContainer.style.setProperty('display', 'none', 'important');
             fillBlankContainer.style.setProperty('display', 'none', 'important');
@@ -1448,12 +1472,18 @@
                     }
                 }
 
+                if (scorePercentage >= 85) {
+                    setTimeout(() => celebrateWithConfetti(), 500);
+                }
+
                 if (data.achievements && data.achievements.length > 0) {
                     const achievementsContainer = document.getElementById('achievements-earned');
                     const badgesContainer = document.getElementById('achievement-badges');
                     badgesContainer.innerHTML = '';
 
-                    setTimeout(() => celebrateWithConfetti(), 500);
+                    if (scorePercentage < 85) {
+                        setTimeout(() => celebrateWithConfetti(), 500);
+                    }
 
                     data.achievements.forEach((achievement, index) => {
                         const badge = document.createElement('div');
@@ -1511,7 +1541,19 @@
         });
 
         hintBtn.addEventListener('click', function() {
-            hintText.style.display = hintText.style.display === 'block' ? 'none' : 'block';
+            if (this.disabled) return;
+            const isVisible = hintText.style.display === 'block';
+            if (isVisible) {
+                hintText.style.display = 'none';
+                this.setAttribute('aria-expanded', 'false');
+                this.classList.remove('hint-btn--active');
+                this.disabled = false;
+            } else {
+                hintText.style.display = 'block';
+                this.setAttribute('aria-expanded', 'true');
+                this.classList.add('hint-btn--active');
+                this.disabled = true;
+            }
         });
 
         endSessionBtn.addEventListener('click', function() {
