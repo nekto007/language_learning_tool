@@ -194,7 +194,7 @@
                     <svg class="decks-search__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                     <input type="text" class="decks-search__input" id="deck-search" placeholder="Поиск колод..." aria-describedby="search-help">
                     <span id="search-help" class="visually-hidden">Введите название колоды для фильтрации списка</span>
-                    <button class="decks-search__clear" type="button" id="clear-search" style="display: none;" aria-label="Очистить поиск">
+                    <button class="decks-search__clear" type="button" id="clear-search" aria-label="Очистить поиск">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
                     </button>
                 </div>
@@ -506,6 +506,9 @@
     .decks-hero__circle--3 {
         animation: none;
         opacity: 1;
+        transform: none;
+    }
+    .decks-card:hover {
         transform: none;
     }
 }
@@ -1007,7 +1010,15 @@
     color: var(--decks-text-light);
     display: flex;
     align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
     transition: color .2s, opacity .2s, visibility .2s;
+}
+.decks-search__clear--visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
 }
 
 .decks-search__clear:hover {
@@ -1870,11 +1881,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const query = this.value.toLowerCase().trim();
 
             // Show/hide clear button
-            if (query) {
-                clearButton.style.display = 'flex';
-            } else {
-                clearButton.style.display = 'none';
-            }
+            clearButton.classList.toggle('decks-search__clear--visible', !!query);
 
             let visibleCount = 0;
 
