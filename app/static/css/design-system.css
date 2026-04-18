@@ -12202,44 +12202,6 @@ footer .col-md-4 {
     content: '▼ ';
 }
 
-/* =====================================================================
-   Auth UI/UX improvements
-   ===================================================================== */
-
-.auth-password-wrapper {
-    position: relative;
-}
-
-.auth-password-wrapper .auth-field__input {
-    padding-right: 2.75rem;
-}
-
-.auth-password-toggle {
-    position: absolute;
-    right: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #64748b;
-    padding: 0.25rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition: color 0.2s ease;
-}
-
-.auth-password-toggle:hover {
-    color: #0f172a;
-}
-
-.auth-password-toggle:focus-visible {
-    outline: 2px solid var(--color-primary, #2563eb);
-    outline-offset: 2px;
-}
-
 
 /* ============================================
    Skeleton Loader

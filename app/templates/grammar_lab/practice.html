@@ -1686,8 +1686,9 @@ document.getElementById('check-btn').addEventListener('click', async function() 
           </svg>
           Неверно
         </div>
-        <div>Правильный ответ: <span class="practice-exercise__feedback-answer">${data.correct_answer}</span></div>
+        <div>Правильный ответ: <span class="practice-exercise__feedback-answer"></span></div>
       `;
+      feedback.querySelector('.practice-exercise__feedback-answer').textContent = data.correct_answer;
     }
     feedback.style.display = 'block';
 
