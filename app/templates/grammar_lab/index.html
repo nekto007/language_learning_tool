@@ -101,6 +101,12 @@
               </div>
             </div>
           </div>
+        {% elif current_user.is_authenticated %}
+          <!-- Empty state for new users (0 topics started) -->
+          <div class="grammar-stats-empty">
+            <p class="grammar-stats-empty__text">Начните первую тему, чтобы увидеть прогресс</p>
+            <a href="{{ url_for('grammar_lab.topics') }}" class="grammar-stats-empty__cta">Начать первую тему →</a>
+          </div>
         {% endif %}
       </div>
     </div>
@@ -181,6 +187,16 @@
             </div>
           </a>
         {% endfor %}
+      </div>
+
+      <div class="grammar-load-more">
+        <a href="{{ url_for('grammar_lab.topics') }}" class="grammar-load-more__btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+          </svg>
+          Смотреть все темы
+        </a>
       </div>
     </div>
   {% endif %}
@@ -1434,6 +1450,78 @@
   .grammar-next-topic__meta {
     justify-content: center;
   }
+}
+
+/* ============================================
+   Grammar Stats Empty State
+   ============================================ */
+
+.grammar-stats-empty {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: var(--grammar-radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.grammar-stats-empty__text {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+  flex: 1;
+}
+
+.grammar-stats-empty__cta {
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 0.375rem 0.875rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.grammar-stats-empty__cta:hover {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+/* ============================================
+   Load More Button
+   ============================================ */
+
+.grammar-load-more {
+  text-align: center;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--grammar-border);
+}
+
+.grammar-load-more__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  color: var(--grammar-primary);
+  background: rgba(139, 92, 246, 0.06);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.grammar-load-more__btn:hover {
+  background: rgba(139, 92, 246, 0.12);
+  border-color: var(--grammar-primary);
+  transform: translateY(-1px);
+  color: var(--grammar-primary);
 }
 </style>
 {% endblock %}

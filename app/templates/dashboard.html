@@ -1270,7 +1270,7 @@
     <!-- Words SRS Distribution -->
     {% if words_total > 0 %}
     <div class="dash-srs">
-        <h3 class="dash-srs__heading">&#1057;&#1083;&#1086;&#1074;&#1072; SRS</h3>
+        <h3 class="dash-srs__heading">Слова SRS</h3>
         <div class="dash-srs__bar">
             {% set srs_total = words_stats.new + words_stats.learning + words_stats.review + words_stats.mastered %}
             {% if srs_total > 0 %}
@@ -1289,6 +1289,15 @@
             <span class="dash-srs__legend-item"><span class="dash-srs__dot dash-srs__dot--learning"></span>&#1048;&#1079;&#1091;&#1095;&#1072;&#1102; {{ words_stats.learning }}</span>
             <span class="dash-srs__legend-item"><span class="dash-srs__dot dash-srs__dot--review"></span>&#1055;&#1086;&#1074;&#1090;&#1086;&#1088; {{ words_stats.review }}</span>
             <span class="dash-srs__legend-item"><span class="dash-srs__dot dash-srs__dot--mastered"></span>&#1047;&#1072;&#1082;&#1088;&#1077;&#1087;&#1083;&#1077;&#1085;&#1086; {{ words_stats.mastered }}</span>
+        </div>
+    </div>
+    {% elif grammar_studied > 0 or books_reading > 0 or courses_enrolled > 0 %}
+    <div class="dash-words-empty">
+        <div class="dash-words-empty__icon">&#128218;</div>
+        <div class="dash-words-empty__content">
+            <h3 class="dash-words-empty__title">Начните свой словарь</h3>
+            <p class="dash-words-empty__text">Добавьте слова в словарь — они появятся здесь для повторения.</p>
+            <a href="{{ url_for('words.word_list') }}" class="dash-words-empty__btn">Добавить первое слово</a>
         </div>
     </div>
     {% endif %}
@@ -5433,6 +5442,34 @@
     color: var(--dash-text, #374151);
     background: var(--dash-border, #e5e7eb);
 }
+.dash-words-empty {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+}
+.dash-words-empty__icon { font-size: 1.75rem; flex-shrink: 0; }
+.dash-words-empty__content { flex: 1; }
+.dash-words-empty__title { font-size: 1rem; font-weight: 600; color: var(--dash-text); margin: 0 0 0.25rem; }
+.dash-words-empty__text { font-size: 0.875rem; color: var(--dash-text-muted); margin: 0 0 0.75rem; }
+.dash-words-empty__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    background: var(--dash-accent);
+    color: #fff;
+    border-radius: var(--dash-radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: opacity 0.15s;
+}
+.dash-words-empty__btn:hover { opacity: 0.9; }
 </style>
 
 <script>

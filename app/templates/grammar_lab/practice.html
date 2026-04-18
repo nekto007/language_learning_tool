@@ -1592,6 +1592,7 @@ document.getElementById('check-btn').addEventListener('click', async function() 
   const exercise = exercises[currentIndex];
   const exerciseType = (exercise.exercise_type || '').toLowerCase();
   let answer;
+  const checkBtn = this;
 
   if (exerciseType === 'multiple_choice') {
     const selected = document.querySelector('input[name="answer"]:checked');
@@ -1626,6 +1627,12 @@ document.getElementById('check-btn').addEventListener('click', async function() 
     }
   }
 
+  // Show loading state on button
+  const originalHTML = checkBtn.innerHTML;
+  checkBtn.disabled = true;
+  checkBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 0.8s linear infinite"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Проверка...`;
+  checkBtn.style.opacity = '0.7';
+
   try {
     const response = await fetch(`/grammar-lab/api/exercise/${exercise.id}/submit`, {
       method: 'POST',
@@ -1639,6 +1646,19 @@ document.getElementById('check-btn').addEventListener('click', async function() 
         source: 'srs_review'
       })
     });
+    if (!response.ok) {
+      checkBtn.innerHTML = originalHTML;
+      checkBtn.disabled = false;
+      checkBtn.style.opacity = '';
+      const feedback = document.getElementById('feedback-area');
+      if (feedback) {
+        feedback.className = 'practice-exercise__feedback error';
+        feedback.textContent = 'Ошибка при отправке ответа. Попробуйте снова.';
+        feedback.style.display = 'block';
+      }
+      return;
+    }
+
     const data = await response.json();
 
     const feedback = document.getElementById('feedback-area');
@@ -1666,12 +1686,15 @@ document.getElementById('check-btn').addEventListener('click', async function() 
           </svg>
           Неверно
         </div>
-        <div>Правильный ответ: <span class="practice-exercise__feedback-answer">${data.correct_answer}</span></div>
+        <div>Правильный ответ: <span class="practice-exercise__feedback-answer"></span></div>
       `;
+      feedback.querySelector('.practice-exercise__feedback-answer').textContent = data.correct_answer;
     }
     feedback.style.display = 'block';
 
-    this.style.display = 'none';
+    checkBtn.innerHTML = originalHTML;
+    checkBtn.style.opacity = '';
+    checkBtn.style.display = 'none';
     document.getElementById('next-btn').style.display = 'inline-flex';
 
     // Disable inputs
@@ -1682,6 +1705,9 @@ document.getElementById('check-btn').addEventListener('click', async function() 
 
   } catch (error) {
     console.error('Error:', error);
+    checkBtn.innerHTML = originalHTML;
+    checkBtn.disabled = false;
+    checkBtn.style.opacity = '';
   }
 });
 

@@ -192,12 +192,13 @@
                 <div class="decks-search">
                     <label for="deck-search" class="visually-hidden">Поиск колод</label>
                     <svg class="decks-search__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                    <input type="text" class="decks-search__input" id="deck-search" placeholder="Поиск колод...">
-                    <button class="decks-search__clear" type="button" id="clear-search" style="display: none;" aria-label="Очистить поиск">
+                    <input type="text" class="decks-search__input" id="deck-search" placeholder="Поиск колод..." aria-describedby="search-help">
+                    <span id="search-help" class="visually-hidden">Введите название колоды для фильтрации списка</span>
+                    <button class="decks-search__clear" type="button" id="clear-search" aria-label="Очистить поиск">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
                     </button>
                 </div>
-                <a href="{{ url_for('study.create_deck') }}" class="decks-section__add-btn">
+                <a href="{{ url_for('study.create_deck') }}" class="decks-section__add-btn" title="Создать колоду">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
                     <span class="decks-section__add-label">Создать</span>
                 </a>
@@ -348,13 +349,13 @@
                 </div>
 
                 <div class="decks-card__actions">
-                    <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="decks-card__btn decks-card__btn--quiz" title="Квиз">
+                    <a href="{{ url_for('study.quiz_deck', deck_id=deck.id) }}" class="decks-card__btn decks-card__btn--quiz" title="Квиз" aria-label="Квиз для колоды {{ deck.title }}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                         <span class="decks-card__btn-label">Квиз</span>
                     </a>
                     <form method="POST" action="{{ url_for('study.copy_deck', deck_id=deck.id) }}" class="decks-card__copy-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <button type="submit" class="decks-card__btn decks-card__btn--copy" title="Копировать">
+                        <button type="submit" class="decks-card__btn decks-card__btn--copy" title="Копировать" aria-label="Копировать колоду {{ deck.title }}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                             <span class="decks-card__btn-label">Копировать</span>
                         </button>
@@ -495,6 +496,21 @@
 
 .slideUp {
     animation: decks-slideUp .5s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .slideUp,
+    .decks-hero,
+    .decks-hero__circle--1,
+    .decks-hero__circle--2,
+    .decks-hero__circle--3 {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+    .decks-card:hover {
+        transform: none;
+    }
 }
 
 /* ── Hero ── */
@@ -994,7 +1010,15 @@
     color: var(--decks-text-light);
     display: flex;
     align-items: center;
-    transition: color .2s;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: color .2s, opacity .2s, visibility .2s;
+}
+.decks-search__clear--visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
 }
 
 .decks-search__clear:hover {
@@ -1022,6 +1046,11 @@
     color: #fff;
 }
 
+.decks-section__add-btn:focus-visible {
+    outline: 2px solid var(--decks-blue);
+    outline-offset: 2px;
+}
+
 /* ── Deck Cards ── */
 .decks-list {
     display: flex;
@@ -1038,12 +1067,13 @@
     border-radius: var(--decks-radius);
     padding: 1rem 1.25rem;
     box-shadow: var(--decks-shadow);
-    transition: box-shadow .2s, border-color .2s;
+    transition: box-shadow .2s, border-color .2s, transform 0.15s ease;
 }
 
 .decks-card:hover {
     box-shadow: var(--decks-shadow-md);
     border-color: #cbd5e1;
+    transform: scale(1.02);
 }
 
 .decks-card__icon {
@@ -1277,6 +1307,11 @@
     box-shadow: var(--decks-shadow-md);
     border-color: #cbd5e1;
     transform: translateY(-2px);
+}
+
+.decks-mode--selected {
+    border-color: var(--decks-blue);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.15), var(--decks-shadow-md);
 }
 
 .decks-mode__icon {
@@ -1604,6 +1639,18 @@
     .decks-section__add-label {
         display: none;
     }
+
+    .decks-section__add-btn {
+        flex-shrink: 0;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .decks-section__actions {
+        gap: 0.5rem;
+    }
 }
 
 /* ── Auto/Custom Deck Badge ── */
@@ -1737,6 +1784,12 @@ function startQuiz() {
     const allWords = document.getElementById('quiz-all-words').checked;
     const limit = document.getElementById('quiz-limit').value;
 
+    const startBtn = document.querySelector('.decks-modal__btn--start');
+    if (startBtn) {
+        startBtn.disabled = true;
+        startBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .6s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Загрузка...';
+    }
+
     let url = `/study/quiz/deck/${selectedDeckId}`;
     if (!allWords && limit) {
         url += `?limit=${limit}`;
@@ -1791,6 +1844,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Copy deck form loading state
+    document.querySelectorAll('.decks-card__copy-form').forEach(form => {
+        form.addEventListener('submit', function() {
+            const btn = this.querySelector('button[type="submit"]');
+            if (btn) {
+                btn.disabled = true;
+                const label = btn.querySelector('.decks-card__btn-label');
+                if (label) label.textContent = 'Копирую...';
+            }
+        });
+    });
+
     // Delete deck buttons
     document.querySelectorAll('.btn-delete-deck').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -1808,7 +1873,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const decksList = document.getElementById('decks-list');
     const deckCountBadge = document.getElementById('deck-count');
 
-    if (searchInput && decksList) {
+    if (searchInput && decksList && clearButton && deckCountBadge) {
         const cards = Array.from(decksList.querySelectorAll('.decks-card'));
         const totalDecks = cards.length;
 
@@ -1816,11 +1881,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const query = this.value.toLowerCase().trim();
 
             // Show/hide clear button
-            if (query) {
-                clearButton.style.display = 'flex';
-            } else {
-                clearButton.style.display = 'none';
-            }
+            clearButton.classList.toggle('decks-search__clear--visible', !!query);
 
             let visibleCount = 0;
 
@@ -1850,18 +1911,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Show "no results" message if needed
             if (visibleCount === 0 && query) {
-                if (!document.getElementById('no-results-message')) {
-                    const noResultsDiv = document.createElement('div');
+                let noResultsDiv = document.getElementById('no-results-message');
+                if (!noResultsDiv) {
+                    noResultsDiv = document.createElement('div');
                     noResultsDiv.id = 'no-results-message';
                     noResultsDiv.className = 'decks-empty';
-                    noResultsDiv.innerHTML = `
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-                        </svg>
-                        <p>Колоды не найдены по запросу: "<strong>${query}</strong>"</p>
-                    `;
+                    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                    svg.setAttribute('width', '40'); svg.setAttribute('height', '40');
+                    svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('fill', 'none');
+                    svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '2');
+                    svg.innerHTML = '<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>';
+                    const p = document.createElement('p');
+                    noResultsDiv.appendChild(svg);
+                    noResultsDiv.appendChild(p);
                     decksList.appendChild(noResultsDiv);
                 }
+                const p = noResultsDiv.querySelector('p');
+                p.textContent = `Колоды не найдены по запросу: "${query}"`;
             } else {
                 const noResultsMsg = document.getElementById('no-results-message');
                 if (noResultsMsg) {
@@ -1886,6 +1952,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+
 });
 </script>
 {% endblock %}

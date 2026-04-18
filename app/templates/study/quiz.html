@@ -190,7 +190,7 @@
   height: 100%;
   background: #fff !important;
   border-radius: 3px;
-  transition: width 0.4s ease;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ── Quiz Container ── */
@@ -235,12 +235,14 @@
 .qz-page .timer-icon {
   color: var(--qz-text-muted);
   flex-shrink: 0;
+  transition: color 0.3s;
 }
 
 .qz-page .timer-value {
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--qz-text);
+  transition: color 0.3s;
 }
 
 /* ── Question ── */
@@ -435,6 +437,17 @@
   color: var(--qz-warning);
 }
 
+.qz-page .hint-btn--active {
+  background: #fffbeb;
+  border-color: var(--qz-warning);
+  color: var(--qz-warning);
+}
+
+.qz-page .hint-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .qz-page .submit-answer-btn {
   padding: 0.625rem 1.5rem;
   background: var(--qz-gradient);
@@ -454,7 +467,7 @@
 }
 
 .qz-page .submit-answer-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -675,7 +688,17 @@
 
   .qz-page .quiz-buttons-row {
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
+    gap: 0.625rem;
+    padding: 0 0.25rem;
+  }
+
+  .qz-page .hint-btn,
+  .qz-page .submit-answer-btn,
+  .qz-page .next-btn {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
   }
 
   .qz-page .progress-header {
@@ -684,6 +707,7 @@
     gap: 0.75rem;
   }
 }
+
 </style>
 {% endblock %}
 
@@ -740,7 +764,7 @@
             <div class="quiz-question-container">
                 <div class="quiz-word-row">
                     <h2 class="quiz-question-text" id="question-text"></h2>
-                    <button id="audio-btn" class="audio-btn-icon" style="display: none;" title="Прослушать">
+                    <button id="audio-btn" class="audio-btn-icon" style="display: none;" title="Прослушать" aria-label="Прослушать произношение">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                     </button>
                 </div>
@@ -753,11 +777,11 @@
             </div>
 
             <!-- Multiple choice options (2x2 grid) -->
-            <div class="options-container quiz-options-grid" id="multiple-choice-container" style="display: none;">
-                <button class="option-btn quiz-option-btn" data-option="0">Option 1</button>
-                <button class="option-btn quiz-option-btn" data-option="1">Option 2</button>
-                <button class="option-btn quiz-option-btn" data-option="2">Option 3</button>
-                <button class="option-btn quiz-option-btn" data-option="3">Option 4</button>
+            <div class="options-container quiz-options-grid" id="multiple-choice-container" role="radiogroup" aria-label="Варианты ответа" style="display: none;">
+                <button class="option-btn quiz-option-btn" role="radio" aria-checked="false" data-option="0">Option 1</button>
+                <button class="option-btn quiz-option-btn" role="radio" aria-checked="false" data-option="1">Option 2</button>
+                <button class="option-btn quiz-option-btn" role="radio" aria-checked="false" data-option="2">Option 3</button>
+                <button class="option-btn quiz-option-btn" role="radio" aria-checked="false" data-option="3">Option 4</button>
             </div>
 
             <!-- Fill in the blank -->
@@ -769,7 +793,7 @@
 
             <!-- Buttons row - centered -->
             <div class="quiz-buttons-row" style="display: flex; justify-content: center; gap: 16px; margin: 24px 0;">
-                <button id="hint-btn" class="hint-btn">Подсказка</button>
+                <button id="hint-btn" class="hint-btn" aria-expanded="false" aria-controls="hint-text">Подсказка</button>
                 <button id="submit-answer-btn" class="submit-answer-btn">Отправить</button>
                 <button id="next-btn" class="next-btn">Далее</button>
             </div>
@@ -837,6 +861,7 @@
 <script>
     // Confetti animation function
     function celebrateWithConfetti() {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         const duration = 3 * 1000;
         const animationEnd = Date.now() + duration;
         const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
@@ -1195,8 +1220,12 @@
             optionButtons.forEach(button => {
                 button.onclick = function() {
                     if (this.style.display !== 'none' && nextBtn.style.display === 'none') {
-                        optionButtons.forEach(btn => btn.classList.remove('selected'));
+                        optionButtons.forEach(btn => {
+                            btn.classList.remove('selected');
+                            btn.setAttribute('aria-checked', 'false');
+                        });
                         this.classList.add('selected');
+                        this.setAttribute('aria-checked', 'true');
                         selectedOption = this.getAttribute('data-option');
                         submitAnswer();
                     }
@@ -1240,6 +1269,13 @@
             feedbackContainer.className = 'feedback-container';
 
             hintText.style.display = 'none';
+            hintBtn.setAttribute('aria-expanded', 'false');
+            hintBtn.classList.remove('hint-btn--active');
+            hintBtn.disabled = false;
+
+            multipleChoiceContainer.querySelectorAll('.option-btn').forEach(btn => {
+                btn.setAttribute('aria-checked', 'false');
+            });
 
             multipleChoiceContainer.style.setProperty('display', 'none', 'important');
             fillBlankContainer.style.setProperty('display', 'none', 'important');
@@ -1448,20 +1484,31 @@
                     }
                 }
 
+                let confettiFired = false;
+                if (scorePercentage >= 85) {
+                    setTimeout(() => celebrateWithConfetti(), 500);
+                    confettiFired = true;
+                }
+
                 if (data.achievements && data.achievements.length > 0) {
                     const achievementsContainer = document.getElementById('achievements-earned');
                     const badgesContainer = document.getElementById('achievement-badges');
                     badgesContainer.innerHTML = '';
 
-                    setTimeout(() => celebrateWithConfetti(), 500);
+                    if (!confettiFired) {
+                        setTimeout(() => celebrateWithConfetti(), 500);
+                    }
 
                     data.achievements.forEach((achievement, index) => {
                         const badge = document.createElement('div');
                         badge.style.cssText = `background: #fff; border: 2px solid #ffd700; border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; animation: qzSlideUp 0.5s ease-out ${index * 0.1}s both;`;
-                        badge.innerHTML = `
-                            <span style="font-size: 18px;">${achievement.icon}</span>
-                            <span>${achievement.name}</span>
-                        `;
+                        const iconSpan = document.createElement('span');
+                        iconSpan.style.fontSize = '18px';
+                        iconSpan.textContent = achievement.icon;
+                        const nameSpan = document.createElement('span');
+                        nameSpan.textContent = achievement.name;
+                        badge.appendChild(iconSpan);
+                        badge.appendChild(nameSpan);
                         badgesContainer.appendChild(badge);
                     });
 
@@ -1511,7 +1558,11 @@
         });
 
         hintBtn.addEventListener('click', function() {
-            hintText.style.display = hintText.style.display === 'block' ? 'none' : 'block';
+            if (this.disabled) return;
+            hintText.style.display = 'block';
+            this.setAttribute('aria-expanded', 'true');
+            this.classList.add('hint-btn--active');
+            this.disabled = true;
         });
 
         endSessionBtn.addEventListener('click', function() {
