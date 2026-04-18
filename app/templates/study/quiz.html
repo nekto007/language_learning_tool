@@ -792,11 +792,11 @@
             </div>
 
             <!-- Multiple choice options (2x2 grid) -->
-            <div class="options-container quiz-options-grid" id="multiple-choice-container" role="radiogroup" aria-label="Варианты ответа" style="display: none;">
-                <button class="option-btn quiz-option-btn" role="radio" aria-checked="false" data-option="0">Option 1</button>
-                <button class="option-btn quiz-option-btn" role="radio" aria-checked="false" data-option="1">Option 2</button>
-                <button class="option-btn quiz-option-btn" role="radio" aria-checked="false" data-option="2">Option 3</button>
-                <button class="option-btn quiz-option-btn" role="radio" aria-checked="false" data-option="3">Option 4</button>
+            <div class="options-container quiz-options-grid" id="multiple-choice-container" role="group" aria-label="Варианты ответа" style="display: none;">
+                <button class="option-btn quiz-option-btn" role="button" aria-pressed="false" data-option="0">Option 1</button>
+                <button class="option-btn quiz-option-btn" role="button" aria-pressed="false" data-option="1">Option 2</button>
+                <button class="option-btn quiz-option-btn" role="button" aria-pressed="false" data-option="2">Option 3</button>
+                <button class="option-btn quiz-option-btn" role="button" aria-pressed="false" data-option="3">Option 4</button>
             </div>
 
             <!-- Fill in the blank -->
@@ -1237,10 +1237,10 @@
                     if (this.style.display !== 'none' && nextBtn.style.display === 'none') {
                         optionButtons.forEach(btn => {
                             btn.classList.remove('selected');
-                            btn.setAttribute('aria-checked', 'false');
+                            btn.setAttribute('aria-pressed', 'false');
                         });
                         this.classList.add('selected');
-                        this.setAttribute('aria-checked', 'true');
+                        this.setAttribute('aria-pressed', 'true');
                         selectedOption = this.getAttribute('data-option');
                         submitAnswer();
                     }
@@ -1289,7 +1289,7 @@
             hintBtn.disabled = false;
 
             multipleChoiceContainer.querySelectorAll('.option-btn').forEach(btn => {
-                btn.setAttribute('aria-checked', 'false');
+                btn.setAttribute('aria-pressed', 'false');
             });
 
             multipleChoiceContainer.style.setProperty('display', 'none', 'important');
