@@ -290,7 +290,8 @@ def get_or_create_race(user_id: int, race_date: date_cls) -> RaceCohort:
     )
     if existing is not None:
         race = db.session.get(DailyRace, existing.race_id)
-        return _build_cohort(race)
+        if race is not None:
+            return _build_cohort(race)
 
     user_stats = _user_stats_snapshot(user_id)
     race = _find_matching_race(user_id, race_date, user_stats)

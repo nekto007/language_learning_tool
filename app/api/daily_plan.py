@@ -482,7 +482,7 @@ def streak_repair():
     from app.telegram.queries import get_current_streak
 
     user_id = current_user.id
-    tz = _validate_timezone(request.json.get('tz', DEFAULT_TZ) if request.is_json else DEFAULT_TZ)
+    tz = _validate_timezone((request.get_json(silent=True) or {}).get('tz', DEFAULT_TZ))
 
     missed = find_missed_date(user_id, tz=tz)
     if not missed:

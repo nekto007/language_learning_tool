@@ -137,8 +137,8 @@ def _check_unfinished_lesson(user_id: int, db) -> Optional[NextStep]:
     if not next_l:
         next_module = Module.query.filter(
             Module.level_id == module.level_id,
-            Module.number == module.number + 1,
-        ).first()
+            Module.number > module.number,
+        ).order_by(Module.number).first()
         if next_module:
             next_l = (
                 Lessons.query
