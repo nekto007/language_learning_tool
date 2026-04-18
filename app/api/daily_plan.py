@@ -186,6 +186,13 @@ def daily_plan():
 
     route_state = get_route_state(user_id, steps_today, db.session)
 
+    # Recompute day_secured from actual activity (assembler always returns False).
+    if phases and plan.get('_plan_meta', {}).get('effective_mode') == 'mission':
+        required_phases = [p for p in phases if p.get('required', True)]
+        plan['day_secured'] = bool(required_phases) and all(
+            plan_completion.get(p.get('id', ''), False) for p in required_phases
+        )
+
     return jsonify({'success': True, 'route_state': route_state, **plan})
 
 
@@ -267,7 +274,7 @@ def daily_race_status():
         update_race_points_from_plan,
     )
 
-    tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
+    tz = _validate_timezone(request.args.get('tz', current_user.timezone or DEFAULT_TZ))
     user_id = current_user.id
 
     user = User.query.get(user_id)
