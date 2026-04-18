@@ -925,11 +925,11 @@ def dashboard():
             from app.api.daily_plan import emit_minimum_completed
             from app.daily_plan.service import write_secured_at
             import pytz as _pytz
-            _tz_name = getattr(current_user, 'timezone', None) or 'Europe/Moscow'
+            _tz_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
             try:
                 _tz_obj = _pytz.timezone(_tz_name)
             except Exception:
-                _tz_obj = _pytz.timezone('Europe/Moscow')
+                _tz_obj = _pytz.timezone(DEFAULT_TIMEZONE)
             _today = datetime.now(_tz_obj).date()
             _mission = daily_plan.get('mission') or {}
             _mission_type = _mission.get('type') if isinstance(_mission, dict) else None
@@ -959,16 +959,16 @@ def dashboard():
                 PHASE_STEP_WEIGHTS,
             )
             import pytz as _pytz_rp
-            _tz_name_rp = getattr(current_user, 'timezone', None) or 'Europe/Moscow'
+            _tz_name_rp = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
             try:
                 _tz_obj_rp = _pytz_rp.timezone(_tz_name_rp)
             except Exception:
-                _tz_obj_rp = _pytz_rp.timezone('Europe/Moscow')
+                _tz_obj_rp = _pytz_rp.timezone(DEFAULT_TIMEZONE)
             _route_today = datetime.now(_tz_obj_rp).date()
             for _p in daily_plan.get('phases', []):
                 if plan_completion.get(_p.get('id', ''), False):
                     _pk = _p.get('phase', '')
-                    if _pk in PHASE_STEP_WEIGHTS:
+                    if PHASE_STEP_WEIGHTS.get(_pk, 0) > 0:
                         add_route_steps_idempotent(current_user.id, _pk, _route_today, db.session)
             db.session.commit()
             _weighted_steps_today = sum(
@@ -998,7 +998,7 @@ def dashboard():
             _dismissed = getattr(current_user, 'rival_strip_dismissed', False)
             if _is_adult and not _dismissed:
                 import pytz as _pytz
-                _tz_name = getattr(current_user, 'timezone', None) or 'Europe/Moscow'
+                _tz_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
                 _today = datetime.now(_pytz.timezone(_tz_name)).date()
                 _ghost = get_ghost_rival(current_user.id, _today, tz=_tz_name)
                 _user_pos = (
@@ -1397,7 +1397,7 @@ def daily_plan_next_step() -> tuple:
             for _p in daily_plan.get('phases', []):
                 if _completion.get(_p.get('id', ''), False):
                     _pk = _p.get('phase', '')
-                    if _pk in PHASE_STEP_WEIGHTS:
+                    if PHASE_STEP_WEIGHTS.get(_pk, 0) > 0:
                         add_route_steps_idempotent(current_user.id, _pk, _route_today, db.session)
             db.session.commit()
         except Exception:

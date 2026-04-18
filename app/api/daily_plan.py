@@ -78,7 +78,7 @@ def daily_status():
             for _p in phases:
                 if plan_completion.get(_p.get('id', ''), False):
                     _pk = _p.get('phase', '')
-                    if _pk in PHASE_STEP_WEIGHTS:
+                    if PHASE_STEP_WEIGHTS.get(_pk, 0) > 0:
                         add_route_steps_idempotent(user_id, _pk, _route_today, db.session)
             db.session.commit()
         except Exception:
@@ -176,7 +176,7 @@ def daily_plan():
             for _p in phases:
                 if plan_completion.get(_p.get('id', ''), False):
                     _pk = _p.get('phase', '')
-                    if _pk in PHASE_STEP_WEIGHTS:
+                    if PHASE_STEP_WEIGHTS.get(_pk, 0) > 0:
                         add_route_steps_idempotent(user_id, _pk, _route_today, db.session)
             db.session.commit()
         except Exception:
@@ -373,11 +373,11 @@ def record_daily_plan_event():
         )
 
     import pytz as _pytz_ev
-    _tz_name_ev = getattr(current_user, 'timezone', None) or 'Europe/Moscow'
+    _tz_name_ev = getattr(current_user, 'timezone', None) or DEFAULT_TZ
     try:
         _tz_obj_ev = _pytz_ev.timezone(_tz_name_ev)
     except Exception:
-        _tz_obj_ev = _pytz_ev.timezone('Europe/Moscow')
+        _tz_obj_ev = _pytz_ev.timezone(DEFAULT_TZ)
     user_today = datetime_cls.now(_tz_obj_ev).date()
 
     plan_date_str = body.get('plan_date')
