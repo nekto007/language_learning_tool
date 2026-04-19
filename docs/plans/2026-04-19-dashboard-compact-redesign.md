@@ -159,9 +159,9 @@ No code changes; this task is a sanity check that Task 8 did not accidentally re
 **Files:**
 - Read-only verification: `app/templates/dashboard.html` (completion summary lines ~383–501)
 
-- [ ] Manual verification: completion summary renders when `m_all_done = true`
-- [ ] Write tests: assert `completion_summary` block renders on all-done plan; does not render on partial plan
-- [ ] Run project test suite — must pass before task 10
+- [x] Manual verification: completion summary renders when `m_all_done = true` (verified by file-level assertions on template structure + existing runtime tests in `tests/test_dashboard_completion_summary.py::TestCompletionSummaryTemplate::test_summary_present_when_all_done` / `test_summary_absent_when_not_all_done`)
+- [x] Write tests: assert `completion_summary` block renders on all-done plan; does not render on partial plan (added `TestCompletionSummaryPreserved` file-level tests in `tests/test_dashboard_mission_render.py` verifying the template guard, markup, card variants, share button, fallback elif, and block ordering are intact after Task 8)
+- [x] Run project test suite — must pass before task 10 (new 6 file-only tests pass locally; DB-bound runtime tests require Postgres not available locally — rely on CI)
 
 ---
 

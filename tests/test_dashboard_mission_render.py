@@ -1684,3 +1684,64 @@ class TestMissionHeaderRendering:
         assert 'Трек:' in html
         assert 'Цель дня:' in html
         assert 'Завершить урок' in html
+
+
+class TestCompletionSummaryPreserved:
+    """19 Tasks plan — Task 9: verify Task 8's banner/strip cleanup did not remove
+    the completion_summary block. File-level assertions on the dashboard template
+    that do not require a DB connection; runtime rendering coverage lives in
+    tests/test_dashboard_completion_summary.py.
+    """
+
+    def _read_template(self):
+        import os
+        tpl_path = os.path.join(
+            os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html'
+        )
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def test_completion_summary_conditional_present(self):
+        """Template keeps the `m_all_done and completion_summary` guard."""
+        tpl = self._read_template()
+        assert '{% if m_all_done and completion_summary %}' in tpl
+
+    def test_completion_summary_markup_present(self):
+        """Template keeps the dash-completion-summary container + data hook."""
+        tpl = self._read_template()
+        assert 'class="dash-completion-summary"' in tpl
+        assert 'data-completion-summary="true"' in tpl
+        assert 'data-completion-cards="true"' in tpl
+
+    def test_completion_summary_cards_preserved(self):
+        """All expected card variants remain in the template."""
+        tpl = self._read_template()
+        for card_mod in ('xp', 'level', 'streak', 'race', 'rank', 'badges', 'bonus'):
+            assert f'dash-completion-summary__card--{card_mod}' in tpl, (
+                f'Missing completion summary card modifier --{card_mod}'
+            )
+
+    def test_completion_summary_share_button_preserved(self):
+        """Share button (`Поделиться`) + data-share-text hook remain."""
+        tpl = self._read_template()
+        assert 'dash-completion-summary__share-btn' in tpl
+        assert 'data-share-text=' in tpl
+        assert 'Поделиться' in tpl
+
+    def test_completion_summary_fallback_elif_preserved(self):
+        """Fallback `dash-plan-complete` elif-branch (when no rich summary) remains."""
+        tpl = self._read_template()
+        assert '{% elif m_all_done %}' in tpl
+        assert 'dash-plan-complete' in tpl
+        assert 'Отличная работа! Всё на сегодня сделано.' in tpl
+
+    def test_completion_summary_block_order_inside_plan_card(self):
+        """Completion summary block sits after the streak-req hint and before phase cards."""
+        tpl = self._read_template()
+        streak_req_pos = tpl.find('{% if required_steps is defined and not m_all_done %}')
+        completion_pos = tpl.find('{% if m_all_done and completion_summary %}')
+        phase_cards_pos = tpl.find('{# Phase cards #}')
+        assert streak_req_pos != -1
+        assert completion_pos != -1
+        assert phase_cards_pos != -1
+        assert streak_req_pos < completion_pos < phase_cards_pos
