@@ -111,7 +111,8 @@ class TestDashboardMissionRender:
         assert 'dash-mission-header' in html
         assert 'data-mission-plan' in html
         assert 'Продвигаемся вперёд' in html
-        assert 'Следующий урок готов для вас' in html
+        # Task 6: reason_text was removed from the compact mission header
+        assert 'Следующий урок готов для вас' not in html
 
     def test_legacy_ui_rendered_when_flag_off(self, client, app, db_session, test_user, words_module_access):
         legacy_plan = {'steps': {}, 'next_lesson': None, 'words_due': 0}
@@ -1617,3 +1618,106 @@ class TestHeroStreakRendering:
         )
         html = response.data.decode('utf-8')
         assert 'dash-streak__share-btn' not in html
+
+
+class TestMissionHeaderSimplified:
+    """19 Tasks plan — Task 6: mission header = title + track + goal (eyebrow + reason removed)."""
+
+    def _read_template(self):
+        import os
+        tpl_path = os.path.join(
+            os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html'
+        )
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def _extract_header_block(self, tpl):
+        """Return the mission header markup."""
+        start = tpl.find('<div class="dash-mission-header">')
+        assert start != -1, 'mission header block missing'
+        # The block is followed by the Task 5 compact-redesign comment.
+        end = tpl.find('{# Task 5 (compact redesign)', start)
+        assert end != -1, 'could not find end of mission header block'
+        return tpl[start:end]
+
+    def test_eyebrow_markup_removed(self):
+        tpl = self._read_template()
+        header = self._extract_header_block(tpl)
+        assert 'dash-mission-header__eyebrow' not in header
+        assert 'Главная миссия дня' not in header
+
+    def test_reason_text_markup_removed(self):
+        tpl = self._read_template()
+        header = self._extract_header_block(tpl)
+        assert 'dash-mission-header__reason' not in header
+        assert 'reason_text' not in header
+
+    def test_title_and_badges_preserved(self):
+        tpl = self._read_template()
+        header = self._extract_header_block(tpl)
+        # Title, track pill and goal pill markup stays
+        assert 'dash-mission-header__title' in header
+        assert "m.get('title', '')" in header
+        assert 'Трек:' in header
+        assert 'Цель дня:' in header
+        assert 'dash-mission-header__pill' in header
+
+    def test_eyebrow_reason_css_rules_removed(self):
+        """CSS cleanup: removed elements should not carry leftover style blocks."""
+        tpl = self._read_template()
+        assert '.dash-mission-header__eyebrow {' not in tpl
+        assert '.dash-mission-header__reason {' not in tpl
+
+    def test_header_spacing_compact(self):
+        """Padding and margin should be tighter than the old 1rem/1.25rem/1rem layout."""
+        tpl = self._read_template()
+        rule_start = tpl.find('.dash-mission-header {')
+        assert rule_start != -1, 'missing .dash-mission-header CSS rule'
+        rule_end = tpl.find('}', rule_start)
+        rule = tpl[rule_start:rule_end]
+        assert 'padding: 0.75rem 1rem' in rule
+        assert 'margin-bottom: 0.75rem' in rule
+
+
+class TestMissionHeaderRendering:
+    """Runtime assertions — dashboard renders simplified mission header."""
+
+    def _get_dashboard(self, client, test_user, mission_plan):
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.daily_plan.service.get_daily_plan_unified') as mock_plan:
+            mock_plan.return_value = mission_plan
+            response = client.get('/dashboard')
+        return response
+
+    def test_eyebrow_not_in_rendered_dashboard(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'Главная миссия дня' not in html
+        assert 'dash-mission-header__eyebrow' not in html
+
+    def test_reason_text_not_in_rendered_dashboard(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        # reason text configured in fixture must not appear
+        assert 'Следующий урок готов для вас' not in html
+        assert 'dash-mission-header__reason' not in html
+
+    def test_title_and_pills_in_rendered_dashboard(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'Продвигаемся вперёд' in html
+        assert 'Трек:' in html
+        assert 'Цель дня:' in html
+        assert 'Завершить урок' in html

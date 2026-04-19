@@ -113,12 +113,12 @@ Strip the mission header of redundant copy (eyebrow + reason). Keep title + trac
 **Files:**
 - Modify: `app/templates/dashboard.html` (mission header lines ~323–361)
 
-- [ ] Remove `.dash-mission__eyebrow` ("ГЛАВНАЯ МИССИЯ ДНЯ")
-- [ ] Remove the `m.reason_text` line (duplicates title wording)
-- [ ] Keep: `m.title`, track-badge (source kind label), goal-badge (primary_goal.title)
-- [ ] Tighten spacing to match compact hero style
-- [ ] Write tests: assert eyebrow and reason_text not present in rendered plan header; title + both badges present
-- [ ] Run project test suite — must pass before task 7
+- [x] Remove `.dash-mission__eyebrow` ("ГЛАВНАЯ МИССИЯ ДНЯ")
+- [x] Remove the `m.reason_text` line (duplicates title wording)
+- [x] Keep: `m.title`, track-badge (source kind label), goal-badge (primary_goal.title)
+- [x] Tighten spacing to match compact hero style
+- [x] Write tests: assert eyebrow and reason_text not present in rendered plan header; title + both badges present
+- [x] Run project test suite — must pass before task 7 (file-only tests pass; DB-bound render tests require Postgres not available locally — rely on CI)
 
 ### Task 7: Move Mission XP widget into plan card
 
