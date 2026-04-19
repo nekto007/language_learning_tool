@@ -290,14 +290,14 @@ Walk through the new compact dashboard on mobile widths (320px / 375px / 414px /
 **Files:**
 - Modify: `app/templates/dashboard.html` (inline CSS mobile media queries; adjust any new selectors)
 
-- [ ] Hero: confirms one-row greeting + streak layout breaks gracefully on narrow screens (stack greeting/streak on < 400px)
-- [ ] Plan card: mission XP widget stacks level/progress/multiplier on < 640px
-- [ ] Social: 3-column grid collapses to 1 column on <= 768px
-- [ ] Race strip: text + "Подробнее →" stays on one line or wraps cleanly
-- [ ] Activity streak one-liner wraps to 2 lines on < 400px (acceptable)
-- [ ] Roadmap: already fixed to horizontal scroll on mobile in 2026-04-19 commit — verify no regressions
-- [ ] Write tests: optional visual regression / CSS tests if the project uses them; otherwise manual QA notes in plan document
-- [ ] Run project test suite — must pass before task 18
+- [x] Hero: confirms one-row greeting + streak layout breaks gracefully on narrow screens (stack greeting/streak on < 400px) — added `@media (max-width: 400px)` block that makes `.dash-hero__greeting` switch to `flex-direction: column`, stretches streak/streak-recovery/CTA to full width
+- [x] Plan card: mission XP widget stacks level/progress/multiplier on < 640px — added `@media (max-width: 640px)` block that makes `.dash-mission__xp .dash-xp` switch to `flex-direction: column`, progress bar + multiplier align flex-start and bar spans full width
+- [x] Social: 3-column grid collapses to 1 column on <= 768px — already in place from Task 13 (`@media (max-width: 768px)` sets `grid-template-columns: 1fr`), verified via dedicated test
+- [x] Race strip: text + "Подробнее →" stays on one line or wraps cleanly — already in place from Task 14 (`@media (max-width: 420px)` drops CTA to its own full-width row), verified via dedicated test
+- [x] Activity streak one-liner wraps to 2 lines on < 400px (acceptable) — added `@media (max-width: 400px)` rule for `.dash-heatmap__stat-line { word-break: break-word }` + smaller font-size on `.dash-yesterday-summary`
+- [x] Roadmap: already fixed to horizontal scroll on mobile in 2026-04-19 commit — verified no regressions via dedicated tests covering mobile (<=640px), tablet (641-1024px), and desktop (>1025px) blocks plus swipe-hint visibility
+- [x] Write tests: added `tests/test_dashboard_mobile_responsive.py` with 12 file-level CSS tests covering each media-query guarantee
+- [x] Run project test suite — must pass before task 18 (12 new file-only tests pass alongside 113 existing dashboard file-level tests; DB-bound render tests still require Postgres not available locally — rely on CI)
 
 ### Task 18: Update dashboard render tests
 

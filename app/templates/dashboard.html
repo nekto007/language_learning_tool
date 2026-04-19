@@ -1724,6 +1724,25 @@ a.dash-hero__cta:focus {
     background: rgba(255, 255, 255, 0.3);
 }
 
+/* Task 17: narrow-phone stacking — on <= 400px the greeting + streak line
+   stops trying to fit on one row, drops the streak chip to its own line,
+   and the CTA widens to fill the hero for an easier tap target. */
+@media (max-width: 400px) {
+    .dash-hero__greeting {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .dash-hero__title { flex: 0 0 auto; width: 100%; }
+    .dash-streak,
+    .dash-streak-recovery { width: 100%; }
+    .dash-hero__cta {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        white-space: normal;
+    }
+}
+
 /* ============================================
    Rank / Title card (Task 13 — social column)
    ============================================ */
@@ -2349,6 +2368,14 @@ a.dash-hero__cta:focus {
     .dash-heatmap__cell { width: 11px; height: 11px; }
     .dash-heatmap__days { grid-template-rows: repeat(7, 11px); gap: 2px; padding-top: 18px; }
     .dash-heatmap__months { grid-auto-columns: 14px; gap: 2px; height: 18px; }
+}
+
+/* Task 17: on very narrow phones the collapsed streak one-liner
+   (🔥 текущая / лучшая / всего активных) wraps to 2 lines instead of
+   overflowing the card horizontally. Yesterday summary does the same. */
+@media (max-width: 400px) {
+    .dash-heatmap__stat-line { word-break: break-word; }
+    .dash-yesterday-summary { font-size: 0.78125rem; }
 }
 
 /* ============================================
@@ -4368,6 +4395,27 @@ a.dash-hero__cta:focus {
 .dash-xp__multiplier--base {
     color: var(--dash-text-muted);
     background: transparent;
+}
+
+/* Task 17: stack Mission XP bits (level / progress / multiplier) vertically
+   on narrow phones so none of them gets squeezed or truncated. Progress bar
+   lets the XP text sit above the bar and fill width. */
+@media (max-width: 640px) {
+    .dash-mission__xp .dash-xp {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .dash-xp__level,
+    .dash-xp__multiplier {
+        align-self: flex-start;
+    }
+    .dash-xp__progress {
+        width: 100%;
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+    .dash-xp__bar { min-width: 0; width: 100%; }
 }
 
 /* Phase XP gain indicator */
