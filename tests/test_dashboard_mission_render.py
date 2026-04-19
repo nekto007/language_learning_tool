@@ -1745,3 +1745,107 @@ class TestCompletionSummaryPreserved:
         assert completion_pos != -1
         assert phase_cards_pos != -1
         assert streak_req_pos < completion_pos < phase_cards_pos
+
+
+class TestActivityCompact:
+    """19 Tasks plan — Task 10: Activity block compact.
+
+    File-level assertions on dashboard template + dashboard route to confirm
+    - yesterday_summary renders as a one-liner at top of the Activity section
+      (guarded by has_activity)
+    - heatmap is reduced to 30 days (heading + route widget args)
+    - streak stats collapse into a single line (not 3 stat cards)
+    """
+
+    def _read_template(self):
+        import os
+        tpl_path = os.path.join(
+            os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html'
+        )
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def _read_route(self):
+        import os
+        rt_path = os.path.join(
+            os.path.dirname(__file__), '..', 'app', 'words', 'routes.py'
+        )
+        with open(rt_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def test_yesterday_summary_one_liner_present(self):
+        """A `dash-yesterday-summary` one-liner sits above the heatmap."""
+        tpl = self._read_template()
+        assert 'class="dash-yesterday-summary"' in tpl
+        assert 'dash-yesterday-summary__label' in tpl
+        # has_activity guard present so empty yesterday hides the block
+        assert 'yesterday_summary and yesterday_summary.has_activity' in tpl
+        # One-liner references the fields from get_yesterday_summary
+        assert 'yesterday_summary.lessons_count' in tpl
+        assert 'yesterday_summary.words_reviewed' in tpl
+        assert 'yesterday_summary.grammar_correct' in tpl
+        assert 'yesterday_summary.grammar_exercises' in tpl
+
+    def test_yesterday_summary_above_heatmap(self):
+        """The yesterday-summary block appears before the dash-heatmap block."""
+        tpl = self._read_template()
+        activity_hdr = tpl.find('Активность</h2>')
+        yesterday_pos = tpl.find('class="dash-yesterday-summary"')
+        heatmap_pos = tpl.find('class="dash-heatmap"')
+        assert activity_hdr != -1
+        assert yesterday_pos != -1
+        assert heatmap_pos != -1
+        assert activity_hdr < yesterday_pos < heatmap_pos
+
+    def test_heatmap_heading_30_days(self):
+        """Heatmap heading reads '30 дней' (not 90)."""
+        tpl = self._read_template()
+        assert 'Активность за 30 дней' in tpl
+        assert 'Активность за 90 дней' not in tpl
+
+    def test_route_calls_heatmap_with_30_days(self):
+        """Dashboard route passes days=30 to get_activity_heatmap + get_streak_calendar."""
+        src = self._read_route()
+        assert "get_activity_heatmap, current_user.id, days=30" in src
+        assert "get_streak_calendar, current_user.id, days=30" in src
+        # No leftover days=90 calls for these widgets in this route
+        assert "get_activity_heatmap, current_user.id, days=90" not in src
+        assert "get_streak_calendar, current_user.id, days=90" not in src
+
+    def test_streak_stats_collapsed_to_one_line(self):
+        """Streak stats render via a single `dash-heatmap__stat-line`, not 3 cards."""
+        tpl = self._read_template()
+        assert 'class="dash-heatmap__stat-line"' in tpl
+        # The 3-card markup is gone
+        assert 'class="dash-heatmap__stat"' not in tpl
+        assert 'dash-heatmap__stat-value' not in tpl
+        assert 'dash-heatmap__stat-label' not in tpl
+
+    def test_streak_stats_one_line_has_all_three_values(self):
+        """The one-liner still surfaces all three streak numbers."""
+        tpl = self._read_template()
+        # Locate the stat-line opening tag and the `{% endif %}` that closes
+        # the streak_calendar guard wrapping the stats block.
+        line_start = tpl.find('class="dash-heatmap__stat-line"')
+        assert line_start != -1
+        endif_pos = tpl.find('{% endif %}', line_start)
+        block = tpl[line_start:endif_pos]
+        assert 'streak_calendar.current_streak' in block
+        assert 'streak_calendar.longest_streak' in block
+        assert 'streak_calendar.total_active_days' in block
+        # All three values live inside a single stat-line span
+        assert block.count('dash-heatmap__stat-line') == 1
+
+    def test_heatmap_stats_css_updated(self):
+        """CSS for `.dash-heatmap__stat-line` exists; old per-stat-value rule gone."""
+        tpl = self._read_template()
+        assert '.dash-heatmap__stat-line {' in tpl
+        # The old card-style per-stat rules removed
+        assert '.dash-heatmap__stat-value {' not in tpl
+        assert '.dash-heatmap__stat-label {' not in tpl
+
+    def test_yesterday_summary_css_present(self):
+        """CSS for `.dash-yesterday-summary` is defined in the inline style block."""
+        tpl = self._read_template()
+        assert '.dash-yesterday-summary {' in tpl
+        assert '.dash-yesterday-summary__label {' in tpl

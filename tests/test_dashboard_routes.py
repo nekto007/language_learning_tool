@@ -373,8 +373,8 @@ class TestDashboardActivityHeatmap:
              patch('app.achievements.streak_service.get_streak_calendar', return_value=mock_calendar) as mock_sc:
             response = client.get('/dashboard')
             assert response.status_code == 200
-            mock_hm.assert_called_once_with(test_user.id, days=90, tz='Europe/Moscow')
-            mock_sc.assert_called_once_with(test_user.id, days=90, tz='Europe/Moscow')
+            mock_hm.assert_called_once_with(test_user.id, days=30, tz='Europe/Moscow')
+            mock_sc.assert_called_once_with(test_user.id, days=30, tz='Europe/Moscow')
 
     def test_dashboard_renders_heatmap_widget(self, client, app, test_user, words_module_access):
         """Dashboard should render the heatmap section when data exists"""

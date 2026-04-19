@@ -1267,9 +1267,19 @@
         <div class="dash-section__divider"></div>
         <h2 class="dash-section__heading">Активность</h2>
     </div>
+    {% if yesterday_summary and yesterday_summary.has_activity %}
+    <div class="dash-yesterday-summary">
+        <span class="dash-yesterday-summary__label">Вчера:</span>
+        <span class="dash-yesterday-summary__item">{{ yesterday_summary.lessons_count }} {% if yesterday_summary.lessons_count % 10 == 1 and yesterday_summary.lessons_count % 100 != 11 %}урок{% elif yesterday_summary.lessons_count % 10 in [2,3,4] and yesterday_summary.lessons_count % 100 not in [12,13,14] %}урока{% else %}уроков{% endif %}</span>
+        <span class="dash-yesterday-summary__sep">·</span>
+        <span class="dash-yesterday-summary__item">{{ yesterday_summary.words_reviewed }} {% if yesterday_summary.words_reviewed % 10 == 1 and yesterday_summary.words_reviewed % 100 != 11 %}слово{% elif yesterday_summary.words_reviewed % 10 in [2,3,4] and yesterday_summary.words_reviewed % 100 not in [12,13,14] %}слова{% else %}слов{% endif %}</span>
+        <span class="dash-yesterday-summary__sep">·</span>
+        <span class="dash-yesterday-summary__item">{{ yesterday_summary.grammar_correct }}/{{ yesterday_summary.grammar_exercises }} грамматика</span>
+    </div>
+    {% endif %}
     {% if activity_heatmap %}
     <div class="dash-heatmap">
-        <h3 class="dash-heatmap__heading">Активность за 90 дней</h3>
+        <h3 class="dash-heatmap__heading">Активность за 30 дней</h3>
         <div class="dash-heatmap__container">
             <div class="dash-heatmap__days">
                 <span></span>
@@ -1321,18 +1331,13 @@
         </div>
         {% if streak_calendar %}
         <div class="dash-heatmap__stats">
-            <div class="dash-heatmap__stat">
-                <div class="dash-heatmap__stat-value">{{ streak_calendar.current_streak }}</div>
-                <div class="dash-heatmap__stat-label">текущая серия</div>
-            </div>
-            <div class="dash-heatmap__stat">
-                <div class="dash-heatmap__stat-value">{{ streak_calendar.longest_streak }}</div>
-                <div class="dash-heatmap__stat-label">лучшая серия</div>
-            </div>
-            <div class="dash-heatmap__stat">
-                <div class="dash-heatmap__stat-value">{{ streak_calendar.total_active_days }}</div>
-                <div class="dash-heatmap__stat-label">активных дней</div>
-            </div>
+            <span class="dash-heatmap__stat-line">
+                &#128293; текущая: <strong>{{ streak_calendar.current_streak }}</strong>
+                <span class="dash-heatmap__stat-sep">·</span>
+                лучшая: <strong>{{ streak_calendar.longest_streak }}</strong>
+                <span class="dash-heatmap__stat-sep">·</span>
+                всего активных: <strong>{{ streak_calendar.total_active_days }}</strong>
+            </span>
         </div>
         {% endif %}
     </div>
@@ -2504,30 +2509,48 @@ a.dash-hero__cta:focus {
 
 .dash-heatmap__stats {
     display: flex;
-    gap: 2rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
     border-top: 1px solid var(--dash-border);
 }
 
-.dash-heatmap__stat {
-    text-align: center;
-}
-
-.dash-heatmap__stat-value {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: var(--dash-accent);
-    line-height: 1;
-}
-
-.dash-heatmap__stat-label {
-    font-size: 0.6875rem;
-    font-weight: 600;
+.dash-heatmap__stat-line {
+    font-size: 0.875rem;
     color: var(--dash-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 0.25rem;
+    line-height: 1.4;
+}
+
+.dash-heatmap__stat-line strong {
+    color: var(--dash-accent);
+    font-weight: 800;
+}
+
+.dash-heatmap__stat-sep {
+    margin: 0 0.35rem;
+    color: var(--dash-border);
+}
+
+.dash-yesterday-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8125rem;
+    color: var(--dash-text-muted);
+    padding: 0.5rem 0.875rem;
+    margin-bottom: 0.75rem;
+    background: var(--dash-surface-alt);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+}
+
+.dash-yesterday-summary__label {
+    font-weight: 700;
+    color: var(--dash-text);
+}
+
+.dash-yesterday-summary__sep {
+    color: var(--dash-border);
 }
 
 @media (max-width: 640px) {

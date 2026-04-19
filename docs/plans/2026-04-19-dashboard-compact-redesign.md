@@ -176,11 +176,11 @@ Shrink the Activity heatmap to 30 days, collapse streak stats to one line, and a
 - Modify: `app/templates/dashboard.html` (inline CSS for `.dash-heatmap*`)
 - Modify: `app/words/routes.py` (heatmap builder: limit to last 30 days instead of 90)
 
-- [ ] Add `yesterday_summary` rendering at the top of the Activity section as a one-liner: "Вчера: N уроков · M слов · X/Y грамматика" (hide block entirely when `has_activity == false`)
-- [ ] Reduce heatmap to 30 days: update route's heatmap query + pad computation + month label logic
-- [ ] Collapse streak stats from 3 cards to one line: `🔥 текущая: N · лучшая: M · всего активных: K`
-- [ ] Write tests: yesterday-summary renders when present, hides when no activity; heatmap has ≤ 30 cells + pad; streak stats one-line markup
-- [ ] Run project test suite — must pass before task 11
+- [x] Add `yesterday_summary` rendering at the top of the Activity section as a one-liner: "Вчера: N уроков · M слов · X/Y грамматика" (hide block entirely when `has_activity == false`)
+- [x] Reduce heatmap to 30 days: update route's heatmap query + pad computation + month label logic
+- [x] Collapse streak stats from 3 cards to one line: `🔥 текущая: N · лучшая: M · всего активных: K`
+- [x] Write tests: yesterday-summary renders when present, hides when no activity; heatmap has ≤ 30 cells + pad; streak stats one-line markup
+- [x] Run project test suite — must pass before task 11 (file-only tests pass; DB-bound render tests require Postgres not available locally — rely on CI)
 
 ### Task 11: Alerts → accordion collapsed by default
 

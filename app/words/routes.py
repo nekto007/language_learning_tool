@@ -709,7 +709,7 @@ def dashboard():
 
     # === ACTIVITY HEATMAP & STREAK CALENDAR ===
     activity_heatmap = _safe_widget_call(
-        'activity_heatmap', get_activity_heatmap, current_user.id, days=90, tz=tz, default=[])
+        'activity_heatmap', get_activity_heatmap, current_user.id, days=30, tz=tz, default=[])
     # Show empty state if user has no activity (all counts zero)
     if activity_heatmap and not any(d.get('count', 0) > 0 for d in activity_heatmap):
         activity_heatmap = []
@@ -725,7 +725,7 @@ def dashboard():
         except (ValueError, KeyError, IndexError):
             heatmap_pad = 0
     streak_calendar = _safe_widget_call(
-        'streak_calendar', get_streak_calendar, current_user.id, days=90, tz=tz, default={})
+        'streak_calendar', get_streak_calendar, current_user.id, days=30, tz=tz, default={})
 
     # === WORDS AT RISK & GRAMMAR WEAKNESSES ===
     words_at_risk = _safe_widget_call(
