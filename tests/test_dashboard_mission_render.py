@@ -1135,106 +1135,69 @@ class TestDashboardMissionRender:
         assert 'dash-route--finish-calm' in html
         assert 'data-animate-token' in html
 
-    # ---- Task 9 (Plan): Day secured banner + next-step card ----
+    # ---- Task 8 (compact redesign): Stale plan banners removed ----
 
     def _make_mission_plan_with_secured(self, mission_type='progress', phases_completed=None, day_secured=False):
         plan = _make_mission_plan(mission_type, phases_completed)
         plan['day_secured'] = day_secured
         return plan
 
-    def test_day_secured_banner_shown_when_secured_and_not_all_done(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: day-secured banner renders when day_secured=True and required phases are done but bonus phases remain."""
+    def test_day_secured_banner_absent_in_all_states(self, client, app, db_session, test_user, words_module_access):
+        """Task 8: day-secured banner is removed regardless of plan state."""
+        for phases, secured in (
+            ([True, True, False], True),
+            ([False, False, False], False),
+            ([True, True, True], True),
+        ):
+            plan = self._make_mission_plan_with_secured('progress', phases, day_secured=secured)
+            response = self._get_dashboard(client, test_user, plan)
+            html = response.data.decode('utf-8')
+            assert 'data-day-secured="true"' not in html
+            assert 'class="dash-day-secured"' not in html
+            assert 'День закрыт!' not in html
+            assert 'Серия сохранена' not in html
+
+    def test_next_step_continuation_queue_absent(self, client, app, db_session, test_user, words_module_access):
+        """Task 8: 3-step continuation queue (next-step container) no longer renders on dashboard."""
         plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
         response = self._get_dashboard(client, test_user, plan)
         html = response.data.decode('utf-8')
-        assert 'data-day-secured="true"' in html
-        assert 'dash-day-secured' in html
-        assert 'День закрыт!' in html
-        assert 'Серия сохранена' in html
-
-    def test_day_secured_banner_absent_when_not_secured(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: day-secured banner must not appear when day_secured=False."""
-        plan = self._make_mission_plan_with_secured('progress', [False, False, False], day_secured=False)
-        response = self._get_dashboard(client, test_user, plan)
-        html = response.data.decode('utf-8')
-        assert 'class="dash-day-secured"' not in html
-        assert 'День закрыт!' not in html
-
-    def test_day_secured_banner_absent_when_all_done(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: when all phases are done the completion summary shows instead; no secured banner."""
-        plan = self._make_mission_plan_with_secured('progress', [True, True, True], day_secured=True)
-        response = self._get_dashboard(client, test_user, plan)
-        html = response.data.decode('utf-8')
-        # Banner must not appear when m_all_done (completion summary takes over)
-        assert 'class="dash-day-secured"' not in html
-
-    def test_next_step_container_rendered_inside_secured_banner(self, client, app, db_session, test_user, words_module_access):
-        """Task 9/14: next-step queue container is present inside the secured banner for JS to populate."""
-        plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
-        response = self._get_dashboard(client, test_user, plan)
-        html = response.data.decode('utf-8')
-        assert 'data-next-step-container="true"' in html
-        # Task 14: queue container replaces individual step slots; JS builds items dynamically
-        assert 'data-next-step-queue="true"' in html
-        assert 'data-next-step-dismiss="true"' in html
-
-    def test_next_step_container_absent_when_not_secured(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: next-step container must not appear when day is not secured."""
-        plan = self._make_mission_plan_with_secured('progress', [False, False, False], day_secured=False)
-        response = self._get_dashboard(client, test_user, plan)
-        html = response.data.decode('utf-8')
-        # The HTML element must not be rendered (the string also appears in JS, check the element markup)
+        assert 'data-next-step-container="true"' not in html
+        assert 'data-next-step-queue="true"' not in html
+        assert 'data-next-step-dismiss="true"' not in html
         assert 'class="dash-next-step"' not in html
         assert 'Продолжить позже' not in html
 
-    def test_continue_later_dismiss_button_rendered(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: dismiss button with correct data attribute is present when secured."""
+    def test_rival_strip_absent_even_when_provided(self, client, app, db_session, test_user, words_module_access):
+        """Task 8: ghost rival strip is removed; even if rival_strip context were set, no markup renders."""
         plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
         response = self._get_dashboard(client, test_user, plan)
         html = response.data.decode('utf-8')
-        assert 'data-next-step-dismiss="true"' in html
-        assert 'Продолжить позже' in html
+        assert 'data-rival-strip="true"' not in html
+        assert 'class="dash-rival-strip"' not in html
+        assert 'data-rival-strip-dismiss' not in html
 
-    def test_day_secured_css_rules_present(self):
-        """Task 9: day-secured and next-step CSS rules exist in dashboard template."""
-        import os
-        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
-        with open(tpl_path, 'r', encoding='utf-8') as f:
-            css = f.read()
-        assert '.dash-day-secured {' in css
-        assert '.dash-day-secured__banner' in css
-        assert '.dash-next-step {' in css
-        assert '.dash-next-step__btn--go' in css
-        assert '.dash-next-step__btn--dismiss' in css
-
-    def test_day_secured_js_hook_present(self):
-        """Task 9: JS that fetches /api/daily-plan/continuation and renders the next-step card exists."""
+    def test_removed_banners_css_and_js_cleaned_up(self):
+        """Task 8: inline CSS rules and JS IIFEs for the removed banners are gone."""
         import os
         tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
         with open(tpl_path, 'r', encoding='utf-8') as f:
             html = f.read()
-        assert '/api/daily-plan/continuation' in html
-        assert 'data-next-step-container' in html
-        assert 'next_step_shown' in html
-        assert 'next_step_accepted' in html
-        assert 'next_step_dismissed' in html
-
-    def test_day_secured_cards_url_in_container(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: cards URL is embedded in the secured banner container for JS SRS/vocab fallback."""
-        plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
-        response = self._get_dashboard(client, test_user, plan)
-        html = response.data.decode('utf-8')
-        assert 'data-cards-url=' in html
-
-    def test_existing_progress_ui_unchanged_when_secured(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: existing roadmap and timeline are still rendered when day is secured (above banner)."""
-        plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
-        response = self._get_dashboard(client, test_user, plan)
-        html = response.data.decode('utf-8')
-        # Standard mission plan UI elements must still be present
-        assert 'data-roadmap="true"' in html
-        assert 'data-mission-plan="true"' in html
-        assert 'dash-mission-header' in html
+        # CSS rule blocks removed
+        assert '.dash-day-secured {' not in html
+        assert '.dash-day-secured__banner' not in html
+        assert '.dash-next-step {' not in html
+        assert '.dash-next-step__btn--dismiss' not in html
+        assert '.dash-rival-strip {' not in html
+        assert '.dash-rival-strip__dismiss' not in html
+        # JS IIFEs removed (no fetch to continuation, no rival-strip postEvent)
+        assert '/api/daily-plan/continuation' not in html
+        assert 'next_step_shown' not in html
+        assert 'next_step_accepted' not in html
+        assert 'next_step_dismissed' not in html
+        assert 'rival_strip_shown' not in html
+        assert 'rival_strip_dismissed' not in html
+        assert 'buildQueueItem' not in html
 
     # ---- Task 5 (compact redesign): Route board removed from dashboard ----
 
@@ -1272,14 +1235,14 @@ class TestDashboardMissionRender:
         assert 'data-steps-to-checkpoint="true"' not in html
         assert 'data-steps-today-label="true"' not in html
 
-    def test_route_board_queue_hooks_retained_for_day_secured_banner(self):
-        """Task 5: queue JS hooks remain (Task 8 will remove them with the day-secured banner)."""
+    def test_route_board_queue_hooks_removed(self):
+        """Task 8: queue JS hooks dropped along with the day-secured banner."""
         import os
         tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
         with open(tpl_path, 'r', encoding='utf-8') as f:
             html = f.read()
-        assert 'data-next-step-queue' in html
-        assert 'buildQueueItem' in html
+        assert 'data-next-step-queue' not in html
+        assert 'buildQueueItem' not in html
 
 
 class TestHeroCompactLayout:

@@ -144,13 +144,13 @@ Delete three banner/strip blocks that overlap the hero CTA + roadmap signal: day
 - Modify: `app/templates/dashboard.html` (day-secured + 3-step queue lines ~767–790; ghost rival strip lines ~791–808)
 - Modify: `app/words/routes.py` (stop computing `rival_strip` payload unless still used elsewhere)
 
-- [ ] Remove `.dash-day-secured` banner and its surrounding `{% if m_day_secured %}` block
-- [ ] Remove the 3-task continuation queue block (populated by `/api/daily-plan/continuation`)
-- [ ] Remove the ghost rival strip block (`rival_strip` template variable)
-- [ ] If `rival_strip` is not used anywhere else, remove its computation from `app/words/routes.py` dashboard route
-- [ ] Leave `/api/daily-plan/continuation` endpoint untouched for now (may have other consumers); only drop its frontend rendering
-- [ ] Write tests: assert these markers do not appear regardless of `m_day_secured`, `continuation_queue`, `rival_strip` values
-- [ ] Run project test suite — must pass before task 9
+- [x] Remove `.dash-day-secured` banner and its surrounding `{% if m_day_secured %}` block
+- [x] Remove the 3-task continuation queue block (populated by `/api/daily-plan/continuation`)
+- [x] Remove the ghost rival strip block (`rival_strip` template variable)
+- [x] If `rival_strip` is not used anywhere else, remove its computation from `app/words/routes.py` dashboard route
+- [x] Leave `/api/daily-plan/continuation` endpoint untouched for now (may have other consumers); only drop its frontend rendering
+- [x] Write tests: assert these markers do not appear regardless of `m_day_secured`, `continuation_queue`, `rival_strip` values
+- [x] Run project test suite — must pass before task 9 (file-only tests pass; DB-bound render tests require Postgres not available locally — rely on CI)
 
 ### Task 9: Completion summary — verify preserved
 
