@@ -1849,3 +1849,312 @@ class TestActivityCompact:
         tpl = self._read_template()
         assert '.dash-yesterday-summary {' in tpl
         assert '.dash-yesterday-summary__label {' in tpl
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Task 18: Update dashboard render tests for the compact redesign
+#
+# Each class below covers one of the four new locations / states the redesign
+# introduces. Tests are file-level (read template / route source) so they run
+# without a database.
+# ════════════════════════════════════════════════════════════════════════════
+
+
+def _read_dashboard_template():
+    import os
+    tpl_path = os.path.join(
+        os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html'
+    )
+    with open(tpl_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+def _read_words_routes():
+    import os
+    rt_path = os.path.join(
+        os.path.dirname(__file__), '..', 'app', 'words', 'routes.py'
+    )
+    with open(rt_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+class TestMissionXPInsidePlanCard:
+    """Task 18 / Task 7: Mission XP widget renders inside the plan card,
+    not above the hero or as a standalone section."""
+
+    def test_mission_xp_block_lives_inside_plan_card(self):
+        tpl = _read_dashboard_template()
+        plan_open = tpl.find('<div class="dash-plan">')
+        plan_close = tpl.find('</div>\n    {% endif %}{# /is_zero_state #}', plan_open)
+        # Use a simpler heuristic: the mission XP block must appear after the
+        # plan opening tag and before the activity section.
+        assert plan_open != -1, 'dash-plan container missing'
+        mission_xp_pos = tpl.find('class="dash-mission__xp"', plan_open)
+        assert mission_xp_pos != -1, 'mission XP block not found inside template'
+        assert mission_xp_pos > plan_open, 'mission XP must follow plan opening tag'
+        # Ensure it sits before the activity section heading
+        activity_heading = tpl.find('Активность</h2>', plan_open)
+        assert activity_heading != -1
+        assert mission_xp_pos < activity_heading, \
+            'mission XP block must be inside plan card, before Activity section'
+
+    def test_mission_xp_block_has_data_hooks(self):
+        tpl = _read_dashboard_template()
+        # Confirm the JS data attributes used by xp_level_up still exist
+        assert 'data-xp-widget="true"' in tpl
+        assert 'data-xp-level="true"' in tpl
+        assert 'data-xp-progress="true"' in tpl
+        assert 'data-xp-multiplier="true"' in tpl
+
+    def test_mission_xp_not_above_hero(self):
+        """Old standalone `.dash-xp` block above the welcome card is removed."""
+        tpl = _read_dashboard_template()
+        # Find first occurrence of dash-xp markup; must be inside plan card,
+        # not inside or right after the hero block.
+        hero_close_marker = tpl.find('{# ── Task 26: Level-up')
+        assert hero_close_marker != -1
+        first_xp_pos = tpl.find('<div class="dash-xp"', 0, hero_close_marker)
+        assert first_xp_pos == -1, \
+            'dash-xp standalone block must not appear above the level-up overlay'
+
+    def test_levelup_overlay_centered_on_viewport_not_hero(self):
+        """Level-up overlay still renders top-level and is fixed-positioned."""
+        tpl = _read_dashboard_template()
+        assert 'class="dash-xp-levelup"' in tpl
+        # Find the CSS rule and confirm it positions the overlay on the
+        # viewport (fixed) rather than relative to the hero.
+        rule_start = tpl.find('.dash-xp-levelup {')
+        assert rule_start != -1
+        rule_end = tpl.find('}', rule_start)
+        rule = tpl[rule_start:rule_end]
+        assert 'position: fixed' in rule
+
+
+class TestRankInsideSocialRow:
+    """Task 18 / Task 13: Rank card lives inside `.dash-social-row`, not the hero."""
+
+    def test_rank_card_inside_social_row(self):
+        tpl = _read_dashboard_template()
+        social_open = tpl.find('<div class="dash-social-row">')
+        social_close = tpl.find('</div>\n\n    <div class="dash-social-row__more">', social_open)
+        assert social_open != -1, 'dash-social-row missing'
+        assert social_close != -1, 'failed to locate end of social row'
+        social_block = tpl[social_open:social_close]
+        assert 'class="dash-rank' in social_block, \
+            'rank card must render inside the social row'
+
+    def test_rank_card_not_inside_hero(self):
+        tpl = _read_dashboard_template()
+        hero_open = tpl.find('<div class="dash-hero">')
+        # Hero closes at '</div>\n    </div>' before the level-up overlay
+        levelup_marker = tpl.find('{# ── Task 26: Level-up')
+        assert hero_open != -1 and levelup_marker != -1
+        hero_block = tpl[hero_open:levelup_marker]
+        assert 'class="dash-rank' not in hero_block, \
+            'rank card must NOT appear inside the hero card after Task 13'
+
+    def test_social_row_has_three_columns_in_css(self):
+        tpl = _read_dashboard_template()
+        rule_start = tpl.find('.dash-social-row {')
+        assert rule_start != -1
+        rule_end = tpl.find('}', rule_start)
+        rule = tpl[rule_start:rule_end]
+        assert 'grid-template-columns: 1fr 1fr 1fr' in rule
+
+    def test_social_row_collapses_to_one_column_on_mobile(self):
+        tpl = _read_dashboard_template()
+        # Find the @media (max-width: 768px) rule that targets dash-social-row
+        anchor = tpl.find('@media (max-width: 768px)')
+        assert anchor != -1
+        # Search forward until we find the dash-social-row override
+        block = tpl[anchor:anchor + 4000]
+        assert 'dash-social-row' in block
+        assert 'grid-template-columns: 1fr' in block
+
+
+class TestCompactRaceStrip:
+    """Task 18 / Task 14: dashboard renders compact race strip linking to /race;
+    the previous large race board lives on the dedicated /race page."""
+
+    def test_race_strip_present_in_template(self):
+        tpl = _read_dashboard_template()
+        assert 'class="dash-race-strip' in tpl
+        assert 'data-race-strip="true"' in tpl
+        # Strip is wrapped in an <a> linking to the /race page
+        assert "url_for('race.today')" in tpl
+
+    def test_race_strip_emits_complete_and_in_progress_branches(self):
+        tpl = _read_dashboard_template()
+        assert '{% if daily_race.is_complete %}' in tpl
+        # Both branches must expose the rank, score and a CTA
+        assert 'dash-race-strip__place' in tpl  # complete branch
+        assert 'dash-race-strip__badge' in tpl  # in-progress branch
+        assert 'dash-race-strip__score' in tpl
+        assert 'dash-race-strip__cta' in tpl
+
+    def test_dashboard_does_not_render_full_race_board(self):
+        tpl = _read_dashboard_template()
+        # Only the strip + standalone /race page hold the full board now.
+        # The dashboard template must not include the .dash-race__board markup.
+        assert 'class="dash-race__board' not in tpl
+        # Nudge / 3-tasks block / CTA button — all moved to /race
+        assert 'dash-race__nudge' not in tpl
+        assert 'dash-race__final' not in tpl
+        assert 'class="dash-race__row' not in tpl
+
+
+class TestAlertsAccordion:
+    """Task 18 / Task 11: alerts wrap in a `<details>` accordion that defaults
+    to closed and shows a count summary."""
+
+    def test_alerts_wrapped_in_details_no_open_attribute(self):
+        tpl = _read_dashboard_template()
+        # The accordion is rendered as <details ...> without `open` attribute.
+        idx = tpl.find('<details class="dash-alerts__accordion">')
+        assert idx != -1, 'alerts accordion markup missing'
+        # No `open` attribute on the same opening tag
+        tag_end = tpl.find('>', idx)
+        opening = tpl[idx:tag_end + 1]
+        assert ' open' not in opening, 'alerts accordion must NOT default to open'
+
+    def test_alerts_summary_uses_count_pluralisation(self):
+        tpl = _read_dashboard_template()
+        # The summary surfaces both word-risk and grammar-weak counts using
+        # pluralised label fragments.
+        assert 'dash-alerts__summary' in tpl
+        assert 'words_risk_count' in tpl
+        assert 'grammar_weak_count' in tpl
+
+    def test_alerts_inner_lists_preserved(self):
+        tpl = _read_dashboard_template()
+        # Inner risk + weakness lists still live inside the accordion body.
+        assert 'class="dash-risk"' in tpl
+        assert 'class="dash-weakness"' in tpl
+
+
+class TestZeroStateTemplate:
+    """Task 18 / Task 4: zero-state hides the entire dashboard except the
+    fullscreen welcome card."""
+
+    def test_template_guards_full_layout_with_is_zero_state(self):
+        tpl = _read_dashboard_template()
+        # The is_zero_state guard wraps the welcome / hero / sections branches.
+        assert '{% if is_zero_state %}' in tpl
+        assert '{% endif %}{# /is_zero_state #}' in tpl
+
+    def test_fullscreen_welcome_marked_data_zero_state(self):
+        tpl = _read_dashboard_template()
+        assert 'class="dash-welcome dash-welcome--fullscreen"' in tpl
+        assert 'data-zero-state="true"' in tpl
+
+    def test_route_computes_is_zero_state_flag(self):
+        src = _read_words_routes()
+        # Route computes is_zero_state from the four count fields.
+        assert 'is_zero_state=' in src
+        assert '(words_total or 0) == 0' in src
+        assert '(grammar_studied or 0) == 0' in src
+        assert '(books_reading or 0) == 0' in src
+        assert '(courses_enrolled or 0) == 0' in src
+
+    def test_zero_state_is_above_hero_block(self):
+        tpl = _read_dashboard_template()
+        zs_pos = tpl.find('{% if is_zero_state %}')
+        hero_pos = tpl.find('<div class="dash-hero">')
+        assert zs_pos != -1 and hero_pos != -1
+        assert zs_pos < hero_pos, \
+            'is_zero_state guard must wrap the hero/sections block'
+
+    def test_welcome_fullscreen_style_present(self):
+        tpl = _read_dashboard_template()
+        assert '.dash-welcome--fullscreen {' in tpl
+        # Fullscreen card is centered + min-height pinned to viewport
+        rule_start = tpl.find('.dash-welcome--fullscreen {')
+        rule_end = tpl.find('}', rule_start)
+        rule = tpl[rule_start:rule_end]
+        assert 'min-height' in rule
+        assert 'margin: 0 auto' in rule
+
+
+class TestHeroCTAMatrix:
+    """Task 18 / Task 3: the hero CTA resolver covers six scenarios:
+    onboarding / fallback / start / continue / extra / done."""
+
+    def test_resolver_function_exists(self):
+        src = _read_words_routes()
+        assert 'def _resolve_hero_cta(' in src
+        # Wired into the dashboard render context
+        assert 'hero_cta=hero_cta' in src
+
+    def test_resolver_handles_onboarding_branch(self):
+        src = _read_words_routes()
+        anchor = src.find('def _resolve_hero_cta(')
+        body = src[anchor:anchor + 3000]
+        assert "'kind': 'onboarding'" in body
+        assert "url_for('onboarding.wizard')" in body
+
+    def test_resolver_handles_fallback_branch(self):
+        src = _read_words_routes()
+        anchor = src.find('def _resolve_hero_cta(')
+        body = src[anchor:anchor + 3000]
+        assert "'kind': 'fallback'" in body
+        assert "'#dash-plan'" in body
+
+    def test_resolver_handles_start_continue_branches(self):
+        src = _read_words_routes()
+        anchor = src.find('def _resolve_hero_cta(')
+        body = src[anchor:anchor + 3000]
+        assert "'kind': 'start'" in body
+        assert "'kind': 'continue'" in body
+        assert 'resolve_next_phase(mission_plan, plan_completion)' in body
+
+    def test_resolver_handles_extra_done_branches(self):
+        src = _read_words_routes()
+        anchor = src.find('def _resolve_hero_cta(')
+        body = src[anchor:anchor + 3000]
+        assert "'kind': 'extra'" in body
+        assert "'kind': 'done'" in body
+        # Extra branch links to /study/cards; done branch has no URL
+        assert "url_for('study.cards') + '?from=daily_plan'" in body
+        assert "'url': None" in body
+
+    def test_resolver_uses_review_budget_check(self):
+        """The 'extra' branch is gated by has_extra_review_capacity (review budget + due cards)."""
+        src = _read_words_routes()
+        anchor = src.find('def _resolve_hero_cta(')
+        body = src[anchor:anchor + 3000]
+        assert 'has_extra_review_capacity(user.id)' in body
+
+    def test_template_renders_cta_for_all_kinds(self):
+        tpl = _read_dashboard_template()
+        # Template branches on whether hero_cta has a URL (anchor) or not (span)
+        assert "<a class=\"dash-hero__cta dash-hero__cta--{{ hero_cta.kind }}\"" in tpl
+        assert "<span class=\"dash-hero__cta dash-hero__cta--{{ hero_cta.kind }}\"" in tpl
+        # data-hero-cta exposes the kind for analytics + CSS hooks
+        assert 'data-hero-cta="{{ hero_cta.kind }}"' in tpl
+
+    def test_template_skips_cta_when_resolver_returns_none(self):
+        tpl = _read_dashboard_template()
+        # `if hero_cta` guard wraps the CTA block.
+        cta_open = tpl.find('class="dash-hero__cta')
+        assert cta_open != -1
+        # Look back for the conditional that wraps it
+        preceding = tpl[:cta_open]
+        last_if = preceding.rfind('{% if hero_cta %}')
+        assert last_if != -1, 'hero CTA block must be wrapped by `{% if hero_cta %}` guard'
+
+    def test_cta_kinds_have_dedicated_css_modifiers(self):
+        tpl = _read_dashboard_template()
+        # done + extra kinds carry visual differentiation rules (per Task 3 spec)
+        assert '.dash-hero__cta--done' in tpl
+        assert '.dash-hero__cta--extra' in tpl
+
+    def test_zero_state_path_skips_cta_render(self):
+        """Zero-state branch shows only the welcome card — no hero, no CTA."""
+        tpl = _read_dashboard_template()
+        zs_open = tpl.find('{% if is_zero_state %}')
+        zs_else = tpl.find('{% else %}', zs_open)
+        zs_block = tpl[zs_open:zs_else]
+        assert 'dash-hero__cta' not in zs_block
+        assert 'data-hero-cta' not in zs_block
+        # Zero-state only renders the fullscreen welcome
+        assert 'dash-welcome--fullscreen' in zs_block

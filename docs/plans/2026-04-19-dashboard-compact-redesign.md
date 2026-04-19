@@ -307,11 +307,11 @@ Walk through the new compact dashboard on mobile widths (320px / 375px / 414px /
 - Modify: `tests/test_dashboard_mission_render.py`
 - Modify: `tests/test_dashboard_routes.py`
 
-- [ ] Remove assertions on removed markers: `dash-plan__progress-bar`, `dash-roadmap__marker-distance`, `dash-route-board`, `dash-day-secured`, `dash-rival-strip`, `dash-study-time`, `dash-week-stats`, `dash-reading-speed`, `dash-milestones`, `dash-quick`, `dash-grammar-levels`
-- [ ] Add assertions on new locations: `.dash-plan .dash-xp` (mission XP inside plan), `.dash-social-row > .dash-rank` (rank in social), `.dash-alerts__accordion` (alerts accordion), compact race strip
-- [ ] Add zero-state tests: full rendering hidden, only `.dash-welcome--fullscreen` present
-- [ ] Add CTA tests: matrix of 6 scenarios (start / continue / extra / done / fallback / zero-state)
-- [ ] Run project test suite — must pass before task 19
+- [x] Remove assertions on removed markers: `dash-plan__progress-bar`, `dash-roadmap__marker-distance`, `dash-route-board`, `dash-day-secured`, `dash-rival-strip`, `dash-study-time`, `dash-week-stats`, `dash-reading-speed`, `dash-milestones`, `dash-quick`, `dash-grammar-levels` (deleted obsolete test classes `TestDashboardBestStudyTime`, `TestDashboardSessionStats`, `TestDashboardMilestoneHistory`, `TestDashboardReadingSpeedTrend` from `tests/test_dashboard_routes.py`; rewrote `TestDashboardLayoutSections.test_dashboard_renders_compact_sections_with_data` to assert removed markers absent and new compact layout markers present; widget tests for moved blocks live in `tests/test_study_stats_insights_moved_blocks.py`)
+- [x] Add assertions on new locations: `.dash-plan .dash-xp` (mission XP inside plan), `.dash-social-row > .dash-rank` (rank in social), `.dash-alerts__accordion` (alerts accordion), compact race strip (added file-level `TestMissionXPInsidePlanCard`, `TestRankInsideSocialRow`, `TestCompactRaceStrip`, `TestAlertsAccordion` classes in `tests/test_dashboard_mission_render.py`)
+- [x] Add zero-state tests: full rendering hidden, only `.dash-welcome--fullscreen` present (added `TestZeroStateTemplate` file-level class in `tests/test_dashboard_mission_render.py` and DB-bound `test_dashboard_zero_state_renders_only_welcome` in `tests/test_dashboard_routes.py`)
+- [x] Add CTA tests: matrix of 6 scenarios (start / continue / extra / done / fallback / zero-state) (added `TestHeroCTAMatrix` file-level class with 10 tests in `tests/test_dashboard_mission_render.py` covering each `_resolve_hero_cta` branch and template render guards)
+- [x] Run project test suite — must pass before task 19 (29 new + 152 existing file-level dashboard tests pass; DB-bound render tests require Postgres not available locally — rely on CI)
 
 ### Task 19: Smoke + acceptance
 

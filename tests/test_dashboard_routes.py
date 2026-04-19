@@ -94,7 +94,7 @@ class TestDashboardEmptyStates:
     """Test dashboard rendering with empty/null data scenarios"""
 
     def test_dashboard_welcome_card_for_new_user(self, client, app, db_session, test_user, words_module_access):
-        """New users with no activity should see welcome card"""
+        """New users with no activity should see the fullscreen welcome (Task 4 zero-state)."""
         with client.session_transaction() as sess:
             sess['_user_id'] = str(test_user.id)
             sess['_fresh'] = True
@@ -102,73 +102,26 @@ class TestDashboardEmptyStates:
         response = client.get('/dashboard')
         assert response.status_code == 200
         html = response.data.decode('utf-8')
-        assert 'dash-welcome' in html
+        assert 'dash-welcome--fullscreen' in html
+        assert 'data-zero-state="true"' in html
         assert 'Добро пожаловать' in html
         assert 'Начать обучение' in html
 
-    def test_dashboard_empty_daily_plan(self, client, app, db_session, test_user, words_module_access):
-        """When daily plan has no steps, show empty plan message"""
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        response = client.get('/dashboard')
-        assert response.status_code == 200
-        html = response.data.decode('utf-8')
-        # New users should see empty plan message, not "all done"
-        assert 'Всё на сегодня сделано' not in html or 'dash-plan-empty' in html
-
-    def test_dashboard_xp_tooltip(self, client, app, db_session, test_user, words_module_access):
-        """XP bar should have explanatory tooltip"""
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        response = client.get('/dashboard')
-        assert response.status_code == 200
-        html = response.data.decode('utf-8')
-        assert 'Опыт за сегодня' in html
-
-    def test_dashboard_null_weekly_challenge(self, client, app, db_session, test_user, words_module_access):
-        """When weekly_challenge is None, show 'no active challenge' card"""
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        response = client.get('/dashboard')
-        assert response.status_code == 200
-        html = response.data.decode('utf-8')
-        # Should show either active challenge or empty state, not crash
-        assert 'dash-challenge' in html
-
-    def test_dashboard_streak_coins_tooltip(self, client, app, db_session, test_user, words_module_access):
-        """Streak coins should have explanatory tooltip"""
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        response = client.get('/dashboard')
-        assert response.status_code == 200
-        html = response.data.decode('utf-8')
-        # One of the tooltip variants should be present (depends on streak state)
-        has_coin_tooltip = ('Coins — внутренняя валюта' in html or
-                           'Серия дней подряд' in html or
-                           'dash-streak' in html)
-        assert has_coin_tooltip
-
     def test_dashboard_no_crash_with_zero_data(self, client, app, db_session, test_user, words_module_access):
-        """Dashboard should render without errors when all stats are zero"""
+        """Dashboard renders fullscreen welcome (no hero/plan) when all stats are zero."""
         with client.session_transaction() as sess:
             sess['_user_id'] = str(test_user.id)
             sess['_fresh'] = True
 
         response = client.get('/dashboard')
         assert response.status_code == 200
-        # Key sections should render
         html = response.data.decode('utf-8')
-        assert 'dash-page' in html
-        assert 'dash-hero' in html
-        assert 'dash-plan' in html
+        html_body = html.split('<style>')[0]
+        assert 'dash-page' in html_body
+        # Zero-state takeover hides hero + plan
+        assert 'class="dash-hero"' not in html_body
+        assert 'class="dash-plan"' not in html_body
+        assert 'dash-welcome--fullscreen' in html_body
 
 
 class TestDashboardWeeklyAnalytics:
@@ -538,106 +491,6 @@ class TestDashboardGrammarWeaknesses:
             assert 'dash-alerts-row"' not in html
 
 
-class TestDashboardBestStudyTime:
-    """Test best study time widget data on dashboard"""
-
-    def test_dashboard_includes_best_study_time_data(self, client, app, test_user, words_module_access):
-        """Dashboard should call get_best_study_time and pass data to template"""
-        mock_data = {'best_hour': 14, 'hourly_scores': {14: 85.5, 15: 72.0}}
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.study.insights_service.get_best_study_time', return_value=mock_data) as mock_bst:
-            response = client.get('/dashboard')
-            assert response.status_code == 200
-            mock_bst.assert_called_once_with(test_user.id, tz='Europe/Moscow')
-
-    def test_dashboard_renders_best_study_time_widget(self, client, app, test_user, words_module_access):
-        """Dashboard should render best study time widget with hour and chart"""
-        mock_data = {'best_hour': 14, 'hourly_scores': {14: 85.5, 10: 60.0}}
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.study.insights_service.get_best_study_time', return_value=mock_data):
-            response = client.get('/dashboard')
-            html = response.data.decode('utf-8')
-            assert 'dash-study-time' in html
-            assert '14:00' in html
-            assert 'dash-study-time__bar--best' in html
-
-    def test_dashboard_best_study_time_empty_state(self, client, app, test_user, words_module_access):
-        """Dashboard should show empty state when no study time data"""
-        mock_data = {'best_hour': None, 'hourly_scores': {}}
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.study.insights_service.get_best_study_time', return_value=mock_data):
-            response = client.get('/dashboard')
-            html = response.data.decode('utf-8')
-            assert 'dash-study-time__empty' in html
-            # Chart div should not be rendered (class appears in CSS but not as HTML element)
-            assert 'class="dash-study-time__chart"' not in html
-
-
-class TestDashboardSessionStats:
-    """Test session stats widget data on dashboard"""
-
-    def test_dashboard_includes_session_stats_data(self, client, app, test_user, words_module_access):
-        """Dashboard should call SessionService.get_session_stats and pass data to template"""
-        mock_stats = {
-            'period_days': 7,
-            'total_sessions': 12,
-            'total_words_studied': 85,
-            'total_correct': 70,
-            'total_incorrect': 15,
-            'accuracy_percent': 82.4,
-            'total_time_seconds': 3600,
-            'avg_session_time_seconds': 300,
-        }
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.study.services.session_service.SessionService.get_session_stats', return_value=mock_stats) as mock_ss:
-            response = client.get('/dashboard')
-            assert response.status_code == 200
-            mock_ss.assert_called_once_with(test_user.id, days=7)
-
-    def test_dashboard_renders_session_stats_widget(self, client, app, test_user, words_module_access):
-        """Dashboard should render weekly stats cards"""
-        mock_stats = {
-            'period_days': 7,
-            'total_sessions': 12,
-            'total_words_studied': 85,
-            'total_correct': 70,
-            'total_incorrect': 15,
-            'accuracy_percent': 82.4,
-            'total_time_seconds': 3600,
-            'avg_session_time_seconds': 300,
-        }
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.study.services.session_service.SessionService.get_session_stats', return_value=mock_stats):
-            response = client.get('/dashboard')
-            html = response.data.decode('utf-8')
-            assert 'dash-week-stats' in html
-            assert '>12<' in html  # total_sessions
-            assert '>85<' in html  # total_words_studied
-            assert '82.4%' in html  # accuracy
-            html_body = html.split('<style>')[0] if '<style>' in html else html
-            assert '>60<' in html_body or '>60 ' in html_body  # 3600 seconds = 60 min
-
-
 class TestDashboardLeaderboard:
     """Test leaderboard and XP rank widget data on dashboard"""
 
@@ -840,160 +693,45 @@ class TestDashboardAchievementsByCategory:
             assert 'dash-achievements__heading' not in html_body
 
 
-class TestDashboardMilestoneHistory:
-    """Test streak milestones widget data on dashboard"""
-
-    def test_dashboard_includes_milestone_history_data(self, client, app, test_user, words_module_access):
-        """Dashboard should call get_milestone_history and pass data to template"""
-        mock_milestones = [
-            {'streak': 30, 'reward': 150, 'date': date(2026, 3, 15)},
-            {'streak': 14, 'reward': 75, 'date': date(2026, 2, 28)},
-            {'streak': 7, 'reward': 50, 'date': date(2026, 2, 21)},
-        ]
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.achievements.streak_service.get_milestone_history', return_value=mock_milestones) as mock_mh:
-            response = client.get('/dashboard')
-            assert response.status_code == 200
-            mock_mh.assert_called_once_with(test_user.id)
-
-    def test_dashboard_renders_milestones_widget(self, client, app, test_user, words_module_access):
-        """Dashboard should render milestones timeline with earned and pending items"""
-        mock_milestones = [
-            {'streak': 14, 'reward': 75, 'date': date(2026, 3, 1)},
-            {'streak': 7, 'reward': 50, 'date': date(2026, 2, 15)},
-        ]
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.achievements.streak_service.get_milestone_history', return_value=mock_milestones):
-            response = client.get('/dashboard')
-            html = response.data.decode('utf-8')
-            html_body = html.split('<style>')[0]
-            assert 'dash-milestones' in html_body
-            assert 'dash-milestones__timeline' in html_body
-            # Earned milestones should have --earned class
-            assert 'dash-milestones__item--earned' in html_body
-            # 7 and 14 day milestones earned
-            assert '15.02' in html_body  # date for 7-day milestone
-            assert '01.03' in html_body  # date for 14-day milestone
-
-    def test_dashboard_milestones_shows_all_targets(self, client, app, test_user, words_module_access):
-        """Dashboard should show all milestone targets (7, 14, 30, 60, 100)"""
-        mock_milestones = [
-            {'streak': 7, 'reward': 50, 'date': date(2026, 2, 15)},
-        ]
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.achievements.streak_service.get_milestone_history', return_value=mock_milestones):
-            response = client.get('/dashboard')
-            html = response.data.decode('utf-8')
-            html_body = html.split('<style>')[0]
-            # All 5 milestone targets should be shown
-            for target in ['7д', '14д', '30д', '60д', '100д']:
-                assert target in html_body
-
-    def test_dashboard_milestones_empty_state(self, client, app, test_user, words_module_access):
-        """Dashboard should not render milestones widget when no history"""
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.achievements.streak_service.get_milestone_history', return_value=[]):
-            response = client.get('/dashboard')
-            html = response.data.decode('utf-8')
-            html_body = html.split('<style>')[0]
-            assert 'dash-milestones__heading' not in html_body
-
-
-class TestDashboardReadingSpeedTrend:
-    """Test reading speed trend widget data on dashboard"""
-
-    def test_dashboard_includes_reading_speed_data(self, client, app, test_user, words_module_access):
-        """Dashboard should call get_reading_speed_trend and pass data to template"""
-        mock_data = [
-            {'week': '2026-W12', 'avg_wpm': 120.5},
-            {'week': '2026-W13', 'avg_wpm': 135.0},
-            {'week': '2026-W14', 'avg_wpm': 142.3},
-        ]
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.study.insights_service.get_reading_speed_trend', return_value=mock_data) as mock_rst:
-            response = client.get('/dashboard')
-            assert response.status_code == 200
-            mock_rst.assert_called_once_with(test_user.id)
-
-    def test_dashboard_renders_reading_speed_widget(self, client, app, test_user, words_module_access):
-        """Dashboard should render reading speed widget with sparkline and comparison"""
-        mock_data = [
-            {'week': '2026-W12', 'avg_wpm': 120.5},
-            {'week': '2026-W13', 'avg_wpm': 135.0},
-            {'week': '2026-W14', 'avg_wpm': 142.3},
-        ]
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.study.insights_service.get_reading_speed_trend', return_value=mock_data):
-            response = client.get('/dashboard')
-            html = response.data.decode('utf-8')
-            html_body = html.split('<style>')[0]
-            assert 'dash-reading-speed' in html_body
-            assert 'dash-sparkline' in html_body
-            assert '142' in html_body  # current WPM rounded
-            assert '+22' in html_body  # diff: 142.3 - 120.5 = 21.8 -> +22
-            assert '2026-W12' in html_body  # start week label
-            assert '2026-W14' in html_body  # end week label
-
-    def test_dashboard_reading_speed_empty_state(self, client, app, test_user, words_module_access):
-        """Dashboard should not render reading speed widget when no data"""
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.study.insights_service.get_reading_speed_trend', return_value=[]):
-            response = client.get('/dashboard')
-            html = response.data.decode('utf-8')
-            html_body = html.split('<style>')[0]
-            assert 'dash-reading-speed__heading' not in html_body
-
-    def test_dashboard_reading_speed_single_point(self, client, app, test_user, words_module_access):
-        """Dashboard should render without change indicator for single data point"""
-        mock_data = [
-            {'week': '2026-W14', 'avg_wpm': 130.0},
-        ]
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.study.insights_service.get_reading_speed_trend', return_value=mock_data):
-            response = client.get('/dashboard')
-            html = response.data.decode('utf-8')
-            html_body = html.split('<style>')[0]
-            assert 'dash-reading-speed' in html_body
-            assert '130' in html_body
-            # No change indicator for single point
-            assert 'dash-reading-speed__change' not in html_body
-
-
 class TestDashboardLayoutSections:
-    """Test that all dashboard sections render correctly with proper layout structure"""
+    """Test the compact dashboard layout (Task 18 redesign).
 
-    def test_dashboard_renders_all_sections_with_data(self, client, app, test_user, words_module_access):
-        """Dashboard should render all 9 layout sections when all data is present"""
+    The new dashboard hides the hero/plan/sections entirely when the user has
+    zero activity (is_zero_state=True). To exercise the non-zero layout the
+    test seeds a single ``UserWord`` so ``words_total > 0``.
+    """
+
+    def _seed_one_user_word(self, db_session, test_user):
+        from app.words.models import CollectionWords
+        from app.study.models import UserWord
+        word = CollectionWords(
+            english_word='dashboard_layout_seed',
+            russian_word='тест',
+        )
+        db_session.add(word)
+        db_session.flush()
+        user_word = UserWord(user_id=test_user.id, word_id=word.id)
+        db_session.add(user_word)
+        db_session.commit()
+        return user_word
+
+    def test_dashboard_renders_compact_sections_with_data(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        """Dashboard renders the new compact 4-section layout when activity exists.
+
+        Section list after Task 18 cleanup:
+          1. Hero (compact greeting + streak + CTA)
+          2. Daily plan (with mission XP widget inside)
+          3. Activity (heatmap + yesterday summary + streak one-liner)
+          4. Alerts (collapsed accordion when present)
+          5. Progress (4-card overview, no grammar levels)
+          6. Social (3-col: rank + leaderboard + achievements)
+
+        Removed sections: Stats row, Insights row, Quick Actions, Grammar Levels.
+        """
+        self._seed_one_user_word(db_session, test_user)
+
         mock_heatmap = [{'date': f'2026-04-{d:02d}', 'count': d % 4} for d in range(1, 11)]
         mock_calendar = {
             'active_dates': ['2026-04-09'],
@@ -1007,17 +745,6 @@ class TestDashboardLayoutSections:
         mock_grammar_weak = [
             {'title': 'Conditionals', 'accuracy': 55.0, 'attempts': 6},
         ]
-        mock_study_time = {'best_hour': 10, 'hourly_scores': {10: 90, 14: 50}}
-        mock_session_stats = {
-            'period_days': 7,
-            'total_sessions': 5,
-            'total_words_studied': 40,
-            'total_correct': 35,
-            'total_incorrect': 5,
-            'accuracy_percent': 87.5,
-            'total_time_seconds': 1800,
-            'avg_session_time_seconds': 360,
-        }
         mock_leaderboard = [
             type('U', (), {'id': test_user.id, 'username': 'testuser', 'total_xp': 500, 'level': 3})(),
         ]
@@ -1035,13 +762,6 @@ class TestDashboardLayoutSections:
             'total_achievements': 5,
             'progress_percentage': 20,
         }
-        mock_reading_speed = [
-            type('R', (), {'week': 'W1', 'avg_wpm': 120.0})(),
-            type('R', (), {'week': 'W2', 'avg_wpm': 135.0})(),
-        ]
-        mock_milestones = [
-            type('M', (), {'streak': 7, 'date': date(2026, 3, 15)})(),
-        ]
 
         with client.session_transaction() as sess:
             sess['_user_id'] = str(test_user.id)
@@ -1051,55 +771,57 @@ class TestDashboardLayoutSections:
              patch('app.achievements.streak_service.get_streak_calendar', return_value=mock_calendar), \
              patch('app.study.insights_service.get_words_at_risk', return_value=mock_words_at_risk), \
              patch('app.study.insights_service.get_grammar_weaknesses', return_value=mock_grammar_weak), \
-             patch('app.study.insights_service.get_best_study_time', return_value=mock_study_time), \
-             patch('app.study.services.session_service.SessionService.get_session_stats', return_value=mock_session_stats), \
              patch('app.study.services.stats_service.StatsService.get_xp_leaderboard', return_value=mock_leaderboard), \
              patch('app.study.services.stats_service.StatsService.get_user_xp_rank', return_value=1), \
-             patch('app.study.services.stats_service.StatsService.get_achievements_by_category', return_value=mock_achievements), \
-             patch('app.study.insights_service.get_reading_speed_trend', return_value=mock_reading_speed), \
-             patch('app.achievements.streak_service.get_milestone_history', return_value=mock_milestones):
+             patch('app.study.services.stats_service.StatsService.get_achievements_by_category', return_value=mock_achievements):
             response = client.get('/dashboard')
             assert response.status_code == 200
             html = response.data.decode('utf-8')
             html_body = html.split('<style>')[0]
 
-            # Section 1: Hero
+            # Section 1: Hero (no zero-state takeover)
             assert 'dash-hero' in html_body
+            assert 'dash-welcome--fullscreen' not in html_body
             # Section 2: Daily Plan
             assert 'dash-plan' in html_body
-            # Section 3: Activity Heatmap
+            # Section 3: Activity Heatmap (still rendered, with 30-day heading)
             assert 'dash-heatmap' in html_body
             assert 'dash-section__heading">Активность' in html_body
-            # Section 4: Alerts row
+            # Section 4: Alerts row — accordion wrapper
+            assert 'dash-alerts__accordion' in html_body
             assert 'dash-alerts-row' in html_body
             assert 'dash-risk' in html_body
             assert 'dash-weakness' in html_body
             assert 'dash-section__heading">Внимание' in html_body
-            # Section 5: Stats row
-            assert 'dash-stats-row' in html_body
-            assert 'dash-study-time' in html_body
-            assert 'dash-week-stats' in html_body
-            assert 'dash-section__heading">Статистика' in html_body
-            # Section 6: Progress row (Task 12: grammar-levels widget removed)
+            # Section 5: Progress row (Task 12: grammar-levels removed)
             assert 'dash-progress-row' in html_body
             assert 'dash-progress-overview' in html_body
             assert 'dash-grammar-levels' not in html_body
             assert 'dash-section__heading">Прогресс' in html_body
-            # Section 7: Social row
+            # Section 6: Social row (3-col, rank + leaderboard + achievements)
             assert 'dash-social-row' in html_body
             assert 'dash-leaderboard' in html_body
             assert 'dash-achievements' in html_body
             assert 'dash-section__heading">Сообщество' in html_body
-            # Section 8: Insights row
-            assert 'dash-insights-row' in html_body
-            assert 'dash-reading-speed' in html_body
-            assert 'dash-milestones' in html_body
-            assert 'dash-section__heading">Аналитика' in html_body
-            # Section 9: Quick Actions
-            assert 'dash-quick' in html_body
 
-    def test_dashboard_section_dividers_present(self, client, app, test_user, words_module_access):
-        """Dashboard should render section dividers between widget groups"""
+            # REMOVED sections (Task 15): Stats / Insights / Quick Actions
+            assert 'dash-stats-row' not in html_body
+            assert 'dash-insights-row' not in html_body
+            assert 'dash-study-time' not in html_body
+            assert 'dash-week-stats' not in html_body
+            assert 'dash-reading-speed' not in html_body
+            assert 'dash-milestones' not in html_body
+            assert 'dash-quick' not in html_body
+            # And the section headings for those removed groups
+            assert 'dash-section__heading">Статистика' not in html_body
+            # "Аналитика" now appears as a Social section "more" link, not a section heading
+            assert 'dash-section__heading">Аналитика' not in html_body
+
+    def test_dashboard_zero_state_renders_only_welcome(
+        self, client, app, test_user, words_module_access,
+    ):
+        """When all activity counts are zero, hero/plan/sections are hidden — only the
+        fullscreen welcome card remains (Task 4)."""
         with client.session_transaction() as sess:
             sess['_user_id'] = str(test_user.id)
             sess['_fresh'] = True
@@ -1109,44 +831,18 @@ class TestDashboardLayoutSections:
         html = response.data.decode('utf-8')
         html_body = html.split('<style>')[0]
 
-        # Each section should have a divider
-        divider_count = html_body.count('dash-section__divider')
-        assert divider_count >= 6  # sections 3-9 have dividers (section 9 has divider only)
-
-    def test_dashboard_empty_states_all_widgets(self, client, app, test_user, words_module_access):
-        """Dashboard should show friendly empty states when user has no activity data"""
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.study.insights_service.get_activity_heatmap', return_value=[]), \
-             patch('app.achievements.streak_service.get_streak_calendar', return_value={}), \
-             patch('app.study.insights_service.get_words_at_risk', return_value=[]), \
-             patch('app.study.insights_service.get_grammar_weaknesses', return_value=[]), \
-             patch('app.study.insights_service.get_best_study_time', return_value={'best_hour': None, 'hourly_scores': {}}), \
-             patch('app.study.services.stats_service.StatsService.get_xp_leaderboard', return_value=[]), \
-             patch('app.study.services.stats_service.StatsService.get_user_xp_rank', return_value=None), \
-             patch('app.study.services.stats_service.StatsService.get_achievements_by_category', return_value={}), \
-             patch('app.study.insights_service.get_reading_speed_trend', return_value=[]), \
-             patch('app.achievements.streak_service.get_milestone_history', return_value=[]):
-            response = client.get('/dashboard')
-            assert response.status_code == 200
-            html = response.data.decode('utf-8')
-            html_body = html.split('<style>')[0]
-
-            # Empty states should be shown
-            empty_count = html_body.count('dash-empty')
-            assert empty_count >= 4  # heatmap, alerts, leaderboard, achievements, reading speed, milestones
-
-            # Data widgets should NOT render
-            assert 'dash-heatmap__grid' not in html_body
-            assert 'dash-risk__item' not in html_body
-            assert 'dash-leaderboard__row' not in html_body
-            assert 'dash-reading-speed__value' not in html_body
-            assert 'dash-milestones__timeline' not in html_body
+        assert 'dash-welcome--fullscreen' in html_body
+        assert 'data-zero-state="true"' in html_body
+        # Hero, race, plan, all sections — none rendered in zero-state
+        assert 'class="dash-hero"' not in html_body
+        assert 'class="dash-plan"' not in html_body
+        assert 'class="dash-race-strip' not in html_body
+        assert 'class="dash-heatmap"' not in html_body
+        assert 'dash-social-row' not in html_body
+        assert 'dash-progress-overview' not in html_body
 
     def test_dashboard_responsive_css_classes(self, client, app, test_user, words_module_access):
-        """Dashboard should include responsive grid classes for 2-col layouts"""
+        """Dashboard CSS includes responsive rules for the new compact layout rows."""
         with client.session_transaction() as sess:
             sess['_user_id'] = str(test_user.id)
             sess['_fresh'] = True
@@ -1155,12 +851,14 @@ class TestDashboardLayoutSections:
         assert response.status_code == 200
         html = response.data.decode('utf-8')
 
-        # CSS should contain responsive rules for all 2-col rows
+        # CSS should still contain responsive rules for the compact rows
         assert 'dash-alerts-row' in html
-        assert 'dash-stats-row' in html
         assert 'dash-progress-row' in html
         assert 'dash-social-row' in html
-        assert 'dash-insights-row' in html
+
+        # Removed grids should not have responsive rules anymore
+        assert 'dash-stats-row' not in html
+        assert 'dash-insights-row' not in html
 
         # CSS should contain mobile breakpoint rules
         style_section = html.split('<style>')[1].split('</style>')[0] if '<style>' in html else ''
