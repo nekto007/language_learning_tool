@@ -117,11 +117,11 @@
 - Modify: `app/daily_plan/linear/plan.py`
 - Create: `tests/daily_plan/linear/test_curriculum_slot.py`
 
-- [ ] `build_curriculum_slot(user_id, db) → LinearSlot` — `{kind: 'curriculum', title, lesson_type, eta_minutes, url, completed}`
-- [ ] URL по `Lesson.lesson_type`: `/curriculum_lessons/{id}?from=linear_plan` с проставлением query-param для SRS-budget (Task 5)
-- [ ] `completed = True` когда `LessonProgress.status == 'completed'` и урок = текущий next
-- [ ] Write tests: для каждого из 12 типов уроков (vocabulary/card/grammar/quiz/reading/listening_quiz/dialogue/ordering/translation/listening_immersion/final_test) слот корректно формируется
-- [ ] Run project test suite — must pass before task 5
+- [x] `build_curriculum_slot(user_id, db) → LinearSlot` — `{kind: 'curriculum', title, lesson_type, eta_minutes, url, completed}`
+- [x] URL по `Lesson.lesson_type`: `/curriculum_lessons/{id}?from=linear_plan` с проставлением query-param для SRS-budget (Task 5)
+- [x] `completed = True` когда `LessonProgress.status == 'completed'` и урок = текущий next
+- [x] Write tests: для каждого из 12 типов уроков (vocabulary/card/grammar/quiz/reading/listening_quiz/dialogue/ordering/translation/listening_immersion/final_test) слот корректно формируется
+- [x] Run project test suite — must pass before task 5 (20 dashboard failures pre-existed on the unchanged branch; daily_plan suite passes)
 
 ### Task 5: SRS slot with budget logic
 

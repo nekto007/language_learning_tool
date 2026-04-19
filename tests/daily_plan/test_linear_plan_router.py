@@ -217,7 +217,11 @@ class TestLinearStubPayloadShape:
         assert payload['mode'] == 'linear'
         for key in ('position', 'progress', 'baseline_slots', 'continuation', 'day_secured'):
             assert key in payload
-        assert payload['baseline_slots'] == []
+        # Curriculum slot is always present (Task 4). When no curriculum
+        # exists for the test user, it collapses to a completed empty slot.
+        assert isinstance(payload['baseline_slots'], list)
+        assert len(payload['baseline_slots']) >= 1
+        assert payload['baseline_slots'][0]['kind'] == 'curriculum'
         assert payload['day_secured'] is False
         assert 'available' in payload['continuation']
         assert 'next_lessons' in payload['continuation']
