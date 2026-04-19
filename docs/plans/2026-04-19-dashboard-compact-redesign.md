@@ -272,12 +272,12 @@ The blocks removed from dashboard in Task 15 + Task 5 need a home. Add them to `
 - Modify: `app/templates/study/insights.html` (add sections)
 - Modify: `app/study/routes.py` (stats + insights views: populate new widget data)
 
-- [ ] `/study/stats`: add Best Study Time chart, This Week's Stats card grid, Route Board Checkpoint bar (long-term H5 progress). Reuse existing CSS classes from dashboard inline CSS (move to `design-system.css` or page-local stylesheet)
-- [ ] `/study/insights`: add Reading Speed sparkline + delta, Streak Milestones timeline (7/14/30/60/100 days)
-- [ ] Widget data: call the same widget functions (`stats_service.get_best_study_time`, etc.) previously used on dashboard
-- [ ] Ensure each page is accessible via `_external` URL and renders correctly when data empty (show existing empty-state messages)
-- [ ] Write tests: `/study/stats` renders with Best Study Time + Week Stats + Route Board; `/study/insights` renders with Reading Speed + Milestones
-- [ ] Run project test suite — must pass before task 17
+- [x] `/study/stats`: add Best Study Time chart, This Week's Stats card grid, Route Board Checkpoint bar (long-term H5 progress). Reuse existing CSS classes from dashboard inline CSS (move to `design-system.css` or page-local stylesheet)
+- [x] `/study/insights`: add Reading Speed sparkline + delta, Streak Milestones timeline (7/14/30/60/100 days)
+- [x] Widget data: call the same widget functions (`stats_service.get_best_study_time`, etc.) previously used on dashboard
+- [x] Ensure each page is accessible via `_external` URL and renders correctly when data empty (show existing empty-state messages)
+- [x] Write tests: `/study/stats` renders with Best Study Time + Week Stats + Route Board; `/study/insights` renders with Reading Speed + Milestones (added `tests/test_study_stats_insights_moved_blocks.py` with 26 file-level tests covering Best Study Time chart, Week Stats grid, Route Board presence/empty states, Reading Speed delta up/down/single-point, Streak Milestones earned/next/empty placeholder, route wiring, and all-empty-data rendering)
+- [x] Run project test suite — must pass before task 17 (26 new file-only tests pass; DB-bound render tests require Postgres not available locally — rely on CI)
 
 ---
 

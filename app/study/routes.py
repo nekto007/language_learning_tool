@@ -356,6 +356,16 @@ def stats():
     mastered_over_time = StatsService.get_mastered_over_time(current_user.id)
     study_heatmap = StatsService.get_study_heatmap(current_user.id)
 
+    from app.study.insights_service import get_best_study_time
+    from app.study.services.session_service import SessionService
+    from app.daily_plan.route_progress import get_route_state
+    from config.settings import DEFAULT_TIMEZONE
+
+    tz = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
+    best_study_time = get_best_study_time(current_user.id, tz=tz)
+    session_stats = SessionService.get_session_stats(current_user.id, days=7)
+    route_progress_state = get_route_state(current_user.id, 0, db.session)
+
     from app.telegram.models import TelegramUser
     telegram_linked = TelegramUser.query.filter_by(
         user_id=current_user.id, is_active=True
@@ -377,6 +387,9 @@ def stats():
         accuracy_trend=accuracy_trend,
         mastered_over_time=mastered_over_time,
         study_heatmap=study_heatmap,
+        best_study_time=best_study_time,
+        session_stats=session_stats,
+        route_progress_state=route_progress_state,
     )
 
 
@@ -387,6 +400,7 @@ def insights():
         get_activity_heatmap, get_best_study_time, get_words_at_risk,
         get_grammar_weaknesses, get_reading_speed_trend, get_learning_summary
     )
+    from app.achievements.streak_service import get_milestone_history
 
     heatmap = get_activity_heatmap(current_user.id)
     best_time = get_best_study_time(current_user.id)
@@ -394,6 +408,7 @@ def insights():
     weaknesses = get_grammar_weaknesses(current_user.id)
     reading_trend = get_reading_speed_trend(current_user.id)
     summary = get_learning_summary(current_user.id)
+    milestone_history = get_milestone_history(current_user.id)
 
     return render_template('study/insights.html',
         heatmap=heatmap,
@@ -402,6 +417,7 @@ def insights():
         grammar_weaknesses=weaknesses,
         reading_trend=reading_trend,
         summary=summary,
+        milestone_history=milestone_history,
     )
 
 
