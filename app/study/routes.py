@@ -424,7 +424,11 @@ def insights():
     weaknesses = get_grammar_weaknesses(current_user.id)
     reading_trend = get_reading_speed_trend(current_user.id)
     summary = get_learning_summary(current_user.id)
-    milestone_history = get_milestone_history(current_user.id)
+    try:
+        milestone_history = get_milestone_history(current_user.id)
+    except Exception:
+        logger.exception("milestone_history failed for user %s", current_user.id)
+        milestone_history = []
 
     return render_template('study/insights.html',
         heatmap=heatmap,

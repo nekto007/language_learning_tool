@@ -1884,7 +1884,7 @@ class TestMissionXPInsidePlanCard:
 
     def test_mission_xp_block_lives_inside_plan_card(self):
         tpl = _read_dashboard_template()
-        plan_open = tpl.find('<div class="dash-plan">')
+        plan_open = tpl.find('<div id="dash-plan" class="dash-plan">')
         plan_close = tpl.find('</div>\n    {% endif %}{# /is_zero_state #}', plan_open)
         # Use a simpler heuristic: the mission XP block must appear after the
         # plan opening tag and before the activity section.
@@ -2113,8 +2113,10 @@ class TestHeroCTAMatrix:
         body = src[anchor:anchor + 3000]
         assert "'kind': 'extra'" in body
         assert "'kind': 'done'" in body
-        # Extra branch links to /study/cards; done branch has no URL
-        assert "url_for('study.cards') + '?from=daily_plan'" in body
+        # Extra branch links to /study/cards (honors default_study_deck_id); done branch has no URL
+        assert "url_for('study.cards_deck'" in body
+        assert "url_for('study.cards')" in body
+        assert "'?from=daily_plan'" in body
         assert "'url': None" in body
 
     def test_resolver_uses_review_budget_check(self):

@@ -1439,10 +1439,14 @@ def _resolve_hero_cta(user, mission_plan: dict | None, plan_completion: dict, da
 
     if all_done:
         if has_extra_review_capacity(user.id):
+            if getattr(user, 'default_study_deck_id', None):
+                extra_url = url_for('study.cards_deck', deck_id=user.default_study_deck_id)
+            else:
+                extra_url = url_for('study.cards')
             return {
                 'kind': 'extra',
                 'title': 'Ещё тренировка: Карточки \u2192',
-                'url': url_for('study.cards') + '?from=daily_plan',
+                'url': extra_url + '?from=daily_plan',
             }
         return {
             'kind': 'done',

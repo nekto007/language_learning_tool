@@ -172,7 +172,7 @@
     {% endif %}
 
     <!-- Daily Plan -->
-    <div class="dash-plan">
+    <div id="dash-plan" class="dash-plan">
         <h2 class="dash-plan__heading">План на сегодня</h2>
         {% if current_user.is_admin and plan_meta %}
         <div class="dash-plan-debug dash-plan-debug--{{ plan_meta.get('effective_mode', 'unknown') }}">

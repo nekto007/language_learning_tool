@@ -210,7 +210,7 @@ class TestMissionXPWidgetPosition:
 
     def test_xp_widget_rendered_inside_plan_card(self):
         markup = _render_content(mission_level_info=_level_info())
-        plan_start = markup.find('<div class="dash-plan">')
+        plan_start = markup.find('<div id="dash-plan" class="dash-plan">')
         assert plan_start >= 0, 'dash-plan card should be rendered'
         plan_end = markup.find('</div>\n    <!-- Welcome card', plan_start)
         # fallback: use next section marker
@@ -243,7 +243,7 @@ class TestMissionXPWidgetPosition:
     def test_xp_widget_not_rendered_above_plan_card(self):
         """The widget no longer sits between the hero and the plan card."""
         markup = _render_content(mission_level_info=_level_info())
-        plan_start = markup.find('<div class="dash-plan">')
+        plan_start = markup.find('<div id="dash-plan" class="dash-plan">')
         prelude = markup[:plan_start]
         assert 'data-xp-widget="true"' not in prelude
         assert 'class="dash-xp"' not in prelude
