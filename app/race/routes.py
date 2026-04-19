@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
+
 from flask import render_template, url_for
 from flask_login import current_user, login_required
 
 from app.modules.decorators import module_required
 
 from . import race_bp
+
+logger = logging.getLogger(__name__)
 
 
 @race_bp.route('/race')
@@ -27,7 +31,14 @@ def today() -> str:
     from config.settings import DEFAULT_TIMEZONE
 
     tz = current_user.timezone or DEFAULT_TIMEZONE
-    daily_race = _build_daily_race_widget(current_user.id, tz)
+
+    try:
+        daily_race = _build_daily_race_widget(current_user.id, tz)
+    except Exception:
+        logger.exception(
+            "Failed to build daily race widget for user %s", current_user.id
+        )
+        daily_race = None
 
     if daily_race is not None:
         try:
@@ -39,6 +50,10 @@ def today() -> str:
             daily_race['next_action_title'] = next_plan_title
             daily_race['next_action_url'] = next_plan_url
         except Exception:
+            logger.exception(
+                "Failed to resolve next action for race page, user %s",
+                current_user.id,
+            )
             daily_race.setdefault('next_action_title', None)
             daily_race.setdefault('next_action_url', None)
 

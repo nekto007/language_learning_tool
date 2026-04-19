@@ -362,9 +362,25 @@ def stats():
     from config.settings import DEFAULT_TIMEZONE
 
     tz = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
-    best_study_time = get_best_study_time(current_user.id, tz=tz)
-    session_stats = SessionService.get_session_stats(current_user.id, days=7)
-    route_progress_state = get_route_state(current_user.id, 0, db.session)
+    try:
+        best_study_time = get_best_study_time(current_user.id, tz=tz)
+    except Exception:
+        logger.exception("best_study_time failed for user %s", current_user.id)
+        best_study_time = {'best_hour': None, 'hourly_scores': {}}
+    try:
+        session_stats = SessionService.get_session_stats(current_user.id, days=7)
+    except Exception:
+        logger.exception("session_stats failed for user %s", current_user.id)
+        session_stats = {
+            'period_days': 7, 'total_sessions': 0, 'total_words_studied': 0,
+            'total_correct': 0, 'total_incorrect': 0, 'accuracy_percent': 0,
+            'total_time_seconds': 0, 'avg_session_time_seconds': 0,
+        }
+    try:
+        route_progress_state = get_route_state(current_user.id, 0, db.session)
+    except Exception:
+        logger.exception("route_progress_state failed for user %s", current_user.id)
+        route_progress_state = None
 
     from app.telegram.models import TelegramUser
     telegram_linked = TelegramUser.query.filter_by(
