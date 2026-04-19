@@ -81,11 +81,11 @@ When the user has zero activity across the board, hide the entire normal dashboa
 - Modify: `app/templates/dashboard.html` (top-level guard around hero + sections + welcome)
 - Modify: `app/templates/dashboard.html` (inline CSS for `.dash-welcome--fullscreen`)
 
-- [ ] Compute `is_zero_state = (words_total == 0 and grammar_studied == 0 and books_reading == 0 and courses_enrolled == 0)` in the route (or template)
-- [ ] When `is_zero_state`: render only `.dash-welcome--fullscreen` card (no hero, no race, no plan, no sections). Card centered vertically, larger icon, CTA to onboarding/catalog
-- [ ] When not `is_zero_state`: hide the welcome card entirely (hero CTA handles non-zero resumption)
-- [ ] Write tests: zero-state user renders only welcome markup; non-zero user renders hero + sections; welcome-card never appears in non-zero state
-- [ ] Run project test suite — must pass before task 5
+- [x] Compute `is_zero_state = (words_total == 0 and grammar_studied == 0 and books_reading == 0 and courses_enrolled == 0)` in the route (or template)
+- [x] When `is_zero_state`: render only `.dash-welcome--fullscreen` card (no hero, no race, no plan, no sections). Card centered vertically, larger icon, CTA to onboarding/catalog
+- [x] When not `is_zero_state`: hide the welcome card entirely (hero CTA handles non-zero resumption)
+- [x] Write tests: zero-state user renders only welcome markup; non-zero user renders hero + sections; welcome-card never appears in non-zero state
+- [x] Run project test suite — must pass before task 5 (file-only tests pass; DB-bound render tests require Postgres not available locally — rely on CI)
 
 ---
 

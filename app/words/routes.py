@@ -1114,6 +1114,13 @@ def dashboard():
         plan_today=plan_today,
         # Single hero CTA resolved from mission phases + review budget
         hero_cta=hero_cta,
+        # Zero-state flag: no activity across words/grammar/books/courses
+        is_zero_state=(
+            (words_total or 0) == 0
+            and (grammar_studied or 0) == 0
+            and (books_reading or 0) == 0
+            and (courses_enrolled or 0) == 0
+        ),
     )
 
 
