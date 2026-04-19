@@ -1,0 +1,373 @@
+{% extends 'base.html' %}
+
+{% block title %}Гонка дня - LLT English{% endblock %}
+
+{% block content %}
+<div class="race-page">
+    <a href="{{ dashboard_url }}" class="race-page__back">&larr; К дашборду</a>
+
+    {% if daily_race %}
+    <section class="dash-race{% if daily_race.is_complete %} dash-race--complete{% endif %}">
+        <div class="dash-race__header">
+            <div>
+                <div class="dash-race__eyebrow">Гонка дня</div>
+                {% if daily_race.is_complete %}
+                <h1 class="dash-race__title">Гонка завершена — ты финишировал {{ daily_race.rank }}-м!</h1>
+                {% else %}
+                <h1 class="dash-race__title">Что сделать сегодня, чтобы подняться выше</h1>
+                {% endif %}
+                {% if daily_race.has_bot_rivals %}
+                <div class="dash-race__note">Тренировочный режим: соперники временные.</div>
+                {% endif %}
+            </div>
+            <div class="dash-race__badge dash-race__badge--{{ daily_race.place_class or 'default' }}">Место {{ daily_race.rank }}/{{ daily_race.total }}</div>
+        </div>
+
+        <div class="dash-race__hero">
+            {% if daily_race.is_complete %}
+            <div class="dash-race__final">
+                <div class="dash-race__final-place dash-race__final-place--{{ daily_race.place_class or 'default' }}">
+                    {% if daily_race.rank == 1 %}&#129351;{% elif daily_race.rank == 2 %}&#129352;{% elif daily_race.rank == 3 %}&#129353;{% else %}{{ daily_race.rank }}-е место{% endif %}
+                </div>
+                <div class="dash-race__final-score">{{ daily_race.score }} очков</div>
+                <div class="dash-race__final-message">
+                    {% if daily_race.rank == 1 %}Отличная работа — сегодня ты первый!{% elif daily_race.rank <= 3 %}Хороший результат, ты в тройке лидеров!{% else %}Продолжай в том же духе — завтра будет лучше!{% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="dash-race__stats">
+                <div>
+                    <div class="dash-race__score">{{ daily_race.score }}</div>
+                    <div class="dash-race__score-label">очки за сегодня</div>
+                </div>
+                <div class="dash-race__progress">
+                    <div class="dash-race__progress-label">Прогресс: {{ daily_race.steps_done }}/{{ daily_race.steps_total }} этапов</div>
+                    <div class="dash-race__progress-bar">
+                        <div class="dash-race__progress-fill" style="width: {{ [daily_race.steps_done / daily_race.steps_total * 100, 100]|min if daily_race.steps_total else 0 }}%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dash-race__nudge">{{ daily_race.callout }}</div>
+
+            <div class="dash-race__tasks">
+                {% if daily_race.next_step_title %}
+                <div class="dash-race__task">
+                    <div class="dash-race__task-index">1</div>
+                    <div class="dash-race__task-body">
+                        <div class="dash-race__task-title">Сделай шаг: {{ daily_race.next_step_title }}</div>
+                        <div class="dash-race__task-meta">За него даётся +{{ daily_race.next_step_points }} очков.</div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if daily_race.rival_above %}
+                <div class="dash-race__task">
+                    <div class="dash-race__task-index">2</div>
+                    <div class="dash-race__task-body">
+                        <div class="dash-race__task-title">Сократи отрыв до {{ daily_race.rival_above.username }}</div>
+                        <div class="dash-race__task-meta">Сейчас до обгона {{ daily_race.gap_up }} очк.</div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if daily_race.rival_below %}
+                <div class="dash-race__task">
+                    <div class="dash-race__task-index">3</div>
+                    <div class="dash-race__task-body">
+                        <div class="dash-race__task-title">Удержи позицию перед {{ daily_race.rival_below.username }}</div>
+                        <div class="dash-race__task-meta">Запас снизу: {{ daily_race.gap_down }} очк.</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if daily_race.next_action_url %}
+            <a href="{{ daily_race.next_action_url }}" class="dash-race__cta">
+                {% if daily_race.next_action_title %}Открыть: {{ daily_race.next_action_title }}{% else %}Сделать следующий шаг{% endif %}
+            </a>
+            {% endif %}
+            {% endif %}
+
+            <div class="dash-race__board" data-race-board="true">
+                <div class="dash-race__board-title">{% if daily_race.is_complete %}Итоги гонки{% else %}Турнирная таблица{% endif %}</div>
+                <div class="dash-race__list">
+                    {% for rival in daily_race.leaderboard %}
+                    <div class="dash-race__row {% if rival.is_me %}dash-race__row--me{% endif %}">
+                        <div class="dash-race__place dash-race__place--{{ rival.place_class or 'default' }}">{{ rival.rank }}</div>
+                        <div class="dash-race__avatar">{{ rival.initials }}</div>
+                        <div class="dash-race__user">
+                            <div class="dash-race__name">{% if rival.is_me %}Ты{% else %}{{ rival.username }}{% endif %}</div>
+                            <div class="dash-race__user-meta">{{ rival.steps_done }}/{{ rival.steps_total }} этапов &middot; &#128293; {{ rival.streak }}{% if rival.is_bot %} &middot; тренировка{% endif %}</div>
+                        </div>
+                        <div class="dash-race__points">{{ rival.score }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% else %}
+    <section class="race-page__empty" data-race-empty="true">
+        <h1>Гонка дня недоступна</h1>
+        <p>Пока ты не участвуешь в гонке — загляни сюда после выполнения первых заданий дневного плана.</p>
+        <a href="{{ dashboard_url }}" class="dash-race__cta">Вернуться к плану</a>
+    </section>
+    {% endif %}
+</div>
+
+<style>
+    .race-page {
+        max-width: 960px;
+        margin: 1.5rem auto;
+        padding: 0 1rem;
+    }
+    .race-page__back {
+        display: inline-block;
+        margin-bottom: 1rem;
+        color: #4338ca;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    .race-page__back:hover {
+        text-decoration: underline;
+    }
+    .race-page__empty {
+        background: #fff;
+        border-radius: 20px;
+        padding: 2rem 1.5rem;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+        text-align: center;
+    }
+    .race-page__empty h1 {
+        margin-top: 0;
+        color: #0f172a;
+    }
+    .race-page__empty p {
+        color: #475569;
+        margin-bottom: 1.5rem;
+    }
+    .dash-race {
+        background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(16,185,129,0.10));
+        border: 1px solid rgba(99,102,241,0.18);
+        border-radius: 20px;
+        padding: 1.25rem;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+    }
+    .dash-race__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    .dash-race__eyebrow {
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #4f46e5;
+        margin-bottom: 0.2rem;
+    }
+    .dash-race__title {
+        margin: 0;
+        font-size: 1.5rem;
+        color: #0f172a;
+    }
+    .dash-race__note {
+        margin-top: 0.35rem;
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+    .dash-race__badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.72);
+        color: #312e81;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .dash-race__hero,
+    .dash-race__board {
+        background: rgba(255,255,255,0.78);
+        border: 1px solid rgba(255,255,255,0.75);
+        border-radius: 18px;
+        padding: 1rem;
+    }
+    .dash-race__hero {
+        display: flex;
+        flex-direction: column;
+        gap: 0.95rem;
+    }
+    .dash-race__stats {
+        display: grid;
+        grid-template-columns: minmax(0, 140px) minmax(0, 1fr);
+        gap: 1rem;
+        align-items: center;
+    }
+    .dash-race__score {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #111827;
+        line-height: 1;
+    }
+    .dash-race__score-label,
+    .dash-race__progress-label,
+    .dash-race__user-meta {
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+    .dash-race__progress-bar {
+        margin-top: 0.45rem;
+        height: 10px;
+        background: #e5e7eb;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .dash-race__progress-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #4f46e5, #10b981);
+    }
+    .dash-race__nudge {
+        font-weight: 700;
+        color: #0f172a;
+    }
+    .dash-race__tasks {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+    }
+    .dash-race__task {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        gap: 0.75rem;
+        align-items: start;
+        padding: 0.8rem 0.9rem;
+        border-radius: 14px;
+        background: rgba(79,70,229,0.06);
+        border: 1px solid rgba(79,70,229,0.10);
+    }
+    .dash-race__task-index {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #eef2ff;
+        color: #4338ca;
+        font-weight: 800;
+    }
+    .dash-race__task-title {
+        font-weight: 700;
+        color: #111827;
+    }
+    .dash-race__task-meta {
+        margin-top: 0.2rem;
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+    .dash-race__cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.8rem 1rem;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        color: #fff;
+        text-decoration: none;
+        font-weight: 700;
+        box-shadow: 0 10px 24px rgba(79,70,229,0.24);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .dash-race__cta:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 28px rgba(79,70,229,0.3);
+    }
+    .dash-race__board-title {
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 0.8rem;
+    }
+    .dash-race__list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+    }
+    .dash-race__row {
+        display: grid;
+        grid-template-columns: 28px 28px 1fr auto;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.7rem 0.8rem;
+        border-radius: 14px;
+        background: #f8fafc;
+    }
+    .dash-race__row--me {
+        background: rgba(79,70,229,0.10);
+        outline: 1px solid rgba(79,70,229,0.18);
+    }
+    .dash-race__place {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #eef2ff;
+        color: #4338ca;
+        font-weight: 800;
+        font-size: 0.875rem;
+    }
+    .dash-race__avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: #fef3c7;
+        color: #92400e;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    .dash-race__name {
+        font-weight: 700;
+        color: #111827;
+    }
+    .dash-race__points {
+        font-weight: 800;
+        color: #111827;
+    }
+    .dash-race__final {
+        text-align: center;
+        padding: 1rem 0.5rem;
+    }
+    .dash-race__final-place {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #111827;
+    }
+    .dash-race__final-score {
+        font-size: 1.1rem;
+        color: #4338ca;
+        margin-top: 0.4rem;
+        font-weight: 700;
+    }
+    .dash-race__final-message {
+        margin-top: 0.75rem;
+        color: #475569;
+    }
+    @media (max-width: 760px) {
+        .dash-race__header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .dash-race__stats {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}

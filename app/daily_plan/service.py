@@ -23,6 +23,34 @@ def compute_day_secured(phases: list[dict]) -> bool:
     return all(p.get('completed', False) for p in required)
 
 
+def resolve_next_phase(
+    mission_plan: Optional[dict[str, Any]],
+    plan_completion: dict[str, bool],
+) -> Optional[dict[str, Any]]:
+    """Return the first incomplete required phase dict, or None if none remain."""
+    if not mission_plan:
+        return None
+    for phase in mission_plan.get('phases') or []:
+        if not phase.get('required', True):
+            continue
+        if plan_completion.get(phase.get('id', ''), False):
+            continue
+        return phase
+    return None
+
+
+def has_extra_review_capacity(user_id: int) -> bool:
+    """True when SRS cards are due AND the user still has review budget today."""
+    try:
+        from app.daily_plan.assembler import _count_srs_due, _get_remaining_card_budget
+        due = _count_srs_due(user_id)
+        _, remaining_reviews = _get_remaining_card_budget(user_id)
+        return due > 0 and remaining_reviews > 0
+    except Exception:
+        logger.exception("Failed to compute review capacity for user %s", user_id)
+        return False
+
+
 def write_secured_at(user_id: int, plan_date: date, mission_type: Optional[str] = None) -> None:
     """Write secured_at timestamp to DailyPlanLog if not already set.
 

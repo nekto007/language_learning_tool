@@ -641,11 +641,9 @@ def dashboard():
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_current_streak, get_daily_summary
     from app.telegram.notifications import _lesson_minutes, _words_minutes
-    from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses, get_best_study_time, get_reading_speed_trend
-    from app.grammar_lab.services.grammar_lab_service import GrammarLabService
-    from app.study.services.session_service import SessionService
+    from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses
     from app.study.services.stats_service import StatsService
-    from app.achievements.streak_service import get_streak_calendar, get_milestone_history
+    from app.achievements.streak_service import get_streak_calendar
 
     # === DAILY PLAN & STREAK ===
     streak = get_current_streak(current_user.id, tz=tz)
@@ -709,7 +707,7 @@ def dashboard():
 
     # === ACTIVITY HEATMAP & STREAK CALENDAR ===
     activity_heatmap = _safe_widget_call(
-        'activity_heatmap', get_activity_heatmap, current_user.id, days=90, tz=tz, default=[])
+        'activity_heatmap', get_activity_heatmap, current_user.id, days=30, tz=tz, default=[])
     # Show empty state if user has no activity (all counts zero)
     if activity_heatmap and not any(d.get('count', 0) > 0 for d in activity_heatmap):
         activity_heatmap = []
@@ -725,7 +723,7 @@ def dashboard():
         except (ValueError, KeyError, IndexError):
             heatmap_pad = 0
     streak_calendar = _safe_widget_call(
-        'streak_calendar', get_streak_calendar, current_user.id, days=90, tz=tz, default={})
+        'streak_calendar', get_streak_calendar, current_user.id, days=30, tz=tz, default={})
 
     # === WORDS AT RISK & GRAMMAR WEAKNESSES ===
     words_at_risk = _safe_widget_call(
@@ -733,50 +731,22 @@ def dashboard():
     grammar_weaknesses = _safe_widget_call(
         'grammar_weaknesses', get_grammar_weaknesses, current_user.id, limit=5, default=[])
 
-    # === BEST STUDY TIME & SESSION STATS ===
-    best_study_time = _safe_widget_call(
-        'best_study_time', get_best_study_time, current_user.id, tz=tz,
-        default={'best_hour': None, 'hourly_scores': {}})
-    _empty_session_stats = {
-        'period_days': 7, 'total_sessions': 0, 'total_words_studied': 0,
-        'total_correct': 0, 'total_incorrect': 0, 'accuracy_percent': 0,
-        'total_time_seconds': 0, 'avg_session_time_seconds': 0,
-    }
-    session_stats = _safe_widget_call(
-        'session_stats', SessionService.get_session_stats, current_user.id, days=7,
-        default=_empty_session_stats)
-
     # === LEADERBOARD & XP RANK (leaderboard cached for 5 min) ===
     xp_leaderboard = _safe_widget_call(
         'xp_leaderboard', _get_cached_leaderboard, StatsService, limit=5, default=[])
     user_xp_rank = _safe_widget_call(
         'user_xp_rank', StatsService.get_user_xp_rank, current_user.id, default=None)
 
-    # === ACHIEVEMENTS BY CATEGORY & MILESTONES ===
+    # === ACHIEVEMENTS BY CATEGORY ===
     achievements_by_category = _safe_widget_call(
         'achievements_by_category', StatsService.get_achievements_by_category, current_user.id, default={})
-    milestone_history = _safe_widget_call(
-        'milestone_history', get_milestone_history, current_user.id, default=[])
     badges_showcase = _safe_widget_call(
         'badges_showcase', StatsService.get_badges_showcase, current_user.id,
         default={'recent': [], 'teasers': [], 'earned_count': 0, 'total_count': 0})
 
-    # === READING SPEED TREND & GRAMMAR BY LEVEL ===
-    reading_speed_trend = _safe_widget_call(
-        'reading_speed_trend', get_reading_speed_trend, current_user.id, default=[])
-    grammar_levels_summary = _safe_widget_call(
-        'grammar_levels_summary', lambda uid: GrammarLabService().get_levels_summary(user_id=uid),
-        current_user.id, default=[])
-
     # === WORDS STATS ===
     from app.srs.stats_service import srs_stats_service
     _wstats = srs_stats_service.get_words_stats(current_user.id)
-    words_stats = {
-        'new': _wstats['new_count'],
-        'learning': _wstats['learning_count'],
-        'review': _wstats['review_count'],
-        'mastered': _wstats['mastered_count'],
-    }
     words_total = _wstats['total']
     words_in_progress = _wstats['learning_count'] + _wstats['review_count']
 
@@ -835,14 +805,6 @@ def dashboard():
     # === WEEKLY ANALYTICS (via insights_service — week-to-date, not lifetime) ===
     from app.study.insights_service import get_weekly_summary
     weekly_analytics = get_weekly_summary(current_user.id)
-
-    # === CONTINUE WHERE YOU LEFT OFF ===
-    from app.curriculum.service import get_user_active_lessons
-    active_lessons = get_user_active_lessons(current_user.id, limit=1)
-    continue_lesson = active_lessons[0] if active_lessons else None
-
-    # === GRAMMAR PROGRESS SUMMARY ===
-    grammar_user_stats = srs_stats_service.get_grammar_user_stats(current_user.id)
 
     # === WEEKLY CHALLENGE ===
     from app.achievements.weekly_challenge import get_weekly_challenge, get_weekly_digest
@@ -987,29 +949,12 @@ def dashboard():
         daily_race['next_action_title'] = next_plan_title
         daily_race['next_action_url'] = next_plan_url
 
-    # Phase 3: ghost rival strip context — adults only, not dismissed, day secured.
-    rival_strip = None
-    if mission_plan and daily_plan.get('day_secured'):
-        try:
-            from app.daily_plan.rivals import (
-                get_ghost_rival, get_rival_strip_framing, is_adult_user,
-            )
-            _is_adult = is_adult_user(getattr(current_user, 'birth_year', None))
-            _dismissed = getattr(current_user, 'rival_strip_dismissed', False)
-            if _is_adult and not _dismissed:
-                import pytz as _pytz
-                _tz_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
-                _today = datetime.now(_pytz.timezone(_tz_name)).date()
-                _ghost = get_ghost_rival(current_user.id, _today, tz=_tz_name)
-                _user_pos = int(steps_done / max(1, steps_total) * 100) if steps_total > 0 else 0
-                _framing = get_rival_strip_framing(_user_pos, _ghost)
-                rival_strip = {
-                    'ghost': _ghost,
-                    'framing': _framing,
-                    'dismiss_url': url_for('api_daily_plan.dismiss_rival_strip'),
-                }
-        except Exception:
-            rival_strip = None
+    hero_cta = _safe_widget_call(
+        'hero_cta',
+        _resolve_hero_cta,
+        current_user, mission_plan, plan_completion, daily_plan,
+        default=None,
+    )
 
     return render_template('dashboard.html',
         # Daily plan
@@ -1033,7 +978,6 @@ def dashboard():
         plan_steps_done=steps_done,
         plan_steps_total=steps_total,
         # Words
-        words_stats=words_stats,
         words_total=words_total,
         words_in_progress=words_in_progress,
         # Books
@@ -1068,22 +1012,13 @@ def dashboard():
         # Words at risk & grammar weaknesses
         words_at_risk=words_at_risk,
         grammar_weaknesses=grammar_weaknesses,
-        # Best study time & session stats
-        best_study_time=best_study_time,
-        session_stats=session_stats,
         # Leaderboard
         xp_leaderboard=xp_leaderboard,
         user_xp_rank=user_xp_rank,
-        # Achievements by category & milestones
+        # Achievements by category
         achievements_by_category=achievements_by_category,
-        milestone_history=milestone_history,
-        # Reading speed trend & grammar by level
-        reading_speed_trend=reading_speed_trend,
-        grammar_levels_summary=grammar_levels_summary,
         # Summary widgets
         weekly_analytics=weekly_analytics,
-        continue_lesson=continue_lesson,
-        grammar_user_stats=grammar_user_stats,
         # Rank badge (daily plan title system)
         rank_info=rank_info,
         # Badges earned since last dashboard visit (popup)
@@ -1101,10 +1036,18 @@ def dashboard():
         route_metadata=route_metadata,
         # Route progress state for task 14 route board UI
         route_progress_state=route_progress_state,
-        # Phase 3: ghost rival strip (adults only, opt-out)
-        rival_strip=rival_strip,
         # Plan date for JS event attribution (prevents midnight boundary misattribution)
         plan_today=plan_today,
+        # Single hero CTA resolved from mission phases + review budget
+        hero_cta=hero_cta,
+        # Zero-state flag from the compact-dashboard plan: no activity across
+        # words / grammar / books / active courses.
+        is_zero_state=(
+            (words_total or 0) == 0
+            and (grammar_studied or 0) == 0
+            and (books_reading or 0) == 0
+            and (courses_enrolled or 0) == 0
+        ),
     )
 
 
@@ -1443,6 +1386,79 @@ def _next_step_from_mission(plan: dict, daily_summary: dict) -> tuple:
         'steps_done': phases_done,
         'steps_total': phases_total,
     }), 200
+
+
+def _resolve_hero_cta(user, mission_plan: dict | None, plan_completion: dict, daily_plan: dict) -> dict | None:
+    """Resolve the single hero CTA for the dashboard.
+
+    Returns a dict ``{kind, title, url}`` where ``kind`` is one of
+    ``start|continue|extra|done|fallback|onboarding``. Returns ``None`` when no
+    user is available (caller should skip rendering).
+    """
+    if user is None:
+        return None
+
+    if not getattr(user, 'onboarding_completed', True):
+        return {
+            'kind': 'onboarding',
+            'title': 'Пройти онбординг \u2192',
+            'url': url_for('onboarding.wizard'),
+        }
+
+    if not mission_plan:
+        return {
+            'kind': 'fallback',
+            'title': 'Открыть план \u2192',
+            'url': '#dash-plan',
+        }
+
+    from app.daily_plan.service import has_extra_review_capacity, resolve_next_phase
+
+    phases = mission_plan.get('phases') or []
+    required = [p for p in phases if p.get('required', True)]
+    any_done = any(plan_completion.get(p.get('id', ''), False) for p in required)
+    all_done = bool(required) and all(
+        plan_completion.get(p.get('id', ''), False) for p in required
+    )
+
+    if all_done:
+        if has_extra_review_capacity(user.id):
+            if getattr(user, 'default_study_deck_id', None):
+                extra_url = url_for('study.cards_deck', deck_id=user.default_study_deck_id)
+            else:
+                extra_url = url_for('study.cards')
+            return {
+                'kind': 'extra',
+                'title': 'Ещё тренировка: Карточки \u2192',
+                'url': extra_url + '?from=daily_plan',
+            }
+        return {
+            'kind': 'done',
+            'title': '\U0001F3C1 План готов \u2014 до завтра!',
+            'url': None,
+        }
+
+    next_phase = resolve_next_phase(mission_plan, plan_completion)
+    if next_phase is None:
+        return {
+            'kind': 'done',
+            'title': '\U0001F3C1 План готов \u2014 до завтра!',
+            'url': None,
+        }
+
+    phase_title = next_phase.get('title') or 'Следующий этап'
+    url = _phase_url(next_phase, daily_plan)
+    if any_done:
+        return {
+            'kind': 'continue',
+            'title': f'Продолжить: {phase_title}',
+            'url': url,
+        }
+    return {
+        'kind': 'start',
+        'title': f'Начать: {phase_title}',
+        'url': url,
+    }
 
 
 def _phase_url(phase: dict, plan: dict) -> str:

@@ -40,140 +40,86 @@
     </script>
     {% endif %}
 
-    <!-- Hero: Greeting + Streak -->
-    <div class="dash-hero">
-        <div class="dash-hero__bg-shapes">
-            <div class="dash-shape dash-shape--1"></div>
-            <div class="dash-shape dash-shape--2"></div>
+    {% if is_zero_state %}
+    <!-- Zero-state: fullscreen welcome card only (no hero, no plan, no sections) -->
+    <div class="dash-welcome dash-welcome--fullscreen" data-zero-state="true">
+        <div class="dash-welcome__icon">&#127891;</div>
+        <div class="dash-welcome__content">
+            <h2 class="dash-welcome__title">Добро пожаловать в LLT English!</h2>
+            <p class="dash-welcome__text">Начните обучение: пройдите первый урок, добавьте слова в колоду или изучите грамматику. Прогресс появится здесь.</p>
+            <a href="{% if not current_user.onboarding_completed %}{{ url_for('onboarding.wizard') }}{% else %}{{ url_for('courses.catalog') }}{% endif %}" class="dash-welcome__btn">Начать обучение</a>
         </div>
+    </div>
+    {% else %}
+
+    <!-- Hero: Greeting + Streak (compact daily ritual card) -->
+    <div class="dash-hero">
+        <div class="dash-hero__bg" aria-hidden="true"></div>
         <div class="dash-hero__content">
             <div class="dash-hero__greeting">
-                <span class="dash-hero__wave">&#128075;</span>
-                <div>
-                    <h1 class="dash-hero__title">{{ greeting|default('Привет') }}, {{ current_user.username }}!</h1>
-                    {% if streak_repaired %}
-                    <div class="dash-streak dash-streak--restored">
-                        <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
-                        <span class="dash-streak__text">{{ streak }}
-                            {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Coins — внутренняя валюта. Копите за серию, тратьте на восстановление">&#128176; {{ streak_status.coins_balance }}</span>
-                        <span class="dash-streak__restored">Серия восстановлена!</span>
-                    </div>
-                    {% elif streak_status and streak_status.can_repair and streak > 0 %}
-                    <div class="dash-streak">
-                        <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
-                        <span class="dash-streak__text">{{ streak }}
-                            {% set _s10 = streak % 10 %}{% set _s100 = streak % 100 %}{% if _s10 == 1 and _s100 != 11 %}день{% elif _s10 in [2,3,4] and _s100 not in [12,13,14] %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance }}</span>
-                    </div>
-                    {% elif streak_status and streak_status.can_repair %}
-                    <div class="dash-streak-recovery">
-                        <div class="dash-streak-recovery__alert">
-                            &#9888;&#65039; Серия прервалась!
-                        </div>
-                        <div class="dash-streak-recovery__options">
-                            <div class="dash-streak-recovery__free">
-                                &#127919; Выполните {{ required_steps|default(1) }} из {{ plan_steps_total|default(1) }}
-                                {% if required_steps|default(1) == 1 %}задание{% elif required_steps|default(1) < 5 %}задания{% else %}заданий{% endif %}
-                                сегодня — серия восстановится бесплатно
-                            </div>
-                            <div class="dash-streak-recovery__paid">
-                                &#128176; Или восстановите за <strong>{{ streak_status.repair_cost }}</strong> coins
-                                <button class="btn btn-sm btn-warning" id="repair-streak-btn"
-                                        onclick="repairStreak()" {% if streak_status.coins_balance < streak_status.repair_cost %}disabled{% endif %}>
-                                    Восстановить
-                                </button>
-                                <span class="dash-streak-recovery__balance">Баланс: {{ streak_status.coins_balance }}</span>
-                                {% if streak_status.coins_balance == 0 %}
-                                <div class="dash-streak-recovery__hint">Coins начисляются за каждый день серии. Продолжайте заниматься, чтобы накопить!</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    {% elif streak > 0 %}
-                    <div class="dash-streak">
-                        <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
-                        <span class="dash-streak__text">{{ streak }}
-                            {% set _s10 = streak % 10 %}{% set _s100 = streak % 100 %}{% if _s10 == 1 and _s100 != 11 %}день{% elif _s10 in [2,3,4] and _s100 not in [12,13,14] %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
-                        {% set milestones = {7: '🎯 Неделя!', 14: '💪 2 недели!', 30: '🏆 Месяц!', 60: '⭐ 2 месяца!', 100: '👑 100 дней!'} %}
-                        {% if streak in milestones %}
-                        <span class="dash-streak__milestone" id="milestone-badge">{{ milestones[streak] }}</span>
-                        {% if current_user.referral_code %}
-                        <button class="dash-streak__share-btn"
-                                data-share-text="{{ ('Моя серия: ' ~ streak ~ ' дней подряд! ' ~ milestones[streak])|e }}"
-                                data-share-ref="{{ current_user.referral_code|e }}"
-                                onclick="shareVia('telegram', this.dataset.shareText, window.location.origin + '/register?ref=' + this.dataset.shareRef)"
-                                title="Поделиться">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                        </button>
-                        {% endif %}
-                        {% endif %}
-                    </div>
-                    {% else %}
-                    <p class="dash-hero__subtitle">Выбери, чем хочешь заняться сегодня</p>
+                <span class="dash-hero__wave" aria-hidden="true">&#128075;</span>
+                <h1 class="dash-hero__title">{{ greeting|default('Привет') }}, {{ current_user.username }}!</h1>
+                {% if streak > 0 %}
+                <div class="dash-streak">
+                    <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
+                    <span class="dash-streak__text">{{ streak }}
+                        {% set _s10 = streak % 10 %}{% set _s100 = streak % 100 %}{% if _s10 == 1 and _s100 != 11 %}день{% elif _s10 in [2,3,4] and _s100 not in [12,13,14] %}дня{% else %}дней{% endif %} подряд</span>
+                    <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
+                    {% set milestones = {7: '🎯 Неделя!', 14: '💪 2 недели!', 30: '🏆 Месяц!', 60: '⭐ 2 месяца!', 100: '👑 100 дней!'} %}
+                    {% if streak in milestones %}
+                    <span class="dash-streak__milestone" id="milestone-badge">{{ milestones[streak] }}</span>
                     {% endif %}
-                    {% if yesterday_summary and yesterday_summary.has_activity %}
-                    <div class="dash-yesterday">
-                        Вчера:
-                        {% if yesterday_summary.lessons_count > 0 %}{{ yesterday_summary.lessons_count }} урок{% if yesterday_summary.lessons_count > 1 %}а{% endif %}{% if yesterday_summary.lesson_score %} ({{ yesterday_summary.lesson_score|int }}%){% endif %}{% endif %}
-                        {% if yesterday_summary.words_reviewed > 0 %}{% if yesterday_summary.lessons_count > 0 %} · {% endif %}{{ yesterday_summary.words_reviewed }} слов{% endif %}
-                        {% if yesterday_summary.grammar_exercises > 0 %}{% if yesterday_summary.lessons_count > 0 or yesterday_summary.words_reviewed > 0 %} · {% endif %}{{ yesterday_summary.grammar_correct|int }}/{{ yesterday_summary.grammar_exercises }} грамматика{% endif %}
-                    </div>
-                    {% endif %}
-                    {% if today_xp is defined %}
-                    <div class="dash-xp-bar" title="Опыт за сегодня. Зарабатывайте XP за уроки, грамматику и повторение слов">
-                        <span class="dash-xp-bar__text">&#9889; {{ today_xp|default(0) }}/{{ daily_xp_goal|default(100) }} XP</span>
-                        <div class="dash-xp-bar__track">
-                            <div class="dash-xp-bar__fill" style="width: {{ [today_xp|default(0) / daily_xp_goal|default(100) * 100, 100] | min }}%"></div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    {% if rank_info %}
-                    <div class="dash-rank dash-rank--{{ rank_info.code }}"
-                         data-rank-code="{{ rank_info.code }}"
-                         data-rank-plans="{{ rank_info.plans_completed }}"
-                         title="Титул за выполненные дневные планы">
-                        <span class="dash-rank__badge" style="--rank-color: {{ rank_info.color }}">
-                            <span class="dash-rank__icon" aria-hidden="true">{{ rank_info.icon }}</span>
-                            <span class="dash-rank__name">{{ rank_info.display_name }}</span>
-                        </span>
-                        {% if rank_info.is_max %}
-                        <span class="dash-rank__progress dash-rank__progress--max" data-rank-progress="true">
-                            <span class="dash-rank__progress-text">Максимальный титул — {{ rank_info.plans_completed }} планов</span>
-                        </span>
-                        {% else %}
-                        <span class="dash-rank__progress" data-rank-progress="true">
-                            <span class="dash-rank__progress-text">{{ rank_info.plans_completed }}/{{ rank_info.next_threshold }} до «{{ rank_info.next_display_name }}»</span>
-                            <span class="dash-rank__progress-track" aria-hidden="true">
-                                <span class="dash-rank__progress-fill" style="width: {{ rank_info.progress_percent }}%; --rank-color: {{ rank_info.color }}"></span>
-                            </span>
-                        </span>
-                        {% endif %}
-                    </div>
+                    {% if streak >= 7 and current_user.referral_code %}
+                    {% set _share_text = ('Моя серия: ' ~ streak ~ ' дней подряд! ' ~ milestones[streak]) if streak in milestones else ('Моя серия: ' ~ streak ~ ' дней подряд!') %}
+                    <button class="dash-streak__share-btn"
+                            data-share-text="{{ _share_text|e }}"
+                            data-share-ref="{{ current_user.referral_code|e }}"
+                            onclick="shareVia('telegram', this.dataset.shareText, window.location.origin + '/register?ref=' + this.dataset.shareRef)"
+                            title="Поделиться">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                    </button>
                     {% endif %}
                 </div>
+                {% elif streak_status and streak_status.can_repair %}
+                <div class="dash-streak-recovery">
+                    <div class="dash-streak-recovery__alert">
+                        &#9888;&#65039; Серия прервалась!
+                    </div>
+                    <div class="dash-streak-recovery__options">
+                        <div class="dash-streak-recovery__free">
+                            &#127919; Выполните {{ required_steps|default(1) }} из {{ plan_steps_total|default(1) }}
+                            {% if required_steps|default(1) == 1 %}задание{% elif required_steps|default(1) < 5 %}задания{% else %}заданий{% endif %}
+                            сегодня — серия восстановится бесплатно
+                        </div>
+                        <div class="dash-streak-recovery__paid">
+                            &#128176; Или восстановите за <strong>{{ streak_status.repair_cost }}</strong> coins
+                            <button class="btn btn-sm btn-warning" id="repair-streak-btn"
+                                    onclick="repairStreak()" {% if streak_status.coins_balance < streak_status.repair_cost %}disabled{% endif %}>
+                                Восстановить
+                            </button>
+                            <span class="dash-streak-recovery__balance">Баланс: {{ streak_status.coins_balance }}</span>
+                            {% if streak_status.coins_balance == 0 %}
+                            <div class="dash-streak-recovery__hint">Coins начисляются за каждый день серии. Продолжайте заниматься, чтобы накопить!</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="dash-hero__subtitle">Сегодня начни заново — первая серия уже в пути</p>
+                {% endif %}
             </div>
+            {% if hero_cta %}
+            {% if hero_cta.url %}
+            <a class="dash-hero__cta dash-hero__cta--{{ hero_cta.kind }}"
+               href="{{ hero_cta.url }}"
+               data-hero-cta="{{ hero_cta.kind }}">{{ hero_cta.title }}</a>
+            {% else %}
+            <span class="dash-hero__cta dash-hero__cta--{{ hero_cta.kind }}"
+                  data-hero-cta="{{ hero_cta.kind }}">{{ hero_cta.title }}</span>
+            {% endif %}
+            {% endif %}
         </div>
     </div>
-
-    {# ── Task 26: Mission XP / level widget ── #}
-    {% if mission_level_info %}
-    <div class="dash-xp" data-xp-widget="true" title="Опыт и уровень за дневные миссии">
-        <span class="dash-xp__level" data-xp-level="true">Уровень {{ mission_level_info.level }}</span>
-        <div class="dash-xp__progress">
-            <span class="dash-xp__text">{{ mission_level_info.xp_in_level }}/{{ mission_level_info.xp_for_level }} XP</span>
-            <div class="dash-xp__bar" data-xp-progress="true" data-xp-pct="{{ mission_level_info.progress_percent }}">
-                <div class="dash-xp__bar-fill" style="width: {{ mission_level_info.progress_percent }}%"></div>
-            </div>
-        </div>
-        {% if mission_level_info.streak_multiplier > 1.0 %}
-        <span class="dash-xp__multiplier" data-xp-multiplier="true">x{{ mission_level_info.streak_multiplier }} бонус серии</span>
-        {% else %}
-        <span class="dash-xp__multiplier dash-xp__multiplier--base" data-xp-multiplier="true">x{{ mission_level_info.streak_multiplier }} бонус серии</span>
-        {% endif %}
-    </div>
-    {% endif %}
 
     {# ── Task 26: Level-up golden flash overlay ── #}
     {% if xp_level_up %}
@@ -185,121 +131,48 @@
     </div>
     {% endif %}
 
-    <!-- Welcome Card for New Users -->
-    {% if words_total == 0 and grammar_studied == 0 and books_reading == 0 and courses_enrolled == 0 %}
-    <div class="dash-welcome">
-        <div class="dash-welcome__icon">&#127891;</div>
-        <div class="dash-welcome__content">
-            <h2 class="dash-welcome__title">Добро пожаловать в LLT English!</h2>
-            <p class="dash-welcome__text">Начните обучение: пройдите первый урок, добавьте слова в колоду или изучите грамматику. Прогресс появится здесь.</p>
-            <a href="{% if not current_user.onboarding_completed %}{{ url_for('onboarding.wizard') }}{% else %}{{ url_for('courses.catalog') }}{% endif %}" class="dash-welcome__btn">Начать обучение</a>
+    {# ── Streak restored flash overlay (reuses dash-xp-levelup animation, 2500 ms auto-dismiss) ── #}
+    {% if streak_repaired %}
+    <div class="dash-streak-flash" data-streak-flash="true" role="status" aria-live="polite">
+        <div class="dash-streak-flash__inner">
+            <div class="dash-streak-flash__icon">&#128293;</div>
+            <div class="dash-streak-flash__text">Серия восстановлена!</div>
         </div>
     </div>
+    <script>
+        (function () {
+            var flash = document.querySelector('[data-streak-flash="true"]');
+            if (!flash) return;
+            setTimeout(function () { flash.remove(); }, 2500);
+        })();
+    </script>
     {% endif %}
 
+    {# Task 14: compact race strip — full UX lives at /race #}
     {% if daily_race %}
-    <section class="dash-race{% if daily_race.is_complete %} dash-race--complete{% endif %}">
-        <div class="dash-race__header">
-            <div>
-                <div class="dash-race__eyebrow">Гонка дня</div>
-                {% if daily_race.is_complete %}
-                <h2 class="dash-race__title">Гонка завершена — ты финишировал {{ daily_race.rank }}-м!</h2>
-                {% else %}
-                <h2 class="dash-race__title">Что сделать сегодня, чтобы подняться выше</h2>
-                {% endif %}
-                {% if daily_race.has_bot_rivals %}
-                <div class="dash-race__note">Тренировочный режим: соперники временные.</div>
-                {% endif %}
-            </div>
-            <div class="dash-race__badge dash-race__badge--{{ daily_race.place_class or 'default' }}">Место {{ daily_race.rank }}/{{ daily_race.total }}</div>
-        </div>
-
-        <div class="dash-race__hero">
+    <a class="dash-race-strip dash-race-strip--{{ daily_race.place_class or 'default' }}{% if daily_race.is_complete %} dash-race-strip--complete{% endif %}"
+       href="{{ url_for('race.today') }}"
+       data-race-strip="true"
+       aria-label="Открыть страницу гонки дня">
+        <span class="dash-race-strip__icon" aria-hidden="true">
+            {% if daily_race.is_complete %}&#127942;{% else %}&#127937;{% endif %}
+        </span>
+        <span class="dash-race-strip__text">
             {% if daily_race.is_complete %}
-            <div class="dash-race__final">
-                <div class="dash-race__final-place dash-race__final-place--{{ daily_race.place_class or 'default' }}">
-                    {% if daily_race.rank == 1 %}🥇{% elif daily_race.rank == 2 %}🥈{% elif daily_race.rank == 3 %}🥉{% else %}{{ daily_race.rank }}-е место{% endif %}
-                </div>
-                <div class="dash-race__final-score">{{ daily_race.score }} очков</div>
-                <div class="dash-race__final-message">
-                    {% if daily_race.rank == 1 %}Отличная работа — сегодня ты первый!{% elif daily_race.rank <= 3 %}Хороший результат, ты в тройке лидеров!{% else %}Продолжай в том же духе — завтра будет лучше!{% endif %}
-                </div>
-            </div>
+            <span class="dash-race-strip__place">{{ daily_race.rank }}-е место</span>
+            <span class="dash-race-strip__score">{{ daily_race.score }} очк</span>
+            <span class="dash-race-strip__cta">Итоги &rarr;</span>
             {% else %}
-            <div class="dash-race__stats">
-                <div>
-                    <div class="dash-race__score">{{ daily_race.score }}</div>
-                    <div class="dash-race__score-label">очки за сегодня</div>
-                </div>
-                <div class="dash-race__progress">
-                    <div class="dash-race__progress-label">Прогресс: {{ daily_race.steps_done }}/{{ daily_race.steps_total }} этапов</div>
-                    <div class="dash-race__progress-bar">
-                        <div class="dash-race__progress-fill" style="width: {{ [daily_race.steps_done / daily_race.steps_total * 100, 100]|min if daily_race.steps_total else 0 }}%"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="dash-race__nudge">{{ daily_race.callout }}</div>
-
-            <div class="dash-race__tasks">
-                {% if daily_race.next_step_title %}
-                <div class="dash-race__task">
-                    <div class="dash-race__task-index">1</div>
-                    <div class="dash-race__task-body">
-                        <div class="dash-race__task-title">Сделай шаг: {{ daily_race.next_step_title }}</div>
-                        <div class="dash-race__task-meta">За него даётся +{{ daily_race.next_step_points }} очков.</div>
-                    </div>
-                </div>
-                {% endif %}
-                {% if daily_race.rival_above %}
-                <div class="dash-race__task">
-                    <div class="dash-race__task-index">2</div>
-                    <div class="dash-race__task-body">
-                        <div class="dash-race__task-title">Сократи отрыв до {{ daily_race.rival_above.username }}</div>
-                        <div class="dash-race__task-meta">Сейчас до обгона {{ daily_race.gap_up }} очк.</div>
-                    </div>
-                </div>
-                {% endif %}
-                {% if daily_race.rival_below %}
-                <div class="dash-race__task">
-                    <div class="dash-race__task-index">3</div>
-                    <div class="dash-race__task-body">
-                        <div class="dash-race__task-title">Удержи позицию перед {{ daily_race.rival_below.username }}</div>
-                        <div class="dash-race__task-meta">Запас снизу: {{ daily_race.gap_down }} очк.</div>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-
-            {% if daily_race.next_action_url %}
-            <a href="{{ daily_race.next_action_url }}" class="dash-race__cta">
-                {% if daily_race.next_action_title %}Открыть: {{ daily_race.next_action_title }}{% else %}Сделать следующий шаг{% endif %}
-            </a>
+            <span class="dash-race__badge dash-race__badge--{{ daily_race.place_class or 'default' }} dash-race-strip__badge">Место {{ daily_race.rank }}/{{ daily_race.total }}</span>
+            <span class="dash-race-strip__score">{{ daily_race.score }} очк</span>
+            <span class="dash-race-strip__cta">Подробнее &rarr;</span>
             {% endif %}
-            {% endif %}
-
-            <details class="dash-race__board dash-race__board--compact" {% if daily_race.is_complete %}open{% endif %}>
-                <summary class="dash-race__board-title">{% if daily_race.is_complete %}Итоги гонки{% else %}Позиции рядом{% endif %}</summary>
-                <div class="dash-race__list">
-                    {% for rival in daily_race.leaderboard %}
-                    <div class="dash-race__row {% if rival.is_me %}dash-race__row--me{% endif %}">
-                        <div class="dash-race__place dash-race__place--{{ rival.place_class or 'default' }}">{{ rival.rank }}</div>
-                        <div class="dash-race__avatar">{{ rival.initials }}</div>
-                        <div class="dash-race__user">
-                            <div class="dash-race__name">{% if rival.is_me %}Ты{% else %}{{ rival.username }}{% endif %}</div>
-                            <div class="dash-race__user-meta">{{ rival.steps_done }}/{{ rival.steps_total }} этапов · 🔥 {{ rival.streak }}{% if rival.is_bot %} · тренировка{% endif %}</div>
-                        </div>
-                        <div class="dash-race__points">{{ rival.score }}</div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </details>
-        </div>
-    </section>
+        </span>
+    </a>
     {% endif %}
 
     <!-- Daily Plan -->
-    <div class="dash-plan">
+    <div id="dash-plan" class="dash-plan">
         <h2 class="dash-plan__heading">План на сегодня</h2>
         {% if current_user.is_admin and plan_meta %}
         <div class="dash-plan-debug dash-plan-debug--{{ plan_meta.get('effective_mode', 'unknown') }}">
@@ -320,7 +193,7 @@
         {% set m_all_done = (m_done >= m_total and m_total > 0) %}
         {% set m_day_secured = mission_plan.get('day_secured', false) %}
 
-        {# Mission header: title + reason #}
+        {# Mission header: title + track + goal (Task 6 compact redesign: eyebrow + reason removed) #}
         {% set m = mission_plan.get('mission', {}) %}
         {% set m_goal = mission_plan.get('primary_goal', {}) %}
         {% set m_source = mission_plan.get('primary_source', {}) %}
@@ -343,9 +216,7 @@
         <div class="dash-mission-header">
             <span class="dash-mission-header__icon">{{ mission_icons.get(m.get('type', ''), '&#128204;')|safe }}</span>
             <div class="dash-mission-header__text">
-                <div class="dash-mission-header__eyebrow">Главная миссия дня</div>
                 <div class="dash-mission-header__title">{{ m.get('title', '') }}</div>
-                <div class="dash-mission-header__reason">{{ m.get('reason_text', '') }}</div>
                 {% if source_label or m_goal.get('title') %}
                 <div class="dash-mission-header__meta">
                     {% if source_label %}
@@ -359,15 +230,28 @@
             </div>
         </div>
 
-        {# Progress bar #}
-        {% if m_total > 0 %}
-        {% set m_pct = (m_done / m_total * 100) | int %}
-        <div class="dash-progress" data-plan-progress="true" data-progress-pct="{{ m_pct }}">
-            <div class="dash-progress__bar">
-                <div class="dash-progress__fill {% if m_all_done %}dash-progress__fill--done{% endif %}" style="width: {{ m_pct }}%" data-progress-fill="true"></div>
+        {# ── Task 7: Mission XP / level widget (moved from hero into plan card) ── #}
+        {% if mission_level_info %}
+        <div class="dash-mission__xp">
+            <div class="dash-xp" data-xp-widget="true" title="Опыт и уровень за дневные миссии">
+                <span class="dash-xp__level" data-xp-level="true">Уровень {{ mission_level_info.level }}</span>
+                <div class="dash-xp__progress">
+                    <span class="dash-xp__text">{{ mission_level_info.xp_in_level }}/{{ mission_level_info.xp_for_level }} XP</span>
+                    <div class="dash-xp__bar" data-xp-progress="true" data-xp-pct="{{ mission_level_info.progress_percent }}">
+                        <div class="dash-xp__bar-fill" style="width: {{ mission_level_info.progress_percent }}%"></div>
+                    </div>
+                </div>
+                {% if mission_level_info.streak_multiplier > 1.0 %}
+                <span class="dash-xp__multiplier" data-xp-multiplier="true">x{{ mission_level_info.streak_multiplier }} бонус серии</span>
+                {% else %}
+                <span class="dash-xp__multiplier dash-xp__multiplier--base" data-xp-multiplier="true">x{{ mission_level_info.streak_multiplier }} бонус серии</span>
+                {% endif %}
             </div>
-            <span class="dash-progress__count">{{ m_done }}/{{ m_total }}</span>
         </div>
+        {% endif %}
+
+        {# Task 5 (compact redesign): linear progress bar removed — the roadmap is the single
+           source of progress truth. Streak-save requirement keeps its own text-only hint. #}
         {% if required_steps is defined and not m_all_done %}
         <div class="dash-streak-req {% if plan_steps_done >= required_steps %}dash-streak-req--done{% endif %}">
             {% if plan_steps_done >= required_steps %}
@@ -377,7 +261,6 @@
             {% if required_steps == 1 %}задание{% elif required_steps < 5 %}задания{% else %}заданий{% endif %}
             {% endif %}
         </div>
-        {% endif %}
         {% endif %}
 
         {# Completion summary (task 29) #}
@@ -619,13 +502,6 @@
                         </span>
                         {% endif %}
                     </span>
-                    {% if not m_all_done and m_steps_remaining > 0 %}
-                    <span class="dash-roadmap__marker-distance" data-marker-distance="true">
-                        {% if m_steps_remaining % 10 == 1 and m_steps_remaining % 100 != 11 %}{{ m_steps_remaining }} шаг до финиша
-                        {% elif m_steps_remaining % 10 in [2, 3, 4] and m_steps_remaining % 100 not in [12, 13, 14] %}{{ m_steps_remaining }} шага до финиша
-                        {% else %}{{ m_steps_remaining }} шагов до финиша{% endif %}
-                    </span>
-                    {% endif %}
                 </div>
             </div>
             <div class="dash-roadmap__swipe-hint" data-roadmap-swipe-hint="true" aria-hidden="true">Листайте, чтобы увидеть все шаги</div>
@@ -713,98 +589,11 @@
         </div><!-- /dash-route -->
         {% endif %}
 
-        {# Task 14: Route board — shows long-term route progress (UserRouteProgress).
-           Visible regardless of day_secured state so users see their running checkpoint. #}
-        {% if route_progress_state %}
-        {% set rp = route_progress_state %}
-        <div class="dash-route-board" data-route-board="true"
-             data-checkpoint-number="{{ rp.checkpoint_number }}"
-             data-steps-today="{{ rp.steps_today }}"
-             data-percent-to-checkpoint="{{ rp.percent_to_checkpoint }}">
-            <div class="dash-route-board__header">
-                <span class="dash-route-board__label">Маршрут</span>
-                <span class="dash-route-board__position" data-route-position="true">
-                    {% if rp.checkpoint_number > 0 %}
-                    Контрольная точка {{ rp.checkpoint_number }}
-                    {% else %}
-                    До первой точки
-                    {% endif %}
-                </span>
-            </div>
-            {# Progress bar within current checkpoint stretch #}
-            <div class="dash-route-board__bar-wrap" role="progressbar"
-                 aria-valuenow="{{ rp.percent_to_checkpoint }}"
-                 aria-valuemin="0" aria-valuemax="100"
-                 aria-label="Прогресс до следующей контрольной точки: {{ rp.percent_to_checkpoint }}%">
-                <div class="dash-route-board__bar-fill" data-route-bar-fill="true"
-                     style="width: {{ rp.percent_to_checkpoint }}%"></div>
-                {# Day secured marker: position on the bar where minimum was reached. #}
-                {% if m_day_secured and rp.steps_today > 0 %}
-                <div class="dash-route-board__secured-marker" data-secured-marker="true"
-                     style="left: {{ [rp.percent_to_checkpoint, 100] | min }}%"
-                     title="День закрыт здесь" aria-label="Серия закреплена"></div>
-                {% endif %}
-            </div>
-            <div class="dash-route-board__meta">
-                <span class="dash-route-board__steps-today" data-steps-today-label="true">
-                    Сегодня: {{ rp.steps_today }}
-                    {% if rp.steps_today % 10 == 1 and rp.steps_today % 100 != 11 %}шаг{% elif rp.steps_today % 10 in [2, 3, 4] and rp.steps_today % 100 not in [12, 13, 14] %}шага{% else %}шагов{% endif %}
-                </span>
-                <span class="dash-route-board__steps-to-cp" data-steps-to-checkpoint="true">
-                    До точки: {{ rp.steps_to_next_checkpoint }}
-                    {% if rp.steps_to_next_checkpoint % 10 == 1 and rp.steps_to_next_checkpoint % 100 != 11 %}шаг{% elif rp.steps_to_next_checkpoint % 10 in [2, 3, 4] and rp.steps_to_next_checkpoint % 100 not in [12, 13, 14] %}шага{% else %}шагов{% endif %}
-                </span>
-            </div>
-            {# Checkpoint reached label — shown if user is at an exact checkpoint boundary. #}
-            {% if rp.percent_to_checkpoint == 0 and rp.checkpoint_number > 0 %}
-            <div class="dash-route-board__checkpoint-reached" data-checkpoint-reached="true">
-                &#127381; Контрольная точка {{ rp.checkpoint_number }} достигнута!
-            </div>
-            {% endif %}
-        </div>
-        {% endif %}
+        {# Task 5 (compact redesign): Route board removed from dashboard. Long-term checkpoint
+           progress will surface on /study/stats instead (Task 16). #}
 
-        {# Task 9: Day secured banner + 3-step continuation queue (Task 14).
-           Shown when required phases are complete but the full mission is not yet done. #}
-        {% if m_day_secured and not m_all_done %}
-        <div class="dash-day-secured" data-day-secured="true"
-             data-cards-url="{{ cards_url }}?from=daily_plan"
-             aria-live="polite">
-            <div class="dash-day-secured__banner">
-                <span class="dash-day-secured__icon" aria-hidden="true">&#128737;</span>
-                <div class="dash-day-secured__text">
-                    <div class="dash-day-secured__title">День закрыт!</div>
-                    <div class="dash-day-secured__sub">Серия сохранена. Хочешь пойти дальше?</div>
-                </div>
-            </div>
-            {# 3-task continuation queue — populated by JS from /api/daily-plan/continuation #}
-            <div class="dash-next-step" data-next-step-container="true" style="display:none">
-                <div class="dash-next-step__header">Что дальше</div>
-                <div class="dash-next-step__queue" data-next-step-queue="true"></div>
-                <div class="dash-next-step__actions">
-                    <button type="button" class="dash-next-step__btn dash-next-step__btn--dismiss" data-next-step-dismiss="true">Продолжить позже</button>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        {# Phase 3: Ghost rival strip — adults only, opt-out, positive framing only.
-           Shown only when day_secured=True. Never rendered for child users. #}
-        {% if rival_strip and m_day_secured %}
-        <div class="dash-rival-strip" data-rival-strip="true"
-             data-dismiss-url="{{ rival_strip.dismiss_url }}">
-            <div class="dash-rival-strip__content">
-                <span class="dash-rival-strip__avatar" aria-hidden="true">&#127942;</span>
-                <div class="dash-rival-strip__body">
-                    <span class="dash-rival-strip__label">{{ rival_strip.ghost.display_label }}</span>
-                    <span class="dash-rival-strip__message">{{ rival_strip.framing.message }}</span>
-                </div>
-            </div>
-            <button type="button" class="dash-rival-strip__dismiss"
-                    data-rival-strip-dismiss="true"
-                    aria-label="Скрыть навсегда">&times;</button>
-        </div>
-        {% endif %}
+        {# Task 8 (compact redesign): day-secured banner, 3-step continuation queue,
+           and ghost rival strip removed — hero CTA + roadmap are the single signal. #}
 
     {% else %}
         {# ══════════════════════════════════════════
@@ -1267,87 +1056,6 @@
     {% endif %}
     {% endif %}
 
-    <!-- Words SRS Distribution -->
-    {% if words_total > 0 %}
-    <div class="dash-srs">
-        <h3 class="dash-srs__heading">Слова SRS</h3>
-        <div class="dash-srs__bar">
-            {% set srs_total = words_stats.new + words_stats.learning + words_stats.review + words_stats.mastered %}
-            {% if srs_total > 0 %}
-            {% set pct_new = (words_stats.new / srs_total * 100) %}
-            {% set pct_learn = (words_stats.learning / srs_total * 100) %}
-            {% set pct_review = (words_stats.review / srs_total * 100) %}
-            {% set pct_mastered = (words_stats.mastered / srs_total * 100) %}
-            {% if words_stats.new > 0 %}<div class="dash-srs__seg dash-srs__seg--new" style="width:{{ pct_new }}%" title="&#1053;&#1086;&#1074;&#1099;&#1077;: {{ words_stats.new }}"></div>{% endif %}
-            {% if words_stats.learning > 0 %}<div class="dash-srs__seg dash-srs__seg--learning" style="width:{{ pct_learn }}%" title="&#1048;&#1079;&#1091;&#1095;&#1072;&#1102;: {{ words_stats.learning }}"></div>{% endif %}
-            {% if words_stats.review > 0 %}<div class="dash-srs__seg dash-srs__seg--review" style="width:{{ pct_review }}%" title="&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;: {{ words_stats.review }}"></div>{% endif %}
-            {% if words_stats.mastered > 0 %}<div class="dash-srs__seg dash-srs__seg--mastered" style="width:{{ pct_mastered }}%" title="&#1047;&#1072;&#1082;&#1088;&#1077;&#1087;&#1083;&#1077;&#1085;&#1086;: {{ words_stats.mastered }}"></div>{% endif %}
-            {% endif %}
-        </div>
-        <div class="dash-srs__legend">
-            <span class="dash-srs__legend-item"><span class="dash-srs__dot dash-srs__dot--new"></span>&#1053;&#1086;&#1074;&#1099;&#1077; {{ words_stats.new }}</span>
-            <span class="dash-srs__legend-item"><span class="dash-srs__dot dash-srs__dot--learning"></span>&#1048;&#1079;&#1091;&#1095;&#1072;&#1102; {{ words_stats.learning }}</span>
-            <span class="dash-srs__legend-item"><span class="dash-srs__dot dash-srs__dot--review"></span>&#1055;&#1086;&#1074;&#1090;&#1086;&#1088; {{ words_stats.review }}</span>
-            <span class="dash-srs__legend-item"><span class="dash-srs__dot dash-srs__dot--mastered"></span>&#1047;&#1072;&#1082;&#1088;&#1077;&#1087;&#1083;&#1077;&#1085;&#1086; {{ words_stats.mastered }}</span>
-        </div>
-    </div>
-    {% elif grammar_studied > 0 or books_reading > 0 or courses_enrolled > 0 %}
-    <div class="dash-words-empty">
-        <div class="dash-words-empty__icon">&#128218;</div>
-        <div class="dash-words-empty__content">
-            <h3 class="dash-words-empty__title">Начните свой словарь</h3>
-            <p class="dash-words-empty__text">Добавьте слова в словарь — они появятся здесь для повторения.</p>
-            <a href="{{ url_for('words.word_list') }}" class="dash-words-empty__btn">Добавить первое слово</a>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Continue Where You Left Off -->
-    {% if continue_lesson is defined and continue_lesson %}
-    <div class="dash-continue">
-        <div class="dash-continue__icon">&#128218;</div>
-        <div class="dash-continue__info">
-            <div class="dash-continue__title">&#1055;&#1088;&#1086;&#1076;&#1086;&#1083;&#1078;&#1080;&#1090;&#1100; &#1091;&#1088;&#1086;&#1082;</div>
-            <div class="dash-continue__lesson">{{ continue_lesson.level.code if continue_lesson.level else '' }} / &#1052;&#1086;&#1076;&#1091;&#1083;&#1100; {{ continue_lesson.module.number if continue_lesson.module else '' }} &mdash; {{ continue_lesson.lesson.title }}</div>
-        </div>
-        <a href="{{ url_for('curriculum_lessons.lesson_detail', lesson_id=continue_lesson.lesson.id) }}" class="dash-continue__btn">&#1055;&#1088;&#1086;&#1076;&#1086;&#1083;&#1078;&#1080;&#1090;&#1100;</a>
-    </div>
-    {% endif %}
-
-    <!-- Grammar Progress Summary -->
-    {% if grammar_user_stats is defined and grammar_user_stats and grammar_user_stats.total_topics > 0 %}
-    <div class="dash-grammar-progress">
-        <h3 class="dash-grammar-progress__heading">&#1043;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1072;</h3>
-        <div class="dash-grammar-progress__stats">
-            <div class="dash-grammar-progress__stat">
-                <span class="dash-grammar-progress__num">{{ grammar_user_stats.topics_started }}</span>
-                <span class="dash-grammar-progress__lbl">&#1085;&#1072;&#1095;&#1072;&#1090;&#1086;</span>
-            </div>
-            <div class="dash-grammar-progress__stat">
-                <span class="dash-grammar-progress__num">{{ grammar_user_stats.topics_mastered }}</span>
-                <span class="dash-grammar-progress__lbl">&#1086;&#1089;&#1074;&#1086;&#1077;&#1085;&#1086;</span>
-            </div>
-            {% if grammar_user_stats.total_topics > 0 %}
-            <div class="dash-grammar-progress__stat">
-                <span class="dash-grammar-progress__num">{{ (grammar_user_stats.topics_started / grammar_user_stats.total_topics * 100) | int }}%</span>
-                <span class="dash-grammar-progress__lbl">&#1087;&#1088;&#1086;&#1075;&#1088;&#1077;&#1089;&#1089;</span>
-            </div>
-            {% endif %}
-            {% if grammar_user_stats.overall_accuracy > 0 %}
-            <div class="dash-grammar-progress__stat">
-                <span class="dash-grammar-progress__num">{{ grammar_user_stats.overall_accuracy | int }}%</span>
-                <span class="dash-grammar-progress__lbl">&#1090;&#1086;&#1095;&#1085;&#1086;&#1089;&#1090;&#1100;</span>
-            </div>
-            {% endif %}
-        </div>
-        {% if grammar_user_stats.topics_started > 0 %}
-        <div class="dash-grammar-progress__bar">
-            <div class="dash-grammar-progress__fill" style="width: {{ (grammar_user_stats.topics_started / grammar_user_stats.total_topics * 100) | int }}%"></div>
-        </div>
-        {% endif %}
-    </div>
-    {% endif %}
-
     <!-- Telegram Banner -->
     {% include 'partials/telegram_banner.html' %}
 
@@ -1375,9 +1083,28 @@
         <div class="dash-section__divider"></div>
         <h2 class="dash-section__heading">Активность</h2>
     </div>
+    {% if yesterday_summary and yesterday_summary.has_activity and (yesterday_summary.lessons_count or yesterday_summary.words_reviewed or yesterday_summary.grammar_exercises) %}
+    {% set _y_lessons = yesterday_summary.lessons_count %}
+    {% set _y_words = yesterday_summary.words_reviewed %}
+    {% set _y_gex = yesterday_summary.grammar_exercises %}
+    <div class="dash-yesterday-summary">
+        <span class="dash-yesterday-summary__label">Вчера:</span>
+        {% if _y_lessons > 0 %}
+        <span class="dash-yesterday-summary__item">{{ _y_lessons }} {% if _y_lessons % 10 == 1 and _y_lessons % 100 != 11 %}урок{% elif _y_lessons % 10 in [2,3,4] and _y_lessons % 100 not in [12,13,14] %}урока{% else %}уроков{% endif %}</span>
+        {% endif %}
+        {% if _y_words > 0 %}
+        {% if _y_lessons > 0 %}<span class="dash-yesterday-summary__sep">·</span>{% endif %}
+        <span class="dash-yesterday-summary__item">{{ _y_words }} {% if _y_words % 10 == 1 and _y_words % 100 != 11 %}слово{% elif _y_words % 10 in [2,3,4] and _y_words % 100 not in [12,13,14] %}слова{% else %}слов{% endif %}</span>
+        {% endif %}
+        {% if _y_gex > 0 %}
+        {% if _y_lessons > 0 or _y_words > 0 %}<span class="dash-yesterday-summary__sep">·</span>{% endif %}
+        <span class="dash-yesterday-summary__item">{{ yesterday_summary.grammar_correct }}/{{ _y_gex }} грамматика</span>
+        {% endif %}
+    </div>
+    {% endif %}
     {% if activity_heatmap %}
     <div class="dash-heatmap">
-        <h3 class="dash-heatmap__heading">Активность за 90 дней</h3>
+        <h3 class="dash-heatmap__heading">Активность за 30 дней</h3>
         <div class="dash-heatmap__container">
             <div class="dash-heatmap__days">
                 <span></span>
@@ -1429,18 +1156,13 @@
         </div>
         {% if streak_calendar %}
         <div class="dash-heatmap__stats">
-            <div class="dash-heatmap__stat">
-                <div class="dash-heatmap__stat-value">{{ streak_calendar.current_streak }}</div>
-                <div class="dash-heatmap__stat-label">текущая серия</div>
-            </div>
-            <div class="dash-heatmap__stat">
-                <div class="dash-heatmap__stat-value">{{ streak_calendar.longest_streak }}</div>
-                <div class="dash-heatmap__stat-label">лучшая серия</div>
-            </div>
-            <div class="dash-heatmap__stat">
-                <div class="dash-heatmap__stat-value">{{ streak_calendar.total_active_days }}</div>
-                <div class="dash-heatmap__stat-label">активных дней</div>
-            </div>
+            <span class="dash-heatmap__stat-line">
+                &#128293; текущая: <strong>{{ streak_calendar.current_streak }}</strong>
+                <span class="dash-heatmap__stat-sep">·</span>
+                лучшая: <strong>{{ streak_calendar.longest_streak }}</strong>
+                <span class="dash-heatmap__stat-sep">·</span>
+                всего активных: <strong>{{ streak_calendar.total_active_days }}</strong>
+            </span>
         </div>
         {% endif %}
     </div>
@@ -1450,121 +1172,83 @@
         <span class="dash-empty__text">Начните заниматься, чтобы увидеть карту активности</span>
     </div>
     {% endif %}
+    <div class="dash-activity__more">
+        <a href="{{ url_for('study.stats') }}" class="dash-activity__more-link">Подробная статистика &rarr;</a>
+    </div>
 
+    {% if words_at_risk or grammar_weaknesses %}
+    {% set words_risk_count = words_at_risk|length %}
+    {% set grammar_weak_count = grammar_weaknesses|length %}
     <!-- Section 4: Alerts row - Words at Risk + Grammar Weaknesses -->
     <div class="dash-section">
         <div class="dash-section__divider"></div>
         <h2 class="dash-section__heading">Внимание</h2>
     </div>
-    {% if words_at_risk or grammar_weaknesses %}
-    <div class="dash-alerts-row">
-        {% if words_at_risk %}
-        <div class="dash-risk">
-            <h3 class="dash-risk__heading">&#9888;&#65039; &#1057;&#1083;&#1086;&#1074;&#1072; &#1087;&#1086;&#1076; &#1091;&#1075;&#1088;&#1086;&#1079;&#1086;&#1081;</h3>
-            <div class="dash-risk__list">
-                {% for w in words_at_risk %}
-                <div class="dash-risk__item">
-                    <div class="dash-risk__word">
-                        <span class="dash-risk__term">{{ w.word }}</span>
-                        <span class="dash-risk__translation">{{ w.translation }}</span>
+    <details class="dash-alerts__accordion">
+        <summary class="dash-alerts__summary">
+            <span class="dash-alerts__summary-text">
+                &#9888;&#65039;
+                {% if words_risk_count %}
+                    {{ words_risk_count }}
+                    {% if words_risk_count == 1 %}&#1089;&#1083;&#1086;&#1074;&#1086;{% elif words_risk_count < 5 %}&#1089;&#1083;&#1086;&#1074;&#1072;{% else %}&#1089;&#1083;&#1086;&#1074;{% endif %}
+                    &#1087;&#1086;&#1076; &#1091;&#1075;&#1088;&#1086;&#1079;&#1086;&#1081;
+                {% endif %}
+                {% if words_risk_count and grammar_weak_count %} &middot; {% endif %}
+                {% if grammar_weak_count %}
+                    {{ grammar_weak_count }}
+                    {% if grammar_weak_count == 1 %}&#1089;&#1083;&#1072;&#1073;&#1072;&#1103; &#1090;&#1077;&#1084;&#1072;{% elif grammar_weak_count < 5 %}&#1089;&#1083;&#1072;&#1073;&#1099;&#1077; &#1090;&#1077;&#1084;&#1099;{% else %}&#1089;&#1083;&#1072;&#1073;&#1099;&#1093; &#1090;&#1077;&#1084;{% endif %}
+                {% endif %}
+            </span>
+            <span class="dash-alerts__summary-chevron" aria-hidden="true">&#9662;</span>
+        </summary>
+        <div class="dash-alerts-row">
+            {% if words_at_risk %}
+            <div class="dash-risk">
+                <h3 class="dash-risk__heading">&#9888;&#65039; &#1057;&#1083;&#1086;&#1074;&#1072; &#1087;&#1086;&#1076; &#1091;&#1075;&#1088;&#1086;&#1079;&#1086;&#1081;</h3>
+                <div class="dash-risk__list">
+                    {% for w in words_at_risk %}
+                    <div class="dash-risk__item">
+                        <div class="dash-risk__word">
+                            <span class="dash-risk__term">{{ w.word }}</span>
+                            <span class="dash-risk__translation">{{ w.translation }}</span>
+                        </div>
+                        <span class="dash-risk__badge">{{ w.days_overdue }} &#1076;.</span>
                     </div>
-                    <span class="dash-risk__badge">{{ w.days_overdue }} &#1076;.</span>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+                <a href="{{ cards_url }}" class="dash-risk__action">&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;&#1080;&#1090;&#1100; &rarr;</a>
             </div>
-            <a href="{{ cards_url }}" class="dash-risk__action">&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;&#1080;&#1090;&#1100; &rarr;</a>
-        </div>
-        {% endif %}
+            {% endif %}
 
-        {% if grammar_weaknesses %}
-        <div class="dash-weakness">
-            <h3 class="dash-weakness__heading">&#128200; &#1057;&#1083;&#1072;&#1073;&#1099;&#1077; &#1090;&#1077;&#1084;&#1099; &#1075;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1080;</h3>
-            <div class="dash-weakness__list">
-                {% for g in grammar_weaknesses %}
-                <div class="dash-weakness__item">
-                    <div class="dash-weakness__info">
-                        <span class="dash-weakness__title">{{ g.title }}</span>
-                        <span class="dash-weakness__attempts">{{ g.attempts }} &#1087;&#1086;&#1087;&#1099;&#1090;&#1086;&#1082;</span>
+            {% if grammar_weaknesses %}
+            <div class="dash-weakness">
+                <h3 class="dash-weakness__heading">&#128200; &#1057;&#1083;&#1072;&#1073;&#1099;&#1077; &#1090;&#1077;&#1084;&#1099; &#1075;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1080;</h3>
+                <div class="dash-weakness__list">
+                    {% for g in grammar_weaknesses %}
+                    <div class="dash-weakness__item">
+                        <div class="dash-weakness__info">
+                            <span class="dash-weakness__title">{{ g.title }}</span>
+                            <span class="dash-weakness__attempts">{{ g.attempts }} &#1087;&#1086;&#1087;&#1099;&#1090;&#1086;&#1082;</span>
+                        </div>
+                        <div class="dash-weakness__bar-wrap">
+                            <div class="dash-weakness__bar" style="width: {{ g.accuracy }}%"></div>
+                        </div>
+                        <span class="dash-weakness__pct">{{ g.accuracy }}%</span>
                     </div>
-                    <div class="dash-weakness__bar-wrap">
-                        <div class="dash-weakness__bar" style="width: {{ g.accuracy }}%"></div>
-                    </div>
-                    <span class="dash-weakness__pct">{{ g.accuracy }}%</span>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+                <a href="{{ url_for('grammar_lab.index') }}" class="dash-weakness__action">&#1055;&#1088;&#1072;&#1082;&#1090;&#1080;&#1082;&#1072; &rarr;</a>
             </div>
-            <a href="{{ url_for('grammar_lab.index') }}" class="dash-weakness__action">&#1055;&#1088;&#1072;&#1082;&#1090;&#1080;&#1082;&#1072; &rarr;</a>
-        </div>
-        {% endif %}
-    </div>
-    {% else %}
-    <div class="dash-empty">
-        <span class="dash-empty__icon">&#9989;</span>
-        <span class="dash-empty__text">Нет слов под угрозой и слабых тем — отличная работа!</span>
-    </div>
-    {% endif %}
-
-    <!-- Section 5: Stats row - Best Study Time + This Week's Stats -->
-    <div class="dash-section">
-        <div class="dash-section__divider"></div>
-        <h2 class="dash-section__heading">Статистика</h2>
-    </div>
-    <div class="dash-stats-row">
-        <!-- Best Study Time -->
-        <div class="dash-study-time">
-            <h3 class="dash-study-time__heading">&#128336; &#1051;&#1091;&#1095;&#1096;&#1077;&#1077; &#1074;&#1088;&#1077;&#1084;&#1103; &#1076;&#1083;&#1103; &#1091;&#1095;&#1105;&#1073;&#1099;</h3>
-            {% if best_study_time and best_study_time.best_hour is not none %}
-            <div class="dash-study-time__hero">
-                <span class="dash-study-time__hour">{{ '%02d:00'|format(best_study_time.best_hour) }}</span>
-                <span class="dash-study-time__hint">&#1042;&#1099; &#1091;&#1095;&#1080;&#1090;&#1077;&#1089;&#1100; &#1101;&#1092;&#1092;&#1077;&#1082;&#1090;&#1080;&#1074;&#1085;&#1077;&#1077; &#1074;&#1089;&#1077;&#1075;&#1086;</span>
-            </div>
-            <div class="dash-study-time__chart">
-                {% set max_score = best_study_time.hourly_scores.values()|list|max if best_study_time.hourly_scores else 1 %}
-                {% for h in range(24) %}
-                {% set score = best_study_time.hourly_scores.get(h, 0) %}
-                <div class="dash-study-time__bar{% if h == best_study_time.best_hour %} dash-study-time__bar--best{% endif %}"
-                     style="height: {{ (score / max_score * 100)|int if max_score else 0 }}%"
-                     title="{{ '%02d:00'|format(h) }} &mdash; {{ score }}"></div>
-                {% endfor %}
-            </div>
-            <div class="dash-study-time__labels">
-                <span>00</span><span>06</span><span>12</span><span>18</span><span>23</span>
-            </div>
-            {% else %}
-            <div class="dash-study-time__empty">&#1053;&#1077;&#1076;&#1086;&#1089;&#1090;&#1072;&#1090;&#1086;&#1095;&#1085;&#1086; &#1076;&#1072;&#1085;&#1085;&#1099;&#1093;. &#1055;&#1088;&#1086;&#1076;&#1086;&#1083;&#1078;&#1072;&#1081;&#1090;&#1077; &#1079;&#1072;&#1085;&#1080;&#1084;&#1072;&#1090;&#1100;&#1089;&#1103;!</div>
             {% endif %}
         </div>
+    </details>
+    {% endif %}
 
-        <!-- This Week's Stats -->
-        <div class="dash-week-stats">
-            <h3 class="dash-week-stats__heading">&#128202; &#1057;&#1090;&#1072;&#1090;&#1080;&#1089;&#1090;&#1080;&#1082;&#1072; &#1079;&#1072; &#1085;&#1077;&#1076;&#1077;&#1083;&#1102;</h3>
-            <div class="dash-week-stats__grid">
-                <div class="dash-week-stats__card">
-                    <div class="dash-week-stats__value">{{ session_stats.total_sessions }}</div>
-                    <div class="dash-week-stats__label">&#1089;&#1077;&#1089;&#1089;&#1080;&#1081;</div>
-                </div>
-                <div class="dash-week-stats__card">
-                    <div class="dash-week-stats__value">{{ session_stats.total_words_studied }}</div>
-                    <div class="dash-week-stats__label">&#1089;&#1083;&#1086;&#1074;</div>
-                </div>
-                <div class="dash-week-stats__card">
-                    <div class="dash-week-stats__value">{{ session_stats.accuracy_percent }}%</div>
-                    <div class="dash-week-stats__label">&#1090;&#1086;&#1095;&#1085;&#1086;&#1089;&#1090;&#1100;</div>
-                </div>
-                <div class="dash-week-stats__card">
-                    <div class="dash-week-stats__value">{{ (session_stats.total_time_seconds / 60)|int }} &#1084;&#1080;&#1085;</div>
-                    <div class="dash-week-stats__label">&#1074;&#1088;&#1077;&#1084;&#1103;</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Section 6: Progress row - Progress Overview + Grammar Levels -->
+    <!-- Section 6: Progress row - Progress Overview -->
     <div class="dash-section">
         <div class="dash-section__divider"></div>
         <h2 class="dash-section__heading">Прогресс</h2>
     </div>
-    {% set has_grammar_levels = grammar_levels_summary and grammar_levels_summary|selectattr('topic_count', 'greaterthan', 0)|list %}
     <div class="dash-progress-row">
         <div class="dash-progress-overview">
             <h3 class="dash-progress-overview__heading">&#1052;&#1086;&#1081; &#1087;&#1088;&#1086;&#1075;&#1088;&#1077;&#1089;&#1089;</h3>
@@ -1623,26 +1307,6 @@
                 {% endif %}
             </div>
         </div>
-
-        {% if has_grammar_levels %}
-        <div class="dash-grammar-levels">
-            <h3 class="dash-grammar-levels__heading">&#128218; Грамматика по уровням</h3>
-            <div class="dash-grammar-levels__list">
-                {% for lvl in grammar_levels_summary %}
-                {% if lvl.topic_count > 0 %}
-                <div class="dash-grammar-levels__row">
-                    <span class="dash-grammar-levels__label">{{ lvl.level }}</span>
-                    <div class="dash-grammar-levels__bar">
-                        <div class="dash-grammar-levels__fill" style="width: {{ lvl.progress_pct }}%"></div>
-                    </div>
-                    <span class="dash-grammar-levels__count">{{ lvl.exercises_mastered }}/{{ lvl.exercises_total }}</span>
-                    <span class="dash-grammar-levels__pct">{{ lvl.progress_pct }}%</span>
-                </div>
-                {% endif %}
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
     </div>
 
     <!-- Section 7: Social row - Leaderboard + Achievements -->
@@ -1651,6 +1315,38 @@
         <h2 class="dash-section__heading">Сообщество</h2>
     </div>
     <div class="dash-social-row">
+        {% if rank_info %}
+        <div class="dash-rank dash-rank--{{ rank_info.code }}"
+             data-rank-code="{{ rank_info.code }}"
+             data-rank-plans="{{ rank_info.plans_completed }}"
+             title="Титул за выполненные дневные планы">
+            <h3 class="dash-rank__heading">&#127894; Титул</h3>
+            <div class="dash-rank__body">
+                <span class="dash-rank__badge" style="--rank-color: {{ rank_info.color }}">
+                    <span class="dash-rank__icon" aria-hidden="true">{{ rank_info.icon }}</span>
+                    <span class="dash-rank__name">{{ rank_info.display_name }}</span>
+                </span>
+                {% if rank_info.is_max %}
+                <div class="dash-rank__progress dash-rank__progress--max" data-rank-progress="true">
+                    <span class="dash-rank__progress-text">Максимальный титул — {{ rank_info.plans_completed }} планов</span>
+                </div>
+                {% else %}
+                <div class="dash-rank__progress" data-rank-progress="true">
+                    <span class="dash-rank__progress-text">{{ rank_info.plans_completed }}/{{ rank_info.next_threshold }} до «{{ rank_info.next_display_name }}»</span>
+                    <span class="dash-rank__progress-track" aria-hidden="true">
+                        <span class="dash-rank__progress-fill" style="width: {{ rank_info.progress_percent }}%; --rank-color: {{ rank_info.color }}"></span>
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="dash-empty">
+            <span class="dash-empty__icon">&#127894;</span>
+            <span class="dash-empty__text">Титул появится после первого завершённого плана</span>
+        </div>
+        {% endif %}
+
         {% if xp_leaderboard %}
         <div class="dash-leaderboard">
             <h3 class="dash-leaderboard__heading">&#127942; Лидеры по XP</h3>
@@ -1727,92 +1423,10 @@
         {% endif %}
     </div>
 
-    <!-- Section 8: Insights row - Reading Speed + Streak Milestones -->
-    <div class="dash-section">
-        <div class="dash-section__divider"></div>
-        <h2 class="dash-section__heading">Аналитика</h2>
+    <div class="dash-social-row__more">
+        <a href="{{ url_for('study.insights') }}" class="dash-social-row__more-link">Аналитика обучения &rarr;</a>
     </div>
-    <div class="dash-insights-row">
-        {% if reading_speed_trend %}
-        <div class="dash-reading-speed">
-            <h3 class="dash-reading-speed__heading">&#128214; Скорость чтения</h3>
-            {% set current_wpm = reading_speed_trend[-1].avg_wpm %}
-            {% set start_wpm = reading_speed_trend[0].avg_wpm %}
-            {% set max_wpm = reading_speed_trend|map(attribute='avg_wpm')|max %}
-            <div class="dash-reading-speed__summary">
-                <div class="dash-reading-speed__current">
-                    <span class="dash-reading-speed__value">{{ current_wpm|round(0)|int }}</span>
-                    <span class="dash-reading-speed__unit">сл/мин</span>
-                </div>
-                {% if reading_speed_trend|length > 1 %}
-                {% set diff = current_wpm - start_wpm %}
-                <div class="dash-reading-speed__change {% if diff > 0 %}dash-reading-speed__change--up{% elif diff < 0 %}dash-reading-speed__change--down{% endif %}">
-                    {% if diff > 0 %}+{% endif %}{{ diff|round(0)|int }} сл/мин
-                </div>
-                {% endif %}
-            </div>
-            <div class="dash-sparkline">
-                {% for point in reading_speed_trend %}
-                <div class="dash-sparkline__bar{% if loop.last %} dash-sparkline__bar--current{% endif %}" style="height: {{ (point.avg_wpm / max_wpm * 100)|round(0)|int if max_wpm else 0 }}%" title="{{ point.week }}: {{ point.avg_wpm|round(1) }} сл/мин"></div>
-                {% endfor %}
-            </div>
-            <div class="dash-reading-speed__labels">
-                <span>{{ reading_speed_trend[0].week }}</span>
-                <span>{{ reading_speed_trend[-1].week }}</span>
-            </div>
-        </div>
-        {% else %}
-        <div class="dash-empty">
-            <span class="dash-empty__icon">&#128214;</span>
-            <span class="dash-empty__text">Читайте книги, чтобы отслеживать скорость чтения</span>
-        </div>
-        {% endif %}
-
-        {% if milestone_history %}
-        <div class="dash-milestones">
-            <h3 class="dash-milestones__heading">&#128293; Вехи серии</h3>
-            <div class="dash-milestones__timeline">
-                {% set milestone_targets = [7, 14, 30, 60, 100] %}
-                {% set earned_streaks = milestone_history|map(attribute='streak')|list %}
-                {% for target in milestone_targets %}
-                {% set earned_milestone = milestone_history|selectattr('streak', 'equalto', target)|list %}
-                <div class="dash-milestones__item{% if earned_milestone %} dash-milestones__item--earned{% elif target == milestone_targets|select('greaterthan', earned_streaks|max|default(0))|first|default(0) %} dash-milestones__item--next{% endif %}">
-                    <span class="dash-milestones__days">{{ target }}д</span>
-                    {% if earned_milestone %}
-                    <span class="dash-milestones__date">{{ earned_milestone[0].date.strftime('%d.%m') if earned_milestone[0].date else '' }}</span>
-                    {% else %}
-                    <span class="dash-milestones__pending">&#8212;</span>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% else %}
-        <div class="dash-empty">
-            <span class="dash-empty__icon">&#128293;</span>
-            <span class="dash-empty__text">Занимайтесь каждый день для достижения вех серии</span>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- Section 9: Quick Actions -->
-    <div class="dash-section">
-        <div class="dash-section__divider"></div>
-    </div>
-    <div class="dash-quick">
-        <h3 class="dash-quick__title">&#1041;&#1099;&#1089;&#1090;&#1088;&#1099;&#1077; &#1076;&#1077;&#1081;&#1089;&#1090;&#1074;&#1080;&#1103;</h3>
-        <div class="dash-quick__grid">
-            <a href="{{ url_for('study.cards', word_source='all') }}" class="dash-quick__btn"><span class="dash-quick__ico">&#127183;</span>&#1050;&#1072;&#1088;&#1090;&#1086;&#1095;&#1082;&#1080;</a>
-            <a href="{{ url_for('study.quiz', word_source='all') }}" class="dash-quick__btn"><span class="dash-quick__ico">&#10067;</span>&#1058;&#1077;&#1089;&#1090;</a>
-            <a href="{{ url_for('study.matching', word_source='all') }}" class="dash-quick__btn"><span class="dash-quick__ico">&#129513;</span>&#1055;&#1086;&#1076;&#1073;&#1077;&#1088;&#1080; &#1087;&#1072;&#1088;&#1091;</a>
-            <a href="{{ url_for('grammar_lab.practice') }}" class="dash-quick__btn"><span class="dash-quick__ico">&#9999;&#65039;</span>&#1055;&#1088;&#1072;&#1082;&#1090;&#1080;&#1082;&#1072;</a>
-            <a href="{{ url_for('words.word_list') }}" class="dash-quick__btn"><span class="dash-quick__ico">&#128209;</span>&#1042;&#1089;&#1077; &#1089;&#1083;&#1086;&#1074;&#1072;</a>
-            <a href="{{ url_for('study.topics') }}" class="dash-quick__btn"><span class="dash-quick__ico">&#128194;</span>&#1058;&#1077;&#1084;&#1099;</a>
-            <a href="{{ url_for('study.stats') }}" class="dash-quick__btn"><span class="dash-quick__ico">&#128200;</span>&#1057;&#1090;&#1072;&#1090;&#1080;&#1089;&#1090;&#1080;&#1082;&#1072;</a>
-            <a href="{{ url_for('study.insights') }}" class="dash-quick__btn"><span class="dash-quick__ico">&#128202;</span>&#1040;&#1085;&#1072;&#1083;&#1080;&#1090;&#1080;&#1082;&#1072;</a>
-            <a href="{{ url_for('study.leaderboard') }}" class="dash-quick__btn"><span class="dash-quick__ico">&#127942;</span>&#1051;&#1080;&#1076;&#1077;&#1088;&#1099;</a>
-        </div>
-    </div>
+    {% endif %}{# /is_zero_state #}
 
 </div>
 
@@ -1846,6 +1460,97 @@
 }
 
 /* ============================================
+   Welcome Card (Zero-state fullscreen)
+   ============================================ */
+
+.dash-welcome {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    padding: 1.5rem;
+    box-shadow: var(--dash-shadow);
+}
+
+.dash-welcome__icon {
+    font-size: 2.75rem;
+    line-height: 1;
+}
+
+.dash-welcome__content { flex: 1; }
+
+.dash-welcome__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--dash-text);
+    margin: 0 0 0.375rem;
+    letter-spacing: -0.01em;
+}
+
+.dash-welcome__text {
+    font-size: 0.9375rem;
+    color: var(--dash-text-muted);
+    margin: 0 0 1rem;
+    line-height: 1.5;
+}
+
+.dash-welcome__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.625rem 1.25rem;
+    background: var(--dash-accent);
+    color: white;
+    border-radius: var(--dash-radius-sm);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.dash-welcome__btn:hover { background: #4338ca; transform: translateY(-1px); }
+
+.dash-welcome--fullscreen {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+    max-width: 520px;
+    margin: 0 auto;
+    min-height: calc(100vh - 12rem);
+    justify-content: center;
+    padding: 2.5rem 1.5rem;
+    background: linear-gradient(180deg, var(--dash-surface) 0%, var(--dash-accent-soft) 100%);
+    border: 1px solid var(--dash-border);
+    animation: dashSlideUp 0.5s ease-out;
+}
+
+.dash-welcome--fullscreen .dash-welcome__icon { font-size: 4.5rem; }
+
+.dash-welcome--fullscreen .dash-welcome__title {
+    font-size: 1.625rem;
+    margin-bottom: 0.625rem;
+}
+
+.dash-welcome--fullscreen .dash-welcome__text {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.dash-welcome--fullscreen .dash-welcome__btn {
+    padding: 0.875rem 1.75rem;
+    font-size: 1rem;
+}
+
+@media (max-width: 640px) {
+    .dash-welcome { flex-direction: column; text-align: center; }
+    .dash-welcome--fullscreen { min-height: calc(100vh - 8rem); padding: 2rem 1.25rem; }
+    .dash-welcome--fullscreen .dash-welcome__icon { font-size: 3.75rem; }
+    .dash-welcome--fullscreen .dash-welcome__title { font-size: 1.375rem; }
+}
+
+/* ============================================
    Hero Section
    ============================================ */
 
@@ -1853,30 +1558,31 @@
     position: relative;
     background: linear-gradient(135deg, #5046e5 0%, #7c3aed 100%);
     border-radius: var(--dash-radius);
-    padding: 2rem;
-    margin-bottom: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    margin: 0 auto 1.25rem;
+    max-width: 720px;
     overflow: hidden;
     color: white;
     animation: dashSlideUp 0.5s ease-out;
 }
 
-.dash-hero__bg-shapes { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-.dash-shape { position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.1); }
-.dash-shape--1 { width: 250px; height: 250px; top: -80px; right: -40px; animation: dashFloat1 20s ease-in-out infinite; }
-.dash-shape--2 { width: 150px; height: 150px; bottom: -50px; left: -30px; animation: dashFloat2 15s ease-in-out infinite; }
-
-@keyframes dashFloat1 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-20px, 20px) scale(1.05); } }
-@keyframes dashFloat2 { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(30px, -20px) rotate(10deg); } }
+.dash-hero__bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at top right, rgba(255, 255, 255, 0.18) 0%, transparent 60%);
+}
 
 .dash-hero__content { position: relative; z-index: 1; }
 
 .dash-hero__greeting {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 1rem;
+    gap: 0.625rem 0.875rem;
 }
 
-.dash-hero__wave { font-size: 2.5rem; animation: dashWave 2s ease-in-out infinite; transform-origin: 70% 70%; }
+.dash-hero__wave { font-size: 1.75rem; animation: dashWave 2s ease-in-out infinite; transform-origin: 70% 70%; }
 
 @keyframes dashWave {
     0%, 100% { transform: rotate(0deg); }
@@ -1885,14 +1591,14 @@
     40% { transform: rotate(0deg); }
 }
 
-.dash-hero__title { font-size: 1.5rem; font-weight: 700; margin: 0; line-height: 1.2; letter-spacing: -0.02em; }
-.dash-hero__subtitle { font-size: 0.9375rem; margin: 0.25rem 0 0; opacity: 0.9; }
+.dash-hero__title { font-size: 1.375rem; font-weight: 700; margin: 0; line-height: 1.2; letter-spacing: -0.02em; flex: 1 1 auto; }
+.dash-hero__subtitle { font-size: 0.9375rem; margin: 0; opacity: 0.9; flex: 1 1 100%; }
 
 .dash-streak {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    margin-top: 0.5rem;
+    margin-top: 0;
     padding: 0.375rem 0.875rem;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 100px;
@@ -1904,36 +1610,116 @@
 .dash-streak__fire { font-size: 1.125rem; }
 
 /* ============================================
-   Rank / Title badge (Task 14)
+   Hero CTA (Task 3: single-line next-action hint)
+   ============================================ */
+.dash-hero__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.875rem;
+    padding: 0.5rem 1rem;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: background 0.15s ease, transform 0.15s ease;
+    backdrop-filter: blur(4px);
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+a.dash-hero__cta:hover,
+a.dash-hero__cta:focus {
+    background: rgba(255, 255, 255, 0.32);
+    color: #fff;
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.dash-hero__cta--done {
+    background: rgba(255, 255, 255, 0.12);
+    border-style: dashed;
+    font-weight: 500;
+}
+
+.dash-hero__cta--extra {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Task 17: narrow-phone stacking — on <= 400px the greeting + streak line
+   stops trying to fit on one row, drops the streak chip to its own line,
+   and the CTA widens to fill the hero for an easier tap target. */
+@media (max-width: 400px) {
+    .dash-hero__greeting {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .dash-hero__title { flex: 0 0 auto; width: 100%; }
+    .dash-streak,
+    .dash-streak-recovery { width: 100%; }
+    .dash-hero__cta {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        white-space: normal;
+    }
+}
+
+/* ============================================
+   Rank / Title card (Task 13 — social column)
    ============================================ */
 
 .dash-rank {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem 0.75rem;
-    margin-top: 0.625rem;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.25rem;
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    box-shadow: var(--dash-shadow);
+}
+
+.dash-rank__heading {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0;
+}
+
+.dash-rank__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .dash-rank__badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.3rem 0.75rem;
+    gap: 0.5rem;
+    padding: 0.5rem 0.9rem;
     border-radius: 100px;
-    background: rgba(255, 255, 255, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    color: #fff;
+    background: var(--dash-surface-alt, #f8fafc);
+    border: 1px solid var(--dash-border);
+    color: var(--dash-text);
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 1rem;
     letter-spacing: 0.01em;
-    box-shadow: 0 0 0 2px var(--rank-color, rgba(255, 255, 255, 0.1)) inset;
-    backdrop-filter: blur(4px);
+    box-shadow: 0 0 0 2px var(--rank-color, transparent) inset;
     white-space: nowrap;
+    align-self: flex-start;
 }
 
 .dash-rank__icon {
-    font-size: 1rem;
+    font-size: 1.25rem;
     line-height: 1;
 }
 
@@ -1942,18 +1728,15 @@
 }
 
 .dash-rank__progress {
-    display: inline-flex;
+    display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    min-width: 150px;
-    max-width: 240px;
-    flex: 1 1 160px;
-    font-size: 0.75rem;
-    opacity: 0.95;
+    gap: 0.35rem;
+    font-size: 0.8125rem;
+    width: 100%;
 }
 
 .dash-rank__progress-text {
-    color: rgba(255, 255, 255, 0.92);
+    color: var(--dash-text);
     font-weight: 500;
     letter-spacing: 0.01em;
 }
@@ -1961,8 +1744,8 @@
 .dash-rank__progress-track {
     display: block;
     width: 100%;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.22);
+    height: 8px;
+    background: var(--dash-border);
     border-radius: 4px;
     overflow: hidden;
 }
@@ -1970,14 +1753,13 @@
 .dash-rank__progress-fill {
     display: block;
     height: 100%;
-    background: var(--rank-color, #fff);
+    background: var(--rank-color, var(--dash-accent, #2563eb));
     border-radius: 4px;
     transition: width 0.6s ease-out;
-    box-shadow: 0 0 6px var(--rank-color, rgba(255, 255, 255, 0.4));
 }
 
 .dash-rank__progress--max .dash-rank__progress-text {
-    color: #fde68a;
+    color: #b45309;
     font-weight: 600;
 }
 
@@ -1989,20 +1771,7 @@
 .dash-rank--master .dash-rank__badge { box-shadow: 0 0 0 2px #f59e0b inset; }
 .dash-rank--legend .dash-rank__badge { box-shadow: 0 0 0 2px #ef4444 inset; }
 .dash-rank--grandmaster .dash-rank__badge {
-    box-shadow: 0 0 0 2px #facc15 inset, 0 0 12px rgba(250, 204, 21, 0.5);
-}
-
-@media (max-width: 640px) {
-    .dash-rank {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.35rem;
-    }
-    .dash-rank__progress {
-        min-width: 0;
-        max-width: 100%;
-        width: 100%;
-    }
+    box-shadow: 0 0 0 2px #facc15 inset, 0 0 12px rgba(250, 204, 21, 0.35);
 }
 
 /* ============================================
@@ -2144,12 +1913,12 @@
 .dash-mission-header {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 1.25rem;
+    gap: 0.625rem;
+    padding: 0.75rem 1rem;
     background: var(--dash-accent-soft);
     border: 1px solid rgba(80, 70, 229, 0.15);
     border-radius: var(--dash-radius-sm);
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
 }
 
 .dash-plan-debug {
@@ -2176,41 +1945,27 @@
     color: #59657d;
 }
 
-.dash-mission-header__icon { font-size: 1.5rem; flex-shrink: 0; }
+.dash-mission-header__icon { font-size: 1.375rem; flex-shrink: 0; }
 
-.dash-mission-header__eyebrow {
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--dash-accent);
-    margin-bottom: 0.2rem;
-}
+.dash-mission-header__text { display: flex; flex-direction: column; gap: 0.4rem; flex: 1 1 auto; min-width: 0; }
 
 .dash-mission-header__title {
-    font-size: 1.125rem;
+    font-size: 1.0625rem;
     font-weight: 700;
     color: var(--dash-text);
-    line-height: 1.3;
-}
-
-.dash-mission-header__reason {
-    font-size: 0.9375rem;
-    color: var(--dash-text-muted);
-    margin-top: 0.2rem;
+    line-height: 1.25;
 }
 
 .dash-mission-header__meta {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 0.65rem;
+    gap: 0.375rem;
 }
 
 .dash-mission-header__pill {
     display: inline-flex;
     align-items: center;
-    padding: 0.35rem 0.65rem;
+    padding: 0.25rem 0.55rem;
     border-radius: 999px;
     background: rgba(80, 70, 229, 0.08);
     color: var(--dash-accent);
@@ -2490,30 +2245,48 @@
 
 .dash-heatmap__stats {
     display: flex;
-    gap: 2rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
     border-top: 1px solid var(--dash-border);
 }
 
-.dash-heatmap__stat {
-    text-align: center;
-}
-
-.dash-heatmap__stat-value {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: var(--dash-accent);
-    line-height: 1;
-}
-
-.dash-heatmap__stat-label {
-    font-size: 0.6875rem;
-    font-weight: 600;
+.dash-heatmap__stat-line {
+    font-size: 0.875rem;
     color: var(--dash-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 0.25rem;
+    line-height: 1.4;
+}
+
+.dash-heatmap__stat-line strong {
+    color: var(--dash-accent);
+    font-weight: 800;
+}
+
+.dash-heatmap__stat-sep {
+    margin: 0 0.35rem;
+    color: var(--dash-border);
+}
+
+.dash-yesterday-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8125rem;
+    color: var(--dash-text-muted);
+    padding: 0.5rem 0.875rem;
+    margin-bottom: 0.75rem;
+    background: var(--dash-surface-alt);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+}
+
+.dash-yesterday-summary__label {
+    font-weight: 700;
+    color: var(--dash-text);
+}
+
+.dash-yesterday-summary__sep {
+    color: var(--dash-border);
 }
 
 @media (max-width: 640px) {
@@ -2525,9 +2298,59 @@
     .dash-heatmap__months { grid-auto-columns: 14px; gap: 2px; height: 18px; }
 }
 
+/* Task 17: on very narrow phones the collapsed streak one-liner
+   (🔥 текущая / лучшая / всего активных) wraps to 2 lines instead of
+   overflowing the card horizontally. Yesterday summary does the same. */
+@media (max-width: 400px) {
+    .dash-heatmap__stat-line { word-break: break-word; }
+    .dash-yesterday-summary { font-size: 0.78125rem; }
+}
+
 /* ============================================
    Words at Risk + Grammar Weaknesses
    ============================================ */
+
+.dash-alerts__accordion {
+    margin-bottom: 1.5rem;
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    box-shadow: var(--dash-shadow);
+    overflow: hidden;
+}
+
+.dash-alerts__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.875rem 1.25rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--dash-text);
+}
+
+.dash-alerts__summary::-webkit-details-marker {
+    display: none;
+}
+
+.dash-alerts__summary-chevron {
+    font-size: 0.8rem;
+    color: var(--dash-text-muted, var(--dash-text));
+    transition: transform 0.2s ease;
+}
+
+.dash-alerts__accordion[open] .dash-alerts__summary-chevron {
+    transform: rotate(180deg);
+}
+
+.dash-alerts__accordion[open] .dash-alerts-row {
+    padding: 0 1.25rem 1.25rem;
+    margin-bottom: 0;
+}
 
 .dash-alerts-row {
     display: grid;
@@ -2677,130 +2500,6 @@
     }
     .dash-risk,
     .dash-weakness {
-        padding: 1rem;
-    }
-}
-
-/* ============================================
-   Best Study Time & This Week's Stats
-   ============================================ */
-
-.dash-stats-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.25rem;
-    margin-bottom: 1.5rem;
-    animation: dashSlideUp 0.4s ease-out both;
-    animation-delay: 0.15s;
-}
-
-.dash-study-time,
-.dash-week-stats {
-    background: var(--dash-surface);
-    border: 1px solid var(--dash-border);
-    border-radius: var(--dash-radius-sm);
-    box-shadow: var(--dash-shadow);
-    padding: 1.25rem;
-}
-
-.dash-study-time__heading,
-.dash-week-stats__heading {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--dash-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin: 0 0 1rem;
-}
-
-.dash-study-time__hero {
-    display: flex;
-    align-items: baseline;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-}
-
-.dash-study-time__hour {
-    font-size: 1.75rem;
-    font-weight: 800;
-    color: var(--dash-accent);
-}
-
-.dash-study-time__hint {
-    font-size: 0.8rem;
-    color: var(--dash-text-muted);
-}
-
-.dash-study-time__chart {
-    display: flex;
-    align-items: flex-end;
-    gap: 2px;
-    height: 60px;
-    padding: 0;
-}
-
-.dash-study-time__bar {
-    flex: 1;
-    min-height: 2px;
-    background: var(--dash-border);
-    border-radius: 2px 2px 0 0;
-    transition: background 0.2s;
-}
-
-.dash-study-time__bar--best {
-    background: var(--dash-accent);
-}
-
-.dash-study-time__labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.65rem;
-    color: var(--dash-text-muted);
-    margin-top: 0.25rem;
-}
-
-.dash-study-time__empty {
-    color: var(--dash-text-muted);
-    font-size: 0.85rem;
-    text-align: center;
-    padding: 1.5rem 0;
-}
-
-.dash-week-stats__grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-}
-
-.dash-week-stats__card {
-    background: var(--dash-bg);
-    border: 1px solid var(--dash-border);
-    border-radius: var(--dash-radius-sm);
-    padding: 0.875rem;
-    text-align: center;
-}
-
-.dash-week-stats__value {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: var(--dash-text);
-}
-
-.dash-week-stats__label {
-    font-size: 0.7rem;
-    color: var(--dash-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-top: 0.25rem;
-}
-
-@media (max-width: 640px) {
-    .dash-stats-row {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-    .dash-study-time,
-    .dash-week-stats {
         padding: 1rem;
     }
 }
@@ -3164,112 +2863,12 @@
     font-weight: 500;
 }
 
-/* ============================================
-   Streak Milestones Widget
-   ============================================ */
-
-.dash-milestones {
-    background: var(--dash-surface);
-    border: 1px solid var(--dash-border);
-    border-radius: var(--dash-radius);
-    padding: 1.25rem 1.5rem;
-    box-shadow: var(--dash-shadow);
-}
-
-.dash-milestones__heading {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--dash-text);
-    margin: 0 0 1rem;
-}
-
-.dash-milestones__timeline {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.5rem;
-    position: relative;
-    padding: 0.5rem 0;
-}
-
-.dash-milestones__timeline::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--dash-border);
-    transform: translateY(-50%);
-    z-index: 0;
-}
-
-.dash-milestones__item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    position: relative;
-    z-index: 1;
-    background: var(--dash-surface);
-    padding: 0.375rem 0.625rem;
-    border: 2px solid var(--dash-border);
-    border-radius: var(--dash-radius-sm);
-}
-
-.dash-milestones__item--earned {
-    border-color: var(--dash-success, #22c55e);
-    background: #f0fdf4;
-}
-
-.dash-milestones__item--next {
-    border-color: var(--dash-accent, #6366f1);
-    background: #eef2ff;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-}
-
-.dash-milestones__days {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--dash-text);
-}
-
-.dash-milestones__item--earned .dash-milestones__days {
-    color: var(--dash-success, #22c55e);
-}
-
-.dash-milestones__item--next .dash-milestones__days {
-    color: var(--dash-accent, #6366f1);
-}
-
-.dash-milestones__date {
-    font-size: 0.65rem;
-    color: var(--dash-text-muted);
-}
-
-.dash-milestones__pending {
-    font-size: 0.65rem;
-    color: var(--dash-text-muted);
-}
-
 @media (max-width: 640px) {
     .dash-achievements {
         padding: 1rem;
     }
     .dash-achievements__categories {
         gap: 0.75rem;
-    }
-    .dash-milestones {
-        padding: 1rem;
-    }
-    .dash-milestones__timeline {
-        gap: 0.25rem;
-    }
-    .dash-milestones__item {
-        padding: 0.25rem 0.375rem;
-    }
-    .dash-milestones__days {
-        font-size: 0.75rem;
     }
 }
 
@@ -3303,34 +2902,27 @@
 
 .dash-progress-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 1.25rem;
     margin-bottom: 1.5rem;
     animation: dashSlideUp 0.45s ease-out both;
     animation-delay: 0.2s;
 }
 
-@media (max-width: 640px) {
-    .dash-progress-row {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-}
-
 /* ============================================
-   Social Row (Leaderboard + Achievements)
+   Social Row (Rank + Leaderboard + Achievements)
    ============================================ */
 
 .dash-social-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 1.25rem;
     margin-bottom: 1.5rem;
     animation: dashSlideUp 0.45s ease-out both;
     animation-delay: 0.25s;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
     .dash-social-row {
         grid-template-columns: 1fr;
         gap: 1rem;
@@ -3365,64 +2957,37 @@
     line-height: 1.4;
 }
 
-.dash-social-row > .dash-empty,
-.dash-insights-row > .dash-empty {
+.dash-social-row > .dash-empty {
     margin-bottom: 0;
 }
 
 /* ============================================
-   Quick Actions
+   Activity / Social "more" links
    ============================================ */
 
-.dash-quick {
-    animation: dashSlideUp 0.5s ease-out both;
-    animation-delay: 0.3s;
-    margin-bottom: 1.5rem;
+.dash-activity__more,
+.dash-social-row__more {
+    margin: 0.75rem 0 1.5rem;
+    text-align: right;
 }
 
-.dash-quick__title {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--dash-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin: 0 0 0.75rem;
-}
-
-.dash-quick__grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.625rem;
-}
-
-.dash-quick__btn {
-    display: flex;
+.dash-activity__more-link,
+.dash-social-row__more-link {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.375rem;
-    padding: 0.625rem 0.5rem;
-    background: var(--dash-surface);
-    border: 1px solid var(--dash-border);
-    border-radius: var(--dash-radius-sm);
-    color: var(--dash-text);
+    gap: 0.25rem;
     font-size: 0.8125rem;
     font-weight: 600;
-    text-decoration: none;
-    transition: all 0.2s;
-    box-shadow: var(--dash-shadow);
-}
-
-.dash-quick__ico {
-    font-size: 0.9375rem;
-    line-height: 1;
-}
-
-.dash-quick__btn:hover {
-    background: var(--dash-accent-soft);
-    border-color: var(--dash-accent);
     color: var(--dash-accent);
-    transform: translateY(-1px);
-    box-shadow: var(--dash-shadow-hover);
+    text-decoration: none;
+    padding: 0.375rem 0.625rem;
+    border-radius: var(--dash-radius-sm);
+    transition: background 0.15s;
+}
+
+.dash-activity__more-link:hover,
+.dash-social-row__more-link:hover {
+    background: var(--dash-accent-soft);
 }
 
 /* ============================================
@@ -3438,16 +3003,12 @@
    Responsive
    ============================================ */
 
-@media (max-width: 1024px) {
-    .dash-quick__grid { grid-template-columns: repeat(2, 1fr); }
-}
-
 @media (max-width: 640px) {
     .dash-page { padding: 0 0.75rem 2rem; }
-    .dash-hero { padding: 1.5rem; }
-    .dash-hero__greeting { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
-    .dash-hero__wave { font-size: 2rem; }
-    .dash-hero__title { font-size: 1.25rem; }
+    .dash-hero { padding: 1rem 1.25rem; }
+    .dash-hero__greeting { gap: 0.5rem 0.75rem; }
+    .dash-hero__wave { font-size: 1.5rem; }
+    .dash-hero__title { font-size: 1.125rem; }
 
     .dash-step__num { width: 26px; min-width: 26px; height: 26px; font-size: 0.7rem; }
     .dash-step__body { flex-wrap: wrap; padding: 0.875rem 1rem; gap: 0.75rem; }
@@ -3467,7 +3028,6 @@
     .dash-summary__grid { gap: 1rem; }
 
     .dash-progress-overview__grid { grid-template-columns: 1fr; }
-    .dash-quick__grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ============================================
@@ -3636,18 +3196,6 @@
    Task 7: Phase transition animations
    ============================================ */
 
-/* Smooth progress-fill transition on the stepper (complements width: inline-style) */
-@keyframes dashPhaseProgressFill {
-    from { width: var(--dash-progress-from, 0%); }
-    to { width: var(--dash-progress-to, 100%); }
-}
-.dash-progress__fill[data-progress-fill="true"] {
-    transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.dash-progress[data-plan-progress="true"].dash-progress--animate .dash-progress__fill {
-    animation: dashPhaseProgressFill 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
 /* Completed-phase checkmark pop-in animation */
 @keyframes dashPhaseComplete {
     0%   { transform: scale(0.2); opacity: 0; }
@@ -3682,7 +3230,6 @@
 
 /* Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
-    .dash-progress__fill[data-progress-fill="true"],
     .dash-step--phase.dash-step--just-completed .dash-step__check,
     .dash-step--phase.dash-step--just-completed .dash-step__body,
     .dash-step--phase.dash-step--current.dash-step--newly-active .dash-step__body {
@@ -3977,22 +3524,6 @@
     color: #ffffff;
     filter: drop-shadow(0 1px 1px rgba(120, 53, 15, 0.35));
     animation: roadmap-finish-icon 0.9s cubic-bezier(.22,1,.36,1) both;
-}
-
-.dash-roadmap__marker-distance {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    color: var(--dash-text-muted);
-    background: var(--dash-surface);
-    border: 1px solid var(--dash-border);
-    border-radius: 999px;
-    padding: 2px 8px;
-    line-height: 1.2;
 }
 
 /* Confetti-style burst for the completed finish marker */
@@ -4320,9 +3851,6 @@
 
 /* Streak recovery */
 .dash-streak__coins { margin-left: 12px; font-size: 0.85em; opacity: 0.8; }
-.dash-streak--restored .dash-streak__restored {
-    display: block; font-size: 0.85em; color: #10b981; font-weight: 600; margin-top: 4px;
-}
 .dash-streak-recovery {
     background: #fef3cd; border: 1px solid #ffc107; border-radius: 12px;
     padding: 16px; margin-top: 8px; color: #664d03;
@@ -4408,231 +3936,98 @@
 }
 
 /* ============================================
-   Daily Race
+   Daily Race — compact strip (Task 14)
+   Full race UX lives at /race. Only the strip + its badge renders here.
    ============================================ */
-.dash-race {
-    background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(16,185,129,0.10));
-    border: 1px solid rgba(99,102,241,0.18);
-    border-radius: 20px;
-    padding: 1.25rem;
-    margin-bottom: 1.25rem;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
-    animation: dashSlideUp 0.45s ease-out both;
-    animation-delay: 0.08s;
-}
-
-.dash-race__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.dash-race__eyebrow {
-    font-size: 0.75rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #4f46e5;
-    margin-bottom: 0.2rem;
-}
-
-.dash-race__title {
-    margin: 0;
-    font-size: 1.25rem;
-    color: #0f172a;
-}
-
-.dash-race__note {
-    margin-top: 0.35rem;
-    color: #64748b;
-    font-size: 0.875rem;
-}
-
 .dash-race__badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.5rem 0.8rem;
+    padding: 0.35rem 0.7rem;
     border-radius: 999px;
-    background: rgba(255,255,255,0.72);
+    background: rgba(255,255,255,0.9);
     color: #312e81;
+    font-weight: 700;
+    white-space: nowrap;
+    font-size: 0.85rem;
+}
+
+.dash-race-strip {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(16,185,129,0.10));
+    border: 1px solid rgba(99,102,241,0.18);
+    color: #0f172a;
+    text-decoration: none;
+    font-weight: 600;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.05);
+    animation: dashSlideUp 0.45s ease-out both;
+    animation-delay: 0.08s;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.dash-race-strip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+    text-decoration: none;
+    color: #0f172a;
+}
+
+.dash-race-strip--complete {
+    background: linear-gradient(135deg, rgba(250,204,21,0.18), rgba(251,146,60,0.14));
+    border-color: rgba(234,179,8,0.28);
+}
+
+.dash-race-strip__icon {
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+
+.dash-race-strip__text {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.dash-race-strip__badge {
+    font-size: 0.85rem;
+    padding: 0.3rem 0.65rem;
+}
+
+.dash-race-strip__place {
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.dash-race-strip__score {
+    color: #4338ca;
+    font-weight: 700;
+}
+
+.dash-race-strip__cta {
+    margin-left: auto;
+    color: #4338ca;
     font-weight: 700;
     white-space: nowrap;
 }
 
-.dash-race__hero,
-.dash-race__board {
-    background: rgba(255,255,255,0.78);
-    border: 1px solid rgba(255,255,255,0.75);
-    border-radius: 18px;
-    padding: 1rem;
-}
-
-.dash-race__hero {
-    display: flex;
-    flex-direction: column;
-    gap: 0.95rem;
-}
-
-.dash-race__stats {
-    display: grid;
-    grid-template-columns: minmax(0, 140px) minmax(0, 1fr);
-    gap: 1rem;
-    align-items: center;
-}
-
-.dash-race__score {
-    font-size: 2rem;
-    font-weight: 800;
-    color: #111827;
-    line-height: 1;
-}
-
-.dash-race__score-label,
-.dash-race__progress-label,
-.dash-race__user-meta {
-    color: #64748b;
-    font-size: 0.875rem;
-}
-
-.dash-race__progress-bar {
-    margin-top: 0.45rem;
-    height: 10px;
-    background: #e5e7eb;
-    border-radius: 999px;
-    overflow: hidden;
-}
-
-.dash-race__progress-fill {
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, #4f46e5, #10b981);
-}
-
-.dash-race__callout {
-    font-weight: 700;
-    color: #0f172a;
-}
-
-.dash-race__tasks {
-    display: flex;
-    flex-direction: column;
-    gap: 0.7rem;
-}
-
-.dash-race__task {
-    display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
-    gap: 0.75rem;
-    align-items: start;
-    padding: 0.8rem 0.9rem;
-    border-radius: 14px;
-    background: rgba(79,70,229,0.06);
-    border: 1px solid rgba(79,70,229,0.10);
-}
-
-.dash-race__task-index {
-    width: 34px;
-    height: 34px;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #eef2ff;
-    color: #4338ca;
-    font-weight: 800;
-}
-
-.dash-race__task-title {
-    font-weight: 700;
-    color: #111827;
-}
-
-.dash-race__task-meta {
-    margin-top: 0.2rem;
-    color: #64748b;
-    font-size: 0.875rem;
-}
-
-.dash-race__cta {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.8rem 1rem;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #4f46e5, #7c3aed);
-    color: #fff;
-    text-decoration: none;
-    font-weight: 700;
-    box-shadow: 0 10px 24px rgba(79,70,229,0.24);
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-
-.dash-race__cta:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 14px 28px rgba(79,70,229,0.3);
-}
-
-.dash-race__board-title {
-    font-weight: 700;
-    color: #0f172a;
-    margin-bottom: 0.8rem;
-}
-
-.dash-race__list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.55rem;
-}
-
-.dash-race__row {
-    display: grid;
-    grid-template-columns: 28px 1fr auto;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.7rem 0.8rem;
-    border-radius: 14px;
-    background: #f8fafc;
-}
-
-.dash-race__row--me {
-    background: rgba(79,70,229,0.10);
-    outline: 1px solid rgba(79,70,229,0.18);
-}
-
-.dash-race__place {
-    width: 28px;
-    height: 28px;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #eef2ff;
-    color: #4338ca;
-    font-weight: 800;
-    font-size: 0.875rem;
-}
-
-.dash-race__name {
-    font-weight: 700;
-    color: #111827;
-}
-
-.dash-race__points {
-    font-weight: 800;
-    color: #111827;
-}
-
-@media (max-width: 760px) {
-    .dash-race__header {
-        flex-direction: column;
-        align-items: flex-start;
+@media (max-width: 420px) {
+    .dash-race-strip {
+        padding: 0.65rem 0.75rem;
     }
-
-    .dash-race__stats {
-        grid-template-columns: 1fr;
+    .dash-race-strip__text {
+        gap: 0.45rem;
+    }
+    .dash-race-strip__cta {
+        margin-left: 0;
+        width: 100%;
     }
 }
 
@@ -4859,161 +4254,14 @@
 .dash-weekly__challenge-fill { height: 100%; background: linear-gradient(90deg, #5046e5, #7c3aed); border-radius: 3px; transition: width 0.5s; }
 .dash-weekly__challenge-fill--done { background: linear-gradient(90deg, #22c55e, #16a34a); }
 
-/* ============================================
-   Insights Row (Reading Speed + Grammar Levels)
-   ============================================ */
-.dash-insights-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    animation: dashSlideUp 0.5s ease-out both;
-    animation-delay: 0.45s;
+/* ── Task 7 (compact redesign): Mission XP widget wrapper — lives inside .dash-plan ── */
+.dash-mission__xp {
+    width: 100%;
+    margin: 12px 0 16px;
 }
-@media (max-width: 640px) {
-    .dash-insights-row { grid-template-columns: 1fr; }
-}
-
-/* ---- Reading Speed Widget ---- */
-.dash-reading-speed {
-    background: var(--dash-surface);
-    border: 1px solid var(--dash-border);
-    border-radius: var(--dash-radius);
-    padding: 1.25rem;
-    box-shadow: var(--dash-shadow);
-}
-.dash-reading-speed__heading {
-    font-size: 0.9375rem;
-    font-weight: 700;
-    margin: 0 0 0.75rem;
-    color: var(--dash-text);
-}
-.dash-reading-speed__summary {
-    display: flex;
-    align-items: baseline;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-}
-.dash-reading-speed__current {
-    display: flex;
-    align-items: baseline;
-    gap: 0.25rem;
-}
-.dash-reading-speed__value {
-    font-size: 1.75rem;
-    font-weight: 800;
-    color: var(--dash-accent);
-    line-height: 1;
-}
-.dash-reading-speed__unit {
-    font-size: 0.75rem;
-    color: var(--dash-text-muted);
-    font-weight: 500;
-}
-.dash-reading-speed__change {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--dash-text-muted);
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: #f1f5f9;
-}
-.dash-reading-speed__change--up {
-    color: var(--dash-success);
-    background: rgba(16, 185, 129, 0.08);
-}
-.dash-reading-speed__change--down {
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.08);
-}
-
-/* Sparkline bar chart */
-.dash-sparkline {
-    display: flex;
-    align-items: flex-end;
-    gap: 3px;
-    height: 60px;
-    padding: 0;
-}
-.dash-sparkline__bar {
-    flex: 1;
-    min-width: 0;
-    background: var(--dash-accent-soft);
-    border-radius: 3px 3px 0 0;
-    min-height: 4px;
-    transition: background 0.2s;
-}
-.dash-sparkline__bar--current {
-    background: var(--dash-accent);
-}
-.dash-sparkline__bar:hover {
-    background: var(--dash-accent-medium);
-}
-.dash-sparkline__bar--current:hover {
-    background: var(--dash-accent);
-    opacity: 0.85;
-}
-.dash-reading-speed__labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.6875rem;
-    color: var(--dash-text-muted);
-    margin-top: 4px;
-}
-
-/* ---- Grammar by Level Widget ---- */
-.dash-grammar-levels {
-    background: var(--dash-surface);
-    border: 1px solid var(--dash-border);
-    border-radius: var(--dash-radius);
-    padding: 1.25rem;
-    box-shadow: var(--dash-shadow);
-}
-.dash-grammar-levels__heading {
-    font-size: 0.9375rem;
-    font-weight: 700;
-    margin: 0 0 0.75rem;
-    color: var(--dash-text);
-}
-.dash-grammar-levels__list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-.dash-grammar-levels__row {
-    display: grid;
-    grid-template-columns: 28px 1fr 50px 40px;
-    gap: 0.5rem;
-    align-items: center;
-}
-.dash-grammar-levels__label {
-    font-size: 0.8125rem;
-    font-weight: 700;
-    color: var(--dash-text);
-}
-.dash-grammar-levels__bar {
-    height: 10px;
-    background: #f1f5f9;
-    border-radius: 5px;
-    overflow: hidden;
-}
-.dash-grammar-levels__fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--dash-accent), #7c3aed);
-    border-radius: 5px;
-    transition: width 0.5s;
-    min-width: 0;
-}
-.dash-grammar-levels__count {
-    font-size: 0.75rem;
-    color: var(--dash-text-muted);
-    text-align: right;
-}
-.dash-grammar-levels__pct {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--dash-accent);
-    text-align: right;
+.dash-mission__xp .dash-xp {
+    width: 100%;
+    margin: 0;
 }
 
 /* ── Task 26: Mission XP / Level widget ── */
@@ -5021,7 +4269,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 16px;
+    padding: 10px 14px;
     background: var(--dash-card-bg);
     border-radius: 10px;
     margin: 0 0 12px;
@@ -5077,6 +4325,27 @@
     background: transparent;
 }
 
+/* Task 17: stack Mission XP bits (level / progress / multiplier) vertically
+   on narrow phones so none of them gets squeezed or truncated. Progress bar
+   lets the XP text sit above the bar and fill width. */
+@media (max-width: 640px) {
+    .dash-mission__xp .dash-xp {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .dash-xp__level,
+    .dash-xp__multiplier {
+        align-self: flex-start;
+    }
+    .dash-xp__progress {
+        width: 100%;
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+    .dash-xp__bar { min-width: 0; width: 100%; }
+}
+
 /* Phase XP gain indicator */
 .dash-step__xp-gain {
     display: inline-block;
@@ -5128,299 +4397,37 @@
     .dash-xp__bar-fill { transition: none; }
 }
 
-/* Task 9: Day secured banner + next-step continuation card */
-.dash-route-board {
-    margin-top: 12px;
-    border-radius: 12px;
-    border: 1.5px solid var(--dash-border, #e5e7eb);
-    background: var(--dash-card-bg, #fff);
-    padding: 12px 16px;
-}
-.dash-route-board__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-.dash-route-board__label {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--dash-text-muted, #6b7280);
-}
-.dash-route-board__position {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: #4f46e5;
-}
-.dash-route-board__bar-wrap {
-    position: relative;
-    height: 8px;
-    border-radius: 4px;
-    background: var(--dash-border, #e5e7eb);
-    overflow: visible;
-    margin-bottom: 6px;
-}
-.dash-route-board__bar-fill {
-    height: 100%;
-    border-radius: 4px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
-    transition: width 0.4s ease;
-    min-width: 0;
-}
-.dash-route-board__secured-marker {
-    position: absolute;
-    top: -4px;
-    width: 4px;
-    height: 16px;
-    border-radius: 2px;
-    background: #10b981;
+/* Streak restored flash overlay — reuses xpLevelUpFlash animation, auto-dismissed from JS after 2500 ms */
+.dash-streak-flash {
+    position: fixed;
+    top: 80px;
+    left: 50%;
     transform: translateX(-50%);
-    box-shadow: 0 0 0 2px #fff, 0 0 0 3px #10b981;
+    z-index: 9999;
+    background: linear-gradient(135deg, #ef4444, #fb923c);
+    color: #fff;
+    padding: 14px 28px;
+    border-radius: 14px;
+    box-shadow: 0 4px 30px rgba(239, 68, 68, 0.45);
+    animation: xpLevelUpFlash 2.5s ease forwards;
+    pointer-events: none;
 }
-.dash-route-board__meta {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.78rem;
-    color: var(--dash-text-muted, #6b7280);
-}
-.dash-route-board__checkpoint-reached {
-    margin-top: 8px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #059669;
-    text-align: center;
-    padding: 6px 0 2px;
-}
-.dash-day-secured {
-    margin-top: 16px;
-    border-radius: 12px;
-    overflow: hidden;
-    border: 1.5px solid rgba(16, 185, 129, 0.3);
-    background: var(--dash-card-bg, #fff);
-}
-.dash-day-secured__banner {
+.dash-streak-flash__inner {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(5, 150, 105, 0.05));
-    border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+    gap: 10px;
 }
-.dash-day-secured__icon {
-    font-size: 1.5rem;
-    flex-shrink: 0;
-    line-height: 1;
+.dash-streak-flash__icon {
+    font-size: 1.4rem;
 }
-.dash-day-secured__title {
+.dash-streak-flash__text {
     font-size: 1rem;
     font-weight: 700;
-    color: #065f46;
 }
-.dash-day-secured__sub {
-    font-size: 0.8125rem;
-    color: var(--dash-text-muted, #6b7280);
-    margin-top: 1px;
+@media (prefers-reduced-motion: reduce) {
+    .dash-streak-flash { animation: none; }
 }
-.dash-next-step {
-    padding: 14px 16px;
-}
-.dash-next-step__header {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--dash-text-muted, #6b7280);
-    margin-bottom: 8px;
-}
-.dash-next-step__queue {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-.dash-next-step__item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--dash-border, #e5e7eb);
-    background: var(--dash-card-bg, #fff);
-    text-decoration: none;
-    color: inherit;
-    transition: background 0.15s, border-color 0.15s;
-}
-.dash-next-step__item:hover {
-    background: rgba(99, 102, 241, 0.04);
-    border-color: rgba(99, 102, 241, 0.3);
-    text-decoration: none;
-}
-.dash-next-step__item--primary {
-    border-color: rgba(16, 185, 129, 0.4);
-    background: rgba(16, 185, 129, 0.03);
-}
-.dash-next-step__item-body {
-    flex: 1;
-    min-width: 0;
-}
-.dash-next-step__item-kind {
-    display: inline-block;
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 1px 7px;
-    border-radius: 20px;
-    background: rgba(99, 102, 241, 0.1);
-    color: #4f46e5;
-    margin-bottom: 3px;
-}
-.dash-next-step__item-reason {
-    font-size: 0.875rem;
-    color: var(--dash-text, #1f2937);
-    line-height: 1.35;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.dash-next-step__item-time {
-    font-size: 0.76rem;
-    color: var(--dash-text-muted, #6b7280);
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-.dash-next-step__item-arrow {
-    font-size: 0.9rem;
-    color: var(--dash-text-muted, #6b7280);
-    flex-shrink: 0;
-}
-.dash-next-step__body {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 12px;
-}
-.dash-next-step__kind-pill {
-    display: inline-block;
-    font-size: 0.72rem;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 20px;
-    background: rgba(99, 102, 241, 0.1);
-    color: #4f46e5;
-    width: fit-content;
-}
-.dash-next-step__reason {
-    font-size: 0.9rem;
-    color: var(--dash-text, #1f2937);
-    margin: 0;
-    line-height: 1.4;
-}
-.dash-next-step__time {
-    font-size: 0.8rem;
-    color: var(--dash-text-muted, #6b7280);
-}
-.dash-next-step__actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-.dash-next-step__btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 18px;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    text-decoration: none;
-    transition: opacity 0.15s, transform 0.12s;
-    line-height: 1;
-}
-.dash-next-step__btn:hover {
-    opacity: 0.88;
-    transform: translateY(-1px);
-    text-decoration: none;
-}
-.dash-next-step__btn--go {
-    background: #10b981;
-    color: #fff;
-}
-.dash-next-step__btn--dismiss {
-    background: transparent;
-    color: var(--dash-text-muted, #6b7280);
-    border: 1px solid var(--dash-border, #e5e7eb);
-}
-@media (max-width: 480px) {
-    .dash-next-step__actions {
-        flex-direction: column;
-    }
-    .dash-next-step__btn {
-        width: 100%;
-    }
-}
-/* Phase 3: Ghost rival strip */
-.dash-rival-strip {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-top: 10px;
-    padding: 10px 14px;
-    border-radius: 10px;
-    background: var(--dash-surface-2, #f9fafb);
-    border: 1px solid var(--dash-border, #e5e7eb);
-}
-.dash-rival-strip__content {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: 1;
-    min-width: 0;
-}
-.dash-rival-strip__avatar {
-    font-size: 1.25rem;
-    flex-shrink: 0;
-}
-.dash-rival-strip__body {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-}
-.dash-rival-strip__label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--dash-text-muted, #6b7280);
-}
-.dash-rival-strip__message {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--dash-text, #111827);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.dash-rival-strip__dismiss {
-    flex-shrink: 0;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--dash-text-muted, #9ca3af);
-    font-size: 1.1rem;
-    line-height: 1;
-    padding: 4px 6px;
-    border-radius: 4px;
-    transition: color 0.15s, background 0.15s;
-}
-.dash-rival-strip__dismiss:hover {
-    color: var(--dash-text, #374151);
-    background: var(--dash-border, #e5e7eb);
-}
+
 .dash-words-empty {
     display: flex;
     align-items: center;
@@ -5548,16 +4555,6 @@ async function repairStreak() {
                     step.classList.add('dash-step--newly-active');
                 }
             });
-            var progress = document.querySelector('[data-plan-progress="true"]');
-            if (progress) {
-                progress.classList.add('dash-progress--animate');
-                var fill = progress.querySelector('[data-progress-fill="true"]');
-                if (fill) {
-                    var pct = progress.getAttribute('data-progress-pct') || '0';
-                    fill.style.setProperty('--dash-progress-to', pct + '%');
-                    fill.style.setProperty('--dash-progress-from', '0%');
-                }
-            }
         }
     }
 
@@ -5678,193 +4675,7 @@ async function repairStreak() {
     } catch (e) { /* non-fatal */ }
 })();
 
-// Task 9/14: Day secured — load and render the 3-step continuation queue.
-(function() {
-    var wrapper = document.querySelector('[data-day-secured="true"]');
-    if (!wrapper) return;
-
-    var container = wrapper.querySelector('[data-next-step-container="true"]');
-    if (!container) return;
-
-    var queue = container.querySelector('[data-next-step-queue="true"]');
-    if (!queue) return;
-
-    var cardsUrl = wrapper.getAttribute('data-cards-url') || '/study/cards?from=daily_plan';
-
-    function stepUrl(step) {
-        var d = step.data || {};
-        switch (step.kind) {
-            case 'lesson':
-                return '/curriculum/lesson/' + d.lesson_id + '?from=daily_plan';
-            case 'grammar':
-                return '/grammar-lab/topic/' + d.topic_id + '?from=daily_plan';
-            case 'reading':
-                return '/read/' + d.book_id + '?from=daily_plan';
-            case 'srs':
-            case 'vocab':
-            default:
-                return cardsUrl;
-        }
-    }
-
-    function kindLabel(kind) {
-        var labels = {lesson: 'Урок', srs: 'Повторение', grammar: 'Грамматика', reading: 'Чтение', vocab: 'Слова'};
-        return labels[kind] || kind;
-    }
-
-    var PLAN_DATE = "{{ plan_today }}";
-
-    function postEvent(eventType, stepKind, reasonText) {
-        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-        var csrfToken = csrfMeta ? csrfMeta.content : '';
-        var headers = {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken};
-        var jwtToken = localStorage.getItem('jwt_token');
-        if (jwtToken) headers['Authorization'] = 'Bearer ' + jwtToken;
-        var body = {event_type: eventType, plan_date: PLAN_DATE};
-        if (stepKind) body.step_kind = stepKind;
-        if (reasonText) body.reason_text = reasonText;
-        fetch('/api/daily-plan/events', {
-            method: 'POST', credentials: 'same-origin',
-            headers: headers, body: JSON.stringify(body)
-        }).catch(function() {});
-    }
-
-    function buildQueueItem(step, isPrimary) {
-        var a = document.createElement('a');
-        a.href = stepUrl(step);
-        a.className = 'dash-next-step__item' + (isPrimary ? ' dash-next-step__item--primary' : '');
-        a.setAttribute('data-queue-item', 'true');
-        a.setAttribute('data-queue-kind', step.kind);
-
-        var body = document.createElement('div');
-        body.className = 'dash-next-step__item-body';
-
-        var pill = document.createElement('span');
-        pill.className = 'dash-next-step__item-kind';
-        pill.textContent = kindLabel(step.kind);
-
-        var reason = document.createElement('div');
-        reason.className = 'dash-next-step__item-reason';
-        reason.textContent = step.reason || '';
-
-        body.appendChild(pill);
-        body.appendChild(reason);
-        a.appendChild(body);
-
-        if (step.estimated_minutes) {
-            var time = document.createElement('span');
-            time.className = 'dash-next-step__item-time';
-            time.textContent = '~' + step.estimated_minutes + ' мин';
-            a.appendChild(time);
-        }
-
-        var arrow = document.createElement('span');
-        arrow.className = 'dash-next-step__item-arrow';
-        arrow.setAttribute('aria-hidden', 'true');
-        arrow.textContent = '›';
-        a.appendChild(arrow);
-
-        a.addEventListener('click', function() {
-            postEvent('next_step_accepted', step.kind, '');
-            var rivalVisible = document.querySelector('[data-rival-strip="true"]');
-            if (rivalVisible && rivalVisible.style.display !== 'none') {
-                postEvent('steps_taken_while_rival_visible', step.kind, '');
-            }
-        });
-        return a;
-    }
-
-    var apiHeaders = {};
-    var jwt = localStorage.getItem('jwt_token');
-    if (jwt) apiHeaders['Authorization'] = 'Bearer ' + jwt;
-
-    // Only emit session_ended_at_minimum when continuation steps were actually available —
-    // users with an empty queue had no choice, so including them inflates the H1 denominator.
-    var _continuationAccepted = false;
-    var _continuationAvailable = false;
-    var _minimumEndedEmitted = false;
-
-    fetch('/api/daily-plan/continuation', {credentials: 'same-origin', headers: apiHeaders})
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (!data || !data.steps || !data.steps.length) return;
-            _continuationAvailable = true;
-            var steps = data.steps;
-            steps.forEach(function(step, idx) {
-                queue.appendChild(buildQueueItem(step, idx === 0));
-            });
-            container.style.display = '';
-            if (steps[0]) {
-                postEvent('next_step_shown', steps[0].kind, steps[0].reason);
-            }
-        })
-        .catch(function() {});
-
-    var dismissBtn = wrapper.querySelector('[data-next-step-dismiss="true"]');
-    if (dismissBtn) {
-        dismissBtn.addEventListener('click', function() {
-            container.style.display = 'none';
-            var firstItem = queue.querySelector('[data-queue-item]');
-            var kind = firstItem ? firstItem.getAttribute('data-queue-kind') : '';
-            postEvent('next_step_dismissed', kind, '');
-        });
-    }
-
-    queue.addEventListener('click', function() { _continuationAccepted = true; }, {capture: true});
-    document.addEventListener('visibilitychange', function() {
-        if (document.visibilityState === 'hidden' && _continuationAvailable && !_continuationAccepted && !_minimumEndedEmitted) {
-            _minimumEndedEmitted = true;
-            postEvent('session_ended_at_minimum', '', '');
-        }
-    });
-})();
 {% endif %}
-
-// Phase 3: Ghost rival strip — show event + dismiss (permanent, POST to server).
-(function() {
-    var strip = document.querySelector('[data-rival-strip="true"]');
-    if (!strip) return;
-
-    var _rivalPlanDate = "{{ plan_today }}";
-
-    function postRivalEvent(eventType) {
-        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-        var csrfToken = csrfMeta ? csrfMeta.content : '';
-        var headers = {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken};
-        var jwtToken = localStorage.getItem('jwt_token');
-        if (jwtToken) headers['Authorization'] = 'Bearer ' + jwtToken;
-        fetch('/api/daily-plan/events', {
-            method: 'POST', credentials: 'same-origin',
-            headers: headers, body: JSON.stringify({event_type: eventType, plan_date: _rivalPlanDate})
-        }).catch(function() {});
-    }
-
-    var _rivalStripKey = 'rivalStripShown_' + _rivalPlanDate;
-    if (!sessionStorage.getItem(_rivalStripKey)) {
-        sessionStorage.setItem(_rivalStripKey, '1');
-        postRivalEvent('rival_strip_shown');
-    }
-
-    var btn = strip.querySelector('[data-rival-strip-dismiss="true"]');
-    if (!btn) return;
-    btn.addEventListener('click', function() {
-        strip.style.display = 'none';
-        postRivalEvent('rival_strip_dismissed');
-        var dismissUrl = strip.getAttribute('data-dismiss-url');
-        if (!dismissUrl) return;
-        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-        var csrfToken = csrfMeta ? csrfMeta.content : '';
-        var headers = {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken};
-        var jwtToken = localStorage.getItem('jwt_token');
-        if (jwtToken) headers['Authorization'] = 'Bearer ' + jwtToken;
-        fetch(dismissUrl, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: headers,
-            body: '{}',
-        }).catch(function() {});
-    });
-})();
 </script>
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/share.js') }}" defer></script>{% endblock %}

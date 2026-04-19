@@ -356,6 +356,69 @@ def stats():
     mastered_over_time = StatsService.get_mastered_over_time(current_user.id)
     study_heatmap = StatsService.get_study_heatmap(current_user.id)
 
+    from app.study.insights_service import get_best_study_time
+    from app.study.services.session_service import SessionService
+    from app.daily_plan.route_progress import (
+        add_route_steps_idempotent, get_phase_step_weight, get_route_state,
+        PHASE_STEP_WEIGHTS,
+    )
+    from config.settings import DEFAULT_TIMEZONE
+
+    tz = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
+    try:
+        best_study_time = get_best_study_time(current_user.id, tz=tz)
+    except Exception:
+        logger.exception("best_study_time failed for user %s", current_user.id)
+        best_study_time = {'best_hour': None, 'hourly_scores': {}}
+    try:
+        session_stats = SessionService.get_session_stats(current_user.id, days=7)
+    except Exception:
+        logger.exception("session_stats failed for user %s", current_user.id)
+        session_stats = {
+            'period_days': 7, 'total_sessions': 0, 'total_words_studied': 0,
+            'total_correct': 0, 'total_incorrect': 0, 'accuracy_percent': 0,
+            'total_time_seconds': 0, 'avg_session_time_seconds': 0,
+        }
+    steps_today = 0
+    try:
+        # Sync route_progress from today's completed phases before reading state,
+        # matching the dashboard path. If the sync fails, still fall back to the
+        # persisted long-term route state instead of hiding the widget entirely.
+        from app.daily_plan.service import get_daily_plan_unified
+        from app.achievements.streak_service import compute_plan_steps
+        from app.telegram.queries import get_daily_summary
+        import pytz as _pytz_stats
+
+        plan = get_daily_plan_unified(current_user.id, tz=tz)
+        if plan.get('mission'):
+            summary = get_daily_summary(current_user.id, tz=tz)
+            plan_completion, _, _, _ = compute_plan_steps(plan, summary)
+            try:
+                tz_obj = _pytz_stats.timezone(tz)
+            except _pytz_stats.UnknownTimeZoneError:
+                tz_obj = _pytz_stats.timezone(DEFAULT_TIMEZONE)
+            route_today = datetime.now(tz_obj).date()
+            phases = plan.get('phases', []) or []
+            for p in phases:
+                if plan_completion.get(p.get('id', ''), False):
+                    pk = p.get('phase', '')
+                    if PHASE_STEP_WEIGHTS.get(pk, 0) > 0:
+                        add_route_steps_idempotent(current_user.id, pk, route_today, db.session)
+            db.session.commit()
+            steps_today = sum(
+                get_phase_step_weight(p.get('phase', ''))
+                for p in phases
+                if plan_completion.get(p.get('id', ''), False)
+            )
+    except Exception:
+        db.session.rollback()
+        logger.exception("route_progress sync failed for user %s", current_user.id)
+    try:
+        route_progress_state = get_route_state(current_user.id, steps_today, db.session)
+    except Exception:
+        logger.exception("route_progress_state failed for user %s", current_user.id)
+        route_progress_state = None
+
     from app.telegram.models import TelegramUser
     telegram_linked = TelegramUser.query.filter_by(
         user_id=current_user.id, is_active=True
@@ -377,6 +440,9 @@ def stats():
         accuracy_trend=accuracy_trend,
         mastered_over_time=mastered_over_time,
         study_heatmap=study_heatmap,
+        best_study_time=best_study_time,
+        session_stats=session_stats,
+        route_progress_state=route_progress_state,
     )
 
 
@@ -387,6 +453,7 @@ def insights():
         get_activity_heatmap, get_best_study_time, get_words_at_risk,
         get_grammar_weaknesses, get_reading_speed_trend, get_learning_summary
     )
+    from app.achievements.streak_service import get_milestone_history
 
     heatmap = get_activity_heatmap(current_user.id)
     best_time = get_best_study_time(current_user.id)
@@ -394,6 +461,11 @@ def insights():
     weaknesses = get_grammar_weaknesses(current_user.id)
     reading_trend = get_reading_speed_trend(current_user.id)
     summary = get_learning_summary(current_user.id)
+    try:
+        milestone_history = get_milestone_history(current_user.id)
+    except Exception:
+        logger.exception("milestone_history failed for user %s", current_user.id)
+        milestone_history = []
 
     return render_template('study/insights.html',
         heatmap=heatmap,
@@ -402,6 +474,7 @@ def insights():
         grammar_weaknesses=weaknesses,
         reading_trend=reading_trend,
         summary=summary,
+        milestone_history=milestone_history,
     )
 
 

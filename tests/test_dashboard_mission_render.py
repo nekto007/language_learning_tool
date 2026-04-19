@@ -111,7 +111,8 @@ class TestDashboardMissionRender:
         assert 'dash-mission-header' in html
         assert 'data-mission-plan' in html
         assert 'Продвигаемся вперёд' in html
-        assert 'Следующий урок готов для вас' in html
+        # Task 6: reason_text was removed from the compact mission header
+        assert 'Следующий урок готов для вас' not in html
 
     def test_legacy_ui_rendered_when_flag_off(self, client, app, db_session, test_user, words_module_access):
         legacy_plan = {'steps': {}, 'next_lesson': None, 'words_due': 0}
@@ -162,11 +163,14 @@ class TestDashboardMissionRender:
         html = response.data.decode('utf-8')
         assert 'Читаем и учимся' in html
 
-    def test_progress_bar_shows_correct_count(self, client, app, db_session, test_user, words_module_access):
+    def test_linear_progress_bar_removed(self, client, app, db_session, test_user, words_module_access):
+        """Task 5 (compact redesign): linear 0/3 progress bar above phase cards is gone — roadmap is the single progress indicator."""
         plan = _make_mission_plan('progress', [True, True, False])
         response = self._get_dashboard(client, test_user, plan)
         html = response.data.decode('utf-8')
-        assert '2/3' in html
+        assert 'data-plan-progress="true"' not in html
+        assert 'data-progress-fill="true"' not in html
+        assert 'data-progress-pct="' not in html
 
     def test_no_internal_content_type_names_shown(self, client, app, db_session, test_user, words_module_access):
         plan = _make_mission_plan('progress', [False, False, False])
@@ -310,15 +314,6 @@ class TestDashboardMissionRender:
         html = response.data.decode('utf-8')
         assert 'data-phase-check="true"' not in html
 
-    def test_progress_bar_animation_attributes(self, client, app, db_session, test_user, words_module_access):
-        """Task 7: plan progress bar exposes data attributes so JS can trigger the fill animation."""
-        plan = _make_mission_plan('progress', [True, False, False])
-        response = self._get_dashboard(client, test_user, plan)
-        html = response.data.decode('utf-8')
-        assert 'data-plan-progress="true"' in html
-        assert 'data-progress-fill="true"' in html
-        assert 'data-progress-pct="' in html
-
     def test_phase_animation_css_keyframes_present(self):
         """Task 7: required keyframes and animation CSS classes live in the dashboard template."""
         import os
@@ -327,11 +322,9 @@ class TestDashboardMissionRender:
             css = f.read()
         assert '@keyframes dashPhaseComplete' in css
         assert '@keyframes dashPhaseActivate' in css
-        assert '@keyframes dashPhaseProgressFill' in css
         # The JS-toggled hooks must have associated CSS rules
         assert '.dash-step--phase.dash-step--just-completed' in css
         assert '.dash-step--phase.dash-step--current.dash-step--newly-active' in css
-        assert '.dash-progress[data-plan-progress="true"].dash-progress--animate' in css
         # Reduced-motion guard
         assert '@media (prefers-reduced-motion: reduce)' in css
 
@@ -344,7 +337,6 @@ class TestDashboardMissionRender:
         assert "from=daily_plan" in html or "params.get('from')" in html
         assert 'dash-step--just-completed' in html
         assert 'dash-step--newly-active' in html
-        assert 'dash-progress--animate' in html
         assert 'mission_phase_states_v1' in html
 
     def test_roadmap_container_rendered(self, client, app, db_session, test_user, words_module_access):
@@ -547,7 +539,11 @@ class TestDashboardMissionRender:
         assert finish_pos > last_node_pos
 
     def test_roadmap_finish_marker_pending_state(self, client, app, db_session, test_user, words_module_access):
-        """Task 10: when plan is incomplete, finish marker is in pending state with distance label."""
+        """Task 10: when plan is incomplete, finish marker is in pending state.
+
+        Task 5 (compact redesign): the "N steps to finish" distance label was removed —
+        the pending marker icon alone signals the remaining distance.
+        """
         plan = _make_mission_plan('progress', [False, False, False])
         response = self._get_dashboard(client, test_user, plan)
         html = response.data.decode('utf-8')
@@ -555,8 +551,9 @@ class TestDashboardMissionRender:
         assert 'data-marker-state="pending"' in html
         assert 'data-marker-state="complete"' not in html
         assert 'data-steps-remaining="3"' in html
-        assert 'data-marker-distance="true"' in html
-        assert '3 шага до финиша' in html
+        # Distance label is gone (Task 5)
+        assert 'data-marker-distance="true"' not in html
+        assert 'до финиша' not in html
         assert 'data-roadmap-complete="false"' in html
 
     def test_roadmap_finish_marker_complete_state(self, client, app, db_session, test_user, words_module_access):
@@ -570,28 +567,17 @@ class TestDashboardMissionRender:
         # Burst particles for the confetti animation (class appears once per piece element)
         assert 'class="dash-roadmap__marker-burst"' in html
         assert html.count('class="dash-roadmap__marker-burst-piece"') >= 6
-        # No distance hint when complete
+        # Distance hint is removed entirely (Task 5)
         assert 'data-marker-distance="true"' not in html
         assert 'data-steps-remaining="0"' in html
 
-    def test_roadmap_finish_distance_label_pluralization(self, client, app, db_session, test_user, words_module_access):
-        """Task 10: the distance hint pluralizes the remaining-steps count correctly (RU grammar)."""
-        # 1 step remaining — singular form
-        plan1 = _make_mission_plan('progress', [True, True, False])
-        html1 = self._get_dashboard(client, test_user, plan1).data.decode('utf-8')
-        assert '1 шаг до финиша' in html1
-        assert 'data-steps-remaining="1"' in html1
-
-        # 2 steps remaining — few form
-        plan2 = _make_mission_plan('progress', [True, False, False])
-        html2 = self._get_dashboard(client, test_user, plan2).data.decode('utf-8')
-        assert '2 шага до финиша' in html2
-
-        # 5 steps remaining (four phases, none done + one extra path) — many form
-        # Use four-phase plan with zero done to approximate: 4 шага (few form)
-        plan4 = _make_mission_plan('progress', [False, False, False, False])
-        html4 = self._get_dashboard(client, test_user, plan4).data.decode('utf-8')
-        assert '4 шага до финиша' in html4
+    def test_roadmap_finish_distance_label_removed(self, client, app, db_session, test_user, words_module_access):
+        """Task 5 (compact redesign): the pluralised "N шагов до финиша" label is removed."""
+        for phases in ([True, True, False], [True, False, False], [False, False, False, False]):
+            plan = _make_mission_plan('progress', phases)
+            html = self._get_dashboard(client, test_user, plan).data.decode('utf-8')
+            assert 'до финиша' not in html
+            assert 'data-marker-distance="true"' not in html
 
     def test_roadmap_marker_absent_in_legacy_plan(self, client, app, db_session, test_user, words_module_access):
         """Task 10: legacy (non-mission) plans do not emit start/finish markers."""
@@ -624,8 +610,7 @@ class TestDashboardMissionRender:
         assert '.dash-roadmap__marker--finish' in css
         assert '.dash-roadmap__marker--complete' in css
         assert '.dash-roadmap__marker--pending' in css
-        # Distance label + burst
-        assert '.dash-roadmap__marker-distance' in css
+        # Distance label removed (Task 5); burst still present.
         assert '.dash-roadmap__marker-burst' in css
         # Celebration keyframes
         assert '@keyframes roadmap-finish-pulse' in css
@@ -1150,108 +1135,71 @@ class TestDashboardMissionRender:
         assert 'dash-route--finish-calm' in html
         assert 'data-animate-token' in html
 
-    # ---- Task 9 (Plan): Day secured banner + next-step card ----
+    # ---- Task 8 (compact redesign): Stale plan banners removed ----
 
     def _make_mission_plan_with_secured(self, mission_type='progress', phases_completed=None, day_secured=False):
         plan = _make_mission_plan(mission_type, phases_completed)
         plan['day_secured'] = day_secured
         return plan
 
-    def test_day_secured_banner_shown_when_secured_and_not_all_done(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: day-secured banner renders when day_secured=True and required phases are done but bonus phases remain."""
+    def test_day_secured_banner_absent_in_all_states(self, client, app, db_session, test_user, words_module_access):
+        """Task 8: day-secured banner is removed regardless of plan state."""
+        for phases, secured in (
+            ([True, True, False], True),
+            ([False, False, False], False),
+            ([True, True, True], True),
+        ):
+            plan = self._make_mission_plan_with_secured('progress', phases, day_secured=secured)
+            response = self._get_dashboard(client, test_user, plan)
+            html = response.data.decode('utf-8')
+            assert 'data-day-secured="true"' not in html
+            assert 'class="dash-day-secured"' not in html
+            assert 'День закрыт!' not in html
+            assert 'Серия сохранена' not in html
+
+    def test_next_step_continuation_queue_absent(self, client, app, db_session, test_user, words_module_access):
+        """Task 8: 3-step continuation queue (next-step container) no longer renders on dashboard."""
         plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
         response = self._get_dashboard(client, test_user, plan)
         html = response.data.decode('utf-8')
-        assert 'data-day-secured="true"' in html
-        assert 'dash-day-secured' in html
-        assert 'День закрыт!' in html
-        assert 'Серия сохранена' in html
-
-    def test_day_secured_banner_absent_when_not_secured(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: day-secured banner must not appear when day_secured=False."""
-        plan = self._make_mission_plan_with_secured('progress', [False, False, False], day_secured=False)
-        response = self._get_dashboard(client, test_user, plan)
-        html = response.data.decode('utf-8')
-        assert 'class="dash-day-secured"' not in html
-        assert 'День закрыт!' not in html
-
-    def test_day_secured_banner_absent_when_all_done(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: when all phases are done the completion summary shows instead; no secured banner."""
-        plan = self._make_mission_plan_with_secured('progress', [True, True, True], day_secured=True)
-        response = self._get_dashboard(client, test_user, plan)
-        html = response.data.decode('utf-8')
-        # Banner must not appear when m_all_done (completion summary takes over)
-        assert 'class="dash-day-secured"' not in html
-
-    def test_next_step_container_rendered_inside_secured_banner(self, client, app, db_session, test_user, words_module_access):
-        """Task 9/14: next-step queue container is present inside the secured banner for JS to populate."""
-        plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
-        response = self._get_dashboard(client, test_user, plan)
-        html = response.data.decode('utf-8')
-        assert 'data-next-step-container="true"' in html
-        # Task 14: queue container replaces individual step slots; JS builds items dynamically
-        assert 'data-next-step-queue="true"' in html
-        assert 'data-next-step-dismiss="true"' in html
-
-    def test_next_step_container_absent_when_not_secured(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: next-step container must not appear when day is not secured."""
-        plan = self._make_mission_plan_with_secured('progress', [False, False, False], day_secured=False)
-        response = self._get_dashboard(client, test_user, plan)
-        html = response.data.decode('utf-8')
-        # The HTML element must not be rendered (the string also appears in JS, check the element markup)
+        assert 'data-next-step-container="true"' not in html
+        assert 'data-next-step-queue="true"' not in html
+        assert 'data-next-step-dismiss="true"' not in html
         assert 'class="dash-next-step"' not in html
         assert 'Продолжить позже' not in html
 
-    def test_continue_later_dismiss_button_rendered(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: dismiss button with correct data attribute is present when secured."""
+    def test_rival_strip_absent_even_when_provided(self, client, app, db_session, test_user, words_module_access):
+        """Task 8: ghost rival strip is removed; even if rival_strip context were set, no markup renders."""
         plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
         response = self._get_dashboard(client, test_user, plan)
         html = response.data.decode('utf-8')
-        assert 'data-next-step-dismiss="true"' in html
-        assert 'Продолжить позже' in html
+        assert 'data-rival-strip="true"' not in html
+        assert 'class="dash-rival-strip"' not in html
+        assert 'data-rival-strip-dismiss' not in html
 
-    def test_day_secured_css_rules_present(self):
-        """Task 9: day-secured and next-step CSS rules exist in dashboard template."""
-        import os
-        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
-        with open(tpl_path, 'r', encoding='utf-8') as f:
-            css = f.read()
-        assert '.dash-day-secured {' in css
-        assert '.dash-day-secured__banner' in css
-        assert '.dash-next-step {' in css
-        assert '.dash-next-step__btn--go' in css
-        assert '.dash-next-step__btn--dismiss' in css
-
-    def test_day_secured_js_hook_present(self):
-        """Task 9: JS that fetches /api/daily-plan/continuation and renders the next-step card exists."""
+    def test_removed_banners_css_and_js_cleaned_up(self):
+        """Task 8: inline CSS rules and JS IIFEs for the removed banners are gone."""
         import os
         tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
         with open(tpl_path, 'r', encoding='utf-8') as f:
             html = f.read()
-        assert '/api/daily-plan/continuation' in html
-        assert 'data-next-step-container' in html
-        assert 'next_step_shown' in html
-        assert 'next_step_accepted' in html
-        assert 'next_step_dismissed' in html
+        # CSS rule blocks removed
+        assert '.dash-day-secured {' not in html
+        assert '.dash-day-secured__banner' not in html
+        assert '.dash-next-step {' not in html
+        assert '.dash-next-step__btn--dismiss' not in html
+        assert '.dash-rival-strip {' not in html
+        assert '.dash-rival-strip__dismiss' not in html
+        # JS IIFEs removed (no fetch to continuation, no rival-strip postEvent)
+        assert '/api/daily-plan/continuation' not in html
+        assert 'next_step_shown' not in html
+        assert 'next_step_accepted' not in html
+        assert 'next_step_dismissed' not in html
+        assert 'rival_strip_shown' not in html
+        assert 'rival_strip_dismissed' not in html
+        assert 'buildQueueItem' not in html
 
-    def test_day_secured_cards_url_in_container(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: cards URL is embedded in the secured banner container for JS SRS/vocab fallback."""
-        plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
-        response = self._get_dashboard(client, test_user, plan)
-        html = response.data.decode('utf-8')
-        assert 'data-cards-url=' in html
-
-    def test_existing_progress_ui_unchanged_when_secured(self, client, app, db_session, test_user, words_module_access):
-        """Task 9: existing roadmap and timeline are still rendered when day is secured (above banner)."""
-        plan = self._make_mission_plan_with_secured('progress', [True, True, False], day_secured=True)
-        response = self._get_dashboard(client, test_user, plan)
-        html = response.data.decode('utf-8')
-        # Standard mission plan UI elements must still be present
-        assert 'data-roadmap="true"' in html
-        assert 'data-mission-plan="true"' in html
-        assert 'dash-mission-header' in html
-
-    # ---- Task 14 (plan): Route board UI ----
+    # ---- Task 5 (compact redesign): Route board removed from dashboard ----
 
     def _get_dashboard_with_route_state(self, client, test_user, plan, route_progress_state):
         """Render dashboard with a mocked plan and route progress state."""
@@ -1267,171 +1215,948 @@ class TestDashboardMissionRender:
             response = client.get('/dashboard')
         return response
 
-    def test_route_board_rendered_when_route_state_available(self, client, app, db_session, test_user, words_module_access):
-        """Task 14: dash-route-board is rendered when route_progress_state is available."""
+    def test_route_board_markup_absent_on_dashboard(self, client, app, db_session, test_user, words_module_access):
+        """Task 5: route board and its sub-elements no longer render on the dashboard."""
         plan = _make_mission_plan('progress', [True, False, False])
+        plan['day_secured'] = True
         route_state = {
-            'steps_today': 3,
-            'total_steps': 23,
+            'steps_today': 5,
+            'total_steps': 25,
             'checkpoint_number': 1,
-            'steps_to_next_checkpoint': 17,
-            'percent_to_checkpoint': 15,
+            'steps_to_next_checkpoint': 15,
+            'percent_to_checkpoint': 25,
         }
         response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
-        html = response.data.decode('utf-8')
-        assert 'data-route-board="true"' in html
-        assert 'dash-route-board' in html
-
-    def test_route_board_absent_for_legacy_plan(self, client, app, db_session, test_user, words_module_access):
-        """Task 14: route board is absent for legacy (non-mission) plans."""
-        legacy_plan = {'steps': {}, 'next_lesson': None, 'words_due': 0}
-        response = self._get_dashboard(client, test_user, legacy_plan)
         html = response.data.decode('utf-8')
         assert 'data-route-board="true"' not in html
-
-    def test_route_board_shows_steps_today(self, client, app, db_session, test_user, words_module_access):
-        """Task 14: route position shows steps completed today."""
-        plan = _make_mission_plan('progress', [True, False, False])
-        route_state = {
-            'steps_today': 5,
-            'total_steps': 25,
-            'checkpoint_number': 1,
-            'steps_to_next_checkpoint': 15,
-            'percent_to_checkpoint': 25,
-        }
-        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
-        html = response.data.decode('utf-8')
-        assert 'data-steps-today="5"' in html
-        assert 'Сегодня: 5' in html
-
-    def test_route_board_shows_checkpoint_distance(self, client, app, db_session, test_user, words_module_access):
-        """Task 14: route board shows steps to next checkpoint."""
-        plan = _make_mission_plan('progress', [True, False, False])
-        route_state = {
-            'steps_today': 3,
-            'total_steps': 3,
-            'checkpoint_number': 0,
-            'steps_to_next_checkpoint': 17,
-            'percent_to_checkpoint': 15,
-        }
-        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
-        html = response.data.decode('utf-8')
-        assert 'До точки: 17' in html
-        assert 'data-steps-to-checkpoint="true"' in html
-
-    def test_route_board_progress_bar_rendered(self, client, app, db_session, test_user, words_module_access):
-        """Task 14: progress bar within current checkpoint stretch is rendered."""
-        plan = _make_mission_plan('progress', [True, True, False])
-        route_state = {
-            'steps_today': 5,
-            'total_steps': 10,
-            'checkpoint_number': 0,
-            'steps_to_next_checkpoint': 10,
-            'percent_to_checkpoint': 50,
-        }
-        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
-        html = response.data.decode('utf-8')
-        assert 'data-route-bar-fill="true"' in html
-        assert 'width: 50%' in html
-        assert 'role="progressbar"' in html
-        assert 'data-percent-to-checkpoint="50"' in html
-
-    def test_route_board_checkpoint_label_shown_when_reached(self, client, app, db_session, test_user, words_module_access):
-        """Task 14: 'Checkpoint N reached!' label shown when percent_to_checkpoint is 0 and checkpoint > 0."""
-        plan = _make_mission_plan('progress', [True, True, False])
-        route_state = {
-            'steps_today': 4,
-            'total_steps': 40,
-            'checkpoint_number': 2,
-            'steps_to_next_checkpoint': 20,
-            'percent_to_checkpoint': 0,
-        }
-        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
-        html = response.data.decode('utf-8')
-        assert 'data-checkpoint-reached="true"' in html
-        assert 'Контрольная точка 2 достигнута!' in html
-
-    def test_route_board_checkpoint_label_absent_when_not_reached(self, client, app, db_session, test_user, words_module_access):
-        """Task 14: checkpoint reached label not shown when not at checkpoint boundary."""
-        plan = _make_mission_plan('progress', [True, False, False])
-        route_state = {
-            'steps_today': 3,
-            'total_steps': 3,
-            'checkpoint_number': 0,
-            'steps_to_next_checkpoint': 17,
-            'percent_to_checkpoint': 15,
-        }
-        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
-        html = response.data.decode('utf-8')
-        assert 'data-checkpoint-reached="true"' not in html
-
-    def test_route_board_secured_marker_shown_when_day_secured(self, client, app, db_session, test_user, words_module_access):
-        """Task 14: day-secured marker on route bar is visible when day is secured and steps > 0."""
-        plan = _make_mission_plan('progress', [True, True, False])
-        plan['day_secured'] = True
-        route_state = {
-            'steps_today': 5,
-            'total_steps': 25,
-            'checkpoint_number': 1,
-            'steps_to_next_checkpoint': 15,
-            'percent_to_checkpoint': 25,
-        }
-        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
-        html = response.data.decode('utf-8')
-        assert 'data-secured-marker="true"' in html
-        assert 'Серия закреплена' in html
-
-    def test_route_board_secured_marker_absent_when_not_secured(self, client, app, db_session, test_user, words_module_access):
-        """Task 14: day-secured marker not shown when day is not secured."""
-        plan = _make_mission_plan('progress', [False, False, False])
-        plan['day_secured'] = False
-        route_state = {
-            'steps_today': 0,
-            'total_steps': 0,
-            'checkpoint_number': 0,
-            'steps_to_next_checkpoint': 20,
-            'percent_to_checkpoint': 0,
-        }
-        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
-        html = response.data.decode('utf-8')
+        assert 'data-route-bar-fill="true"' not in html
         assert 'data-secured-marker="true"' not in html
+        assert 'data-checkpoint-reached="true"' not in html
+        assert 'data-steps-to-checkpoint="true"' not in html
+        assert 'data-steps-today-label="true"' not in html
 
-    def test_route_board_queue_container_rendered_when_secured(self, client, app, db_session, test_user, words_module_access):
-        """Task 14: 3-task queue container is rendered when day is secured."""
-        plan = _make_mission_plan('progress', [True, True, False])
-        plan['day_secured'] = True
-        route_state = {
-            'steps_today': 5,
-            'total_steps': 25,
-            'checkpoint_number': 1,
-            'steps_to_next_checkpoint': 15,
-            'percent_to_checkpoint': 25,
-        }
-        response = self._get_dashboard_with_route_state(client, test_user, plan, route_state)
-        html = response.data.decode('utf-8')
-        assert 'data-next-step-queue="true"' in html
-        assert 'Что дальше' in html
-
-    def test_route_board_queue_js_renders_three_steps(self):
-        """Task 14: JS in template uses steps array (not single step) to build up to 3 queue items."""
+    def test_route_board_queue_hooks_removed(self):
+        """Task 8: queue JS hooks dropped along with the day-secured banner."""
         import os
         tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
         with open(tpl_path, 'r', encoding='utf-8') as f:
             html = f.read()
-        assert 'data-next-step-queue' in html
-        assert 'buildQueueItem' in html
-        assert 'data.steps' in html
-        assert 'forEach' in html
+        assert 'data-next-step-queue' not in html
+        assert 'buildQueueItem' not in html
 
-    def test_route_board_css_rules_present(self):
-        """Task 14: route board CSS rules exist in dashboard template."""
+
+class TestHeroCompactLayout:
+    """19 Tasks plan — Task 1: hero collapses to greeting + streak only."""
+
+    def _get_dashboard(self, client, test_user, mission_plan):
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+        with patch('app.daily_plan.service.get_daily_plan_unified') as mock_plan:
+            mock_plan.return_value = mission_plan
+            response = client.get('/dashboard')
+        return response
+
+    def _extract_hero(self, html):
+        start = html.find('<div class="dash-hero">')
+        assert start != -1, 'dash-hero container missing'
+        # Everything between the hero container and the next top-level block
+        # (rank, mission-xp widget, welcome card, race, plan, section, etc.)
+        markers = [
+            'class="dash-rank ',
+            'class="dash-xp "',
+            'class="dash-xp"',
+            'class="dash-welcome"',
+            'class="dash-race',
+            'class="dash-plan',
+            'Rank badge',
+        ]
+        end_positions = [html.find(m, start + 10) for m in markers]
+        end_positions = [p for p in end_positions if p != -1]
+        assert end_positions, 'could not locate end of hero section'
+        return html[start:min(end_positions)]
+
+    def test_hero_compact_layout_renders(self, client, app, db_session, test_user, words_module_access):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        hero = self._extract_hero(html)
+        # Greeting + streak container still present
+        assert 'dash-hero__greeting' in hero
+        assert 'dash-hero__title' in hero
+        # Decorative shapes are gone
+        assert 'dash-shape' not in hero
+        assert 'dash-hero__bg-shapes' not in hero
+        # Removed blocks do NOT appear inside the hero section
+        assert 'dash-yesterday' not in hero
+        assert 'dash-xp-bar' not in hero
+        # Rank badge is no longer nested inside the hero card
+        assert 'dash-rank' not in hero
+        # Single gradient background layer is still wired
+        assert 'dash-hero__bg' in hero
+
+    def test_hero_has_max_width_720(self):
+        """Compact hero caps width at ~720px via inline CSS."""
         import os
         tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
         with open(tpl_path, 'r', encoding='utf-8') as f:
             css = f.read()
-        assert '.dash-route-board {' in css
-        assert '.dash-route-board__bar-wrap' in css
-        assert '.dash-route-board__bar-fill' in css
-        assert '.dash-route-board__secured-marker' in css
-        assert '.dash-next-step__item' in css
-        assert '.dash-next-step__queue' in css
+        # Match the .dash-hero rule block (not a mobile override)
+        hero_rule_start = css.find('.dash-hero {')
+        hero_rule_end = css.find('}', hero_rule_start)
+        assert hero_rule_start != -1 and hero_rule_end != -1
+        hero_rule = css[hero_rule_start:hero_rule_end]
+        assert 'max-width: 720px' in hero_rule
+        assert 'margin: 0 auto' in hero_rule
+
+    def test_dash_shape_animations_removed(self):
+        """Task 1: dash-shape keyframes + float animations are gone."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        assert 'dash-shape--1' not in css
+        assert 'dash-shape--2' not in css
+        assert '@keyframes dashFloat1' not in css
+        assert '@keyframes dashFloat2' not in css
+
+    def test_hero_single_row_flex_layout(self):
+        """Greeting row uses flex layout so greeting + streak can share a row."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        greeting_start = css.find('.dash-hero__greeting {')
+        assert greeting_start != -1
+        greeting_end = css.find('}', greeting_start)
+        greeting_rule = css[greeting_start:greeting_end]
+        assert 'display: flex' in greeting_rule
+        assert 'flex-wrap: wrap' in greeting_rule
+        assert 'align-items: center' in greeting_rule
+
+    def test_hero_has_no_decorative_shapes_in_markup(self):
+        """Task 1: dash-shape divs are not in the rendered dashboard."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            tpl = f.read()
+        assert 'dash-shape--1' not in tpl
+        assert 'dash-shape--2' not in tpl
+        assert 'dash-hero__bg-shapes' not in tpl
+
+
+class TestHeroStreakStates:
+    """19 Tasks plan — Task 2: hero streak = 3 states + flash overlay."""
+
+    def _read_template(self):
+        import os
+        tpl_path = os.path.join(
+            os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html'
+        )
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def _extract_greeting_block(self, tpl):
+        """Return the inline-if chain inside the hero greeting block."""
+        start = tpl.find('<div class="dash-hero__greeting">')
+        assert start != -1, 'hero greeting block missing'
+        end = tpl.find('</div>\n        </div>\n    </div>', start)
+        assert end != -1, 'could not find end of hero greeting block'
+        return tpl[start:end]
+
+    def test_streak_repaired_not_rendered_inside_hero_greeting(self):
+        """streak_repaired branch lives at top-level overlay, not nested in hero greeting."""
+        tpl = self._read_template()
+        greeting = self._extract_greeting_block(tpl)
+        assert 'streak_repaired' not in greeting
+        assert 'dash-streak--restored' not in greeting
+        assert 'dash-streak__restored' not in greeting
+
+    def test_streak_flash_overlay_present_top_level(self):
+        """dash-streak-flash overlay is rendered at top level, outside the hero card."""
+        tpl = self._read_template()
+        # Markup block is present
+        assert 'dash-streak-flash' in tpl
+        assert 'data-streak-flash="true"' in tpl
+        assert 'Серия восстановлена!' in tpl
+        # Overlay is not nested inside the hero card
+        hero_start = tpl.find('<div class="dash-hero">')
+        hero_end_marker = tpl.find('</div>\n        </div>\n    </div>', hero_start)
+        assert hero_end_marker != -1
+        flash_pos = tpl.find('dash-streak-flash')
+        assert flash_pos > hero_end_marker, 'streak-flash overlay must be outside the hero card'
+
+    def test_streak_flash_autodismiss_script_present(self):
+        """Auto-dismiss script for flash overlay fires after 2500 ms."""
+        tpl = self._read_template()
+        assert 'data-streak-flash="true"' in tpl
+        # Autodismiss at 2500 ms
+        assert '2500' in tpl
+        # Script removes the flash element
+        # (a simple heuristic: querying the selector in the same template)
+        assert "querySelector('[data-streak-flash=\"true\"]')" in tpl
+
+    def test_streak_flash_css_rule_present(self):
+        """dash-streak-flash has fixed-position CSS + reuses xpLevelUpFlash animation."""
+        tpl = self._read_template()
+        rule_start = tpl.find('.dash-streak-flash {')
+        assert rule_start != -1, 'missing .dash-streak-flash CSS rule'
+        rule_end = tpl.find('}', rule_start)
+        rule = tpl[rule_start:rule_end]
+        assert 'position: fixed' in rule
+        assert 'animation: xpLevelUpFlash' in rule
+
+    def test_streak_has_three_branches_only(self):
+        """Hero greeting has exactly 3 branches: streak>0 / can_repair / else."""
+        tpl = self._read_template()
+        greeting = self._extract_greeting_block(tpl)
+        # Three expected branch conditions
+        assert '{% if streak > 0 %}' in greeting
+        assert '{% elif streak_status and streak_status.can_repair %}' in greeting
+        assert '{% else %}' in greeting
+        # Contradictory branch removed
+        assert 'can_repair and streak > 0' not in greeting
+        assert 'can_repair and streak>0' not in greeting
+
+    def test_streak_zero_subtitle_copy(self):
+        """Zero-streak branch shows the 'start again' subtitle."""
+        tpl = self._read_template()
+        greeting = self._extract_greeting_block(tpl)
+        assert 'Сегодня начни заново' in greeting
+
+    def test_streak_share_button_guarded_by_seven_days(self):
+        """Share button condition uses streak >= 7, not 'streak in milestones'."""
+        tpl = self._read_template()
+        greeting = self._extract_greeting_block(tpl)
+        # New share-button condition
+        assert 'streak >= 7 and current_user.referral_code' in greeting
+        # Milestone-gated share button is gone
+        share_block_pos = greeting.find('dash-streak__share-btn')
+        assert share_block_pos != -1
+        # The preceding condition that wraps the share button must be the
+        # streak>=7 check, not the milestone check.
+        preceding = greeting[:share_block_pos]
+        last_if = preceding.rfind('{% if ')
+        assert last_if != -1
+        last_if_block = preceding[last_if:]
+        assert 'streak >= 7' in last_if_block
+
+
+class TestHeroStreakRendering:
+    """Runtime assertions — render dashboard with different streak states."""
+
+    def _get_dashboard_with_streak(
+        self, client, test_user, mission_plan, *,
+        streak=0, can_repair=False, streak_repaired=False, coins=0, referral_code=None,
+    ):
+        if referral_code is not None:
+            from app.auth.models import User
+            from app.utils.db import db
+            user = User.query.get(test_user.id)
+            user.referral_code = referral_code
+            db.session.add(user)
+            db.session.commit()
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        streak_status = {
+            'streak': streak,
+            'can_repair': can_repair,
+            'coins_balance': coins,
+            'repair_cost': 10,
+            'required_steps': 1,
+        }
+        streak_result = {
+            'streak_status': streak_status,
+            'required_steps': 1,
+            'streak_repaired': streak_repaired,
+            'steps_done': 0,
+            'steps_total': 3,
+            'milestone_reward': None,
+            'rank_up': None,
+        }
+
+        with patch('app.daily_plan.service.get_daily_plan_unified') as mock_plan, \
+             patch('app.achievements.streak_service.process_streak_on_activity') as mock_streak:
+            mock_plan.return_value = mission_plan
+            mock_streak.return_value = streak_result
+            response = client.get('/dashboard')
+        return response
+
+    def test_streak_active_renders_streak_badge(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard_with_streak(
+            client, test_user, plan, streak=5, coins=3,
+        )
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'class="dash-streak"' in html
+        assert '5' in html
+        assert 'dash-streak-recovery' not in html
+        assert 'Сегодня начни заново' not in html
+
+    def test_streak_zero_renders_start_subtitle(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard_with_streak(
+            client, test_user, plan, streak=0, can_repair=False,
+        )
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'Сегодня начни заново' in html
+        assert 'dash-streak-recovery' not in html
+        # No streak badge rendered
+        assert 'class="dash-streak"' not in html
+
+    def test_streak_recovery_renders_when_zero_and_can_repair(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard_with_streak(
+            client, test_user, plan, streak=0, can_repair=True, coins=10,
+        )
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'dash-streak-recovery' in html
+        assert 'Серия прервалась' in html
+        assert 'Сегодня начни заново' not in html
+
+    def test_streak_repaired_renders_flash_overlay_outside_hero(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard_with_streak(
+            client, test_user, plan, streak=3, streak_repaired=True, coins=1,
+        )
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        # Flash overlay rendered
+        assert 'dash-streak-flash' in html
+        assert 'Серия восстановлена!' in html
+        assert 'data-streak-flash="true"' in html
+        # Old inline "restored" marker must not appear
+        assert 'dash-streak--restored' not in html
+        assert 'dash-streak__restored' not in html
+
+    def test_streak_milestone_badge_only_on_milestone(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        # Milestone: 7 → badge visible
+        r1 = self._get_dashboard_with_streak(client, test_user, plan, streak=7)
+        html1 = r1.data.decode('utf-8')
+        assert 'dash-streak__milestone' in html1
+        assert 'Неделя' in html1
+
+        # Non-milestone: 8 → no badge
+        r2 = self._get_dashboard_with_streak(client, test_user, plan, streak=8)
+        html2 = r2.data.decode('utf-8')
+        assert 'dash-streak__milestone' not in html2
+
+    def test_share_button_visible_when_streak_at_least_seven(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        # Non-milestone streak ≥ 7 still shows the share button
+        response = self._get_dashboard_with_streak(
+            client, test_user, plan, streak=8, referral_code='TESTCODE',
+        )
+        html = response.data.decode('utf-8')
+        assert 'dash-streak__share-btn' in html
+        # No milestone badge at streak=8 since 8 is not a milestone
+        assert 'dash-streak__milestone' not in html
+
+    def test_share_button_absent_when_streak_below_seven(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard_with_streak(
+            client, test_user, plan, streak=6, referral_code='TESTCODE',
+        )
+        html = response.data.decode('utf-8')
+        assert 'dash-streak__share-btn' not in html
+
+
+class TestMissionHeaderSimplified:
+    """19 Tasks plan — Task 6: mission header = title + track + goal (eyebrow + reason removed)."""
+
+    def _read_template(self):
+        import os
+        tpl_path = os.path.join(
+            os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html'
+        )
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def _extract_header_block(self, tpl):
+        """Return the mission header markup."""
+        start = tpl.find('<div class="dash-mission-header">')
+        assert start != -1, 'mission header block missing'
+        # The block is followed by the Task 5 compact-redesign comment.
+        end = tpl.find('{# Task 5 (compact redesign)', start)
+        assert end != -1, 'could not find end of mission header block'
+        return tpl[start:end]
+
+    def test_eyebrow_markup_removed(self):
+        tpl = self._read_template()
+        header = self._extract_header_block(tpl)
+        assert 'dash-mission-header__eyebrow' not in header
+        assert 'Главная миссия дня' not in header
+
+    def test_reason_text_markup_removed(self):
+        tpl = self._read_template()
+        header = self._extract_header_block(tpl)
+        assert 'dash-mission-header__reason' not in header
+        assert 'reason_text' not in header
+
+    def test_title_and_badges_preserved(self):
+        tpl = self._read_template()
+        header = self._extract_header_block(tpl)
+        # Title, track pill and goal pill markup stays
+        assert 'dash-mission-header__title' in header
+        assert "m.get('title', '')" in header
+        assert 'Трек:' in header
+        assert 'Цель дня:' in header
+        assert 'dash-mission-header__pill' in header
+
+    def test_eyebrow_reason_css_rules_removed(self):
+        """CSS cleanup: removed elements should not carry leftover style blocks."""
+        tpl = self._read_template()
+        assert '.dash-mission-header__eyebrow {' not in tpl
+        assert '.dash-mission-header__reason {' not in tpl
+
+    def test_header_spacing_compact(self):
+        """Padding and margin should be tighter than the old 1rem/1.25rem/1rem layout."""
+        tpl = self._read_template()
+        rule_start = tpl.find('.dash-mission-header {')
+        assert rule_start != -1, 'missing .dash-mission-header CSS rule'
+        rule_end = tpl.find('}', rule_start)
+        rule = tpl[rule_start:rule_end]
+        assert 'padding: 0.75rem 1rem' in rule
+        assert 'margin-bottom: 0.75rem' in rule
+
+
+class TestMissionHeaderRendering:
+    """Runtime assertions — dashboard renders simplified mission header."""
+
+    def _get_dashboard(self, client, test_user, mission_plan):
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        with patch('app.daily_plan.service.get_daily_plan_unified') as mock_plan:
+            mock_plan.return_value = mission_plan
+            response = client.get('/dashboard')
+        return response
+
+    def test_eyebrow_not_in_rendered_dashboard(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'Главная миссия дня' not in html
+        assert 'dash-mission-header__eyebrow' not in html
+
+    def test_reason_text_not_in_rendered_dashboard(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        # reason text configured in fixture must not appear
+        assert 'Следующий урок готов для вас' not in html
+        assert 'dash-mission-header__reason' not in html
+
+    def test_title_and_pills_in_rendered_dashboard(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        html = response.data.decode('utf-8')
+        assert 'Продвигаемся вперёд' in html
+        assert 'Трек:' in html
+        assert 'Цель дня:' in html
+        assert 'Завершить урок' in html
+
+
+class TestCompletionSummaryPreserved:
+    """19 Tasks plan — Task 9: verify Task 8's banner/strip cleanup did not remove
+    the completion_summary block. File-level assertions on the dashboard template
+    that do not require a DB connection; runtime rendering coverage lives in
+    tests/test_dashboard_completion_summary.py.
+    """
+
+    def _read_template(self):
+        import os
+        tpl_path = os.path.join(
+            os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html'
+        )
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def test_completion_summary_conditional_present(self):
+        """Template keeps the `m_all_done and completion_summary` guard."""
+        tpl = self._read_template()
+        assert '{% if m_all_done and completion_summary %}' in tpl
+
+    def test_completion_summary_markup_present(self):
+        """Template keeps the dash-completion-summary container + data hook."""
+        tpl = self._read_template()
+        assert 'class="dash-completion-summary"' in tpl
+        assert 'data-completion-summary="true"' in tpl
+        assert 'data-completion-cards="true"' in tpl
+
+    def test_completion_summary_cards_preserved(self):
+        """All expected card variants remain in the template."""
+        tpl = self._read_template()
+        for card_mod in ('xp', 'level', 'streak', 'race', 'rank', 'badges', 'bonus'):
+            assert f'dash-completion-summary__card--{card_mod}' in tpl, (
+                f'Missing completion summary card modifier --{card_mod}'
+            )
+
+    def test_completion_summary_share_button_preserved(self):
+        """Share button (`Поделиться`) + data-share-text hook remain."""
+        tpl = self._read_template()
+        assert 'dash-completion-summary__share-btn' in tpl
+        assert 'data-share-text=' in tpl
+        assert 'Поделиться' in tpl
+
+    def test_completion_summary_fallback_elif_preserved(self):
+        """Fallback `dash-plan-complete` elif-branch (when no rich summary) remains."""
+        tpl = self._read_template()
+        assert '{% elif m_all_done %}' in tpl
+        assert 'dash-plan-complete' in tpl
+        assert 'Отличная работа! Всё на сегодня сделано.' in tpl
+
+    def test_completion_summary_block_order_inside_plan_card(self):
+        """Completion summary block sits after the streak-req hint and before phase cards."""
+        tpl = self._read_template()
+        streak_req_pos = tpl.find('{% if required_steps is defined and not m_all_done %}')
+        completion_pos = tpl.find('{% if m_all_done and completion_summary %}')
+        phase_cards_pos = tpl.find('{# Phase cards #}')
+        assert streak_req_pos != -1
+        assert completion_pos != -1
+        assert phase_cards_pos != -1
+        assert streak_req_pos < completion_pos < phase_cards_pos
+
+
+class TestActivityCompact:
+    """19 Tasks plan — Task 10: Activity block compact.
+
+    File-level assertions on dashboard template + dashboard route to confirm
+    - yesterday_summary renders as a one-liner at top of the Activity section
+      (guarded by has_activity)
+    - heatmap is reduced to 30 days (heading + route widget args)
+    - streak stats collapse into a single line (not 3 stat cards)
+    """
+
+    def _read_template(self):
+        import os
+        tpl_path = os.path.join(
+            os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html'
+        )
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def _read_route(self):
+        import os
+        rt_path = os.path.join(
+            os.path.dirname(__file__), '..', 'app', 'words', 'routes.py'
+        )
+        with open(rt_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def test_yesterday_summary_one_liner_present(self):
+        """A `dash-yesterday-summary` one-liner sits above the heatmap."""
+        tpl = self._read_template()
+        assert 'class="dash-yesterday-summary"' in tpl
+        assert 'dash-yesterday-summary__label' in tpl
+        # has_activity guard present so empty yesterday hides the block
+        assert 'yesterday_summary and yesterday_summary.has_activity' in tpl
+        # One-liner references the fields from get_yesterday_summary
+        assert 'yesterday_summary.lessons_count' in tpl
+        assert 'yesterday_summary.words_reviewed' in tpl
+        assert 'yesterday_summary.grammar_correct' in tpl
+        assert 'yesterday_summary.grammar_exercises' in tpl
+
+    def test_yesterday_summary_above_heatmap(self):
+        """The yesterday-summary block appears before the dash-heatmap block."""
+        tpl = self._read_template()
+        activity_hdr = tpl.find('Активность</h2>')
+        yesterday_pos = tpl.find('class="dash-yesterday-summary"')
+        heatmap_pos = tpl.find('class="dash-heatmap"')
+        assert activity_hdr != -1
+        assert yesterday_pos != -1
+        assert heatmap_pos != -1
+        assert activity_hdr < yesterday_pos < heatmap_pos
+
+    def test_heatmap_heading_30_days(self):
+        """Heatmap heading reads '30 дней' (not 90)."""
+        tpl = self._read_template()
+        assert 'Активность за 30 дней' in tpl
+        assert 'Активность за 90 дней' not in tpl
+
+    def test_route_calls_heatmap_with_30_days(self):
+        """Dashboard route passes days=30 to both activity widgets."""
+        src = self._read_route()
+        assert "get_activity_heatmap, current_user.id, days=30" in src
+        assert "get_streak_calendar, current_user.id, days=30" in src
+        # No leftover days=90 calls for these widgets in this route
+        assert "get_activity_heatmap, current_user.id, days=90" not in src
+        assert "get_streak_calendar, current_user.id, days=90" not in src
+
+    def test_streak_stats_collapsed_to_one_line(self):
+        """Streak stats render via a single `dash-heatmap__stat-line`, not 3 cards."""
+        tpl = self._read_template()
+        assert 'class="dash-heatmap__stat-line"' in tpl
+        # The 3-card markup is gone
+        assert 'class="dash-heatmap__stat"' not in tpl
+        assert 'dash-heatmap__stat-value' not in tpl
+        assert 'dash-heatmap__stat-label' not in tpl
+
+    def test_streak_stats_one_line_has_all_three_values(self):
+        """The one-liner still surfaces all three streak numbers."""
+        tpl = self._read_template()
+        # Locate the stat-line opening tag and the `{% endif %}` that closes
+        # the streak_calendar guard wrapping the stats block.
+        line_start = tpl.find('class="dash-heatmap__stat-line"')
+        assert line_start != -1
+        endif_pos = tpl.find('{% endif %}', line_start)
+        block = tpl[line_start:endif_pos]
+        assert 'streak_calendar.current_streak' in block
+        assert 'streak_calendar.longest_streak' in block
+        assert 'streak_calendar.total_active_days' in block
+        # All three values live inside a single stat-line span
+        assert block.count('dash-heatmap__stat-line') == 1
+
+    def test_heatmap_stats_css_updated(self):
+        """CSS for `.dash-heatmap__stat-line` exists; old per-stat-value rule gone."""
+        tpl = self._read_template()
+        assert '.dash-heatmap__stat-line {' in tpl
+        # The old card-style per-stat rules removed
+        assert '.dash-heatmap__stat-value {' not in tpl
+        assert '.dash-heatmap__stat-label {' not in tpl
+
+    def test_yesterday_summary_css_present(self):
+        """CSS for `.dash-yesterday-summary` is defined in the inline style block."""
+        tpl = self._read_template()
+        assert '.dash-yesterday-summary {' in tpl
+        assert '.dash-yesterday-summary__label {' in tpl
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Task 18: Update dashboard render tests for the compact redesign
+#
+# Each class below covers one of the four new locations / states the redesign
+# introduces. Tests are file-level (read template / route source) so they run
+# without a database.
+# ════════════════════════════════════════════════════════════════════════════
+
+
+def _read_dashboard_template():
+    import os
+    tpl_path = os.path.join(
+        os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html'
+    )
+    with open(tpl_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+def _read_words_routes():
+    import os
+    rt_path = os.path.join(
+        os.path.dirname(__file__), '..', 'app', 'words', 'routes.py'
+    )
+    with open(rt_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+class TestMissionXPInsidePlanCard:
+    """Task 18 / Task 7: Mission XP widget renders inside the plan card,
+    not above the hero or as a standalone section."""
+
+    def test_mission_xp_block_lives_inside_plan_card(self):
+        tpl = _read_dashboard_template()
+        plan_open = tpl.find('<div id="dash-plan" class="dash-plan">')
+        plan_close = tpl.find('</div>\n    {% endif %}{# /is_zero_state #}', plan_open)
+        # Use a simpler heuristic: the mission XP block must appear after the
+        # plan opening tag and before the activity section.
+        assert plan_open != -1, 'dash-plan container missing'
+        mission_xp_pos = tpl.find('class="dash-mission__xp"', plan_open)
+        assert mission_xp_pos != -1, 'mission XP block not found inside template'
+        assert mission_xp_pos > plan_open, 'mission XP must follow plan opening tag'
+        # Ensure it sits before the activity section heading
+        activity_heading = tpl.find('Активность</h2>', plan_open)
+        assert activity_heading != -1
+        assert mission_xp_pos < activity_heading, \
+            'mission XP block must be inside plan card, before Activity section'
+
+    def test_mission_xp_block_has_data_hooks(self):
+        tpl = _read_dashboard_template()
+        # Confirm the JS data attributes used by xp_level_up still exist
+        assert 'data-xp-widget="true"' in tpl
+        assert 'data-xp-level="true"' in tpl
+        assert 'data-xp-progress="true"' in tpl
+        assert 'data-xp-multiplier="true"' in tpl
+
+    def test_mission_xp_not_above_hero(self):
+        """Old standalone `.dash-xp` block above the welcome card is removed."""
+        tpl = _read_dashboard_template()
+        # Find first occurrence of dash-xp markup; must be inside plan card,
+        # not inside or right after the hero block.
+        hero_close_marker = tpl.find('{# ── Task 26: Level-up')
+        assert hero_close_marker != -1
+        first_xp_pos = tpl.find('<div class="dash-xp"', 0, hero_close_marker)
+        assert first_xp_pos == -1, \
+            'dash-xp standalone block must not appear above the level-up overlay'
+
+    def test_levelup_overlay_centered_on_viewport_not_hero(self):
+        """Level-up overlay still renders top-level and is fixed-positioned."""
+        tpl = _read_dashboard_template()
+        assert 'class="dash-xp-levelup"' in tpl
+        # Find the CSS rule and confirm it positions the overlay on the
+        # viewport (fixed) rather than relative to the hero.
+        rule_start = tpl.find('.dash-xp-levelup {')
+        assert rule_start != -1
+        rule_end = tpl.find('}', rule_start)
+        rule = tpl[rule_start:rule_end]
+        assert 'position: fixed' in rule
+
+
+class TestRankInsideSocialRow:
+    """Task 18 / Task 13: Rank card lives inside `.dash-social-row`, not the hero."""
+
+    def test_rank_card_inside_social_row(self):
+        tpl = _read_dashboard_template()
+        social_open = tpl.find('<div class="dash-social-row">')
+        social_close = tpl.find('</div>\n\n    <div class="dash-social-row__more">', social_open)
+        assert social_open != -1, 'dash-social-row missing'
+        assert social_close != -1, 'failed to locate end of social row'
+        social_block = tpl[social_open:social_close]
+        assert 'class="dash-rank' in social_block, \
+            'rank card must render inside the social row'
+
+    def test_rank_card_not_inside_hero(self):
+        tpl = _read_dashboard_template()
+        hero_open = tpl.find('<div class="dash-hero">')
+        # Hero closes at '</div>\n    </div>' before the level-up overlay
+        levelup_marker = tpl.find('{# ── Task 26: Level-up')
+        assert hero_open != -1 and levelup_marker != -1
+        hero_block = tpl[hero_open:levelup_marker]
+        assert 'class="dash-rank' not in hero_block, \
+            'rank card must NOT appear inside the hero card after Task 13'
+
+    def test_social_row_has_three_columns_in_css(self):
+        tpl = _read_dashboard_template()
+        rule_start = tpl.find('.dash-social-row {')
+        assert rule_start != -1
+        rule_end = tpl.find('}', rule_start)
+        rule = tpl[rule_start:rule_end]
+        assert 'grid-template-columns: 1fr 1fr 1fr' in rule
+
+    def test_social_row_collapses_to_one_column_on_mobile(self):
+        tpl = _read_dashboard_template()
+        # Find the @media (max-width: 768px) rule that targets dash-social-row
+        anchor = tpl.find('@media (max-width: 768px)')
+        assert anchor != -1
+        # Search forward until we find the dash-social-row override
+        block = tpl[anchor:anchor + 4000]
+        assert 'dash-social-row' in block
+        assert 'grid-template-columns: 1fr' in block
+
+
+class TestCompactRaceStrip:
+    """Task 18 / Task 14: dashboard renders compact race strip linking to /race;
+    the previous large race board lives on the dedicated /race page."""
+
+    def test_race_strip_present_in_template(self):
+        tpl = _read_dashboard_template()
+        assert 'class="dash-race-strip' in tpl
+        assert 'data-race-strip="true"' in tpl
+        # Strip is wrapped in an <a> linking to the /race page
+        assert "url_for('race.today')" in tpl
+
+    def test_race_strip_emits_complete_and_in_progress_branches(self):
+        tpl = _read_dashboard_template()
+        assert '{% if daily_race.is_complete %}' in tpl
+        # Both branches must expose the rank, score and a CTA
+        assert 'dash-race-strip__place' in tpl  # complete branch
+        assert 'dash-race-strip__badge' in tpl  # in-progress branch
+        assert 'dash-race-strip__score' in tpl
+        assert 'dash-race-strip__cta' in tpl
+
+    def test_dashboard_does_not_render_full_race_board(self):
+        tpl = _read_dashboard_template()
+        # Only the strip + standalone /race page hold the full board now.
+        # The dashboard template must not include the .dash-race__board markup.
+        assert 'class="dash-race__board' not in tpl
+        # Nudge / 3-tasks block / CTA button — all moved to /race
+        assert 'dash-race__nudge' not in tpl
+        assert 'dash-race__final' not in tpl
+        assert 'class="dash-race__row' not in tpl
+
+
+class TestAlertsAccordion:
+    """Task 18 / Task 11: alerts wrap in a `<details>` accordion that defaults
+    to closed and shows a count summary."""
+
+    def test_alerts_wrapped_in_details_no_open_attribute(self):
+        tpl = _read_dashboard_template()
+        # The accordion is rendered as <details ...> without `open` attribute.
+        idx = tpl.find('<details class="dash-alerts__accordion">')
+        assert idx != -1, 'alerts accordion markup missing'
+        # No `open` attribute on the same opening tag
+        tag_end = tpl.find('>', idx)
+        opening = tpl[idx:tag_end + 1]
+        assert ' open' not in opening, 'alerts accordion must NOT default to open'
+
+    def test_alerts_summary_uses_count_pluralisation(self):
+        tpl = _read_dashboard_template()
+        # The summary surfaces both word-risk and grammar-weak counts using
+        # pluralised label fragments.
+        assert 'dash-alerts__summary' in tpl
+        assert 'words_risk_count' in tpl
+        assert 'grammar_weak_count' in tpl
+
+    def test_alerts_inner_lists_preserved(self):
+        tpl = _read_dashboard_template()
+        # Inner risk + weakness lists still live inside the accordion body.
+        assert 'class="dash-risk"' in tpl
+        assert 'class="dash-weakness"' in tpl
+
+
+class TestZeroStateTemplate:
+    """Task 18 / Task 4: zero-state hides the entire dashboard except the
+    fullscreen welcome card."""
+
+    def test_template_guards_full_layout_with_is_zero_state(self):
+        tpl = _read_dashboard_template()
+        # The is_zero_state guard wraps the welcome / hero / sections branches.
+        assert '{% if is_zero_state %}' in tpl
+        assert '{% endif %}{# /is_zero_state #}' in tpl
+
+    def test_fullscreen_welcome_marked_data_zero_state(self):
+        tpl = _read_dashboard_template()
+        assert 'class="dash-welcome dash-welcome--fullscreen"' in tpl
+        assert 'data-zero-state="true"' in tpl
+
+    def test_route_computes_is_zero_state_flag(self):
+        src = _read_words_routes()
+        # Route computes is_zero_state from the four count fields.
+        assert 'is_zero_state=' in src
+        assert '(words_total or 0) == 0' in src
+        assert '(grammar_studied or 0) == 0' in src
+        assert '(books_reading or 0) == 0' in src
+        assert '(courses_enrolled or 0) == 0' in src
+
+    def test_zero_state_is_above_hero_block(self):
+        tpl = _read_dashboard_template()
+        zs_pos = tpl.find('{% if is_zero_state %}')
+        hero_pos = tpl.find('<div class="dash-hero">')
+        assert zs_pos != -1 and hero_pos != -1
+        assert zs_pos < hero_pos, \
+            'is_zero_state guard must wrap the hero/sections block'
+
+    def test_welcome_fullscreen_style_present(self):
+        tpl = _read_dashboard_template()
+        assert '.dash-welcome--fullscreen {' in tpl
+        # Fullscreen card is centered + min-height pinned to viewport
+        rule_start = tpl.find('.dash-welcome--fullscreen {')
+        rule_end = tpl.find('}', rule_start)
+        rule = tpl[rule_start:rule_end]
+        assert 'min-height' in rule
+        assert 'margin: 0 auto' in rule
+
+
+class TestHeroCTAMatrix:
+    """Task 18 / Task 3: the hero CTA resolver covers six scenarios:
+    onboarding / fallback / start / continue / extra / done."""
+
+    def test_resolver_function_exists(self):
+        src = _read_words_routes()
+        assert 'def _resolve_hero_cta(' in src
+        # Wired into the dashboard render context
+        assert 'hero_cta=hero_cta' in src
+
+    def test_resolver_handles_onboarding_branch(self):
+        src = _read_words_routes()
+        anchor = src.find('def _resolve_hero_cta(')
+        body = src[anchor:anchor + 3000]
+        assert "'kind': 'onboarding'" in body
+        assert "url_for('onboarding.wizard')" in body
+
+    def test_resolver_handles_fallback_branch(self):
+        src = _read_words_routes()
+        anchor = src.find('def _resolve_hero_cta(')
+        body = src[anchor:anchor + 3000]
+        assert "'kind': 'fallback'" in body
+        assert "'#dash-plan'" in body
+
+    def test_resolver_handles_start_continue_branches(self):
+        src = _read_words_routes()
+        anchor = src.find('def _resolve_hero_cta(')
+        body = src[anchor:anchor + 3000]
+        assert "'kind': 'start'" in body
+        assert "'kind': 'continue'" in body
+        assert 'resolve_next_phase(mission_plan, plan_completion)' in body
+
+    def test_resolver_handles_extra_done_branches(self):
+        src = _read_words_routes()
+        anchor = src.find('def _resolve_hero_cta(')
+        body = src[anchor:anchor + 3000]
+        assert "'kind': 'extra'" in body
+        assert "'kind': 'done'" in body
+        # Extra branch links to /study/cards (honors default_study_deck_id); done branch has no URL
+        assert "url_for('study.cards_deck'" in body
+        assert "url_for('study.cards')" in body
+        assert "'?from=daily_plan'" in body
+        assert "'url': None" in body
+
+    def test_resolver_uses_review_budget_check(self):
+        """The 'extra' branch is gated by has_extra_review_capacity (review budget + due cards)."""
+        src = _read_words_routes()
+        anchor = src.find('def _resolve_hero_cta(')
+        body = src[anchor:anchor + 3000]
+        assert 'has_extra_review_capacity(user.id)' in body
+
+    def test_template_renders_cta_for_all_kinds(self):
+        tpl = _read_dashboard_template()
+        # Template branches on whether hero_cta has a URL (anchor) or not (span)
+        assert "<a class=\"dash-hero__cta dash-hero__cta--{{ hero_cta.kind }}\"" in tpl
+        assert "<span class=\"dash-hero__cta dash-hero__cta--{{ hero_cta.kind }}\"" in tpl
+        # data-hero-cta exposes the kind for analytics + CSS hooks
+        assert 'data-hero-cta="{{ hero_cta.kind }}"' in tpl
+
+    def test_template_skips_cta_when_resolver_returns_none(self):
+        tpl = _read_dashboard_template()
+        # `if hero_cta` guard wraps the CTA block.
+        cta_open = tpl.find('class="dash-hero__cta')
+        assert cta_open != -1
+        # Look back for the conditional that wraps it
+        preceding = tpl[:cta_open]
+        last_if = preceding.rfind('{% if hero_cta %}')
+        assert last_if != -1, 'hero CTA block must be wrapped by `{% if hero_cta %}` guard'
+
+    def test_cta_kinds_have_dedicated_css_modifiers(self):
+        tpl = _read_dashboard_template()
+        # done + extra kinds carry visual differentiation rules (per Task 3 spec)
+        assert '.dash-hero__cta--done' in tpl
+        assert '.dash-hero__cta--extra' in tpl
+
+    def test_zero_state_path_skips_cta_render(self):
+        """Zero-state branch shows only the welcome card — no hero, no CTA."""
+        tpl = _read_dashboard_template()
+        zs_open = tpl.find('{% if is_zero_state %}')
+        zs_else = tpl.find('{% else %}', zs_open)
+        zs_block = tpl[zs_open:zs_else]
+        assert 'dash-hero__cta' not in zs_block
+        assert 'data-hero-cta' not in zs_block
+        # Zero-state only renders the fullscreen welcome
+        assert 'dash-welcome--fullscreen' in zs_block
