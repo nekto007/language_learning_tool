@@ -987,6 +987,13 @@ def dashboard():
         daily_race['next_action_title'] = next_plan_title
         daily_race['next_action_url'] = next_plan_url
 
+    hero_cta = _safe_widget_call(
+        'hero_cta',
+        _resolve_hero_cta,
+        current_user, mission_plan, plan_completion, daily_plan,
+        default=None,
+    )
+
     # Phase 3: ghost rival strip context — adults only, not dismissed, day secured.
     rival_strip = None
     if mission_plan and daily_plan.get('day_secured'):
@@ -1105,6 +1112,8 @@ def dashboard():
         rival_strip=rival_strip,
         # Plan date for JS event attribution (prevents midnight boundary misattribution)
         plan_today=plan_today,
+        # Single hero CTA resolved from mission phases + review budget
+        hero_cta=hero_cta,
     )
 
 
@@ -1443,6 +1452,75 @@ def _next_step_from_mission(plan: dict, daily_summary: dict) -> tuple:
         'steps_done': phases_done,
         'steps_total': phases_total,
     }), 200
+
+
+def _resolve_hero_cta(user, mission_plan: dict | None, plan_completion: dict, daily_plan: dict) -> dict | None:
+    """Resolve the single hero CTA for the dashboard.
+
+    Returns a dict ``{kind, title, url}`` where ``kind`` is one of
+    ``start|continue|extra|done|fallback|onboarding``. Returns ``None`` when no
+    user is available (caller should skip rendering).
+    """
+    if user is None:
+        return None
+
+    if not getattr(user, 'onboarding_completed', True):
+        return {
+            'kind': 'onboarding',
+            'title': 'Пройти онбординг \u2192',
+            'url': url_for('onboarding.wizard'),
+        }
+
+    if not mission_plan:
+        return {
+            'kind': 'fallback',
+            'title': 'Открыть план \u2192',
+            'url': '#dash-plan',
+        }
+
+    from app.daily_plan.service import has_extra_review_capacity, resolve_next_phase
+
+    phases = mission_plan.get('phases') or []
+    required = [p for p in phases if p.get('required', True)]
+    any_done = any(plan_completion.get(p.get('id', ''), False) for p in required)
+    all_done = bool(required) and all(
+        plan_completion.get(p.get('id', ''), False) for p in required
+    )
+
+    if all_done:
+        if has_extra_review_capacity(user.id):
+            return {
+                'kind': 'extra',
+                'title': 'Ещё тренировка: Карточки \u2192',
+                'url': url_for('study.cards') + '?from=daily_plan',
+            }
+        return {
+            'kind': 'done',
+            'title': '\U0001F3C1 План готов \u2014 до завтра!',
+            'url': None,
+        }
+
+    next_phase = resolve_next_phase(mission_plan, plan_completion)
+    if next_phase is None:
+        return {
+            'kind': 'done',
+            'title': '\U0001F3C1 План готов \u2014 до завтра!',
+            'url': None,
+        }
+
+    phase_title = next_phase.get('title') or 'Следующий этап'
+    url = _phase_url(next_phase, daily_plan)
+    if any_done:
+        return {
+            'kind': 'continue',
+            'title': f'Продолжить: {phase_title}',
+            'url': url,
+        }
+    return {
+        'kind': 'start',
+        'title': f'Начать: {phase_title}',
+        'url': url,
+    }
 
 
 def _phase_url(phase: dict, plan: dict) -> str:

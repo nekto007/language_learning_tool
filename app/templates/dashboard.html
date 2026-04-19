@@ -96,6 +96,16 @@
                 <p class="dash-hero__subtitle">Сегодня начни заново — первая серия уже в пути</p>
                 {% endif %}
             </div>
+            {% if hero_cta %}
+            {% if hero_cta.url %}
+            <a class="dash-hero__cta dash-hero__cta--{{ hero_cta.kind }}"
+               href="{{ hero_cta.url }}"
+               data-hero-cta="{{ hero_cta.kind }}">{{ hero_cta.title }}</a>
+            {% else %}
+            <span class="dash-hero__cta dash-hero__cta--{{ hero_cta.kind }}"
+                  data-hero-cta="{{ hero_cta.kind }}">{{ hero_cta.title }}</span>
+            {% endif %}
+            {% endif %}
         </div>
     </div>
 
@@ -1887,6 +1897,49 @@
 }
 
 .dash-streak__fire { font-size: 1.125rem; }
+
+/* ============================================
+   Hero CTA (Task 3: single-line next-action hint)
+   ============================================ */
+.dash-hero__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.875rem;
+    padding: 0.5rem 1rem;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: background 0.15s ease, transform 0.15s ease;
+    backdrop-filter: blur(4px);
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+a.dash-hero__cta:hover,
+a.dash-hero__cta:focus {
+    background: rgba(255, 255, 255, 0.32);
+    color: #fff;
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.dash-hero__cta--done {
+    background: rgba(255, 255, 255, 0.12);
+    border-style: dashed;
+    font-weight: 500;
+}
+
+.dash-hero__cta--extra {
+    background: rgba(255, 255, 255, 0.3);
+}
 
 /* ============================================
    Rank / Title badge (Task 14)
