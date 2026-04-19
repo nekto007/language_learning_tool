@@ -1348,57 +1348,72 @@
     </div>
     {% endif %}
 
+    {% if words_at_risk or grammar_weaknesses %}
+    {% set words_risk_count = words_at_risk|length %}
+    {% set grammar_weak_count = grammar_weaknesses|length %}
     <!-- Section 4: Alerts row - Words at Risk + Grammar Weaknesses -->
     <div class="dash-section">
         <div class="dash-section__divider"></div>
         <h2 class="dash-section__heading">Внимание</h2>
     </div>
-    {% if words_at_risk or grammar_weaknesses %}
-    <div class="dash-alerts-row">
-        {% if words_at_risk %}
-        <div class="dash-risk">
-            <h3 class="dash-risk__heading">&#9888;&#65039; &#1057;&#1083;&#1086;&#1074;&#1072; &#1087;&#1086;&#1076; &#1091;&#1075;&#1088;&#1086;&#1079;&#1086;&#1081;</h3>
-            <div class="dash-risk__list">
-                {% for w in words_at_risk %}
-                <div class="dash-risk__item">
-                    <div class="dash-risk__word">
-                        <span class="dash-risk__term">{{ w.word }}</span>
-                        <span class="dash-risk__translation">{{ w.translation }}</span>
+    <details class="dash-alerts__accordion">
+        <summary class="dash-alerts__summary">
+            <span class="dash-alerts__summary-text">
+                &#9888;&#65039;
+                {% if words_risk_count %}
+                    {{ words_risk_count }}
+                    {% if words_risk_count == 1 %}&#1089;&#1083;&#1086;&#1074;&#1086;{% elif words_risk_count < 5 %}&#1089;&#1083;&#1086;&#1074;&#1072;{% else %}&#1089;&#1083;&#1086;&#1074;{% endif %}
+                    &#1087;&#1086;&#1076; &#1091;&#1075;&#1088;&#1086;&#1079;&#1086;&#1081;
+                {% endif %}
+                {% if words_risk_count and grammar_weak_count %} &middot; {% endif %}
+                {% if grammar_weak_count %}
+                    {{ grammar_weak_count }}
+                    {% if grammar_weak_count == 1 %}&#1089;&#1083;&#1072;&#1073;&#1072;&#1103; &#1090;&#1077;&#1084;&#1072;{% elif grammar_weak_count < 5 %}&#1089;&#1083;&#1072;&#1073;&#1099;&#1077; &#1090;&#1077;&#1084;&#1099;{% else %}&#1089;&#1083;&#1072;&#1073;&#1099;&#1093; &#1090;&#1077;&#1084;{% endif %}
+                {% endif %}
+            </span>
+            <span class="dash-alerts__summary-chevron" aria-hidden="true">&#9662;</span>
+        </summary>
+        <div class="dash-alerts-row">
+            {% if words_at_risk %}
+            <div class="dash-risk">
+                <h3 class="dash-risk__heading">&#9888;&#65039; &#1057;&#1083;&#1086;&#1074;&#1072; &#1087;&#1086;&#1076; &#1091;&#1075;&#1088;&#1086;&#1079;&#1086;&#1081;</h3>
+                <div class="dash-risk__list">
+                    {% for w in words_at_risk %}
+                    <div class="dash-risk__item">
+                        <div class="dash-risk__word">
+                            <span class="dash-risk__term">{{ w.word }}</span>
+                            <span class="dash-risk__translation">{{ w.translation }}</span>
+                        </div>
+                        <span class="dash-risk__badge">{{ w.days_overdue }} &#1076;.</span>
                     </div>
-                    <span class="dash-risk__badge">{{ w.days_overdue }} &#1076;.</span>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+                <a href="{{ cards_url }}" class="dash-risk__action">&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;&#1080;&#1090;&#1100; &rarr;</a>
             </div>
-            <a href="{{ cards_url }}" class="dash-risk__action">&#1055;&#1086;&#1074;&#1090;&#1086;&#1088;&#1080;&#1090;&#1100; &rarr;</a>
-        </div>
-        {% endif %}
+            {% endif %}
 
-        {% if grammar_weaknesses %}
-        <div class="dash-weakness">
-            <h3 class="dash-weakness__heading">&#128200; &#1057;&#1083;&#1072;&#1073;&#1099;&#1077; &#1090;&#1077;&#1084;&#1099; &#1075;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1080;</h3>
-            <div class="dash-weakness__list">
-                {% for g in grammar_weaknesses %}
-                <div class="dash-weakness__item">
-                    <div class="dash-weakness__info">
-                        <span class="dash-weakness__title">{{ g.title }}</span>
-                        <span class="dash-weakness__attempts">{{ g.attempts }} &#1087;&#1086;&#1087;&#1099;&#1090;&#1086;&#1082;</span>
+            {% if grammar_weaknesses %}
+            <div class="dash-weakness">
+                <h3 class="dash-weakness__heading">&#128200; &#1057;&#1083;&#1072;&#1073;&#1099;&#1077; &#1090;&#1077;&#1084;&#1099; &#1075;&#1088;&#1072;&#1084;&#1084;&#1072;&#1090;&#1080;&#1082;&#1080;</h3>
+                <div class="dash-weakness__list">
+                    {% for g in grammar_weaknesses %}
+                    <div class="dash-weakness__item">
+                        <div class="dash-weakness__info">
+                            <span class="dash-weakness__title">{{ g.title }}</span>
+                            <span class="dash-weakness__attempts">{{ g.attempts }} &#1087;&#1086;&#1087;&#1099;&#1090;&#1086;&#1082;</span>
+                        </div>
+                        <div class="dash-weakness__bar-wrap">
+                            <div class="dash-weakness__bar" style="width: {{ g.accuracy }}%"></div>
+                        </div>
+                        <span class="dash-weakness__pct">{{ g.accuracy }}%</span>
                     </div>
-                    <div class="dash-weakness__bar-wrap">
-                        <div class="dash-weakness__bar" style="width: {{ g.accuracy }}%"></div>
-                    </div>
-                    <span class="dash-weakness__pct">{{ g.accuracy }}%</span>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+                <a href="{{ url_for('grammar_lab.index') }}" class="dash-weakness__action">&#1055;&#1088;&#1072;&#1082;&#1090;&#1080;&#1082;&#1072; &rarr;</a>
             </div>
-            <a href="{{ url_for('grammar_lab.index') }}" class="dash-weakness__action">&#1055;&#1088;&#1072;&#1082;&#1090;&#1080;&#1082;&#1072; &rarr;</a>
+            {% endif %}
         </div>
-        {% endif %}
-    </div>
-    {% else %}
-    <div class="dash-empty">
-        <span class="dash-empty__icon">&#9989;</span>
-        <span class="dash-empty__text">Нет слов под угрозой и слабых тем — отличная работа!</span>
-    </div>
+    </details>
     {% endif %}
 
     <!-- Section 5: Stats row - Best Study Time + This Week's Stats -->
@@ -2565,6 +2580,48 @@ a.dash-hero__cta:focus {
 /* ============================================
    Words at Risk + Grammar Weaknesses
    ============================================ */
+
+.dash-alerts__accordion {
+    margin-bottom: 1.5rem;
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    box-shadow: var(--dash-shadow);
+    overflow: hidden;
+}
+
+.dash-alerts__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.875rem 1.25rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--dash-text);
+}
+
+.dash-alerts__summary::-webkit-details-marker {
+    display: none;
+}
+
+.dash-alerts__summary-chevron {
+    font-size: 0.8rem;
+    color: var(--dash-text-muted, var(--dash-text));
+    transition: transform 0.2s ease;
+}
+
+.dash-alerts__accordion[open] .dash-alerts__summary-chevron {
+    transform: rotate(180deg);
+}
+
+.dash-alerts__accordion[open] .dash-alerts-row {
+    padding: 0 1.25rem 1.25rem;
+    margin-bottom: 0;
+}
 
 .dash-alerts-row {
     display: grid;

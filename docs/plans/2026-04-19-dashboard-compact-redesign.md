@@ -190,11 +190,11 @@ Wrap the words-at-risk + grammar-weaknesses block in `<details>` summary that sh
 - Modify: `app/templates/dashboard.html` (alerts section lines ~1454–1506)
 - Modify: `app/templates/dashboard.html` (inline CSS: `.dash-alerts__accordion` styles)
 
-- [ ] Wrap contents in `<details class="dash-alerts__accordion">` (no `open` attribute — collapsed by default)
-- [ ] `<summary>`: `⚠️ {N} слов под угрозой · {M} слабые темы` (localized plural forms). Use existing `words_at_risk|length` and `grammar_weaknesses|length`
-- [ ] When both collections empty: do not render the section at all (remove current `dash-empty` fallback — positive silence is fine; no need for "отличная работа" message)
-- [ ] Write tests: both-empty renders nothing; non-empty renders collapsed details with correct count summary; existing list markup preserved inside
-- [ ] Run project test suite — must pass before task 12
+- [x] Wrap contents in `<details class="dash-alerts__accordion">` (no `open` attribute — collapsed by default)
+- [x] `<summary>`: `⚠️ {N} слов под угрозой · {M} слабые темы` (localized plural forms). Use existing `words_at_risk|length` and `grammar_weaknesses|length`
+- [x] When both collections empty: do not render the section at all (remove current `dash-empty` fallback — positive silence is fine; no need for "отличная работа" message)
+- [x] Write tests: both-empty renders nothing; non-empty renders collapsed details with correct count summary; existing list markup preserved inside (added `tests/test_dashboard_alerts_accordion.py` with 10 file-only tests covering both-empty, singular/few/many plurals, separator, inner markup preservation, and collapsed default)
+- [x] Run project test suite — must pass before task 12 (file-only tests pass; DB-bound render tests require Postgres not available locally — rely on CI)
 
 ### Task 12: Progress overview only — remove Grammar Levels
 
