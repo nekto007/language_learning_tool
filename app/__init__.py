@@ -108,6 +108,8 @@ def create_app(config_class=Config):
     from app.achievements import daily_race as achievements_daily_race  # noqa: F401
     from app.notifications import models as notifications_models  # noqa: F401
     from app.admin import audit as admin_audit  # noqa: F401
+    from app.daily_plan import models as daily_plan_models  # noqa: F401
+    from app.daily_plan.linear import models as daily_plan_linear_models  # noqa: F401
 
     # In production, schema is managed by Alembic (`flask db upgrade head`).
     # In testing, create tables directly so tests don't need migrations.
