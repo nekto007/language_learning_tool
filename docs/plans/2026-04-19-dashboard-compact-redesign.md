@@ -99,12 +99,12 @@ Remove 3 of the 4 redundant progress indicators on the mission plan. The visual 
 - Modify: `app/templates/dashboard.html` (mission plan progress bar lines ~362–381; roadmap finish-marker label lines ~622–628; route-board lines ~716–765)
 - Modify: `app/templates/dashboard.html` (inline CSS: cleanup `.dash-roadmap__marker-distance` if unused)
 
-- [ ] Remove the linear `0/3` progress-bar block rendered above phase cards
-- [ ] Remove the `.dash-roadmap__marker-distance` span showing "{N} шагов до финиша" on the finish marker (keep the marker icon itself)
-- [ ] Remove the Route board checkpoint bar + "day secured" marker + "checkpoint reached" label on dashboard (will live in `/study/stats` per Task 16)
-- [ ] Keep: roadmap track (nodes + connectors + start/finish markers), route-tokens (rivals positions), swipe-hint
-- [ ] Write tests: assert only one progress indicator container in rendered dashboard (no `dash-plan__progress-bar`, no `dash-roadmap__marker-distance`, no `dash-route-board`)
-- [ ] Run project test suite — must pass before task 6
+- [x] Remove the linear `0/3` progress-bar block rendered above phase cards
+- [x] Remove the `.dash-roadmap__marker-distance` span showing "{N} шагов до финиша" on the finish marker (keep the marker icon itself)
+- [x] Remove the Route board checkpoint bar + "day secured" marker + "checkpoint reached" label on dashboard (will live in `/study/stats` per Task 16)
+- [x] Keep: roadmap track (nodes + connectors + start/finish markers), route-tokens (rivals positions), swipe-hint
+- [x] Write tests: assert only one progress indicator container in rendered dashboard (no `dash-plan__progress-bar`, no `dash-roadmap__marker-distance`, no `dash-route-board`)
+- [x] Run project test suite — must pass before task 6 (file-only tests pass; DB-bound render tests require Postgres not available locally — rely on CI)
 
 ### Task 6: Mission header simplification
 

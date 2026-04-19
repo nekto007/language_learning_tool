@@ -353,15 +353,8 @@
             </div>
         </div>
 
-        {# Progress bar #}
-        {% if m_total > 0 %}
-        {% set m_pct = (m_done / m_total * 100) | int %}
-        <div class="dash-progress" data-plan-progress="true" data-progress-pct="{{ m_pct }}">
-            <div class="dash-progress__bar">
-                <div class="dash-progress__fill {% if m_all_done %}dash-progress__fill--done{% endif %}" style="width: {{ m_pct }}%" data-progress-fill="true"></div>
-            </div>
-            <span class="dash-progress__count">{{ m_done }}/{{ m_total }}</span>
-        </div>
+        {# Task 5 (compact redesign): linear progress bar removed — the roadmap is the single
+           source of progress truth. Streak-save requirement keeps its own text-only hint. #}
         {% if required_steps is defined and not m_all_done %}
         <div class="dash-streak-req {% if plan_steps_done >= required_steps %}dash-streak-req--done{% endif %}">
             {% if plan_steps_done >= required_steps %}
@@ -371,7 +364,6 @@
             {% if required_steps == 1 %}задание{% elif required_steps < 5 %}задания{% else %}заданий{% endif %}
             {% endif %}
         </div>
-        {% endif %}
         {% endif %}
 
         {# Completion summary (task 29) #}
@@ -613,13 +605,6 @@
                         </span>
                         {% endif %}
                     </span>
-                    {% if not m_all_done and m_steps_remaining > 0 %}
-                    <span class="dash-roadmap__marker-distance" data-marker-distance="true">
-                        {% if m_steps_remaining % 10 == 1 and m_steps_remaining % 100 != 11 %}{{ m_steps_remaining }} шаг до финиша
-                        {% elif m_steps_remaining % 10 in [2, 3, 4] and m_steps_remaining % 100 not in [12, 13, 14] %}{{ m_steps_remaining }} шага до финиша
-                        {% else %}{{ m_steps_remaining }} шагов до финиша{% endif %}
-                    </span>
-                    {% endif %}
                 </div>
             </div>
             <div class="dash-roadmap__swipe-hint" data-roadmap-swipe-hint="true" aria-hidden="true">Листайте, чтобы увидеть все шаги</div>
@@ -707,56 +692,8 @@
         </div><!-- /dash-route -->
         {% endif %}
 
-        {# Task 14: Route board — shows long-term route progress (UserRouteProgress).
-           Visible regardless of day_secured state so users see their running checkpoint. #}
-        {% if route_progress_state %}
-        {% set rp = route_progress_state %}
-        <div class="dash-route-board" data-route-board="true"
-             data-checkpoint-number="{{ rp.checkpoint_number }}"
-             data-steps-today="{{ rp.steps_today }}"
-             data-percent-to-checkpoint="{{ rp.percent_to_checkpoint }}">
-            <div class="dash-route-board__header">
-                <span class="dash-route-board__label">Маршрут</span>
-                <span class="dash-route-board__position" data-route-position="true">
-                    {% if rp.checkpoint_number > 0 %}
-                    Контрольная точка {{ rp.checkpoint_number }}
-                    {% else %}
-                    До первой точки
-                    {% endif %}
-                </span>
-            </div>
-            {# Progress bar within current checkpoint stretch #}
-            <div class="dash-route-board__bar-wrap" role="progressbar"
-                 aria-valuenow="{{ rp.percent_to_checkpoint }}"
-                 aria-valuemin="0" aria-valuemax="100"
-                 aria-label="Прогресс до следующей контрольной точки: {{ rp.percent_to_checkpoint }}%">
-                <div class="dash-route-board__bar-fill" data-route-bar-fill="true"
-                     style="width: {{ rp.percent_to_checkpoint }}%"></div>
-                {# Day secured marker: position on the bar where minimum was reached. #}
-                {% if m_day_secured and rp.steps_today > 0 %}
-                <div class="dash-route-board__secured-marker" data-secured-marker="true"
-                     style="left: {{ [rp.percent_to_checkpoint, 100] | min }}%"
-                     title="День закрыт здесь" aria-label="Серия закреплена"></div>
-                {% endif %}
-            </div>
-            <div class="dash-route-board__meta">
-                <span class="dash-route-board__steps-today" data-steps-today-label="true">
-                    Сегодня: {{ rp.steps_today }}
-                    {% if rp.steps_today % 10 == 1 and rp.steps_today % 100 != 11 %}шаг{% elif rp.steps_today % 10 in [2, 3, 4] and rp.steps_today % 100 not in [12, 13, 14] %}шага{% else %}шагов{% endif %}
-                </span>
-                <span class="dash-route-board__steps-to-cp" data-steps-to-checkpoint="true">
-                    До точки: {{ rp.steps_to_next_checkpoint }}
-                    {% if rp.steps_to_next_checkpoint % 10 == 1 and rp.steps_to_next_checkpoint % 100 != 11 %}шаг{% elif rp.steps_to_next_checkpoint % 10 in [2, 3, 4] and rp.steps_to_next_checkpoint % 100 not in [12, 13, 14] %}шага{% else %}шагов{% endif %}
-                </span>
-            </div>
-            {# Checkpoint reached label — shown if user is at an exact checkpoint boundary. #}
-            {% if rp.percent_to_checkpoint == 0 and rp.checkpoint_number > 0 %}
-            <div class="dash-route-board__checkpoint-reached" data-checkpoint-reached="true">
-                &#127381; Контрольная точка {{ rp.checkpoint_number }} достигнута!
-            </div>
-            {% endif %}
-        </div>
-        {% endif %}
+        {# Task 5 (compact redesign): Route board removed from dashboard. Long-term checkpoint
+           progress will surface on /study/stats instead (Task 16). #}
 
         {# Task 9: Day secured banner + 3-step continuation queue (Task 14).
            Shown when required phases are complete but the full mission is not yet done. #}
@@ -3766,18 +3703,6 @@ a.dash-hero__cta:focus {
    Task 7: Phase transition animations
    ============================================ */
 
-/* Smooth progress-fill transition on the stepper (complements width: inline-style) */
-@keyframes dashPhaseProgressFill {
-    from { width: var(--dash-progress-from, 0%); }
-    to { width: var(--dash-progress-to, 100%); }
-}
-.dash-progress__fill[data-progress-fill="true"] {
-    transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.dash-progress[data-plan-progress="true"].dash-progress--animate .dash-progress__fill {
-    animation: dashPhaseProgressFill 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
 /* Completed-phase checkmark pop-in animation */
 @keyframes dashPhaseComplete {
     0%   { transform: scale(0.2); opacity: 0; }
@@ -3812,7 +3737,6 @@ a.dash-hero__cta:focus {
 
 /* Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
-    .dash-progress__fill[data-progress-fill="true"],
     .dash-step--phase.dash-step--just-completed .dash-step__check,
     .dash-step--phase.dash-step--just-completed .dash-step__body,
     .dash-step--phase.dash-step--current.dash-step--newly-active .dash-step__body {
@@ -4107,22 +4031,6 @@ a.dash-hero__cta:focus {
     color: #ffffff;
     filter: drop-shadow(0 1px 1px rgba(120, 53, 15, 0.35));
     animation: roadmap-finish-icon 0.9s cubic-bezier(.22,1,.36,1) both;
-}
-
-.dash-roadmap__marker-distance {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    color: var(--dash-text-muted);
-    background: var(--dash-surface);
-    border: 1px solid var(--dash-border);
-    border-radius: 999px;
-    padding: 2px 8px;
-    line-height: 1.2;
 }
 
 /* Confetti-style burst for the completed finish marker */
@@ -5287,70 +5195,6 @@ a.dash-hero__cta:focus {
 }
 
 /* Task 9: Day secured banner + next-step continuation card */
-.dash-route-board {
-    margin-top: 12px;
-    border-radius: 12px;
-    border: 1.5px solid var(--dash-border, #e5e7eb);
-    background: var(--dash-card-bg, #fff);
-    padding: 12px 16px;
-}
-.dash-route-board__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-.dash-route-board__label {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--dash-text-muted, #6b7280);
-}
-.dash-route-board__position {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: #4f46e5;
-}
-.dash-route-board__bar-wrap {
-    position: relative;
-    height: 8px;
-    border-radius: 4px;
-    background: var(--dash-border, #e5e7eb);
-    overflow: visible;
-    margin-bottom: 6px;
-}
-.dash-route-board__bar-fill {
-    height: 100%;
-    border-radius: 4px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
-    transition: width 0.4s ease;
-    min-width: 0;
-}
-.dash-route-board__secured-marker {
-    position: absolute;
-    top: -4px;
-    width: 4px;
-    height: 16px;
-    border-radius: 2px;
-    background: #10b981;
-    transform: translateX(-50%);
-    box-shadow: 0 0 0 2px #fff, 0 0 0 3px #10b981;
-}
-.dash-route-board__meta {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.78rem;
-    color: var(--dash-text-muted, #6b7280);
-}
-.dash-route-board__checkpoint-reached {
-    margin-top: 8px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #059669;
-    text-align: center;
-    padding: 6px 0 2px;
-}
 .dash-day-secured {
     margin-top: 16px;
     border-radius: 12px;
@@ -5706,16 +5550,6 @@ async function repairStreak() {
                     step.classList.add('dash-step--newly-active');
                 }
             });
-            var progress = document.querySelector('[data-plan-progress="true"]');
-            if (progress) {
-                progress.classList.add('dash-progress--animate');
-                var fill = progress.querySelector('[data-progress-fill="true"]');
-                if (fill) {
-                    var pct = progress.getAttribute('data-progress-pct') || '0';
-                    fill.style.setProperty('--dash-progress-to', pct + '%');
-                    fill.style.setProperty('--dash-progress-from', '0%');
-                }
-            }
         }
     }
 
