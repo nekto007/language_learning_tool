@@ -1536,3 +1536,240 @@ class TestHeroCompactLayout:
         assert 'dash-shape--1' not in tpl
         assert 'dash-shape--2' not in tpl
         assert 'dash-hero__bg-shapes' not in tpl
+
+
+class TestHeroStreakStates:
+    """19 Tasks plan — Task 2: hero streak = 3 states + flash overlay."""
+
+    def _read_template(self):
+        import os
+        tpl_path = os.path.join(
+            os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html'
+        )
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def _extract_greeting_block(self, tpl):
+        """Return the inline-if chain inside the hero greeting block."""
+        start = tpl.find('<div class="dash-hero__greeting">')
+        assert start != -1, 'hero greeting block missing'
+        end = tpl.find('</div>\n        </div>\n    </div>', start)
+        assert end != -1, 'could not find end of hero greeting block'
+        return tpl[start:end]
+
+    def test_streak_repaired_not_rendered_inside_hero_greeting(self):
+        """streak_repaired branch lives at top-level overlay, not nested in hero greeting."""
+        tpl = self._read_template()
+        greeting = self._extract_greeting_block(tpl)
+        assert 'streak_repaired' not in greeting
+        assert 'dash-streak--restored' not in greeting
+        assert 'dash-streak__restored' not in greeting
+
+    def test_streak_flash_overlay_present_top_level(self):
+        """dash-streak-flash overlay is rendered at top level, outside the hero card."""
+        tpl = self._read_template()
+        # Markup block is present
+        assert 'dash-streak-flash' in tpl
+        assert 'data-streak-flash="true"' in tpl
+        assert 'Серия восстановлена!' in tpl
+        # Overlay is not nested inside the hero card
+        hero_start = tpl.find('<div class="dash-hero">')
+        hero_end_marker = tpl.find('</div>\n        </div>\n    </div>', hero_start)
+        assert hero_end_marker != -1
+        flash_pos = tpl.find('dash-streak-flash')
+        assert flash_pos > hero_end_marker, 'streak-flash overlay must be outside the hero card'
+
+    def test_streak_flash_autodismiss_script_present(self):
+        """Auto-dismiss script for flash overlay fires after 2500 ms."""
+        tpl = self._read_template()
+        assert 'data-streak-flash="true"' in tpl
+        # Autodismiss at 2500 ms
+        assert '2500' in tpl
+        # Script removes the flash element
+        # (a simple heuristic: querying the selector in the same template)
+        assert "querySelector('[data-streak-flash=\"true\"]')" in tpl
+
+    def test_streak_flash_css_rule_present(self):
+        """dash-streak-flash has fixed-position CSS + reuses xpLevelUpFlash animation."""
+        tpl = self._read_template()
+        rule_start = tpl.find('.dash-streak-flash {')
+        assert rule_start != -1, 'missing .dash-streak-flash CSS rule'
+        rule_end = tpl.find('}', rule_start)
+        rule = tpl[rule_start:rule_end]
+        assert 'position: fixed' in rule
+        assert 'animation: xpLevelUpFlash' in rule
+
+    def test_streak_has_three_branches_only(self):
+        """Hero greeting has exactly 3 branches: streak>0 / can_repair / else."""
+        tpl = self._read_template()
+        greeting = self._extract_greeting_block(tpl)
+        # Three expected branch conditions
+        assert '{% if streak > 0 %}' in greeting
+        assert '{% elif streak_status and streak_status.can_repair %}' in greeting
+        assert '{% else %}' in greeting
+        # Contradictory branch removed
+        assert 'can_repair and streak > 0' not in greeting
+        assert 'can_repair and streak>0' not in greeting
+
+    def test_streak_zero_subtitle_copy(self):
+        """Zero-streak branch shows the 'start again' subtitle."""
+        tpl = self._read_template()
+        greeting = self._extract_greeting_block(tpl)
+        assert 'Сегодня начни заново' in greeting
+
+    def test_streak_share_button_guarded_by_seven_days(self):
+        """Share button condition uses streak >= 7, not 'streak in milestones'."""
+        tpl = self._read_template()
+        greeting = self._extract_greeting_block(tpl)
+        # New share-button condition
+        assert 'streak >= 7 and current_user.referral_code' in greeting
+        # Milestone-gated share button is gone
+        share_block_pos = greeting.find('dash-streak__share-btn')
+        assert share_block_pos != -1
+        # The preceding condition that wraps the share button must be the
+        # streak>=7 check, not the milestone check.
+        preceding = greeting[:share_block_pos]
+        last_if = preceding.rfind('{% if ')
+        assert last_if != -1
+        last_if_block = preceding[last_if:]
+        assert 'streak >= 7' in last_if_block
+
+
+class TestHeroStreakRendering:
+    """Runtime assertions — render dashboard with different streak states."""
+
+    def _get_dashboard_with_streak(
+        self, client, test_user, mission_plan, *,
+        streak=0, can_repair=False, streak_repaired=False, coins=0, referral_code=None,
+    ):
+        if referral_code is not None:
+            from app.auth.models import User
+            from app.utils.db import db
+            user = User.query.get(test_user.id)
+            user.referral_code = referral_code
+            db.session.add(user)
+            db.session.commit()
+
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+
+        streak_status = {
+            'streak': streak,
+            'can_repair': can_repair,
+            'coins_balance': coins,
+            'repair_cost': 10,
+            'required_steps': 1,
+        }
+        streak_result = {
+            'streak_status': streak_status,
+            'required_steps': 1,
+            'streak_repaired': streak_repaired,
+            'steps_done': 0,
+            'steps_total': 3,
+            'milestone_reward': None,
+            'rank_up': None,
+        }
+
+        with patch('app.daily_plan.service.get_daily_plan_unified') as mock_plan, \
+             patch('app.achievements.streak_service.process_streak_on_activity') as mock_streak:
+            mock_plan.return_value = mission_plan
+            mock_streak.return_value = streak_result
+            response = client.get('/dashboard')
+        return response
+
+    def test_streak_active_renders_streak_badge(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard_with_streak(
+            client, test_user, plan, streak=5, coins=3,
+        )
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'class="dash-streak"' in html
+        assert '5' in html
+        assert 'dash-streak-recovery' not in html
+        assert 'Сегодня начни заново' not in html
+
+    def test_streak_zero_renders_start_subtitle(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard_with_streak(
+            client, test_user, plan, streak=0, can_repair=False,
+        )
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'Сегодня начни заново' in html
+        assert 'dash-streak-recovery' not in html
+        # No streak badge rendered
+        assert 'class="dash-streak"' not in html
+
+    def test_streak_recovery_renders_when_zero_and_can_repair(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard_with_streak(
+            client, test_user, plan, streak=0, can_repair=True, coins=10,
+        )
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'dash-streak-recovery' in html
+        assert 'Серия прервалась' in html
+        assert 'Сегодня начни заново' not in html
+
+    def test_streak_repaired_renders_flash_overlay_outside_hero(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard_with_streak(
+            client, test_user, plan, streak=3, streak_repaired=True, coins=1,
+        )
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        # Flash overlay rendered
+        assert 'dash-streak-flash' in html
+        assert 'Серия восстановлена!' in html
+        assert 'data-streak-flash="true"' in html
+        # Old inline "restored" marker must not appear
+        assert 'dash-streak--restored' not in html
+        assert 'dash-streak__restored' not in html
+
+    def test_streak_milestone_badge_only_on_milestone(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        # Milestone: 7 → badge visible
+        r1 = self._get_dashboard_with_streak(client, test_user, plan, streak=7)
+        html1 = r1.data.decode('utf-8')
+        assert 'dash-streak__milestone' in html1
+        assert 'Неделя' in html1
+
+        # Non-milestone: 8 → no badge
+        r2 = self._get_dashboard_with_streak(client, test_user, plan, streak=8)
+        html2 = r2.data.decode('utf-8')
+        assert 'dash-streak__milestone' not in html2
+
+    def test_share_button_visible_when_streak_at_least_seven(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        # Non-milestone streak ≥ 7 still shows the share button
+        response = self._get_dashboard_with_streak(
+            client, test_user, plan, streak=8, referral_code='TESTCODE',
+        )
+        html = response.data.decode('utf-8')
+        assert 'dash-streak__share-btn' in html
+        # No milestone badge at streak=8 since 8 is not a milestone
+        assert 'dash-streak__milestone' not in html
+
+    def test_share_button_absent_when_streak_below_seven(
+        self, client, app, db_session, test_user, words_module_access,
+    ):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard_with_streak(
+            client, test_user, plan, streak=6, referral_code='TESTCODE',
+        )
+        html = response.data.decode('utf-8')
+        assert 'dash-streak__share-btn' not in html
