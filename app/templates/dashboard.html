@@ -1164,14 +1164,23 @@
         <div class="dash-section__divider"></div>
         <h2 class="dash-section__heading">Активность</h2>
     </div>
-    {% if yesterday_summary and yesterday_summary.has_activity %}
+    {% if yesterday_summary and yesterday_summary.has_activity and (yesterday_summary.lessons_count or yesterday_summary.words_reviewed or yesterday_summary.grammar_exercises) %}
+    {% set _y_lessons = yesterday_summary.lessons_count %}
+    {% set _y_words = yesterday_summary.words_reviewed %}
+    {% set _y_gex = yesterday_summary.grammar_exercises %}
     <div class="dash-yesterday-summary">
         <span class="dash-yesterday-summary__label">Вчера:</span>
-        <span class="dash-yesterday-summary__item">{{ yesterday_summary.lessons_count }} {% if yesterday_summary.lessons_count % 10 == 1 and yesterday_summary.lessons_count % 100 != 11 %}урок{% elif yesterday_summary.lessons_count % 10 in [2,3,4] and yesterday_summary.lessons_count % 100 not in [12,13,14] %}урока{% else %}уроков{% endif %}</span>
-        <span class="dash-yesterday-summary__sep">·</span>
-        <span class="dash-yesterday-summary__item">{{ yesterday_summary.words_reviewed }} {% if yesterday_summary.words_reviewed % 10 == 1 and yesterday_summary.words_reviewed % 100 != 11 %}слово{% elif yesterday_summary.words_reviewed % 10 in [2,3,4] and yesterday_summary.words_reviewed % 100 not in [12,13,14] %}слова{% else %}слов{% endif %}</span>
-        <span class="dash-yesterday-summary__sep">·</span>
-        <span class="dash-yesterday-summary__item">{{ yesterday_summary.grammar_correct }}/{{ yesterday_summary.grammar_exercises }} грамматика</span>
+        {% if _y_lessons > 0 %}
+        <span class="dash-yesterday-summary__item">{{ _y_lessons }} {% if _y_lessons % 10 == 1 and _y_lessons % 100 != 11 %}урок{% elif _y_lessons % 10 in [2,3,4] and _y_lessons % 100 not in [12,13,14] %}урока{% else %}уроков{% endif %}</span>
+        {% endif %}
+        {% if _y_words > 0 %}
+        {% if _y_lessons > 0 %}<span class="dash-yesterday-summary__sep">·</span>{% endif %}
+        <span class="dash-yesterday-summary__item">{{ _y_words }} {% if _y_words % 10 == 1 and _y_words % 100 != 11 %}слово{% elif _y_words % 10 in [2,3,4] and _y_words % 100 not in [12,13,14] %}слова{% else %}слов{% endif %}</span>
+        {% endif %}
+        {% if _y_gex > 0 %}
+        {% if _y_lessons > 0 or _y_words > 0 %}<span class="dash-yesterday-summary__sep">·</span>{% endif %}
+        <span class="dash-yesterday-summary__item">{{ yesterday_summary.grammar_correct }}/{{ _y_gex }} грамматика</span>
+        {% endif %}
     </div>
     {% endif %}
     {% if activity_heatmap %}
