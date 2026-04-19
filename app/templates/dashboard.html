@@ -1471,12 +1471,11 @@
         </div>
     </div>
 
-    <!-- Section 6: Progress row - Progress Overview + Grammar Levels -->
+    <!-- Section 6: Progress row - Progress Overview -->
     <div class="dash-section">
         <div class="dash-section__divider"></div>
         <h2 class="dash-section__heading">Прогресс</h2>
     </div>
-    {% set has_grammar_levels = grammar_levels_summary and grammar_levels_summary|selectattr('topic_count', 'greaterthan', 0)|list %}
     <div class="dash-progress-row">
         <div class="dash-progress-overview">
             <h3 class="dash-progress-overview__heading">&#1052;&#1086;&#1081; &#1087;&#1088;&#1086;&#1075;&#1088;&#1077;&#1089;&#1089;</h3>
@@ -1535,26 +1534,6 @@
                 {% endif %}
             </div>
         </div>
-
-        {% if has_grammar_levels %}
-        <div class="dash-grammar-levels">
-            <h3 class="dash-grammar-levels__heading">&#128218; Грамматика по уровням</h3>
-            <div class="dash-grammar-levels__list">
-                {% for lvl in grammar_levels_summary %}
-                {% if lvl.topic_count > 0 %}
-                <div class="dash-grammar-levels__row">
-                    <span class="dash-grammar-levels__label">{{ lvl.level }}</span>
-                    <div class="dash-grammar-levels__bar">
-                        <div class="dash-grammar-levels__fill" style="width: {{ lvl.progress_pct }}%"></div>
-                    </div>
-                    <span class="dash-grammar-levels__count">{{ lvl.exercises_mastered }}/{{ lvl.exercises_total }}</span>
-                    <span class="dash-grammar-levels__pct">{{ lvl.progress_pct }}%</span>
-                </div>
-                {% endif %}
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
     </div>
 
     <!-- Section 7: Social row - Leaderboard + Achievements -->
@@ -3397,18 +3376,11 @@ a.dash-hero__cta:focus {
 
 .dash-progress-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 1.25rem;
     margin-bottom: 1.5rem;
     animation: dashSlideUp 0.45s ease-out both;
     animation-delay: 0.2s;
-}
-
-@media (max-width: 640px) {
-    .dash-progress-row {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
 }
 
 /* ============================================
@@ -5021,61 +4993,6 @@ a.dash-hero__cta:focus {
     font-size: 0.6875rem;
     color: var(--dash-text-muted);
     margin-top: 4px;
-}
-
-/* ---- Grammar by Level Widget ---- */
-.dash-grammar-levels {
-    background: var(--dash-surface);
-    border: 1px solid var(--dash-border);
-    border-radius: var(--dash-radius);
-    padding: 1.25rem;
-    box-shadow: var(--dash-shadow);
-}
-.dash-grammar-levels__heading {
-    font-size: 0.9375rem;
-    font-weight: 700;
-    margin: 0 0 0.75rem;
-    color: var(--dash-text);
-}
-.dash-grammar-levels__list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-.dash-grammar-levels__row {
-    display: grid;
-    grid-template-columns: 28px 1fr 50px 40px;
-    gap: 0.5rem;
-    align-items: center;
-}
-.dash-grammar-levels__label {
-    font-size: 0.8125rem;
-    font-weight: 700;
-    color: var(--dash-text);
-}
-.dash-grammar-levels__bar {
-    height: 10px;
-    background: #f1f5f9;
-    border-radius: 5px;
-    overflow: hidden;
-}
-.dash-grammar-levels__fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--dash-accent), #7c3aed);
-    border-radius: 5px;
-    transition: width 0.5s;
-    min-width: 0;
-}
-.dash-grammar-levels__count {
-    font-size: 0.75rem;
-    color: var(--dash-text-muted);
-    text-align: right;
-}
-.dash-grammar-levels__pct {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--dash-accent);
-    text-align: right;
 }
 
 /* ── Task 7 (compact redesign): Mission XP widget wrapper — lives inside .dash-plan ── */

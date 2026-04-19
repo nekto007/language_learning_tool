@@ -642,7 +642,6 @@ def dashboard():
     from app.telegram.queries import get_current_streak, get_daily_summary
     from app.telegram.notifications import _lesson_minutes, _words_minutes
     from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses, get_best_study_time, get_reading_speed_trend
-    from app.grammar_lab.services.grammar_lab_service import GrammarLabService
     from app.study.services.session_service import SessionService
     from app.study.services.stats_service import StatsService
     from app.achievements.streak_service import get_streak_calendar, get_milestone_history
@@ -761,12 +760,9 @@ def dashboard():
         'badges_showcase', StatsService.get_badges_showcase, current_user.id,
         default={'recent': [], 'teasers': [], 'earned_count': 0, 'total_count': 0})
 
-    # === READING SPEED TREND & GRAMMAR BY LEVEL ===
+    # === READING SPEED TREND ===
     reading_speed_trend = _safe_widget_call(
         'reading_speed_trend', get_reading_speed_trend, current_user.id, default=[])
-    grammar_levels_summary = _safe_widget_call(
-        'grammar_levels_summary', lambda uid: GrammarLabService().get_levels_summary(user_id=uid),
-        current_user.id, default=[])
 
     # === WORDS STATS ===
     from app.srs.stats_service import srs_stats_service
@@ -1060,9 +1056,8 @@ def dashboard():
         # Achievements by category & milestones
         achievements_by_category=achievements_by_category,
         milestone_history=milestone_history,
-        # Reading speed trend & grammar by level
+        # Reading speed trend
         reading_speed_trend=reading_speed_trend,
-        grammar_levels_summary=grammar_levels_summary,
         # Summary widgets
         weekly_analytics=weekly_analytics,
         continue_lesson=continue_lesson,

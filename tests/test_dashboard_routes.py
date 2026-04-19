@@ -989,80 +989,6 @@ class TestDashboardReadingSpeedTrend:
             assert 'dash-reading-speed__change' not in html_body
 
 
-class TestDashboardGrammarLevels:
-    """Test grammar by level widget data on dashboard"""
-
-    def test_dashboard_includes_grammar_levels_data(self, client, app, test_user, words_module_access):
-        """Dashboard should call GrammarLabService.get_levels_summary and pass data to template"""
-        mock_data = [
-            {'level': 'A1', 'topic_count': 10, 'exercises_total': 50, 'exercises_mastered': 30, 'progress_pct': 60.0},
-            {'level': 'A2', 'topic_count': 8, 'exercises_total': 40, 'exercises_mastered': 10, 'progress_pct': 25.0},
-            {'level': 'B1', 'topic_count': 12, 'exercises_total': 60, 'exercises_mastered': 0, 'progress_pct': 0},
-            {'level': 'B2', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
-            {'level': 'C1', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
-            {'level': 'C2', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
-        ]
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', return_value=mock_data) as mock_gls:
-            response = client.get('/dashboard')
-            assert response.status_code == 200
-            mock_gls.assert_called_once_with(user_id=test_user.id)
-
-    def test_dashboard_renders_grammar_levels_widget(self, client, app, test_user, words_module_access):
-        """Dashboard should render grammar levels widget with bars per level"""
-        mock_data = [
-            {'level': 'A1', 'topic_count': 10, 'exercises_total': 50, 'exercises_mastered': 30, 'progress_pct': 60.0},
-            {'level': 'A2', 'topic_count': 8, 'exercises_total': 40, 'exercises_mastered': 10, 'progress_pct': 25.0},
-            {'level': 'B1', 'topic_count': 12, 'exercises_total': 60, 'exercises_mastered': 0, 'progress_pct': 0},
-            {'level': 'B2', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
-            {'level': 'C1', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
-            {'level': 'C2', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
-        ]
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', return_value=mock_data):
-            response = client.get('/dashboard')
-            html = response.data.decode('utf-8')
-            html_body = html.split('<style>')[0]
-            assert 'dash-grammar-levels' in html_body
-            assert 'dash-grammar-levels__bar' in html_body
-            # Levels with topics should appear
-            assert '>A1<' in html_body
-            assert '>A2<' in html_body
-            assert '>B1<' in html_body
-            # Levels without topics should NOT appear
-            assert '>B2<' not in html_body
-            assert '>C1<' not in html_body
-            # Progress info
-            assert '30/50' in html_body
-            assert '60.0%' in html_body
-
-    def test_dashboard_grammar_levels_empty_state(self, client, app, test_user, words_module_access):
-        """Dashboard should not render grammar levels widget when all levels have 0 topics"""
-        mock_data = [
-            {'level': lvl, 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0}
-            for lvl in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
-        ]
-
-        with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
-            sess['_fresh'] = True
-
-        with patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', return_value=mock_data):
-            response = client.get('/dashboard')
-            html = response.data.decode('utf-8')
-            html_body = html.split('<style>')[0]
-            # Grammar levels widget should not render when all levels have 0 topics
-            assert 'dash-grammar-levels__heading' not in html_body
-
-
 class TestDashboardLayoutSections:
     """Test that all dashboard sections render correctly with proper layout structure"""
 
@@ -1116,10 +1042,6 @@ class TestDashboardLayoutSections:
         mock_milestones = [
             type('M', (), {'streak': 7, 'date': date(2026, 3, 15)})(),
         ]
-        mock_grammar_levels = [
-            {'level': 'A1', 'topic_count': 5, 'exercises_total': 25, 'exercises_mastered': 15, 'progress_pct': 60.0},
-            {'level': 'A2', 'topic_count': 0, 'exercises_total': 0, 'exercises_mastered': 0, 'progress_pct': 0},
-        ]
 
         with client.session_transaction() as sess:
             sess['_user_id'] = str(test_user.id)
@@ -1135,8 +1057,7 @@ class TestDashboardLayoutSections:
              patch('app.study.services.stats_service.StatsService.get_user_xp_rank', return_value=1), \
              patch('app.study.services.stats_service.StatsService.get_achievements_by_category', return_value=mock_achievements), \
              patch('app.study.insights_service.get_reading_speed_trend', return_value=mock_reading_speed), \
-             patch('app.achievements.streak_service.get_milestone_history', return_value=mock_milestones), \
-             patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', return_value=mock_grammar_levels):
+             patch('app.achievements.streak_service.get_milestone_history', return_value=mock_milestones):
             response = client.get('/dashboard')
             assert response.status_code == 200
             html = response.data.decode('utf-8')
@@ -1159,10 +1080,10 @@ class TestDashboardLayoutSections:
             assert 'dash-study-time' in html_body
             assert 'dash-week-stats' in html_body
             assert 'dash-section__heading">Статистика' in html_body
-            # Section 6: Progress row
+            # Section 6: Progress row (Task 12: grammar-levels widget removed)
             assert 'dash-progress-row' in html_body
             assert 'dash-progress-overview' in html_body
-            assert 'dash-grammar-levels' in html_body
+            assert 'dash-grammar-levels' not in html_body
             assert 'dash-section__heading">Прогресс' in html_body
             # Section 7: Social row
             assert 'dash-social-row' in html_body
@@ -1207,8 +1128,7 @@ class TestDashboardLayoutSections:
              patch('app.study.services.stats_service.StatsService.get_user_xp_rank', return_value=None), \
              patch('app.study.services.stats_service.StatsService.get_achievements_by_category', return_value={}), \
              patch('app.study.insights_service.get_reading_speed_trend', return_value=[]), \
-             patch('app.achievements.streak_service.get_milestone_history', return_value=[]), \
-             patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', return_value=[]):
+             patch('app.achievements.streak_service.get_milestone_history', return_value=[]):
             response = client.get('/dashboard')
             assert response.status_code == 200
             html = response.data.decode('utf-8')
@@ -1280,8 +1200,7 @@ class TestDashboardPerformance:
              patch('app.study.services.session_service.SessionService.get_session_stats', side_effect=Exception("session error")), \
              patch('app.study.services.stats_service.StatsService.get_xp_leaderboard', side_effect=Exception("leaderboard error")), \
              patch('app.study.services.stats_service.StatsService.get_user_xp_rank', side_effect=Exception("rank error")), \
-             patch('app.study.services.stats_service.StatsService.get_achievements_by_category', side_effect=Exception("achievements error")), \
-             patch('app.grammar_lab.services.grammar_lab_service.GrammarLabService.get_levels_summary', side_effect=Exception("grammar levels error")):
+             patch('app.study.services.stats_service.StatsService.get_achievements_by_category', side_effect=Exception("achievements error")):
             response = client.get('/dashboard')
             # Dashboard should still render even with all widget failures
             assert response.status_code == 200

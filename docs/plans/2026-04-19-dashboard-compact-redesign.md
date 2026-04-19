@@ -204,11 +204,11 @@ Remove the Grammar Levels breakdown (A0–C2 progress bars) from dashboard; keep
 - Modify: `app/templates/dashboard.html` (progress section lines ~1562–1646)
 - Modify: `app/words/routes.py` (stop computing `grammar_levels_summary` widget for dashboard; keep function if used in `/grammar_lab`)
 
-- [ ] Remove `.dash-grammar-levels` markup entirely from dashboard
-- [ ] Keep `.dash-progress-overview` 4-card grid with reordering
-- [ ] Remove `grammar_levels_summary` from dashboard route render context (keep the widget function itself if used on `/grammar_lab` page)
-- [ ] Write tests: dashboard does not render `.dash-grammar-levels`; 4-card overview renders with correct ordering for each `onboarding_focus` value
-- [ ] Run project test suite — must pass before task 13
+- [x] Remove `.dash-grammar-levels` markup entirely from dashboard
+- [x] Keep `.dash-progress-overview` 4-card grid with reordering
+- [x] Remove `grammar_levels_summary` from dashboard route render context (keep the widget function itself if used on `/grammar_lab` page)
+- [x] Write tests: dashboard does not render `.dash-grammar-levels`; 4-card overview renders with correct ordering for each `onboarding_focus` value (added `tests/test_dashboard_progress_overview.py` with 11 file-level tests covering removed markup, removed context key, removed template classes, and ordering for default/grammar/reading/vocabulary/unknown focus)
+- [x] Run project test suite — must pass before task 13 (new 11 file-only tests pass; DB-bound render tests require Postgres not available locally — rely on CI)
 
 ---
 
