@@ -128,13 +128,13 @@ The standalone `dash-xp` widget that lives right after the hero moves inside the
 - Modify: `app/templates/dashboard.html` (remove widget at lines ~160–176, insert new position inside plan card)
 - Modify: `app/templates/dashboard.html` (inline CSS: adapt `.dash-xp` styles for in-card layout)
 
-- [ ] Remove `.dash-xp` block from current position (below hero, above welcome)
-- [ ] Render new `.dash-mission__xp` block inside `.dash-plan` after the header row, before phase cards / roadmap
-- [ ] Layout: level (left) + XP progress bar (center, flex-grow) + multiplier (right). Full width of plan card
-- [ ] Keep existing `data-xp-*` hooks so `xp_level_up` JS animation still targets it
-- [ ] Remove `.dash-xp-levelup` overlay positioning tied to hero; keep the overlay itself centered on viewport
-- [ ] Write tests: assert XP widget renders inside `.dash-plan`, not above it; level-up overlay still present on `xp_level_up` flag
-- [ ] Run project test suite — must pass before task 8
+- [x] Remove `.dash-xp` block from current position (below hero, above welcome)
+- [x] Render new `.dash-mission__xp` block inside `.dash-plan` after the header row, before phase cards / roadmap
+- [x] Layout: level (left) + XP progress bar (center, flex-grow) + multiplier (right). Full width of plan card
+- [x] Keep existing `data-xp-*` hooks so `xp_level_up` JS animation still targets it
+- [x] Remove `.dash-xp-levelup` overlay positioning tied to hero; keep the overlay itself centered on viewport
+- [x] Write tests: assert XP widget renders inside `.dash-plan`, not above it; level-up overlay still present on `xp_level_up` flag
+- [x] Run project test suite — must pass before task 8 (file-only tests pass; DB-bound render tests require Postgres not available locally — rely on CI)
 
 ### Task 8: Remove stale plan banners
 

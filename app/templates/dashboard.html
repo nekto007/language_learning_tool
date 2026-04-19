@@ -146,24 +146,6 @@
     </div>
     {% endif %}
 
-    {# ── Task 26: Mission XP / level widget ── #}
-    {% if mission_level_info %}
-    <div class="dash-xp" data-xp-widget="true" title="Опыт и уровень за дневные миссии">
-        <span class="dash-xp__level" data-xp-level="true">Уровень {{ mission_level_info.level }}</span>
-        <div class="dash-xp__progress">
-            <span class="dash-xp__text">{{ mission_level_info.xp_in_level }}/{{ mission_level_info.xp_for_level }} XP</span>
-            <div class="dash-xp__bar" data-xp-progress="true" data-xp-pct="{{ mission_level_info.progress_percent }}">
-                <div class="dash-xp__bar-fill" style="width: {{ mission_level_info.progress_percent }}%"></div>
-            </div>
-        </div>
-        {% if mission_level_info.streak_multiplier > 1.0 %}
-        <span class="dash-xp__multiplier" data-xp-multiplier="true">x{{ mission_level_info.streak_multiplier }} бонус серии</span>
-        {% else %}
-        <span class="dash-xp__multiplier dash-xp__multiplier--base" data-xp-multiplier="true">x{{ mission_level_info.streak_multiplier }} бонус серии</span>
-        {% endif %}
-    </div>
-    {% endif %}
-
     {# ── Task 26: Level-up golden flash overlay ── #}
     {% if xp_level_up %}
     <div class="dash-xp-levelup" data-xp-levelup="true" role="status" aria-live="polite">
@@ -350,6 +332,26 @@
                 {% endif %}
             </div>
         </div>
+
+        {# ── Task 7: Mission XP / level widget (moved from hero into plan card) ── #}
+        {% if mission_level_info %}
+        <div class="dash-mission__xp">
+            <div class="dash-xp" data-xp-widget="true" title="Опыт и уровень за дневные миссии">
+                <span class="dash-xp__level" data-xp-level="true">Уровень {{ mission_level_info.level }}</span>
+                <div class="dash-xp__progress">
+                    <span class="dash-xp__text">{{ mission_level_info.xp_in_level }}/{{ mission_level_info.xp_for_level }} XP</span>
+                    <div class="dash-xp__bar" data-xp-progress="true" data-xp-pct="{{ mission_level_info.progress_percent }}">
+                        <div class="dash-xp__bar-fill" style="width: {{ mission_level_info.progress_percent }}%"></div>
+                    </div>
+                </div>
+                {% if mission_level_info.streak_multiplier > 1.0 %}
+                <span class="dash-xp__multiplier" data-xp-multiplier="true">x{{ mission_level_info.streak_multiplier }} бонус серии</span>
+                {% else %}
+                <span class="dash-xp__multiplier dash-xp__multiplier--base" data-xp-multiplier="true">x{{ mission_level_info.streak_multiplier }} бонус серии</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
 
         {# Task 5 (compact redesign): linear progress bar removed — the roadmap is the single
            source of progress truth. Streak-save requirement keeps its own text-only hint. #}
@@ -5035,12 +5037,22 @@ a.dash-hero__cta:focus {
     text-align: right;
 }
 
+/* ── Task 7 (compact redesign): Mission XP widget wrapper — lives inside .dash-plan ── */
+.dash-mission__xp {
+    width: 100%;
+    margin: 12px 0 16px;
+}
+.dash-mission__xp .dash-xp {
+    width: 100%;
+    margin: 0;
+}
+
 /* ── Task 26: Mission XP / Level widget ── */
 .dash-xp {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 16px;
+    padding: 10px 14px;
     background: var(--dash-card-bg);
     border-radius: 10px;
     margin: 0 0 12px;
