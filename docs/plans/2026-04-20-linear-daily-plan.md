@@ -84,11 +84,11 @@
 - Create: `app/daily_plan/linear/progression.py`
 - Create: `tests/daily_plan/test_linear_progression.py`
 
-- [ ] `find_next_lesson_linear(user_id, db) → Optional[Lesson]` — JOIN `LessonProgress`/`Module`/`CEFRLevel`, фильтр `status IS NULL OR != 'completed'` и `level.order >= user.onboarding_level.order`, ORDER BY `level.order, module.number, lesson.number`, LIMIT 1
-- [ ] `get_user_level_progress(user_id, db) → LevelProgress` — `{level, percent, lessons_remaining_in_level, lessons_remaining_to_next_level}`
-- [ ] `get_module_upcoming(user_id, current_lesson, db, limit=3) → list[Lesson]` — для continuation preview
-- [ ] Write tests: B1-юзер не видит A0/A1; пропуск completed уроков; переход module→module, level→level; все пройдены → None; `percent` корректен
-- [ ] Run project test suite — must pass before task 3
+- [x] `find_next_lesson_linear(user_id, db) → Optional[Lesson]` — JOIN `LessonProgress`/`Module`/`CEFRLevel`, фильтр `status IS NULL OR != 'completed'` и `level.order >= user.onboarding_level.order`, ORDER BY `level.order, module.number, lesson.number`, LIMIT 1
+- [x] `get_user_level_progress(user_id, db) → LevelProgress` — `{level, percent, lessons_remaining_in_level, lessons_remaining_to_next_level}`
+- [x] `get_module_upcoming(user_id, current_lesson, db, limit=3) → list[Lesson]` — для continuation preview
+- [x] Write tests: B1-юзер не видит A0/A1; пропуск completed уроков; переход module→module, level→level; все пройдены → None; `percent` корректен
+- [x] Run project test suite — must pass before task 3
 
 ### Task 3: Router `get_daily_plan_unified` with `use_linear_plan` branch
 
