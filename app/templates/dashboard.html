@@ -40,122 +40,103 @@
     </script>
     {% endif %}
 
-    <!-- Hero: Greeting + Streak -->
+    <!-- Hero: Greeting + Streak (compact daily ritual card) -->
     <div class="dash-hero">
-        <div class="dash-hero__bg-shapes">
-            <div class="dash-shape dash-shape--1"></div>
-            <div class="dash-shape dash-shape--2"></div>
-        </div>
+        <div class="dash-hero__bg" aria-hidden="true"></div>
         <div class="dash-hero__content">
             <div class="dash-hero__greeting">
-                <span class="dash-hero__wave">&#128075;</span>
-                <div>
-                    <h1 class="dash-hero__title">{{ greeting|default('Привет') }}, {{ current_user.username }}!</h1>
-                    {% if streak_repaired %}
-                    <div class="dash-streak dash-streak--restored">
-                        <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
-                        <span class="dash-streak__text">{{ streak }}
-                            {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Coins — внутренняя валюта. Копите за серию, тратьте на восстановление">&#128176; {{ streak_status.coins_balance }}</span>
-                        <span class="dash-streak__restored">Серия восстановлена!</span>
+                <span class="dash-hero__wave" aria-hidden="true">&#128075;</span>
+                <h1 class="dash-hero__title">{{ greeting|default('Привет') }}, {{ current_user.username }}!</h1>
+                {% if streak_repaired %}
+                <div class="dash-streak dash-streak--restored">
+                    <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
+                    <span class="dash-streak__text">{{ streak }}
+                        {% if streak == 1 %}день{% elif streak < 5 %}дня{% else %}дней{% endif %} подряд</span>
+                    <span class="dash-streak__coins" title="Coins — внутренняя валюта. Копите за серию, тратьте на восстановление">&#128176; {{ streak_status.coins_balance }}</span>
+                    <span class="dash-streak__restored">Серия восстановлена!</span>
+                </div>
+                {% elif streak_status and streak_status.can_repair and streak > 0 %}
+                <div class="dash-streak">
+                    <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
+                    <span class="dash-streak__text">{{ streak }}
+                        {% set _s10 = streak % 10 %}{% set _s100 = streak % 100 %}{% if _s10 == 1 and _s100 != 11 %}день{% elif _s10 in [2,3,4] and _s100 not in [12,13,14] %}дня{% else %}дней{% endif %} подряд</span>
+                    <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance }}</span>
+                </div>
+                {% elif streak_status and streak_status.can_repair %}
+                <div class="dash-streak-recovery">
+                    <div class="dash-streak-recovery__alert">
+                        &#9888;&#65039; Серия прервалась!
                     </div>
-                    {% elif streak_status and streak_status.can_repair and streak > 0 %}
-                    <div class="dash-streak">
-                        <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
-                        <span class="dash-streak__text">{{ streak }}
-                            {% set _s10 = streak % 10 %}{% set _s100 = streak % 100 %}{% if _s10 == 1 and _s100 != 11 %}день{% elif _s10 in [2,3,4] and _s100 not in [12,13,14] %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance }}</span>
-                    </div>
-                    {% elif streak_status and streak_status.can_repair %}
-                    <div class="dash-streak-recovery">
-                        <div class="dash-streak-recovery__alert">
-                            &#9888;&#65039; Серия прервалась!
+                    <div class="dash-streak-recovery__options">
+                        <div class="dash-streak-recovery__free">
+                            &#127919; Выполните {{ required_steps|default(1) }} из {{ plan_steps_total|default(1) }}
+                            {% if required_steps|default(1) == 1 %}задание{% elif required_steps|default(1) < 5 %}задания{% else %}заданий{% endif %}
+                            сегодня — серия восстановится бесплатно
                         </div>
-                        <div class="dash-streak-recovery__options">
-                            <div class="dash-streak-recovery__free">
-                                &#127919; Выполните {{ required_steps|default(1) }} из {{ plan_steps_total|default(1) }}
-                                {% if required_steps|default(1) == 1 %}задание{% elif required_steps|default(1) < 5 %}задания{% else %}заданий{% endif %}
-                                сегодня — серия восстановится бесплатно
-                            </div>
-                            <div class="dash-streak-recovery__paid">
-                                &#128176; Или восстановите за <strong>{{ streak_status.repair_cost }}</strong> coins
-                                <button class="btn btn-sm btn-warning" id="repair-streak-btn"
-                                        onclick="repairStreak()" {% if streak_status.coins_balance < streak_status.repair_cost %}disabled{% endif %}>
-                                    Восстановить
-                                </button>
-                                <span class="dash-streak-recovery__balance">Баланс: {{ streak_status.coins_balance }}</span>
-                                {% if streak_status.coins_balance == 0 %}
-                                <div class="dash-streak-recovery__hint">Coins начисляются за каждый день серии. Продолжайте заниматься, чтобы накопить!</div>
-                                {% endif %}
-                            </div>
+                        <div class="dash-streak-recovery__paid">
+                            &#128176; Или восстановите за <strong>{{ streak_status.repair_cost }}</strong> coins
+                            <button class="btn btn-sm btn-warning" id="repair-streak-btn"
+                                    onclick="repairStreak()" {% if streak_status.coins_balance < streak_status.repair_cost %}disabled{% endif %}>
+                                Восстановить
+                            </button>
+                            <span class="dash-streak-recovery__balance">Баланс: {{ streak_status.coins_balance }}</span>
+                            {% if streak_status.coins_balance == 0 %}
+                            <div class="dash-streak-recovery__hint">Coins начисляются за каждый день серии. Продолжайте заниматься, чтобы накопить!</div>
+                            {% endif %}
                         </div>
                     </div>
-                    {% elif streak > 0 %}
-                    <div class="dash-streak">
-                        <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
-                        <span class="dash-streak__text">{{ streak }}
-                            {% set _s10 = streak % 10 %}{% set _s100 = streak % 100 %}{% if _s10 == 1 and _s100 != 11 %}день{% elif _s10 in [2,3,4] and _s100 not in [12,13,14] %}дня{% else %}дней{% endif %} подряд</span>
-                        <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
-                        {% set milestones = {7: '🎯 Неделя!', 14: '💪 2 недели!', 30: '🏆 Месяц!', 60: '⭐ 2 месяца!', 100: '👑 100 дней!'} %}
-                        {% if streak in milestones %}
-                        <span class="dash-streak__milestone" id="milestone-badge">{{ milestones[streak] }}</span>
-                        {% if current_user.referral_code %}
-                        <button class="dash-streak__share-btn"
-                                data-share-text="{{ ('Моя серия: ' ~ streak ~ ' дней подряд! ' ~ milestones[streak])|e }}"
-                                data-share-ref="{{ current_user.referral_code|e }}"
-                                onclick="shareVia('telegram', this.dataset.shareText, window.location.origin + '/register?ref=' + this.dataset.shareRef)"
-                                title="Поделиться">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                        </button>
-                        {% endif %}
-                        {% endif %}
-                    </div>
-                    {% else %}
-                    <p class="dash-hero__subtitle">Выбери, чем хочешь заняться сегодня</p>
+                </div>
+                {% elif streak > 0 %}
+                <div class="dash-streak">
+                    <span class="dash-streak__fire" title="Серия дней подряд. Занимайтесь каждый день, чтобы не потерять серию!">&#128293;</span>
+                    <span class="dash-streak__text">{{ streak }}
+                        {% set _s10 = streak % 10 %}{% set _s100 = streak % 100 %}{% if _s10 == 1 and _s100 != 11 %}день{% elif _s10 in [2,3,4] and _s100 not in [12,13,14] %}дня{% else %}дней{% endif %} подряд</span>
+                    <span class="dash-streak__coins" title="Streak coins">&#128176; {{ streak_status.coins_balance if streak_status else 0 }}</span>
+                    {% set milestones = {7: '🎯 Неделя!', 14: '💪 2 недели!', 30: '🏆 Месяц!', 60: '⭐ 2 месяца!', 100: '👑 100 дней!'} %}
+                    {% if streak in milestones %}
+                    <span class="dash-streak__milestone" id="milestone-badge">{{ milestones[streak] }}</span>
+                    {% if current_user.referral_code %}
+                    <button class="dash-streak__share-btn"
+                            data-share-text="{{ ('Моя серия: ' ~ streak ~ ' дней подряд! ' ~ milestones[streak])|e }}"
+                            data-share-ref="{{ current_user.referral_code|e }}"
+                            onclick="shareVia('telegram', this.dataset.shareText, window.location.origin + '/register?ref=' + this.dataset.shareRef)"
+                            title="Поделиться">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                    </button>
                     {% endif %}
-                    {% if yesterday_summary and yesterday_summary.has_activity %}
-                    <div class="dash-yesterday">
-                        Вчера:
-                        {% if yesterday_summary.lessons_count > 0 %}{{ yesterday_summary.lessons_count }} урок{% if yesterday_summary.lessons_count > 1 %}а{% endif %}{% if yesterday_summary.lesson_score %} ({{ yesterday_summary.lesson_score|int }}%){% endif %}{% endif %}
-                        {% if yesterday_summary.words_reviewed > 0 %}{% if yesterday_summary.lessons_count > 0 %} · {% endif %}{{ yesterday_summary.words_reviewed }} слов{% endif %}
-                        {% if yesterday_summary.grammar_exercises > 0 %}{% if yesterday_summary.lessons_count > 0 or yesterday_summary.words_reviewed > 0 %} · {% endif %}{{ yesterday_summary.grammar_correct|int }}/{{ yesterday_summary.grammar_exercises }} грамматика{% endif %}
-                    </div>
-                    {% endif %}
-                    {% if today_xp is defined %}
-                    <div class="dash-xp-bar" title="Опыт за сегодня. Зарабатывайте XP за уроки, грамматику и повторение слов">
-                        <span class="dash-xp-bar__text">&#9889; {{ today_xp|default(0) }}/{{ daily_xp_goal|default(100) }} XP</span>
-                        <div class="dash-xp-bar__track">
-                            <div class="dash-xp-bar__fill" style="width: {{ [today_xp|default(0) / daily_xp_goal|default(100) * 100, 100] | min }}%"></div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    {% if rank_info %}
-                    <div class="dash-rank dash-rank--{{ rank_info.code }}"
-                         data-rank-code="{{ rank_info.code }}"
-                         data-rank-plans="{{ rank_info.plans_completed }}"
-                         title="Титул за выполненные дневные планы">
-                        <span class="dash-rank__badge" style="--rank-color: {{ rank_info.color }}">
-                            <span class="dash-rank__icon" aria-hidden="true">{{ rank_info.icon }}</span>
-                            <span class="dash-rank__name">{{ rank_info.display_name }}</span>
-                        </span>
-                        {% if rank_info.is_max %}
-                        <span class="dash-rank__progress dash-rank__progress--max" data-rank-progress="true">
-                            <span class="dash-rank__progress-text">Максимальный титул — {{ rank_info.plans_completed }} планов</span>
-                        </span>
-                        {% else %}
-                        <span class="dash-rank__progress" data-rank-progress="true">
-                            <span class="dash-rank__progress-text">{{ rank_info.plans_completed }}/{{ rank_info.next_threshold }} до «{{ rank_info.next_display_name }}»</span>
-                            <span class="dash-rank__progress-track" aria-hidden="true">
-                                <span class="dash-rank__progress-fill" style="width: {{ rank_info.progress_percent }}%; --rank-color: {{ rank_info.color }}"></span>
-                            </span>
-                        </span>
-                        {% endif %}
-                    </div>
                     {% endif %}
                 </div>
+                {% else %}
+                <p class="dash-hero__subtitle">Выбери, чем хочешь заняться сегодня</p>
+                {% endif %}
             </div>
         </div>
     </div>
+
+    {# Rank badge — temporarily standalone between hero and mission XP until Task 13 folds it into Social #}
+    {% if rank_info %}
+    <div class="dash-rank dash-rank--{{ rank_info.code }}"
+         data-rank-code="{{ rank_info.code }}"
+         data-rank-plans="{{ rank_info.plans_completed }}"
+         title="Титул за выполненные дневные планы">
+        <span class="dash-rank__badge" style="--rank-color: {{ rank_info.color }}">
+            <span class="dash-rank__icon" aria-hidden="true">{{ rank_info.icon }}</span>
+            <span class="dash-rank__name">{{ rank_info.display_name }}</span>
+        </span>
+        {% if rank_info.is_max %}
+        <span class="dash-rank__progress dash-rank__progress--max" data-rank-progress="true">
+            <span class="dash-rank__progress-text">Максимальный титул — {{ rank_info.plans_completed }} планов</span>
+        </span>
+        {% else %}
+        <span class="dash-rank__progress" data-rank-progress="true">
+            <span class="dash-rank__progress-text">{{ rank_info.plans_completed }}/{{ rank_info.next_threshold }} до «{{ rank_info.next_display_name }}»</span>
+            <span class="dash-rank__progress-track" aria-hidden="true">
+                <span class="dash-rank__progress-fill" style="width: {{ rank_info.progress_percent }}%; --rank-color: {{ rank_info.color }}"></span>
+            </span>
+        </span>
+        {% endif %}
+    </div>
+    {% endif %}
 
     {# ── Task 26: Mission XP / level widget ── #}
     {% if mission_level_info %}
@@ -1853,30 +1834,31 @@
     position: relative;
     background: linear-gradient(135deg, #5046e5 0%, #7c3aed 100%);
     border-radius: var(--dash-radius);
-    padding: 2rem;
-    margin-bottom: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    margin: 0 auto 1.25rem;
+    max-width: 720px;
     overflow: hidden;
     color: white;
     animation: dashSlideUp 0.5s ease-out;
 }
 
-.dash-hero__bg-shapes { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-.dash-shape { position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.1); }
-.dash-shape--1 { width: 250px; height: 250px; top: -80px; right: -40px; animation: dashFloat1 20s ease-in-out infinite; }
-.dash-shape--2 { width: 150px; height: 150px; bottom: -50px; left: -30px; animation: dashFloat2 15s ease-in-out infinite; }
-
-@keyframes dashFloat1 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-20px, 20px) scale(1.05); } }
-@keyframes dashFloat2 { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(30px, -20px) rotate(10deg); } }
+.dash-hero__bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at top right, rgba(255, 255, 255, 0.18) 0%, transparent 60%);
+}
 
 .dash-hero__content { position: relative; z-index: 1; }
 
 .dash-hero__greeting {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 1rem;
+    gap: 0.625rem 0.875rem;
 }
 
-.dash-hero__wave { font-size: 2.5rem; animation: dashWave 2s ease-in-out infinite; transform-origin: 70% 70%; }
+.dash-hero__wave { font-size: 1.75rem; animation: dashWave 2s ease-in-out infinite; transform-origin: 70% 70%; }
 
 @keyframes dashWave {
     0%, 100% { transform: rotate(0deg); }
@@ -1885,14 +1867,14 @@
     40% { transform: rotate(0deg); }
 }
 
-.dash-hero__title { font-size: 1.5rem; font-weight: 700; margin: 0; line-height: 1.2; letter-spacing: -0.02em; }
-.dash-hero__subtitle { font-size: 0.9375rem; margin: 0.25rem 0 0; opacity: 0.9; }
+.dash-hero__title { font-size: 1.375rem; font-weight: 700; margin: 0; line-height: 1.2; letter-spacing: -0.02em; flex: 1 1 auto; }
+.dash-hero__subtitle { font-size: 0.9375rem; margin: 0; opacity: 0.9; flex: 1 1 100%; }
 
 .dash-streak {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    margin-top: 0.5rem;
+    margin-top: 0;
     padding: 0.375rem 0.875rem;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 100px;
@@ -3444,10 +3426,10 @@
 
 @media (max-width: 640px) {
     .dash-page { padding: 0 0.75rem 2rem; }
-    .dash-hero { padding: 1.5rem; }
-    .dash-hero__greeting { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
-    .dash-hero__wave { font-size: 2rem; }
-    .dash-hero__title { font-size: 1.25rem; }
+    .dash-hero { padding: 1rem 1.25rem; }
+    .dash-hero__greeting { gap: 0.5rem 0.75rem; }
+    .dash-hero__wave { font-size: 1.5rem; }
+    .dash-hero__title { font-size: 1.125rem; }
 
     .dash-step__num { width: 26px; min-width: 26px; height: 26px; font-size: 0.7rem; }
     .dash-step__body { flex-wrap: wrap; padding: 0.875rem 1rem; gap: 0.75rem; }

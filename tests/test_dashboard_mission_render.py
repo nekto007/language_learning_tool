@@ -1435,3 +1435,104 @@ class TestDashboardMissionRender:
         assert '.dash-route-board__secured-marker' in css
         assert '.dash-next-step__item' in css
         assert '.dash-next-step__queue' in css
+
+
+class TestHeroCompactLayout:
+    """19 Tasks plan — Task 1: hero collapses to greeting + streak only."""
+
+    def _get_dashboard(self, client, test_user, mission_plan):
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(test_user.id)
+            sess['_fresh'] = True
+        with patch('app.daily_plan.service.get_daily_plan_unified') as mock_plan:
+            mock_plan.return_value = mission_plan
+            response = client.get('/dashboard')
+        return response
+
+    def _extract_hero(self, html):
+        start = html.find('<div class="dash-hero">')
+        assert start != -1, 'dash-hero container missing'
+        # Everything between the hero container and the next top-level block
+        # (rank, mission-xp widget, welcome card, race, plan, section, etc.)
+        markers = [
+            'class="dash-rank ',
+            'class="dash-xp "',
+            'class="dash-xp"',
+            'class="dash-welcome"',
+            'class="dash-race',
+            'class="dash-plan',
+            'Rank badge',
+        ]
+        end_positions = [html.find(m, start + 10) for m in markers]
+        end_positions = [p for p in end_positions if p != -1]
+        assert end_positions, 'could not locate end of hero section'
+        return html[start:min(end_positions)]
+
+    def test_hero_compact_layout_renders(self, client, app, db_session, test_user, words_module_access):
+        plan = _make_mission_plan('progress', [False, False, False])
+        response = self._get_dashboard(client, test_user, plan)
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        hero = self._extract_hero(html)
+        # Greeting + streak container still present
+        assert 'dash-hero__greeting' in hero
+        assert 'dash-hero__title' in hero
+        # Decorative shapes are gone
+        assert 'dash-shape' not in hero
+        assert 'dash-hero__bg-shapes' not in hero
+        # Removed blocks do NOT appear inside the hero section
+        assert 'dash-yesterday' not in hero
+        assert 'dash-xp-bar' not in hero
+        # Rank badge is no longer nested inside the hero card
+        assert 'dash-rank' not in hero
+        # Single gradient background layer is still wired
+        assert 'dash-hero__bg' in hero
+
+    def test_hero_has_max_width_720(self):
+        """Compact hero caps width at ~720px via inline CSS."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        # Match the .dash-hero rule block (not a mobile override)
+        hero_rule_start = css.find('.dash-hero {')
+        hero_rule_end = css.find('}', hero_rule_start)
+        assert hero_rule_start != -1 and hero_rule_end != -1
+        hero_rule = css[hero_rule_start:hero_rule_end]
+        assert 'max-width: 720px' in hero_rule
+        assert 'margin: 0 auto' in hero_rule
+
+    def test_dash_shape_animations_removed(self):
+        """Task 1: dash-shape keyframes + float animations are gone."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        assert 'dash-shape--1' not in css
+        assert 'dash-shape--2' not in css
+        assert '@keyframes dashFloat1' not in css
+        assert '@keyframes dashFloat2' not in css
+
+    def test_hero_single_row_flex_layout(self):
+        """Greeting row uses flex layout so greeting + streak can share a row."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        greeting_start = css.find('.dash-hero__greeting {')
+        assert greeting_start != -1
+        greeting_end = css.find('}', greeting_start)
+        greeting_rule = css[greeting_start:greeting_end]
+        assert 'display: flex' in greeting_rule
+        assert 'flex-wrap: wrap' in greeting_rule
+        assert 'align-items: center' in greeting_rule
+
+    def test_hero_has_no_decorative_shapes_in_markup(self):
+        """Task 1: dash-shape divs are not in the rendered dashboard."""
+        import os
+        tpl_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html')
+        with open(tpl_path, 'r', encoding='utf-8') as f:
+            tpl = f.read()
+        assert 'dash-shape--1' not in tpl
+        assert 'dash-shape--2' not in tpl
+        assert 'dash-hero__bg-shapes' not in tpl
