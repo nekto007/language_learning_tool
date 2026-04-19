@@ -99,10 +99,10 @@
 - Create: `app/daily_plan/linear/plan.py`
 - Create: `tests/daily_plan/test_linear_plan_router.py`
 
-- [ ] В `app/daily_plan/linear/plan.py`: `get_linear_plan(user_id, db, tz) → dict` — пока заглушка со структурой `{mode: 'linear', position, baseline_slots: [], continuation, progress, day_secured}`
-- [ ] В `get_daily_plan_unified` добавить приоритет: `use_linear_plan` → `use_mission_plan` → legacy, с fallback на mission при ошибке в linear-ветке (structured warning лог)
-- [ ] Write tests: роутинг выбирает правильную ветку по флагам; fallback при исключении в linear
-- [ ] Run project test suite — must pass before task 4
+- [x] В `app/daily_plan/linear/plan.py`: `get_linear_plan(user_id, db, tz) → dict` — пока заглушка со структурой `{mode: 'linear', position, baseline_slots: [], continuation, progress, day_secured}`
+- [x] В `get_daily_plan_unified` добавить приоритет: `use_linear_plan` → `use_mission_plan` → legacy, с fallback на mission при ошибке в linear-ветке (structured warning лог)
+- [x] Write tests: роутинг выбирает правильную ветку по флагам; fallback при исключении в linear
+- [x] Run project test suite — must pass before task 4
 
 ---
 

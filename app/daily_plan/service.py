@@ -215,11 +215,61 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
         return None
 
 
+def _get_linear_plan_safe(user_id: int, tz: Optional[str]) -> Optional[dict[str, Any]]:
+    """Wrap the linear-plan assembler so any failure degrades to mission/legacy."""
+    try:
+        from app.daily_plan.linear.plan import get_linear_plan
+        return get_linear_plan(user_id, tz=tz)
+    except Exception:
+        logger.warning(
+            "linear plan assembly failed for user_id=%s, falling back",
+            user_id,
+            exc_info=True,
+        )
+        return None
+
+
 def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, Any]:
-    """Entry point: returns mission plan if user.use_mission_plan is True, otherwise legacy get_daily_plan_v2()."""
+    """Entry point: routes to linear → mission → legacy based on user flags.
+
+    Priority: ``use_linear_plan`` → ``use_mission_plan`` → legacy.
+    When an enabled branch fails it falls through to the next option with a
+    structured warning log.
+    """
     from app.auth.models import User
 
     user = User.query.get(user_id)
+
+    if user and user.use_linear_plan:
+        linear_payload = _get_linear_plan_safe(user_id, tz)
+        if linear_payload is not None:
+            return _with_plan_meta(
+                linear_payload,
+                mission_plan_enabled=bool(user.use_mission_plan),
+                effective_mode='linear',
+            )
+        logger.warning(
+            "linear plan failed for user_id=%s, falling back to mission/legacy",
+            user_id,
+        )
+        if user.use_mission_plan:
+            mission_payload = get_mission_plan(user_id, tz)
+            if mission_payload is not None:
+                return _with_plan_meta(
+                    mission_payload,
+                    mission_plan_enabled=True,
+                    effective_mode='mission',
+                    fallback_reason='linear_build_failed',
+                )
+        from app.telegram.queries import get_daily_plan_v2
+        legacy_payload = get_daily_plan_v2(user_id, tz) if tz else get_daily_plan_v2(user_id)
+        return _with_plan_meta(
+            legacy_payload,
+            mission_plan_enabled=bool(user.use_mission_plan),
+            effective_mode='legacy_fallback',
+            fallback_reason='linear_build_failed',
+        )
+
     if user and user.use_mission_plan:
         mission_payload = get_mission_plan(user_id, tz)
         if mission_payload is not None:
