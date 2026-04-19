@@ -1804,7 +1804,7 @@ class TestActivityCompact:
         assert 'Активность за 90 дней' not in tpl
 
     def test_route_calls_heatmap_with_30_days(self):
-        """Dashboard route passes days=30 to get_activity_heatmap + get_streak_calendar."""
+        """Dashboard route passes days=30 to both activity widgets."""
         src = self._read_route()
         assert "get_activity_heatmap, current_user.id, days=30" in src
         assert "get_streak_calendar, current_user.id, days=30" in src

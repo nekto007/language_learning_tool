@@ -747,12 +747,6 @@ def dashboard():
     # === WORDS STATS ===
     from app.srs.stats_service import srs_stats_service
     _wstats = srs_stats_service.get_words_stats(current_user.id)
-    words_stats = {
-        'new': _wstats['new_count'],
-        'learning': _wstats['learning_count'],
-        'review': _wstats['review_count'],
-        'mastered': _wstats['mastered_count'],
-    }
     words_total = _wstats['total']
     words_in_progress = _wstats['learning_count'] + _wstats['review_count']
 
@@ -811,14 +805,6 @@ def dashboard():
     # === WEEKLY ANALYTICS (via insights_service — week-to-date, not lifetime) ===
     from app.study.insights_service import get_weekly_summary
     weekly_analytics = get_weekly_summary(current_user.id)
-
-    # === CONTINUE WHERE YOU LEFT OFF ===
-    from app.curriculum.service import get_user_active_lessons
-    active_lessons = get_user_active_lessons(current_user.id, limit=1)
-    continue_lesson = active_lessons[0] if active_lessons else None
-
-    # === GRAMMAR PROGRESS SUMMARY ===
-    grammar_user_stats = srs_stats_service.get_grammar_user_stats(current_user.id)
 
     # === WEEKLY CHALLENGE ===
     from app.achievements.weekly_challenge import get_weekly_challenge, get_weekly_digest
@@ -992,7 +978,6 @@ def dashboard():
         plan_steps_done=steps_done,
         plan_steps_total=steps_total,
         # Words
-        words_stats=words_stats,
         words_total=words_total,
         words_in_progress=words_in_progress,
         # Books
@@ -1034,8 +1019,6 @@ def dashboard():
         achievements_by_category=achievements_by_category,
         # Summary widgets
         weekly_analytics=weekly_analytics,
-        continue_lesson=continue_lesson,
-        grammar_user_stats=grammar_user_stats,
         # Rank badge (daily plan title system)
         rank_info=rank_info,
         # Badges earned since last dashboard visit (popup)
@@ -1057,7 +1040,8 @@ def dashboard():
         plan_today=plan_today,
         # Single hero CTA resolved from mission phases + review budget
         hero_cta=hero_cta,
-        # Zero-state flag: no activity across words/grammar/books/courses
+        # Zero-state flag from the compact-dashboard plan: no activity across
+        # words / grammar / books / active courses.
         is_zero_state=(
             (words_total or 0) == 0
             and (grammar_studied or 0) == 0

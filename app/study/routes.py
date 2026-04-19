@@ -358,7 +358,10 @@ def stats():
 
     from app.study.insights_service import get_best_study_time
     from app.study.services.session_service import SessionService
-    from app.daily_plan.route_progress import get_route_state
+    from app.daily_plan.route_progress import (
+        add_route_steps_idempotent, get_phase_step_weight, get_route_state,
+        PHASE_STEP_WEIGHTS,
+    )
     from config.settings import DEFAULT_TIMEZONE
 
     tz = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
@@ -376,8 +379,42 @@ def stats():
             'total_correct': 0, 'total_incorrect': 0, 'accuracy_percent': 0,
             'total_time_seconds': 0, 'avg_session_time_seconds': 0,
         }
+    steps_today = 0
     try:
-        route_progress_state = get_route_state(current_user.id, 0, db.session)
+        # Sync route_progress from today's completed phases before reading state,
+        # matching the dashboard path. If the sync fails, still fall back to the
+        # persisted long-term route state instead of hiding the widget entirely.
+        from app.daily_plan.service import get_daily_plan_unified
+        from app.achievements.streak_service import compute_plan_steps
+        from app.telegram.queries import get_daily_summary
+        import pytz as _pytz_stats
+
+        plan = get_daily_plan_unified(current_user.id, tz=tz)
+        if plan.get('mission'):
+            summary = get_daily_summary(current_user.id, tz=tz)
+            plan_completion, _, _, _ = compute_plan_steps(plan, summary)
+            try:
+                tz_obj = _pytz_stats.timezone(tz)
+            except _pytz_stats.UnknownTimeZoneError:
+                tz_obj = _pytz_stats.timezone(DEFAULT_TIMEZONE)
+            route_today = datetime.now(tz_obj).date()
+            phases = plan.get('phases', []) or []
+            for p in phases:
+                if plan_completion.get(p.get('id', ''), False):
+                    pk = p.get('phase', '')
+                    if PHASE_STEP_WEIGHTS.get(pk, 0) > 0:
+                        add_route_steps_idempotent(current_user.id, pk, route_today, db.session)
+            db.session.commit()
+            steps_today = sum(
+                get_phase_step_weight(p.get('phase', ''))
+                for p in phases
+                if plan_completion.get(p.get('id', ''), False)
+            )
+    except Exception:
+        db.session.rollback()
+        logger.exception("route_progress sync failed for user %s", current_user.id)
+    try:
+        route_progress_state = get_route_state(current_user.id, steps_today, db.session)
     except Exception:
         logger.exception("route_progress_state failed for user %s", current_user.id)
         route_progress_state = None

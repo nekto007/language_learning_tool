@@ -234,6 +234,27 @@ class TestStudyStatsRouteWires:
         assert 'session_stats=' in src
         assert 'route_progress_state=' in src
 
+    def test_stats_route_syncs_route_progress_before_reading_state(self):
+        """Without this sync, /study/stats can lag behind mission progress when
+        the user visits it before the dashboard path persists today's phases."""
+        src = _read(_STUDY_ROUTES)
+        # The /study/stats route must call add_route_steps_idempotent to
+        # persist completed phases from today's plan before reading state,
+        # matching what the dashboard route does.
+        assert 'add_route_steps_idempotent' in src
+        # It must compute plan_completion from the unified daily plan.
+        assert 'get_daily_plan_unified' in src
+        assert 'compute_plan_steps' in src
+        # steps_today is derived from phase weights, not hard-coded 0.
+        assert 'get_phase_step_weight' in src
+
+    def test_stats_route_keeps_persisted_state_when_sync_fails(self):
+        """A sync failure should not blank the whole route board; the route still
+        attempts get_route_state as a fallback using persisted data."""
+        src = _read(_STUDY_ROUTES)
+        assert 'route_progress sync failed' in src
+        assert 'route_progress_state = get_route_state(current_user.id, steps_today, db.session)' in src
+
 
 # ---------------------------------------------------------------------------
 # /study/insights: Reading Speed sparkline + delta

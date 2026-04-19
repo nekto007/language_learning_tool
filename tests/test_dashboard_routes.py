@@ -125,7 +125,7 @@ class TestDashboardEmptyStates:
 
 
 class TestDashboardWeeklyAnalytics:
-    """Test dashboard weekly analytics, SRS distribution, continue lesson, grammar progress"""
+    """Test dashboard weekly analytics and that removed legacy cards stay hidden."""
 
     def test_weekly_analytics_with_study_sessions(self, client, app, db_session, test_user, words_module_access):
         """Weekly analytics should show study session data"""
@@ -190,12 +190,10 @@ class TestDashboardWeeklyAnalytics:
         html = response.data.decode('utf-8')
         assert 'class="dash-continue"' not in html
 
-    def test_grammar_progress_shown_when_topics_exist(self, client, app, db_session, test_user, words_module_access):
-        """Grammar progress section should appear when grammar topics exist"""
+    def test_grammar_progress_not_shown_even_when_topics_exist(self, client, app, db_session, test_user, words_module_access):
+        """Compact dashboard no longer renders the old grammar-progress card."""
         from app.grammar_lab.models import GrammarTopic
-        import uuid
 
-        # Check if there are already grammar topics
         existing_count = GrammarTopic.query.count()
 
         with client.session_transaction() as sess:
@@ -207,9 +205,8 @@ class TestDashboardWeeklyAnalytics:
         html = response.data.decode('utf-8')
 
         if existing_count > 0:
-            assert 'dash-grammar-progress' in html
+            assert 'dash-grammar-progress' not in html
         else:
-            # No topics means section should not appear
             assert 'dash-grammar-progress' not in html
 
     def test_weekly_analytics_with_lesson_completed(self, client, app, db_session, test_user, words_module_access):
