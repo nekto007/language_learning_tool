@@ -121,31 +121,6 @@
         </div>
     </div>
 
-    {# Rank badge — temporarily standalone between hero and mission XP until Task 13 folds it into Social #}
-    {% if rank_info %}
-    <div class="dash-rank dash-rank--{{ rank_info.code }}"
-         data-rank-code="{{ rank_info.code }}"
-         data-rank-plans="{{ rank_info.plans_completed }}"
-         title="Титул за выполненные дневные планы">
-        <span class="dash-rank__badge" style="--rank-color: {{ rank_info.color }}">
-            <span class="dash-rank__icon" aria-hidden="true">{{ rank_info.icon }}</span>
-            <span class="dash-rank__name">{{ rank_info.display_name }}</span>
-        </span>
-        {% if rank_info.is_max %}
-        <span class="dash-rank__progress dash-rank__progress--max" data-rank-progress="true">
-            <span class="dash-rank__progress-text">Максимальный титул — {{ rank_info.plans_completed }} планов</span>
-        </span>
-        {% else %}
-        <span class="dash-rank__progress" data-rank-progress="true">
-            <span class="dash-rank__progress-text">{{ rank_info.plans_completed }}/{{ rank_info.next_threshold }} до «{{ rank_info.next_display_name }}»</span>
-            <span class="dash-rank__progress-track" aria-hidden="true">
-                <span class="dash-rank__progress-fill" style="width: {{ rank_info.progress_percent }}%; --rank-color: {{ rank_info.color }}"></span>
-            </span>
-        </span>
-        {% endif %}
-    </div>
-    {% endif %}
-
     {# ── Task 26: Level-up golden flash overlay ── #}
     {% if xp_level_up %}
     <div class="dash-xp-levelup" data-xp-levelup="true" role="status" aria-live="polite">
@@ -1542,6 +1517,38 @@
         <h2 class="dash-section__heading">Сообщество</h2>
     </div>
     <div class="dash-social-row">
+        {% if rank_info %}
+        <div class="dash-rank dash-rank--{{ rank_info.code }}"
+             data-rank-code="{{ rank_info.code }}"
+             data-rank-plans="{{ rank_info.plans_completed }}"
+             title="Титул за выполненные дневные планы">
+            <h3 class="dash-rank__heading">&#127894; Титул</h3>
+            <div class="dash-rank__body">
+                <span class="dash-rank__badge" style="--rank-color: {{ rank_info.color }}">
+                    <span class="dash-rank__icon" aria-hidden="true">{{ rank_info.icon }}</span>
+                    <span class="dash-rank__name">{{ rank_info.display_name }}</span>
+                </span>
+                {% if rank_info.is_max %}
+                <div class="dash-rank__progress dash-rank__progress--max" data-rank-progress="true">
+                    <span class="dash-rank__progress-text">Максимальный титул — {{ rank_info.plans_completed }} планов</span>
+                </div>
+                {% else %}
+                <div class="dash-rank__progress" data-rank-progress="true">
+                    <span class="dash-rank__progress-text">{{ rank_info.plans_completed }}/{{ rank_info.next_threshold }} до «{{ rank_info.next_display_name }}»</span>
+                    <span class="dash-rank__progress-track" aria-hidden="true">
+                        <span class="dash-rank__progress-fill" style="width: {{ rank_info.progress_percent }}%; --rank-color: {{ rank_info.color }}"></span>
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="dash-empty">
+            <span class="dash-empty__icon">&#127894;</span>
+            <span class="dash-empty__text">Титул появится после первого завершённого плана</span>
+        </div>
+        {% endif %}
+
         {% if xp_leaderboard %}
         <div class="dash-leaderboard">
             <h3 class="dash-leaderboard__heading">&#127942; Лидеры по XP</h3>
@@ -1931,36 +1938,54 @@ a.dash-hero__cta:focus {
 }
 
 /* ============================================
-   Rank / Title badge (Task 14)
+   Rank / Title card (Task 13 — social column)
    ============================================ */
 
 .dash-rank {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem 0.75rem;
-    margin-top: 0.625rem;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.25rem;
+    background: var(--dash-surface);
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    box-shadow: var(--dash-shadow);
+}
+
+.dash-rank__heading {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--dash-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0;
+}
+
+.dash-rank__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .dash-rank__badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.3rem 0.75rem;
+    gap: 0.5rem;
+    padding: 0.5rem 0.9rem;
     border-radius: 100px;
-    background: rgba(255, 255, 255, 0.18);
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    color: #fff;
+    background: var(--dash-surface-alt, #f8fafc);
+    border: 1px solid var(--dash-border);
+    color: var(--dash-text);
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 1rem;
     letter-spacing: 0.01em;
-    box-shadow: 0 0 0 2px var(--rank-color, rgba(255, 255, 255, 0.1)) inset;
-    backdrop-filter: blur(4px);
+    box-shadow: 0 0 0 2px var(--rank-color, transparent) inset;
     white-space: nowrap;
+    align-self: flex-start;
 }
 
 .dash-rank__icon {
-    font-size: 1rem;
+    font-size: 1.25rem;
     line-height: 1;
 }
 
@@ -1969,18 +1994,15 @@ a.dash-hero__cta:focus {
 }
 
 .dash-rank__progress {
-    display: inline-flex;
+    display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    min-width: 150px;
-    max-width: 240px;
-    flex: 1 1 160px;
-    font-size: 0.75rem;
-    opacity: 0.95;
+    gap: 0.35rem;
+    font-size: 0.8125rem;
+    width: 100%;
 }
 
 .dash-rank__progress-text {
-    color: rgba(255, 255, 255, 0.92);
+    color: var(--dash-text);
     font-weight: 500;
     letter-spacing: 0.01em;
 }
@@ -1988,8 +2010,8 @@ a.dash-hero__cta:focus {
 .dash-rank__progress-track {
     display: block;
     width: 100%;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.22);
+    height: 8px;
+    background: var(--dash-border);
     border-radius: 4px;
     overflow: hidden;
 }
@@ -1997,14 +2019,13 @@ a.dash-hero__cta:focus {
 .dash-rank__progress-fill {
     display: block;
     height: 100%;
-    background: var(--rank-color, #fff);
+    background: var(--rank-color, var(--dash-accent, #2563eb));
     border-radius: 4px;
     transition: width 0.6s ease-out;
-    box-shadow: 0 0 6px var(--rank-color, rgba(255, 255, 255, 0.4));
 }
 
 .dash-rank__progress--max .dash-rank__progress-text {
-    color: #fde68a;
+    color: #b45309;
     font-weight: 600;
 }
 
@@ -2016,20 +2037,7 @@ a.dash-hero__cta:focus {
 .dash-rank--master .dash-rank__badge { box-shadow: 0 0 0 2px #f59e0b inset; }
 .dash-rank--legend .dash-rank__badge { box-shadow: 0 0 0 2px #ef4444 inset; }
 .dash-rank--grandmaster .dash-rank__badge {
-    box-shadow: 0 0 0 2px #facc15 inset, 0 0 12px rgba(250, 204, 21, 0.5);
-}
-
-@media (max-width: 640px) {
-    .dash-rank {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.35rem;
-    }
-    .dash-rank__progress {
-        min-width: 0;
-        max-width: 100%;
-        width: 100%;
-    }
+    box-shadow: 0 0 0 2px #facc15 inset, 0 0 12px rgba(250, 204, 21, 0.35);
 }
 
 /* ============================================
@@ -3384,19 +3392,19 @@ a.dash-hero__cta:focus {
 }
 
 /* ============================================
-   Social Row (Leaderboard + Achievements)
+   Social Row (Rank + Leaderboard + Achievements)
    ============================================ */
 
 .dash-social-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 1.25rem;
     margin-bottom: 1.5rem;
     animation: dashSlideUp 0.45s ease-out both;
     animation-delay: 0.25s;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
     .dash-social-row {
         grid-template-columns: 1fr;
         gap: 1rem;

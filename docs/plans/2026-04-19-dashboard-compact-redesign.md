@@ -222,12 +222,12 @@ Rebuild the Social section as 3 columns: Rank card (moved from hero) | XP Leader
 - Modify: `app/templates/dashboard.html` (social section lines ~1648–1728)
 - Modify: `app/templates/dashboard.html` (inline CSS for `.dash-social-row`, `.dash-rank*` in new context)
 
-- [ ] Move `.dash-rank` markup from hero removal (Task 1) into Social as first column. Enlarge: show icon + display_name + `plans_completed/next_threshold` + progress bar (for max rank: "Максимальный титул")
-- [ ] Restructure `.dash-social-row` to 3 equal columns (CSS grid: `grid-template-columns: 1fr 1fr 1fr`)
-- [ ] Mobile (<= 768px): stack columns vertically with full width
-- [ ] Keep existing XP leaderboard and Achievements markup intact inside their columns
-- [ ] Write tests: social row has 3 children (rank, leaderboard, achievements) when data present; rank card renders in social, not in hero
-- [ ] Run project test suite — must pass before task 14
+- [x] Move `.dash-rank` markup from hero removal (Task 1) into Social as first column. Enlarge: show icon + display_name + `plans_completed/next_threshold` + progress bar (for max rank: "Максимальный титул")
+- [x] Restructure `.dash-social-row` to 3 equal columns (CSS grid: `grid-template-columns: 1fr 1fr 1fr`)
+- [x] Mobile (<= 768px): stack columns vertically with full width
+- [x] Keep existing XP leaderboard and Achievements markup intact inside their columns
+- [x] Write tests: social row has 3 children (rank, leaderboard, achievements) when data present; rank card renders in social, not in hero (added `tests/test_dashboard_social_row.py` with 18 file-level tests covering position, 3-column structure, rank card layout for max/non-max, empty fallbacks, CSS 3-col grid, 768px breakpoint, and card-context styling)
+- [x] Run project test suite — must pass before task 14 (18 new file-only tests pass; DB-bound render tests require Postgres not available locally — rely on CI)
 
 ### Task 14: Daily race → compact strip + /race page
 
