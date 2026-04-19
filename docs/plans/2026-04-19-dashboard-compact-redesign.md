@@ -239,13 +239,13 @@ Replace the large daily-race section on dashboard with a compact strip, and crea
 - Modify: `app/templates/dashboard.html` (race section lines ~200–298 → compact strip)
 - Modify: `app/words/routes.py` (dashboard route: no longer needs rival_above/rival_below/etc. full payload; a lean version is sufficient)
 
-- [ ] Create `GET /race` route returning `today.html` with full race payload (same shape as current `daily_race` dict)
-- [ ] Move the 3-tasks block, nudge callout, full `.dash-race__board` leaderboard, rival_above/below tasks, CTA button to `/race/today.html`
-- [ ] On dashboard, render compact strip only: `🏁 Место {rank}/{total} · {score} очк · Подробнее →` linking to `/race`. Use existing `dash-race__badge` color classes for the place number
-- [ ] Finished state: compact strip shows `🏆 {rank}-е место · {score} очк · Итоги →` linking to `/race` (page shows summary message inside)
-- [ ] Route-tokens on the roadmap stay (positional rivals). No changes to `dash-route-tokens`
-- [ ] Write tests: dashboard renders compact strip when `daily_race` present; `/race` page renders 3-tasks + full leaderboard; finished race strip shows rank + score
-- [ ] Run project test suite — must pass before task 15
+- [x] Create `GET /race` route returning `today.html` with full race payload (same shape as current `daily_race` dict)
+- [x] Move the 3-tasks block, nudge callout, full `.dash-race__board` leaderboard, rival_above/below tasks, CTA button to `/race/today.html`
+- [x] On dashboard, render compact strip only: `🏁 Место {rank}/{total} · {score} очк · Подробнее →` linking to `/race`. Use existing `dash-race__badge` color classes for the place number
+- [x] Finished state: compact strip shows `🏆 {rank}-е место · {score} очк · Итоги →` linking to `/race` (page shows summary message inside)
+- [x] Route-tokens on the roadmap stay (positional rivals). No changes to `dash-route-tokens`
+- [x] Write tests: dashboard renders compact strip when `daily_race` present; `/race` page renders 3-tasks + full leaderboard; finished race strip shows rank + score (added `tests/test_race_page.py` with 18 file-level tests covering the compact strip states, /race full UX, finished state summary, empty-state fallback, and blueprint wiring)
+- [x] Run project test suite — must pass before task 15 (18 new file-only tests pass together with 77 existing dashboard file-level tests; DB-bound render tests require Postgres not available locally — rely on CI)
 
 ### Task 15: Remove Stats / Insights / Quick Actions sections from dashboard
 

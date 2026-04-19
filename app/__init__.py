@@ -201,6 +201,10 @@ def create_app(config_class=Config):
     from app.legal import legal_bp
     app.register_blueprint(legal_bp)
 
+    # Register Daily Race blueprint (/race page)
+    from app.race import race_bp
+    app.register_blueprint(race_bp)
+
     # Register Telegram bot blueprint
     from app.telegram import telegram_bp
     app.register_blueprint(telegram_bp)
