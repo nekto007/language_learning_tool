@@ -641,10 +641,9 @@ def dashboard():
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_current_streak, get_daily_summary
     from app.telegram.notifications import _lesson_minutes, _words_minutes
-    from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses, get_best_study_time, get_reading_speed_trend
-    from app.study.services.session_service import SessionService
+    from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses
     from app.study.services.stats_service import StatsService
-    from app.achievements.streak_service import get_streak_calendar, get_milestone_history
+    from app.achievements.streak_service import get_streak_calendar
 
     # === DAILY PLAN & STREAK ===
     streak = get_current_streak(current_user.id, tz=tz)
@@ -732,37 +731,18 @@ def dashboard():
     grammar_weaknesses = _safe_widget_call(
         'grammar_weaknesses', get_grammar_weaknesses, current_user.id, limit=5, default=[])
 
-    # === BEST STUDY TIME & SESSION STATS ===
-    best_study_time = _safe_widget_call(
-        'best_study_time', get_best_study_time, current_user.id, tz=tz,
-        default={'best_hour': None, 'hourly_scores': {}})
-    _empty_session_stats = {
-        'period_days': 7, 'total_sessions': 0, 'total_words_studied': 0,
-        'total_correct': 0, 'total_incorrect': 0, 'accuracy_percent': 0,
-        'total_time_seconds': 0, 'avg_session_time_seconds': 0,
-    }
-    session_stats = _safe_widget_call(
-        'session_stats', SessionService.get_session_stats, current_user.id, days=7,
-        default=_empty_session_stats)
-
     # === LEADERBOARD & XP RANK (leaderboard cached for 5 min) ===
     xp_leaderboard = _safe_widget_call(
         'xp_leaderboard', _get_cached_leaderboard, StatsService, limit=5, default=[])
     user_xp_rank = _safe_widget_call(
         'user_xp_rank', StatsService.get_user_xp_rank, current_user.id, default=None)
 
-    # === ACHIEVEMENTS BY CATEGORY & MILESTONES ===
+    # === ACHIEVEMENTS BY CATEGORY ===
     achievements_by_category = _safe_widget_call(
         'achievements_by_category', StatsService.get_achievements_by_category, current_user.id, default={})
-    milestone_history = _safe_widget_call(
-        'milestone_history', get_milestone_history, current_user.id, default=[])
     badges_showcase = _safe_widget_call(
         'badges_showcase', StatsService.get_badges_showcase, current_user.id,
         default={'recent': [], 'teasers': [], 'earned_count': 0, 'total_count': 0})
-
-    # === READING SPEED TREND ===
-    reading_speed_trend = _safe_widget_call(
-        'reading_speed_trend', get_reading_speed_trend, current_user.id, default=[])
 
     # === WORDS STATS ===
     from app.srs.stats_service import srs_stats_service
@@ -1047,17 +1027,11 @@ def dashboard():
         # Words at risk & grammar weaknesses
         words_at_risk=words_at_risk,
         grammar_weaknesses=grammar_weaknesses,
-        # Best study time & session stats
-        best_study_time=best_study_time,
-        session_stats=session_stats,
         # Leaderboard
         xp_leaderboard=xp_leaderboard,
         user_xp_rank=user_xp_rank,
-        # Achievements by category & milestones
+        # Achievements by category
         achievements_by_category=achievements_by_category,
-        milestone_history=milestone_history,
-        # Reading speed trend
-        reading_speed_trend=reading_speed_trend,
         # Summary widgets
         weekly_analytics=weekly_analytics,
         continue_lesson=continue_lesson,

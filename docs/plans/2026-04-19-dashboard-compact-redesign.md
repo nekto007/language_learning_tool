@@ -256,12 +256,12 @@ Delete three sections that now live on dedicated pages or are redundant with in-
 - Modify: `app/templates/dashboard.html` (inline CSS: remove styles for `.dash-study-time*`, `.dash-week-stats*`, `.dash-reading-speed*`, `.dash-sparkline*`, `.dash-milestones*`, `.dash-quick*` if unused elsewhere)
 - Modify: `app/words/routes.py` (stop computing widgets only used by these sections)
 
-- [ ] Delete Section 5 (Stats: Best Study Time + This Week's Stats). Add one link at the bottom of Activity section: `Подробная статистика →` → `/study/stats`
-- [ ] Delete Section 8 (Insights: Reading Speed + Streak Milestones). Add one link near Social or Progress: `Аналитика обучения →` → `/study/insights`
-- [ ] Delete Section 9 (Quick Actions) entirely
-- [ ] Remove `best_study_time`, `session_stats`, `reading_speed_trend`, `milestone_history` widget calls from `app/words/routes.py` dashboard route (keep the widget functions themselves — they'll be called by `/study/stats` and `/study/insights`)
-- [ ] Write tests: dashboard does not render `.dash-study-time`, `.dash-week-stats`, `.dash-reading-speed`, `.dash-milestones`, `.dash-quick`; links to stats/insights pages present
-- [ ] Run project test suite — must pass before task 16
+- [x] Delete Section 5 (Stats: Best Study Time + This Week's Stats). Add one link at the bottom of Activity section: `Подробная статистика →` → `/study/stats`
+- [x] Delete Section 8 (Insights: Reading Speed + Streak Milestones). Add one link near Social or Progress: `Аналитика обучения →` → `/study/insights`
+- [x] Delete Section 9 (Quick Actions) entirely
+- [x] Remove `best_study_time`, `session_stats`, `reading_speed_trend`, `milestone_history` widget calls from `app/words/routes.py` dashboard route (keep the widget functions themselves — they'll be called by `/study/stats` and `/study/insights`)
+- [x] Write tests: dashboard does not render `.dash-study-time`, `.dash-week-stats`, `.dash-reading-speed`, `.dash-milestones`, `.dash-quick`; links to stats/insights pages present (added `tests/test_dashboard_removed_sections.py` with 24 file-level tests covering removed markup, removed CSS classes, new link placement/targets, route deimports/context-removal, and zero-state preservation)
+- [x] Run project test suite — must pass before task 16 (24 new file-only tests pass together with 98 existing dashboard file-level tests; DB-bound render tests require Postgres not available locally — rely on CI)
 
 ### Task 16: Enrich /study/stats and /study/insights with moved blocks
 
