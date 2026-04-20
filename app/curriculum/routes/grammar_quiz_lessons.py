@@ -15,6 +15,7 @@ from app.curriculum.service import get_next_lesson, process_quiz_submission
 from app.curriculum.services.progress_service import ProgressService
 from app.curriculum.validators import LessonContentValidator
 from app.daily_plan.linear.errors import log_quiz_errors_from_result
+from app.daily_plan.linear.grammar_theory import get_theory_for_lesson
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
@@ -144,6 +145,8 @@ def render_grammar_lesson(lesson):
                 response_data['new_achievements'] = completion_result['new_achievements']
             return jsonify(response_data)
 
+    theory_topic = _resolve_grammar_theory(current_user.id, lesson)
+
     return render_template(
         'curriculum/lessons/grammar.html',
         lesson=lesson,
@@ -153,9 +156,40 @@ def render_grammar_lesson(lesson):
         examples=examples,
         exercises=exercises,
         grammar_explanation=grammar_explanation,
+        theory_topic=theory_topic,
         progress=progress,
         next_lesson=next_lesson
     )
+
+
+def _resolve_grammar_theory(user_id: int, lesson: Lessons):
+    """Fetch (and record) the grammar-lab theory topic linked to this lesson.
+
+    Wraps ``get_theory_for_lesson`` so the caller can swallow any DB
+    failure without breaking the lesson render. A successful insert is
+    committed here since neither render path owns an outer transaction
+    guaranteed to run to the end.
+    """
+    try:
+        topic = get_theory_for_lesson(user_id, lesson, db)
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            'grammar_theory: unexpected error user=%s lesson=%s', user_id, lesson.id,
+        )
+        db.session.rollback()
+        return None
+
+    if topic is None:
+        return None
+
+    try:
+        db.session.commit()
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            'grammar_theory: commit failed user=%s lesson=%s', user_id, lesson.id,
+        )
+        db.session.rollback()
+    return topic
 
 
 def _sanitize_quiz_questions(cleaned_content: dict) -> None:
@@ -686,6 +720,8 @@ def grammar_lesson(lesson_id):
                 response_data['new_achievements'] = completion_result['new_achievements']
             return jsonify(response_data)
 
+    theory_topic = _resolve_grammar_theory(current_user.id, lesson)
+
     return render_template(
         'curriculum/lessons/grammar.html',
         lesson=lesson,
@@ -695,6 +731,7 @@ def grammar_lesson(lesson_id):
         examples=examples,
         exercises=exercises,
         grammar_explanation=grammar_explanation,
+        theory_topic=theory_topic,
         progress=progress,
         next_lesson=next_lesson
     )

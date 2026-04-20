@@ -188,12 +188,12 @@
 - Modify: шаблон grammar-урока
 - Create: `tests/daily_plan/linear/test_grammar_theory.py`
 
-- [ ] `get_theory_for_lesson(user_id, lesson, db) → Optional[GrammarTopic]` — matching по `Lesson.content['topic']` string → `GrammarTopic.title ILIKE` с фильтром `level = lesson.module.level`
-- [ ] При match — логируем `GrammarTheoryView(user_id, topic_id, lesson_id, shown_at)`, возвращаем topic
-- [ ] При отсутствии match — None, урок идёт как обычно (не падаем)
-- [ ] В шаблоне grammar-урока — секция «Теория (1 мин)» над упражнениями, если topic найден; collapse-friendly
-- [ ] Write tests: match по title/level; отсутствие поля `topic` в content; множественные варианты title (берётся первый по `GrammarTopic.order`); повторный вход в тот же урок не дублирует `GrammarTheoryView`
-- [ ] Run project test suite — must pass before task 9
+- [x] `get_theory_for_lesson(user_id, lesson, db) → Optional[GrammarTopic]` — matching по `Lesson.content['topic']` string → `GrammarTopic.title ILIKE` с фильтром `level = lesson.module.level`
+- [x] При match — логируем `GrammarTheoryView(user_id, topic_id, lesson_id, shown_at)`, возвращаем topic
+- [x] При отсутствии match — None, урок идёт как обычно (не падаем)
+- [x] В шаблоне grammar-урока — секция «Теория (1 мин)» над упражнениями, если topic найден; collapse-friendly
+- [x] Write tests: match по title/level; отсутствие поля `topic` в content; множественные варианты title (берётся первый по `GrammarTopic.order`); повторный вход в тот же урок не дублирует `GrammarTheoryView`
+- [x] Run project test suite — must pass before task 9 (daily_plan 261 + smoke 132 green; 30 pre-existing dashboard failures unchanged on base branch)
 
 ### Task 9: Assemble `get_linear_plan` from slots
 
