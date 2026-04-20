@@ -259,13 +259,13 @@
 **Files:**
 - Create: `tests/smoke/test_linear_dashboard_smoke.py`
 
-- [ ] Сценарий 1: юзер с `use_linear_plan=True` → `/` рендерит linear partial, 3 slots, API возвращает `mode=linear`
-- [ ] Сценарий 2: юзер с `use_linear_plan=False` → legacy mission работает (no регрессий)
-- [ ] Сценарий 3: первый вход без `UserReadingPreference` → слот чтения = «Выбрать книгу», модал доступен
-- [ ] Сценарий 4: все 3 baseline-слота done → continuation CTA виден, `day_secured=True`
-- [ ] Все 4 теста `@pytest.mark.smoke`
-- [ ] Убедиться что `pytest -m smoke` укладывается в <30 сек
-- [ ] Run project test suite — must pass before task 13
+- [x] Сценарий 1: юзер с `use_linear_plan=True` → `/` рендерит linear partial, 3 slots, API возвращает `mode=linear`
+- [x] Сценарий 2: юзер с `use_linear_plan=False` → legacy mission работает (no регрессий)
+- [x] Сценарий 3: первый вход без `UserReadingPreference` → слот чтения = «Выбрать книгу», модал доступен
+- [x] Сценарий 4: все 3 baseline-слота done → continuation CTA виден, `day_secured=True`
+- [x] Все 4 теста `@pytest.mark.smoke`
+- [x] Убедиться что `pytest -m smoke` укладывается в <30 сек (136 tests in 9s)
+- [x] Run project test suite — must pass before task 13 (4731 passed incl. new 4; 89 pre-existing dashboard failures unchanged on base branch)
 
 ---
 
