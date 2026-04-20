@@ -63,8 +63,9 @@ def _today_utc() -> date_cls:
 def is_linear_user(user_id: int) -> bool:
     """Return True when the user has the linear plan flag enabled."""
     from app.auth.models import User
+    from app.utils.db import db
 
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if user is None:
         return False
     return bool(getattr(user, 'use_linear_plan', False))

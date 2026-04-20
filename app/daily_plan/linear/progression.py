@@ -67,7 +67,12 @@ def find_next_lesson_linear(user_id: int, db: Any) -> Optional[Lessons]:
             CEFRLevel.order >= min_order,
             Lessons.id.notin_(db.session.query(completed_subq.c.lesson_id)),
         )
-        .order_by(CEFRLevel.order.asc(), Module.number.asc(), Lessons.number.asc())
+        .order_by(
+            CEFRLevel.order.asc(),
+            Module.number.asc(),
+            Lessons.number.asc(),
+            Lessons.id.asc(),
+        )
         .first()
     )
     return lesson
@@ -166,7 +171,7 @@ def get_module_upcoming(
             Lessons.number > current_lesson.number,
             Lessons.id.notin_(db.session.query(completed_subq.c.lesson_id)),
         )
-        .order_by(Lessons.number.asc())
+        .order_by(Lessons.number.asc(), Lessons.id.asc())
         .limit(limit)
         .all()
     )

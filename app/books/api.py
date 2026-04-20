@@ -855,6 +855,16 @@ def save_reading_position():
     if not book_id:
         return jsonify({'success': False, 'message': 'Missing book_id'}), 400
 
+    try:
+        book_id = int(book_id)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid book_id'}), 400
+
+    try:
+        position = max(0.0, min(1.0, float(position)))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid position'}), 400
+
     # Get chapter
     chapter = Chapter.query.filter_by(book_id=book_id, chap_num=chapter_num).first()
     if not chapter:
