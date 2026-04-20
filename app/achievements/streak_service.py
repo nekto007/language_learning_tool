@@ -108,19 +108,20 @@ def _compute_linear_slot_completion(
     DB state at plan assembly time) with a summary-derived fallback so the
     API recomputes day-secured consistently with the mission flow.
     """
-    words_reviewed = int(daily_summary.get('words_reviewed', 0) or 0)
     srs_words_reviewed = int(daily_summary.get('srs_words_reviewed', 0) or 0)
     # Reading intentionally has no summary fallback: ``books_read`` counts
     # any book the user touched today and ignores both the preferred-book
     # filter and the read-progress threshold. The slot's own ``completed``
     # flag keys off the ``linear_book_reading`` XP event which applies
     # both gates correctly.
+    # SRS signal gates on SRS-specific counters only; ``words_reviewed``
+    # includes curriculum card-lesson reviews that belong to the
+    # curriculum slot, not the /study-based SRS slot.
     summary_signals = {
         'curriculum': int(daily_summary.get('lessons_count', 0) or 0) > 0,
         'srs': (
             int(daily_summary.get('srs_review_reviewed', 0) or 0) > 0
             or srs_words_reviewed > 0
-            or words_reviewed > 0
         ),
         'error_review': (
             int(daily_summary.get('error_review_resolved_today', 0) or 0) > 0

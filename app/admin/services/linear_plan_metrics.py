@@ -33,6 +33,7 @@ from app.daily_plan.linear.models import QuizErrorLog, UserReadingPreference
 from app.daily_plan.models import DailyPlanLog
 from app.study.models import StudySession
 from app.utils.db import db
+from app.utils.db_utils import chunk_ids
 
 
 def _cohort_user_ids(session: Any = None) -> list[int]:
@@ -49,16 +50,18 @@ def _today_utc() -> date:
 def _day_secured_rate(user_ids: list[int], today: date, session: Any) -> float:
     if not user_ids:
         return 0.0
-    secured = (
-        session.query(func.count(DailyPlanLog.id))
-        .filter(
-            DailyPlanLog.user_id.in_(user_ids),
-            DailyPlanLog.plan_date == today,
-            DailyPlanLog.secured_at.isnot(None),
+    secured = 0
+    for chunk in chunk_ids(user_ids):
+        secured += (
+            session.query(func.count(DailyPlanLog.id))
+            .filter(
+                DailyPlanLog.user_id.in_(chunk),
+                DailyPlanLog.plan_date == today,
+                DailyPlanLog.secured_at.isnot(None),
+            )
+            .scalar()
+            or 0
         )
-        .scalar()
-        or 0
-    )
     return round(secured / len(user_ids) * 100, 1)
 
 
@@ -67,53 +70,59 @@ def _average_slots_completed(user_ids: list[int], today: date, session: Any) -> 
     if not user_ids:
         return 0.0
 
-    curriculum_rows = (
-        session.query(LessonProgress.user_id)
-        .filter(
-            LessonProgress.user_id.in_(user_ids),
-            LessonProgress.status == 'completed',
-            func.date(LessonProgress.completed_at) == today,
-        )
-        .distinct()
-        .all()
-    )
-    curriculum_users = {row[0] for row in curriculum_rows}
+    curriculum_users: set[int] = set()
+    srs_users: set[int] = set()
+    reading_users: set[int] = set()
+    error_users: set[int] = set()
 
-    srs_rows = (
-        session.query(StudySession.user_id)
-        .filter(
-            StudySession.user_id.in_(user_ids),
-            func.date(StudySession.start_time) == today,
-        )
-        .distinct()
-        .all()
-    )
-    srs_users = {row[0] for row in srs_rows}
+    for chunk in chunk_ids(user_ids):
+        for row in (
+            session.query(LessonProgress.user_id)
+            .filter(
+                LessonProgress.user_id.in_(chunk),
+                LessonProgress.status == 'completed',
+                func.date(LessonProgress.completed_at) == today,
+            )
+            .distinct()
+            .all()
+        ):
+            curriculum_users.add(row[0])
 
-    reading_rows = (
-        session.query(UserChapterProgress.user_id)
-        .filter(
-            UserChapterProgress.user_id.in_(user_ids),
-            UserChapterProgress.updated_at.isnot(None),
-            func.date(UserChapterProgress.updated_at) == today,
-        )
-        .distinct()
-        .all()
-    )
-    reading_users = {row[0] for row in reading_rows}
+        for row in (
+            session.query(StudySession.user_id)
+            .filter(
+                StudySession.user_id.in_(chunk),
+                func.date(StudySession.start_time) == today,
+            )
+            .distinct()
+            .all()
+        ):
+            srs_users.add(row[0])
 
-    # Error-review completion proxy: a resolved_at stamped today.
-    error_rows = (
-        session.query(QuizErrorLog.user_id)
-        .filter(
-            QuizErrorLog.user_id.in_(user_ids),
-            QuizErrorLog.resolved_at.isnot(None),
-            func.date(QuizErrorLog.resolved_at) == today,
-        )
-        .distinct()
-        .all()
-    )
-    error_users = {row[0] for row in error_rows}
+        for row in (
+            session.query(UserChapterProgress.user_id)
+            .filter(
+                UserChapterProgress.user_id.in_(chunk),
+                UserChapterProgress.updated_at.isnot(None),
+                func.date(UserChapterProgress.updated_at) == today,
+            )
+            .distinct()
+            .all()
+        ):
+            reading_users.add(row[0])
+
+        # Error-review completion proxy: a resolved_at stamped today.
+        for row in (
+            session.query(QuizErrorLog.user_id)
+            .filter(
+                QuizErrorLog.user_id.in_(chunk),
+                QuizErrorLog.resolved_at.isnot(None),
+                func.date(QuizErrorLog.resolved_at) == today,
+            )
+            .distinct()
+            .all()
+        ):
+            error_users.add(row[0])
 
     total = 0
     for uid in user_ids:
@@ -141,16 +150,18 @@ def _error_review_trigger_rate(user_ids: list[int], session: Any) -> float:
         case((QuizErrorLog.resolved_at.is_(None), 1), else_=0)
     ).label('unresolved')
 
-    per_user = (
-        session.query(
-            QuizErrorLog.user_id.label('uid'),
-            unresolved_expr,
-            func.max(QuizErrorLog.resolved_at).label('last_resolved'),
+    per_user = []
+    for chunk in chunk_ids(user_ids):
+        per_user.extend(
+            session.query(
+                QuizErrorLog.user_id.label('uid'),
+                unresolved_expr,
+                func.max(QuizErrorLog.resolved_at).label('last_resolved'),
+            )
+            .filter(QuizErrorLog.user_id.in_(chunk))
+            .group_by(QuizErrorLog.user_id)
+            .all()
         )
-        .filter(QuizErrorLog.user_id.in_(user_ids))
-        .group_by(QuizErrorLog.user_id)
-        .all()
-    )
 
     triggered = 0
     for row in per_user:
@@ -172,12 +183,14 @@ def _error_review_trigger_rate(user_ids: list[int], session: Any) -> float:
 def _book_select_rate(user_ids: list[int], session: Any) -> float:
     if not user_ids:
         return 0.0
-    selected = (
-        session.query(func.count(UserReadingPreference.user_id))
-        .filter(UserReadingPreference.user_id.in_(user_ids))
-        .scalar()
-        or 0
-    )
+    selected = 0
+    for chunk in chunk_ids(user_ids):
+        selected += (
+            session.query(func.count(UserReadingPreference.user_id))
+            .filter(UserReadingPreference.user_id.in_(chunk))
+            .scalar()
+            or 0
+        )
     return round(selected / len(user_ids) * 100, 1)
 
 
