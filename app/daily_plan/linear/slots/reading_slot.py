@@ -6,18 +6,16 @@ States:
 - Preference present → slot points at the user's selected book. Title
   shows the chosen book; subtitle includes the chapter the user is
   currently reading (highest ``UserChapterProgress.updated_at`` row).
-- ``completed = True`` when any chapter of the selected book had a
-  progress update today AND ``offset_pct`` advanced by at least
-  ``READ_PROGRESS_THRESHOLD`` since yesterday's last position
-  (``last_offset + threshold`` rule). For the first read of the day
-  with no prior offset, any non-zero offset counts.
+- ``completed = True`` when a ``linear_book_reading`` XP award was
+  recorded today (see ``save_reading_position`` / ``maybe_award_book_reading_xp``).
+  That award is gated on an offset_pct delta of at least
+  ``READ_PROGRESS_THRESHOLD``, so re-opening the book at the same
+  position never flips the slot to completed.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any, Optional
-
-from sqlalchemy import func
 
 from app.books.models import Book, Chapter, UserChapterProgress
 from app.daily_plan.linear.models import UserReadingPreference
@@ -27,11 +25,6 @@ _READING_SLOT_ETA_MINUTES = 10
 # Minimum offset_pct delta within a single chapter that counts as "real"
 # reading progress today. 5% of one chapter ~ 1-2 pages on a typical book.
 READ_PROGRESS_THRESHOLD = 0.05
-
-
-def _today_start() -> datetime:
-    now = datetime.now(timezone.utc)
-    return now.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def get_user_reading_preference(user_id: int, db: Any) -> Optional[UserReadingPreference]:
@@ -57,29 +50,27 @@ def _latest_chapter_progress(
     )
 
 
-def _read_today(user_id: int, book_id: int, db: Any) -> bool:
-    """Did the user advance reading on this book today by at least the threshold?
+def _read_today(user_id: int, db: Any) -> bool:
+    """Did the user earn the ``linear_book_reading`` XP award today?
 
-    Counts as "true" if any chapter of the book has an
-    ``UserChapterProgress`` row updated today AND ``offset_pct`` is at or
-    above ``READ_PROGRESS_THRESHOLD``. The intent is to filter out trivial
-    "open the page and bounce" updates that would otherwise mark the slot
+    The XP award is written by ``save_reading_position`` only when the
+    offset_pct delta since the last saved position crosses
+    ``READ_PROGRESS_THRESHOLD``. Using the award row as the "read today"
+    signal keeps the slot's ``completed`` flag aligned with the XP path
+    and prevents trivial "open-and-close" updates from marking the slot
     completed.
     """
-    start = _today_start()
-    advanced = (
-        db.session.query(func.count(UserChapterProgress.chapter_id))
-        .join(Chapter, Chapter.id == UserChapterProgress.chapter_id)
-        .filter(
-            UserChapterProgress.user_id == user_id,
-            Chapter.book_id == book_id,
-            UserChapterProgress.updated_at >= start,
-            UserChapterProgress.offset_pct >= READ_PROGRESS_THRESHOLD,
-        )
-        .scalar()
-        or 0
+    from app.achievements.models import StreakEvent
+    from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
+
+    today = datetime.now(timezone.utc).date()
+    query = db.session.query(StreakEvent).filter(
+        StreakEvent.user_id == user_id,
+        StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
+        StreakEvent.event_date == today,
+        StreakEvent.details['source'].astext == 'linear_book_reading',
     )
-    return int(advanced) > 0
+    return db.session.query(query.exists()).scalar() or False
 
 
 def build_reading_slot(user_id: int, db: Any) -> LinearSlot:
@@ -124,7 +115,7 @@ def build_reading_slot(user_id: int, db: Any) -> LinearSlot:
             chapter_num = chapter.chap_num
             chapter_title = chapter.title
 
-    completed = _read_today(user_id, book.id, db)
+    completed = _read_today(user_id, db)
 
     title = book.title
     return LinearSlot(

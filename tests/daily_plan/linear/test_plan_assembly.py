@@ -149,6 +149,25 @@ def _record_chapter_progress(
     db_session.commit()
 
 
+def _record_reading_xp_event(db_session, user: User) -> None:
+    """Simulate the ``linear_book_reading`` XP award for today.
+
+    The reading slot gates its ``completed`` flag on this event so tests
+    that want the slot to appear completed must create one.
+    """
+    from app.achievements.models import StreakEvent
+    from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
+
+    db_session.add(StreakEvent(
+        user_id=user.id,
+        event_type=LINEAR_XP_EVENT_TYPE,
+        event_date=datetime.now(timezone.utc).date(),
+        coins_delta=0,
+        details={'source': 'linear_book_reading', 'xp': 15},
+    ))
+    db_session.commit()
+
+
 def _setup_srs_cards(
     db_session, user: User, *, due: int = 0, studied_today: int = 0
 ) -> None:
@@ -270,12 +289,13 @@ class TestGetLinearPlanAssembly:
         _complete_lesson(db_session, user, curriculum_setup['lesson'])
         # SRS: nothing due and no activity → slot collapses to completed.
         _setup_srs_cards(db_session, user, due=0, studied_today=0)
-        # Reading: preference + chapter advanced above threshold today.
+        # Reading: preference + XP event (authoritative "read today" signal).
         book = _make_book(db_session)
         _set_reading_preference(db_session, user, book)
         _record_chapter_progress(
             db_session, user, book.chapters[0], offset_pct=0.25,
         )
+        _record_reading_xp_event(db_session, user)
 
         payload = get_linear_plan(user.id, real_db)
 
@@ -298,6 +318,7 @@ class TestGetLinearPlanAssembly:
         _record_chapter_progress(
             db_session, user, book.chapters[0], offset_pct=0.25,
         )
+        _record_reading_xp_event(db_session, user)
         # Seed 6 unresolved errors → should_show_error_review is True.
         for i in range(6):
             db_session.add(QuizErrorLog(
@@ -364,7 +385,7 @@ class TestComputePlanStepsLinear:
         baseline_slots = [
             {'kind': 'curriculum', 'completed': False},
             {'kind': 'srs', 'completed': False},
-            {'kind': 'reading', 'completed': False},
+            {'kind': 'reading', 'completed': True},
         ]
         summary = {
             'lessons_count': 1,
@@ -378,9 +399,32 @@ class TestComputePlanStepsLinear:
             self._plan(baseline_slots), summary,
         )
 
+        # Reading has no summary fallback; it relies on slot.completed
+        # (which is gated on the linear_book_reading XP event).
         assert plan_completion == {'curriculum': True, 'srs': True, 'reading': True}
         assert steps_done == 3
         assert steps_total == 3
+
+    def test_reading_summary_signal_does_not_promote_slot(self):
+        """``books_read`` alone must not flip the reading slot to complete —
+        it does not filter by preferred book nor apply the progress threshold."""
+        baseline_slots = [
+            {'kind': 'curriculum', 'completed': False},
+            {'kind': 'srs', 'completed': False},
+            {'kind': 'reading', 'completed': False},
+        ]
+        summary = {
+            'lessons_count': 0,
+            'words_reviewed': 0,
+            'srs_words_reviewed': 0,
+            'srs_review_reviewed': 0,
+            'books_read': ['Random Book'],
+        }
+
+        plan_completion, _, _, _ = compute_plan_steps(
+            self._plan(baseline_slots), summary,
+        )
+        assert plan_completion['reading'] is False
 
     def test_four_slot_linear_plan_counts_error_review(self):
         baseline_slots = [

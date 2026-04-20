@@ -158,7 +158,9 @@ class TestDailyPlanApiLinearShape:
         assert data['day_secured'] is True
 
     def test_linear_day_secured_true_via_summary_signals(self, authenticated_client):
-        plan = _linear_plan()
+        # Reading has no summary fallback (see streak_service), so the
+        # plan's reading slot must report completed=True for this scenario.
+        plan = _linear_plan(reading_done=True)
         summary = {
             **_empty_summary(),
             'lessons_count': 1,

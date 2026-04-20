@@ -875,14 +875,20 @@ def dashboard():
 
     # Recompute day_secured from actual activity; plan payload always has completed=False
     # at assembly time (phases are built before any activity is recorded).
-    if daily_plan.get('_plan_meta', {}).get('effective_mode') == 'mission':
+    _effective_mode = daily_plan.get('_plan_meta', {}).get('effective_mode')
+    if _effective_mode == 'mission':
         _phases = daily_plan.get('phases', [])
         _required = [p for p in _phases if p.get('required', True)]
         daily_plan['day_secured'] = bool(_required) and all(
             plan_completion.get(p.get('id', ''), False) for p in _required
         )
+    elif _effective_mode == 'linear':
+        _slots = daily_plan.get('baseline_slots', [])
+        daily_plan['day_secured'] = bool(_slots) and all(
+            plan_completion.get(s.get('kind', ''), False) for s in _slots
+        )
 
-    if daily_plan.get('day_secured') and daily_plan.get('mission'):
+    if daily_plan.get('day_secured') and _effective_mode in ('mission', 'linear'):
         try:
             from app.api.daily_plan import emit_minimum_completed
             from app.daily_plan.service import write_secured_at
@@ -894,7 +900,9 @@ def dashboard():
                 _tz_obj = _pytz.timezone(DEFAULT_TIMEZONE)
             _today = datetime.now(_tz_obj).date()
             _mission = daily_plan.get('mission') or {}
-            _mission_type = _mission.get('type') if isinstance(_mission, dict) else None
+            _mission_type = (
+                _mission.get('type') if isinstance(_mission, dict) else None
+            )
             emit_minimum_completed(current_user.id, _mission_type, _today)
             write_secured_at(current_user.id, _today, _mission_type)
             db.session.commit()

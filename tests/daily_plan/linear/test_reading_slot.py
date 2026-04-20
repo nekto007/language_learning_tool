@@ -3,7 +3,7 @@
 Covers:
 - No ``UserReadingPreference`` → "select-book" slot pointing at the modal.
 - Preference present → slot reflects the chosen book and current chapter.
-- ``completed`` is True when chapter progress today crosses the threshold.
+- ``completed`` is True when today's ``linear_book_reading`` XP event exists.
 - Defensive fallback when the preference points at a deleted book.
 - Plan assembly includes a reading slot in ``baseline_slots``.
 """
@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from app.achievements.models import StreakEvent
 from app.auth.models import User
 from app.books.models import Book, Chapter, UserChapterProgress
 from app.daily_plan.linear.models import UserReadingPreference
@@ -22,7 +23,24 @@ from app.daily_plan.linear.slots.reading_slot import (
     READ_PROGRESS_THRESHOLD,
     build_reading_slot,
 )
+from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
 from app.utils.db import db as real_db
+
+
+def _record_reading_xp_event(
+    db_session, user: User, *, when: datetime | None = None
+) -> StreakEvent:
+    ts = when or datetime.now(timezone.utc)
+    event = StreakEvent(
+        user_id=user.id,
+        event_type=LINEAR_XP_EVENT_TYPE,
+        event_date=ts.date(),
+        coins_delta=0,
+        details={'source': 'linear_book_reading', 'xp': 15},
+    )
+    db_session.add(event)
+    db_session.commit()
+    return event
 
 
 def _make_user(db_session) -> User:
@@ -177,35 +195,17 @@ class TestWithPreference:
 
 
 class TestCompletedToday:
-    def test_completed_when_progress_today_above_threshold(self, db_session):
+    def test_completed_when_linear_reading_xp_event_today(self, db_session):
         user = _make_user(db_session)
         book = _make_book(db_session)
         _set_preference(db_session, user, book)
-        chapter = book.chapters[0]
-        _record_chapter_progress(
-            db_session, user, chapter,
-            offset_pct=READ_PROGRESS_THRESHOLD + 0.01,
-            when=datetime.now(timezone.utc),
-        )
+        _record_reading_xp_event(db_session, user)
 
         slot = build_reading_slot(user.id, real_db)
         assert slot.completed is True
 
-    def test_not_completed_when_progress_below_threshold(self, db_session):
-        user = _make_user(db_session)
-        book = _make_book(db_session)
-        _set_preference(db_session, user, book)
-        chapter = book.chapters[0]
-        _record_chapter_progress(
-            db_session, user, chapter,
-            offset_pct=0.01,
-            when=datetime.now(timezone.utc),
-        )
-
-        slot = build_reading_slot(user.id, real_db)
-        assert slot.completed is False
-
-    def test_not_completed_when_progress_was_yesterday(self, db_session):
+    def test_not_completed_when_chapter_update_without_xp_event(self, db_session):
+        """Re-opening the book with no real advance must not mark slot done."""
         user = _make_user(db_session)
         book = _make_book(db_session)
         _set_preference(db_session, user, book)
@@ -213,8 +213,37 @@ class TestCompletedToday:
         _record_chapter_progress(
             db_session, user, chapter,
             offset_pct=0.5,
+            when=datetime.now(timezone.utc),
+        )
+
+        slot = build_reading_slot(user.id, real_db)
+        assert slot.completed is False
+
+    def test_not_completed_when_xp_event_was_yesterday(self, db_session):
+        user = _make_user(db_session)
+        book = _make_book(db_session)
+        _set_preference(db_session, user, book)
+        _record_reading_xp_event(
+            db_session, user,
             when=datetime.now(timezone.utc) - timedelta(days=1, hours=2),
         )
+
+        slot = build_reading_slot(user.id, real_db)
+        assert slot.completed is False
+
+    def test_completed_only_for_reading_source(self, db_session):
+        """A StreakEvent with a different linear source must not count."""
+        user = _make_user(db_session)
+        book = _make_book(db_session)
+        _set_preference(db_session, user, book)
+        db_session.add(StreakEvent(
+            user_id=user.id,
+            event_type=LINEAR_XP_EVENT_TYPE,
+            event_date=datetime.now(timezone.utc).date(),
+            coins_delta=0,
+            details={'source': 'linear_srs_global', 'xp': 8},
+        ))
+        db_session.commit()
 
         slot = build_reading_slot(user.id, real_db)
         assert slot.completed is False

@@ -110,6 +110,11 @@ def _compute_linear_slot_completion(
     """
     words_reviewed = int(daily_summary.get('words_reviewed', 0) or 0)
     srs_words_reviewed = int(daily_summary.get('srs_words_reviewed', 0) or 0)
+    # Reading intentionally has no summary fallback: ``books_read`` counts
+    # any book the user touched today and ignores both the preferred-book
+    # filter and the read-progress threshold. The slot's own ``completed``
+    # flag keys off the ``linear_book_reading`` XP event which applies
+    # both gates correctly.
     summary_signals = {
         'curriculum': int(daily_summary.get('lessons_count', 0) or 0) > 0,
         'srs': (
@@ -117,7 +122,6 @@ def _compute_linear_slot_completion(
             or srs_words_reviewed > 0
             or words_reviewed > 0
         ),
-        'reading': len(daily_summary.get('books_read', []) or []) > 0,
         'error_review': (
             int(daily_summary.get('error_review_resolved_today', 0) or 0) > 0
         ),
