@@ -37,7 +37,6 @@ def _base_progress(**overrides) -> dict:
         'level': 'A2',
         'percent': 40,
         'lessons_remaining_in_level': 30,
-        'lessons_remaining_to_next_level': 30,
     }
     base.update(overrides)
     return base

@@ -49,7 +49,6 @@ def _level_progress_to_dict(progress: LevelProgress) -> dict[str, Any]:
         'level': progress.level,
         'percent': progress.percent,
         'lessons_remaining_in_level': progress.lessons_remaining_in_level,
-        'lessons_remaining_to_next_level': progress.lessons_remaining_to_next_level,
     }
 
 

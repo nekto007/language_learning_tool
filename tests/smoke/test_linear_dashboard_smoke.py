@@ -173,7 +173,6 @@ def _linear_plan(
             'level': 'B1',
             'percent': 0,
             'lessons_remaining_in_level': 60,
-            'lessons_remaining_to_next_level': 60,
         },
         'baseline_slots': [curriculum_slot, srs_slot, reading_slot],
         'continuation': {

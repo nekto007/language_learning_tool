@@ -70,17 +70,7 @@ def _resolve_topic(lesson: Any, db: Any) -> Optional[GrammarTopic]:
     if level_code:
         query = query.filter(GrammarTopic.level == level_code)
 
-    topic = query.order_by(GrammarTopic.order.asc(), GrammarTopic.id.asc()).first()
-    if topic is not None:
-        return topic
-
-    # Fallback: case-insensitive LIKE when the exact title does not match.
-    like_query = db.session.query(GrammarTopic).filter(
-        GrammarTopic.title.ilike(topic_hint.strip())
-    )
-    if level_code:
-        like_query = like_query.filter(GrammarTopic.level == level_code)
-    return like_query.order_by(GrammarTopic.order.asc(), GrammarTopic.id.asc()).first()
+    return query.order_by(GrammarTopic.order.asc(), GrammarTopic.id.asc()).first()
 
 
 def _existing_view(user_id: int, lesson_id: int, db: Any) -> Optional[GrammarTheoryView]:
@@ -124,24 +114,29 @@ def get_theory_for_lesson(
     if topic is None:
         return None
 
-    try:
-        existing = _existing_view(user_id, lesson.id, db)
-        if existing is None:
+    existing = _existing_view(user_id, lesson.id, db)
+    if existing is None:
+        savepoint = db.session.begin_nested()
+        try:
             view = GrammarTheoryView(
                 user_id=user_id,
                 topic_id=topic.id,
                 lesson_id=lesson.id,
             )
             db.session.add(view)
+            savepoint.commit()
             if commit:
                 db.session.commit()
             else:
                 db.session.flush()
-    except Exception:  # noqa: BLE001
-        logger.exception(
-            'grammar_theory: failed to record view user=%s lesson=%s topic=%s',
-            user_id, lesson.id, topic.id,
-        )
-        db.session.rollback()
+        except Exception:  # noqa: BLE001 — savepoint scopes the rollback, outer tx untouched
+            logger.exception(
+                'grammar_theory: failed to record view user=%s lesson=%s topic=%s',
+                user_id, lesson.id, topic.id,
+            )
+            try:
+                savepoint.rollback()
+            except Exception:  # noqa: BLE001
+                pass
 
     return topic

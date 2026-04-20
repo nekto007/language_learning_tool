@@ -200,15 +200,10 @@ def _is_linear_plan_card_source() -> bool:
     return source == LINEAR_PLAN_CARD_SOURCE or from_param == 'linear_plan'
 
 
-def _apply_linear_plan_source(user_id: int, cards_list: list[dict]) -> tuple[list[dict], bool]:
-    """Apply linear-plan card source behavior to a card-lesson session.
-
-    Returns ``(updated_cards_list, activate_srs)``.
-
-    - When ``srs_budget_remaining > 0``: prepend up to ``min(budget, 10)``
-      due-review cards from the user's personal decks.
-    - When ``srs_budget_remaining == 0``: caller must rebuild ``cards_list``
-      with ``activate_srs=False`` — indicated by returning ``False``.
+def _apply_linear_plan_source(user_id: int, cards_list: list[dict]) -> list[dict]:
+    """Prepend up to ``min(budget, 10)`` due-review mix cards when the linear
+    plan's SRS budget has room. Returns ``cards_list`` unchanged when the
+    budget is exhausted or there are no due cards.
     """
     from app.daily_plan.linear.slots.srs_slot import (
         get_linear_plan_due_mix_cards,
@@ -217,12 +212,12 @@ def _apply_linear_plan_source(user_id: int, cards_list: list[dict]) -> tuple[lis
 
     budget = get_srs_budget_remaining(user_id, db)
     if budget <= 0:
-        return cards_list, False
+        return cards_list
 
     mix_limit = min(budget, _LINEAR_PLAN_MIX_MAX)
     mix_cards = get_linear_plan_due_mix_cards(user_id, db, mix_limit)
     if not mix_cards:
-        return cards_list, True
+        return cards_list
 
     existing_direction_ids = {
         c.get('direction_id')
@@ -232,7 +227,7 @@ def _apply_linear_plan_source(user_id: int, cards_list: list[dict]) -> tuple[lis
     deduped_mix = [
         c for c in mix_cards if c.get('direction_id') not in existing_direction_ids
     ]
-    return deduped_mix + cards_list, True
+    return deduped_mix + cards_list
 
 
 def render_card_lesson(lesson):
@@ -317,7 +312,7 @@ def render_card_lesson(lesson):
         )
 
     if linear_plan_card:
-        cards_list, _ = _apply_linear_plan_source(current_user.id, cards_list)
+        cards_list = _apply_linear_plan_source(current_user.id, cards_list)
 
     next_review_time = None
     if len(cards_list) == 0:
@@ -492,7 +487,7 @@ def card_lesson(lesson_id):
         )
 
     if linear_plan_card:
-        cards_list, _ = _apply_linear_plan_source(current_user.id, cards_list)
+        cards_list = _apply_linear_plan_source(current_user.id, cards_list)
 
     next_review_time = None
     if len(cards_list) == 0:

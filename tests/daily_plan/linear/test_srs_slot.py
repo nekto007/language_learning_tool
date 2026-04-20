@@ -465,9 +465,8 @@ class TestDueMixCards:
         curriculum_words = [_make_word(db_session) for _ in range(2)]
         curriculum_cards = _build_cards_for_words(curriculum_words, user.id, activate_srs=True)
 
-        merged, activate_srs = _apply_linear_plan_source(user.id, curriculum_cards)
+        merged = _apply_linear_plan_source(user.id, curriculum_cards)
 
-        assert activate_srs is True
         assert len(merged) >= len(curriculum_cards) + 2
         # Mix cards are prepended (come first)
         curriculum_direction_ids = {c.get('direction_id') for c in curriculum_cards}
@@ -477,9 +476,7 @@ class TestDueMixCards:
         assert len(mix_direction_ids) == 2
 
     def test_mix_empty_when_budget_zero(self, db_session):
-        """budget=0 disables mixing; the caller rebuilds curriculum cards
-        with ``activate_srs=False``. ``_apply_linear_plan_source`` signals
-        this via the activate_srs=False return value."""
+        """budget=0 disables mixing; the caller returns curriculum cards unchanged."""
         from app.curriculum.routes.card_lessons import _apply_linear_plan_source
 
         user = _make_user(db_session)
@@ -501,9 +498,8 @@ class TestDueMixCards:
 
         assert get_srs_budget_remaining(user.id, real_db) == 0
 
-        merged, activate_srs = _apply_linear_plan_source(user.id, [])
+        merged = _apply_linear_plan_source(user.id, [])
 
-        assert activate_srs is False
         assert merged == []
 
 

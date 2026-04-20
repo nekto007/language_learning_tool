@@ -26,7 +26,6 @@ class LevelProgress:
     level: str
     percent: int
     lessons_remaining_in_level: int
-    lessons_remaining_to_next_level: int
 
 
 def _user_min_level_order(user_id: int, db: Any) -> int:
@@ -101,7 +100,6 @@ def get_user_level_progress(user_id: int, db: Any) -> LevelProgress:
             level='',
             percent=0,
             lessons_remaining_in_level=0,
-            lessons_remaining_to_next_level=0,
         )
 
     total_in_level, completed_in_level = (
@@ -130,15 +128,10 @@ def get_user_level_progress(user_id: int, db: Any) -> LevelProgress:
     remaining_in_level = max(total_in_level - completed_in_level, 0)
     percent = int(round(completed_in_level * 100 / total_in_level)) if total_in_level else 0
 
-    # Remaining-to-next-level matches remaining_in_level when the user has
-    # not finished this level; when everything is done it is zero.
-    remaining_to_next = remaining_in_level
-
     return LevelProgress(
         level=current_level.code,
         percent=percent,
         lessons_remaining_in_level=remaining_in_level,
-        lessons_remaining_to_next_level=remaining_to_next,
     )
 
 

@@ -217,13 +217,8 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
         return None
 
 
-def _get_linear_plan_safe(user_id: int, tz: Optional[str]) -> Optional[dict[str, Any]]:
-    """Wrap the linear-plan assembler so any failure degrades to mission/legacy.
-
-    ``tz`` is accepted for signature symmetry with the other assemblers but
-    is not needed — the linear assembler is timezone-agnostic.
-    """
-    del tz
+def _get_linear_plan_safe(user_id: int) -> Optional[dict[str, Any]]:
+    """Wrap the linear-plan assembler so any failure degrades to mission/legacy."""
     try:
         from app.daily_plan.linear.plan import get_linear_plan
         return get_linear_plan(user_id)
@@ -248,7 +243,7 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
     user = User.query.get(user_id)
 
     if user and user.use_linear_plan:
-        linear_payload = _get_linear_plan_safe(user_id, tz)
+        linear_payload = _get_linear_plan_safe(user_id)
         if linear_payload is not None:
             return _with_plan_meta(
                 linear_payload,

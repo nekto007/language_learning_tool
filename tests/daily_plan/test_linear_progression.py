@@ -210,7 +210,6 @@ class TestGetUserLevelProgress:
         assert lp.percent == 0
         # A1 has 2 modules * 3 lessons = 6
         assert lp.lessons_remaining_in_level == 6
-        assert lp.lessons_remaining_to_next_level == 6
 
     def test_partial_completion_percent(self, db_session, curriculum):
         a1_code = curriculum['levels']['A1'].code
@@ -253,7 +252,6 @@ class TestGetUserLevelProgress:
         assert lp.level == b1_code
         assert lp.percent == 100
         assert lp.lessons_remaining_in_level == 0
-        assert lp.lessons_remaining_to_next_level == 0
 
 
 class TestGetModuleUpcoming:

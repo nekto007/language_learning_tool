@@ -75,7 +75,6 @@ def _linear_plan(
             'level': 'B1',
             'percent': 20,
             'lessons_remaining_in_level': 60,
-            'lessons_remaining_to_next_level': 60,
         },
         'baseline_slots': baseline_slots,
         'continuation': {

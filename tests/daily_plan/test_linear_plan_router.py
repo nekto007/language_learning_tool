@@ -132,7 +132,7 @@ class TestLinearPlanFallback:
             'app.daily_plan.linear.plan.get_linear_plan',
             side_effect=RuntimeError("DB timeout"),
         ):
-            result = _get_linear_plan_safe(test_user.id, tz=None)
+            result = _get_linear_plan_safe(test_user.id)
 
         assert result is None
 

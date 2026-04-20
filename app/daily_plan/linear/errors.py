@@ -71,6 +71,38 @@ def log_quiz_error(
     return entry
 
 
+def _unresolved_question_indices(user_id: int, lesson_id: int, db: Any) -> set[int]:
+    """Return question indices that already have an unresolved row for this lesson.
+
+    Prevents quiz re-attempts from stacking multiple rows per question,
+    which would inflate the 4th-slot trigger count and surface the same
+    question multiple times in the review pool.
+    """
+    rows = (
+        db.session.query(QuizErrorLog)
+        .filter(
+            QuizErrorLog.user_id == user_id,
+            QuizErrorLog.lesson_id == lesson_id,
+            QuizErrorLog.resolved_at.is_(None),
+        )
+        .all()
+    )
+    indices: set[int] = set()
+    for row in rows:
+        payload = row.question_payload if isinstance(row.question_payload, dict) else None
+        if payload is None:
+            continue
+        raw = payload.get('question_index')
+        if isinstance(raw, int):
+            indices.add(raw)
+        else:
+            try:
+                indices.add(int(raw))
+            except (TypeError, ValueError):
+                continue
+    return indices
+
+
 def log_quiz_errors_from_result(
     user_id: int,
     lesson_id: int,
@@ -84,7 +116,9 @@ def log_quiz_errors_from_result(
     (``'0'``, ``'1'``, ...) with a ``status`` of ``'correct'`` or
     ``'incorrect'``. We log one row per incorrect entry, embedding the
     original question, user answer, and correct answer into the payload
-    so the review slot can rebuild the question later.
+    so the review slot can rebuild the question later. If the same
+    question already has an unresolved row (quiz re-attempt), we skip
+    it so the pool doesn't accumulate duplicates.
 
     Silent no-op when feedback is missing/empty — malformed results from
     older test flows must not crash grading.
@@ -92,6 +126,8 @@ def log_quiz_errors_from_result(
     feedback = result.get('feedback') if isinstance(result, dict) else None
     if not isinstance(feedback, dict) or not feedback:
         return []
+
+    already_logged = _unresolved_question_indices(user_id, lesson_id, db)
 
     logged: list[QuizErrorLog] = []
     for raw_idx, entry in feedback.items():
@@ -103,6 +139,9 @@ def log_quiz_errors_from_result(
         try:
             q_idx = int(raw_idx)
         except (TypeError, ValueError):
+            continue
+
+        if q_idx in already_logged:
             continue
 
         if q_idx < 0 or q_idx >= len(questions):
@@ -119,6 +158,7 @@ def log_quiz_errors_from_result(
             'correct_answer': entry.get('correct_answer'),
         }
         logged.append(log_quiz_error(user_id, lesson_id, payload, db))
+        already_logged.add(q_idx)
     return logged
 
 
