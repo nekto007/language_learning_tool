@@ -2,8 +2,10 @@
 import pytest
 
 from app.telegram.notifications import (
+    format_linear_plan_text,
     format_mission_plan_text,
     format_mission_morning_reminder,
+    format_morning_reminder,
 )
 
 
@@ -105,6 +107,58 @@ class TestFormatMissionPlanText:
         assert '\U0001f4d6' in text  # book emoji for reading
         assert 'Чтение книги' in text
         assert 'Читай главу' in text
+
+
+class TestLinearTelegramFormatting:
+    def test_format_linear_plan_text(self):
+        plan = {
+            'mode': 'linear',
+            'progress': {'level': 'A2', 'percent': 40},
+            'baseline_slots': [
+                {'kind': 'curriculum', 'title': 'Present Simple', 'completed': True},
+                {'kind': 'srs', 'title': 'Повторение слов', 'completed': False},
+            ],
+            'continuation': {
+                'next_lessons': [{
+                    'lesson_id': 77,
+                    'module_number': 3,
+                    'lesson_number': 2,
+                }],
+            },
+        }
+
+        text = format_linear_plan_text(plan)
+
+        assert 'Линейный план на сегодня' in text
+        assert 'A2' in text
+        assert '1/2' in text
+        assert 'Present Simple' in text
+        assert 'Повторение слов' in text
+        assert 'модуль 3, урок 2' in text
+
+    def test_morning_reminder_uses_linear_branch(self):
+        plan = {
+            'mode': 'linear',
+            'progress': {'level': 'B1', 'percent': 55},
+            'baseline_slots': [
+                {
+                    'kind': 'curriculum',
+                    'title': 'Past Perfect',
+                    'completed': False,
+                    'url': '/learn/99/?from=linear_plan',
+                },
+            ],
+            'continuation': {'next_lessons': []},
+        }
+
+        text, reply_markup = format_morning_reminder(
+            'Igor', 5, plan, 'https://example.com',
+        )
+
+        assert 'Линейный план на сегодня' in text
+        assert 'Past Perfect' in text
+        assert reply_markup is not None
+        assert reply_markup['inline_keyboard'][0][0]['url'] == 'https://example.com/learn/99/?from=linear_plan'
 
     def test_phase_status_emoji_all_pending(self):
         plan = _make_mission_plan()

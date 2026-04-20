@@ -14,6 +14,8 @@ from app.curriculum.security import require_lesson_access, sanitize_html
 from app.curriculum.service import get_next_lesson, process_quiz_submission
 from app.curriculum.services.progress_service import ProgressService
 from app.curriculum.validators import LessonContentValidator
+from app.daily_plan.linear.errors import log_quiz_errors_from_result
+from app.daily_plan.linear.grammar_theory import get_theory_for_lesson
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
@@ -143,6 +145,8 @@ def render_grammar_lesson(lesson):
                 response_data['new_achievements'] = completion_result['new_achievements']
             return jsonify(response_data)
 
+    theory_topic = _resolve_grammar_theory(current_user.id, lesson)
+
     return render_template(
         'curriculum/lessons/grammar.html',
         lesson=lesson,
@@ -152,9 +156,28 @@ def render_grammar_lesson(lesson):
         examples=examples,
         exercises=exercises,
         grammar_explanation=grammar_explanation,
+        theory_topic=theory_topic,
         progress=progress,
         next_lesson=next_lesson
     )
+
+
+def _resolve_grammar_theory(user_id: int, lesson: Lessons):
+    """Fetch (and record) the grammar-lab theory topic linked to this lesson.
+
+    Delegates to ``get_theory_for_lesson`` with ``commit=True`` so the new
+    ``GrammarTheoryView`` row is persisted immediately. The helper already
+    swallows and rolls back internal failures, so we only need to guard
+    against unexpected errors from the caller's perspective.
+    """
+    try:
+        return get_theory_for_lesson(user_id, lesson, db, commit=True)
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            'grammar_theory: unexpected error user=%s lesson=%s', user_id, lesson.id,
+        )
+        db.session.rollback()
+        return None
 
 
 def _sanitize_quiz_questions(cleaned_content: dict) -> None:
@@ -320,6 +343,17 @@ def render_quiz_lesson(lesson):
                     result['correct_answers'] = client_correct_count
                 except (ValueError, TypeError) as e:
                     logger.error(f"Invalid client score data: {e}")
+
+        try:
+            log_quiz_errors_from_result(
+                current_user.id,
+                lesson.id,
+                cleaned_content['questions'],
+                result,
+                db,
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log quiz errors for lesson {lesson.id}: {log_error}")
 
         progress, completion_result = ProgressService.update_progress_with_grading(
             user_id=current_user.id,
@@ -494,6 +528,17 @@ def render_final_test_lesson(lesson):
         result = process_quiz_submission(all_questions, answers)
         passing_score = cleaned_content.get('passing_score_percent', cleaned_content.get('passing_score', 70))
 
+        try:
+            log_quiz_errors_from_result(
+                current_user.id,
+                lesson.id,
+                all_questions,
+                result,
+                db,
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log quiz errors for lesson {lesson.id}: {log_error}")
+
         progress, completion_result = ProgressService.update_progress_with_grading(
             user_id=current_user.id,
             lesson=lesson,
@@ -663,6 +708,8 @@ def grammar_lesson(lesson_id):
                 response_data['new_achievements'] = completion_result['new_achievements']
             return jsonify(response_data)
 
+    theory_topic = _resolve_grammar_theory(current_user.id, lesson)
+
     return render_template(
         'curriculum/lessons/grammar.html',
         lesson=lesson,
@@ -672,6 +719,7 @@ def grammar_lesson(lesson_id):
         examples=examples,
         exercises=exercises,
         grammar_explanation=grammar_explanation,
+        theory_topic=theory_topic,
         progress=progress,
         next_lesson=next_lesson
     )
@@ -772,6 +820,17 @@ def quiz_lesson(lesson_id):
                     result['correct_answers'] = client_correct_count
                 except (ValueError, TypeError) as e:
                     logger.error(f"Invalid client score data: {e}")
+
+        try:
+            log_quiz_errors_from_result(
+                current_user.id,
+                lesson.id,
+                cleaned_content['questions'],
+                result,
+                db,
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log quiz errors for lesson {lesson.id}: {log_error}")
 
         progress, completion_result = ProgressService.update_progress_with_grading(
             user_id=current_user.id,
@@ -895,6 +954,17 @@ def final_test_lesson(lesson_id):
         result = process_quiz_submission(all_questions, answers)
 
         passing_score = cleaned_content.get('passing_score_percent', cleaned_content.get('passing_score', 70))
+
+        try:
+            log_quiz_errors_from_result(
+                current_user.id,
+                lesson.id,
+                all_questions,
+                result,
+                db,
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log quiz errors for lesson {lesson.id}: {log_error}")
 
         progress, completion_result = ProgressService.update_progress_with_grading(
             user_id=current_user.id,

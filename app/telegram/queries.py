@@ -1263,6 +1263,17 @@ def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     ).scalar() or 0
     srs_review_reviewed = max(0, words_reviewed - srs_new_reviewed)
 
+    # Error-review resolutions (linear daily plan: the optional 4th slot
+    # is satisfied by resolving quiz-error-log rows today).
+    from app.daily_plan.linear.models import QuizErrorLog
+    error_review_resolved_today = db.session.query(
+        func.count(QuizErrorLog.id)
+    ).filter(
+        QuizErrorLog.user_id == user_id,
+        QuizErrorLog.resolved_at >= today_start,
+        QuizErrorLog.resolved_at < today_end,
+    ).scalar() or 0
+
     # Latest book chapter
     book_chapter_title = None
     if book_titles:
@@ -1287,6 +1298,7 @@ def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         'srs_review_reviewed': srs_review_reviewed,
         'books_read': book_titles,
         'book_course_lessons_today': book_course_lessons_today,
+        'error_review_resolved_today': int(error_review_resolved_today),
         'lesson_score': latest_lesson_score,
         'lesson_title': latest_lesson_title,
         'grammar_topic_title': grammar_topic_title,

@@ -36,6 +36,12 @@ _LEGACY_STEP_POINTS = {
     'books': 20,
     'book_course_practice': 18,
 }
+_LINEAR_SLOT_POINTS = {
+    'curriculum': 22,
+    'srs': 14,
+    'reading': 20,
+    'error_review': 12,
+}
 
 
 def _build_route_metadata(phases: list[dict], plan_completion: dict) -> dict:
@@ -219,6 +225,24 @@ def _next_phase_points(plan: dict, plan_completion: dict) -> tuple[str | None, i
             points = _MISSION_PHASE_POINTS.get(phase.get('phase', ''), 12)
             return phase.get('title') or 'Следующий этап', points
 
+    baseline_slots = plan.get('baseline_slots') or []
+    if plan.get('mode') == 'linear' and baseline_slots:
+        for slot in baseline_slots:
+            kind = slot.get('kind', '')
+            if plan_completion.get(kind, False):
+                continue
+            return slot.get('title') or 'Следующий слот', _LINEAR_SLOT_POINTS.get(kind, 12)
+        continuation = plan.get('continuation') or {}
+        next_lessons = continuation.get('next_lessons') or []
+        if next_lessons:
+            next_lesson = next_lessons[0] or {}
+            module_number = next_lesson.get('module_number')
+            lesson_number = next_lesson.get('lesson_number')
+            title = 'Следующий урок'
+            if module_number and lesson_number:
+                title = f'Модуль {module_number} · Урок {lesson_number}'
+            return title, _LINEAR_SLOT_POINTS['curriculum']
+
     steps = plan.get('steps') or {}
     for key in ('lesson', 'grammar', 'words', 'books', 'book_course_practice'):
         step = steps.get(key)
@@ -230,7 +254,10 @@ def _next_phase_points(plan: dict, plan_completion: dict) -> tuple[str | None, i
 
 
 def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, str | None]:
-    from app.achievements.streak_service import _compute_phase_completion
+    from app.achievements.streak_service import (
+        _compute_linear_slot_completion,
+        _compute_phase_completion,
+    )
 
     phases = plan.get('phases') or []
     if phases:
@@ -238,6 +265,31 @@ def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, 
         next_phase = next((p for p in phases if not completion.get(p['id'])), None)
         if next_phase:
             return next_phase.get('title'), _phase_url(next_phase, plan)
+
+    baseline_slots = plan.get('baseline_slots') or []
+    if plan.get('mode') == 'linear' and baseline_slots:
+        completion = _compute_linear_slot_completion(baseline_slots, daily_summary)
+        next_slot = next(
+            (slot for slot in baseline_slots if not completion.get(slot.get('kind', ''), False)),
+            None,
+        )
+        if next_slot and next_slot.get('url'):
+            return next_slot.get('title') or 'Следующий слот', next_slot.get('url')
+        continuation = plan.get('continuation') or {}
+        next_lessons = continuation.get('next_lessons') or []
+        if next_lessons:
+            next_lesson = next_lessons[0] or {}
+            if next_lesson.get('lesson_id'):
+                module_number = next_lesson.get('module_number')
+                lesson_number = next_lesson.get('lesson_number')
+                title = 'Следующий урок'
+                if module_number and lesson_number:
+                    title = f'Модуль {module_number} · Урок {lesson_number}'
+                return (
+                    title,
+                    url_for('curriculum_lessons.lesson_detail', lesson_id=next_lesson['lesson_id'])
+                    + '?from=linear_plan_continuation',
+                )
 
     steps = plan.get('steps') or {}
     legacy_order = ('lesson', 'grammar', 'words', 'books', 'book_course_practice')
@@ -318,6 +370,10 @@ def _compute_daily_race_state(plan: dict, daily_summary: dict, streak: int) -> d
                 continue
             if plan_completion.get(phase.get('id'), False):
                 score += _MISSION_PHASE_POINTS.get(phase.get('phase', ''), 12)
+    elif plan.get('mode') == 'linear':
+        for key, pts in _LINEAR_SLOT_POINTS.items():
+            if plan_completion.get(key, False):
+                score += pts
     else:
         for key, pts in _LEGACY_STEP_POINTS.items():
             if plan_completion.get(key, False):
@@ -393,6 +449,9 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
             if not phase.get('required', True):
                 continue
             max_score += _MISSION_PHASE_POINTS.get(phase.get('phase', ''), 12)
+        if plan.get('mode') == 'linear':
+            for slot in plan.get('baseline_slots') or []:
+                max_score += _LINEAR_SLOT_POINTS.get(slot.get('kind', ''), 0)
         if user.id == current_user_id:
             current_user_max_score = max(1, max_score)
 
@@ -875,14 +934,24 @@ def dashboard():
 
     # Recompute day_secured from actual activity; plan payload always has completed=False
     # at assembly time (phases are built before any activity is recorded).
-    if daily_plan.get('_plan_meta', {}).get('effective_mode') == 'mission':
+    _effective_mode = daily_plan.get('_plan_meta', {}).get('effective_mode')
+    if _effective_mode == 'mission':
         _phases = daily_plan.get('phases', [])
         _required = [p for p in _phases if p.get('required', True)]
         daily_plan['day_secured'] = bool(_required) and all(
             plan_completion.get(p.get('id', ''), False) for p in _required
         )
+    elif _effective_mode == 'linear':
+        _slots = daily_plan.get('baseline_slots', [])
+        daily_plan['day_secured'] = bool(_slots) and all(
+            plan_completion.get(s.get('kind', ''), False) for s in _slots
+        )
+        if isinstance(daily_plan.get('continuation'), dict):
+            daily_plan['continuation']['available'] = bool(
+                daily_plan['day_secured'] and (daily_plan['continuation'].get('next_lessons') or [])
+            )
 
-    if daily_plan.get('day_secured') and daily_plan.get('mission'):
+    if daily_plan.get('day_secured') and _effective_mode in ('mission', 'linear'):
         try:
             from app.api.daily_plan import emit_minimum_completed
             from app.daily_plan.service import write_secured_at
@@ -894,13 +963,16 @@ def dashboard():
                 _tz_obj = _pytz.timezone(DEFAULT_TIMEZONE)
             _today = datetime.now(_tz_obj).date()
             _mission = daily_plan.get('mission') or {}
-            _mission_type = _mission.get('type') if isinstance(_mission, dict) else None
+            _mission_type = (
+                _mission.get('type') if isinstance(_mission, dict) else None
+            )
             emit_minimum_completed(current_user.id, _mission_type, _today)
             write_secured_at(current_user.id, _today, _mission_type)
             db.session.commit()
         except Exception:
             db.session.rollback()
 
+    linear_plan = daily_plan if daily_plan.get('mode') == 'linear' else None
     mission_plan = daily_plan if daily_plan.get('mission') else None
     plan_meta = daily_plan.get('_plan_meta', {})
     phase_urls = {}
@@ -969,6 +1041,8 @@ def dashboard():
         plan_completion=plan_completion,
         plan_steps=daily_plan.get('steps', {}),
         mission_plan=mission_plan,
+        linear_plan=linear_plan,
+        use_linear_plan=bool(getattr(current_user, 'use_linear_plan', False)),
         plan_meta=plan_meta,
         phase_urls=phase_urls,
         cards_url=cards_url,
@@ -1040,13 +1114,24 @@ def dashboard():
         plan_today=plan_today,
         # Single hero CTA resolved from mission phases + review budget
         hero_cta=hero_cta,
-        # Zero-state flag from the compact-dashboard plan: no activity across
-        # words / grammar / books / active courses.
+        # Fullscreen zero-state is only for truly empty dashboards: no activity
+        # counters, no mission/linear plan, and no meaningful widget content.
+        # Keep zero-state off for the linear plan: first-run users must still
+        # see the curriculum-spine plan before they accumulate any activity.
         is_zero_state=(
-            (words_total or 0) == 0
+            (not bool(getattr(current_user, 'use_linear_plan', False)))
+            and not bool(daily_plan.get('mission'))
+            and daily_plan.get('mode') != 'linear'
+            and (words_total or 0) == 0
             and (grammar_studied or 0) == 0
             and (books_reading or 0) == 0
             and (courses_enrolled or 0) == 0
+            and not (activity_heatmap or [])
+            and not (words_at_risk or [])
+            and not (grammar_weaknesses or [])
+            and not bool(daily_race)
+            and not (xp_leaderboard or [])
+            and not ((achievements_by_category or {}).get('earned_count', 0))
         ),
     )
 
@@ -1344,6 +1429,8 @@ def daily_plan_next_step() -> tuple:
 
     if daily_plan.get('phases'):
         return _next_step_from_mission(daily_plan, daily_summary)
+    if daily_plan.get('mode') == 'linear':
+        return _next_step_from_linear(daily_plan, daily_summary)
 
     return _next_step_from_legacy(daily_plan, daily_summary)
 
@@ -1385,6 +1472,65 @@ def _next_step_from_mission(plan: dict, daily_summary: dict) -> tuple:
         'step_icon': PHASE_ICONS.get(next_phase['phase'], '\U0001f4cc'),
         'steps_done': phases_done,
         'steps_total': phases_total,
+    }), 200
+
+
+def _next_step_from_linear(plan: dict, daily_summary: dict) -> tuple:
+    """Return next incomplete step from linear plan."""
+    from app.achievements.streak_service import compute_plan_steps
+
+    plan_completion, _, steps_done, steps_total = compute_plan_steps(plan, daily_summary)
+    baseline_slots = plan.get('baseline_slots') or []
+    slot_icons = {
+        'curriculum': '\U0001f3af',
+        'srs': '\U0001f4d6',
+        'reading': '\U0001f4d5',
+        'error_review': '\U0001f50d',
+    }
+    next_slot = next(
+        (slot for slot in baseline_slots if not plan_completion.get(slot.get('kind', ''), False)),
+        None,
+    )
+    if next_slot and next_slot.get('url'):
+        kind = next_slot.get('kind', '')
+        return jsonify({
+            'has_next': True,
+            'step_type': kind,
+            'step_title': next_slot.get('title') or 'Следующий слот',
+            'step_url': next_slot['url'],
+            'step_icon': slot_icons.get(kind, '\U0001f4cc'),
+            'steps_done': steps_done,
+            'steps_total': steps_total,
+        }), 200
+
+    continuation = plan.get('continuation') or {}
+    next_lessons = continuation.get('next_lessons') or []
+    if next_lessons:
+        next_lesson = next_lessons[0] or {}
+        if next_lesson.get('lesson_id'):
+            module_number = next_lesson.get('module_number')
+            lesson_number = next_lesson.get('lesson_number')
+            title = 'Следующий урок'
+            if module_number and lesson_number:
+                title = f'Модуль {module_number} · Урок {lesson_number}'
+            return jsonify({
+                'has_next': True,
+                'step_type': 'curriculum',
+                'step_title': title,
+                'step_url': (
+                    url_for('curriculum_lessons.lesson_detail', lesson_id=next_lesson['lesson_id'])
+                    + '?from=linear_plan_continuation'
+                ),
+                'step_icon': slot_icons['curriculum'],
+                'steps_done': steps_done,
+                'steps_total': steps_total,
+            }), 200
+
+    return jsonify({
+        'has_next': False,
+        'all_done': True,
+        'steps_done': steps_done,
+        'steps_total': steps_total,
     }), 200
 
 

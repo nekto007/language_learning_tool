@@ -26,7 +26,8 @@ login_manager.login_message_category = 'info'
 _ONBOARDING_SKIP_PREFIXES = (
     'onboarding.', 'auth.', 'static', 'legal.', 'seo.',
     'grammar_lab.', 'landing.', 'telegram.',
-    'api_auth.', 'api_words.', 'api_books.', 'api_anki.',
+    'api_auth.', 'api_words.', 'api_books.', 'api_books_catalog.',
+    'api_anki.',
     'api_topics_collections.', 'api_daily_plan.',
     'uploads.',
     'admin.', 'user_admin.', 'audio_admin.', 'book_admin.',
@@ -108,6 +109,8 @@ def create_app(config_class=Config):
     from app.achievements import daily_race as achievements_daily_race  # noqa: F401
     from app.notifications import models as notifications_models  # noqa: F401
     from app.admin import audit as admin_audit  # noqa: F401
+    from app.daily_plan import models as daily_plan_models  # noqa: F401
+    from app.daily_plan.linear import models as daily_plan_linear_models  # noqa: F401
 
     # In production, schema is managed by Alembic (`flask db upgrade head`).
     # In testing, create tables directly so tests don't need migrations.
@@ -165,6 +168,9 @@ def create_app(config_class=Config):
 
     from app.api.books import api_books as api_books_blueprint
     app.register_blueprint(api_books_blueprint, url_prefix='/api')
+
+    from app.api.books_catalog import api_books_catalog as api_books_catalog_blueprint
+    app.register_blueprint(api_books_catalog_blueprint, url_prefix='/api')
 
     from app.api.anki import api_anki as api_anki_blueprint
     app.register_blueprint(api_anki_blueprint, url_prefix='/api')
@@ -413,3 +419,6 @@ def _register_cli_commands(app):
         from app.email_scheduler import init_email_scheduler
         init_email_scheduler(app)
         click.echo('Email scheduler started.')
+
+    from app.cli.linear_plan_commands import register_linear_plan_commands
+    register_linear_plan_commands(app)

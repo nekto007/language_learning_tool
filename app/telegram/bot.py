@@ -532,6 +532,31 @@ def _handle_plan(chat_id: int, telegram_id: int) -> None:
         _send_message(chat_id, text, reply_markup=reply_markup)
         return
 
+    if plan.get('mode') == 'linear':
+        from app.achievements.streak_service import _compute_linear_slot_completion
+        from app.telegram.notifications import format_linear_plan_text
+
+        completion = _compute_linear_slot_completion(plan.get('baseline_slots') or [], summary)
+        for slot in plan.get('baseline_slots') or []:
+            kind = slot.get('kind', '')
+            slot['completed'] = completion.get(kind, False)
+
+        text = format_linear_plan_text(plan)
+        text += f'\n\n\U0001f525 {streak} дней подряд  \U0001f4b0 {coins.balance}'
+        buttons: list[list[dict]] = []
+        next_slot = next(
+            (slot for slot in plan.get('baseline_slots') or [] if not slot.get('completed') and slot.get('url')),
+            None,
+        )
+        if site_url and next_slot:
+            buttons.append([{
+                'text': '\U0001f3af Продолжить',
+                'url': site_url.rstrip('/') + next_slot['url'],
+            }])
+        reply_markup = {'inline_keyboard': buttons} if buttons else None
+        _send_message(chat_id, text, reply_markup=reply_markup)
+        return
+
     # Build checklist items: (done, label, url_or_none)
     steps: list[tuple[bool, str, str | None]] = []
 

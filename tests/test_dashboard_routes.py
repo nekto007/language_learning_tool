@@ -94,7 +94,7 @@ class TestDashboardEmptyStates:
     """Test dashboard rendering with empty/null data scenarios"""
 
     def test_dashboard_welcome_card_for_new_user(self, client, app, db_session, test_user, words_module_access):
-        """New users with no activity should see the fullscreen welcome (Task 4 zero-state)."""
+        """Onboarded users with no activity still get the dashboard shell."""
         with client.session_transaction() as sess:
             sess['_user_id'] = str(test_user.id)
             sess['_fresh'] = True
@@ -102,13 +102,11 @@ class TestDashboardEmptyStates:
         response = client.get('/dashboard')
         assert response.status_code == 200
         html = response.data.decode('utf-8')
-        assert 'dash-welcome--fullscreen' in html
-        assert 'data-zero-state="true"' in html
-        assert 'Добро пожаловать' in html
-        assert 'Начать обучение' in html
+        assert 'data-zero-state="true"' not in html
+        assert 'class="dash-hero"' in html
 
     def test_dashboard_no_crash_with_zero_data(self, client, app, db_session, test_user, words_module_access):
-        """Dashboard renders fullscreen welcome (no hero/plan) when all stats are zero."""
+        """Dashboard renders successfully with zero counters for onboarded users."""
         with client.session_transaction() as sess:
             sess['_user_id'] = str(test_user.id)
             sess['_fresh'] = True
@@ -118,10 +116,9 @@ class TestDashboardEmptyStates:
         html = response.data.decode('utf-8')
         html_body = html.split('<style>')[0]
         assert 'dash-page' in html_body
-        # Zero-state takeover hides hero + plan
-        assert 'class="dash-hero"' not in html_body
-        assert 'class="dash-plan"' not in html_body
-        assert 'dash-welcome--fullscreen' in html_body
+        assert 'class="dash-hero"' in html_body
+        assert 'class="dash-plan"' in html_body
+        assert 'dash-welcome--fullscreen' not in html_body
 
 
 class TestDashboardWeeklyAnalytics:
@@ -817,8 +814,7 @@ class TestDashboardLayoutSections:
     def test_dashboard_zero_state_renders_only_welcome(
         self, client, app, test_user, words_module_access,
     ):
-        """When all activity counts are zero, hero/plan/sections are hidden — only the
-        fullscreen welcome card remains (Task 4)."""
+        """Onboarded zero-activity users no longer collapse to fullscreen zero-state."""
         with client.session_transaction() as sess:
             sess['_user_id'] = str(test_user.id)
             sess['_fresh'] = True
@@ -828,15 +824,10 @@ class TestDashboardLayoutSections:
         html = response.data.decode('utf-8')
         html_body = html.split('<style>')[0]
 
-        assert 'dash-welcome--fullscreen' in html_body
-        assert 'data-zero-state="true"' in html_body
-        # Hero, race, plan, all sections — none rendered in zero-state
-        assert 'class="dash-hero"' not in html_body
-        assert 'class="dash-plan"' not in html_body
-        assert 'class="dash-race-strip' not in html_body
-        assert 'class="dash-heatmap"' not in html_body
-        assert 'dash-social-row' not in html_body
-        assert 'dash-progress-overview' not in html_body
+        assert 'dash-welcome--fullscreen' not in html_body
+        assert 'data-zero-state="true"' not in html_body
+        assert 'class="dash-hero"' in html_body
+        assert 'class="dash-plan"' in html_body
 
     def test_dashboard_responsive_css_classes(self, client, app, test_user, words_module_access):
         """Dashboard CSS includes responsive rules for the new compact layout rows."""
@@ -1003,6 +994,26 @@ class TestDailyRaceWidget:
         assert isinstance(result['score'], int)
         assert result['score'] >= 0
 
+    def test_compute_daily_race_state_linear_plan(self, app):
+        """_compute_daily_race_state scores completed linear slots."""
+        from app.words.routes import _compute_daily_race_state, _LINEAR_SLOT_POINTS
+
+        plan = {
+            'mode': 'linear',
+            'baseline_slots': [
+                {'kind': 'curriculum', 'title': 'Lesson', 'completed': True, 'url': '/learn/1/?from=linear_plan'},
+                {'kind': 'srs', 'title': 'SRS', 'completed': False, 'url': '/study/cards?from=linear_plan'},
+            ],
+        }
+        summary = {'lessons_count': 1, 'srs_words_reviewed': 0, 'srs_review_reviewed': 0}
+
+        result = _compute_daily_race_state(plan, summary, streak=4)
+
+        assert result['steps_total'] == 2
+        assert result['steps_done'] == 1
+        assert result['score'] == _LINEAR_SLOT_POINTS['curriculum']
+        assert result['next_step_title'] == 'SRS'
+
     def test_participant_initials_basic(self, app):
         """_participant_initials returns 1-2 uppercase letters."""
         from app.words.routes import _participant_initials
@@ -1156,7 +1167,7 @@ class TestDailyRaceWidget:
         assert result['leaderboard'][0]['user_id'] == test_user.id
 
     def test_race_widget_template_structure(self, client, app, db_session, test_user, words_module_access):
-        """When daily_race data is injected, template renders initials and position badges."""
+        """Dashboard renders the compact race strip linking to the full /race page."""
         from unittest.mock import patch
 
         fake_race = {
@@ -1202,17 +1213,15 @@ class TestDailyRaceWidget:
         assert response.status_code == 200
         html = response.data.decode('utf-8')
 
-        assert 'dash-race' in html
-        assert 'dash-race__avatar' in html
-        assert 'dash-race__row--me' in html
-        assert 'dash-race__place--gold' in html
-        assert 'dash-race__place--silver' in html
-        assert 'dash-race__place--bronze' in html
-        assert 'ME' in html
-        assert 'Тренировочный режим' in html
+        assert 'dash-race-strip' in html
+        assert 'data-race-strip="true"' in html
+        assert '/race' in html
+        assert 'Место 2/4' in html
+        assert '30 очк' in html
+        assert 'Подробнее' in html
 
     def test_race_widget_complete_state(self, client, app, db_session, test_user, words_module_access):
-        """When race is complete, template shows final results with place message."""
+        """When race is complete, strip shows finished-state summary."""
         from unittest.mock import patch
 
         fake_race = {
@@ -1252,13 +1261,13 @@ class TestDailyRaceWidget:
         assert response.status_code == 200
         html = response.data.decode('utf-8')
 
-        assert 'dash-race--complete' in html
-        assert 'dash-race__final' in html
-        assert 'Гонка завершена' in html
-        assert 'Итоги гонки' in html
+        assert 'dash-race-strip--complete' in html
+        assert '1-е место' in html
+        assert '80 очк' in html
+        assert 'Итоги' in html
 
     def test_race_widget_nudge_text(self, client, app, db_session, test_user, words_module_access):
-        """Motivational nudge is rendered in the dash-race__nudge element."""
+        """Dashboard strip stays compact and does not render the old nudge block."""
         from unittest.mock import patch
 
         fake_race = {
@@ -1298,11 +1307,12 @@ class TestDailyRaceWidget:
         assert response.status_code == 200
         html = response.data.decode('utf-8')
 
-        assert 'dash-race__nudge' in html
-        assert 'Ты на 8 очков позади FastUser.' in html
+        assert 'dash-race-strip' in html
+        assert 'dash-race__nudge' not in html
+        assert 'Ты на 8 очков позади FastUser.' not in html
 
     def test_race_widget_position_count(self, client, app, db_session, test_user, words_module_access):
-        """Race leaderboard renders correct number of participant rows."""
+        """Dashboard strip does not render the full leaderboard rows."""
         from unittest.mock import patch
 
         leaderboard = [
@@ -1332,6 +1342,5 @@ class TestDailyRaceWidget:
 
         assert response.status_code == 200
         html = response.data.decode('utf-8')
-        import re
-        row_divs = re.findall(r'class="dash-race__row(?:\s|")', html)
-        assert len(row_divs) == 4
+        assert 'dash-race-strip' in html
+        assert 'class="dash-race__row' not in html

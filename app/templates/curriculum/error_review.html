@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Разбор ошибок{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 720px; margin: 0 auto; padding: 1.5rem;">
+  <h1>Разбор ошибок</h1>
+
+  {% if not entries %}
+    <p>Нераспознанных ошибок нет. Возвращайтесь к урокам.</p>
+    <p><a href="/" class="btn btn--primary">На дашборд</a></p>
+  {% else %}
+    <p>Вопросы, на которые вы ответили неверно. Просмотрите и отметьте разобранными.</p>
+
+    <ol class="error-review-list" style="list-style: none; padding: 0; margin: 1rem 0;">
+      {% for entry in entries %}
+        {% set p = entry.payload or {} %}
+        <li class="error-review-item"
+            data-error-id="{{ entry.id }}"
+            style="border: 1px solid var(--color-border, #e0e0e0); border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;">
+          {% if p.question_text %}
+            <div class="error-review__question" style="font-weight: 600; margin-bottom: 0.5rem;">
+              {{ p.question_text }}
+            </div>
+          {% endif %}
+          {% if p.user_answer is not none %}
+            <div class="error-review__user" style="color: var(--color-danger, #d14343);">
+              Ваш ответ: {{ p.user_answer }}
+            </div>
+          {% endif %}
+          {% if p.correct_answer is not none %}
+            <div class="error-review__correct" style="color: var(--color-success, #2e7d32);">
+              Правильный ответ: {{ p.correct_answer }}
+            </div>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+
+    <button type="button"
+            id="error-review-complete-btn"
+            class="btn btn--primary">Отметить разобранными</button>
+    <p id="error-review-status" style="margin-top: 0.75rem;"></p>
+  {% endif %}
+</div>
+
+<script>
+  (function() {
+    var btn = document.getElementById('error-review-complete-btn');
+    if (!btn) return;
+    var status = document.getElementById('error-review-status');
+
+    btn.addEventListener('click', function() {
+      btn.disabled = true;
+      btn.classList.add('btn--loading');
+      var items = Array.prototype.slice.call(
+        document.querySelectorAll('.error-review-item')
+      );
+      var ids = items
+        .map(function(el) { return parseInt(el.getAttribute('data-error-id'), 10); })
+        .filter(function(n) { return !isNaN(n); });
+
+      var metaTok = document.querySelector('meta[name="csrf-token"]');
+      var headers = { 'Content-Type': 'application/json' };
+      if (metaTok) headers['X-CSRFToken'] = metaTok.getAttribute('content');
+
+      fetch('/api/daily-plan/error-review/complete', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: headers,
+        body: JSON.stringify({ error_ids: ids }),
+      })
+        .then(function(res) { return res.ok ? res.json() : Promise.reject(res); })
+        .then(function() {
+          if (status) status.textContent = 'Готово. Возвращаемся на дашборд.';
+          window.location.href = '/';
+        })
+        .catch(function() {
+          if (status) status.textContent = 'Не удалось сохранить результат. Попробуйте ещё раз.';
+          btn.disabled = false;
+          btn.classList.remove('btn--loading');
+        });
+    });
+  })();
+</script>
+{% endblock %}

@@ -21,6 +21,62 @@ def _words_minutes(count: int) -> int:
     return max(count // 8, 1) if count else 0
 
 
+def format_linear_plan_text(plan: dict[str, Any]) -> str:
+    """Format linear daily plan for Telegram display."""
+    slots = plan.get('baseline_slots') or []
+    progress = plan.get('progress') or {}
+    continuation = plan.get('continuation') or {}
+    next_lessons = continuation.get('next_lessons') or []
+
+    done_count = sum(1 for slot in slots if slot.get('completed'))
+    total_count = len(slots)
+    level = progress.get('level')
+    percent = progress.get('percent')
+
+    lines = []
+    title = '\U0001f6e4\ufe0f Линейный план на сегодня'
+    if level:
+        title += f' ({level}'
+        if percent is not None:
+            title += f' · {percent}%'
+        title += ')'
+    elif percent is not None:
+        title += f' ({percent}%)'
+    lines.append(f'{title} ({done_count}/{total_count})')
+    lines.append('')
+
+    slot_icons = {
+        'curriculum': '\U0001f3af',
+        'srs': '\U0001f4d6',
+        'reading': '\U0001f4d5',
+        'error_review': '\U0001f50d',
+    }
+    for index, slot in enumerate(slots, 1):
+        kind = slot.get('kind', '')
+        completed = bool(slot.get('completed'))
+        if completed:
+            status = '\u2705'
+        elif done_count == index - 1:
+            status = '\u25b6\ufe0f'
+        else:
+            status = '\u2b1c'
+        lines.append(
+            f"{status} {index}. {slot_icons.get(kind, '\U0001f539')} {slot.get('title', 'Слот')}"
+        )
+
+    if next_lessons:
+        next_lesson = next_lessons[0] or {}
+        module_number = next_lesson.get('module_number')
+        lesson_number = next_lesson.get('lesson_number')
+        if module_number and lesson_number:
+            lines.append('')
+            lines.append(
+                f"\U0001f449 После минимума: модуль {module_number}, урок {lesson_number}"
+            )
+
+    return '\n'.join(lines)
+
+
 def format_morning_reminder(user_name: str, streak: int,
                             plan: dict[str, Any], site_url: str,
                             cards_url: str = '') -> tuple[str, dict | None]:
@@ -33,6 +89,30 @@ def format_morning_reminder(user_name: str, streak: int,
     if streak > 0:
         lines.append(f'\U0001f525 {streak} дней подряд \u2014 отличный темп!')
         lines.append('')
+
+    if plan.get('mode') == 'linear':
+        lines.append(format_linear_plan_text(plan))
+        buttons: list[list[dict]] = []
+        next_url = None
+        baseline_slots = plan.get('baseline_slots') or []
+        next_slot = next((slot for slot in baseline_slots if not slot.get('completed')), None)
+        if next_slot and next_slot.get('url') and site_url:
+            next_url = site_url.rstrip('/') + next_slot['url']
+        elif site_url:
+            continuation = plan.get('continuation') or {}
+            next_lessons = continuation.get('next_lessons') or []
+            if next_lessons and next_lessons[0].get('lesson_id'):
+                next_url = (
+                    f"{site_url}/learn/{next_lessons[0]['lesson_id']}/"
+                    "?from=linear_plan_continuation"
+                )
+        if next_url:
+            buttons.append([{
+                'text': '\U0001f3af Открыть план',
+                'url': next_url,
+            }])
+        reply_markup = {'inline_keyboard': buttons} if buttons else None
+        return '\n'.join(lines), reply_markup
 
     # Onboarding block for new users
     onboarding = plan.get('onboarding')

@@ -4,17 +4,21 @@ from datetime import date, timedelta
 from unittest.mock import patch, MagicMock
 
 from app.achievements.xp_service import (
+    LINEAR_XP,
     PHASE_XP,
     PERFECT_DAY_BONUS_XP,
+    PERFECT_DAY_BONUS_XP_LINEAR,
     FIRST_OF_DAY_BONUS_XP,
     STREAK_MULTIPLIER_MAX,
     PERFECT_DAY_MULTIPLIERS,
     LevelInfo,
     XPAward,
+    award_linear_xp,
     award_xp,
     award_phase_xp_idempotent,
     award_perfect_day_xp_idempotent,
     get_level_info,
+    get_linear_xp_amount,
     get_streak_multiplier,
     get_perfect_day_multiplier,
     get_perfect_day_info,
@@ -834,3 +838,175 @@ class TestProcessStreakPerfectDayInfo:
 
         # No phases in daily_plan → perfect_day_info should be None
         assert result.get('perfect_day_info') is None
+
+
+# ---------------------------------------------------------------------------
+# Linear daily plan XP
+# ---------------------------------------------------------------------------
+
+class TestLinearXpMap:
+    def test_all_values_positive(self):
+        for source, xp in LINEAR_XP.items():
+            assert xp > 0, f"LINEAR_XP[{source!r}] must be positive"
+
+    def test_known_sources_present(self):
+        expected = {
+            'linear_curriculum_card': 20,
+            'linear_curriculum_vocabulary': 18,
+            'linear_curriculum_grammar': 18,
+            'linear_curriculum_quiz': 12,
+            'linear_curriculum_listening_quiz': 12,
+            'linear_curriculum_dialogue_completion_quiz': 12,
+            'linear_curriculum_ordering_quiz': 12,
+            'linear_curriculum_translation_quiz': 12,
+            'linear_curriculum_final_test': 12,
+            'linear_curriculum_reading': 15,
+            'linear_curriculum_listening_immersion': 15,
+            'linear_srs_global': 8,
+            'linear_book_reading': 15,
+            'linear_error_review': 10,
+        }
+        for source, xp in expected.items():
+            assert LINEAR_XP.get(source) == xp, f"LINEAR_XP[{source!r}] != {xp}"
+
+    def test_linear_perfect_day_bonus_is_25(self):
+        assert PERFECT_DAY_BONUS_XP_LINEAR == 25
+
+    def test_mission_perfect_day_bonus_unchanged(self):
+        assert PERFECT_DAY_BONUS_XP == 50
+
+    def test_get_linear_xp_amount_returns_value(self):
+        assert get_linear_xp_amount('linear_curriculum_card') == 20
+        assert get_linear_xp_amount('linear_srs_global') == 8
+
+    def test_get_linear_xp_amount_raises_on_unknown(self):
+        with pytest.raises(KeyError):
+            get_linear_xp_amount('linear_does_not_exist')
+
+
+class TestAwardLinearXp:
+    def _ensure_stats(self, db_session, user_id):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=user_id, total_xp=0, current_streak_days=0)
+            db.session.add(stats)
+            db.session.flush()
+        return stats
+
+    def test_awards_card_xp_without_streak(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        result = award_linear_xp(test_user.id, 'linear_curriculum_card')
+        assert result.xp_awarded == 20
+        assert result.multiplier == 1.0
+
+    def test_awards_srs_xp_without_streak(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        result = award_linear_xp(test_user.id, 'linear_srs_global')
+        assert result.xp_awarded == 8
+
+    def test_awards_book_reading_xp_without_streak(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        result = award_linear_xp(test_user.id, 'linear_book_reading')
+        assert result.xp_awarded == 15
+
+    def test_awards_error_review_xp_without_streak(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        result = award_linear_xp(test_user.id, 'linear_error_review')
+        assert result.xp_awarded == 10
+
+    def test_awards_quiz_xp_for_all_quiz_types(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        quiz_sources = [
+            'linear_curriculum_quiz',
+            'linear_curriculum_listening_quiz',
+            'linear_curriculum_dialogue_completion_quiz',
+            'linear_curriculum_ordering_quiz',
+            'linear_curriculum_translation_quiz',
+            'linear_curriculum_final_test',
+        ]
+        for source in quiz_sources:
+            result = award_linear_xp(test_user.id, source)
+            assert result.xp_awarded == 12, f"{source} should award 12 base XP"
+
+    def test_streak_multiplier_applied(self, db_session, test_user):
+        from app.utils.db import db
+        stats = self._ensure_stats(db_session, test_user.id)
+        stats.current_streak_days = 50  # multiplier = 2.0
+        db.session.flush()
+        result = award_linear_xp(test_user.id, 'linear_curriculum_card')
+        assert result.multiplier == 2.0
+        assert result.xp_awarded == 40  # 20 * 2.0
+
+    def test_unknown_source_raises(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        with pytest.raises(KeyError):
+            award_linear_xp(test_user.id, 'linear_bogus_source')
+
+    def test_baseline_day_without_streak_is_43_xp(self, db_session, test_user):
+        """Baseline linear day (card + srs + book) without streak = 43 XP."""
+        from app.achievements.models import UserStatistics
+        self._ensure_stats(db_session, test_user.id)
+        award_linear_xp(test_user.id, 'linear_curriculum_card')      # 20
+        award_linear_xp(test_user.id, 'linear_srs_global')           # 8
+        award_linear_xp(test_user.id, 'linear_book_reading')         # 15
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        assert stats.total_xp == 43
+
+    def test_first_level_reached_in_about_2_5_baseline_days(self, db_session, test_user):
+        """Level 1 → Level 2 threshold (100 XP) reached within 3 baseline days."""
+        from app.achievements.models import UserStatistics
+        self._ensure_stats(db_session, test_user.id)
+        # 2 baseline days = 86 XP (still level 1)
+        for _ in range(2):
+            award_linear_xp(test_user.id, 'linear_curriculum_card')
+            award_linear_xp(test_user.id, 'linear_srs_global')
+            award_linear_xp(test_user.id, 'linear_book_reading')
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        assert stats.total_xp == 86
+        assert stats.current_level == 1
+
+        # 3rd partial day: +20 card pushes to 106 → level 2
+        award_linear_xp(test_user.id, 'linear_curriculum_card')
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        assert stats.total_xp == 106
+        assert stats.current_level == 2
+
+
+class TestLinearPerfectDayBonus:
+    def _ensure_stats(self, db_session, user_id):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=user_id, total_xp=0, current_streak_days=0)
+            db.session.add(stats)
+            db.session.flush()
+        return stats
+
+    def test_linear_bonus_awards_25(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        today = date.today()
+        result = award_perfect_day_xp_idempotent(test_user.id, today, is_linear=True)
+        assert result is not None
+        assert result.xp_awarded == PERFECT_DAY_BONUS_XP_LINEAR  # 25, no streak
+
+    def test_mission_bonus_still_50(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        today = date.today()
+        result = award_perfect_day_xp_idempotent(test_user.id, today)
+        assert result is not None
+        assert result.xp_awarded == PERFECT_DAY_BONUS_XP  # 50, no streak
+
+    def test_linear_bonus_applies_streak_multiplier(self, db_session, test_user):
+        from app.utils.db import db
+        stats = self._ensure_stats(db_session, test_user.id)
+        stats.current_streak_days = 50  # 2.0x streak
+        db.session.flush()
+        result = award_perfect_day_xp_idempotent(
+            test_user.id, date.today(), is_linear=True
+        )
+        assert result is not None
+        assert result.multiplier == 2.0
+        assert result.xp_awarded == PERFECT_DAY_BONUS_XP_LINEAR * 2  # 50

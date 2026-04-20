@@ -855,6 +855,16 @@ def save_reading_position():
     if not book_id:
         return jsonify({'success': False, 'message': 'Missing book_id'}), 400
 
+    try:
+        book_id = int(book_id)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid book_id'}), 400
+
+    try:
+        position = max(0.0, min(1.0, float(position)))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid position'}), 400
+
     # Get chapter
     chapter = Chapter.query.filter_by(book_id=book_id, chap_num=chapter_num).first()
     if not chapter:
@@ -867,6 +877,7 @@ def save_reading_position():
     ).first()
 
     was_incomplete = not progress or progress.offset_pct < 1.0
+    previous_offset = progress.offset_pct if progress else 0.0
 
     # Update or create progress
     if not progress:
@@ -895,5 +906,33 @@ def save_reading_position():
             'total_xp': user_xp.total_xp,
             'level': user_xp.level
         })
+
+    # Linear plan: award book-reading slot XP once per day when the
+    # reading slot's completion threshold is crossed. Gated on the
+    # user's UserReadingPreference — progress in any other book does
+    # not satisfy the slot, matching the dashboard semantics "read
+    # your chosen book today".
+    try:
+        from app.daily_plan.linear.slots.reading_slot import (
+            READ_PROGRESS_THRESHOLD,
+            get_user_reading_preference,
+        )
+        from app.daily_plan.linear.xp import (
+            maybe_award_book_reading_xp,
+            maybe_award_linear_perfect_day,
+        )
+        advanced = position - previous_offset
+        if position >= READ_PROGRESS_THRESHOLD and advanced >= READ_PROGRESS_THRESHOLD:
+            pref = get_user_reading_preference(current_user.id, db)
+            if pref is not None and pref.book_id == book_id:
+                if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
+                    maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                    db.session.commit()
+    except Exception:
+        logger.warning(
+            "linear_xp: book-reading award failed user=%s",
+            current_user.id, exc_info=True,
+        )
+        db.session.rollback()
 
     return jsonify(response_data)
