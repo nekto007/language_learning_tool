@@ -246,11 +246,11 @@
 - Modify: `app/api/daily_plan.py`
 - Create: `tests/api/test_linear_plan_api.py`
 
-- [ ] `/api/daily-plan` при `use_linear_plan=True` возвращает `{mode: 'linear', position, progress, baseline_slots: [...], continuation, day_secured}`
-- [ ] `/api/daily-status` учитывает `mode` и рассчитывает `plan_completion` по baseline-слотам linear; mission flow работает как прежде
-- [ ] Обратная совместимость: при `use_linear_plan=False` — старая форма полностью сохраняется
-- [ ] Write tests: оба режима возвращают валидные payload'ы; `day_secured` пересчитывается корректно; error review slot появляется/отсутствует согласно триггеру
-- [ ] Run project test suite — must pass before task 12
+- [x] `/api/daily-plan` при `use_linear_plan=True` возвращает `{mode: 'linear', position, progress, baseline_slots: [...], continuation, day_secured}`
+- [x] `/api/daily-status` учитывает `mode` и рассчитывает `plan_completion` по baseline-слотам linear; mission flow работает как прежде
+- [x] Обратная совместимость: при `use_linear_plan=False` — старая форма полностью сохраняется
+- [x] Write tests: оба режима возвращают валидные payload'ы; `day_secured` пересчитывается корректно; error review slot появляется/отсутствует согласно триггеру
+- [x] Run project test suite — must pass before task 12 (api 139 + daily_plan 267 + smoke 132 green; one pre-existing flaky `test_level_advances_after_full_completion` due to random code collision unrelated to this task)
 
 ### Task 12: Smoke tests for linear dashboard
 
