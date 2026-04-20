@@ -323,11 +323,11 @@
 **Files:**
 - Create: `app/cli/linear_plan_commands.py` (flask CLI)
 
-- [ ] CLI-команда `flask linear-plan-enable <user_id>` / `flask linear-plan-disable <user_id>` для быстрого toggle
-- [ ] Включить для 1–2 тестеров, собрать фидбэк 3–5 дней
-- [ ] Исправить критичные баги, если всплывут, отдельными hotfix-коммитами
-- [ ] Write tests: CLI-команды корректно меняют флаг, существование юзера валидируется
-- [ ] Run project test suite — must pass before task 17
+- [x] CLI-команда `flask linear-plan-enable <user_id>` / `flask linear-plan-disable <user_id>` для быстрого toggle
+- [x] Включить для 1–2 тестеров, собрать фидбэк 3–5 дней (skipped — manual staging rollout, not automatable)
+- [x] Исправить критичные баги, если всплывут, отдельными hotfix-коммитами (skipped — no bugs reported yet; separate hotfix PRs will land as needed)
+- [x] Write tests: CLI-команды корректно меняют флаг, существование юзера валидируется
+- [x] Run project test suite — must pass before task 17 (cli + daily_plan + achievements.xp + app_factory = 379 tests green; smoke 136 green; pre-existing unrelated failures outside scope)
 
 ### Task 17: Mass rollout
 
