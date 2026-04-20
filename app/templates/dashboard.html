@@ -4677,5 +4677,22 @@ async function repairStreak() {
 
 {% endif %}
 </script>
+
+{# Linear daily plan: book-select modal (rendered for everyone but only opened when use_linear_plan=True). #}
+<div id="book-select-modal" class="linear-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="book-select-modal-title">
+    <div class="linear-modal__backdrop" data-linear-close="book-select-modal"></div>
+    <div class="linear-modal__panel">
+        <div class="linear-modal__header">
+            <h2 class="linear-modal__title" id="book-select-modal-title">Выбрать книгу для чтения</h2>
+            <button type="button" class="linear-modal__close" data-linear-close="book-select-modal" aria-label="Закрыть">×</button>
+        </div>
+        <p class="linear-modal__hint">Книги подобраны под ваш уровень. После выбора она появится в плане «Чтение».</p>
+        <div class="linear-modal__body">
+            <div id="book-select-modal-status" class="linear-modal__status" aria-live="polite">Загрузка каталога…</div>
+            <ul id="book-select-modal-list" class="linear-book-list"></ul>
+        </div>
+    </div>
+</div>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/share.js') }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/share.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}" defer></script>{% endblock %}

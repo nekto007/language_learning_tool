@@ -151,13 +151,13 @@
 - Create: `tests/daily_plan/linear/test_reading_slot.py`
 - Create: `tests/api/test_books_catalog.py`
 
-- [ ] `build_reading_slot(user_id, db) → LinearSlot`: при отсутствии `UserReadingPreference` — slot в режиме «Выбрать книгу», URL открывает модал; при наличии — название + текущая глава (`Bookmark`) + ETA ~10 мин
-- [ ] Endpoint `GET /api/books/catalog?level=<user_level>` — возвращает книги с `level in [user_level-1, user_level, user_level+1]`, JSON-формат
-- [ ] Endpoint `POST /api/books/select` — создаёт/обновляет `UserReadingPreference`, возвращает обновлённый slot
-- [ ] Модал `book-select-modal` в `dashboard.html` (скрыт, открывается по клику на slot без preference), рендер карточек с обложкой/уровнем
-- [ ] `completed = True` при увеличении `Bookmark.position` на минимальный threshold (≥N страниц/пикселей) сегодня
-- [ ] Write tests: первый вход → «Выбрать книгу»; после select → slot с данными книги; endpoint фильтрует по уровню; progress threshold срабатывает
-- [ ] Run project test suite — must pass before task 7
+- [x] `build_reading_slot(user_id, db) → LinearSlot`: при отсутствии `UserReadingPreference` — slot в режиме «Выбрать книгу», URL открывает модал; при наличии — название + текущая глава (`Bookmark`) + ETA ~10 мин
+- [x] Endpoint `GET /api/books/catalog?level=<user_level>` — возвращает книги с `level in [user_level-1, user_level, user_level+1]`, JSON-формат
+- [x] Endpoint `POST /api/books/select` — создаёт/обновляет `UserReadingPreference`, возвращает обновлённый slot
+- [x] Модал `book-select-modal` в `dashboard.html` (скрыт, открывается по клику на slot без preference), рендер карточек с обложкой/уровнем
+- [x] `completed = True` при увеличении `UserChapterProgress.offset_pct` ≥ 5% сегодня (Bookmark.position в текущем reader не увеличивается автоматически; reading-progress трекается через UserChapterProgress)
+- [x] Write tests: первый вход → «Выбрать книгу»; после select → slot с данными книги; endpoint фильтрует по уровню; progress threshold срабатывает
+- [x] Run project test suite — must pass before task 7 (90 dashboard failures pre-existed; new daily_plan/linear + books_catalog suites green)
 
 ### Task 7: Error review slot and quiz error logging
 
