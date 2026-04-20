@@ -901,6 +901,7 @@ def dashboard():
         except Exception:
             db.session.rollback()
 
+    linear_plan = daily_plan if daily_plan.get('mode') == 'linear' else None
     mission_plan = daily_plan if daily_plan.get('mission') else None
     plan_meta = daily_plan.get('_plan_meta', {})
     phase_urls = {}
@@ -969,6 +970,8 @@ def dashboard():
         plan_completion=plan_completion,
         plan_steps=daily_plan.get('steps', {}),
         mission_plan=mission_plan,
+        linear_plan=linear_plan,
+        use_linear_plan=bool(getattr(current_user, 'use_linear_plan', False)),
         plan_meta=plan_meta,
         phase_urls=phase_urls,
         cards_url=cards_url,

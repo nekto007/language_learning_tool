@@ -183,7 +183,13 @@
         </div>
         {% endif %}
 
-    {% if mission_plan %}
+    {% if linear_plan %}
+        {# ══════════════════════════════════════════
+           LINEAR DAILY PLAN (curriculum-spine UI)
+           ══════════════════════════════════════════ #}
+        {% include 'partials/linear_daily_plan.html' %}
+
+    {% elif mission_plan %}
         {# ══════════════════════════════════════════
            MISSION-BASED PLAN (new sequential UI)
            ══════════════════════════════════════════ #}

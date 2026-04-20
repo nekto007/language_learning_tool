@@ -230,13 +230,13 @@
 - Modify: `app/static/js/linear-daily-plan.js` — модал выбора книги, event tracking
 - Create: `tests/test_linear_daily_plan_render.py`
 
-- [ ] Header: `A2 · M5 · L3` (компактно) + строка ниже с типом урока (`card`/`grammar`/...) + бейдж «Осталось 30 уроков до A3»
-- [ ] Список slot-карточек (1–4) с состояниями `done / current / pending / empty`; чек-метка для done, подсветка border для current
-- [ ] Continuation CTA под списком — появляется при `day_secured=True`, ведёт к следующему уроку
-- [ ] Continuation preview — раскрываемый список 3 следующих уроков модуля
-- [ ] Модал выбора книги: scroll-контейнер, карточки с обложкой/уровнем/описанием; submit → `POST /api/books/select`
-- [ ] Write tests: file-level snapshot теста Jinja render с mock data (header, 3 slots, empty state, secured state, модал)
-- [ ] Run project test suite — must pass before task 11
+- [x] Header: `A2 · M5 · L3` (компактно) + строка ниже с типом урока (`card`/`grammar`/...) + бейдж «Осталось 30 уроков до A3»
+- [x] Список slot-карточек (1–4) с состояниями `done / current / pending / empty`; чек-метка для done, подсветка border для current
+- [x] Continuation CTA под списком — появляется при `day_secured=True`, ведёт к следующему уроку
+- [x] Continuation preview — раскрываемый список 3 следующих уроков модуля
+- [x] Модал выбора книги: scroll-контейнер, карточки с обложкой/уровнем/описанием; submit → `POST /api/books/select`
+- [x] Write tests: file-level snapshot теста Jinja render с mock data (header, 3 slots, empty state, secured state, модал)
+- [x] Run project test suite — must pass before task 11 (daily_plan 240 + new 21 render tests + smoke 132 green; 70 pre-existing dashboard failures unchanged on base branch)
 
 ### Task 11: Update `/api/daily-plan` and `/api/daily-status` payload
 

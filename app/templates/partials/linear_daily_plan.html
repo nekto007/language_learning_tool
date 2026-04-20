@@ -1,0 +1,262 @@
+{# Linear daily plan (Task 10): header + baseline slots + continuation.
+   Renders only when `linear_plan` is passed (see app/words/routes.py).
+   `plan_completion` comes from compute_plan_steps() and promotes slot.completed
+   when the user has activity today that satisfies the kind. #}
+{% set l_position = linear_plan.get('position') %}
+{% set l_progress = linear_plan.get('progress') or {} %}
+{% set l_slots_raw = linear_plan.get('baseline_slots') or [] %}
+{% set l_continuation = linear_plan.get('continuation') or {} %}
+{% set l_next_lessons = l_continuation.get('next_lessons') or [] %}
+
+{# Merge per-slot completion from plan_completion (server-side activity signals) so
+   the timeline reflects what the user actually did today, not just assembly state. #}
+{% set l_slots = [] %}
+{% for slot in l_slots_raw %}
+    {% set _kind = slot.get('kind', '') %}
+    {% set _completed = slot.get('completed', False) or plan_completion.get(_kind, False) %}
+    {% set _merged = {
+        'kind': _kind,
+        'title': slot.get('title', ''),
+        'lesson_type': slot.get('lesson_type'),
+        'eta_minutes': slot.get('eta_minutes', 0),
+        'url': slot.get('url'),
+        'completed': _completed,
+        'data': slot.get('data') or {},
+    } %}
+    {% set _ = l_slots.append(_merged) %}
+{% endfor %}
+
+{% set l_total = l_slots | length %}
+{% set l_done = l_slots | selectattr('completed') | list | length %}
+{% set l_day_secured = (l_total > 0 and l_done == l_total) %}
+
+{% set l_slot_icons = {
+    'curriculum': '&#127919;',
+    'srs': '&#128170;',
+    'reading': '&#128214;',
+    'error_review': '&#128269;',
+} %}
+{% set l_slot_labels = {
+    'curriculum': 'Урок курса',
+    'srs': 'Повторение слов',
+    'reading': 'Чтение книги',
+    'error_review': 'Разбор ошибок',
+} %}
+{% set l_lesson_type_labels = {
+    'vocabulary': 'Словарь',
+    'card': 'Карточки',
+    'grammar': 'Грамматика',
+    'quiz': 'Квиз',
+    'reading': 'Чтение',
+    'listening_quiz': 'Аудирование',
+    'dialogue_completion_quiz': 'Диалог',
+    'ordering_quiz': 'Порядок слов',
+    'translation_quiz': 'Перевод',
+    'listening_immersion': 'Погружение',
+    'listening_immersion_quiz': 'Аудио-квиз',
+    'final_test': 'Финальный тест',
+} %}
+
+<div class="linear-plan" data-linear-plan="true">
+
+    {# ── Header: position + level progress badge ────────────────────── #}
+    <div class="linear-plan__header">
+        {% if l_position %}
+        <div class="linear-plan__position" data-linear-position="true">
+            <span class="linear-plan__position-chip" aria-label="Текущая позиция">
+                {{ l_position.get('level_code', '') }}
+                {% if l_position.get('module_number') %} · M{{ l_position.module_number }}{% endif %}
+                {% if l_position.get('lesson_number') %} · L{{ l_position.lesson_number }}{% endif %}
+            </span>
+            {% set _lt = l_position.get('lesson_type') %}
+            {% if _lt %}
+            <span class="linear-plan__position-type">{{ l_lesson_type_labels.get(_lt, _lt) }}</span>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="linear-plan__position" data-linear-position="complete">
+            <span class="linear-plan__position-chip linear-plan__position-chip--complete">Курс пройден &#127881;</span>
+        </div>
+        {% endif %}
+
+        {% if l_progress.get('level') %}
+        {% set _remaining = l_progress.get('lessons_remaining_in_level', 0) | int %}
+        <div class="linear-plan__level-progress" data-linear-progress="true">
+            <div class="linear-plan__level-bar">
+                <div class="linear-plan__level-fill" style="width: {{ l_progress.get('percent', 0) }}%"></div>
+            </div>
+            <span class="linear-plan__level-meta">
+                {{ l_progress.get('level') }} · {{ l_progress.get('percent', 0) }}%
+                {% if _remaining > 0 %}
+                · осталось {{ _remaining }}
+                {% if _remaining == 1 %}урок{% elif _remaining < 5 %}урока{% else %}уроков{% endif %}
+                {% endif %}
+            </span>
+        </div>
+        {% endif %}
+    </div>
+
+    {# ── Compact progress summary ────────────────────────────────────── #}
+    {% if l_total > 0 %}
+    <div class="linear-plan__summary" data-linear-summary="true">
+        <div class="linear-plan__summary-bar">
+            {% set _pct = ((l_done / l_total) * 100) | int if l_total else 0 %}
+            <div class="linear-plan__summary-fill{% if l_day_secured %} linear-plan__summary-fill--done{% endif %}"
+                 style="width: {{ _pct }}%"></div>
+        </div>
+        <span class="linear-plan__summary-count" data-linear-count="true">{{ l_done }}/{{ l_total }}</span>
+    </div>
+    {% endif %}
+
+    {% if l_day_secured %}
+    <div class="linear-plan__secured" data-linear-secured="true">
+        <span class="linear-plan__secured-icon">&#127881;</span>
+        <span class="linear-plan__secured-text">Сегодняшний план закрыт. Отличная работа!</span>
+    </div>
+    {% endif %}
+
+    {# ── Baseline slots (1–4) ────────────────────────────────────────── #}
+    {% set lns = namespace(current_found=false) %}
+    <div class="linear-plan__slots" data-linear-slots="true">
+        {% for slot in l_slots %}
+            {% set _completed = slot.completed %}
+            {% if _completed %}
+                {% set _state = 'done' %}
+            {% elif not lns.current_found %}
+                {% set _state = 'current' %}
+                {% set lns.current_found = true %}
+            {% else %}
+                {% set _state = 'pending' %}
+            {% endif %}
+
+            {% set _kind = slot.kind %}
+            {% set _data = slot.data %}
+            {% set _eta = slot.eta_minutes | int %}
+            {% set _needs_selection = _data.get('needs_selection', False) %}
+
+            <div class="linear-slot linear-slot--{{ _kind }} linear-slot--{{ _state }}"
+                 data-linear-slot="true"
+                 data-slot-kind="{{ _kind }}"
+                 data-slot-state="{{ _state }}"
+                 data-slot-index="{{ loop.index0 }}">
+                <div class="linear-slot__marker">
+                    {% if _completed %}
+                    <span class="linear-slot__check" aria-hidden="true">&#10003;</span>
+                    {% else %}
+                    <span class="linear-slot__index">{{ loop.index }}</span>
+                    {% endif %}
+                </div>
+                <div class="linear-slot__body">
+                    <div class="linear-slot__icon" aria-hidden="true">{{ l_slot_icons.get(_kind, '&#128204;')|safe }}</div>
+                    <div class="linear-slot__info">
+                        <div class="linear-slot__kind">{{ l_slot_labels.get(_kind, _kind) }}</div>
+                        <div class="linear-slot__title">{{ slot.title }}</div>
+                        {% if _kind == 'curriculum' and slot.lesson_type %}
+                        <div class="linear-slot__meta">
+                            {{ l_lesson_type_labels.get(slot.lesson_type, slot.lesson_type) }}
+                            {% if _eta > 0 %}· ~{{ _eta }} мин{% endif %}
+                        </div>
+                        {% elif _kind == 'srs' and _data.get('due_count') is defined %}
+                        <div class="linear-slot__meta">
+                            {% set _due = _data.get('due_count', 0) | int %}
+                            {% if _due > 0 %}
+                                Карточек на повтор: {{ _due }}{% if _eta > 0 %} · ~{{ _eta }} мин{% endif %}
+                            {% else %}
+                                Сегодня всё повторено
+                            {% endif %}
+                        </div>
+                        {% elif _kind == 'reading' %}
+                        <div class="linear-slot__meta">
+                            {% if _needs_selection %}
+                            Выберите книгу под ваш уровень
+                            {% else %}
+                                {% if _data.get('current_chapter_num') %}Глава {{ _data.current_chapter_num }}{% if _data.get('current_chapter_title') %}: {{ _data.current_chapter_title }}{% endif %}{% endif %}
+                                {% if _eta > 0 %}{% if _data.get('current_chapter_num') %} · {% endif %}~{{ _eta }} мин{% endif %}
+                            {% endif %}
+                        </div>
+                        {% elif _kind == 'error_review' %}
+                        <div class="linear-slot__meta">
+                            Неразобранных ошибок: {{ _data.get('unresolved_count', 0) }}
+                            {% if _eta > 0 %}· ~{{ _eta }} мин{% endif %}
+                        </div>
+                        {% elif _eta > 0 %}
+                        <div class="linear-slot__meta">~{{ _eta }} мин</div>
+                        {% endif %}
+                    </div>
+                    <div class="linear-slot__action">
+                        {% if _completed %}
+                        <span class="linear-slot__badge linear-slot__badge--done">Готово &#10003;</span>
+                        {% elif _needs_selection %}
+                        <a href="#book-select-modal"
+                           class="linear-slot__btn"
+                           data-linear-action="select-book"
+                           data-linear-event="reading_slot_select_open">Выбрать книгу</a>
+                        {% elif slot.url %}
+                        <a href="{{ slot.url }}"
+                           class="linear-slot__btn{% if _state == 'current' %} linear-slot__btn--primary{% endif %}"
+                           data-linear-event="slot_start"
+                           data-slot-click-kind="{{ _kind }}">
+                            {% if _state == 'current' %}Начать{% else %}Открыть{% endif %}
+                        </a>
+                        {% else %}
+                        <span class="linear-slot__badge linear-slot__badge--muted">Позже</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+
+        {% if l_total == 0 %}
+        <div class="linear-plan__empty">
+            <div class="linear-plan__empty-icon">&#128221;</div>
+            <div class="linear-plan__empty-text">План на день ещё формируется. Проверьте чуть позже.</div>
+        </div>
+        {% endif %}
+    </div>
+
+    {# ── Continuation CTA + preview (shown when day_secured=True) ───── #}
+    {% if l_day_secured and l_next_lessons %}
+    <div class="linear-plan__continuation" data-linear-continuation="true">
+        {% set _next = l_next_lessons[0] %}
+        {% if _next and _next.get('lesson_id') %}
+        <a href="/learn/{{ _next.lesson_id }}/?from=linear_plan_continuation"
+           class="linear-plan__continuation-cta"
+           data-linear-event="continuation_next_clicked">
+            <span class="linear-plan__continuation-label">Следующий урок</span>
+            <span class="linear-plan__continuation-position">
+                {{ _next.get('level_code', '') }}
+                {% if _next.get('module_number') %} · M{{ _next.module_number }}{% endif %}
+                {% if _next.get('lesson_number') %} · L{{ _next.lesson_number }}{% endif %}
+            </span>
+            <span class="linear-plan__continuation-type">
+                {{ l_lesson_type_labels.get(_next.get('lesson_type'), _next.get('lesson_type', '')) }}
+            </span>
+        </a>
+        {% endif %}
+
+        <details class="linear-plan__preview" data-linear-preview="true">
+            <summary class="linear-plan__preview-summary">Показать следующие уроки</summary>
+            <ol class="linear-plan__preview-list">
+                {% for lesson in l_next_lessons %}
+                {% if lesson and lesson.get('lesson_id') %}
+                <li class="linear-plan__preview-item">
+                    <a href="/learn/{{ lesson.lesson_id }}/?from=linear_plan_preview"
+                       class="linear-plan__preview-link"
+                       data-linear-event="preview_lesson_clicked"
+                       data-preview-index="{{ loop.index0 }}">
+                        <span class="linear-plan__preview-position">
+                            {% if lesson.get('module_number') %}M{{ lesson.module_number }} · {% endif %}L{{ lesson.get('lesson_number', '') }}
+                        </span>
+                        <span class="linear-plan__preview-type">
+                            {{ l_lesson_type_labels.get(lesson.get('lesson_type'), lesson.get('lesson_type', '')) }}
+                        </span>
+                    </a>
+                </li>
+                {% endif %}
+                {% endfor %}
+            </ol>
+        </details>
+    </div>
+    {% endif %}
+
+</div>
