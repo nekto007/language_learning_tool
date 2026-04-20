@@ -226,6 +226,27 @@
         </div>
     </div>
 
+    <!-- Linear daily plan rollout metrics -->
+    {% if linear_plan %}
+    <div class="row g-3 mb-3">
+        <div class="col-lg-12">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-route me-2 text-muted"></i>Линейный план ({{ linear_plan.cohort_size }} польз.)</h5>
+                </div>
+                <div class="card-body">
+                    {{ quick_stats([
+                        ('Secured %', linear_plan.day_secured_rate|string + '%', 'fa-shield-alt'),
+                        ('Avg слотов', linear_plan.average_slots_completed, 'fa-list-check'),
+                        ('Error review %', linear_plan.error_review_trigger_rate|string + '%', 'fa-exclamation-triangle'),
+                        ('Book select %', linear_plan.book_select_rate|string + '%', 'fa-book-open')
+                    ]) }}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Referrals -->
     <div class="row g-3 mb-3">
         <div class="col-lg-6">
