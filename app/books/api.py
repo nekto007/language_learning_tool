@@ -898,18 +898,26 @@ def save_reading_position():
         })
 
     # Linear plan: award book-reading slot XP once per day when the
-    # reading slot's completion threshold is crossed.
+    # reading slot's completion threshold is crossed. Gated on the
+    # user's UserReadingPreference — progress in any other book does
+    # not satisfy the slot, matching the dashboard semantics "read
+    # your chosen book today".
     try:
-        from app.daily_plan.linear.slots.reading_slot import READ_PROGRESS_THRESHOLD
+        from app.daily_plan.linear.slots.reading_slot import (
+            READ_PROGRESS_THRESHOLD,
+            get_user_reading_preference,
+        )
         from app.daily_plan.linear.xp import (
             maybe_award_book_reading_xp,
             maybe_award_linear_perfect_day,
         )
         advanced = position - previous_offset
         if position >= READ_PROGRESS_THRESHOLD and advanced >= READ_PROGRESS_THRESHOLD:
-            if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
-                maybe_award_linear_perfect_day(current_user.id, db_session=db)
-                db.session.commit()
+            pref = get_user_reading_preference(current_user.id, db)
+            if pref is not None and pref.book_id == book_id:
+                if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
+                    maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                    db.session.commit()
     except Exception:
         logger.warning(
             "linear_xp: book-reading award failed user=%s",

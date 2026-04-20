@@ -448,7 +448,7 @@ def get_linear_plan_metrics() -> dict:
     from app.admin.services.linear_plan_metrics import get_linear_plan_metrics as _compute
     try:
         return _compute()
-    except SQLAlchemyError:
+    except Exception:
         logger.exception("Error computing linear plan metrics")
         return {
             'cohort_size': 0,

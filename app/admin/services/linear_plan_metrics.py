@@ -21,7 +21,7 @@ non-None payload regardless of rollout state.
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import case, func
 
@@ -181,7 +181,7 @@ def _book_select_rate(user_ids: list[int], session: Any) -> float:
     return round(selected / len(user_ids) * 100, 1)
 
 
-def get_linear_plan_metrics(session: Any = None, today: date = None) -> dict:
+def get_linear_plan_metrics(session: Any = None, today: Optional[date] = None) -> dict:
     """Aggregate linear-plan metrics for the admin dashboard.
 
     Returns a dict with four ratios plus ``cohort_size`` for context. All
