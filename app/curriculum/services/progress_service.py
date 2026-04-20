@@ -290,6 +290,21 @@ class ProgressService:
                 logger.error(f"Error processing lesson completion: {e}")
                 # Don't fail the request if grading fails
 
+            try:
+                from app.daily_plan.linear.xp import (
+                    maybe_award_curriculum_xp,
+                    maybe_award_linear_perfect_day,
+                )
+                if maybe_award_curriculum_xp(user_id, lesson, db_session=db) is not None:
+                    maybe_award_linear_perfect_day(user_id, db_session=db)
+                    db.session.commit()
+            except Exception:
+                logger.warning(
+                    "linear_xp: curriculum award failed user=%s lesson=%s",
+                    user_id, lesson.id, exc_info=True,
+                )
+                db.session.rollback()
+
         return progress, completion_result
 
     @staticmethod

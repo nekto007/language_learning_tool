@@ -382,7 +382,9 @@ def get_today_xp(user_id: int, for_date: date) -> int:
         .filter(
             StreakEvent.user_id == user_id,
             StreakEvent.event_date == for_date,
-            StreakEvent.event_type.in_(['xp_phase', 'xp_perfect_day', 'xp_surprise']),
+            StreakEvent.event_type.in_(
+                ['xp_phase', 'xp_perfect_day', 'xp_surprise', 'xp_linear']
+            ),
         )
         .with_entities(
             func.sum(StreakEvent.details['xp'].astext.cast(Integer))

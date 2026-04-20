@@ -604,12 +604,30 @@ def complete_srs_session(lesson_id):
         cards_studied = data.get('cards_studied', 0)
         accuracy = data.get('accuracy', 0)
 
+        newly_completed = False
         if cards_studied > 0:
+            newly_completed = progress.status != 'completed'
             progress.status = 'completed'
             progress.score = round(accuracy, 2)
             progress.completed_at = datetime.now(UTC)
 
         db.session.commit()
+
+        if newly_completed:
+            try:
+                from app.daily_plan.linear.xp import (
+                    maybe_award_curriculum_xp,
+                    maybe_award_linear_perfect_day,
+                )
+                if maybe_award_curriculum_xp(current_user.id, lesson, db_session=db) is not None:
+                    maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                    db.session.commit()
+            except Exception:
+                logger.warning(
+                    "linear_xp: card-lesson award failed user=%s lesson=%s",
+                    current_user.id, lesson.id, exc_info=True,
+                )
+                db.session.rollback()
 
         return jsonify({
             'success': True,

@@ -295,13 +295,13 @@
 - Modify: book reading progress endpoint
 - Modify: error review complete endpoint
 
-- [ ] При completion curriculum-урока (любого из 12 типов) в linear-режиме — `award_xp` с соответствующим `linear_curriculum_<type>` source
-- [ ] При завершении SRS-сессии через `?source=linear_plan` — `award_xp(linear_srs_global)`
-- [ ] При увеличении reading progress выбранной книги выше threshold — `award_xp(linear_book_reading)` (один раз за день, чтобы не нафармили)
-- [ ] При завершении error review сессии — `award_xp(linear_error_review)`
-- [ ] Detect режим: через `User.use_linear_plan` или через query-param `?source=linear_*` — выбираем единообразный механизм
-- [ ] Write tests: полный linear-день → правильная сумма XP, streak incremented, perfect_day bonus применён; mission-юзер получает mission-XP без регрессий
-- [ ] Run project test suite — must pass before task 15
+- [x] При completion curriculum-урока (любого из 12 типов) в linear-режиме — `award_xp` с соответствующим `linear_curriculum_<type>` source
+- [x] При завершении SRS-сессии через `?source=linear_plan` — `award_xp(linear_srs_global)`
+- [x] При увеличении reading progress выбранной книги выше threshold — `award_xp(linear_book_reading)` (один раз за день, чтобы не нафармили)
+- [x] При завершении error review сессии — `award_xp(linear_error_review)`
+- [x] Detect режим: через `User.use_linear_plan` или через query-param `?source=linear_*` — выбираем единообразный механизм
+- [x] Write tests: полный linear-день → правильная сумма XP, streak incremented, perfect_day bonus применён; mission-юзер получает mission-XP без регрессий
+- [x] Run project test suite — must pass before task 15 (4782 passed; 89 pre-existing dashboard failures unchanged on base branch)
 
 ---
 

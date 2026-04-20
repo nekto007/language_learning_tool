@@ -475,6 +475,77 @@ def emit_minimum_completed(user_id: int, mission_type: str | None, plan_date) ->
         )
 
 
+@api_daily_plan.route('/daily-plan/error-review/complete', methods=['POST'])
+@csrf.exempt
+@api_auth_required
+def complete_error_review():
+    """Complete a linear-plan error-review session.
+
+    Body JSON:
+        error_ids (list[int], optional): quiz_error_log ids resolved in
+            this session. Unknown ids or ids belonging to other users
+            are skipped silently.
+
+    Always attempts the linear ``error_review`` XP award (idempotent per
+    day) and surfaces any level-up / day-secured transitions in the
+    response.
+    """
+    from app.daily_plan.linear.errors import resolve_quiz_errors
+    from app.daily_plan.linear.xp import (
+        maybe_award_error_review_xp,
+        maybe_award_linear_perfect_day,
+    )
+
+    body = request.get_json(silent=True) or {}
+    raw_ids = body.get('error_ids') or []
+    if not isinstance(raw_ids, list):
+        return api_error('invalid_error_ids', 'error_ids must be a list', 400)
+
+    error_ids: list[int] = []
+    for raw in raw_ids:
+        try:
+            error_ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+
+    user_id = current_user.id
+    resolved = resolve_quiz_errors(error_ids, user_id, db, commit=False)
+
+    xp_award = maybe_award_error_review_xp(user_id, db_session=db)
+    perfect_day = None
+    if xp_award is not None:
+        perfect_day = maybe_award_linear_perfect_day(user_id, db_session=db)
+
+    try:
+        db.session.commit()
+    except Exception:
+        logger.warning(
+            "linear_xp: error-review commit failed user=%s", user_id, exc_info=True,
+        )
+        db.session.rollback()
+        return api_error('db_error', 'Failed to record error review', 500)
+
+    response = {
+        'success': True,
+        'resolved_count': len(resolved),
+    }
+    if xp_award is not None:
+        response['xp'] = {
+            'awarded': xp_award.xp_awarded,
+            'total': xp_award.new_total_xp,
+            'level': xp_award.new_level,
+            'leveled_up': xp_award.leveled_up,
+        }
+    if perfect_day is not None:
+        response['perfect_day_bonus'] = {
+            'awarded': perfect_day.xp_awarded,
+            'total': perfect_day.new_total_xp,
+            'level': perfect_day.new_level,
+            'leveled_up': perfect_day.leveled_up,
+        }
+    return jsonify(response)
+
+
 @api_daily_plan.route('/daily-plan/dismiss-rival-strip', methods=['POST'])
 @csrf.exempt
 @api_auth_required

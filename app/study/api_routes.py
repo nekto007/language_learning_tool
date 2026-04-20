@@ -571,6 +571,21 @@ def complete_session():
         )
         user_xp = XPService.award_xp(current_user.id, xp_breakdown['total_xp'])
 
+        try:
+            from app.daily_plan.linear.xp import (
+                maybe_award_srs_global_xp,
+                maybe_award_linear_perfect_day,
+            )
+            if maybe_award_srs_global_xp(current_user.id, db_session=db) is not None:
+                maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                db.session.commit()
+        except Exception:
+            logger.warning(
+                "linear_xp: srs-session award failed user=%s",
+                current_user.id, exc_info=True,
+            )
+            db.session.rollback()
+
         from app.achievements.models import UserStatistics
         user_stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
         current_streak = user_stats.current_streak_days if user_stats else 0
