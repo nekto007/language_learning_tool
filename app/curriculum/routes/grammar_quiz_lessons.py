@@ -14,6 +14,7 @@ from app.curriculum.security import require_lesson_access, sanitize_html
 from app.curriculum.service import get_next_lesson, process_quiz_submission
 from app.curriculum.services.progress_service import ProgressService
 from app.curriculum.validators import LessonContentValidator
+from app.daily_plan.linear.errors import log_quiz_errors_from_result
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
@@ -321,6 +322,17 @@ def render_quiz_lesson(lesson):
                 except (ValueError, TypeError) as e:
                     logger.error(f"Invalid client score data: {e}")
 
+        try:
+            log_quiz_errors_from_result(
+                current_user.id,
+                lesson.id,
+                cleaned_content['questions'],
+                result,
+                db,
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log quiz errors for lesson {lesson.id}: {log_error}")
+
         progress, completion_result = ProgressService.update_progress_with_grading(
             user_id=current_user.id,
             lesson=lesson,
@@ -493,6 +505,17 @@ def render_final_test_lesson(lesson):
 
         result = process_quiz_submission(all_questions, answers)
         passing_score = cleaned_content.get('passing_score_percent', cleaned_content.get('passing_score', 70))
+
+        try:
+            log_quiz_errors_from_result(
+                current_user.id,
+                lesson.id,
+                all_questions,
+                result,
+                db,
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log quiz errors for lesson {lesson.id}: {log_error}")
 
         progress, completion_result = ProgressService.update_progress_with_grading(
             user_id=current_user.id,
@@ -773,6 +796,17 @@ def quiz_lesson(lesson_id):
                 except (ValueError, TypeError) as e:
                     logger.error(f"Invalid client score data: {e}")
 
+        try:
+            log_quiz_errors_from_result(
+                current_user.id,
+                lesson.id,
+                cleaned_content['questions'],
+                result,
+                db,
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log quiz errors for lesson {lesson.id}: {log_error}")
+
         progress, completion_result = ProgressService.update_progress_with_grading(
             user_id=current_user.id,
             lesson=lesson,
@@ -895,6 +929,17 @@ def final_test_lesson(lesson_id):
         result = process_quiz_submission(all_questions, answers)
 
         passing_score = cleaned_content.get('passing_score_percent', cleaned_content.get('passing_score', 70))
+
+        try:
+            log_quiz_errors_from_result(
+                current_user.id,
+                lesson.id,
+                all_questions,
+                result,
+                db,
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log quiz errors for lesson {lesson.id}: {log_error}")
 
         progress, completion_result = ProgressService.update_progress_with_grading(
             user_id=current_user.id,

@@ -169,14 +169,14 @@
 - Modify: quiz-grading endpoints во всех типах quiz-уроков curriculum
 - Create: `tests/daily_plan/linear/test_error_review.py`
 
-- [ ] `log_quiz_error(user_id, lesson_id, question_payload, db)` — пишет строку в `QuizErrorLog` при incorrect ответе
-- [ ] `resolve_quiz_error(error_id, user_id, db)` — ставит `resolved_at = now()`
-- [ ] `get_review_pool(user_id, db, limit=10) → list[QuizErrorLog]` — старейшие unresolved
-- [ ] `should_show_error_review(user_id, db) → bool` — `COUNT(unresolved) >= 5` И (`last_resolved_at IS NULL` ИЛИ `last_resolved_at < now() - interval '3 days'`)
-- [ ] `build_error_review_slot(user_id, db) → Optional[LinearSlot]` — None если триггер не сработал
-- [ ] Обновить quiz-grading для типов: `quiz`, `listening_quiz`, `dialogue_completion_quiz`, `ordering_quiz`, `translation_quiz`, `final_test` — при incorrect вызывать `log_quiz_error` с payload вопроса
-- [ ] Write tests: slot не появляется при 4 unresolved; при 5+ unresolved и <3 дней — не появляется; при 5+ и ≥3 дней — появляется; correct в review → `resolved_at`; каждый тип quiz-урока логирует ошибку
-- [ ] Run project test suite — must pass before task 8
+- [x] `log_quiz_error(user_id, lesson_id, question_payload, db)` — пишет строку в `QuizErrorLog` при incorrect ответе
+- [x] `resolve_quiz_error(error_id, user_id, db)` — ставит `resolved_at = now()`
+- [x] `get_review_pool(user_id, db, limit=10) → list[QuizErrorLog]` — старейшие unresolved
+- [x] `should_show_error_review(user_id, db) → bool` — `COUNT(unresolved) >= 5` И (`last_resolved_at IS NULL` ИЛИ `last_resolved_at < now() - interval '3 days'`)
+- [x] `build_error_review_slot(user_id, db) → Optional[LinearSlot]` — None если триггер не сработал
+- [x] Обновить quiz-grading для типов: `quiz`, `listening_quiz`, `dialogue_completion_quiz`, `ordering_quiz`, `translation_quiz`, `final_test` — при incorrect вызывать `log_quiz_error` с payload вопроса
+- [x] Write tests: slot не появляется при 4 unresolved; при 5+ unresolved и <3 дней — не появляется; при 5+ и ≥3 дней — появляется; correct в review → `resolved_at`; каждый тип quiz-урока логирует ошибку
+- [x] Run project test suite — must pass before task 8 (daily_plan 211, curriculum 36, smoke 132 all green)
 
 ### Task 8: Grammar theory pull into grammar lessons
 
