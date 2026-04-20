@@ -53,6 +53,37 @@ SAMPLE_LEGACY_PAYLOAD = {
     'book_course_done_today': False,
 }
 
+SAMPLE_LINEAR_PAYLOAD = {
+    'mode': 'linear',
+    'baseline_slots': [
+        {
+            'kind': 'curriculum',
+            'title': 'Present Simple',
+            'completed': False,
+            'url': '/learn/42/?from=linear_plan',
+            'eta_minutes': 12,
+            'data': {'lesson_id': 42, 'module_number': 2, 'lesson_number': 3},
+        },
+        {
+            'kind': 'srs',
+            'title': 'Повторение слов',
+            'completed': False,
+            'url': '/study/cards?from=linear_plan',
+            'eta_minutes': 5,
+            'data': {'due_count': 8},
+        },
+    ],
+    'continuation': {
+        'available': False,
+        'next_lessons': [{
+            'lesson_id': 43,
+            'module_number': 2,
+            'lesson_number': 4,
+            'lesson_type': 'grammar',
+        }],
+    },
+}
+
 SAMPLE_SUMMARY = {
     'lessons_count': 0,
     'lesson_types': [],
@@ -359,3 +390,18 @@ class TestNextStepWithMissionPhases:
         data = resp.get_json()
         assert data['has_next'] is True
         assert data['step_type'] == 'lesson'
+
+    @patch('app.telegram.queries.get_daily_summary', return_value=SAMPLE_SUMMARY)
+    @patch(f'{UNIFIED_MODULE}.get_daily_plan_unified')
+    def test_linear_plan_returns_next_slot(
+        self, mock_unified, mock_summary, app, authenticated_client,
+    ):
+        mock_unified.return_value = SAMPLE_LINEAR_PAYLOAD
+
+        resp = authenticated_client.get('/api/daily-plan/next-step')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['has_next'] is True
+        assert data['step_type'] == 'curriculum'
+        assert data['step_title'] == 'Present Simple'
+        assert data['step_url'] == '/learn/42/?from=linear_plan'

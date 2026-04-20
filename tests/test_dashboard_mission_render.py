@@ -2,6 +2,14 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 
+def _strip_style_blocks(html: str) -> str:
+    while '<style>' in html and '</style>' in html:
+        start = html.index('<style>')
+        end = html.index('</style>', start) + len('</style>')
+        html = html[:start] + html[end:]
+    return html
+
+
 def _make_mission_plan(mission_type='progress', phases_completed=None, previews=None, required=None):
     if phases_completed is None:
         phases_completed = [False, False, False]
@@ -153,7 +161,8 @@ class TestDashboardMissionRender:
         response = self._get_dashboard(client, test_user, plan)
         html = response.data.decode('utf-8')
         assert 'Укрепляем знания' in html
-        assert 'Несколько тем требуют повторения' in html
+        # Compact mission header no longer renders reason_text.
+        assert 'Несколько тем требуют повторения' not in html
         for word in ['экзамен', 'наказание', 'штраф', 'провал']:
             assert word not in html.lower()
 
@@ -1045,12 +1054,13 @@ class TestDashboardMissionRender:
         assert '.dash-route-token--training' in css
 
     def test_leaderboard_rendered_as_collapsible_details(self, client, app, db_session, test_user, words_module_access):
-        """Task 34: race leaderboard is wrapped in a details element (secondary/compact UI)."""
+        """Dashboard no longer renders the full race leaderboard; it lives on /race."""
         plan = _make_mission_plan('progress', [False, False, False])
         race = self._make_race_payload()
         response = self._get_dashboard_with_race(client, test_user, plan, race)
         html = response.data.decode('utf-8')
-        assert 'dash-race__board--compact' in html
+        assert 'dash-race-strip' in html
+        assert 'dash-race__board--compact' not in html
 
     # ---- Task 35: Overtake and checkpoint animations ----
 
@@ -1155,7 +1165,7 @@ class TestDashboardMissionRender:
             assert 'data-day-secured="true"' not in html
             assert 'class="dash-day-secured"' not in html
             assert 'День закрыт!' not in html
-            assert 'Серия сохранена' not in html
+            assert 'data-next-step-queue' not in html
 
     def test_next_step_continuation_queue_absent(self, client, app, db_session, test_user, words_module_access):
         """Task 8: 3-step continuation queue (next-step container) no longer renders on dashboard."""
@@ -1494,7 +1504,7 @@ class TestHeroStreakRendering:
             client, test_user, plan, streak=5, coins=3,
         )
         assert response.status_code == 200
-        html = response.data.decode('utf-8')
+        html = _strip_style_blocks(response.data.decode('utf-8'))
         assert 'class="dash-streak"' in html
         assert '5' in html
         assert 'dash-streak-recovery' not in html
@@ -1508,7 +1518,7 @@ class TestHeroStreakRendering:
             client, test_user, plan, streak=0, can_repair=False,
         )
         assert response.status_code == 200
-        html = response.data.decode('utf-8')
+        html = _strip_style_blocks(response.data.decode('utf-8'))
         assert 'Сегодня начни заново' in html
         assert 'dash-streak-recovery' not in html
         # No streak badge rendered
@@ -1550,13 +1560,13 @@ class TestHeroStreakRendering:
         plan = _make_mission_plan('progress', [False, False, False])
         # Milestone: 7 → badge visible
         r1 = self._get_dashboard_with_streak(client, test_user, plan, streak=7)
-        html1 = r1.data.decode('utf-8')
+        html1 = _strip_style_blocks(r1.data.decode('utf-8'))
         assert 'dash-streak__milestone' in html1
         assert 'Неделя' in html1
 
         # Non-milestone: 8 → no badge
         r2 = self._get_dashboard_with_streak(client, test_user, plan, streak=8)
-        html2 = r2.data.decode('utf-8')
+        html2 = _strip_style_blocks(r2.data.decode('utf-8'))
         assert 'dash-streak__milestone' not in html2
 
     def test_share_button_visible_when_streak_at_least_seven(
@@ -1567,7 +1577,7 @@ class TestHeroStreakRendering:
         response = self._get_dashboard_with_streak(
             client, test_user, plan, streak=8, referral_code='TESTCODE',
         )
-        html = response.data.decode('utf-8')
+        html = _strip_style_blocks(response.data.decode('utf-8'))
         assert 'dash-streak__share-btn' in html
         # No milestone badge at streak=8 since 8 is not a milestone
         assert 'dash-streak__milestone' not in html
@@ -1579,7 +1589,7 @@ class TestHeroStreakRendering:
         response = self._get_dashboard_with_streak(
             client, test_user, plan, streak=6, referral_code='TESTCODE',
         )
-        html = response.data.decode('utf-8')
+        html = _strip_style_blocks(response.data.decode('utf-8'))
         assert 'dash-streak__share-btn' not in html
 
 
@@ -2049,8 +2059,9 @@ class TestZeroStateTemplate:
 
     def test_route_computes_is_zero_state_flag(self):
         src = _read_words_routes()
-        # Route computes is_zero_state from the four count fields.
+        # Route computes is_zero_state from the count fields and dashboard content.
         assert 'is_zero_state=' in src
+        assert "daily_plan.get('mission')" in src
         assert '(words_total or 0) == 0' in src
         assert '(grammar_studied or 0) == 0' in src
         assert '(books_reading or 0) == 0' in src
