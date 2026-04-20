@@ -279,11 +279,11 @@
 - Modify: `app/achievements/xp_service.py`
 - Modify: `tests/achievements/test_xp_service.py`
 
-- [ ] Добавить маппинг linear-source → XP: `linear_curriculum_card → 20`, `linear_curriculum_grammar → 18`, `linear_curriculum_quiz → 12` (quiz/listening_quiz/dialogue/ordering/translation/final_test), `linear_curriculum_reading → 15`, `linear_curriculum_listening → 15`, `linear_curriculum_vocabulary → 18`, `linear_srs_global → 8`, `linear_book_reading → 15`, `linear_error_review → 10`
-- [ ] `PERFECT_DAY_BONUS` — 25 для linear, 50 для mission (пока mission живёт)
-- [ ] Streak multiplier (`1 + streak*0.02, cap 2.0`) — без изменений
-- [ ] Write tests: `award_xp` с новыми source-ключами; baseline-день без streak = 43 XP (20 card + 8 srs + 15 book); первый уровень (100 XP) закрывается за ~2.5 дня
-- [ ] Run project test suite — must pass before task 14
+- [x] Добавить маппинг linear-source → XP: `linear_curriculum_card → 20`, `linear_curriculum_grammar → 18`, `linear_curriculum_quiz → 12` (quiz/listening_quiz/dialogue/ordering/translation/final_test), `linear_curriculum_reading → 15`, `linear_curriculum_listening → 15`, `linear_curriculum_vocabulary → 18`, `linear_srs_global → 8`, `linear_book_reading → 15`, `linear_error_review → 10`
+- [x] `PERFECT_DAY_BONUS` — 25 для linear, 50 для mission (пока mission живёт)
+- [x] Streak multiplier (`1 + streak*0.02, cap 2.0`) — без изменений
+- [x] Write tests: `award_xp` с новыми source-ключами; baseline-день без streak = 43 XP (20 card + 8 srs + 15 book); первый уровень (100 XP) закрывается за ~2.5 дня
+- [x] Run project test suite — must pass before task 14 (xp_service 93 + achievements 289 + smoke 137 all green)
 
 ### Task 14: Wire `award_xp` from linear slot completions
 

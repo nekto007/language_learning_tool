@@ -34,7 +34,28 @@ PHASE_XP: dict[str, int] = {
 }
 
 PERFECT_DAY_BONUS_XP = 50
+PERFECT_DAY_BONUS_XP_LINEAR = 25
 FIRST_OF_DAY_BONUS_XP = 10
+
+# ---------------------------------------------------------------------------
+# Linear daily plan XP award amounts per source key
+# ---------------------------------------------------------------------------
+LINEAR_XP: dict[str, int] = {
+    'linear_curriculum_card': 20,
+    'linear_curriculum_vocabulary': 18,
+    'linear_curriculum_grammar': 18,
+    'linear_curriculum_quiz': 12,
+    'linear_curriculum_listening_quiz': 12,
+    'linear_curriculum_dialogue_completion_quiz': 12,
+    'linear_curriculum_ordering_quiz': 12,
+    'linear_curriculum_translation_quiz': 12,
+    'linear_curriculum_final_test': 12,
+    'linear_curriculum_reading': 15,
+    'linear_curriculum_listening_immersion': 15,
+    'linear_srs_global': 8,
+    'linear_book_reading': 15,
+    'linear_error_review': 10,
+}
 
 # Streak multiplier: 1.0 + streak_days * 0.02, capped at 2.0
 STREAK_MULTIPLIER_BASE = 1.0
@@ -219,12 +240,16 @@ def award_phase_xp_idempotent(
 def award_perfect_day_xp_idempotent(
     user_id: int,
     for_date: date,
+    is_linear: bool = False,
 ) -> XPAward | None:
     """Award perfect day bonus XP, once per day.
 
     Tracks consecutive perfect days and applies an escalating multiplier:
     2 days=1.2x, 3 days=1.5x, 5 days=2.0x, 7+ days=2.5x (on top of streak
     multiplier). Missing a day resets the counter to 1.
+
+    When `is_linear` is True, the bonus base is `PERFECT_DAY_BONUS_XP_LINEAR`
+    (25); otherwise `PERFECT_DAY_BONUS_XP` (50) for legacy mission flow.
 
     Returns XPAward if awarded, None if already awarded today.
     Caller must commit the session.
@@ -259,7 +284,8 @@ def award_perfect_day_xp_idempotent(
     stats.consecutive_perfect_days = new_consecutive
 
     perfect_mult = get_perfect_day_multiplier(new_consecutive)
-    adjusted_base = max(1, int(PERFECT_DAY_BONUS_XP * perfect_mult))
+    bonus_base_xp = PERFECT_DAY_BONUS_XP_LINEAR if is_linear else PERFECT_DAY_BONUS_XP
+    adjusted_base = max(1, int(bonus_base_xp * perfect_mult))
 
     result = award_xp(user_id, adjusted_base, 'perfect_day')
 
@@ -324,6 +350,26 @@ def award_xp(user_id: int, base_amount: int, source: str) -> XPAward:
         new_level=new_info.current_level,
         leveled_up=leveled_up,
     )
+
+
+def get_linear_xp_amount(source: str) -> int:
+    """Return base XP for a linear daily plan source key.
+
+    Raises KeyError if the source is not registered in `LINEAR_XP`.
+    """
+    if source not in LINEAR_XP:
+        raise KeyError(f"Unknown linear XP source: {source!r}")
+    return LINEAR_XP[source]
+
+
+def award_linear_xp(user_id: int, source: str) -> XPAward:
+    """Award XP for a linear daily plan slot completion by source key.
+
+    Thin wrapper around `award_xp` that looks the base amount up in
+    `LINEAR_XP`. Streak multiplier is applied by `award_xp`.
+    """
+    base = get_linear_xp_amount(source)
+    return award_xp(user_id, base, source)
 
 
 def get_today_xp(user_id: int, for_date: date) -> int:
