@@ -88,8 +88,19 @@
             <span class="linear-plan__level-meta">
                 {{ l_progress.get('level') }} · {{ l_progress.get('percent', 0) }}%
                 {% if _remaining > 0 %}
-                · осталось {{ _remaining }}
-                {% if _remaining == 1 %}урок{% elif _remaining < 5 %}урока{% else %}уроков{% endif %}
+                {# Russian plural: "урок" for n%10==1 and n%100!=11,
+                   "урока" for n%10 in 2..4 and n%100 not in 12..14,
+                   "уроков" otherwise. #}
+                {% set _mod10 = _remaining % 10 %}
+                {% set _mod100 = _remaining % 100 %}
+                {% if _mod10 == 1 and _mod100 != 11 %}
+                    {% set _urok_word = 'урок' %}
+                {% elif 2 <= _mod10 <= 4 and not 12 <= _mod100 <= 14 %}
+                    {% set _urok_word = 'урока' %}
+                {% else %}
+                    {% set _urok_word = 'уроков' %}
+                {% endif %}
+                · осталось {{ _remaining }} {{ _urok_word }}
                 {% endif %}
             </span>
         </div>

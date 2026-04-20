@@ -130,6 +130,10 @@ class TestLessonTypeMapping:
         assert get_source_for_lesson_type('flashcards') == 'linear_curriculum_card'
         assert get_source_for_lesson_type('text') == 'linear_curriculum_reading'
         assert get_source_for_lesson_type('matching') == 'linear_curriculum_quiz'
+        assert (
+            get_source_for_lesson_type('listening_immersion_quiz')
+            == 'linear_curriculum_listening_immersion'
+        )
 
     def test_unknown_and_missing_types_return_none(self):
         assert get_source_for_lesson_type(None) is None
@@ -223,9 +227,14 @@ class TestMaybeAwardCurriculumXp:
     def test_awards_for_each_canonical_type(self, db_session):
         user = _make_user(db_session)
 
+        # ``listening_immersion`` and ``listening_immersion_quiz`` share a
+        # single XP source key, so covering one covers the other for
+        # idempotency purposes. The three legacy aliases have dedicated
+        # coverage in ``test_legacy_aliases_map_to_canonical_sources``.
+        aliased_types = {'flashcards', 'text', 'matching', 'listening_immersion_quiz'}
         for lesson_type, expected_source in LESSON_TYPE_TO_SOURCE.items():
-            if lesson_type in {'flashcards', 'text', 'matching', 'listening_immersion_quiz'}:
-                continue  # covered in the legacy-alias test
+            if lesson_type in aliased_types:
+                continue
             lesson = _make_lesson(db_session, lesson_type)
             result = maybe_award_curriculum_xp(user.id, lesson, db_session=real_db)
             db_session.commit()

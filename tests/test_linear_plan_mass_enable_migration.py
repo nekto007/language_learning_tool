@@ -3,7 +3,7 @@
 Verifies:
 - Migration file is well-formed and links correctly into the chain
 - upgrade() issues the expected UPDATE filtered to onboarded users only
-- downgrade() reverts all linear-plan flags back to FALSE
+- downgrade() is intentionally a no-op (cannot distinguish mass-enabled from manual opt-ins)
 - The logic is idempotent (re-running upgrade is a no-op)
 """
 from __future__ import annotations
@@ -84,16 +84,14 @@ class TestUpgradeStatement:
 
 
 class TestDowngradeStatement:
-    def test_downgrade_reverts_all_linear_users(self):
+    def test_downgrade_is_noop(self):
+        """Downgrade cannot distinguish mass-enabled users from manual opt-ins,
+        so it deliberately does nothing — preserves author/beta flags."""
         mod = _load_migration()
         executed: list[str] = []
         with patch("alembic.op.execute", side_effect=lambda sql: executed.append(str(sql))):
             mod.downgrade()
-        assert len(executed) == 1
-        sql = executed[0]
-        assert "UPDATE users" in sql
-        assert "use_linear_plan = FALSE" in sql
-        assert "WHERE use_linear_plan = TRUE" in sql
+        assert executed == []
 
 
 class TestUpgradeSideEffects:

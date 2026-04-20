@@ -165,31 +165,19 @@ def render_grammar_lesson(lesson):
 def _resolve_grammar_theory(user_id: int, lesson: Lessons):
     """Fetch (and record) the grammar-lab theory topic linked to this lesson.
 
-    Wraps ``get_theory_for_lesson`` so the caller can swallow any DB
-    failure without breaking the lesson render. A successful insert is
-    committed here since neither render path owns an outer transaction
-    guaranteed to run to the end.
+    Delegates to ``get_theory_for_lesson`` with ``commit=True`` so the new
+    ``GrammarTheoryView`` row is persisted immediately. The helper already
+    swallows and rolls back internal failures, so we only need to guard
+    against unexpected errors from the caller's perspective.
     """
     try:
-        topic = get_theory_for_lesson(user_id, lesson, db)
+        return get_theory_for_lesson(user_id, lesson, db, commit=True)
     except Exception:  # noqa: BLE001
         logger.exception(
             'grammar_theory: unexpected error user=%s lesson=%s', user_id, lesson.id,
         )
         db.session.rollback()
         return None
-
-    if topic is None:
-        return None
-
-    try:
-        db.session.commit()
-    except Exception:  # noqa: BLE001
-        logger.exception(
-            'grammar_theory: commit failed user=%s lesson=%s', user_id, lesson.id,
-        )
-        db.session.rollback()
-    return topic
 
 
 def _sanitize_quiz_questions(cleaned_content: dict) -> None:

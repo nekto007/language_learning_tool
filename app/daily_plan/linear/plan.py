@@ -73,13 +73,13 @@ def _position_from_lesson(lesson: Any) -> Optional[dict[str, Any]]:
 def get_linear_plan(
     user_id: int,
     db_session: Any = None,
-    tz: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Return the linear daily plan skeleton.
+    """Return the linear daily plan payload.
 
-    Baseline slots, continuation payload, and day_secured evaluation will be
-    filled in by later tasks — for now we return enough structure so the
-    router, API layer, and dashboard can integrate against a stable shape.
+    The linear plan is timezone-agnostic: slot builders read authoritative
+    DB state (LessonProgress, UserChapterProgress, QuizErrorLog) and the
+    API layer handles the user's local day when it recomputes
+    ``day_secured``. No ``tz`` is needed here.
     """
     session_provider = db_session if db_session is not None else db
 

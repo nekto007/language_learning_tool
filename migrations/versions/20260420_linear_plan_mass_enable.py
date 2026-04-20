@@ -30,10 +30,9 @@ def upgrade():
 
 
 def downgrade():
-    op.execute(
-        """
-        UPDATE users
-        SET use_linear_plan = FALSE
-        WHERE use_linear_plan = TRUE
-        """
-    )
+    # Intentional no-op: the mass upgrade cannot distinguish users who
+    # were mass-enabled from users who opted in manually (CLI, admin,
+    # author dogfooding). Reverting indiscriminately would silently wipe
+    # those opt-ins. To opt a specific user out, use
+    # ``flask linear-plan-disable <user_id>``.
+    pass

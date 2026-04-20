@@ -204,21 +204,27 @@ def maybe_award_linear_perfect_day(
 ) -> Optional[XPAward]:
     """Award the linear perfect-day bonus when all baseline slots are done.
 
-    Inspects the current linear plan payload to ensure every baseline
-    slot is completed before awarding. The underlying
-    ``award_perfect_day_xp_idempotent`` takes care of
-    once-per-day semantics and consecutive-day multipliers; we merely
-    gate on the linear day being fully secured.
+    Completion detection mirrors ``/api/daily-status``: we combine each
+    slot's own ``completed`` flag with the daily activity summary so a
+    user who completed today's work earns the bonus even though the
+    per-slot ``completed`` field tracks the next incomplete target
+    (e.g., the curriculum slot always points at the next unfinished
+    lesson). Without this, the perfect-day bonus would almost never
+    fire since the slot-builder's ``completed`` field is rarely True
+    for the current day's activity.
     """
     if not is_linear_user(user_id):
         return None
 
+    from app.achievements.streak_service import compute_plan_steps
     from app.daily_plan.linear.plan import get_linear_plan
+    from app.telegram.queries import get_daily_summary
 
     when = for_date or _today_utc()
 
     try:
         plan = get_linear_plan(user_id, db_session)
+        summary = get_daily_summary(user_id)
     except Exception:  # noqa: BLE001 — never break caller on plan assembly
         logger.warning(
             'linear_xp: perfect-day check failed to assemble plan for user=%s',
@@ -227,9 +233,15 @@ def maybe_award_linear_perfect_day(
         return None
 
     baseline_slots = plan.get('baseline_slots') or []
-    if not baseline_slots or not all(
-        bool(slot.get('completed', False)) for slot in baseline_slots
-    ):
+    if not baseline_slots:
+        return None
+
+    plan_completion, _, _, _ = compute_plan_steps(plan, summary)
+    all_done = all(
+        plan_completion.get(slot.get('kind', ''), False)
+        for slot in baseline_slots
+    )
+    if not all_done:
         return None
 
     return award_perfect_day_xp_idempotent(user_id, when, is_linear=True)

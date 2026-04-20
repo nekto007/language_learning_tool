@@ -354,7 +354,7 @@ class TestBuildErrorReviewSlot:
         assert isinstance(slot, LinearSlot)
         assert slot.kind == 'error_review'
         assert slot.title == 'Разбор ошибок (7)'
-        assert slot.url == '/learn/error-review?from=linear_plan'
+        assert slot.url == '/learn/error-review/?from=linear_plan'
         assert slot.completed is False
         assert slot.data['unresolved_count'] == 7
         assert slot.data['pool_size'] == 7

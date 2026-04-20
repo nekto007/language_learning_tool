@@ -32,7 +32,7 @@ def build_error_review_slot(user_id: int, db: Any) -> Optional[LinearSlot]:
         title=f'Разбор ошибок ({pool_size})',
         lesson_type=None,
         eta_minutes=_ERROR_REVIEW_SLOT_ETA_MINUTES,
-        url='/learn/error-review?from=linear_plan',
+        url='/learn/error-review/?from=linear_plan',
         completed=False,
         data={
             'unresolved_count': unresolved,

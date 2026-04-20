@@ -194,7 +194,7 @@ class TestLinearPlanSlots:
             _slot('curriculum', url='/c'),
             _slot('srs', url='/s', data={'due_count': 3}),
             _slot('reading', url='/r'),
-            _slot('error_review', url='/learn/error-review?from=linear_plan',
+            _slot('error_review', url='/learn/error-review/?from=linear_plan',
                   title='Разбор ошибок (10)',
                   data={'unresolved_count': 12, 'pool_size': 10}),
         ])

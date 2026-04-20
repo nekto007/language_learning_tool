@@ -98,6 +98,35 @@ def learn_index():
 
 
 
+@learn_bp.route('/error-review/', methods=['GET'])
+@login_required
+def error_review_session():
+    """Linear-plan error-review session.
+
+    Renders the unresolved quiz-error pool so the user can review and
+    resolve them; the page POSTs to ``/api/daily-plan/error-review/complete``
+    to mark them resolved and credit the linear slot XP. Reachable via
+    the linear plan 4th baseline slot.
+    """
+    from app.daily_plan.linear.errors import (
+        DEFAULT_REVIEW_POOL_LIMIT, get_review_pool,
+    )
+
+    pool = get_review_pool(current_user.id, db, limit=DEFAULT_REVIEW_POOL_LIMIT)
+    entries = [
+        {
+            'id': e.id,
+            'payload': e.question_payload or {},
+            'created_at': e.created_at,
+        }
+        for e in pool
+    ]
+    return render_template(
+        'curriculum/error_review.html',
+        entries=entries,
+    )
+
+
 @learn_bp.route('/<string:level_code>/')
 @login_required
 def learn_by_level(level_code):

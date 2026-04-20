@@ -212,7 +212,7 @@ class TestLinearStubPayloadShape:
     def test_payload_contains_skeleton_keys(self, app, db_session, test_user):
         from app.daily_plan.linear.plan import get_linear_plan
 
-        payload = get_linear_plan(test_user.id, tz=None)
+        payload = get_linear_plan(test_user.id)
 
         assert payload['mode'] == 'linear'
         for key in ('position', 'progress', 'baseline_slots', 'continuation', 'day_secured'):

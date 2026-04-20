@@ -218,10 +218,15 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
 
 
 def _get_linear_plan_safe(user_id: int, tz: Optional[str]) -> Optional[dict[str, Any]]:
-    """Wrap the linear-plan assembler so any failure degrades to mission/legacy."""
+    """Wrap the linear-plan assembler so any failure degrades to mission/legacy.
+
+    ``tz`` is accepted for signature symmetry with the other assemblers but
+    is not needed — the linear assembler is timezone-agnostic.
+    """
+    del tz
     try:
         from app.daily_plan.linear.plan import get_linear_plan
-        return get_linear_plan(user_id, tz=tz)
+        return get_linear_plan(user_id)
     except Exception:
         logger.warning(
             "linear plan assembly failed for user_id=%s, falling back",

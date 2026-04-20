@@ -84,7 +84,8 @@ def select_book():
     """Persist the user's chosen reading book and return the refreshed slot."""
     data = request.get_json(silent=True) or {}
     book_id = data.get('book_id')
-    if not isinstance(book_id, int):
+    # ``isinstance(True, int)`` is True in Python — reject booleans explicitly.
+    if not isinstance(book_id, int) or isinstance(book_id, bool):
         return api_error('invalid_book_id', 'book_id must be an integer', 400)
 
     book = db.session.get(Book, book_id)

@@ -118,6 +118,9 @@ def _compute_linear_slot_completion(
             or words_reviewed > 0
         ),
         'reading': len(daily_summary.get('books_read', []) or []) > 0,
+        'error_review': (
+            int(daily_summary.get('error_review_resolved_today', 0) or 0) > 0
+        ),
     }
 
     result: dict[str, bool] = {}
