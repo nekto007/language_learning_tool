@@ -205,15 +205,15 @@
 - Modify: `app/daily_plan/service.py` — `write_secured_at` сигнатура: `mission_type` становится nullable
 - Create: `tests/daily_plan/linear/test_plan_assembly.py`
 
-- [ ] `get_linear_plan(user_id, db, tz)`:
+- [x] `get_linear_plan(user_id, db, tz)`:
   - `position = find_next_lesson_linear + get_user_level_progress`
   - `baseline_slots = [curriculum, srs, reading, error_review if triggered]`
   - `continuation = {available: day_secured, next_lessons: get_module_upcoming(..., 3)}`
   - `day_secured = all(slot.completed for slot in required_baseline_slots)` — вычисляется на месте, не кешируется
-- [ ] `/api/daily-status` пересчитывает `day_secured` через `compute_plan_steps` для linear payload (аналогично mission flow)
-- [ ] `write_secured_at(user_id, plan_date, mission_type=None)` — `mission_type` nullable; для linear не пишется
-- [ ] Write tests: happy path (3 слота, ничего не done → False); all 3 done → True; 4-й slot триггернут → secured требует все 4; `write_secured_at` не падает с None
-- [ ] Run project test suite — must pass before task 10
+- [x] `/api/daily-status` пересчитывает `day_secured` через `compute_plan_steps` для linear payload (аналогично mission flow)
+- [x] `write_secured_at(user_id, plan_date, mission_type=None)` — `mission_type` nullable; для linear не пишется
+- [x] Write tests: happy path (3 слота, ничего не done → False); all 3 done → True; 4-й slot триггернут → secured требует все 4; `write_secured_at` не падает с None
+- [x] Run project test suite — must pass before task 10 (daily_plan 267 + smoke 132 green; one pre-existing flaky `test_crosses_level_boundary` due to random code collision unrelated to this task)
 
 ---
 

@@ -1,9 +1,13 @@
 """Linear daily plan assembly.
 
-Stub for the linear-plan payload returned to dashboards/API when
-``User.use_linear_plan`` is enabled. Baseline slots, continuation data,
-and day-secured evaluation are filled in by subsequent tasks — this
-module currently returns a stable skeleton so the router can wire up.
+Assembles the linear-plan payload returned to dashboards/API when
+``User.use_linear_plan`` is enabled: header position, level progress,
+baseline slots (curriculum / SRS / reading / optional error review),
+the continuation preview, and a ``day_secured`` flag derived from slot
+completion. Each slot is computed at request time from authoritative
+DB state; ``/api/daily-status`` then recomputes ``day_secured`` from
+activity summaries (mirroring the mission flow) so that slot state
+stays in sync with what the user has actually done today.
 """
 from __future__ import annotations
 
@@ -23,6 +27,21 @@ from app.daily_plan.linear.slots.srs_slot import build_srs_slot
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
+
+
+def compute_linear_day_secured(baseline_slots: list[dict[str, Any]]) -> bool:
+    """Return True when every baseline slot is flagged completed.
+
+    All slots in ``baseline_slots`` are required by construction — the
+    error-review slot is appended only when ``should_show_error_review``
+    fires, so its presence means the user must complete it to secure the
+    day. When ``baseline_slots`` is empty (defensive: the assembler
+    always returns at least curriculum / SRS / reading) the day is not
+    secured.
+    """
+    if not baseline_slots:
+        return False
+    return all(bool(slot.get('completed', False)) for slot in baseline_slots)
 
 
 def _level_progress_to_dict(progress: LevelProgress) -> dict[str, Any]:
@@ -85,14 +104,16 @@ def get_linear_plan(
     if error_review_slot is not None:
         baseline_slots.append(error_review_slot.to_dict())
 
+    day_secured = compute_linear_day_secured(baseline_slots)
+
     return {
         'mode': 'linear',
         'position': _position_from_lesson(next_lesson),
         'progress': _level_progress_to_dict(level_progress),
         'baseline_slots': baseline_slots,
         'continuation': {
-            'available': False,
+            'available': day_secured,
             'next_lessons': [_position_from_lesson(lesson) for lesson in upcoming],
         },
-        'day_secured': False,
+        'day_secured': day_secured,
     }

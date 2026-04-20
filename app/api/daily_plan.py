@@ -53,10 +53,17 @@ def daily_status():
     # Recompute day_secured from actual activity (plan payload always has completed=False
     # because the assembler constructs phases before activity is recorded).
     phases = plan.get('phases', [])
-    if phases and plan.get('_plan_meta', {}).get('effective_mode') == 'mission':
+    effective_mode = plan.get('_plan_meta', {}).get('effective_mode')
+    if phases and effective_mode == 'mission':
         required_phases = [p for p in phases if p.get('required', True)]
         day_secured = bool(required_phases) and all(
             plan_completion.get(p.get('id', ''), False) for p in required_phases
+        )
+    elif effective_mode == 'linear':
+        baseline_slots = plan.get('baseline_slots') or []
+        day_secured = bool(baseline_slots) and all(
+            plan_completion.get(slot.get('kind', ''), False)
+            for slot in baseline_slots
         )
     else:
         day_secured = plan.get('day_secured', False)
@@ -187,10 +194,17 @@ def daily_plan():
     route_state = get_route_state(user_id, steps_today, db.session)
 
     # Recompute day_secured from actual activity (assembler always returns False).
-    if phases and plan.get('_plan_meta', {}).get('effective_mode') == 'mission':
+    effective_mode = plan.get('_plan_meta', {}).get('effective_mode')
+    if phases and effective_mode == 'mission':
         required_phases = [p for p in phases if p.get('required', True)]
         plan['day_secured'] = bool(required_phases) and all(
             plan_completion.get(p.get('id', ''), False) for p in required_phases
+        )
+    elif effective_mode == 'linear':
+        baseline_slots = plan.get('baseline_slots') or []
+        plan['day_secured'] = bool(baseline_slots) and all(
+            plan_completion.get(slot.get('kind', ''), False)
+            for slot in baseline_slots
         )
 
     return jsonify({'success': True, 'route_state': route_state, **plan})

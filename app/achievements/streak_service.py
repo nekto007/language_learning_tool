@@ -99,14 +99,53 @@ def _compute_phase_completion(phases: list[dict], daily_summary: dict) -> dict[s
     return result
 
 
+def _compute_linear_slot_completion(
+    baseline_slots: list[dict], daily_summary: dict
+) -> dict[str, bool]:
+    """Infer linear baseline-slot completion from summary activity data.
+
+    Combines the slot's own ``completed`` flag (computed from authoritative
+    DB state at plan assembly time) with a summary-derived fallback so the
+    API recomputes day-secured consistently with the mission flow.
+    """
+    words_reviewed = int(daily_summary.get('words_reviewed', 0) or 0)
+    srs_words_reviewed = int(daily_summary.get('srs_words_reviewed', 0) or 0)
+    summary_signals = {
+        'curriculum': int(daily_summary.get('lessons_count', 0) or 0) > 0,
+        'srs': (
+            int(daily_summary.get('srs_review_reviewed', 0) or 0) > 0
+            or srs_words_reviewed > 0
+            or words_reviewed > 0
+        ),
+        'reading': len(daily_summary.get('books_read', []) or []) > 0,
+    }
+
+    result: dict[str, bool] = {}
+    for slot in baseline_slots:
+        kind = slot.get('kind', '')
+        slot_completed = bool(slot.get('completed', False))
+        summary_done = summary_signals.get(kind, False)
+        result[kind] = slot_completed or summary_done
+    return result
+
+
 def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dict, int, int]:
     """Compute plan completion and step counts from plan + summary data.
 
     Returns (plan_completion, steps_available, steps_done, steps_total).
     Single source of truth — used by dashboard route, API, and bot.
 
-    Supports mission phases format, new step-state format, and legacy flat format.
+    Supports linear baseline-slot format, mission phases format, new
+    step-state format, and legacy flat format.
     """
+    baseline_slots = daily_plan.get('baseline_slots')
+    if baseline_slots is not None and daily_plan.get('mode') == 'linear':
+        plan_completion = _compute_linear_slot_completion(baseline_slots, daily_summary)
+        steps_available = {slot.get('kind', ''): True for slot in baseline_slots}
+        steps_total = len(baseline_slots)
+        steps_done = sum(1 for v in plan_completion.values() if v)
+        return plan_completion, steps_available, steps_done, steps_total
+
     phases = daily_plan.get('phases')
     if phases:
         plan_completion = _compute_phase_completion(phases, daily_summary)

@@ -55,6 +55,8 @@ def write_secured_at(user_id: int, plan_date: date, mission_type: Optional[str] 
     """Write secured_at timestamp to DailyPlanLog if not already set.
 
     Creates the log row if it doesn't exist; updates only if secured_at is null.
+    ``mission_type`` is nullable to support the linear daily plan, which has no
+    mission concept — callers on the linear branch pass ``None``.
     This is idempotent — calling it multiple times is safe.
     Callers are responsible for wrapping in try/except and rolling back on failure.
     """
