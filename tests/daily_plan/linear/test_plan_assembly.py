@@ -350,6 +350,29 @@ class TestGetLinearPlanAssembly:
         )
         assert curriculum_slot['completed'] is True
 
+    def test_continuation_crosses_module_boundary(self, db_session):
+        level = _make_level(db_session, _unique_code(), order=1)
+        module_1 = _make_module(db_session, level, number=1)
+        module_2 = _make_module(db_session, level, number=2)
+        lesson_1 = _make_lesson(db_session, module_1, number=1, lesson_type='quiz')
+        lesson_2 = _make_lesson(db_session, module_2, number=1, lesson_type='grammar')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        _complete_lesson(db_session, user, lesson_1)
+        _setup_srs_cards(db_session, user, due=0, studied_today=0)
+        book = _make_book(db_session)
+        _set_reading_preference(db_session, user, book)
+        _record_chapter_progress(
+            db_session, user, book.chapters[0], offset_pct=0.25,
+        )
+        _record_reading_xp_event(db_session, user)
+
+        payload = get_linear_plan(user.id, real_db)
+
+        assert payload['continuation']['next_lessons']
+        assert payload['continuation']['next_lessons'][0]['lesson_id'] == lesson_2.id
+        assert payload['continuation']['next_lessons'][0]['module_number'] == 2
+
 
 # ── compute_plan_steps for linear payload ────────────────────────────
 

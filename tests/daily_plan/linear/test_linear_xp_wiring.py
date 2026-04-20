@@ -15,7 +15,7 @@ Covers the Task 14 integration layer:
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -31,6 +31,7 @@ from app.daily_plan.linear.xp import (
     LESSON_TYPE_TO_SOURCE,
     LINEAR_XP_EVENT_TYPE,
     award_linear_slot_xp_idempotent,
+    get_linear_event_local_date,
     get_source_for_lesson_type,
     is_linear_user,
     maybe_award_book_reading_xp,
@@ -293,6 +294,20 @@ class TestMaybeAwardSlotHelpers:
         assert maybe_award_error_review_xp(user.id, db_session=real_db) is None
         db_session.commit()
         assert _streak_events_for(user.id) == []
+
+    def test_local_date_uses_user_timezone_not_utc(self, db_session):
+        user = _make_user(db_session)
+        user.timezone = 'Europe/Moscow'
+        db_session.commit()
+
+        class _FakeNow(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                base = datetime(2026, 4, 20, 21, 30, tzinfo=timezone.utc)
+                return base if tz is None else base.astimezone(tz)
+
+        with patch('app.daily_plan.linear.xp.datetime', _FakeNow):
+            assert get_linear_event_local_date(user.id, real_db).isoformat() == '2026-04-21'
 
 
 class TestMaybeAwardLinearPerfectDay:

@@ -56,8 +56,29 @@ LESSON_TYPE_TO_SOURCE: dict[str, str] = {
 LINEAR_XP_EVENT_TYPE = 'xp_linear'
 
 
-def _today_utc() -> date_cls:
-    return datetime.now(timezone.utc).date()
+def _get_user_timezone(user_id: int, db_session: Any = None) -> str:
+    from config.settings import DEFAULT_TIMEZONE
+    from app.auth.models import User
+    from app.utils.db import db
+
+    db_obj = db_session if db_session is not None else db
+    user = db_obj.session.get(User, user_id)
+    return getattr(user, 'timezone', None) or DEFAULT_TIMEZONE
+
+
+def get_linear_event_local_date(
+    user_id: int,
+    db_session: Any = None,
+) -> date_cls:
+    """Return the user's local date for linear-plan idempotency keys."""
+    from zoneinfo import ZoneInfo
+
+    tz_name = _get_user_timezone(user_id, db_session)
+    try:
+        tz_obj = ZoneInfo(tz_name)
+    except Exception:
+        tz_obj = ZoneInfo('UTC')
+    return datetime.now(tz_obj).date()
 
 
 def is_linear_user(user_id: int) -> bool:
@@ -115,7 +136,7 @@ def award_linear_slot_xp_idempotent(
     from app.utils.db import db
 
     db_obj = db_session if db_session is not None else db
-    when = for_date or _today_utc()
+    when = for_date or get_linear_event_local_date(user_id, db_obj)
 
     if _already_awarded(user_id, source, when, db_obj):
         return None
@@ -221,11 +242,11 @@ def maybe_award_linear_perfect_day(
     from app.daily_plan.linear.plan import get_linear_plan
     from app.telegram.queries import get_daily_summary
 
-    when = for_date or _today_utc()
+    when = for_date or get_linear_event_local_date(user_id, db_session)
 
     try:
         plan = get_linear_plan(user_id, db_session)
-        summary = get_daily_summary(user_id)
+        summary = get_daily_summary(user_id, tz=_get_user_timezone(user_id, db_session))
     except Exception:  # noqa: BLE001 — never break caller on plan assembly
         logger.warning(
             'linear_xp: perfect-day check failed to assemble plan for user=%s',

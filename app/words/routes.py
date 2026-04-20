@@ -887,6 +887,10 @@ def dashboard():
         daily_plan['day_secured'] = bool(_slots) and all(
             plan_completion.get(s.get('kind', ''), False) for s in _slots
         )
+        if isinstance(daily_plan.get('continuation'), dict):
+            daily_plan['continuation']['available'] = bool(
+                daily_plan['day_secured'] and (daily_plan['continuation'].get('next_lessons') or [])
+            )
 
     if daily_plan.get('day_secured') and _effective_mode in ('mission', 'linear'):
         try:
@@ -1051,10 +1055,11 @@ def dashboard():
         plan_today=plan_today,
         # Single hero CTA resolved from mission phases + review budget
         hero_cta=hero_cta,
-        # Zero-state flag from the compact-dashboard plan: no activity across
-        # words / grammar / books / active courses.
+        # Keep zero-state off for the linear plan: first-run users must still
+        # see the curriculum-spine plan before they accumulate any activity.
         is_zero_state=(
-            (words_total or 0) == 0
+            (not bool(getattr(current_user, 'use_linear_plan', False)))
+            and (words_total or 0) == 0
             and (grammar_studied or 0) == 0
             and (books_reading or 0) == 0
             and (courses_enrolled or 0) == 0

@@ -175,3 +175,66 @@ def get_module_upcoming(
         .limit(limit)
         .all()
     )
+
+
+def get_spine_upcoming(
+    user_id: int,
+    current_lesson: Lessons,
+    db: Any,
+    limit: int = 3,
+) -> list[Lessons]:
+    """Return the next incomplete lessons on the full curriculum spine.
+
+    Used by the continuation CTA. Unlike ``get_module_upcoming()``, this may
+    cross module and level boundaries so a user who finishes the last lesson
+    in one module still gets the first lesson of the next module.
+    """
+    if current_lesson is None or limit <= 0:
+        return []
+
+    min_order = _user_min_level_order(user_id, db)
+    current_module = db.session.get(Module, current_lesson.module_id)
+    if current_module is None:
+        return []
+    current_level = db.session.get(CEFRLevel, current_module.level_id)
+    if current_level is None:
+        return []
+
+    completed_subq = (
+        db.session.query(LessonProgress.lesson_id)
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+        )
+        .subquery()
+    )
+
+    return (
+        db.session.query(Lessons)
+        .join(Module, Module.id == Lessons.module_id)
+        .join(CEFRLevel, CEFRLevel.id == Module.level_id)
+        .filter(
+            CEFRLevel.order >= min_order,
+            Lessons.id.notin_(db.session.query(completed_subq.c.lesson_id)),
+            (
+                (CEFRLevel.order > current_level.order)
+                | (
+                    (CEFRLevel.order == current_level.order)
+                    & (Module.number > current_module.number)
+                )
+                | (
+                    (CEFRLevel.order == current_level.order)
+                    & (Module.number == current_module.number)
+                    & (Lessons.number > current_lesson.number)
+                )
+            ),
+        )
+        .order_by(
+            CEFRLevel.order.asc(),
+            Module.number.asc(),
+            Lessons.number.asc(),
+            Lessons.id.asc(),
+        )
+        .limit(limit)
+        .all()
+    )

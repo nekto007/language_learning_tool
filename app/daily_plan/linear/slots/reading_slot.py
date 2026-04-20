@@ -61,9 +61,12 @@ def _read_today(user_id: int, db: Any) -> bool:
     completed.
     """
     from app.achievements.models import StreakEvent
-    from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
+    from app.daily_plan.linear.xp import (
+        LINEAR_XP_EVENT_TYPE,
+        get_linear_event_local_date,
+    )
 
-    today = datetime.now(timezone.utc).date()
+    today = get_linear_event_local_date(user_id, db)
     query = db.session.query(StreakEvent).filter(
         StreakEvent.user_id == user_id,
         StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,

@@ -65,6 +65,10 @@ def daily_status():
             plan_completion.get(slot.get('kind', ''), False)
             for slot in baseline_slots
         )
+        if isinstance(plan.get('continuation'), dict):
+            plan['continuation']['available'] = bool(
+                day_secured and (plan['continuation'].get('next_lessons') or [])
+            )
     else:
         day_secured = plan.get('day_secured', False)
     plan['day_secured'] = day_secured
@@ -206,6 +210,10 @@ def daily_plan():
             plan_completion.get(slot.get('kind', ''), False)
             for slot in baseline_slots
         )
+        if isinstance(plan.get('continuation'), dict):
+            plan['continuation']['available'] = bool(
+                plan['day_secured'] and (plan['continuation'].get('next_lessons') or [])
+            )
 
     return jsonify({'success': True, 'route_state': route_state, **plan})
 

@@ -145,6 +145,14 @@ class TestDailyPlanApiLinearShape:
 
     def test_linear_day_secured_true_when_slots_completed(self, authenticated_client):
         plan = _linear_plan(curriculum_done=True, srs_done=True, reading_done=True)
+        plan['continuation']['next_lessons'] = [{
+            'lesson_id': 102,
+            'lesson_type': 'grammar',
+            'lesson_number': 4,
+            'module_id': 50,
+            'module_number': 5,
+            'level_code': 'B1',
+        }]
         with patch(
             'app.daily_plan.service.get_daily_plan_unified', return_value=plan,
         ), patch(
@@ -155,6 +163,7 @@ class TestDailyPlanApiLinearShape:
         assert response.status_code == 200
         data = response.get_json()
         assert data['day_secured'] is True
+        assert data['continuation']['available'] is True
 
     def test_linear_day_secured_true_via_summary_signals(self, authenticated_client):
         # Reading has no summary fallback (see streak_service), so the

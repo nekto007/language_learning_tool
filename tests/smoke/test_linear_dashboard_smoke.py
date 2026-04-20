@@ -76,9 +76,7 @@ def _strip_inline_style(markup: str) -> str:
 
 
 def _seed_user_activity(db_session, user):
-    """Add a ``UserCardDirection`` row so ``words_total > 0`` and the
-    dashboard escapes its zero-state takeover (which otherwise hides
-    the plan)."""
+    """Add one study word for scenarios that need non-zero activity."""
     import uuid
 
     from app.srs.constants import CardState
@@ -262,7 +260,6 @@ def test_scenario_1_linear_user_renders_linear_partial(
     """use_linear_plan=True → linear partial renders 3 slots; API returns mode=linear."""
     test_user.use_linear_plan = True
     db_session.commit()
-    _seed_user_activity(db_session, test_user)
     _login(client, test_user)
 
     plan = _linear_plan()
@@ -275,6 +272,7 @@ def test_scenario_1_linear_user_renders_linear_partial(
     assert dashboard_response.status_code == 200
     html = _strip_inline_style(dashboard_response.data.decode('utf-8'))
     assert 'data-linear-plan="true"' in html
+    assert 'data-zero-state="true"' not in html
     # All three baseline slots should appear with the expected kinds.
     assert 'data-slot-kind="curriculum"' in html
     assert 'data-slot-kind="srs"' in html

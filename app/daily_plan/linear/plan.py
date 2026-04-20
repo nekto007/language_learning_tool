@@ -17,7 +17,7 @@ from typing import Any, Optional
 from app.daily_plan.linear.progression import (
     LevelProgress,
     find_next_lesson_linear,
-    get_module_upcoming,
+    get_spine_upcoming,
     get_user_level_progress,
 )
 from app.daily_plan.linear.slots.curriculum_slot import build_curriculum_slot
@@ -84,11 +84,12 @@ def get_linear_plan(
 
     next_lesson = find_next_lesson_linear(user_id, session_provider)
     level_progress = get_user_level_progress(user_id, session_provider)
-    upcoming = (
-        get_module_upcoming(user_id, next_lesson, session_provider, limit=3)
-        if next_lesson is not None
-        else []
-    )
+    upcoming = []
+    if next_lesson is not None:
+        upcoming = [next_lesson]
+        upcoming.extend(
+            get_spine_upcoming(user_id, next_lesson, session_provider, limit=2)
+        )
 
     curriculum_slot = build_curriculum_slot(user_id, session_provider, next_lesson=next_lesson)
     srs_slot = build_srs_slot(user_id, session_provider)
