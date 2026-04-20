@@ -21,12 +21,23 @@ from app.words.models import CollectionWords
 logger = logging.getLogger(__name__)
 
 
-def _build_cards_for_words(word_objects: list, user_id: int) -> list[dict]:
+def _build_cards_for_words(
+    word_objects: list,
+    user_id: int,
+    activate_srs: bool = True,
+) -> list[dict]:
     """Build card data list for words, one card per UserCardDirection.
 
     Looks up existing UserWord/UserCardDirection records, creates eng-rus
     direction if none exists, and produces card dicts with proper
     direction/front/back/SRS fields.
+
+    When ``activate_srs=False`` the function does not create any new
+    ``UserWord`` or ``UserCardDirection`` rows: words that have never
+    been touched by SRS are emitted as display-only cards with
+    ``direction_id=None`` and ``is_new=True``. Used by the linear daily
+    plan's card lesson when ``srs_budget_remaining == 0`` so curriculum
+    vocabulary can still be shown without consuming tomorrow's budget.
     """
     if not word_objects:
         return []
@@ -50,26 +61,27 @@ def _build_cards_for_words(word_objects: list, user_id: int) -> list[dict]:
 
     existing_word_ids = set(directions_by_word.keys())
     needs_flush = False
-    for word in word_objects:
-        if word.id not in directions_by_word:
-            uw = user_word_map.get(word.id)
-            if not uw:
-                uw = UserWord.get_or_create(user_id, word.id)
-                user_word_map[word.id] = uw
-            dir_obj = UserCardDirection(user_word_id=uw.id, direction='eng-rus')
-            db.session.add(dir_obj)
-            directions_by_word[word.id] = [dir_obj]
-            needs_flush = True
-
-    if needs_flush:
-        db.session.flush()
-
-        from app.study.deck_utils import ensure_word_in_default_deck
+    if activate_srs:
         for word in word_objects:
-            if word.id not in existing_word_ids:
+            if word.id not in directions_by_word:
                 uw = user_word_map.get(word.id)
-                ensure_word_in_default_deck(user_id, word.id, uw.id if uw else None)
-        db.session.flush()
+                if not uw:
+                    uw = UserWord.get_or_create(user_id, word.id)
+                    user_word_map[word.id] = uw
+                dir_obj = UserCardDirection(user_word_id=uw.id, direction='eng-rus')
+                db.session.add(dir_obj)
+                directions_by_word[word.id] = [dir_obj]
+                needs_flush = True
+
+        if needs_flush:
+            db.session.flush()
+
+            from app.study.deck_utils import ensure_word_in_default_deck
+            for word in word_objects:
+                if word.id not in existing_word_ids:
+                    uw = user_word_map.get(word.id)
+                    ensure_word_in_default_deck(user_id, word.id, uw.id if uw else None)
+            db.session.flush()
 
     cards_list = []
     for word in word_objects:
@@ -91,23 +103,58 @@ def _build_cards_for_words(word_objects: list, user_id: int) -> list[dict]:
             except Exception:
                 logger.exception("Failed to parse word sentences for word %s", word.id)
 
-        for dir_obj in directions_by_word.get(word.id, []):
-            if dir_obj.direction == 'eng-rus':
-                front = word.english_word
-                back = word.russian_word
-            else:
-                front = word.russian_word
-                back = word.english_word
+        directions = directions_by_word.get(word.id, [])
+        if directions:
+            for dir_obj in directions:
+                if dir_obj.direction == 'eng-rus':
+                    front = word.english_word
+                    back = word.russian_word
+                else:
+                    front = word.russian_word
+                    back = word.english_word
 
+                cards_list.append({
+                    'id': word.id,
+                    'word_id': word.id,
+                    'direction_id': dir_obj.id,
+                    'direction': dir_obj.direction,
+                    'front': front,
+                    'back': back,
+                    'word': front,
+                    'translation': back,
+                    'english': word.english_word,
+                    'russian': word.russian_word,
+                    'listening': word.listening or '',
+                    'sentences': word.sentences or '',
+                    'example': example_en,
+                    'example_en': example_en,
+                    'example_ru': example_ru,
+                    'examples': f"{example_en}|{example_ru}" if example_en and example_ru else '',
+                    'usage': '',
+                    'hint': '',
+                    'is_new': dir_obj.repetitions == 0 and dir_obj.last_reviewed is None,
+                    'status': dir_obj.state or 'new',
+                    'interval': dir_obj.interval or 0,
+                    'ease_factor': dir_obj.ease_factor or 2.5,
+                    'repetitions': dir_obj.repetitions or 0,
+                    'session_attempts': dir_obj.session_attempts or 0,
+                    'audio': audio_file,
+                    'audio_url': f"/static/audio/{audio_file}" if audio_file else None,
+                    'get_download': 1 if word.get_download == 1 else 0,
+                })
+        else:
+            # activate_srs=False path: emit a display-only card for a word
+            # that has no UserCardDirection yet. No SM-2 scheduling, no deck
+            # enrollment, no SRS budget consumption.
             cards_list.append({
                 'id': word.id,
                 'word_id': word.id,
-                'direction_id': dir_obj.id,
-                'direction': dir_obj.direction,
-                'front': front,
-                'back': back,
-                'word': front,
-                'translation': back,
+                'direction_id': None,
+                'direction': 'eng-rus',
+                'front': word.english_word,
+                'back': word.russian_word,
+                'word': word.english_word,
+                'translation': word.russian_word,
                 'english': word.english_word,
                 'russian': word.russian_word,
                 'listening': word.listening or '',
@@ -118,12 +165,12 @@ def _build_cards_for_words(word_objects: list, user_id: int) -> list[dict]:
                 'examples': f"{example_en}|{example_ru}" if example_en and example_ru else '',
                 'usage': '',
                 'hint': '',
-                'is_new': dir_obj.repetitions == 0 and dir_obj.last_reviewed is None,
-                'status': dir_obj.state or 'new',
-                'interval': dir_obj.interval or 0,
-                'ease_factor': dir_obj.ease_factor or 2.5,
-                'repetitions': dir_obj.repetitions or 0,
-                'session_attempts': dir_obj.session_attempts or 0,
+                'is_new': True,
+                'status': 'new',
+                'interval': 0,
+                'ease_factor': 2.5,
+                'repetitions': 0,
+                'session_attempts': 0,
                 'audio': audio_file,
                 'audio_url': f"/static/audio/{audio_file}" if audio_file else None,
                 'get_download': 1 if word.get_download == 1 else 0,
@@ -135,6 +182,58 @@ def _build_cards_for_words(word_objects: list, user_id: int) -> list[dict]:
 # =============================================================================
 # RENDER FUNCTION - called from main.py without redirects
 # =============================================================================
+
+LINEAR_PLAN_CARD_SOURCE = 'linear_plan_card'
+_LINEAR_PLAN_MIX_MAX = 10
+
+
+def _is_linear_plan_card_source() -> bool:
+    """Detect whether the current card-lesson request came from the linear
+    daily plan's card slot. Accepts either explicit ``source=linear_plan_card``
+    or ``from=linear_plan`` for robustness (the slot URL may use ``from``).
+    """
+    try:
+        source = request.args.get('source', '') or ''
+        from_param = request.args.get('from', '') or ''
+    except RuntimeError:
+        return False
+    return source == LINEAR_PLAN_CARD_SOURCE or from_param == 'linear_plan'
+
+
+def _apply_linear_plan_source(user_id: int, cards_list: list[dict]) -> tuple[list[dict], bool]:
+    """Apply linear-plan card source behavior to a card-lesson session.
+
+    Returns ``(updated_cards_list, activate_srs)``.
+
+    - When ``srs_budget_remaining > 0``: prepend up to ``min(budget, 10)``
+      due-review cards from the user's personal decks.
+    - When ``srs_budget_remaining == 0``: caller must rebuild ``cards_list``
+      with ``activate_srs=False`` — indicated by returning ``False``.
+    """
+    from app.daily_plan.linear.slots.srs_slot import (
+        get_linear_plan_due_mix_cards,
+        get_srs_budget_remaining,
+    )
+
+    budget = get_srs_budget_remaining(user_id, db)
+    if budget <= 0:
+        return cards_list, False
+
+    mix_limit = min(budget, _LINEAR_PLAN_MIX_MAX)
+    mix_cards = get_linear_plan_due_mix_cards(user_id, db, mix_limit)
+    if not mix_cards:
+        return cards_list, True
+
+    existing_direction_ids = {
+        c.get('direction_id')
+        for c in cards_list
+        if c.get('direction_id') is not None
+    }
+    deduped_mix = [
+        c for c in mix_cards if c.get('direction_id') not in existing_direction_ids
+    ]
+    return deduped_mix + cards_list, True
+
 
 def render_card_lesson(lesson):
     """Рендер card урока"""
@@ -205,9 +304,20 @@ def render_card_lesson(lesson):
         word_ids = list(set(word_ids))
 
     cards_list = []
+    linear_plan_card = _is_linear_plan_card_source()
     if word_ids:
         word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
-        cards_list = _build_cards_for_words(word_objects, current_user.id)
+        if linear_plan_card:
+            from app.daily_plan.linear.slots.srs_slot import get_srs_budget_remaining
+            activate_srs = get_srs_budget_remaining(current_user.id, db) > 0
+        else:
+            activate_srs = True
+        cards_list = _build_cards_for_words(
+            word_objects, current_user.id, activate_srs=activate_srs,
+        )
+
+    if linear_plan_card:
+        cards_list, _ = _apply_linear_plan_source(current_user.id, cards_list)
 
     next_review_time = None
     if len(cards_list) == 0:
@@ -369,9 +479,20 @@ def card_lesson(lesson_id):
         word_ids = list(set(word_ids))
 
     cards_list = []
+    linear_plan_card = _is_linear_plan_card_source()
     if word_ids:
         word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
-        cards_list = _build_cards_for_words(word_objects, current_user.id)
+        if linear_plan_card:
+            from app.daily_plan.linear.slots.srs_slot import get_srs_budget_remaining
+            activate_srs = get_srs_budget_remaining(current_user.id, db) > 0
+        else:
+            activate_srs = True
+        cards_list = _build_cards_for_words(
+            word_objects, current_user.id, activate_srs=activate_srs,
+        )
+
+    if linear_plan_card:
+        cards_list, _ = _apply_linear_plan_source(current_user.id, cards_list)
 
     next_review_time = None
     if len(cards_list) == 0:

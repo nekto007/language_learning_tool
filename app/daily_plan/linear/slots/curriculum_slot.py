@@ -36,9 +36,21 @@ _LESSON_ETA_MINUTES: dict[str, int] = {
 
 _DEFAULT_ETA_MINUTES = 10
 
+# Lesson types that get an extra ``source=linear_plan_card`` query param on
+# their URL so the card-lesson controller can enable SRS budget mixing
+# (see ``app/curriculum/routes/card_lessons.py``).
+_CARD_LESSON_TYPES = frozenset({'card', 'flashcards'})
+
 
 def _eta_minutes(lesson_type: Optional[str]) -> int:
     return _LESSON_ETA_MINUTES.get(lesson_type or '', _DEFAULT_ETA_MINUTES)
+
+
+def _lesson_url(lesson: Lessons) -> str:
+    base = f'/learn/{lesson.id}/?from=linear_plan'
+    if lesson.type in _CARD_LESSON_TYPES:
+        base += '&source=linear_plan_card'
+    return base
 
 
 def build_curriculum_slot(
@@ -85,7 +97,7 @@ def build_curriculum_slot(
         title=next_lesson.title,
         lesson_type=next_lesson.type,
         eta_minutes=_eta_minutes(next_lesson.type),
-        url=f'/learn/{next_lesson.id}/?from=linear_plan',
+        url=_lesson_url(next_lesson),
         completed=completed,
         data={
             'lesson_id': next_lesson.id,

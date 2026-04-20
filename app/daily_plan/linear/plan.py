@@ -17,6 +17,7 @@ from app.daily_plan.linear.progression import (
     get_user_level_progress,
 )
 from app.daily_plan.linear.slots.curriculum_slot import build_curriculum_slot
+from app.daily_plan.linear.slots.srs_slot import build_srs_slot
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
@@ -70,12 +71,16 @@ def get_linear_plan(
     )
 
     curriculum_slot = build_curriculum_slot(user_id, session_provider, next_lesson=next_lesson)
+    srs_slot = build_srs_slot(user_id, session_provider)
 
     return {
         'mode': 'linear',
         'position': _position_from_lesson(next_lesson),
         'progress': _level_progress_to_dict(level_progress),
-        'baseline_slots': [curriculum_slot.to_dict()],
+        'baseline_slots': [
+            curriculum_slot.to_dict(),
+            srs_slot.to_dict(),
+        ],
         'continuation': {
             'available': False,
             'next_lessons': [_position_from_lesson(lesson) for lesson in upcoming],

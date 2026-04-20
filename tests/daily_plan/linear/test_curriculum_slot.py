@@ -122,6 +122,13 @@ def curriculum(db_session):
     return {'level': level, 'module': module, 'lessons': lessons}
 
 
+def _expected_url(lesson) -> str:
+    base = f'/learn/{lesson.id}/?from=linear_plan'
+    if lesson.type in {'card', 'flashcards'}:
+        base += '&source=linear_plan_card'
+    return base
+
+
 class TestBuildCurriculumSlotByType:
     @pytest.mark.parametrize('lesson_type', TWELVE_LESSON_TYPES)
     def test_slot_for_each_lesson_type(self, db_session, curriculum, lesson_type):
@@ -141,7 +148,7 @@ class TestBuildCurriculumSlotByType:
         assert slot.kind == 'curriculum'
         assert slot.lesson_type == lesson_type
         assert slot.title == target.title
-        assert slot.url == f'/learn/{target.id}/?from=linear_plan'
+        assert slot.url == _expected_url(target)
         assert slot.eta_minutes == _LESSON_ETA_MINUTES[lesson_type]
         assert slot.completed is False
         assert slot.data['lesson_id'] == target.id
@@ -244,9 +251,12 @@ class TestLinearPlanIntegration:
         payload = get_linear_plan(user.id, real_db)
 
         assert payload['mode'] == 'linear'
-        assert len(payload['baseline_slots']) == 1
-        curriculum_slot = payload['baseline_slots'][0]
-        assert curriculum_slot['kind'] == 'curriculum'
+        # Baseline slots contain the curriculum slot followed by later slots
+        # (SRS, reading, error review) as tasks 5+ add them.
+        assert any(s['kind'] == 'curriculum' for s in payload['baseline_slots'])
+        curriculum_slot = next(
+            s for s in payload['baseline_slots'] if s['kind'] == 'curriculum'
+        )
         assert curriculum_slot['lesson_type'] == TWELVE_LESSON_TYPES[0]
         first = curriculum['lessons'][TWELVE_LESSON_TYPES[0]]
         assert curriculum_slot['url'] == f'/learn/{first.id}/?from=linear_plan'
@@ -261,6 +271,8 @@ class TestLinearPlanIntegration:
 
         payload = get_linear_plan(user.id, real_db)
 
-        curriculum_slot = payload['baseline_slots'][0]
+        curriculum_slot = next(
+            s for s in payload['baseline_slots'] if s['kind'] == 'curriculum'
+        )
         assert curriculum_slot['completed'] is True
         assert curriculum_slot['url'] is None

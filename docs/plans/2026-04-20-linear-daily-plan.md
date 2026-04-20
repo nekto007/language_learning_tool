@@ -132,12 +132,12 @@
 - Modify: card-lesson flow в `app/curriculum/` (контроллер card-урока)
 - Create: `tests/daily_plan/linear/test_srs_slot.py`
 
-- [ ] `build_srs_slot(user_id, db) → LinearSlot` — due count, URL `/study?source=linear_plan`, `completed` когда юзер отзанимался N карточками сегодня
-- [ ] `get_srs_budget_remaining(user_id, db) → int` — `max_new_per_day - words_added_to_srs_today` (читаем `max_new_per_day` из существующих user settings в /study)
-- [ ] Card-урок через `?source=linear_plan_card`: при `budget > 0` — подмешать `min(budget, 10)` due-карточек юзера в сессию перед новыми словами curriculum; при `budget = 0` — только слова curriculum, новые слова не активируются в SM-2
-- [ ] Slot схлопывается в «Карточки повторим завтра» (completed=True, не требует клика) если `due=0` И card-урок сегодня сделан
-- [ ] Write tests: slot при due≥1 активен; при due=0 после card-урока схлопывается; budget=0 → sm-2 не активирует слова; budget>0 → подмешиваются колоды
-- [ ] Run project test suite — must pass before task 6
+- [x] `build_srs_slot(user_id, db) → LinearSlot` — due count, URL `/study?source=linear_plan`, `completed` когда юзер отзанимался N карточками сегодня
+- [x] `get_srs_budget_remaining(user_id, db) → int` — `max_new_per_day - words_added_to_srs_today` (читаем `max_new_per_day` из существующих user settings в /study)
+- [x] Card-урок через `?source=linear_plan_card`: при `budget > 0` — подмешать `min(budget, 10)` due-карточек юзера в сессию перед новыми словами curriculum; при `budget = 0` — только слова curriculum, новые слова не активируются в SM-2
+- [x] Slot схлопывается в «Карточки повторим завтра» (completed=True, не требует клика) если `due=0` И card-урок сегодня сделан
+- [x] Write tests: slot при due≥1 активен; при due=0 после card-урока схлопывается; budget=0 → sm-2 не активирует слова; budget>0 → подмешиваются колоды
+- [x] Run project test suite — must pass before task 6 (pre-existing dashboard failures unchanged; new tests + daily_plan suite green)
 
 ### Task 6: Book reading slot and catalog modal
 
