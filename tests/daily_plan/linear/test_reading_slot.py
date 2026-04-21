@@ -143,7 +143,7 @@ class TestWithPreference:
         slot = build_reading_slot(user.id, real_db)
 
         assert slot.title == book.title
-        assert slot.url == f'/read/{book.id}?from=linear_plan'
+        assert slot.url == f'/read/{book.id}?from=linear_plan&slot=book'
         assert slot.completed is False
         assert slot.data['book_id'] == book.id
         assert slot.data['book_level'] == 'A2'
@@ -271,4 +271,4 @@ class TestPlanIntegration:
         reading = next(s for s in payload['baseline_slots'] if s['kind'] == 'reading')
         assert reading['data']['needs_selection'] is False
         assert reading['data']['book_id'] == book.id
-        assert reading['url'] == f'/read/{book.id}?from=linear_plan'
+        assert reading['url'] == f'/read/{book.id}?from=linear_plan&slot=book'

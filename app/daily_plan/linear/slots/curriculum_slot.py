@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from app.curriculum.models import LessonProgress, Lessons
+from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 from app.daily_plan.linear.progression import find_next_lesson_linear
 from app.daily_plan.linear.slots import LinearSlot
 
@@ -47,10 +48,10 @@ def _eta_minutes(lesson_type: Optional[str]) -> int:
 
 
 def _lesson_url(lesson: Lessons) -> str:
-    base = f'/learn/{lesson.id}/?from=linear_plan'
+    base = f'/learn/{lesson.id}/'
     if lesson.type in _CARD_LESSON_TYPES:
-        base += '&source=linear_plan_card'
-    return base
+        base += '?source=linear_plan_card'
+    return build_slot_url(base, LinearSlotKind.CURRICULUM)
 
 
 def build_curriculum_slot(

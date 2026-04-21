@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from app.books.models import Book, Chapter, UserChapterProgress
+from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 from app.daily_plan.linear.models import UserReadingPreference
 from app.daily_plan.linear.slots import LinearSlot
 
@@ -126,7 +127,7 @@ def build_reading_slot(user_id: int, db: Any) -> LinearSlot:
         title=title,
         lesson_type=None,
         eta_minutes=_READING_SLOT_ETA_MINUTES,
-        url=f'/read/{book.id}?from=linear_plan',
+        url=build_slot_url(f'/read/{book.id}', LinearSlotKind.BOOK),
         completed=completed,
         data={
             'book_id': book.id,
