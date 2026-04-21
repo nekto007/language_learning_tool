@@ -426,7 +426,7 @@
   </div>
 
   <!-- Lesson Completion Confirmation -->
-  <div class="lsn-completion" id="lesson-completion" style="display: none;">
+  <div class="lsn-completion" id="lesson-completion" data-completion-mode="standalone" style="display: none;">
     <div class="lsn-completion__icon">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
@@ -438,12 +438,12 @@
     <div class="lsn-completion__score" id="completion-score"></div>
     <div class="lsn-completion__actions" id="completion-actions">
       {% if next_lesson %}
-        <a href="/learn/{{ next_lesson.id }}/" class="lsn-btn lsn-btn--primary">
+        <a href="/learn/{{ next_lesson.id }}/" class="lsn-btn lsn-btn--primary" data-standalone-cta="next-lesson">
           {{ _('Следующий урок') }}
           <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </a>
       {% endif %}
-      <a href="/learn/" class="lsn-btn lsn-btn--outline">
+      <a href="/learn/" class="lsn-btn lsn-btn--outline" data-standalone-cta="back-to-lessons">
         {{ _('К урокам') }}
       </a>
     </div>
@@ -507,6 +507,12 @@ window.showSaveToast = function() {
 };
 
 // Lesson completion confirmation helper
+// Plan-aware branch: if the user entered the lesson through a linear-plan
+// baseline slot (?from=linear_plan&slot=<kind>), swap the curriculum-next
+// CTA for "Следующий слот плана · <title>" + "На дашборд". When the slot
+// that just finished was the final baseline, redirect to
+// /dashboard?day_secured=1 so the dashboard shows the "День сохранён"
+// banner. Outside a plan context the helper behaves exactly as before.
 window.showLessonCompletion = function(opts) {
   opts = opts || {};
   var el = document.getElementById('lesson-completion');
@@ -519,9 +525,87 @@ window.showLessonCompletion = function(opts) {
   if (scoreEl && opts.score !== undefined) {
     scoreEl.textContent = Math.round(opts.score) + '%';
   }
-  el.style.display = 'block';
-  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  document.dispatchEvent(new Event('dailyPlanStepComplete'));
+
+  var ctx = window.linearPlanContext;
+  var planActive = !!(ctx && typeof ctx.isActive === 'function' && ctx.isActive());
+
+  function _revealCompletion(mode) {
+    el.setAttribute('data-completion-mode', mode || 'standalone');
+    el.style.display = 'block';
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.dispatchEvent(new Event('dailyPlanStepComplete'));
+  }
+
+  if (!planActive || typeof ctx.fetchNextSlot !== 'function') {
+    _revealCompletion('standalone');
+    return;
+  }
+
+  ctx.fetchNextSlot().then(function(data) {
+    if (!data || data.success === false) {
+      _revealCompletion('standalone');
+      return;
+    }
+    if (data.day_secured) {
+      // Final baseline just closed — hand off to the dashboard banner.
+      try { ctx.clear(); } catch (e) { /* ignore */ }
+      window.location.href = '/dashboard?day_secured=1';
+      return;
+    }
+    if (!data.next || !data.next.url) {
+      _revealCompletion('standalone');
+      return;
+    }
+
+    var actions = document.getElementById('completion-actions');
+    if (actions) {
+      // Hide legacy curriculum-next CTAs but keep them in the DOM so the
+      // standalone branch can fall back to them if the helper is called
+      // again without plan context.
+      Array.prototype.forEach.call(
+        actions.querySelectorAll('[data-standalone-cta]'),
+        function(node) { node.style.display = 'none'; }
+      );
+
+      // Drop any previously-rendered plan CTAs (defensive: re-entry from
+      // quiz/grammar lessons that call showLessonCompletion more than once).
+      Array.prototype.forEach.call(
+        actions.querySelectorAll('[data-plan-cta]'),
+        function(node) { node.parentNode.removeChild(node); }
+      );
+
+      var primary = document.createElement('a');
+      primary.className = 'lsn-btn lsn-btn--primary';
+      primary.setAttribute('data-plan-cta', 'next-slot');
+      primary.href = data.next.url;
+      var primaryTitle = data.next.title
+        ? 'Следующий слот плана · ' + data.next.title
+        : 'Следующий слот плана';
+      primary.textContent = primaryTitle + ' ';
+      var arrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      arrow.setAttribute('class', 'lsn-btn__icon');
+      arrow.setAttribute('viewBox', '0 0 24 24');
+      arrow.setAttribute('fill', 'none');
+      arrow.setAttribute('stroke', 'currentColor');
+      arrow.setAttribute('stroke-width', '2');
+      arrow.innerHTML = '<polyline points="9 18 15 12 9 6"></polyline>';
+      primary.appendChild(arrow);
+
+      var secondary = document.createElement('a');
+      secondary.className = 'lsn-btn lsn-btn--outline';
+      secondary.setAttribute('data-plan-cta', 'dashboard');
+      secondary.href = '/dashboard';
+      secondary.textContent = 'На дашборд';
+
+      // Primary first for keyboard/visual order.
+      actions.insertBefore(primary, actions.firstChild);
+      actions.appendChild(secondary);
+    }
+
+    _revealCompletion('plan');
+  }).catch(function() {
+    _revealCompletion('standalone');
+  });
 };
 </script>
 <script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>

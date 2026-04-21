@@ -173,6 +173,97 @@ class TestProgressSaveIndicator:
         assert 'showLessonCompletion' in html
 
 
+class TestPlanAwareCompletion:
+    """Task 4: completion screen switches to plan-aware CTAs when
+    ``linearPlanContext`` is active.
+
+    Runtime JS branching is exercised in browser QA; these asserts pin the
+    rendered markup so the helper has the hooks it relies on.
+    """
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    def test_completion_block_defaults_to_standalone_mode(
+        self, mock_sec_module, mock_sec_lesson,
+        authenticated_client, empty_content_lesson, db_session,
+    ):
+        """The completion block ships with data-completion-mode="standalone";
+        the helper flips it to "plan" only when the plan context is active."""
+        response = authenticated_client.get(f'/learn/{empty_content_lesson.id}/')
+        assert response.status_code == 200
+        html = response.data.decode()
+        assert 'id="lesson-completion"' in html
+        assert 'data-completion-mode="standalone"' in html
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    def test_standalone_ctas_tagged_for_plan_aware_hide(
+        self, mock_sec_module, mock_sec_lesson,
+        authenticated_client, empty_content_lesson, db_session,
+    ):
+        """Legacy curriculum-next / "К урокам" anchors carry
+        ``data-standalone-cta`` so the helper can hide them when the plan
+        branch renders its own primary/secondary CTAs."""
+        response = authenticated_client.get(f'/learn/{empty_content_lesson.id}/')
+        assert response.status_code == 200
+        html = response.data.decode()
+        assert 'data-standalone-cta="back-to-lessons"' in html
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    def test_helper_branches_on_linear_plan_context(
+        self, mock_sec_module, mock_sec_lesson,
+        authenticated_client, empty_content_lesson, db_session,
+    ):
+        """``showLessonCompletion`` must check ``linearPlanContext.isActive()``
+        and fall through to the API when active. We pin the symbol names so
+        accidental rename of the JS helper breaks this test immediately."""
+        response = authenticated_client.get(f'/learn/{empty_content_lesson.id}/')
+        assert response.status_code == 200
+        html = response.data.decode()
+        # Plan-aware branch uses linearPlanContext + fetchNextSlot.
+        assert 'linearPlanContext' in html
+        assert 'fetchNextSlot' in html
+        # Secured-redirect target for the dashboard banner handoff.
+        assert '/dashboard?day_secured=1' in html
+        # Plan CTA labels appear in the helper source (Russian copy pinned).
+        assert 'Следующий слот плана' in html
+        assert 'На дашборд' in html
+        # data-plan-cta markers are the hook the helper uses to insert/remove
+        # dynamic CTAs — must exist in the JS so tests like the one above can
+        # recognise the plan-aware branch.
+        assert 'data-plan-cta' in html
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    def test_helper_has_standalone_fallback(
+        self, mock_sec_module, mock_sec_lesson,
+        authenticated_client, empty_content_lesson, db_session,
+    ):
+        """If context is inactive OR the API errors, the helper must render
+        the standalone completion block — otherwise curriculum-direct users
+        (no plan flag) would see a stuck spinner."""
+        response = authenticated_client.get(f'/learn/{empty_content_lesson.id}/')
+        html = response.data.decode()
+        # "_revealCompletion('standalone')" invoked in both the non-plan
+        # early return and the ``.catch()`` fallback.
+        assert "_revealCompletion('standalone')" in html
+
+    def test_fetch_next_slot_helper_exposed_on_context(self):
+        """The helper at `app/static/js/linear-plan-context.js` must expose
+        ``fetchNextSlot`` so the completion helper can call it without a
+        typeof-guard guess."""
+        from pathlib import Path
+        src = (
+            Path(__file__).resolve().parent.parent
+            / 'app' / 'static' / 'js' / 'linear-plan-context.js'
+        ).read_text(encoding='utf-8')
+        assert 'function fetchNextSlot' in src
+        assert 'fetchNextSlot: fetchNextSlot' in src
+        # URL format — must match the Flask route registered in Task 2.
+        assert '/api/daily-plan/next-slot' in src
+
+
 class TestModuleLessonsLockedReasons:
     """Test that locked lessons show the reason on module lessons page."""
 

@@ -162,12 +162,37 @@
     }, true);
   }
 
+  /**
+   * Fetch the next baseline slot from the API based on the current plan
+   * context. Resolves to a plain object with the canonical shape:
+   *   { next: {kind,url,title}|null, day_secured: bool, secured_just_now: bool }
+   * Resolves to null when the context is not active, the request fails,
+   * or the server returns a non-2xx response (e.g. 404 when the user is
+   * not on the linear plan any more).
+   */
+  function fetchNextSlot() {
+    if (!isActive()) return Promise.resolve(null);
+    var url = '/api/daily-plan/next-slot';
+    var kind = getSlotKind();
+    if (kind) {
+      url += '?current=' + encodeURIComponent(kind);
+    }
+    return fetch(url, {
+      credentials: 'same-origin',
+      headers: { 'Accept': 'application/json' }
+    }).then(function(resp) {
+      if (!resp || !resp.ok) return null;
+      return resp.json().catch(function() { return null; });
+    }).catch(function() { return null; });
+  }
+
   window.linearPlanContext = {
     init: init,
     isActive: isActive,
     getSlotKind: getSlotKind,
     getContext: getContext,
     clear: clear,
+    fetchNextSlot: fetchNextSlot,
     STORAGE_KEY: STORAGE_KEY,
     VALID_SLOTS: VALID_SLOTS.slice()
   };
