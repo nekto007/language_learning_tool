@@ -158,6 +158,31 @@ class TestImportExercisesJson:
         exercise = GrammarExercise.query.filter_by(topic_id=topic.id).one()
         assert exercise.content['question'] == 'Legacy'
 
+    def test_import_uses_generated_filename_when_payload_module_id_is_database_id(
+        self, admin_client, mock_admin_user, db_session,
+    ):
+        from app.grammar_lab.models import GrammarExercise
+
+        topic = self._topic(db_session, slug='a2-12', module_id=12, level='A2')
+
+        response = admin_client.post(
+            '/admin/grammar-lab/import-exercises-json',
+            data={
+                'json_files': [
+                    self._file(
+                        self._payload(module_id=27, level='A2', question='Too enough'),
+                        'grammar_extra_A2_12.json',
+                    ),
+                ],
+            },
+            content_type='multipart/form-data',
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        exercise = GrammarExercise.query.filter_by(topic_id=topic.id).one()
+        assert exercise.content['question'] == 'Too enough'
+
     def test_same_topic_multiple_files_delete_old_once_and_append_batch(
         self, admin_client, mock_admin_user, db_session,
     ):

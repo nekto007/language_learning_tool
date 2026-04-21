@@ -6,6 +6,7 @@ CRUD операции для управления грамматическими
 """
 import json
 import logging
+import re
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -561,6 +562,28 @@ def import_from_modules():
 
 # ============ Import Exercises from JSON ============
 
+def _candidate_topic_slugs(data: dict, filename: str) -> list[str]:
+    """Return possible GrammarTopic slugs for generated extra exercise files."""
+    candidates = []
+
+    level = str(data.get('level', '')).lower()
+    module_id = data.get('module_id')
+    if level and module_id:
+        candidates.append(f'{level}-{module_id}')
+
+    filename_match = re.search(
+        r'grammar_extra_([a-z0-9]+)_(\d+)\.json$',
+        filename,
+        flags=re.IGNORECASE,
+    )
+    if filename_match:
+        filename_level = filename_match.group(1).lower()
+        filename_module_number = filename_match.group(2)
+        candidates.append(f'{filename_level}-{filename_module_number}')
+
+    return list(dict.fromkeys(candidates))
+
+
 def _import_exercises_json_file(file, deleted_topic_ids: set[int]) -> tuple[bool, str]:
     """Import one generated Grammar Lab exercises JSON file.
 
@@ -584,15 +607,20 @@ def _import_exercises_json_file(file, deleted_topic_ids: set[int]) -> tuple[bool
     if not module_id or not topic_slug_part:
         return False, f'{filename}: JSON не содержит module_id или grammar_topic_slug'
 
-    # Build full slug matching the pattern used by import_from_modules.
-    level = data.get('level', '').lower()
-    full_slug = f"{level}-{module_id}"
+    candidate_slugs = _candidate_topic_slugs(data, filename)
+    topic = None
+    matched_slug = None
+    for candidate_slug in candidate_slugs:
+        topic = GrammarTopic.query.filter_by(slug=candidate_slug).first()
+        if topic:
+            matched_slug = candidate_slug
+            break
 
-    topic = GrammarTopic.query.filter_by(slug=full_slug).first()
     if not topic:
+        checked = ', '.join(f'"{slug}"' for slug in candidate_slugs) or 'нет'
         return (
             False,
-            f'{filename}: тема не найдена по slug "{full_slug}". '
+            f'{filename}: тема не найдена. Проверены slug: {checked}. '
             'Сначала импортируйте темы из модулей.',
         )
 
@@ -633,7 +661,7 @@ def _import_exercises_json_file(file, deleted_topic_ids: set[int]) -> tuple[bool
     return (
         True,
         f'{filename}: импортировано {exercises_imported} упражнений '
-        f'для темы "{topic.title}" (модуль {module_id}). '
+        f'для темы "{topic.title}" (slug {matched_slug}). '
         f'Удалено {deleted} старых.',
     )
 
