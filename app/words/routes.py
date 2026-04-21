@@ -1132,6 +1132,7 @@ def dashboard():
             and not bool(daily_race)
             and not (xp_leaderboard or [])
             and not ((achievements_by_category or {}).get('earned_count', 0))
+            and not ((badges_showcase or {}).get('total_count', 0))
         ),
     )
 

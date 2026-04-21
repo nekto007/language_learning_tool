@@ -541,9 +541,11 @@ class StatsService:
 
         teasers = []
         if earned_count < total_count and teaser_limit > 0:
+            teaser_query = Achievement.query
+            if earned_ids:
+                teaser_query = teaser_query.filter(~Achievement.id.in_(earned_ids))
             unearned = (
-                Achievement.query
-                .filter(~Achievement.id.in_(earned_ids) if earned_ids else True)
+                teaser_query
                 .order_by(Achievement.xp_reward.asc(), Achievement.id.asc())
                 .limit(teaser_limit)
                 .all()
