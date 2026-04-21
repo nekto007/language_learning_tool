@@ -2618,6 +2618,10 @@ document.addEventListener('DOMContentLoaded', () => {
   {% endif %}
 
   {% if is_completed %}
+    const completionScore = {{ (previous_data.get('score', 0))|round(0)|int if previous_data else 0 }};
+    // Reveal the legacy curriculum-next buttons first so the standalone
+    // branch has somewhere to fall through to; ``showLessonCompletion``
+    // hides them again the moment plan-aware mode wins.
     const nextBtn = document.getElementById('complete-exercise');
     const completeModuleBtn = document.getElementById('complete-module');
     if (nextBtn) {
@@ -2626,6 +2630,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (completeModuleBtn) {
       completeModuleBtn.style.display = 'inline-flex';
       completeModuleBtn.disabled = false;
+    }
+    if (typeof showLessonCompletion === 'function') {
+      showLessonCompletion({ score: completionScore });
     }
   {% endif %}
 });

@@ -264,6 +264,181 @@ class TestPlanAwareCompletion:
         assert '/api/daily-plan/next-slot' in src
 
 
+class TestPlanContextHidesCurriculumNext:
+    """Task 5: once ``#lesson-completion`` flips to
+    ``data-completion-mode="plan"``, nothing on the page should still advertise
+    the curriculum-next lesson. The footer ``#complete-exercise``/
+    ``#complete-module`` buttons carry a ``data-next-url="/learn/<id>"`` — they
+    must be suppressed by the scoped CSS rule, and ``showLessonCompletion``
+    must also flip them off inline as a belt-and-braces measure for lesson
+    templates that force ``display: inline-flex`` on them.
+    """
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    def test_plan_mode_css_hides_footer_and_daily_plan_widget(
+        self, mock_sec_module, mock_sec_lesson,
+        authenticated_client, empty_content_lesson, db_session,
+    ):
+        """The scoped CSS in lesson_base_template.html must declare a sibling
+        selector that hides ``#lesson-footer`` (and the
+        ``#daily-plan-next-step`` widget) when the completion block is in plan
+        mode — otherwise curriculum-next buttons would bleed through."""
+        response = authenticated_client.get(f'/learn/{empty_content_lesson.id}/')
+        assert response.status_code == 200
+        html = response.data.decode()
+        # Sibling selector wording is stable — keep the assertion tight so a
+        # rename breaks immediately.
+        assert '#lesson-completion[data-completion-mode="plan"] ~ #lesson-footer' in html
+        assert '#lesson-completion[data-completion-mode="plan"] ~ #daily-plan-next-step' in html
+        # Descendant selector ensures legacy curriculum-next CTAs inside the
+        # completion block disappear once plan mode wins.
+        assert '#lesson-completion[data-completion-mode="plan"] [data-standalone-cta]' in html
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    def test_plan_branch_js_hides_footer_inline(
+        self, mock_sec_module, mock_sec_lesson,
+        authenticated_client, empty_content_lesson, db_session,
+    ):
+        """JS fallback: ``showLessonCompletion`` plan branch must strip the
+        ``lsn-footer--visible`` class and force ``display: none`` on the
+        footer and the daily-plan widget, so lesson templates that set inline
+        ``display: inline-flex`` on footer buttons cannot beat the CSS rule."""
+        response = authenticated_client.get(f'/learn/{empty_content_lesson.id}/')
+        html = response.data.decode()
+        assert 'legacyFooter.classList.remove(\'lsn-footer--visible\')' in html
+        assert "legacyFooter.style.display = 'none'" in html
+        assert "legacyDailyPlan.style.display = 'none'" in html
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    def test_footer_curriculum_next_has_data_next_url(
+        self, mock_sec_module, mock_sec_lesson,
+        authenticated_client, vocabulary_lesson, db_session,
+    ):
+        """Sanity check: the footer curriculum-next button really does carry a
+        ``/learn/<id>/`` destination. Without this, the CSS rule would be
+        protecting an empty surface."""
+        # Seed a follow-up lesson so the template renders the
+        # ``#complete-exercise`` button (with data-next-url) rather than the
+        # ``#complete-module`` variant.
+        follow_up = Lessons(
+            title='Follow Up',
+            type='vocabulary',
+            number=vocabulary_lesson.number + 1,
+            module_id=vocabulary_lesson.module_id,
+            content={'words': [{'english': 'follow', 'russian': 'далее'}]},
+        )
+        db_session.add(follow_up)
+        db_session.commit()
+
+        response = authenticated_client.get(f'/learn/{vocabulary_lesson.id}/')
+        assert response.status_code == 200
+        html = response.data.decode()
+        assert 'id="complete-exercise"' in html
+        assert 'data-next-url="/learn/{}/"'.format(follow_up.id) in html
+        # And the new sibling CSS rule is present so that URL never becomes
+        # reachable when plan mode is active.
+        assert '#lesson-completion[data-completion-mode="plan"] ~ #lesson-footer' in html
+
+
+class TestQuizPlanAwareCompletion:
+    """Task 5: quiz.html previously never called ``showLessonCompletion``;
+    when the user reloaded an already-completed quiz the only navigation
+    surface was the footer's curriculum-next button. In plan mode that bypass
+    defeats the whole point of the plan-aware flow, so quiz.html must now call
+    the shared helper on page load and let it branch."""
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    def test_completed_quiz_page_calls_show_lesson_completion(
+        self, mock_sec_module, mock_sec_lesson,
+        authenticated_client, db_session, level_and_module,
+    ):
+        _, module = level_and_module
+        lesson = Lessons(
+            title='Completed Quiz',
+            type='quiz',
+            number=1,
+            module_id=module.id,
+            content={
+                'questions': [
+                    {
+                        'type': 'multiple_choice',
+                        'question': 'Q1',
+                        'options': ['a', 'b'],
+                        'correct_answer': 'a',
+                    }
+                ]
+            },
+        )
+        db_session.add(lesson)
+        db_session.flush()
+
+        user = authenticated_client.application.test_user
+        progress = LessonProgress(
+            user_id=user.id,
+            lesson_id=lesson.id,
+            status='completed',
+            score=95.0,
+            data={
+                'score': 95,
+                'correct_answers': 1,
+                'feedback': {'0': {'status': 'correct'}},
+            },
+        )
+        db_session.add(progress)
+        db_session.commit()
+
+        response = authenticated_client.get(f'/learn/{lesson.id}/')
+        assert response.status_code == 200
+        html = response.data.decode()
+        # Plan-aware hook: the completed-quiz DOMContentLoaded handler calls
+        # the shared helper so the plan branch runs when context is active.
+        assert 'showLessonCompletion({ score: completionScore })' in html
+        # Score is piped from the stored progress data into the helper call
+        # (rounded to int via Jinja filters).
+        assert 'const completionScore = 95' in html
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    def test_grammar_lesson_triggers_show_lesson_completion_after_submit(
+        self, mock_sec_module, mock_sec_lesson,
+        authenticated_client, db_session, level_and_module,
+    ):
+        """Grammar exercise flow (``showResultsAndNavigation``) now fires the
+        shared helper so plan-aware CTAs appear alongside the inline
+        per-question feedback."""
+        _, module = level_and_module
+        lesson = Lessons(
+            title='Grammar Lesson',
+            type='grammar',
+            number=1,
+            module_id=module.id,
+            content={
+                'title': 'Present Simple',
+                'rule': 'Use for habits and routines.',
+                'exercises': [
+                    {
+                        'type': 'fill-blank',
+                        'question': 'She ___ a book.',
+                        'correct_answer': 'reads',
+                    }
+                ],
+            },
+        )
+        db_session.add(lesson)
+        db_session.commit()
+
+        response = authenticated_client.get(f'/learn/{lesson.id}/')
+        assert response.status_code == 200
+        html = response.data.decode()
+        # The helper call is the plan-aware entry point — without it, grammar
+        # would remain curriculum-next-only.
+        assert 'showLessonCompletion({ score: data.score || 0 })' in html
+
+
 class TestModuleLessonsLockedReasons:
     """Test that locked lessons show the reason on module lessons page."""
 
