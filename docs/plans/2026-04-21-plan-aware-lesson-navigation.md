@@ -89,15 +89,15 @@
 - Modify: `app/templates/lesson_base_template.html` (подключить скрипт)
 - Create: `tests/static/test_linear_plan_context.py` (Jinja include + pytest-инвариант)
 
-- [ ] `window.linearPlanContext` объект с API:
+- [x] `window.linearPlanContext` объект с API:
   - `init()` — при загрузке страницы читает `?from=linear_plan&slot=<kind>` из URL; если есть — пишет в sessionStorage `{date: YYYY-MM-DD, slot_kind, started_at}`; если нет — проверяет sessionStorage (страховка) и сверяет date = today
   - `isActive() → bool` — true, если context живой (date=today + slot_kind валидный)
   - `getSlotKind() → string|null`
   - `clear()` — удаляет sessionStorage
-- [ ] Автоматический `clear()` при cross-midnight (date mismatch) или явном переходе на `/dashboard`
-- [ ] Подключить в `lesson_base_template.html` до `showLessonCompletion` helper'а
-- [ ] Write tests: file-level asserts, что скрипт подключён в base-шаблоне; unit-тест в JS можно отложить, но добавить snapshot Jinja
-- [ ] Run project test suite — must pass before task 4
+- [x] Автоматический `clear()` при cross-midnight (date mismatch) или явном переходе на `/dashboard`
+- [x] Подключить в `lesson_base_template.html` до `showLessonCompletion` helper'а
+- [x] Write tests: file-level asserts, что скрипт подключён в base-шаблоне; unit-тест в JS можно отложить, но добавить snapshot Jinja
+- [x] Run project test suite — must pass before task 4
 
 ---
 
