@@ -186,6 +186,96 @@
     }).catch(function() { return null; });
   }
 
+  /**
+   * Apply plan-aware CTAs to the SRS (/study/cards) celebration screen when
+   * the user reached it via ?from=linear_plan&slot=srs.
+   *
+   * Expects a DOM tree shaped like the celebration-actions block rendered by
+   * ``components/_flashcard_session.html``:
+   *   <div class="celebration-actions" data-celebration-actions>
+   *     <div id="daily-plan-next-step"></div>
+   *     <a id="session-extra-study-link" ...>Ещё карточки</a>
+   *     <a id="fc-continue-btn" ...>К колодам</a>
+   *   </div>
+   *
+   * On ``day_secured`` — redirects to ``/dashboard?day_secured=1`` and clears
+   * the session context (handing off to the dashboard banner). On an
+   * available next slot — swaps the primary/secondary CTAs for the plan
+   * equivalents and sets ``data-completion-mode="plan"`` on the container so
+   * the legacy curriculum-next link can be hidden via CSS if required.
+   *
+   * Returns a promise that resolves to the resulting completion mode
+   * (``'plan'`` | ``'standalone'``) so callers and tests can chain on it.
+   * Never throws: any failure degrades to standalone.
+   */
+  function applySrsPlanAwareCompletion(container) {
+    if (!container) return Promise.resolve('standalone');
+    if (!isActive() || getSlotKind() !== 'srs') {
+      return Promise.resolve('standalone');
+    }
+
+    return fetchNextSlot().then(function(data) {
+      if (!data || data.success === false) {
+        return 'standalone';
+      }
+      if (data.day_secured) {
+        try { clear(); } catch (e) { /* ignore */ }
+        window.location.href = '/dashboard?day_secured=1';
+        return 'plan';
+      }
+      if (!data.next || !data.next.url) {
+        return 'standalone';
+      }
+
+      container.setAttribute('data-completion-mode', 'plan');
+
+      // Hide legacy "Ещё карточки" (extra study) — irrelevant while user is
+      // progressing through the plan.
+      var extra = container.querySelector('#session-extra-study-link');
+      if (extra) {
+        extra.style.display = 'none';
+        extra.setAttribute('aria-hidden', 'true');
+      }
+
+      // Drop any previously-injected plan CTAs (defensive: re-entry).
+      var existing = container.querySelectorAll('[data-plan-cta]');
+      Array.prototype.forEach.call(existing, function(node) {
+        if (node.parentNode) node.parentNode.removeChild(node);
+      });
+
+      var continueBtn = container.querySelector('#fc-continue-btn');
+      var continueWrapper = continueBtn ? continueBtn.parentNode : container;
+
+      var primary = document.createElement('a');
+      primary.className = 'btn-back-home btn-plan-next';
+      primary.setAttribute('data-plan-cta', 'next-slot');
+      primary.href = data.next.url;
+      var primaryTitle = data.next.title
+        ? 'Следующий слот плана · ' + data.next.title
+        : 'Следующий слот плана';
+      primary.textContent = primaryTitle;
+
+      var secondary = document.createElement('a');
+      secondary.className = 'btn-back-home btn-plan-dashboard';
+      secondary.setAttribute('data-plan-cta', 'dashboard');
+      secondary.href = '/dashboard';
+      secondary.textContent = 'На дашборд';
+
+      if (continueBtn) {
+        continueBtn.style.display = 'none';
+        continueBtn.setAttribute('aria-hidden', 'true');
+        continueWrapper.insertBefore(primary, continueBtn);
+        continueWrapper.insertBefore(secondary, continueBtn);
+      } else {
+        container.appendChild(primary);
+        container.appendChild(secondary);
+      }
+      return 'plan';
+    }).catch(function() {
+      return 'standalone';
+    });
+  }
+
   window.linearPlanContext = {
     init: init,
     isActive: isActive,
@@ -193,6 +283,7 @@
     getContext: getContext,
     clear: clear,
     fetchNextSlot: fetchNextSlot,
+    applySrsPlanAwareCompletion: applySrsPlanAwareCompletion,
     STORAGE_KEY: STORAGE_KEY,
     VALID_SLOTS: VALID_SLOTS.slice()
   };

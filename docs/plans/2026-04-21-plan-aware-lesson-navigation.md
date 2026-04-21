@@ -174,10 +174,10 @@ SRS-сессия (`/study/cards?source=linear_plan_card`) тоже должна 
 - Modify: `app/static/js/linear-plan-context.js`
 - Create: `tests/test_srs_plan_aware_completion.py`
 
-- [ ] На странице результатов SRS: если `linearPlanContext.isActive()` + slot=srs → показать plan-aware CTA («Следующий слот плана · Чтение книги» / «На дашборд»)
-- [ ] Иначе — старое поведение (перемешать колоду/вернуться)
-- [ ] Write tests: вход через `?source=linear_plan_card&from=linear_plan&slot=srs` → результаты → plan-aware CTA; вход через `/study/cards` напрямую → старое
-- [ ] Run project test suite — must pass before task 8
+- [x] На странице результатов SRS: если `linearPlanContext.isActive()` + slot=srs → показать plan-aware CTA («Следующий слот плана · Чтение книги» / «На дашборд»)
+- [x] Иначе — старое поведение (перемешать колоду/вернуться)
+- [x] Write tests: вход через `?source=linear_plan_card&from=linear_plan&slot=srs` → результаты → plan-aware CTA; вход через `/study/cards` напрямую → старое
+- [x] Run project test suite — must pass before task 8
 
 ### Task 8: Book reading slot completion
 
