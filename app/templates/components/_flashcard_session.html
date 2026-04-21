@@ -421,20 +421,24 @@
     if (!actions) return;
 
     var applied = false;
+    var observer = null;
     function maybeApply() {
         if (applied) return;
         var visible = sessionComplete.offsetParent !== null ||
             (sessionComplete.style.display && sessionComplete.style.display !== 'none');
         if (!visible) return;
         applied = true;
+        if (observer) observer.disconnect();
         ctx.applySrsPlanAwareCompletion(actions);
     }
 
     // First chance: maybe it's already visible on DOM ready (unlikely).
     maybeApply();
 
-    // Observe display toggle on #session-complete.
-    var observer = new MutationObserver(function() { maybeApply(); });
-    observer.observe(sessionComplete, { attributes: true, attributeFilter: ['style', 'class'] });
+    // Observe display toggle on #session-complete. Disconnect after first apply.
+    if (!applied) {
+        observer = new MutationObserver(function() { maybeApply(); });
+        observer.observe(sessionComplete, { attributes: true, attributeFilter: ['style', 'class'] });
+    }
 })();
 </script>

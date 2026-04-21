@@ -8,7 +8,7 @@
 
   {% if not entries %}
     <p>Нераспознанных ошибок нет. Возвращайтесь к урокам.</p>
-    <p><a href="/" class="btn btn--primary">На дашборд</a></p>
+    <p><a href="/dashboard" class="btn btn--primary">На дашборд</a></p>
   {% else %}
     <p>Вопросы, на которые вы ответили неверно. Просмотрите и отметьте разобранными.</p>
 
@@ -97,18 +97,25 @@
       })
         .then(function(res) { return res.ok ? res.json() : Promise.reject(res); })
         .then(function() {
+          function _redirectToDashboard() {
+            try {
+              if (window.linearPlanContext && typeof window.linearPlanContext.clear === 'function') {
+                window.linearPlanContext.clear();
+              }
+            } catch (e) { /* ignore */ }
+            if (status) status.textContent = 'Готово. Возвращаемся на дашборд.';
+            window.location.href = '/dashboard';
+          }
           if (_isPlanAware() && window.linearPlanContext.applyErrorReviewPlanAwareCompletion) {
             return window.linearPlanContext
               .applyErrorReviewPlanAwareCompletion(container)
               .then(function(mode) {
                 if (mode !== 'plan') {
-                  if (status) status.textContent = 'Готово. Возвращаемся на дашборд.';
-                  window.location.href = '/';
+                  _redirectToDashboard();
                 }
               });
           }
-          if (status) status.textContent = 'Готово. Возвращаемся на дашборд.';
-          window.location.href = '/';
+          _redirectToDashboard();
         })
         .catch(function() {
           if (status) status.textContent = 'Не удалось сохранить результат. Попробуйте ещё раз.';

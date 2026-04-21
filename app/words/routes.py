@@ -1063,6 +1063,7 @@ def dashboard():
                     'slots_total': _slots_total,
                 }
         except Exception:
+            logger.warning("day_secured_banner build failed", exc_info=True)
             day_secured_banner = None
 
     return render_template('dashboard.html',
