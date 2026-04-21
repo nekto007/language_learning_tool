@@ -70,15 +70,15 @@
 - Modify: `app/api/daily_plan.py`
 - Create: `tests/api/test_next_slot_endpoint.py`
 
-- [ ] `GET /api/daily-plan/next-slot?current=<slot_kind>`:
+- [x] `GET /api/daily-plan/next-slot?current=<slot_kind>`:
   - Вызывает `get_linear_plan(user_id)` → фильтрует `baseline_slots` по `completed=False`
   - Берёт первый по порядку slot, не равный `current`
   - Response: `{"next": {"kind": "srs", "url": "...", "title": "..."}, "day_secured": false, "secured_just_now": false}`
   - Если все baseline done → `next=null`, `day_secured=true`, `secured_just_now=true` (первый раз за день)
-- [ ] Требует `login_required` и `User.use_linear_plan=True` (иначе 404)
-- [ ] `secured_just_now`: true только если `DailyPlanLog.secured_at` записан в рамках этого вызова (т.е. сейчас достигли secured). Идемпотентно при повторных вызовах того же дня
-- [ ] Write tests: вызов с `current=curriculum` при 3 incomplete → возвращает `srs`; вызов когда все done → `day_secured=true`; второй вызов того же дня → `secured_just_now=false`; без флага → 404
-- [ ] Run project test suite — must pass before task 3
+- [x] Требует `login_required` и `User.use_linear_plan=True` (иначе 404)
+- [x] `secured_just_now`: true только если `DailyPlanLog.secured_at` записан в рамках этого вызова (т.е. сейчас достигли secured). Идемпотентно при повторных вызовах того же дня
+- [x] Write tests: вызов с `current=curriculum` при 3 incomplete → возвращает `srs`; вызов когда все done → `day_secured=true`; второй вызов того же дня → `secured_just_now=false`; без флага → 404
+- [x] Run project test suite — must pass before task 3
 
 ### Task 3: Context tracker — query-param + sessionStorage helper
 
