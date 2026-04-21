@@ -231,6 +231,8 @@ def update_chapter_progress():
             chapter_id=chapter_id
         ).first()
 
+        previous_offset = progress.offset_pct if progress else 0.0
+
         if progress:
             progress.offset_pct = offset_pct
             progress.updated_at = datetime.now(timezone.utc)
@@ -244,10 +246,40 @@ def update_chapter_progress():
 
         db.session.commit()
 
+        # Linear plan: award the book-reading slot XP once per day when the
+        # user crosses READ_PROGRESS_THRESHOLD in their chosen book. Mirrors
+        # the logic in ``/api/save-reading-position`` so the chapter-based
+        # reader template also flips the slot to ``completed``.
+        reading_slot_completed = False
+        try:
+            from app.daily_plan.linear.slots.reading_slot import (
+                READ_PROGRESS_THRESHOLD,
+                get_user_reading_preference,
+            )
+            from app.daily_plan.linear.xp import (
+                maybe_award_book_reading_xp,
+                maybe_award_linear_perfect_day,
+            )
+            advanced = offset_pct - previous_offset
+            if offset_pct >= READ_PROGRESS_THRESHOLD and advanced >= READ_PROGRESS_THRESHOLD:
+                pref = get_user_reading_preference(current_user.id, db)
+                if pref is not None and pref.book_id == book_id:
+                    if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
+                        reading_slot_completed = True
+                        maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                        db.session.commit()
+        except Exception:
+            logger.warning(
+                "linear_xp: book-reading award failed user=%s",
+                current_user.id, exc_info=True,
+            )
+            db.session.rollback()
+
         return jsonify({
             'success': True,
             'chapter_id': chapter_id,
-            'offset_pct': offset_pct
+            'offset_pct': offset_pct,
+            'reading_slot_completed': reading_slot_completed,
         })
 
     except Exception as e:

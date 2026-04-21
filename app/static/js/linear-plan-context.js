@@ -276,6 +276,103 @@
     });
   }
 
+  /**
+   * Render a floating toast on the book reader when the linear-plan reading
+   * slot just completed (server flipped ``linear_book_reading`` XP event).
+   *
+   * Expected DOM container: the function creates ``#linear-plan-book-toast``
+   * under ``document.body`` and positions it bottom-center. Idempotent: on
+   * repeat calls the existing toast is re-used (not duplicated).
+   *
+   * Behaviour:
+   *   - Requires active plan context with slot ``'book'`` — otherwise resolves
+   *     to ``'standalone'`` without touching the DOM.
+   *   - Fetches ``/api/daily-plan/next-slot?current=book`` to get the next
+   *     slot URL / title and the ``day_secured`` flag.
+   *   - ``day_secured=true`` → primary CTA goes to ``/dashboard?day_secured=1``
+   *     and the context is cleared.
+   *   - Otherwise primary CTA goes to ``next.url`` and the context stays
+   *     active (user might keep reading).
+   *   - Auto-hides after 5s (unless interacted with). The user can keep
+   *     reading — the slot is already marked complete server-side so the
+   *     dashboard banner will show on next visit.
+   *
+   * Returns a promise resolving to ``'plan'`` on successful render or
+   * ``'standalone'`` when no-op. Never throws.
+   */
+  function applyBookReadingPlanAwareToast() {
+    if (!isActive() || getSlotKind() !== 'book') {
+      return Promise.resolve('standalone');
+    }
+
+    // Idempotence: once we've rendered the toast today, don't keep refetching
+    // the next-slot endpoint on every subsequent progress save.
+    if (document.getElementById('linear-plan-book-toast')) {
+      return Promise.resolve('plan');
+    }
+
+    return fetchNextSlot().then(function(data) {
+      if (!data || data.success === false) {
+        return 'standalone';
+      }
+
+      var toast = document.createElement('div');
+      toast.id = 'linear-plan-book-toast';
+      toast.className = 'linear-plan-book-toast';
+      toast.setAttribute('data-plan-toast', 'book-slot-complete');
+      toast.setAttribute('role', 'status');
+      toast.setAttribute('aria-live', 'polite');
+
+      var message = document.createElement('div');
+      message.className = 'linear-plan-book-toast__message';
+      message.textContent = 'Слот чтения выполнен';
+      toast.appendChild(message);
+
+      var primary = document.createElement('a');
+      primary.className = 'linear-plan-book-toast__cta';
+      primary.setAttribute('data-plan-cta', 'next-slot');
+
+      if (data.day_secured) {
+        primary.href = '/dashboard?day_secured=1';
+        primary.textContent = 'День сохранён · На дашборд';
+        try { clear(); } catch (e) { /* ignore */ }
+      } else if (data.next && data.next.url) {
+        primary.href = data.next.url;
+        primary.textContent = data.next.title
+          ? 'Продолжить план · ' + data.next.title
+          : 'Продолжить план';
+      } else {
+        return 'standalone';
+      }
+      toast.appendChild(primary);
+
+      var close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'linear-plan-book-toast__close';
+      close.setAttribute('aria-label', 'Скрыть');
+      close.textContent = '×';
+      close.addEventListener('click', function() {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      });
+      toast.appendChild(close);
+
+      document.body.appendChild(toast);
+
+      // Auto-hide after 5s — the context stays active so the user can keep
+      // reading and still pick up the plan from the dashboard banner.
+      setTimeout(function() {
+        if (toast && toast.parentNode) {
+          toast.classList.add('linear-plan-book-toast--fading');
+          setTimeout(function() {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+          }, 400);
+        }
+      }, 5000);
+
+      return 'plan';
+    }).catch(function() { return 'standalone'; });
+  }
+
   window.linearPlanContext = {
     init: init,
     isActive: isActive,
@@ -284,6 +381,7 @@
     clear: clear,
     fetchNextSlot: fetchNextSlot,
     applySrsPlanAwareCompletion: applySrsPlanAwareCompletion,
+    applyBookReadingPlanAwareToast: applyBookReadingPlanAwareToast,
     STORAGE_KEY: STORAGE_KEY,
     VALID_SLOTS: VALID_SLOTS.slice()
   };

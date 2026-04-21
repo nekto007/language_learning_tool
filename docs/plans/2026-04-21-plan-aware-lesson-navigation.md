@@ -189,12 +189,12 @@ SRS-сессия (`/study/cards?source=linear_plan_card`) тоже должна 
 - Modify: `app/static/js/linear-plan-context.js` (threshold detection)
 - Create: `tests/test_reading_plan_aware.py`
 
-- [ ] Threshold для «слот завершён»: прочитано ≥ N слов или ≥ M% главы (уже используется в baseline-slot completion logic). Точный threshold уже есть в `reading_slot.py`, переиспользовать
-- [ ] При достижении threshold внутри reader'а — показать floating-toast «Слот чтения выполнен» с CTA «Продолжить план → следующий слот»
-- [ ] Юзер может продолжать читать — toast исчезает через 5 сек, но контекст остаётся активным до явного клика на CTA
-- [ ] Если юзер покидает reader без клика — при следующем заходе на дашборд баннер всё равно показывается, т.к. threshold был достигнут (БД уже знает)
-- [ ] Write tests: threshold достигнут → toast рендерится; клик на CTA → next-slot URL; без plan-контекста → toast не рендерится
-- [ ] Run project test suite — must pass before task 9
+- [x] Threshold для «слот завершён»: прочитано ≥ N слов или ≥ M% главы (уже используется в baseline-slot completion logic). Точный threshold уже есть в `reading_slot.py`, переиспользовать
+- [x] При достижении threshold внутри reader'а — показать floating-toast «Слот чтения выполнен» с CTA «Продолжить план → следующий слот»
+- [x] Юзер может продолжать читать — toast исчезает через 5 сек, но контекст остаётся активным до явного клика на CTA
+- [x] Если юзер покидает reader без клика — при следующем заходе на дашборд баннер всё равно показывается, т.к. threshold был достигнут (БД уже знает)
+- [x] Write tests: threshold достигнут → toast рендерится; клик на CTA → next-slot URL; без plan-контекста → toast не рендерится
+- [x] Run project test suite — must pass before task 9
 
 ### Task 9: Error review session completion
 
