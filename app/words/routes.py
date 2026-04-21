@@ -1028,6 +1028,44 @@ def dashboard():
         default=None,
     )
 
+    # === DAY SECURED BANNER (linear plan) ===
+    # Shown on return from lesson/slot completion when all baseline slots
+    # finished today. Gate on query-param + DailyPlanLog.secured_at.
+    day_secured_banner = None
+    if (
+        linear_plan
+        and request.args.get('day_secured') == '1'
+        and bool(getattr(current_user, 'use_linear_plan', False))
+    ):
+        try:
+            from app.daily_plan.models import DailyPlanLog
+            from app.achievements.xp_service import get_today_xp
+            import pytz as _pytz_banner
+            _tz_banner_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
+            try:
+                _tz_banner = _pytz_banner.timezone(_tz_banner_name)
+            except Exception:
+                _tz_banner = _pytz_banner.timezone(DEFAULT_TIMEZONE)
+            _banner_today = datetime.now(_tz_banner).date()
+            _log = DailyPlanLog.query.filter_by(
+                user_id=current_user.id, plan_date=_banner_today
+            ).first()
+            if _log and _log.secured_at is not None:
+                _slots_total = len(linear_plan.get('baseline_slots') or [])
+                _slots_done = sum(
+                    1 for s in (linear_plan.get('baseline_slots') or [])
+                    if s.get('completed') or plan_completion.get(s.get('kind', ''), False)
+                )
+                day_secured_banner = {
+                    'today_xp': int(get_today_xp(current_user.id, _banner_today) or 0),
+                    'streak': int(streak or 0),
+                    'slots_done': _slots_done,
+                    'slots_total': _slots_total,
+                }
+        except Exception:
+            logger.warning("day_secured_banner build failed", exc_info=True)
+            day_secured_banner = None
+
     return render_template('dashboard.html',
         # Daily plan
         greeting=greeting,
@@ -1043,6 +1081,7 @@ def dashboard():
         mission_plan=mission_plan,
         linear_plan=linear_plan,
         use_linear_plan=bool(getattr(current_user, 'use_linear_plan', False)),
+        day_secured_banner=day_secured_banner,
         plan_meta=plan_meta,
         phase_urls=phase_urls,
         cards_url=cards_url,

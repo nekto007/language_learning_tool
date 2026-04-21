@@ -329,6 +329,129 @@ def daily_race_status():
     return jsonify({'success': True, 'race': standings})
 
 
+# Mapping between internal ``LinearSlot.kind`` values (used inside the
+# plan payload and ``plan_completion`` dict) and ``LinearSlotKind`` values
+# (the stable query-param form surfaced in URLs and frontend sessionStorage).
+# Only the reading slot diverges — everything else is 1:1.
+_SLOT_KIND_TO_LINEAR = {
+    'curriculum': 'curriculum',
+    'srs': 'srs',
+    'reading': 'book',
+    'error_review': 'error_review',
+}
+_LINEAR_TO_SLOT_KIND = {v: k for k, v in _SLOT_KIND_TO_LINEAR.items()}
+
+
+@api_daily_plan.route('/daily-plan/next-slot')
+@api_auth_required
+def daily_plan_next_slot():
+    """Return the next incomplete baseline slot for the linear daily plan.
+
+    Gated on ``User.use_linear_plan`` — returns 404 for users on
+    mission/legacy so stale plan-context URLs (e.g. a Telegram link with
+    ``?from=linear_plan``) cannot influence unrelated flows.
+
+    Query params:
+        current (str, optional): LinearSlotKind value (curriculum/srs/book/
+            error_review) identifying the slot the caller just left. The
+            endpoint skips that kind when picking the next slot, even if
+            it is still incomplete — the caller has already engaged with it.
+        tz (str, optional): user timezone. Used to resolve the local day
+            for the secured_at write.
+
+    Response JSON:
+        next: {"kind", "url", "title"} | null — first incomplete baseline
+            slot whose kind != ``current``. ``null`` when the day is
+            secured (all baseline slots completed).
+        day_secured: bool — True when every baseline slot is completed
+            (combining slot state + summary signals, same recomputation
+            used by /api/daily-status).
+        secured_just_now: bool — True iff this call is the one that
+            wrote ``DailyPlanLog.secured_at``. Idempotent across calls:
+            subsequent invocations on the same day return False.
+    """
+    from datetime import datetime
+    import pytz
+
+    from app.auth.models import User
+    from app.daily_plan.linear.plan import get_linear_plan
+    from app.daily_plan.models import DailyPlanLog
+    from app.daily_plan.service import write_secured_at
+    from app.telegram.queries import get_daily_summary
+    from app.achievements.streak_service import compute_plan_steps
+
+    user = User.query.get(current_user.id)
+    if user is None or not user.use_linear_plan:
+        return api_error('linear_plan_disabled', 'Linear plan not enabled', 404)
+
+    tz = _validate_timezone(request.args.get('tz', user.timezone or DEFAULT_TZ))
+    raw_current = request.args.get('current')
+    current_slot_kind = _LINEAR_TO_SLOT_KIND.get(raw_current) if raw_current else None
+
+    plan = get_linear_plan(user.id)
+    summary = get_daily_summary(user.id, tz=tz)
+    plan_completion, _, _, _ = compute_plan_steps(plan, summary)
+
+    baseline_slots = plan.get('baseline_slots') or []
+    day_secured = bool(baseline_slots) and all(
+        plan_completion.get(slot.get('kind', ''), False)
+        for slot in baseline_slots
+    )
+
+    next_slot_payload = None
+    if not day_secured:
+        for slot in baseline_slots:
+            slot_kind = slot.get('kind', '')
+            if slot_kind == current_slot_kind:
+                continue
+            if plan_completion.get(slot_kind, False):
+                continue
+            slot_url = slot.get('url')
+            # Fragment-only URLs (e.g. ``#book-select-modal`` when the user
+            # has no chosen book yet) only work on the dashboard, so rewrite
+            # them so the CTA from a lesson completion actually goes somewhere.
+            if isinstance(slot_url, str) and slot_url.startswith('#'):
+                slot_url = '/dashboard' + slot_url
+            next_slot_payload = {
+                'kind': _SLOT_KIND_TO_LINEAR.get(slot_kind, slot_kind),
+                'url': slot_url,
+                'title': slot.get('title'),
+            }
+            break
+
+    secured_just_now = False
+    if day_secured:
+        try:
+            tz_obj = pytz.timezone(tz)
+        except pytz.UnknownTimeZoneError:
+            tz_obj = pytz.timezone(DEFAULT_TZ)
+        today = datetime.now(tz_obj).date()
+
+        existing = DailyPlanLog.query.filter_by(
+            user_id=user.id, plan_date=today,
+        ).first()
+        was_already_secured = existing is not None and existing.secured_at is not None
+
+        try:
+            emit_minimum_completed(user.id, None, today)
+            write_secured_at(user.id, today, None)
+            db.session.commit()
+            secured_just_now = not was_already_secured
+        except Exception:
+            logger.warning(
+                "secured_at write failed in daily_plan_next_slot",
+                exc_info=True,
+            )
+            db.session.rollback()
+
+    return jsonify({
+        'success': True,
+        'next': next_slot_payload,
+        'day_secured': day_secured,
+        'secured_just_now': secured_just_now,
+    })
+
+
 @api_daily_plan.route('/daily-plan/continuation')
 @api_auth_required
 def daily_plan_continuation():

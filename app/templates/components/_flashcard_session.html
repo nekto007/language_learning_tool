@@ -342,7 +342,7 @@
                 <span id="total-xp" style="display:none;">0</span>
 
                 <!-- Action buttons -->
-                <div class="celebration-actions">
+                <div class="celebration-actions" data-celebration-actions data-completion-mode="standalone">
                     <div id="daily-plan-next-step"></div>
 
                     <!-- Extra study button (shown conditionally) -->
@@ -366,6 +366,9 @@
 
 <!-- Audio element (hidden) -->
 <audio id="word-audio" style="display: none;"></audio>
+
+<!-- Linear plan context (plan-aware completion CTAs for SRS sessions) -->
+<script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
 
 <!-- Flashcard Session JS -->
 <script src="{{ url_for('static', filename='js/flashcard-session.js') }}"></script>
@@ -397,4 +400,45 @@
             lessonMode: {{ fc_lesson_mode | tojson if fc_lesson_mode is defined else 'false' }},
         });
     });
+</script>
+<script>
+// Plan-aware session completion: when ?from=linear_plan&slot=srs (SRS global
+// review) or ?from=linear_plan&slot=curriculum (curriculum card lesson) is
+// active and the celebration screen becomes visible, swap "К колодам" /
+// "Ещё карточки" for "Следующий слот плана · X" + "На дашборд". Delegates
+// the actual DOM work to ``linearPlanContext.applySrsPlanAwareCompletion``.
+(function() {
+    'use strict';
+    var ctx = window.linearPlanContext;
+    if (!ctx || typeof ctx.applySrsPlanAwareCompletion !== 'function') return;
+    if (!ctx.isActive()) return;
+    var slotKind = ctx.getSlotKind();
+    if (slotKind !== 'srs' && slotKind !== 'curriculum') return;
+
+    var sessionComplete = document.getElementById('session-complete');
+    if (!sessionComplete) return;
+    var actions = sessionComplete.querySelector('[data-celebration-actions]');
+    if (!actions) return;
+
+    var applied = false;
+    var observer = null;
+    function maybeApply() {
+        if (applied) return;
+        var visible = sessionComplete.offsetParent !== null ||
+            (sessionComplete.style.display && sessionComplete.style.display !== 'none');
+        if (!visible) return;
+        applied = true;
+        if (observer) observer.disconnect();
+        ctx.applySrsPlanAwareCompletion(actions);
+    }
+
+    // First chance: maybe it's already visible on DOM ready (unlikely).
+    maybeApply();
+
+    // Observe display toggle on #session-complete. Disconnect after first apply.
+    if (!applied) {
+        observer = new MutationObserver(function() { maybeApply(); });
+        observer.observe(sessionComplete, { attributes: true, attributeFilter: ['style', 'class'] });
+    }
+})();
 </script>

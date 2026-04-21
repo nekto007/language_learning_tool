@@ -180,7 +180,7 @@ class TestSrsSlotStates:
         assert isinstance(slot, LinearSlot)
         assert slot.kind == 'srs'
         assert slot.completed is False
-        assert slot.url == '/study?source=linear_plan'
+        assert slot.url == '/study?source=linear_plan&from=linear_plan&slot=srs'
         assert slot.data['due_count'] == 3
         assert 'Повторить 3' in slot.title
 

@@ -7,7 +7,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h1 class="h3 mb-0">Импорт упражнений из JSON</h1>
-            <p class="text-muted mb-0">Загрузите JSON-файл, сгенерированный скриптом generate_grammar_exercises.py</p>
+            <p class="text-muted mb-0">Загрузите один или несколько JSON-файлов, сгенерированных скриптом generate_grammar_exercises.py</p>
         </div>
         <a href="{{ url_for('grammar_lab_admin.grammar_lab_index') }}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left me-1"></i> Назад
@@ -20,10 +20,11 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="mb-3">
-                    <label for="json_file" class="form-label">JSON-файл с упражнениями</label>
-                    <input type="file" class="form-control" id="json_file" name="json_file" accept=".json" required>
+                    <label for="json_files" class="form-label">JSON-файлы с упражнениями</label>
+                    <input type="file" class="form-control" id="json_files" name="json_files" accept=".json" multiple required>
                     <div class="form-text">
-                        Файл должен содержать поля: module_id, grammar_topic_slug, grammar_topic, sessions.
+                        Можно выбрать сразу несколько файлов. Каждый файл должен содержать поля:
+                        module_id, grammar_topic_slug, grammar_topic, sessions.
                     </div>
                 </div>
 

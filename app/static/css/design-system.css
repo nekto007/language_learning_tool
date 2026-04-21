@@ -12462,6 +12462,85 @@ footer .col-md-4 {
     font-weight: 600;
 }
 .linear-plan__secured-icon { font-size: 1.15rem; }
+
+.linear-plan__day-secured-banner {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    border: 1px solid #6ee7b7;
+    border-radius: 14px;
+    padding: 1rem 1.15rem;
+    margin-bottom: 0.9rem;
+    color: #065f46;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.08);
+}
+.linear-plan__day-secured-banner-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.65rem;
+}
+.linear-plan__day-secured-banner-icon { font-size: 1.6rem; }
+.linear-plan__day-secured-banner-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #064e3b;
+}
+.linear-plan__day-secured-banner-stats {
+    list-style: none;
+    margin: 0 0 0.85rem 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.2rem;
+}
+.linear-plan__day-secured-banner-stat {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+.linear-plan__day-secured-banner-stat-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #047857;
+}
+.linear-plan__day-secured-banner-stat-label {
+    font-size: 0.8rem;
+    color: #065f46;
+    opacity: 0.85;
+}
+.linear-plan__day-secured-banner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+.linear-plan__day-secured-banner-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.55rem 1rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    text-decoration: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.linear-plan__day-secured-banner-cta--primary {
+    background: #047857;
+    color: #ffffff;
+    border: 1px solid #047857;
+}
+.linear-plan__day-secured-banner-cta--primary:hover {
+    background: #065f46;
+    border-color: #065f46;
+}
+.linear-plan__day-secured-banner-cta--secondary {
+    background: transparent;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+}
+.linear-plan__day-secured-banner-cta--secondary:hover {
+    background: rgba(110, 231, 183, 0.2);
+}
+
 .linear-plan__slots {
     display: flex;
     flex-direction: column;

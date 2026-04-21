@@ -22,6 +22,7 @@ from typing import Any
 
 from sqlalchemy import func, or_
 
+from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 from app.daily_plan.linear.slots import LinearSlot
 from app.srs.constants import CardState
 from app.study.models import StudySettings, UserCardDirection, UserWord
@@ -126,7 +127,7 @@ def build_srs_slot(user_id: int, db: Any) -> LinearSlot:
             title=f'Повторить {due_count} карточек',
             lesson_type=None,
             eta_minutes=_SRS_SLOT_ETA_MINUTES,
-            url='/study?source=linear_plan',
+            url=build_slot_url('/study?source=linear_plan', LinearSlotKind.SRS),
             completed=False,
             data=data,
         )

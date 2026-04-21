@@ -59,6 +59,48 @@
 
 <div class="linear-plan" data-linear-plan="true">
 
+    {# ── Day-secured banner (returned from last baseline slot) ──────── #}
+    {% if day_secured_banner %}
+    <div class="linear-plan__day-secured-banner"
+         data-linear-day-secured-banner="true"
+         role="status"
+         aria-live="polite">
+        <div class="linear-plan__day-secured-banner-head">
+            <span class="linear-plan__day-secured-banner-icon" aria-hidden="true">&#127942;</span>
+            <span class="linear-plan__day-secured-banner-title">День сохранён</span>
+        </div>
+        <ul class="linear-plan__day-secured-banner-stats">
+            <li class="linear-plan__day-secured-banner-stat">
+                <span class="linear-plan__day-secured-banner-stat-value">+{{ day_secured_banner.today_xp | int }} XP</span>
+                <span class="linear-plan__day-secured-banner-stat-label">за день</span>
+            </li>
+            <li class="linear-plan__day-secured-banner-stat">
+                <span class="linear-plan__day-secured-banner-stat-value">{{ day_secured_banner.streak | int }}</span>
+                <span class="linear-plan__day-secured-banner-stat-label">
+                    {% set _s = day_secured_banner.streak | int %}
+                    {% set _sm10 = _s % 10 %}
+                    {% set _sm100 = _s % 100 %}
+                    {% if _sm10 == 1 and _sm100 != 11 %}день{% elif 2 <= _sm10 <= 4 and not 12 <= _sm100 <= 14 %}дня{% else %}дней{% endif %}
+                    подряд
+                </span>
+            </li>
+            <li class="linear-plan__day-secured-banner-stat">
+                <span class="linear-plan__day-secured-banner-stat-value">{{ day_secured_banner.slots_done | int }}/{{ day_secured_banner.slots_total | int }}</span>
+                <span class="linear-plan__day-secured-banner-stat-label">слотов</span>
+            </li>
+        </ul>
+        <div class="linear-plan__day-secured-banner-actions">
+            <a href="#linear-plan-continuation"
+               class="linear-plan__day-secured-banner-cta linear-plan__day-secured-banner-cta--primary"
+               data-linear-event="day_secured_continue_clicked">Продолжить обучение</a>
+            <a href="#"
+               class="linear-plan__day-secured-banner-cta linear-plan__day-secured-banner-cta--secondary"
+               data-linear-action="day-secured-dismiss"
+               data-linear-event="day_secured_dismiss_clicked">На сегодня хватит</a>
+        </div>
+    </div>
+    {% endif %}
+
     {# ── Header: position + level progress badge ────────────────────── #}
     <div class="linear-plan__header">
         {% if l_position %}
@@ -227,7 +269,9 @@
 
     {# ── Continuation CTA + preview (shown when day_secured=True) ───── #}
     {% if l_day_secured and l_next_lessons %}
-    <div class="linear-plan__continuation" data-linear-continuation="true">
+    <div class="linear-plan__continuation"
+         id="linear-plan-continuation"
+         data-linear-continuation="true">
         {% set _next = l_next_lessons[0] %}
         {% if _next and _next.get('lesson_id') %}
         <a href="/learn/{{ _next.lesson_id }}/?from=linear_plan_continuation"

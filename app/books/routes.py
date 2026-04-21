@@ -309,8 +309,10 @@ def read_book(book_id):
     has_chapters = Chapter.query.filter_by(book_id=book_id).first() is not None
 
     if has_chapters:
-        # Redirect to chapter-based reader
-        return redirect(url_for('books.read_book_chapters', book_id=book_id))
+        # Redirect to chapter-based reader, preserving query params (e.g.
+        # ?from=linear_plan&slot=book for linear-plan navigation context).
+        forwarded_args = {k: v for k, v in request.args.items() if k not in {'book_id'}}
+        return redirect(url_for('books.read_book_chapters', book_id=book_id, **forwarded_args))
 
     # Since there's no content field in the new schema, old-style books won't work
     flash('Этот формат книги не поддерживается. Пожалуйста, используйте книги с главами.', 'warning')
@@ -368,8 +370,8 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
     ).first()
 
     back_url = request.args.get('from')
-    if back_url == 'daily_plan':
-        back_url = None  # daily_plan is a tracking flag, not a URL
+    if back_url in ('daily_plan', 'linear_plan'):
+        back_url = None  # tracking flag, not a URL
     if not back_url:
         referrer = request.referrer
         if referrer:

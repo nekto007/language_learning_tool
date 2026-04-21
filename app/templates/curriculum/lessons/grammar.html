@@ -944,7 +944,13 @@ function showResultsAndNavigation(data) {
     } else {
       console.error('Navigation buttons not found in DOM');
     }
-    
+
+    // Plan-aware completion: reuse the shared helper so a linear-plan user
+    // sees "Следующий слот плана" instead of curriculum-next. Standalone
+    // users get the same `#lesson-completion` block they always had.
+    if (typeof showLessonCompletion === 'function') {
+      showLessonCompletion({ score: data.score || 0 });
+    }
   }, 100); // Небольшая задержка для обеспечения готовности DOM
 }
 
@@ -1128,6 +1134,10 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (completeModuleBtn) {
       completeModuleBtn.style.display = 'inline-flex';
       completeModuleBtn.disabled = false;
+    }
+
+    if (typeof showLessonCompletion === 'function') {
+      showLessonCompletion({ score: 100 });
     }
   {% endif %}
 });

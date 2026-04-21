@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 from app.daily_plan.linear.errors import (
     DEFAULT_REVIEW_POOL_LIMIT,
     count_unresolved,
@@ -32,7 +33,7 @@ def build_error_review_slot(user_id: int, db: Any) -> Optional[LinearSlot]:
         title=f'Разбор ошибок ({unresolved})',
         lesson_type=None,
         eta_minutes=_ERROR_REVIEW_SLOT_ETA_MINUTES,
-        url='/learn/error-review/?from=linear_plan',
+        url=build_slot_url('/learn/error-review/', LinearSlotKind.ERROR_REVIEW),
         completed=False,
         data={
             'unresolved_count': unresolved,

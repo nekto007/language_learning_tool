@@ -123,10 +123,12 @@ def curriculum(db_session):
 
 
 def _expected_url(lesson) -> str:
-    base = f'/learn/{lesson.id}/?from=linear_plan'
     if lesson.type in {'card', 'flashcards'}:
-        base += '&source=linear_plan_card'
-    return base
+        return (
+            f'/learn/{lesson.id}/?source=linear_plan_card'
+            '&from=linear_plan&slot=curriculum'
+        )
+    return f'/learn/{lesson.id}/?from=linear_plan&slot=curriculum'
 
 
 class TestBuildCurriculumSlotByType:
@@ -168,7 +170,7 @@ class TestBuildCurriculumSlotStates:
         first = curriculum['lessons'][TWELVE_LESSON_TYPES[0]]
         assert slot.data['lesson_id'] == first.id
         assert slot.completed is False
-        assert slot.url == f'/learn/{first.id}/?from=linear_plan'
+        assert slot.url == f'/learn/{first.id}/?from=linear_plan&slot=curriculum'
 
     def test_completed_curriculum_returns_empty_slot(self, db_session, curriculum):
         level_code = curriculum['level'].code
@@ -259,7 +261,7 @@ class TestLinearPlanIntegration:
         )
         assert curriculum_slot['lesson_type'] == TWELVE_LESSON_TYPES[0]
         first = curriculum['lessons'][TWELVE_LESSON_TYPES[0]]
-        assert curriculum_slot['url'] == f'/learn/{first.id}/?from=linear_plan'
+        assert curriculum_slot['url'] == f'/learn/{first.id}/?from=linear_plan&slot=curriculum'
 
     def test_get_linear_plan_curriculum_complete(self, db_session, curriculum):
         from app.daily_plan.linear.plan import get_linear_plan
