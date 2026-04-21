@@ -12,43 +12,68 @@
   {% else %}
     <p>Вопросы, на которые вы ответили неверно. Просмотрите и отметьте разобранными.</p>
 
-    <ol class="error-review-list" style="list-style: none; padding: 0; margin: 1rem 0;">
-      {% for entry in entries %}
-        {% set p = entry.payload or {} %}
-        <li class="error-review-item"
-            data-error-id="{{ entry.id }}"
-            style="border: 1px solid var(--color-border, #e0e0e0); border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;">
-          {% if p.question_text %}
-            <div class="error-review__question" style="font-weight: 600; margin-bottom: 0.5rem;">
-              {{ p.question_text }}
-            </div>
-          {% endif %}
-          {% if p.user_answer is not none %}
-            <div class="error-review__user" style="color: var(--color-danger, #d14343);">
-              Ваш ответ: {{ p.user_answer }}
-            </div>
-          {% endif %}
-          {% if p.correct_answer is not none %}
-            <div class="error-review__correct" style="color: var(--color-success, #2e7d32);">
-              Правильный ответ: {{ p.correct_answer }}
-            </div>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ol>
+    <div id="error-review-container" data-completion-mode="standalone">
+      <ol class="error-review-list" style="list-style: none; padding: 0; margin: 1rem 0;">
+        {% for entry in entries %}
+          {% set p = entry.payload or {} %}
+          <li class="error-review-item"
+              data-error-id="{{ entry.id }}"
+              style="border: 1px solid var(--color-border, #e0e0e0); border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;">
+            {% if p.question_text %}
+              <div class="error-review__question" style="font-weight: 600; margin-bottom: 0.5rem;">
+                {{ p.question_text }}
+              </div>
+            {% endif %}
+            {% if p.user_answer is not none %}
+              <div class="error-review__user" style="color: var(--color-danger, #d14343);">
+                Ваш ответ: {{ p.user_answer }}
+              </div>
+            {% endif %}
+            {% if p.correct_answer is not none %}
+              <div class="error-review__correct" style="color: var(--color-success, #2e7d32);">
+                Правильный ответ: {{ p.correct_answer }}
+              </div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
 
-    <button type="button"
-            id="error-review-complete-btn"
-            class="btn btn--primary">Отметить разобранными</button>
-    <p id="error-review-status" style="margin-top: 0.75rem;"></p>
+      <button type="button"
+              id="error-review-complete-btn"
+              class="btn btn--primary">Отметить разобранными</button>
+      <p id="error-review-status" style="margin-top: 0.75rem;"></p>
+    </div>
   {% endif %}
 </div>
 
+<style>
+  .error-review__plan-ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+  #error-review-container[data-completion-mode="plan"] .error-review-list {
+    opacity: 0.6;
+  }
+</style>
+
+<script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
 <script>
   (function() {
+    var container = document.getElementById('error-review-container');
+    if (!container) return;
     var btn = document.getElementById('error-review-complete-btn');
     if (!btn) return;
     var status = document.getElementById('error-review-status');
+
+    function _isPlanAware() {
+      try {
+        return !!(window.linearPlanContext
+          && window.linearPlanContext.isActive()
+          && window.linearPlanContext.getSlotKind() === 'error_review');
+      } catch (e) { return false; }
+    }
 
     btn.addEventListener('click', function() {
       btn.disabled = true;
@@ -72,6 +97,16 @@
       })
         .then(function(res) { return res.ok ? res.json() : Promise.reject(res); })
         .then(function() {
+          if (_isPlanAware() && window.linearPlanContext.applyErrorReviewPlanAwareCompletion) {
+            return window.linearPlanContext
+              .applyErrorReviewPlanAwareCompletion(container)
+              .then(function(mode) {
+                if (mode !== 'plan') {
+                  if (status) status.textContent = 'Готово. Возвращаемся на дашборд.';
+                  window.location.href = '/';
+                }
+              });
+          }
           if (status) status.textContent = 'Готово. Возвращаемся на дашборд.';
           window.location.href = '/';
         })

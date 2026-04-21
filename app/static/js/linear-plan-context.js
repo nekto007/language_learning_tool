@@ -373,6 +373,88 @@
     }).catch(function() { return 'standalone'; });
   }
 
+  /**
+   * Apply plan-aware CTAs to the error-review completion UI when the user
+   * reached it via ``?from=linear_plan&slot=error_review``.
+   *
+   * Expected DOM: a container element (the helper looks for #error-review-status
+   * and #error-review-complete-btn internally). The container receives
+   * ``data-completion-mode="plan"`` on success.
+   *
+   * On ``day_secured`` — redirects to ``/dashboard?day_secured=1`` and clears
+   * the session context (handing off to the dashboard banner). On an available
+   * next slot — replaces the resolve button and status line with plan CTAs
+   * ("Следующий слот плана · <title>" + "На дашборд"). Contextless or
+   * standalone calls fall through to the default redirect-to-dashboard path.
+   *
+   * Returns a promise resolving to the completion mode ('plan' | 'standalone').
+   * Never throws — any failure degrades to standalone.
+   */
+  function applyErrorReviewPlanAwareCompletion(container) {
+    if (!container) return Promise.resolve('standalone');
+    if (!isActive() || getSlotKind() !== 'error_review') {
+      return Promise.resolve('standalone');
+    }
+
+    return fetchNextSlot().then(function(data) {
+      if (!data || data.success === false) {
+        return 'standalone';
+      }
+      if (data.day_secured) {
+        try { clear(); } catch (e) { /* ignore */ }
+        window.location.href = '/dashboard?day_secured=1';
+        return 'plan';
+      }
+      if (!data.next || !data.next.url) {
+        return 'standalone';
+      }
+
+      container.setAttribute('data-completion-mode', 'plan');
+
+      // Hide the resolve button and status line — session is already complete.
+      var btn = container.querySelector('#error-review-complete-btn');
+      if (btn) {
+        btn.style.display = 'none';
+        btn.setAttribute('aria-hidden', 'true');
+      }
+      var status = container.querySelector('#error-review-status');
+      if (status) {
+        status.style.display = 'none';
+      }
+
+      // Idempotence: drop previously-injected plan CTAs on re-entry.
+      var existing = container.querySelectorAll('[data-plan-cta]');
+      Array.prototype.forEach.call(existing, function(node) {
+        if (node.parentNode) node.parentNode.removeChild(node);
+      });
+
+      var wrapper = document.createElement('div');
+      wrapper.className = 'error-review__plan-ctas';
+      wrapper.setAttribute('data-plan-cta-wrapper', 'error-review');
+
+      var primary = document.createElement('a');
+      primary.className = 'btn btn--primary btn-plan-next';
+      primary.setAttribute('data-plan-cta', 'next-slot');
+      primary.href = data.next.url;
+      primary.textContent = data.next.title
+        ? 'Следующий слот плана · ' + data.next.title
+        : 'Следующий слот плана';
+      wrapper.appendChild(primary);
+
+      var secondary = document.createElement('a');
+      secondary.className = 'btn btn--secondary btn-plan-dashboard';
+      secondary.setAttribute('data-plan-cta', 'dashboard');
+      secondary.href = '/dashboard';
+      secondary.textContent = 'На дашборд';
+      wrapper.appendChild(secondary);
+
+      container.appendChild(wrapper);
+      return 'plan';
+    }).catch(function() {
+      return 'standalone';
+    });
+  }
+
   window.linearPlanContext = {
     init: init,
     isActive: isActive,
@@ -382,6 +464,7 @@
     fetchNextSlot: fetchNextSlot,
     applySrsPlanAwareCompletion: applySrsPlanAwareCompletion,
     applyBookReadingPlanAwareToast: applyBookReadingPlanAwareToast,
+    applyErrorReviewPlanAwareCompletion: applyErrorReviewPlanAwareCompletion,
     STORAGE_KEY: STORAGE_KEY,
     VALID_SLOTS: VALID_SLOTS.slice()
   };

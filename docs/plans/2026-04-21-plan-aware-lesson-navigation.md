@@ -205,11 +205,11 @@ Error review — сессия по QuizErrorLog, завершается посл
 - Modify: шаблон error-review completion
 - Create: `tests/test_error_review_plan_aware.py`
 
-- [ ] По завершении сессии error-review — plan-aware completion screen (как в curriculum-уроке)
-- [ ] Если после error-review slot = last baseline → `day_secured` triggered → редирект на дашборд
-- [ ] Иначе — «Следующий слот плана» CTA
-- [ ] Write tests: session complete → next-slot endpoint вызван; secured → redirect; error-review как 4-й slot корректно замыкает день
-- [ ] Run project test suite — must pass before final verification
+- [x] По завершении сессии error-review — plan-aware completion screen (как в curriculum-уроке)
+- [x] Если после error-review slot = last baseline → `day_secured` triggered → редирект на дашборд
+- [x] Иначе — «Следующий слот плана» CTA
+- [x] Write tests: session complete → next-slot endpoint вызван; secured → redirect; error-review как 4-й slot корректно замыкает день
+- [x] Run project test suite — must pass before final verification
 
 ---
 
