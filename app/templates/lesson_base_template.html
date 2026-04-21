@@ -520,6 +520,7 @@ window.showLessonCompletion = function(opts) {
   }
   el.style.display = 'block';
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  document.dispatchEvent(new Event('dailyPlanStepComplete'));
 };
 </script>
 <script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>

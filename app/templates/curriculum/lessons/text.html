@@ -1030,18 +1030,6 @@ function initReadingProgress() {
             // Показываем результаты завершения
             showCompletionResults();
 
-            // Показываем кнопки навигации в lesson-footer
-            const nextBtn = document.getElementById('complete-exercise');
-            const completeModuleBtn = document.getElementById('complete-module');
-            
-            if (nextBtn) {
-              nextBtn.style.display = 'inline-flex';
-              nextBtn.disabled = false;
-            } else if (completeModuleBtn) {
-              completeModuleBtn.style.display = 'inline-flex';
-              completeModuleBtn.disabled = false;
-            }
-            
             markReadBtn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено") }}';
             markReadBtn.classList.add('completed');
           } else {

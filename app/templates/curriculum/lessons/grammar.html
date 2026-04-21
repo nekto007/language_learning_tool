@@ -1096,18 +1096,6 @@ async function autoCompleteTheoryLesson() {
     if (data.success) {
       if (typeof showSaveToast === 'function') showSaveToast();
       if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: 100 });
-
-      // Show navigation buttons
-      const nextBtn = document.getElementById('complete-exercise');
-      const completeModuleBtn = document.getElementById('complete-module');
-
-      if (nextBtn) {
-        nextBtn.style.display = 'inline-flex';
-        nextBtn.disabled = false;
-      } else if (completeModuleBtn) {
-        completeModuleBtn.style.display = 'inline-flex';
-        completeModuleBtn.disabled = false;
-      }
     }
   } catch (error) {
     console.error('Error completing lesson:', error);

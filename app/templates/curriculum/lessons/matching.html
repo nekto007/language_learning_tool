@@ -846,24 +846,11 @@ function showCompletionResults(score) {
   resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-// Показ кнопок навигации
+// Показ кнопок навигации (только retry — «Следующий урок» живёт в lesson-completion блоке)
 function showNavigationButtons() {
   const retryBtn = document.getElementById('retry-button');
-  const nextBtn = document.getElementById('complete-exercise');
-  const completeModuleBtn = document.getElementById('complete-module');
-  
-  // Показываем кнопку повтора
   if (retryBtn) {
     retryBtn.style.display = 'inline-flex';
-  }
-  
-  // Показываем кнопку перехода к следующему уроку или завершения модуля
-  if (nextBtn) {
-    nextBtn.style.display = 'inline-flex';
-    nextBtn.disabled = false;
-  } else if (completeModuleBtn) {
-    completeModuleBtn.style.display = 'inline-flex';
-    completeModuleBtn.disabled = false;
   }
 }
 
