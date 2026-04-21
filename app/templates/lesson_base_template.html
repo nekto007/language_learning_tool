@@ -554,8 +554,36 @@ window.showLessonCompletion = function(opts) {
     return;
   }
 
+  // Race guard: quiz/grammar templates call ``nextBtn.style.display =
+  // 'inline-flex'`` right before this helper, which fires the MutationObserver
+  // lower in this file and adds ``lsn-footer--visible`` to the footer. Hide
+  // the legacy curriculum-next surfaces synchronously so the user cannot
+  // click them during the ``fetchNextSlot`` round-trip. On fallback
+  // (standalone branch), we restore them before revealing the completion.
+  var legacyFooter = document.getElementById('lesson-footer');
+  var legacyDailyPlan = document.getElementById('daily-plan-next-step');
+  var _legacyFooterHadVisible = false;
+  if (legacyFooter) {
+    _legacyFooterHadVisible = legacyFooter.classList.contains('lsn-footer--visible');
+    legacyFooter.classList.remove('lsn-footer--visible');
+    legacyFooter.style.display = 'none';
+  }
+  if (legacyDailyPlan) {
+    legacyDailyPlan.style.display = 'none';
+  }
+  function _restoreLegacyFooter() {
+    if (legacyFooter) {
+      legacyFooter.style.display = '';
+      if (_legacyFooterHadVisible) legacyFooter.classList.add('lsn-footer--visible');
+    }
+    if (legacyDailyPlan) {
+      legacyDailyPlan.style.display = '';
+    }
+  }
+
   ctx.fetchNextSlot().then(function(data) {
     if (!data || data.success === false) {
+      _restoreLegacyFooter();
       _revealCompletion('standalone');
       return;
     }
@@ -566,24 +594,9 @@ window.showLessonCompletion = function(opts) {
       return;
     }
     if (!data.next || !data.next.url) {
+      _restoreLegacyFooter();
       _revealCompletion('standalone');
       return;
-    }
-
-    // Legacy curriculum-next surfaces (footer buttons + daily-plan widget)
-    // are hidden by CSS (see ``#lesson-completion[data-completion-mode="plan"]
-    // ~ #lesson-footer`` rule above), but some lesson templates force
-    // ``display: inline-flex`` on the footer buttons themselves which would
-    // otherwise keep them visible inside a flex container. Strip any forced
-    // inline display so the CSS wins.
-    var legacyFooter = document.getElementById('lesson-footer');
-    if (legacyFooter) {
-      legacyFooter.classList.remove('lsn-footer--visible');
-      legacyFooter.style.display = 'none';
-    }
-    var legacyDailyPlan = document.getElementById('daily-plan-next-step');
-    if (legacyDailyPlan) {
-      legacyDailyPlan.style.display = 'none';
     }
 
     var actions = document.getElementById('completion-actions');
@@ -633,6 +646,7 @@ window.showLessonCompletion = function(opts) {
 
     _revealCompletion('plan');
   }).catch(function() {
+    _restoreLegacyFooter();
     _revealCompletion('standalone');
   });
 };
