@@ -178,4 +178,64 @@
         var modal = $(MODAL_ID);
         if (modal && !modal.hidden) closeModal();
     });
+
+    /* Day-secured banner integration.
+     *
+     * - On dashboards rendered with the day-secured banner, the linear-plan
+     *   context must be cleared: the user has finished every baseline slot
+     *   for today, so any stale sessionStorage marker should not leak into
+     *   the next lesson they open from the continuation CTA.
+     * - The "На сегодня хватит" CTA dismisses the banner in-place without
+     *   reloading the page. It also strips the `?day_secured=1` query-param
+     *   from the URL so a subsequent refresh does not re-render it.
+     */
+    function _getBannerEl() {
+        return document.querySelector('[data-linear-day-secured-banner="true"]');
+    }
+
+    function _clearLinearContextIfAvailable() {
+        if (window.linearPlanContext && typeof window.linearPlanContext.clear === 'function') {
+            window.linearPlanContext.clear();
+        }
+    }
+
+    function _stripDaySecuredQueryParam() {
+        try {
+            var url = new URL(window.location.href);
+            if (!url.searchParams.has('day_secured')) return;
+            url.searchParams.delete('day_secured');
+            var clean = url.pathname + (url.search ? url.search : '') + (url.hash || '');
+            window.history.replaceState({}, document.title, clean);
+        } catch (e) {
+            /* ignore */
+        }
+    }
+
+    function _dismissBanner() {
+        var banner = _getBannerEl();
+        if (banner && banner.parentNode) {
+            banner.parentNode.removeChild(banner);
+        }
+        _stripDaySecuredQueryParam();
+    }
+
+    function _initDaySecuredBanner() {
+        if (!_getBannerEl()) return;
+        _clearLinearContextIfAvailable();
+    }
+
+    document.addEventListener('click', function (event) {
+        var target = event.target;
+        var dismiss = target.closest && target.closest('[data-linear-action="day-secured-dismiss"]');
+        if (dismiss) {
+            event.preventDefault();
+            _dismissBanner();
+        }
+    });
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _initDaySecuredBanner);
+    } else {
+        _initDaySecuredBanner();
+    }
 })();
