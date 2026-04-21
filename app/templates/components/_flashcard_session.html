@@ -402,15 +402,18 @@
     });
 </script>
 <script>
-// Plan-aware SRS completion: when ?from=linear_plan&slot=srs is active and
-// the celebration screen becomes visible, swap "К колодам" / "Ещё карточки"
-// for "Следующий слот плана · X" + "На дашборд". Delegates the actual DOM
-// work to ``linearPlanContext.applySrsPlanAwareCompletion``.
+// Plan-aware session completion: when ?from=linear_plan&slot=srs (SRS global
+// review) or ?from=linear_plan&slot=curriculum (curriculum card lesson) is
+// active and the celebration screen becomes visible, swap "К колодам" /
+// "Ещё карточки" for "Следующий слот плана · X" + "На дашборд". Delegates
+// the actual DOM work to ``linearPlanContext.applySrsPlanAwareCompletion``.
 (function() {
     'use strict';
     var ctx = window.linearPlanContext;
     if (!ctx || typeof ctx.applySrsPlanAwareCompletion !== 'function') return;
-    if (!ctx.isActive() || ctx.getSlotKind() !== 'srs') return;
+    if (!ctx.isActive()) return;
+    var slotKind = ctx.getSlotKind();
+    if (slotKind !== 'srs' && slotKind !== 'curriculum') return;
 
     var sessionComplete = document.getElementById('session-complete');
     if (!sessionComplete) return;

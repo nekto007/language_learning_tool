@@ -37,10 +37,11 @@ class TestLinearPlanContextSrsHelper:
         # so the flashcard-session template can call it without importing.
         assert 'applySrsPlanAwareCompletion: applySrsPlanAwareCompletion' in JS_SRC
 
-    def test_helper_gated_on_srs_slot_kind(self):
-        # Only SRS contexts should trigger the swap; other kinds must fall
-        # through so curriculum/book/error-review flows keep their own logic.
-        assert "getSlotKind() !== 'srs'" in JS_SRC
+    def test_helper_gated_on_flashcard_slot_kinds(self):
+        # The flashcard celebration renders for both SRS and curriculum
+        # card lessons, so the swap must trigger for both. Other kinds
+        # (book/error-review) have their own helpers.
+        assert "slotKind !== 'srs' && slotKind !== 'curriculum'" in JS_SRC
 
     def test_helper_uses_next_slot_endpoint(self):
         # Re-uses the same fetchNextSlot as the lesson-completion helper —
@@ -95,8 +96,9 @@ class TestFlashcardSessionTemplateWiring:
         # visible and then call ``applySrsPlanAwareCompletion``. The symbol
         # name is the contract — a rename breaks this test.
         assert 'applySrsPlanAwareCompletion' in TEMPLATE_SRC
-        # Gating: only SRS contexts should run the swap.
-        assert "getSlotKind() !== 'srs'" in TEMPLATE_SRC
+        # Gating: runs for SRS global review AND curriculum card lessons
+        # (both render through the shared _flashcard_session.html partial).
+        assert "slotKind !== 'srs' && slotKind !== 'curriculum'" in TEMPLATE_SRC
 
     def test_bootstrap_script_uses_mutation_observer(self):
         # ``_showCelebration`` sets ``display: 'flex'`` on ``#session-complete``
@@ -137,3 +139,17 @@ class TestStudyCardsRouteStillRenders:
         # context is absent.
         assert 'linear-plan-context.js' in html
         assert 'data-celebration-actions' in html
+
+    def test_study_index_includes_linear_plan_context(
+        self, authenticated_client,
+    ):
+        # The SRS baseline-slot URL points at /study/ (deck index), not
+        # /study/cards. Without linear-plan-context.js on the index page,
+        # the ``?from=linear_plan&slot=srs`` query-param never reaches
+        # sessionStorage, so the subsequent click into a deck loses plan
+        # context and the completion screen falls back to "К колодам".
+        response = authenticated_client.get(
+            '/study/?from=linear_plan&slot=srs'
+        )
+        assert response.status_code == 200
+        assert b'linear-plan-context.js' in response.data

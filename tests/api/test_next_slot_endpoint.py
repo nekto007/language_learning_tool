@@ -256,6 +256,29 @@ class TestNextSlotSelection:
         assert response.status_code == 200
         assert response.get_json()['next']['kind'] == 'curriculum'
 
+    def test_fragment_only_slot_url_rewritten_to_dashboard(
+        self, authenticated_client, linear_user,
+    ):
+        # The book-select slot uses ``#book-select-modal`` which only exists
+        # on the dashboard. When a completion screen on a lesson page asks
+        # for the next slot, the CTA must point somewhere reachable —
+        # rewrite bare fragments to /dashboard + fragment.
+        plan = _linear_plan(curriculum_done=True, srs_done=True)
+        plan['baseline_slots'][2]['url'] = '#book-select-modal'
+        with patch(
+            'app.daily_plan.linear.plan.get_linear_plan', return_value=plan,
+        ), patch(
+            'app.telegram.queries.get_daily_summary', return_value=_empty_summary(),
+        ):
+            response = authenticated_client.get(
+                '/api/daily-plan/next-slot?current=curriculum'
+            )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['next']['kind'] == 'book'
+        assert data['next']['url'] == '/dashboard#book-select-modal'
+
 
 # ── Day-secured transitions ──────────────────────────────────────────
 

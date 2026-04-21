@@ -210,7 +210,9 @@
    */
   function applySrsPlanAwareCompletion(container) {
     if (!container) return Promise.resolve('standalone');
-    if (!isActive() || getSlotKind() !== 'srs') {
+    if (!isActive()) return Promise.resolve('standalone');
+    var slotKind = getSlotKind();
+    if (slotKind !== 'srs' && slotKind !== 'curriculum') {
       return Promise.resolve('standalone');
     }
 

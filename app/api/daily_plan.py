@@ -406,9 +406,15 @@ def daily_plan_next_slot():
                 continue
             if plan_completion.get(slot_kind, False):
                 continue
+            slot_url = slot.get('url')
+            # Fragment-only URLs (e.g. ``#book-select-modal`` when the user
+            # has no chosen book yet) only work on the dashboard, so rewrite
+            # them so the CTA from a lesson completion actually goes somewhere.
+            if isinstance(slot_url, str) and slot_url.startswith('#'):
+                slot_url = '/dashboard' + slot_url
             next_slot_payload = {
                 'kind': _SLOT_KIND_TO_LINEAR.get(slot_kind, slot_kind),
-                'url': slot.get('url'),
+                'url': slot_url,
                 'title': slot.get('title'),
             }
             break

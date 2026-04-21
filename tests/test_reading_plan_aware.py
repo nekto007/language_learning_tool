@@ -160,6 +160,32 @@ class TestReaderTemplateWiring:
         assert '.linear-plan-book-toast__cta' in READER_TEMPLATE_SRC
 
 
+class TestReadBookRedirectPreservesPlanContext:
+    """`/read/<book_id>` redirects to the chapter-based reader. The redirect
+    must forward query params so ``?from=linear_plan&slot=book`` survives and
+    the plan-aware toast can activate.
+    """
+
+    def test_redirect_preserves_linear_plan_query_params(
+        self, authenticated_client, db_session,
+    ):
+        from unittest.mock import patch
+
+        book, _chapter = _make_book_with_chapter(db_session)
+        with patch(
+            'app.modules.decorators.ModuleService.is_module_enabled_for_user',
+            return_value=True,
+        ):
+            response = authenticated_client.get(
+                f'/read/{book.id}?from=linear_plan&slot=book',
+                follow_redirects=False,
+            )
+        assert response.status_code in (301, 302)
+        location = response.headers.get('Location', '')
+        assert 'from=linear_plan' in location
+        assert 'slot=book' in location
+
+
 class TestProgressEndpointSlotCompletion:
     """/api/progress PATCH now surfaces the linear reading-slot flag."""
 
