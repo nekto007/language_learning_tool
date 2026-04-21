@@ -438,6 +438,51 @@ class TestQuizPlanAwareCompletion:
         # would remain curriculum-next-only.
         assert 'showLessonCompletion({ score: data.score || 0 })' in html
 
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    def test_completed_grammar_lesson_calls_show_lesson_completion_on_load(
+        self, mock_sec_module, mock_sec_lesson,
+        authenticated_client, db_session, level_and_module,
+    ):
+        """Revisiting a completed grammar lesson must trigger the plan-aware
+        helper so plan context wins over legacy curriculum-next buttons."""
+        _, module = level_and_module
+        lesson = Lessons(
+            title='Completed Grammar',
+            type='grammar',
+            number=2,
+            module_id=module.id,
+            content={
+                'title': 'Past Simple',
+                'rule': 'Use for completed past actions.',
+                'exercises': [
+                    {
+                        'type': 'fill-blank',
+                        'question': 'He ___ home.',
+                        'correct_answer': 'went',
+                    }
+                ],
+            },
+        )
+        db_session.add(lesson)
+        db_session.flush()
+
+        user = authenticated_client.application.test_user
+        db_session.add(LessonProgress(
+            user_id=user.id,
+            lesson_id=lesson.id,
+            status='completed',
+            score=100.0,
+            data={'score': 100},
+        ))
+        db_session.commit()
+
+        response = authenticated_client.get(f'/learn/{lesson.id}/')
+        assert response.status_code == 200
+        html = response.data.decode()
+        # Plan-aware entry point on page load for already-completed grammar.
+        assert 'showLessonCompletion({ score: 100 })' in html
+
 
 class TestModuleLessonsLockedReasons:
     """Test that locked lessons show the reason on module lessons page."""

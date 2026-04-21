@@ -185,6 +185,29 @@ class TestReadBookRedirectPreservesPlanContext:
         assert 'from=linear_plan' in location
         assert 'slot=book' in location
 
+    def test_chapter_reader_back_url_drops_linear_plan_tracking_flag(
+        self, authenticated_client, db_session,
+    ):
+        """``?from=linear_plan`` must not leak into the reader back-button
+        href — it is a tracking flag, not a URL.
+        """
+        from unittest.mock import patch
+
+        book, _chapter = _make_book_with_chapter(db_session)
+        with patch(
+            'app.modules.decorators.ModuleService.is_module_enabled_for_user',
+            return_value=True,
+        ):
+            response = authenticated_client.get(
+                f'/read/{book.id}/chapters?from=linear_plan&slot=book',
+                follow_redirects=False,
+            )
+        assert response.status_code == 200
+        body = response.get_data(as_text=True)
+        # The string 'linear_plan' must not appear as an href value.
+        assert 'href="linear_plan"' not in body
+        assert "href='linear_plan'" not in body
+
 
 class TestProgressEndpointSlotCompletion:
     """/api/progress PATCH now surfaces the linear reading-slot flag."""

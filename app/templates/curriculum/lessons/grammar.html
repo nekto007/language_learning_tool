@@ -1135,6 +1135,10 @@ document.addEventListener('DOMContentLoaded', function() {
       completeModuleBtn.style.display = 'inline-flex';
       completeModuleBtn.disabled = false;
     }
+
+    if (typeof showLessonCompletion === 'function') {
+      showLessonCompletion({ score: 100 });
+    }
   {% endif %}
 });
 </script>

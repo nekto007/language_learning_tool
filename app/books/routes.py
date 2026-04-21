@@ -370,8 +370,8 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
     ).first()
 
     back_url = request.args.get('from')
-    if back_url == 'daily_plan':
-        back_url = None  # daily_plan is a tracking flag, not a URL
+    if back_url in ('daily_plan', 'linear_plan'):
+        back_url = None  # tracking flag, not a URL
     if not back_url:
         referrer = request.referrer
         if referrer:
