@@ -248,6 +248,16 @@ class TestQuiz:
 
         assert response.status_code == 200
 
+    def test_quiz_linear_plan_mode(self, authenticated_client, study_settings):
+        """Test linear-plan deck quiz route."""
+        response = authenticated_client.get(
+            '/study/quiz/linear-plan?source=linear_plan_deck_quiz&limit=30'
+            '&from=linear_plan&slot=srs'
+        )
+
+        assert response.status_code == 200
+        assert b'linear_plan_deck_quiz' in response.data
+
     def test_quiz_auto_no_words(self, authenticated_client, study_settings):
         """Test auto quiz with no words available"""
         response = authenticated_client.get('/study/quiz/auto')

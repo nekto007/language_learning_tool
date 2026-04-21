@@ -40,6 +40,9 @@ def _preload_deck_word_counts(decks: list) -> None:
 @login_required
 @module_required('study')
 def index():
+    if request.args.get('from') == 'linear_plan' and request.args.get('slot') == 'srs':
+        return redirect(url_for('study.cards', **request.args.to_dict(flat=True)))
+
     due_items_count = UserCardDirection.query \
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
         .filter(
@@ -249,8 +252,27 @@ def cards():
     source = request.args.get('source', 'auto')
     from_daily_plan = request.args.get('from') == 'daily_plan'
     deck_word_ids = get_daily_plan_mix_word_ids(current_user.id) if source == 'daily_plan_mix' else None
+    fetch_cards_params = {'source': source}
+    if request.args.get('from'):
+        fetch_cards_params['from'] = request.args['from']
+    if request.args.get('slot'):
+        fetch_cards_params['slot'] = request.args['slot']
 
-    counts = SRSService.get_card_counts(current_user.id, deck_word_ids=deck_word_ids)
+    if source == 'linear_plan' and request.args.get('slot') == 'srs':
+        from app.daily_plan.linear.slots.srs_slot import count_srs_due_cards
+
+        due_count = count_srs_due_cards(current_user.id, db)
+        counts = {
+            'due_count': due_count,
+            'new_count': 0,
+            'new_today': 0,
+            'new_limit': 0,
+            'can_study_new': False,
+            'nothing_to_study': due_count == 0,
+            'limit_reached': False,
+        }
+    else:
+        counts = SRSService.get_card_counts(current_user.id, deck_word_ids=deck_word_ids)
 
     session = SessionService.start_session(current_user.id, 'cards')
 
@@ -267,7 +289,7 @@ def cards():
         fc_back_url=url_for('words.dashboard') if from_daily_plan else url_for('study.index'),
         fc_cards=[],
         fc_fetch_cards_url='/study/api/get-study-items',
-        fc_fetch_cards_params={'source': source},
+        fc_fetch_cards_params=fetch_cards_params,
         fc_grade_url='/study/api/update-study-item',
         fc_complete_url='/study/api/complete-session',
         fc_on_complete_url=url_for('words.dashboard') if from_daily_plan else url_for('study.index'),

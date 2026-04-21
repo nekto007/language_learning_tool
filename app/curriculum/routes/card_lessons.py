@@ -14,7 +14,7 @@ from app.curriculum.service import (
     get_card_session_for_lesson, process_card_review_for_lesson, sync_lesson_cards_to_words,
 )
 from app.curriculum.validators import SRSReviewSchema, validate_request_data
-from app.study.models import UserCardDirection, UserWord
+from app.study.models import UserCardDirection, UserWord, UserXP
 from app.utils.db import db
 from app.words.models import CollectionWords
 
@@ -184,7 +184,6 @@ def _build_cards_for_words(
 # =============================================================================
 
 LINEAR_PLAN_CARD_SOURCE = 'linear_plan_card'
-_LINEAR_PLAN_MIX_MAX = 10
 
 
 def _is_linear_plan_card_source() -> bool:
@@ -198,36 +197,6 @@ def _is_linear_plan_card_source() -> bool:
     except RuntimeError:
         return False
     return source == LINEAR_PLAN_CARD_SOURCE or from_param == 'linear_plan'
-
-
-def _apply_linear_plan_source(user_id: int, cards_list: list[dict]) -> list[dict]:
-    """Prepend up to ``min(budget, 10)`` due-review mix cards when the linear
-    plan's SRS budget has room. Returns ``cards_list`` unchanged when the
-    budget is exhausted or there are no due cards.
-    """
-    from app.daily_plan.linear.slots.srs_slot import (
-        get_linear_plan_due_mix_cards,
-        get_srs_budget_remaining,
-    )
-
-    budget = get_srs_budget_remaining(user_id, db)
-    if budget <= 0:
-        return cards_list
-
-    mix_limit = min(budget, _LINEAR_PLAN_MIX_MAX)
-    mix_cards = get_linear_plan_due_mix_cards(user_id, db, mix_limit)
-    if not mix_cards:
-        return cards_list
-
-    existing_direction_ids = {
-        c.get('direction_id')
-        for c in cards_list
-        if c.get('direction_id') is not None
-    }
-    deduped_mix = [
-        c for c in mix_cards if c.get('direction_id') not in existing_direction_ids
-    ]
-    return deduped_mix + cards_list
 
 
 def render_card_lesson(lesson):
@@ -310,9 +279,6 @@ def render_card_lesson(lesson):
         cards_list = _build_cards_for_words(
             word_objects, current_user.id, activate_srs=activate_srs,
         )
-
-    if linear_plan_card:
-        cards_list = _apply_linear_plan_source(current_user.id, cards_list)
 
     next_review_time = None
     if len(cards_list) == 0:
@@ -486,9 +452,6 @@ def card_lesson(lesson_id):
             word_objects, current_user.id, activate_srs=activate_srs,
         )
 
-    if linear_plan_card:
-        cards_list = _apply_linear_plan_source(current_user.id, cards_list)
-
     next_review_time = None
     if len(cards_list) == 0:
         if word_ids:
@@ -608,13 +571,15 @@ def complete_srs_session(lesson_id):
 
         db.session.commit()
 
+        xp_award = None
         if newly_completed:
             try:
                 from app.daily_plan.linear.xp import (
                     maybe_award_curriculum_xp,
                     maybe_award_linear_perfect_day,
                 )
-                if maybe_award_curriculum_xp(current_user.id, lesson, db_session=db) is not None:
+                xp_award = maybe_award_curriculum_xp(current_user.id, lesson, db_session=db)
+                if xp_award is not None:
                     maybe_award_linear_perfect_day(current_user.id, db_session=db)
                     db.session.commit()
             except Exception:
@@ -624,10 +589,23 @@ def complete_srs_session(lesson_id):
                 )
                 db.session.rollback()
 
+        user_xp = UserXP.get_or_create(current_user.id)
+        correct = int(round(cards_studied * (accuracy / 100))) if cards_studied > 0 else 0
+        incorrect = max(int(cards_studied) - correct, 0)
+
         return jsonify({
             'success': True,
             'cards_studied': cards_studied,
-            'accuracy': accuracy
+            'accuracy': accuracy,
+            'stats': {
+                'words_studied': cards_studied,
+                'correct': correct,
+                'incorrect': incorrect,
+                'percentage': accuracy,
+            },
+            'xp_earned': xp_award.xp_awarded if xp_award else 0,
+            'total_xp': user_xp.total_xp,
+            'level': user_xp.level,
         })
 
     except Exception as e:

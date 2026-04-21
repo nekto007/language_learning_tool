@@ -142,6 +142,41 @@ class TestEmptyContentValidation:
         html = response.data.decode()
         assert 'Содержимое урока недоступно' not in html
 
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    def test_card_lesson_complete_srs_returns_flashcard_stats(
+        self, mock_sec_module, mock_sec_lesson,
+        authenticated_client, db_session, level_and_module
+    ):
+        """Completion response must match the shared flashcard UI contract."""
+        _, module = level_and_module
+        card_lesson = Lessons(
+            title='Card Lesson Complete',
+            type='card',
+            number=2,
+            module_id=module.id,
+            content=None
+        )
+        db_session.add(card_lesson)
+        db_session.commit()
+
+        response = authenticated_client.post(
+            f'/curriculum/lessons/{card_lesson.id}/complete-srs',
+            json={'cards_studied': 10, 'accuracy': 80},
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert data['stats'] == {
+            'words_studied': 10,
+            'correct': 8,
+            'incorrect': 2,
+            'percentage': 80,
+        }
+        assert data['xp_earned'] >= 0
+        assert data['level'] >= 1
+
 
 class TestProgressSaveIndicator:
     """Test that the auto-save toast element is present in lesson templates."""
