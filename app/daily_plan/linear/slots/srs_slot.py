@@ -104,6 +104,23 @@ def count_srs_cards_studied_today(user_id: int, db: Any) -> int:
     )
 
 
+def count_srs_reviews_today(user_id: int, db: Any) -> int:
+    """Count review cards done today using the same semantics as /study."""
+    start = _today_start()
+    return int(
+        db.session.query(func.count(UserCardDirection.id))
+        .filter(
+            UserCardDirection.user_word_id.in_(_user_word_ids_subquery(user_id, db)),
+            UserCardDirection.last_reviewed.isnot(None),
+            UserCardDirection.last_reviewed >= start,
+            UserCardDirection.first_reviewed.isnot(None),
+            UserCardDirection.first_reviewed < start,
+        )
+        .scalar()
+        or 0
+    )
+
+
 def build_srs_slot(user_id: int, db: Any) -> LinearSlot:
     """Build the SRS baseline slot for the dashboard.
 
@@ -111,13 +128,23 @@ def build_srs_slot(user_id: int, db: Any) -> LinearSlot:
     collapses to a completed placeholder — "review tomorrow" if the user
     touched any cards today, "nothing due" otherwise.
     """
-    due_count = count_srs_due_cards(user_id, db)
+    settings = StudySettings.get_settings(user_id)
+    reviews_limit = max(int(settings.reviews_per_day or 0), 0)
+    reviews_today = count_srs_reviews_today(user_id, db)
+    reviews_remaining = max(reviews_limit - reviews_today, 0)
+
+    backlog_due_count = count_srs_due_cards(user_id, db)
+    due_count = min(backlog_due_count, reviews_remaining)
     studied_today = count_srs_cards_studied_today(user_id, db)
     budget_remaining = get_srs_budget_remaining(user_id, db)
 
     data = {
         'due_count': due_count,
+        'backlog_due_count': backlog_due_count,
         'studied_today': studied_today,
+        'reviews_today': reviews_today,
+        'reviews_limit': reviews_limit,
+        'reviews_remaining': reviews_remaining,
         'budget_remaining': budget_remaining,
     }
 
@@ -127,12 +154,15 @@ def build_srs_slot(user_id: int, db: Any) -> LinearSlot:
             title=f'Повторить {due_count} карточек',
             lesson_type=None,
             eta_minutes=_SRS_SLOT_ETA_MINUTES,
-            url=build_slot_url('/study?source=linear_plan', LinearSlotKind.SRS),
+            url=build_slot_url('/study/cards?source=linear_plan', LinearSlotKind.SRS),
             completed=False,
             data=data,
         )
 
-    title = 'Карточки повторим завтра' if studied_today > 0 else 'Сегодня повторять нечего'
+    if backlog_due_count > 0 and reviews_remaining == 0:
+        title = 'Лимит повторений на сегодня достигнут'
+    else:
+        title = 'Карточки повторим завтра' if studied_today > 0 else 'Сегодня повторять нечего'
     return LinearSlot(
         kind='srs',
         title=title,

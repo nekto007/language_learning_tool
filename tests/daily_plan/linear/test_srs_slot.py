@@ -25,6 +25,7 @@ from app.daily_plan.linear.slots.srs_slot import (
     build_srs_slot,
     count_srs_cards_studied_today,
     count_srs_due_cards,
+    count_srs_reviews_today,
     get_linear_plan_due_mix_cards,
     get_srs_budget_remaining,
 )
@@ -91,6 +92,12 @@ def _make_direction(
 def _set_new_words_per_day(db_session, user: User, limit: int) -> None:
     settings = StudySettings.get_settings(user.id)
     settings.new_words_per_day = limit
+    db_session.commit()
+
+
+def _set_reviews_per_day(db_session, user: User, limit: int) -> None:
+    settings = StudySettings.get_settings(user.id)
+    settings.reviews_per_day = limit
     db_session.commit()
 
 
@@ -180,9 +187,72 @@ class TestSrsSlotStates:
         assert isinstance(slot, LinearSlot)
         assert slot.kind == 'srs'
         assert slot.completed is False
-        assert slot.url == '/study?source=linear_plan&from=linear_plan&slot=srs'
+        assert slot.url == '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
         assert slot.data['due_count'] == 3
+        assert slot.data['backlog_due_count'] == 3
         assert 'Повторить 3' in slot.title
+
+    def test_active_slot_is_capped_by_reviews_per_day(self, db_session):
+        user = _make_user(db_session)
+        _set_reviews_per_day(db_session, user, 100)
+        now = datetime.now(timezone.utc)
+        for _ in range(212):
+            word = _make_word(db_session)
+            uw = _make_user_word(db_session, user, word)
+            _make_direction(
+                db_session, uw,
+                state=CardState.REVIEW.value,
+                next_review=now - timedelta(hours=1),
+                last_reviewed=now - timedelta(days=2),
+                first_reviewed=now - timedelta(days=5),
+                repetitions=3,
+            )
+
+        slot = build_srs_slot(user.id, real_db)
+
+        assert slot.completed is False
+        assert slot.title == 'Повторить 100 карточек'
+        assert slot.data['due_count'] == 100
+        assert slot.data['backlog_due_count'] == 212
+        assert slot.data['reviews_limit'] == 100
+        assert slot.data['reviews_remaining'] == 100
+
+    def test_slot_completed_when_review_limit_exhausted(self, db_session):
+        user = _make_user(db_session)
+        _set_reviews_per_day(db_session, user, 2)
+        now = datetime.now(timezone.utc)
+
+        for _ in range(2):
+            word = _make_word(db_session)
+            uw = _make_user_word(db_session, user, word)
+            _make_direction(
+                db_session, uw,
+                state=CardState.REVIEW.value,
+                next_review=now + timedelta(days=2),
+                last_reviewed=now,
+                first_reviewed=now - timedelta(days=5),
+                repetitions=3,
+            )
+
+        word = _make_word(db_session)
+        uw = _make_user_word(db_session, user, word)
+        _make_direction(
+            db_session, uw,
+            state=CardState.REVIEW.value,
+            next_review=now - timedelta(hours=1),
+            last_reviewed=now - timedelta(days=2),
+            first_reviewed=now - timedelta(days=5),
+            repetitions=3,
+        )
+
+        slot = build_srs_slot(user.id, real_db)
+
+        assert slot.completed is True
+        assert slot.url is None
+        assert slot.title == 'Лимит повторений на сегодня достигнут'
+        assert slot.data['due_count'] == 0
+        assert slot.data['backlog_due_count'] == 1
+        assert slot.data['reviews_remaining'] == 0
 
     def test_collapsed_when_no_due_but_studied_today(self, db_session):
         user = _make_user(db_session)
@@ -319,6 +389,35 @@ class TestSrsCountHelpers:
         )
 
         assert count_srs_cards_studied_today(user.id, real_db) == 1
+
+    def test_count_reviews_today_excludes_first_reviews(self, db_session):
+        user = _make_user(db_session)
+        now = datetime.now(timezone.utc)
+
+        first_review_word = _make_word(db_session)
+        first_review_uw = _make_user_word(db_session, user, first_review_word)
+        _make_direction(
+            db_session, first_review_uw,
+            state=CardState.LEARNING.value,
+            last_reviewed=now,
+            first_reviewed=now,
+            next_review=now + timedelta(days=1),
+            repetitions=1,
+        )
+
+        review_word = _make_word(db_session)
+        review_uw = _make_user_word(db_session, user, review_word)
+        _make_direction(
+            db_session, review_uw,
+            state=CardState.REVIEW.value,
+            last_reviewed=now,
+            first_reviewed=now - timedelta(days=3),
+            next_review=now + timedelta(days=1),
+            repetitions=3,
+        )
+
+        assert count_srs_cards_studied_today(user.id, real_db) == 2
+        assert count_srs_reviews_today(user.id, real_db) == 1
 
 
 class TestCurriculumCardActivationGate:
