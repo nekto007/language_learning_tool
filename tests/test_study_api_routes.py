@@ -130,6 +130,32 @@ class TestGetStudyItems:
         data = json.loads(response.data)
         assert data['status'] != 'daily_limit_reached'
 
+    def test_linear_plan_srs_returns_only_due_review_cards(
+        self, authenticated_client, user_words, user_card_directions, study_settings,
+    ):
+        """Linear SRS slot must match dashboard due-count semantics.
+
+        It should not pull adaptive new cards, future review cards, or
+        learning cards inside the grace window. The dashboard slot says
+        "Повторить N карточек", so the session must contain exactly those
+        cards that are due right now.
+        """
+        from app.daily_plan.linear.slots.srs_slot import count_srs_due_cards
+        from app.utils.db import db as real_db
+
+        response = authenticated_client.get(
+            '/study/api/get-study-items?source=linear_plan&from=linear_plan&slot=srs'
+        )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['status'] == 'success'
+        assert len(data['items']) == count_srs_due_cards(user_words[0].user_id, real_db)
+        assert data['items']
+        assert {item['state'] for item in data['items']} == {'review'}
+        assert all(item['is_new'] is False for item in data['items'])
+        assert data['stats']['new_cards_limit'] == data['stats']['new_cards_today']
+
     def test_prioritizes_due_reviews(self, authenticated_client, user_words, user_card_directions, study_settings):
         """Test that due reviews are prioritized over new cards"""
         response = authenticated_client.get('/study/api/get-study-items?source=auto')
@@ -210,6 +236,28 @@ class TestGetStudyItems:
         assert response.status_code == 200
         data = json.loads(response.data)
         assert data['status'] == 'error'
+
+
+class TestGetQuizQuestions:
+    def test_linear_plan_deck_quiz_includes_mastered_deck_words(
+        self, authenticated_client, quiz_deck_with_words, test_words_list, db_session,
+    ):
+        user_id = authenticated_client.application.test_user.id
+        mastered_ids = [word.id for word in test_words_list[:5]]
+        for word_id in mastered_ids:
+            user_word = UserWord.get_or_create(user_id, word_id)
+            user_word.status = 'mastered'
+        db_session.commit()
+
+        response = authenticated_client.get(
+            '/study/api/get-quiz-questions?source=linear_plan_deck_quiz&count=30'
+        )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['status'] == 'success'
+        question_word_ids = {q['word_id'] for q in data['questions']}
+        assert set(mastered_ids).issubset(question_word_ids)
 
 
 class TestUpdateStudyItem:
@@ -720,6 +768,42 @@ class TestCompleteQuiz:
         response = authenticated_client.post('/study/api/complete-quiz', json=quiz_data)
 
         assert response.status_code == 200
+
+    def test_linear_plan_deck_quiz_awards_srs_slot_xp(
+        self, authenticated_client, test_user, user_xp, db_session,
+    ):
+        from app.achievements.models import StreakEvent
+        from app.daily_plan.linear.slots.srs_slot import build_srs_slot
+        from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
+
+        test_user.use_linear_plan = True
+        db_session.commit()
+
+        response = authenticated_client.post('/study/api/complete-quiz', json={
+            'source': 'linear_plan_deck_quiz',
+            'from': 'linear_plan',
+            'slot': 'srs',
+            'total_questions': 20,
+            'correct_answers': 15,
+            'time_taken': 180,
+            'score': 75,
+        })
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['success'] is True
+
+        event = StreakEvent.query.filter(
+            StreakEvent.user_id == test_user.id,
+            StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
+            StreakEvent.details['source'].astext == 'linear_srs_global',
+        ).first()
+        assert event is not None
+
+        lesson = type('LessonStub', (), {'type': 'card'})()
+        slot = build_srs_slot(test_user.id, db, curriculum_lesson=lesson)
+        assert slot.completed is True
+        assert slot.url is None
 
     def test_invalid_deck_id(self, authenticated_client, user_xp):
         """Test with invalid deck ID"""

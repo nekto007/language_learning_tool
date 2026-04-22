@@ -27,6 +27,11 @@ def get_study_items():
     word_source = request.args.get('source', 'auto')
     deck_id = request.args.get('deck_id', type=int)
     extra_study = request.args.get('extra_study', 'false').lower() == 'true'
+    is_linear_plan_srs = (
+        word_source == 'linear_plan'
+        and request.args.get('from') == 'linear_plan'
+        and request.args.get('slot') == 'srs'
+    )
 
     exclude_ids_str = request.args.get('exclude_card_ids', '')
     exclude_card_ids = []
@@ -78,9 +83,15 @@ def get_study_items():
             UserCardDirection.first_reviewed.isnot(None)
         ).scalar() or 0
 
-        adaptive_new, adaptive_reviews = SRSService.get_adaptive_limits(current_user.id)
-        new_cards_limit = adaptive_new
-        reviews_limit = adaptive_reviews
+        if is_linear_plan_srs:
+            from app.daily_plan.linear.slots.srs_slot import count_srs_due_cards
+
+            new_cards_limit = new_cards_today
+            reviews_limit = reviews_today + count_srs_due_cards(current_user.id, db)
+        else:
+            adaptive_new, adaptive_reviews = SRSService.get_adaptive_limits(current_user.id)
+            new_cards_limit = adaptive_new
+            reviews_limit = adaptive_reviews
 
     new_cards_limit_reached = new_cards_today >= new_cards_limit
     reviews_limit_reached = reviews_today >= reviews_limit
@@ -92,6 +103,7 @@ def get_study_items():
     is_daily_plan_session = word_source == 'daily_plan_mix'
 
     if (not extra_study
+            and not is_linear_plan_srs
             and not is_daily_plan_session
             and new_cards_limit_reached
             and reviews_limit_reached):
@@ -109,7 +121,10 @@ def get_study_items():
 
     result_items = []
 
-    if extra_study:
+    if is_linear_plan_srs:
+        new_limit = 0
+        review_limit = max(0, reviews_limit - reviews_today)
+    elif extra_study:
         new_limit = 5
         review_limit = 10
     else:
@@ -193,7 +208,7 @@ def get_study_items():
 
     # PRIORITY 1: RELEARNING cards
     if remaining_reviews > 0:
-        relearning_cards = base_due_query(include_learning_grace=True).filter(
+        relearning_cards = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
             UserCardDirection.state == CardState.RELEARNING.value
         ).order_by(
             UserCardDirection.next_review
@@ -207,7 +222,7 @@ def get_study_items():
 
     # PRIORITY 2: LEARNING cards
     if remaining_reviews > 0:
-        learning_cards = base_due_query(include_learning_grace=True).filter(
+        learning_cards = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
             UserCardDirection.state == CardState.LEARNING.value
         ).order_by(
             UserCardDirection.next_review
@@ -256,7 +271,7 @@ def get_study_items():
 
     # PRIORITY 3: REVIEW cards (due today)
     if remaining_reviews > 0:
-        review_cards = base_due_query(include_today=True).filter(
+        review_cards = base_due_query(include_today=not is_linear_plan_srs).filter(
             or_(
                 UserCardDirection.state == CardState.REVIEW.value,
                 UserCardDirection.state.is_(None)

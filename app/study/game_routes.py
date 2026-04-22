@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.study.blueprint import study, get_audio_url_for_word
@@ -17,6 +17,10 @@ from app.study.services import (
 )
 
 logger = logging.getLogger(__name__)
+
+LINEAR_PLAN_DECK_QUIZ_SOURCE = 'linear_plan_deck_quiz'
+LINEAR_PLAN_DECK_QUIZ_DEFAULT_LIMIT = 30
+LINEAR_PLAN_DECK_QUIZ_MAX_LIMIT = 30
 
 
 @study.route('/quiz')
@@ -53,6 +57,33 @@ def quiz_auto():
         word_source='auto',
         deck_id=None,
         word_limit=word_limit
+    )
+
+
+@study.route('/quiz/linear-plan')
+@login_required
+@module_required('study')
+def quiz_linear_plan():
+    settings = StudySettings.get_settings(current_user.id)
+    word_limit = request.args.get(
+        'limit',
+        default=LINEAR_PLAN_DECK_QUIZ_DEFAULT_LIMIT,
+        type=int,
+    )
+    word_limit = min(
+        max(word_limit or LINEAR_PLAN_DECK_QUIZ_DEFAULT_LIMIT, 1),
+        LINEAR_PLAN_DECK_QUIZ_MAX_LIMIT,
+    )
+    session = SessionService.start_session(current_user.id, 'quiz')
+
+    return render_template(
+        'study/quiz.html',
+        session_id=session.id,
+        settings=settings,
+        word_source=LINEAR_PLAN_DECK_QUIZ_SOURCE,
+        deck_id=None,
+        deck_title='Квиз по словам из колод',
+        word_limit=word_limit,
     )
 
 
@@ -206,10 +237,30 @@ def achievements():
 def get_quiz_questions():
     from app.study.models import QuizDeck, QuizDeckWord
 
-    question_count = min(int(request.args.get('count', 20)), 200)
+    source = request.args.get('source', 'auto')
+    requested_count = request.args.get('count', type=int)
+    if source == LINEAR_PLAN_DECK_QUIZ_SOURCE:
+        question_count = min(
+            max(requested_count or LINEAR_PLAN_DECK_QUIZ_DEFAULT_LIMIT, 1),
+            LINEAR_PLAN_DECK_QUIZ_MAX_LIMIT,
+        )
+    else:
+        question_count = min(max(requested_count or 20, 1), 200)
     deck_id = request.args.get('deck_id', type=int)
 
     words = []
+
+    class DeckWordAdapter:
+        def __init__(self, deck_word):
+            self.id = deck_word.id
+            self.english_word = deck_word.english_word
+            self.russian_word = deck_word.russian_word
+            self.get_download = 0
+            self.listening = None
+            if deck_word.word_id and deck_word.word:
+                self.id = deck_word.word_id
+                self.get_download = deck_word.word.get_download
+                self.listening = deck_word.word.listening
 
     if deck_id:
         deck = QuizDeck.query.get_or_404(deck_id)
@@ -230,21 +281,57 @@ def get_quiz_questions():
                 'questions': []
             })
 
-        class DeckWordAdapter:
-            def __init__(self, deck_word):
-                self.id = deck_word.id
-                self.english_word = deck_word.english_word
-                self.russian_word = deck_word.russian_word
-                self.get_download = 0
-                self.listening = None
-                if deck_word.word_id and deck_word.word:
-                    self.get_download = deck_word.word.get_download
-                    self.listening = deck_word.word.listening
-
         words = [DeckWordAdapter(dw) for dw in deck_words]
 
         if len(words) > question_count:
             words = random.sample(words, question_count)
+
+    elif source == LINEAR_PLAN_DECK_QUIZ_SOURCE:
+        valid_collection_word = and_(
+            QuizDeckWord.word_id.isnot(None),
+            CollectionWords.english_word.isnot(None),
+            CollectionWords.english_word != '',
+            CollectionWords.russian_word.isnot(None),
+            CollectionWords.russian_word != '',
+        )
+        valid_custom_word = and_(
+            QuizDeckWord.custom_english.isnot(None),
+            QuizDeckWord.custom_english != '',
+            QuizDeckWord.custom_russian.isnot(None),
+            QuizDeckWord.custom_russian != '',
+        )
+        deck_words = (
+            db.session.query(QuizDeckWord)
+            .join(QuizDeck, QuizDeckWord.deck_id == QuizDeck.id)
+            .outerjoin(CollectionWords, QuizDeckWord.word_id == CollectionWords.id)
+            .filter(
+                QuizDeck.user_id == current_user.id,
+                or_(valid_collection_word, valid_custom_word),
+            )
+            .order_by(func.random())
+            .limit(max(question_count * 10, 100))
+            .all()
+        )
+
+        seen: set[object] = set()
+        for deck_word in deck_words:
+            if not deck_word.english_word or not deck_word.russian_word:
+                continue
+            key = (
+                deck_word.word_id
+                if deck_word.word_id is not None
+                else (
+                    'custom',
+                    deck_word.english_word.strip().lower(),
+                    deck_word.russian_word.strip().lower(),
+                )
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            words.append(DeckWordAdapter(deck_word))
+            if len(words) >= question_count:
+                break
 
     else:
         learning_words = db.session.query(CollectionWords).join(
@@ -561,6 +648,9 @@ def complete_quiz():
     data = request.json or {}
     session_id = data.get('session_id')
     deck_id = data.get('deck_id')
+    source = data.get('source')
+    plan_from = data.get('from')
+    plan_slot = data.get('slot')
     score = data.get('score', 0)
     total_questions = data.get('total_questions', 0)
     correct_answers = data.get('correct_answers', 0)
@@ -615,6 +705,28 @@ def complete_quiz():
     )
 
     user_xp = XPService.award_xp(current_user.id, xp_breakdown['total_xp'])
+
+    if (
+        source == LINEAR_PLAN_DECK_QUIZ_SOURCE
+        and plan_from == 'linear_plan'
+        and plan_slot == 'srs'
+        and int(total_questions or 0) > 0
+    ):
+        try:
+            from app.daily_plan.linear.xp import (
+                maybe_award_linear_perfect_day,
+                maybe_award_srs_global_xp,
+            )
+            if maybe_award_srs_global_xp(current_user.id, db_session=db) is not None:
+                maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                db.session.commit()
+        except Exception:
+            logger.warning(
+                'linear_xp: deck quiz award failed user=%s',
+                current_user.id,
+                exc_info=True,
+            )
+            db.session.rollback()
 
     quiz_data = {
         'score': score,

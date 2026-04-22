@@ -92,7 +92,7 @@ def get_linear_plan(
         )
 
     curriculum_slot = build_curriculum_slot(user_id, session_provider, next_lesson=next_lesson)
-    srs_slot = build_srs_slot(user_id, session_provider)
+    srs_slot = build_srs_slot(user_id, session_provider, curriculum_lesson=next_lesson)
     reading_slot = build_reading_slot(user_id, session_provider)
     error_review_slot = build_error_review_slot(user_id, session_provider)
 

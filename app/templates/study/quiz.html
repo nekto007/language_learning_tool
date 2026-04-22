@@ -920,6 +920,8 @@
         // Get word limit from URL parameter if not set by server
         const urlParams = new URLSearchParams(window.location.search);
         const wordLimit = {{ word_limit|tojson }} || parseInt(urlParams.get('limit')) || null;
+        const planFrom = urlParams.get('from') || null;
+        const planSlot = urlParams.get('slot') || null;
         const showTranslations = {{ settings.include_translations|tojson }};
         const showExamples = {{ settings.include_examples|tojson }};
         const playAudio = {{ settings.include_audio|tojson }};
@@ -991,6 +993,12 @@
                 if (wordLimit && wordLimit !== null) {
                     url += `&count=${wordLimit}`;
                 }
+                if (planFrom) {
+                    url += `&from=${encodeURIComponent(planFrom)}`;
+                }
+                if (planSlot) {
+                    url += `&slot=${encodeURIComponent(planSlot)}`;
+                }
 
                 const response = await fetch(url);
 
@@ -1013,7 +1021,7 @@
         }
 
         function getQuizStateKey() {
-            const quizKey = deckId ? `deck_${deckId}` : 'auto';
+            const quizKey = deckId ? `deck_${deckId}` : (wordSource || 'auto');
             return `quizState_${quizKey}`;
         }
 
@@ -1441,6 +1449,9 @@
                     body: JSON.stringify({
                         session_id: sessionId,
                         deck_id: deckId,
+                        source: wordSource,
+                        from: planFrom,
+                        slot: planSlot,
                         score: scorePercentage,
                         total_questions: sessionStats.total,
                         correct_answers: sessionStats.correct,
@@ -1523,7 +1534,9 @@
                     }
                     retryBtn.href = retryUrl;
                 } else if (retryBtn) {
-                    retryBtn.href = '{{ url_for("study.quiz") }}?fresh=true';
+                    const retryParams = new URLSearchParams(window.location.search);
+                    retryParams.set('fresh', 'true');
+                    retryBtn.href = `${window.location.pathname}?${retryParams.toString()}`;
                 }
 
             } catch (error) {

@@ -127,6 +127,9 @@ class TestStudyCardsRouteStillRenders:
         # "К колодам" CTA even under the plan context.
         assert 'linear-plan-context.js' in html
         assert 'data-celebration-actions' in html
+        assert '"source": "linear_plan"' in html
+        assert '"from": "linear_plan"' in html
+        assert '"slot": "srs"' in html
 
     def test_study_cards_without_plan_params_still_standalone(
         self, authenticated_client, study_settings,
@@ -140,16 +143,16 @@ class TestStudyCardsRouteStillRenders:
         assert 'linear-plan-context.js' in html
         assert 'data-celebration-actions' in html
 
-    def test_study_index_includes_linear_plan_context(
+    def test_study_index_redirects_linear_plan_srs_to_cards(
         self, authenticated_client,
     ):
-        # The SRS baseline-slot URL points at /study/ (deck index), not
-        # /study/cards. Without linear-plan-context.js on the index page,
-        # the ``?from=linear_plan&slot=srs`` query-param never reaches
-        # sessionStorage, so the subsequent click into a deck loses plan
-        # context and the completion screen falls back to "К колодам".
+        # Old SRS baseline-slot URLs pointed at /study/ (deck index). Keep
+        # those links working, but send the user straight into the card
+        # session and preserve plan context for the completion screen.
         response = authenticated_client.get(
-            '/study/?from=linear_plan&slot=srs'
+            '/study/?source=linear_plan&from=linear_plan&slot=srs'
         )
-        assert response.status_code == 200
-        assert b'linear-plan-context.js' in response.data
+        assert response.status_code == 302
+        assert response.location.endswith(
+            '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
+        )

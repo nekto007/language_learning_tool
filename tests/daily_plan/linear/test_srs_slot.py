@@ -8,8 +8,8 @@ Covers:
 - ``_build_cards_for_words(..., activate_srs=False)`` does not create
   ``UserWord`` / ``UserCardDirection`` rows for untouched words — so
   curriculum vocabulary can be shown without activating SM-2.
-- When budget > 0, ``get_linear_plan_due_mix_cards`` returns due cards
-  from the user's decks for prepending into a card-lesson session.
+- Card/flashcard curriculum lessons switch the second slot to a deck quiz
+  instead of mixing SRS reviews into the first task.
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from app.daily_plan.linear.slots.srs_slot import (
     get_srs_budget_remaining,
 )
 from app.srs.constants import CardState
-from app.study.models import StudySettings, UserCardDirection, UserWord
+from app.study.models import QuizDeck, QuizDeckWord, StudySettings, UserCardDirection, UserWord
 from app.utils.db import db as real_db
 from app.words.models import CollectionWords
 
@@ -332,6 +332,71 @@ class TestSrsSlotStates:
         assert slot_dict['data']['due_count'] == 0
 
 
+class TestSrsSlotDeckQuizVariant:
+    def test_card_curriculum_lesson_uses_deck_quiz_slot(self, db_session):
+        user = _make_user(db_session)
+        _make_quiz_deck_with_words(db_session, user, 35)
+
+        lesson = type('LessonStub', (), {'type': 'card'})()
+        slot = build_srs_slot(user.id, real_db, curriculum_lesson=lesson)
+
+        assert slot.kind == 'srs'
+        assert slot.lesson_type == 'quiz'
+        assert slot.completed is False
+        assert slot.title == 'Квиз по словам из колод'
+        assert slot.url == (
+            '/study/quiz/linear-plan?source=linear_plan_deck_quiz&limit=30'
+            '&from=linear_plan&slot=srs'
+        )
+        assert slot.data['mode'] == 'deck_quiz'
+        assert slot.data['word_limit'] == 30
+
+    def test_card_curriculum_quiz_slot_ignores_due_srs_cards(self, db_session):
+        user = _make_user(db_session)
+        _make_quiz_deck_with_words(db_session, user, 25)
+        now = datetime.now(timezone.utc)
+        word = _make_word(db_session)
+        uw = _make_user_word(db_session, user, word)
+        _make_direction(
+            db_session, uw,
+            state=CardState.REVIEW.value,
+            next_review=now - timedelta(hours=1),
+            last_reviewed=now - timedelta(days=2),
+            first_reviewed=now - timedelta(days=5),
+            repetitions=2,
+        )
+
+        lesson = type('LessonStub', (), {'type': 'flashcards'})()
+        slot = build_srs_slot(user.id, real_db, curriculum_lesson=lesson)
+
+        assert slot.lesson_type == 'quiz'
+        assert slot.data['word_limit'] == 25
+        assert 'linear_plan_deck_quiz' in slot.url
+        assert slot.data.get('due_count') is None
+
+    def test_card_curriculum_quiz_slot_completed_after_linear_xp_event(self, db_session):
+        from app.achievements.models import StreakEvent
+        from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE, get_linear_event_local_date
+
+        user = _make_user(db_session)
+        _make_quiz_deck_with_words(db_session, user, 20)
+        db_session.add(StreakEvent(
+            user_id=user.id,
+            event_type=LINEAR_XP_EVENT_TYPE,
+            event_date=get_linear_event_local_date(user.id, real_db),
+            coins_delta=0,
+            details={'source': 'linear_srs_global', 'xp': 8},
+        ))
+        db_session.commit()
+
+        lesson = type('LessonStub', (), {'type': 'card'})()
+        slot = build_srs_slot(user.id, real_db, curriculum_lesson=lesson)
+
+        assert slot.completed is True
+        assert slot.url is None
+        assert slot.title == 'Квиз по словам из колод готов'
+
+
 class TestSrsCountHelpers:
     def test_count_due_excludes_new_state(self, db_session):
         user = _make_user(db_session)
@@ -358,6 +423,22 @@ class TestSrsCountHelpers:
             repetitions=2,
         )
         card.buried_until = now + timedelta(hours=4)
+        db_session.commit()
+
+        assert count_srs_due_cards(user.id, real_db) == 0
+
+    def test_count_due_excludes_mastered_user_words(self, db_session):
+        user = _make_user(db_session)
+        now = datetime.now(timezone.utc)
+        word = _make_word(db_session)
+        uw = _make_user_word(db_session, user, word)
+        uw.status = 'mastered'
+        _make_direction(
+            db_session, uw,
+            state=CardState.REVIEW.value,
+            next_review=now - timedelta(hours=1),
+            repetitions=2,
+        )
         db_session.commit()
 
         assert count_srs_due_cards(user.id, real_db) == 0
@@ -475,131 +556,6 @@ class TestCurriculumCardActivationGate:
         assert UserCardDirection.query.join(UserWord).filter(
             UserWord.user_id == user.id,
         ).count() == 1
-
-
-class TestDueMixCards:
-    def test_returns_due_cards_from_user_pool(self, db_session):
-        user = _make_user(db_session)
-        now = datetime.now(timezone.utc)
-
-        for i in range(3):
-            word = _make_word(db_session)
-            uw = _make_user_word(db_session, user, word)
-            _make_direction(
-                db_session, uw,
-                state=CardState.REVIEW.value,
-                next_review=now - timedelta(hours=1 + i),
-                last_reviewed=now - timedelta(days=2),
-                first_reviewed=now - timedelta(days=5),
-                repetitions=2,
-            )
-
-        mix = get_linear_plan_due_mix_cards(user.id, real_db, limit=10)
-
-        assert len(mix) == 3
-        for card in mix:
-            assert card['direction_id'] is not None
-
-    def test_respects_limit(self, db_session):
-        user = _make_user(db_session)
-        now = datetime.now(timezone.utc)
-        for i in range(5):
-            word = _make_word(db_session)
-            uw = _make_user_word(db_session, user, word)
-            _make_direction(
-                db_session, uw,
-                state=CardState.REVIEW.value,
-                next_review=now - timedelta(hours=1 + i),
-                last_reviewed=now - timedelta(days=2),
-                first_reviewed=now - timedelta(days=5),
-                repetitions=2,
-            )
-
-        mix = get_linear_plan_due_mix_cards(user.id, real_db, limit=2)
-        assert len(mix) == 2
-
-    def test_zero_limit_returns_empty(self, db_session):
-        user = _make_user(db_session)
-        assert get_linear_plan_due_mix_cards(user.id, real_db, limit=0) == []
-
-    def test_excludes_future_cards(self, db_session):
-        user = _make_user(db_session)
-        now = datetime.now(timezone.utc)
-        word = _make_word(db_session)
-        uw = _make_user_word(db_session, user, word)
-        _make_direction(
-            db_session, uw,
-            state=CardState.REVIEW.value,
-            next_review=now + timedelta(days=1),
-            last_reviewed=now - timedelta(days=2),
-            first_reviewed=now - timedelta(days=5),
-            repetitions=2,
-        )
-
-        assert get_linear_plan_due_mix_cards(user.id, real_db, limit=10) == []
-
-    def test_mix_prepended_to_card_lesson_session(self, db_session):
-        """When budget > 0, the card-lesson controller prepends the mix
-        before the curriculum words (see ``_apply_linear_plan_source``)."""
-        from app.curriculum.routes.card_lessons import _apply_linear_plan_source
-
-        user = _make_user(db_session)
-        _set_new_words_per_day(db_session, user, 5)
-
-        # 2 due cards in the user's pool
-        now = datetime.now(timezone.utc)
-        for _ in range(2):
-            word = _make_word(db_session)
-            uw = _make_user_word(db_session, user, word)
-            _make_direction(
-                db_session, uw,
-                state=CardState.REVIEW.value,
-                next_review=now - timedelta(hours=1),
-                last_reviewed=now - timedelta(days=2),
-                first_reviewed=now - timedelta(days=5),
-                repetitions=2,
-            )
-
-        # Curriculum words (display-only, would be built by the lesson render).
-        curriculum_words = [_make_word(db_session) for _ in range(2)]
-        curriculum_cards = _build_cards_for_words(curriculum_words, user.id, activate_srs=True)
-
-        merged = _apply_linear_plan_source(user.id, curriculum_cards)
-
-        assert len(merged) >= len(curriculum_cards) + 2
-        # Mix cards are prepended (come first)
-        curriculum_direction_ids = {c.get('direction_id') for c in curriculum_cards}
-        mix_direction_ids = {
-            c.get('direction_id') for c in merged[:2]
-        } - curriculum_direction_ids
-        assert len(mix_direction_ids) == 2
-
-    def test_mix_empty_when_budget_zero(self, db_session):
-        """budget=0 disables mixing; the caller returns curriculum cards unchanged."""
-        from app.curriculum.routes.card_lessons import _apply_linear_plan_source
-
-        user = _make_user(db_session)
-        _set_new_words_per_day(db_session, user, 2)
-
-        today = datetime.now(timezone.utc)
-        # Exhaust the new-card budget
-        for _ in range(2):
-            word = _make_word(db_session)
-            uw = _make_user_word(db_session, user, word)
-            _make_direction(
-                db_session, uw,
-                first_reviewed=today,
-                last_reviewed=today,
-                state=CardState.LEARNING.value,
-                next_review=today + timedelta(days=1),
-                repetitions=1,
-            )
-
-        assert get_srs_budget_remaining(user.id, real_db) == 0
-
-        merged = _apply_linear_plan_source(user.id, [])
-
-        assert merged == []
 
 
 class TestLinearPlanIncludesSrsSlot:
