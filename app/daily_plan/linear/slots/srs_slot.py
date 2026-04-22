@@ -109,129 +109,47 @@ def count_srs_cards_studied_today(user_id: int, db: Any) -> int:
     )
 
 
-def _linear_srs_completed_today(user_id: int, db: Any) -> bool:
-    """Return whether the linear SRS/global study slot has awarded XP today."""
-    from app.achievements.models import StreakEvent
-    from app.daily_plan.linear.xp import (
-        LINEAR_XP_EVENT_TYPE,
-        get_linear_event_local_date,
-    )
-
-    today = get_linear_event_local_date(user_id, db)
-    query = db.session.query(StreakEvent).filter(
-        StreakEvent.user_id == user_id,
-        StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
-        StreakEvent.event_date == today,
-        StreakEvent.details['source'].astext == 'linear_srs_global',
-    )
-    return db.session.query(query.exists()).scalar() or False
-
-
-def _count_user_deck_quiz_words(user_id: int, db: Any) -> int:
-    valid_custom_word = and_(
-        QuizDeckWord.custom_english.isnot(None),
-        QuizDeckWord.custom_english != '',
-        QuizDeckWord.custom_russian.isnot(None),
-        QuizDeckWord.custom_russian != '',
-    )
-    valid_collection_word = and_(
-        QuizDeckWord.word_id.isnot(None),
-        CollectionWords.english_word.isnot(None),
-        CollectionWords.english_word != '',
-        CollectionWords.russian_word.isnot(None),
-        CollectionWords.russian_word != '',
-    )
-    rows = (
-        db.session.query(
-            QuizDeckWord.word_id,
-            QuizDeckWord.custom_english,
-            QuizDeckWord.custom_russian,
-        )
-        .join(QuizDeck, QuizDeckWord.deck_id == QuizDeck.id)
-        .outerjoin(CollectionWords, QuizDeckWord.word_id == CollectionWords.id)
+def count_srs_reviews_today(user_id: int, db: Any) -> int:
+    """Count review cards done today using the same semantics as /study."""
+    start = _today_start()
+    return int(
+        db.session.query(func.count(UserCardDirection.id))
         .filter(
-            QuizDeck.user_id == user_id,
-            or_(valid_collection_word, valid_custom_word),
+            UserCardDirection.user_word_id.in_(_user_word_ids_subquery(user_id, db)),
+            UserCardDirection.last_reviewed.isnot(None),
+            UserCardDirection.last_reviewed >= start,
+            UserCardDirection.first_reviewed.isnot(None),
+            UserCardDirection.first_reviewed < start,
         )
-        .all()
-    )
-
-    seen: set[object] = set()
-    for word_id, custom_english, custom_russian in rows:
-        key = (
-            word_id
-            if word_id is not None
-            else ('custom', custom_english.strip().lower(), custom_russian.strip().lower())
-        )
-        seen.add(key)
-    return len(seen)
-
-
-def _build_deck_quiz_slot(user_id: int, db: Any) -> LinearSlot:
-    deck_word_count = _count_user_deck_quiz_words(user_id, db)
-    completed = _linear_srs_completed_today(user_id, db)
-    limit = min(_DECK_QUIZ_LIMIT, max(deck_word_count, 0))
-    data = {
-        'mode': 'deck_quiz',
-        'source': _DECK_QUIZ_SOURCE,
-        'deck_word_count': deck_word_count,
-        'word_limit': limit,
-        'completed_today': completed,
-    }
-
-    if completed:
-        return LinearSlot(
-            kind='srs',
-            title='Квиз по словам из колод готов',
-            lesson_type='quiz',
-            eta_minutes=0,
-            url=None,
-            completed=True,
-            data=data,
-        )
-
-    if deck_word_count <= 0:
-        return LinearSlot(
-            kind='srs',
-            title='Нет слов для квиза в колодах',
-            lesson_type='quiz',
-            eta_minutes=0,
-            url=None,
-            completed=True,
-            data=data,
-        )
-
-    return LinearSlot(
-        kind='srs',
-        title='Квиз по словам из колод',
-        lesson_type='quiz',
-        eta_minutes=_SRS_SLOT_ETA_MINUTES,
-        url=build_slot_url(
-            f'/study/quiz/linear-plan?source={_DECK_QUIZ_SOURCE}&limit={limit}',
-            LinearSlotKind.SRS,
-        ),
-        completed=False,
-        data=data,
+        .scalar()
+        or 0
     )
 
 
-def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> LinearSlot:
+def build_srs_slot(user_id: int, db: Any) -> LinearSlot:
     """Build the SRS baseline slot for the dashboard.
 
     Active when ``due_count > 0``. When there is nothing due, the slot
     collapses to a completed placeholder — "review tomorrow" if the user
     touched any cards today, "nothing due" otherwise.
     """
-    if getattr(curriculum_lesson, 'type', None) in _CARD_LESSON_TYPES:
-        return _build_deck_quiz_slot(user_id, db)
+    settings = StudySettings.get_settings(user_id)
+    reviews_limit = max(int(settings.reviews_per_day or 0), 0)
+    reviews_today = count_srs_reviews_today(user_id, db)
+    reviews_remaining = max(reviews_limit - reviews_today, 0)
 
-    due_count = count_srs_due_cards(user_id, db)
+    backlog_due_count = count_srs_due_cards(user_id, db)
+    due_count = min(backlog_due_count, reviews_remaining)
     studied_today = count_srs_cards_studied_today(user_id, db)
     budget_remaining = get_srs_budget_remaining(user_id, db)
 
     data = {
         'due_count': due_count,
+        'backlog_due_count': backlog_due_count,
         'studied_today': studied_today,
+        'reviews_today': reviews_today,
+        'reviews_limit': reviews_limit,
+        'reviews_remaining': reviews_remaining,
         'budget_remaining': budget_remaining,
     }
 
@@ -246,7 +164,10 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
             data=data,
         )
 
-    title = 'Карточки повторим завтра' if studied_today > 0 else 'Сегодня повторять нечего'
+    if backlog_due_count > 0 and reviews_remaining == 0:
+        title = 'Лимит повторений на сегодня достигнут'
+    else:
+        title = 'Карточки повторим завтра' if studied_today > 0 else 'Сегодня повторять нечего'
     return LinearSlot(
         kind='srs',
         title=title,
