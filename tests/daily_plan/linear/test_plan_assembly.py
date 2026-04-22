@@ -156,12 +156,12 @@ def _record_reading_xp_event(db_session, user: User) -> None:
     that want the slot to appear completed must create one.
     """
     from app.achievements.models import StreakEvent
-    from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
+    from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE, get_linear_event_local_date
 
     db_session.add(StreakEvent(
         user_id=user.id,
         event_type=LINEAR_XP_EVENT_TYPE,
-        event_date=datetime.now(timezone.utc).date(),
+        event_date=get_linear_event_local_date(user.id, real_db),
         coins_delta=0,
         details={'source': 'linear_book_reading', 'xp': 15},
     ))

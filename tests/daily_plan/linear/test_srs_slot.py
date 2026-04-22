@@ -101,6 +101,18 @@ def _set_reviews_per_day(db_session, user: User, limit: int) -> None:
     db_session.commit()
 
 
+def _make_quiz_deck_with_words(db_session, user: User, count: int) -> QuizDeck:
+    deck = QuizDeck(title=f'Deck {uuid.uuid4().hex[:6]}', user_id=user.id)
+    db_session.add(deck)
+    db_session.commit()
+
+    for index in range(count):
+        word = _make_word(db_session, prefix=f'deck_{index}')
+        db_session.add(QuizDeckWord(deck_id=deck.id, word_id=word.id, order_index=index))
+    db_session.commit()
+    return deck
+
+
 class TestSrsBudgetRemaining:
     def test_default_budget_from_settings(self, db_session):
         user = _make_user(db_session)
