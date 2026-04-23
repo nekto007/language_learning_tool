@@ -8,7 +8,7 @@ Responsibilities:
 - Daily limits tracking
 """
 from typing import List, Dict, Tuple, Set
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from sqlalchemy import func, and_, or_, case
 from sqlalchemy.orm import joinedload
 
@@ -41,7 +41,12 @@ def get_user_word_ids(user_id: int, word_ids: List[int] = None) -> Set[int]:
 
 
 class SRSService:
-    """Service for Anki-like Spaced Repetition System logic"""
+    """Service for Anki-like Spaced Repetition System logic.
+
+    SRS-scheduling использует `UserCardDirection.update_after_review()`
+    (Anki state machine, quality 1-2-3). Классический SM-2 (quality 0-5)
+    в кодбейзе не используется.
+    """
 
     @staticmethod
     def get_due_cards(
@@ -370,50 +375,6 @@ class SRSService:
 
         db.session.flush()
         return forward, backward
-
-    @staticmethod
-    def update_card_after_review(card: UserCardDirection, quality: int) -> None:
-        """
-        Update card using SM-2 algorithm
-
-        Args:
-            card: UserCardDirection object to update
-            quality: Quality rating (0-5)
-                0-2: Incorrect (reset card)
-                3-5: Correct (advance card)
-        """
-        now = datetime.now(timezone.utc)
-
-        card.last_reviewed = now
-        card.session_attempts = (card.session_attempts or 0) + 1
-
-        if quality < 3:
-            # Failed - reset card
-            card.interval = 1
-            card.repetitions = 0
-            card.ease_factor = max(1.3, card.ease_factor - 0.2)
-            card.next_review = now + timedelta(days=1)
-            card.incorrect_count = (card.incorrect_count or 0) + 1
-        else:
-            # Success - advance card using SM-2
-            if card.repetitions == 0:
-                card.interval = 1
-            elif card.repetitions == 1:
-                card.interval = 6
-            else:
-                card.interval = int(card.interval * card.ease_factor)
-
-            card.repetitions += 1
-
-            # Update easiness factor
-            new_ef = card.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
-            card.ease_factor = max(1.3, new_ef)
-
-            # Schedule next review
-            card.next_review = now + timedelta(days=card.interval)
-            card.correct_count = (card.correct_count or 0) + 1
-
-        db.session.flush()
 
     @staticmethod
     def update_word_status_after_review(user_word: UserWord) -> None:

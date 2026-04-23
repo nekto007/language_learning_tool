@@ -199,11 +199,11 @@
 - Modify: `app/study/services/srs_service.py`
 - Modify: `tests/study/` (удалить тесты для этого метода если есть)
 
-- [ ] Grep: убедиться что `SRSService.update_card_after_review` нигде не вызывается (кроме собственного тела)
-- [ ] Удалить метод полностью из `SRSService`
-- [ ] Добавить комментарий в класс: SRS-scheduling использует `UserCardDirection.update_after_review()` (Anki state machine)
-- [ ] `python -c "from app.study.services.srs_service import SRSService"` — проходит
-- [ ] Run pytest — must pass before task 8
+- [x] Grep: убедиться что `SRSService.update_card_after_review` нигде не вызывается (кроме собственного тела)
+- [x] Удалить метод полностью из `SRSService`
+- [x] Добавить комментарий в класс: SRS-scheduling использует `UserCardDirection.update_after_review()` (Anki state machine)
+- [x] `python -c "from app.study.services.srs_service import SRSService"` — проходит
+- [x] Run pytest — must pass before task 8
 
 ---
 
