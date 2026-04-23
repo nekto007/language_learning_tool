@@ -229,9 +229,9 @@
 **Files:**
 - No code changes — validation only
 
-- [ ] `pytest -m smoke` — все smoke тесты зелёные
-- [ ] `pytest tests/srs/` — новые тесты из Task 1, 3 проходят
-- [ ] `pytest tests/daily_plan/` — all daily_plan tests pass
-- [ ] `pytest tests/study/` — all study tests pass
-- [ ] Проверить что нет unused import'ов в изменённых файлах: `python -m py_compile app/srs/counting.py app/daily_plan/assembler.py app/daily_plan/linear/slots/srs_slot.py app/study/api_routes.py app/daily_plan/service.py app/api/daily_plan.py`
-- [ ] Manual smoke: зайти на дашборд → убедиться что SRS-счётчик на слоте совпадает с числом карточек в начале сессии /study/cards
+- [x] `pytest -m smoke` — все smoke тесты зелёные
+- [x] `pytest tests/srs/` — новые тесты из Task 1, 3 проходят
+- [x] `pytest tests/daily_plan/` — pass (одна pre-existing неудача в test_reading_slot.py::test_completed_when_linear_reading_xp_event_today воспроизводится на master, не связана с этим аудитом)
+- [x] `pytest tests/test_study_api_routes.py tests/test_study_services.py tests/test_study_helpers.py` — все study тесты проходят
+- [x] Проверить что нет unused import'ов в изменённых файлах: `python -m py_compile app/srs/counting.py app/daily_plan/assembler.py app/daily_plan/linear/slots/srs_slot.py app/study/api_routes.py app/daily_plan/service.py app/api/daily_plan.py` — OK
+- [x] Manual smoke: зайти на дашборд → убедиться что SRS-счётчик на слоте совпадает с числом карточек в начале сессии /study/cards (skipped — not automatable)
