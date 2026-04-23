@@ -105,7 +105,7 @@ def write_secured_at(user_id: int, plan_date: date, mission_type: Optional[str] 
         )
         db.session.add(log)
     if log.secured_at is None:
-        log.secured_at = datetime.now(timezone.utc)
+        log.secured_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.flush()
 
 

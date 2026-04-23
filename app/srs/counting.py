@@ -16,7 +16,7 @@ Design:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 
 from sqlalchemy import func, or_
 
@@ -38,14 +38,24 @@ def _today_start_naive(now_utc: Optional[datetime] = None) -> datetime:
     return now.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def count_due_cards(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> int:
+def count_due_cards(
+    user_id: int,
+    db: Any = _db,
+    now_utc: Optional[datetime] = None,
+    word_ids: Optional[Sequence[int]] = None,
+) -> int:
     """Count review/learning/relearning cards due for the user right now.
 
     Includes all three due states. Excludes NEW state (not yet activated),
     mastered UserWords, and currently-buried cards.
+
+    When ``word_ids`` is provided, restrict the count to cards whose underlying
+    CollectionWord id is in that set — used by the mission assembler so its
+    SRS-phase allocation matches what ``/study?source=daily_plan_mix`` can
+    actually serve. ``None`` counts all due cards the user has.
     """
     now = _naive_utc_now(now_utc)
-    return int(
+    query = (
         db.session.query(func.count(UserCardDirection.id))
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
@@ -64,9 +74,12 @@ def count_due_cards(user_id: int, db: Any = _db, now_utc: Optional[datetime] = N
                 UserCardDirection.buried_until <= now,
             ),
         )
-        .scalar()
-        or 0
     )
+    if word_ids is not None:
+        if not word_ids:
+            return 0
+        query = query.filter(UserWord.word_id.in_(word_ids))
+    return int(query.scalar() or 0)
 
 
 def count_new_cards_today(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> int:

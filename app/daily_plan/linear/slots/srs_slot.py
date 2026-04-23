@@ -5,9 +5,10 @@ When the current curriculum slot is itself a card lesson, this slot becomes
 a deck quiz so the same card session does not satisfy both baseline tasks.
 
 Budget semantics:
-- ``budget = max_new_per_day - first_reviewed_today_count``
-- ``max_new_per_day`` is ``StudySettings.new_words_per_day`` — the same
-  source /study uses, so linear and /study share one daily budget.
+- ``budget = adaptive_new_per_day - first_reviewed_today_count``
+- ``adaptive_new_per_day`` comes from `SRSService.get_adaptive_limits`
+  via the canonical `get_new_card_budget` in `app/srs/counting.py` — the
+  same source /study uses, so linear and /study share one daily budget.
 
 Slot states:
 - due > 0 → active, links directly to ``/study/cards?source=linear_plan``.

@@ -165,6 +165,27 @@ class TestCountDueCards:
         aware_now = datetime.now(timezone.utc)
         assert count_due_cards(user.id, real_db, now_utc=aware_now) == 1
 
+    def test_word_ids_filter_restricts_to_subset(self, db_session):
+        user = _make_user(db_session)
+        now = _now_naive()
+        word_in = _make_word(db_session)
+        word_out = _make_word(db_session)
+        uw_in = _make_user_word(db_session, user, word_in)
+        uw_out = _make_user_word(db_session, user, word_out)
+        _make_direction(
+            db_session, uw_in,
+            state=CardState.REVIEW.value,
+            next_review=now - timedelta(minutes=5),
+        )
+        _make_direction(
+            db_session, uw_out,
+            state=CardState.REVIEW.value,
+            next_review=now - timedelta(minutes=5),
+        )
+        assert count_due_cards(user.id, real_db) == 2
+        assert count_due_cards(user.id, real_db, word_ids=[word_in.id]) == 1
+        assert count_due_cards(user.id, real_db, word_ids=[]) == 0
+
 
 class TestCountNewAndReviewsToday:
     def test_new_cards_today_and_reviews_disjoint(self, db_session):
@@ -222,11 +243,6 @@ class TestCountNewAndReviewsToday:
             first_reviewed=None,
         )
         assert count_new_cards_today(user.id, real_db) == 0
-
-
-class TestNaiveUtcImport:
-    def test_import_path(self):
-        from app.srs.counting import count_due_cards as cdc  # noqa: F401
 
 
 class TestGetNewCardBudget:
@@ -318,11 +334,16 @@ class TestUnifiedCountingAcrossCallsites:
             count_srs_due_cards,
             count_srs_reviews_today,
         )
+        from app.study.models import QuizDeck, QuizDeckWord
 
         user = _make_user(db_session)
         now = _now_naive()
 
-        # Two due cards in different states.
+        # Two due cards in different states, both in a quiz deck (= daily-plan mix).
+        deck = QuizDeck(user_id=user.id, title='Test deck')
+        db_session.add(deck)
+        db_session.commit()
+
         for state in (CardState.LEARNING.value, CardState.REVIEW.value):
             word = _make_word(db_session)
             uw = _make_user_word(db_session, user, word)
@@ -333,13 +354,46 @@ class TestUnifiedCountingAcrossCallsites:
                 first_reviewed=now - timedelta(days=2),
                 last_reviewed=now - timedelta(hours=2),
             )
+            db_session.add(QuizDeckWord(deck_id=deck.id, word_id=word.id))
+        db_session.commit()
 
         canonical = count_due_cards(user.id, real_db)
         assert canonical == 2
+        # Mission assembler scopes to daily-plan mix (deck words); when all due
+        # cards are in the mix, mission count equals the global canonical count.
         assert _count_srs_due(user.id) == canonical
         assert count_srs_due_cards(user.id, real_db) == canonical
 
         assert count_reviews_today(user.id, real_db) == count_srs_reviews_today(user.id, real_db)
+
+    def test_mission_count_filters_by_mix_when_card_outside_mix(self, db_session):
+        """Mission count must drop due cards not in the daily-plan mix."""
+        from app.daily_plan.assembler import _count_srs_due
+        from app.study.models import QuizDeck, QuizDeckWord
+
+        user = _make_user(db_session)
+        now = _now_naive()
+
+        deck = QuizDeck(user_id=user.id, title='Test deck')
+        db_session.add(deck)
+        db_session.commit()
+
+        word_in = _make_word(db_session)
+        word_out = _make_word(db_session)
+        for w in (word_in, word_out):
+            uw = _make_user_word(db_session, user, w)
+            _make_direction(
+                db_session, uw,
+                state=CardState.REVIEW.value,
+                next_review=now - timedelta(minutes=5),
+                first_reviewed=now - timedelta(days=2),
+                last_reviewed=now - timedelta(hours=2),
+            )
+        db_session.add(QuizDeckWord(deck_id=deck.id, word_id=word_in.id))
+        db_session.commit()
+
+        assert count_due_cards(user.id, real_db) == 2
+        assert _count_srs_due(user.id) == 1
 
 
 class TestUnifiedBudgetAcrossCallsites:

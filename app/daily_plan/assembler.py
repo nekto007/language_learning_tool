@@ -159,9 +159,18 @@ def _deduplicate_phases(phases: list[MissionPhase]) -> list[MissionPhase]:
 
 
 def _count_srs_due(user_id: int) -> int:
+    """Count SRS cards due within the daily-plan mix pool.
+
+    Mission-plan allocation only promises cards the ``/study?source=daily_plan_mix``
+    endpoint can actually serve, so we filter by the mix word ids. An empty mix
+    means zero due cards are plannable.
+    """
     from app.srs.counting import count_due_cards
 
-    return count_due_cards(user_id, db)
+    mix_word_ids = get_daily_plan_mix_word_ids(user_id)
+    if not mix_word_ids:
+        return 0
+    return count_due_cards(user_id, db, word_ids=mix_word_ids)
 
 
 def _count_grammar_due(user_id: int) -> int:

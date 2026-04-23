@@ -440,7 +440,7 @@ def update_study_item():
             db.session.add(settings)
             db.session.flush()
 
-        today_start = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0)
+        from app.srs.counting import count_new_cards_today
 
         if deck_id:
             deck = QuizDeck.query.get(deck_id)
@@ -448,23 +448,13 @@ def update_study_item():
                 new_cards_today, _ = SRSService.get_deck_stats_today(current_user.id, deck_id)
                 new_cards_limit = deck.get_new_words_limit(settings)
             else:
-                new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
-                    UserCardDirection.user_word_id.in_(
-                        db.session.query(UserWord.id).filter_by(user_id=current_user.id)
-                    ),
-                    UserCardDirection.first_reviewed >= today_start,
-                    UserCardDirection.first_reviewed.isnot(None)
-                ).scalar() or 0
-                new_cards_limit = settings.new_words_per_day
+                new_cards_today = count_new_cards_today(current_user.id, db)
+                adaptive_new, _ = SRSService.get_adaptive_limits(current_user.id)
+                new_cards_limit = adaptive_new
         else:
-            new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
-                UserCardDirection.user_word_id.in_(
-                    db.session.query(UserWord.id).filter_by(user_id=current_user.id)
-                ),
-                UserCardDirection.first_reviewed >= today_start,
-                UserCardDirection.first_reviewed.isnot(None)
-            ).scalar() or 0
-            new_cards_limit = settings.new_words_per_day
+            new_cards_today = count_new_cards_today(current_user.id, db)
+            adaptive_new, _ = SRSService.get_adaptive_limits(current_user.id)
+            new_cards_limit = adaptive_new
 
         if new_cards_today >= new_cards_limit:
             db.session.rollback()
