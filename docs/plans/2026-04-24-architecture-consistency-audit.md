@@ -112,14 +112,14 @@
 - Modify: `app/study/api_routes.py`
 - Modify: `tests/daily_plan/test_assembler.py` (если есть)
 
-- [ ] `assembler.py:_count_srs_due()` → заменить тело на `count_due_cards(user_id, db)` из counting.py; убрать `mix_word_ids` фильтр (см. Design Decisions)
-- [ ] `srs_slot.py:count_srs_due_cards()` → заменить тело на `count_due_cards(user_id, db)` или убрать функцию и вызывать напрямую
-- [ ] `srs_slot.py:_today_start()` → заменить `datetime.now(timezone.utc)` на naive UTC: `datetime.now(timezone.utc).replace(tzinfo=None)`
-- [ ] `api_routes.py:77-84` (inline reviews_today) → заменить на `count_reviews_today(current_user.id, db)` из counting.py
-- [ ] `api_routes.py:69-75` (inline new_cards_today) → заменить на `count_new_cards_today(current_user.id, db)`
-- [ ] Убедиться что `srs_slot.py:count_srs_reviews_today()` согласована с counting.py (или заменить)
-- [ ] Write tests: интеграционный тест — mission-plan и linear-plan дают одинаковое число due_cards для одного пользователя
-- [ ] Run pytest — must pass before task 3
+- [x] `assembler.py:_count_srs_due()` → заменить тело на `count_due_cards(user_id, db)` из counting.py; убрать `mix_word_ids` фильтр (см. Design Decisions)
+- [x] `srs_slot.py:count_srs_due_cards()` → заменить тело на `count_due_cards(user_id, db)` или убрать функцию и вызывать напрямую
+- [x] `srs_slot.py:_today_start()` → заменить `datetime.now(timezone.utc)` на naive UTC: `datetime.now(timezone.utc).replace(tzinfo=None)`
+- [x] `api_routes.py:77-84` (inline reviews_today) → заменить на `count_reviews_today(current_user.id, db)` из counting.py
+- [x] `api_routes.py:69-75` (inline new_cards_today) → заменить на `count_new_cards_today(current_user.id, db)`
+- [x] Убедиться что `srs_slot.py:count_srs_reviews_today()` согласована с counting.py (или заменить)
+- [x] Write tests: интеграционный тест — mission-plan и linear-plan дают одинаковое число due_cards для одного пользователя
+- [x] Run pytest — must pass before task 3
 
 ---
 

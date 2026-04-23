@@ -160,24 +160,9 @@ def _deduplicate_phases(phases: list[MissionPhase]) -> list[MissionPhase]:
 
 
 def _count_srs_due(user_id: int) -> int:
-    # next_review is stored as naive UTC (Column(DateTime)), so now must be naive UTC too
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    mix_word_ids = get_daily_plan_mix_word_ids(user_id)
+    from app.srs.counting import count_due_cards
 
-    query = (
-        db.session.query(func.count(UserCardDirection.id))
-        .join(UserWord)
-        .filter(
-            UserWord.user_id == user_id,
-            UserCardDirection.state.in_(('review', 'relearning')),
-            UserCardDirection.next_review <= now,
-        )
-    )
-
-    if mix_word_ids:
-        query = query.filter(UserWord.word_id.in_(mix_word_ids))
-
-    return query.scalar() or 0
+    return count_due_cards(user_id, db)
 
 
 def _count_grammar_due(user_id: int) -> int:

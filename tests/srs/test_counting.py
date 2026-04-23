@@ -225,3 +225,36 @@ class TestCountNewAndReviewsToday:
 class TestNaiveUtcImport:
     def test_import_path(self):
         from app.srs.counting import count_due_cards as cdc  # noqa: F401
+
+
+class TestUnifiedCountingAcrossCallsites:
+    """mission-plan, linear-plan and /study must all see the same due count."""
+
+    def test_mission_and_linear_agree(self, db_session):
+        from app.daily_plan.assembler import _count_srs_due
+        from app.daily_plan.linear.slots.srs_slot import (
+            count_srs_due_cards,
+            count_srs_reviews_today,
+        )
+
+        user = _make_user(db_session)
+        now = _now_naive()
+
+        # Two due cards in different states.
+        for state in (CardState.LEARNING.value, CardState.REVIEW.value):
+            word = _make_word(db_session)
+            uw = _make_user_word(db_session, user, word)
+            _make_direction(
+                db_session, uw,
+                state=state,
+                next_review=now - timedelta(minutes=5),
+                first_reviewed=now - timedelta(days=2),
+                last_reviewed=now - timedelta(hours=2),
+            )
+
+        canonical = count_due_cards(user.id, real_db)
+        assert canonical == 2
+        assert _count_srs_due(user.id) == canonical
+        assert count_srs_due_cards(user.id, real_db) == canonical
+
+        assert count_reviews_today(user.id, real_db) == count_srs_reviews_today(user.id, real_db)

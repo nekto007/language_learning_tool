@@ -66,22 +66,10 @@ def get_study_items():
         new_cards_limit = deck.get_new_words_limit(settings)
         reviews_limit = deck.get_reviews_limit(settings)
     else:
-        new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
-            UserCardDirection.user_word_id.in_(
-                db.session.query(UserWord.id).filter_by(user_id=current_user.id)
-            ),
-            UserCardDirection.first_reviewed >= today_start,
-            UserCardDirection.first_reviewed.isnot(None)
-        ).scalar() or 0
+        from app.srs.counting import count_new_cards_today, count_reviews_today
 
-        reviews_today = db.session.query(func.count(UserCardDirection.id)).filter(
-            UserCardDirection.user_word_id.in_(
-                db.session.query(UserWord.id).filter_by(user_id=current_user.id)
-            ),
-            UserCardDirection.last_reviewed >= today_start,
-            UserCardDirection.first_reviewed < today_start,
-            UserCardDirection.first_reviewed.isnot(None)
-        ).scalar() or 0
+        new_cards_today = count_new_cards_today(current_user.id, db)
+        reviews_today = count_reviews_today(current_user.id, db)
 
         if is_linear_plan_srs:
             from app.daily_plan.linear.slots.srs_slot import count_linear_plan_srs_due_cards
