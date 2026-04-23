@@ -199,10 +199,9 @@ def test_get_study_items_unauthenticated(client):
 
 
 def test_get_study_items_invalid_deck(authenticated_client):
-    """GET /study/api/get-study-items with non-existent deck_id returns empty items."""
+    """GET /study/api/get-study-items with non-existent deck_id returns standardized api_error."""
     response = authenticated_client.get('/study/api/get-study-items?deck_id=999999')
-    assert response.status_code == 200
+    assert response.status_code == 404
     data = response.get_json()
-    # Deck not found returns error status with empty items
-    assert data['status'] == 'error'
-    assert data['items'] == []
+    assert data['success'] is False
+    assert data['error'] == 'deck_not_found'

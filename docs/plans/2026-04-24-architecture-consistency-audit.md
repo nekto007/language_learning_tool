@@ -182,12 +182,12 @@
 - Modify: `app/study/api_routes.py`
 - Modify: `tests/study/` (test_api_routes.py если есть)
 
-- [ ] Импортировать `api_error` из `app.api.errors`
-- [ ] Заменить `return jsonify({'status': 'error', 'message': ..., 'items': []})` на `api_error('deck_not_found', ..., 404)` (строки ~56-60)
-- [ ] **НЕ менять** `{'status': 'daily_limit_reached', ...}` — это бизнес-статус, не ошибка; JS frontend ожидает этот формат
-- [ ] Проверить все остальные `return jsonify({'status': 'error', ...})` в study/api_routes.py — заменить на api_error()
-- [ ] Write tests: при неверном deck_id ответ содержит `{'success': False, 'error': 'deck_not_found'}`; `daily_limit_reached` ответ по-прежнему содержит `status: 'daily_limit_reached'`
-- [ ] Run pytest — must pass before task 7
+- [x] Импортировать `api_error` из `app.api.errors`
+- [x] Заменить `return jsonify({'status': 'error', 'message': ..., 'items': []})` на `api_error('deck_not_found', ..., 404)` (строки ~56-60)
+- [x] **НЕ менять** `{'status': 'daily_limit_reached', ...}` — это бизнес-статус, не ошибка; JS frontend ожидает этот формат
+- [x] Проверить все остальные `return jsonify({'status': 'error', ...})` в study/api_routes.py — заменить на api_error()
+- [x] Write tests: при неверном deck_id ответ содержит `{'success': False, 'error': 'deck_not_found'}`; `daily_limit_reached` ответ по-прежнему содержит `status: 'daily_limit_reached'`
+- [x] Run pytest — must pass before task 7
 
 ---
 

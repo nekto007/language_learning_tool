@@ -54,9 +54,10 @@ class TestGetStudyItems:
             f'/study/api/get-study-items?deck_id={other_deck.id}'
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 404
         data = json.loads(response.data)
-        assert data['status'] == 'error'
+        assert data['success'] is False
+        assert data['error'] == 'deck_not_found'
         assert 'access denied' in data['message'].lower()
 
     def test_public_deck_accessible(self, authenticated_client, public_quiz_deck, test_words_list, db_session, study_settings):
@@ -306,9 +307,26 @@ class TestGetStudyItems:
         """Test with non-existent deck ID"""
         response = authenticated_client.get('/study/api/get-study-items?deck_id=99999')
 
+        assert response.status_code == 404
+        data = json.loads(response.data)
+        assert data['success'] is False
+        assert data['error'] == 'deck_not_found'
+
+    def test_daily_limit_reached_preserves_business_status(
+        self, authenticated_client, user_words, user_card_directions, study_settings, db_session
+    ):
+        """daily_limit_reached is a business status, not an error — must keep legacy shape."""
+        study_settings.new_words_per_day = 0
+        study_settings.reviews_per_day = 0
+        db_session.commit()
+
+        response = authenticated_client.get('/study/api/get-study-items?source=auto')
+
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert data['status'] == 'error'
+        assert data['status'] == 'daily_limit_reached'
+        assert 'stats' in data
+        assert data['items'] == []
 
 
 class TestGetQuizQuestions:

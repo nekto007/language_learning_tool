@@ -15,6 +15,7 @@ from app.utils.db import db
 from app.words.models import CollectionWords
 from app.study.services import DeckService, SRSService
 from app.srs.stats_service import srs_stats_service
+from app.api.errors import api_error
 
 logger = logging.getLogger(__name__)
 
@@ -53,11 +54,7 @@ def get_study_items():
         if deck and (deck.user_id == current_user.id or deck.is_public):
             deck_word_ids = [dw.word_id for dw in deck.words.all() if dw.word_id]
         else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Deck not found or access denied',
-                'items': []
-            })
+            return api_error('deck_not_found', 'Deck not found or access denied', 404)
     elif word_source == 'daily_plan_mix':
         deck_word_ids = get_daily_plan_mix_word_ids(current_user.id)
 
