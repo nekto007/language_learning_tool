@@ -165,12 +165,12 @@
 - Modify: `app/api/daily_plan.py`
 - Modify: `tests/daily_plan/` (relevant tests)
 
-- [ ] В `service.py`: переименовать `compute_day_secured(phases)` в `compute_day_secured_at_assembly(phases)` — явно показывает что это assembly-time (phases.completed всегда False)
-- [ ] В `service.py`: добавить `compute_day_secured_from_activity(plan: dict, plan_completion: dict[str, bool]) -> bool` — выносим inline логику из `api/daily_plan.py:daily_status()`. Обрабатывает оба effective_mode: `'mission'` (by phase id) и `'linear'` (by slot kind). Остальные режимы → `plan.get('day_secured', False)`
-- [ ] В `api/daily_plan.py:daily_status()`: заменить inline block (строки 57-74) на вызов `compute_day_secured_from_activity(plan, plan_completion)`
-- [ ] Обновить все вызовы `compute_day_secured()` → `compute_day_secured_at_assembly()` (grep по кодбейзу)
-- [ ] Write tests: mission mode с 1 required completed → True; linear mode с 2 slots, оба completed → True; linear с 1 незавершённым → False; пустой plan → False
-- [ ] Run pytest — must pass before task 6
+- [x] В `service.py`: переименовать `compute_day_secured(phases)` в `compute_day_secured_at_assembly(phases)` — явно показывает что это assembly-time (phases.completed всегда False)
+- [x] В `service.py`: добавить `compute_day_secured_from_activity(plan: dict, plan_completion: dict[str, bool]) -> bool` — выносим inline логику из `api/daily_plan.py:daily_status()`. Обрабатывает оба effective_mode: `'mission'` (by phase id) и `'linear'` (by slot kind). Остальные режимы → `plan.get('day_secured', False)`
+- [x] В `api/daily_plan.py:daily_status()`: заменить inline block (строки 57-74) на вызов `compute_day_secured_from_activity(plan, plan_completion)`
+- [x] Обновить все вызовы `compute_day_secured()` → `compute_day_secured_at_assembly()` (grep по кодбейзу)
+- [x] Write tests: mission mode с 1 required completed → True; linear mode с 2 slots, оба completed → True; linear с 1 незавершённым → False; пустой plan → False
+- [x] Run pytest — must pass before task 6
 
 ---
 

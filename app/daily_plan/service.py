@@ -15,12 +15,47 @@ from app.daily_plan.assembler import (
 logger = logging.getLogger(__name__)
 
 
-def compute_day_secured(phases: list[dict]) -> bool:
-    """Return True when all required phases are marked completed."""
+def compute_day_secured_at_assembly(phases: list[dict]) -> bool:
+    """Return True when all required phases are marked completed.
+
+    Assembly-time evaluator: reads ``phase['completed']`` from the plan payload,
+    which is always False when the assembler constructs the plan. Use
+    :func:`compute_day_secured_from_activity` for real-time status derived from
+    actual user activity.
+    """
     required = [p for p in phases if p.get('required', True)]
     if not required:
         return False
     return all(p.get('completed', False) for p in required)
+
+
+def compute_day_secured_from_activity(
+    plan: dict[str, Any],
+    plan_completion: dict[str, bool],
+) -> bool:
+    """Real-time day_secured derived from actual user activity.
+
+    Handles both mission (phase id keyed) and linear (slot kind keyed) plans.
+    For any other effective_mode, returns the plan payload's own ``day_secured``.
+    """
+    effective_mode = (plan.get('_plan_meta') or {}).get('effective_mode')
+    if effective_mode == 'mission':
+        phases = plan.get('phases') or []
+        required_phases = [p for p in phases if p.get('required', True)]
+        if not required_phases:
+            return False
+        return all(
+            plan_completion.get(p.get('id', ''), False) for p in required_phases
+        )
+    if effective_mode == 'linear':
+        baseline_slots = plan.get('baseline_slots') or []
+        if not baseline_slots:
+            return False
+        return all(
+            plan_completion.get(slot.get('kind', ''), False)
+            for slot in baseline_slots
+        )
+    return bool(plan.get('day_secured', False))
 
 
 def resolve_next_phase(
@@ -116,7 +151,7 @@ def _mission_plan_to_dict(plan: MissionPlan) -> dict[str, Any]:
 
     result: dict[str, Any] = {
         'plan_version': plan.plan_version,
-        'day_secured': compute_day_secured(phases_list),
+        'day_secured': compute_day_secured_at_assembly(phases_list),
         'mission': {
             'type': _enum_value(plan.mission.type),
             'title': plan.mission.title,

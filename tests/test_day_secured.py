@@ -19,7 +19,8 @@ from app.daily_plan.models import (
 )
 from app.daily_plan.service import (
     _mission_plan_to_dict,
-    compute_day_secured,
+    compute_day_secured_at_assembly as compute_day_secured,
+    compute_day_secured_from_activity,
     write_secured_at,
 )
 
@@ -216,6 +217,83 @@ class TestDaySecuredEdgeCases:
             _phase('curriculum_lesson', required=False, completed=True),
         ]
         assert compute_day_secured(phases) is False
+
+
+# ---------------------------------------------------------------------------
+# compute_day_secured_from_activity unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestComputeDaySecuredFromActivity:
+    def test_mission_all_required_complete_returns_true(self):
+        plan = {
+            '_plan_meta': {'effective_mode': 'mission'},
+            'phases': [
+                {'id': 'p1', 'required': True},
+                {'id': 'p2', 'required': True},
+            ],
+        }
+        assert compute_day_secured_from_activity(plan, {'p1': True, 'p2': True}) is True
+
+    def test_mission_one_incomplete_returns_false(self):
+        plan = {
+            '_plan_meta': {'effective_mode': 'mission'},
+            'phases': [
+                {'id': 'p1', 'required': True},
+                {'id': 'p2', 'required': True},
+            ],
+        }
+        assert compute_day_secured_from_activity(plan, {'p1': True, 'p2': False}) is False
+
+    def test_linear_all_slots_complete_returns_true(self):
+        plan = {
+            '_plan_meta': {'effective_mode': 'linear'},
+            'baseline_slots': [
+                {'kind': 'curriculum'},
+                {'kind': 'srs'},
+            ],
+        }
+        assert compute_day_secured_from_activity(
+            plan, {'curriculum': True, 'srs': True}
+        ) is True
+
+    def test_linear_one_slot_incomplete_returns_false(self):
+        plan = {
+            '_plan_meta': {'effective_mode': 'linear'},
+            'baseline_slots': [
+                {'kind': 'curriculum'},
+                {'kind': 'srs'},
+            ],
+        }
+        assert compute_day_secured_from_activity(
+            plan, {'curriculum': True, 'srs': False}
+        ) is False
+
+    def test_empty_plan_returns_false(self):
+        assert compute_day_secured_from_activity({}, {}) is False
+
+    def test_mission_no_required_phases_returns_false(self):
+        plan = {
+            '_plan_meta': {'effective_mode': 'mission'},
+            'phases': [{'id': 'p1', 'required': False}],
+        }
+        assert compute_day_secured_from_activity(plan, {'p1': True}) is False
+
+    def test_linear_no_baseline_slots_returns_false(self):
+        plan = {
+            '_plan_meta': {'effective_mode': 'linear'},
+            'baseline_slots': [],
+        }
+        assert compute_day_secured_from_activity(plan, {}) is False
+
+    def test_legacy_mode_falls_back_to_plan_day_secured(self):
+        plan = {
+            '_plan_meta': {'effective_mode': 'legacy'},
+            'day_secured': True,
+        }
+        assert compute_day_secured_from_activity(plan, {}) is True
+        plan['day_secured'] = False
+        assert compute_day_secured_from_activity(plan, {}) is False
 
 
 # ---------------------------------------------------------------------------
