@@ -2135,7 +2135,7 @@ class TestHeroCTAMatrix:
         src = _read_words_routes()
         anchor = src.find('def _resolve_hero_cta(')
         body = src[anchor:anchor + 3000]
-        assert 'has_extra_review_capacity(user.id)' in body
+        assert 'has_extra_review_capacity(user.id, deck_id=default_deck_id)' in body
 
     def test_template_renders_cta_for_all_kinds(self):
         tpl = _read_dashboard_template()
