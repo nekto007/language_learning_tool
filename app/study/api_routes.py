@@ -44,8 +44,8 @@ def get_study_items():
 
     settings = StudySettings.get_settings(current_user.id)
 
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    now = datetime.now(timezone.utc)
+    today_start = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     deck_word_ids = None
     deck = None
@@ -440,7 +440,7 @@ def update_study_item():
             db.session.add(settings)
             db.session.flush()
 
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0)
 
         if deck_id:
             deck = QuizDeck.query.get(deck_id)

@@ -213,12 +213,12 @@
 - Modify: `app/daily_plan/linear/slots/srs_slot.py`
 - Possibly: `app/study/api_routes.py`, `app/daily_plan/assembler.py`
 
-- [ ] Grep `datetime.now(timezone.utc)` по всем файлам где есть сравнения с `next_review`, `first_reviewed`, `last_reviewed`
-- [ ] Для каждого: убедиться что `.replace(tzinfo=None)` применяется перед сравнением с Column(DateTime)
-- [ ] `srs_slot.py:_today_start()`: зафиксировать как `now.replace(tzinfo=None).replace(hour=0, ...)`
-- [ ] Проверить `count_srs_due_cards()` в srs_slot.py — `now` для `next_review <= now` должен быть naive
-- [ ] Write tests: подтвердить что функции не бросают TypeError при сравнении dts
-- [ ] Run pytest — must pass before task 9
+- [x] Grep `datetime.now(timezone.utc)` по всем файлам где есть сравнения с `next_review`, `first_reviewed`, `last_reviewed`
+- [x] Для каждого: убедиться что `.replace(tzinfo=None)` применяется перед сравнением с Column(DateTime)
+- [x] `srs_slot.py:_today_start()`: зафиксировать как `now.replace(tzinfo=None).replace(hour=0, ...)`
+- [x] Проверить `count_srs_due_cards()` в srs_slot.py — `now` для `next_review <= now` должен быть naive
+- [x] Write tests: подтвердить что функции не бросают TypeError при сравнении dts
+- [x] Run pytest — must pass before task 9
 
 ---
 

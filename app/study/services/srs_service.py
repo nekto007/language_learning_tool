@@ -72,7 +72,7 @@ class SRSService:
         Returns:
             List of UserCardDirection objects due for review, ordered by priority
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Create a priority column for ordering
         # RELEARNING = 1, LEARNING = 2, REVIEW = 3, other = 4
@@ -139,7 +139,7 @@ class SRSService:
             Tuple of (new_cards_studied_today, reviews_done_today, new_limit, review_limit)
         """
         settings = StudySettings.get_settings(user_id)
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0)
 
         # Count new cards: first_reviewed is today (card was studied for the first time today)
         new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
@@ -197,7 +197,7 @@ class SRSService:
         settings = StudySettings.get_settings(user_id)
         base_new = settings.new_words_per_day
         base_reviews = settings.reviews_per_day
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Calculate accuracy over last 50 reviewed cards
         recent_cards = db.session.query(UserCardDirection).filter(
@@ -244,7 +244,7 @@ class SRSService:
             'nothing_to_study', 'limit_reached'
         """
         settings = StudySettings.get_settings(user_id)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         # End of today - show cards due anytime today (matches fetching logic)
         end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
@@ -440,7 +440,7 @@ class SRSService:
             List of dictionaries with word, card, and state data
         """
         items = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Check daily limits
         can_new = cls.can_study_new_cards(user_id)
@@ -621,7 +621,7 @@ class SRSService:
         Returns:
             tuple: (new_cards_today, reviews_today)
         """
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0)
 
         # Get word IDs for this deck
         deck_word_ids = [dw.word_id for dw in QuizDeckWord.query.filter_by(deck_id=deck_id).all() if dw.word_id]

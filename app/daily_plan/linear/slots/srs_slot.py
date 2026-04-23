@@ -263,7 +263,7 @@ def get_linear_plan_due_mix_cards(user_id: int, db: Any, limit: int) -> list[dic
 
     from app.curriculum.routes.card_lessons import _build_cards_for_words
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     due_directions = (
         db.session.query(UserCardDirection)
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
