@@ -74,11 +74,31 @@ def resolve_next_phase(
     return None
 
 
-def has_extra_review_capacity(user_id: int) -> bool:
-    """True when SRS cards are due AND the user still has review budget today."""
+def has_extra_review_capacity(user_id: int, deck_id: Optional[int] = None) -> bool:
+    """True when SRS cards are due AND the user still has review budget today.
+
+    When ``deck_id`` is given, restricts the due-card count to that deck's
+    word set — the CTA gated by this helper points at ``/study/cards/<deck_id>``
+    for users with a default deck, so counting globally would surface the CTA
+    even when all due cards live outside the deck and the session would be empty.
+    """
     try:
-        from app.daily_plan.assembler import _count_srs_due, _get_remaining_card_budget
-        due = _count_srs_due(user_id)
+        from app.daily_plan.assembler import _get_remaining_card_budget
+        from app.srs.counting import count_due_cards
+        from app.study.models import QuizDeckWord
+        from app.utils.db import db
+
+        word_ids: Optional[list[int]] = None
+        if deck_id is not None:
+            word_ids = [
+                wid for (wid,) in db.session.query(QuizDeckWord.word_id)
+                .filter(QuizDeckWord.deck_id == deck_id, QuizDeckWord.word_id.isnot(None))
+                .all()
+            ]
+            if not word_ids:
+                return False
+
+        due = count_due_cards(user_id, db, word_ids=word_ids)
         _, remaining_reviews = _get_remaining_card_budget(user_id)
         return due > 0 and remaining_reviews > 0
     except Exception:
