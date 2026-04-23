@@ -19,7 +19,6 @@ from app.grammar_lab.models import (
     UserGrammarTopicStatus,
 )
 from app.study.deck_utils import get_daily_plan_mix_word_ids
-from app.study.models import UserWord, UserCardDirection
 from app.books.models import Book, Chapter, UserChapterProgress
 
 from app.daily_plan.models import (
@@ -183,41 +182,12 @@ def _count_grammar_due(user_id: int) -> int:
 def _get_remaining_card_budget(user_id: int) -> tuple[int, int]:
     """Return (remaining_new, remaining_reviews) the user can still study today.
 
-    Mirrors the daily-budget math in app/study/api_routes.py so plan previews
-    promise only what the card API can actually serve. Without this, the
-    plan advertises e.g. 109 SRS cards while the user's reviews_per_day is
-    capped at 40 — the remaining 69 get pushed to tomorrow, growing the
-    backlog.
+    Delegates to the canonical `get_new_card_budget` so mission-plan,
+    linear-plan and /study all share one adaptive-limit source of truth.
     """
-    from app.study.services import SRSService
+    from app.srs.counting import get_new_card_budget
 
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    user_word_ids_subq = db.session.query(UserWord.id).filter_by(user_id=user_id)
-    new_cards_today = (
-        db.session.query(func.count(UserCardDirection.id))
-        .filter(
-            UserCardDirection.user_word_id.in_(user_word_ids_subq),
-            UserCardDirection.first_reviewed >= today_start,
-            UserCardDirection.first_reviewed.isnot(None),
-        ).scalar() or 0
-    )
-    reviews_today = (
-        db.session.query(func.count(UserCardDirection.id))
-        .filter(
-            UserCardDirection.user_word_id.in_(user_word_ids_subq),
-            UserCardDirection.last_reviewed >= today_start,
-            UserCardDirection.first_reviewed < today_start,
-            UserCardDirection.first_reviewed.isnot(None),
-        ).scalar() or 0
-    )
-
-    adaptive_new, adaptive_reviews = SRSService.get_adaptive_limits(user_id)
-    return (
-        max(0, adaptive_new - new_cards_today),
-        max(0, adaptive_reviews - reviews_today),
-    )
+    return get_new_card_budget(user_id, db)
 
 
 def _allocate_srs_budget(srs_due: int, remaining_reviews: int) -> tuple[int, int]:

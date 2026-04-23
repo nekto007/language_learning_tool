@@ -66,7 +66,11 @@ def get_study_items():
         new_cards_limit = deck.get_new_words_limit(settings)
         reviews_limit = deck.get_reviews_limit(settings)
     else:
-        from app.srs.counting import count_new_cards_today, count_reviews_today
+        from app.srs.counting import (
+            count_new_cards_today,
+            count_reviews_today,
+            get_new_card_budget,
+        )
 
         new_cards_today = count_new_cards_today(current_user.id, db)
         reviews_today = count_reviews_today(current_user.id, db)
@@ -77,9 +81,9 @@ def get_study_items():
             new_cards_limit = new_cards_today
             reviews_limit = reviews_today + count_linear_plan_srs_due_cards(current_user.id, db)
         else:
-            adaptive_new, adaptive_reviews = SRSService.get_adaptive_limits(current_user.id)
-            new_cards_limit = adaptive_new
-            reviews_limit = adaptive_reviews
+            remaining_new, remaining_reviews = get_new_card_budget(current_user.id, db)
+            new_cards_limit = new_cards_today + remaining_new
+            reviews_limit = reviews_today + remaining_reviews
 
     new_cards_limit_reached = new_cards_today >= new_cards_limit
     reviews_limit_reached = reviews_today >= reviews_limit

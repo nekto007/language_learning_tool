@@ -147,12 +147,12 @@
 - Modify: `app/daily_plan/linear/slots/srs_slot.py`
 - Modify: `app/study/api_routes.py`
 
-- [ ] `assembler.py:_get_remaining_card_budget()` → заменить тело на `get_new_card_budget(user_id, db)` из counting.py; удалить функцию если больше нигде не используется
-- [ ] `srs_slot.py:get_srs_budget_remaining()` → заменить на `get_new_card_budget(user_id, db)[0]` (только remaining_new для slot)
-- [ ] `api_routes.py:92-94` (`adaptive_new, adaptive_reviews = SRSService.get_adaptive_limits(...)`) → заменить на `get_new_card_budget(current_user.id, db)` и деструктурировать
-- [ ] Убедиться что `is_linear_plan_srs` логика в api_routes.py по-прежнему работает (linear SRS не даёт новых карточек, только reviews)
-- [ ] Write tests: mission-plan и linear-plan получают одинаковый бюджет для одного пользователя; `is_linear_plan_srs=True` всё ещё блокирует новые карточки
-- [ ] Run pytest — must pass before task 5
+- [x] `assembler.py:_get_remaining_card_budget()` → заменить тело на `get_new_card_budget(user_id, db)` из counting.py; удалить функцию если больше нигде не используется
+- [x] `srs_slot.py:get_srs_budget_remaining()` → заменить на `get_new_card_budget(user_id, db)[0]` (только remaining_new для slot)
+- [x] `api_routes.py:92-94` (`adaptive_new, adaptive_reviews = SRSService.get_adaptive_limits(...)`) → заменить на `get_new_card_budget(current_user.id, db)` и деструктурировать
+- [x] Убедиться что `is_linear_plan_srs` логика в api_routes.py по-прежнему работает (linear SRS не даёт новых карточек, только reviews)
+- [x] Write tests: mission-plan и linear-plan получают одинаковый бюджет для одного пользователя; `is_linear_plan_srs=True` всё ещё блокирует новые карточки
+- [x] Run pytest — must pass before task 5
 
 ---
 

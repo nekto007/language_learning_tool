@@ -46,25 +46,14 @@ def _user_word_ids_subquery(user_id: int, db: Any):
 def get_srs_budget_remaining(user_id: int, db: Any) -> int:
     """Return remaining daily new-card budget for the user.
 
-    Reads ``max_new_per_day`` from ``StudySettings`` (the same knob /study
-    uses) and subtracts the count of ``UserCardDirection`` rows whose
-    ``first_reviewed`` is today. Never returns a negative number.
+    Delegates to the canonical `get_new_card_budget` (adaptive-limits source
+    of truth shared by mission-plan, linear-plan and /study). Returns only
+    the new-card half — review budget is tracked separately in this slot.
     """
-    settings = StudySettings.get_settings(user_id)
-    max_new = int(settings.new_words_per_day or 0)
+    from app.srs.counting import get_new_card_budget
 
-    start = _today_start()
-    used_today = (
-        db.session.query(func.count(UserCardDirection.id))
-        .filter(
-            UserCardDirection.user_word_id.in_(_user_word_ids_subquery(user_id, db)),
-            UserCardDirection.first_reviewed.isnot(None),
-            UserCardDirection.first_reviewed >= start,
-        )
-        .scalar()
-        or 0
-    )
-    return max(max_new - int(used_today), 0)
+    remaining_new, _ = get_new_card_budget(user_id, db)
+    return remaining_new
 
 
 def count_srs_due_cards(user_id: int, db: Any) -> int:

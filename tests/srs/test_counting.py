@@ -340,3 +340,36 @@ class TestUnifiedCountingAcrossCallsites:
         assert count_srs_due_cards(user.id, real_db) == canonical
 
         assert count_reviews_today(user.id, real_db) == count_srs_reviews_today(user.id, real_db)
+
+
+class TestUnifiedBudgetAcrossCallsites:
+    """mission-plan, linear-plan and /study must all see the same new-card budget."""
+
+    def _settings(self, db_session, user, *, new_per_day: int, reviews_per_day: int) -> StudySettings:
+        settings = StudySettings(user_id=user.id)
+        settings.new_words_per_day = new_per_day
+        settings.reviews_per_day = reviews_per_day
+        db_session.add(settings)
+        db_session.commit()
+        return settings
+
+    def test_assembler_and_linear_budget_agree(self, db_session):
+        from app.daily_plan.assembler import _get_remaining_card_budget
+        from app.daily_plan.linear.slots.srs_slot import get_srs_budget_remaining
+
+        user = _make_user(db_session)
+        self._settings(db_session, user, new_per_day=7, reviews_per_day=30)
+        now = _now_naive()
+        word = _make_word(db_session)
+        uw = _make_user_word(db_session, user, word)
+        _make_direction(
+            db_session, uw,
+            state=CardState.LEARNING.value,
+            first_reviewed=now,
+            last_reviewed=now,
+            next_review=now + timedelta(days=1),
+        )
+
+        canonical_new, _canonical_reviews = get_new_card_budget(user.id, real_db)
+        assert _get_remaining_card_budget(user.id)[0] == canonical_new
+        assert get_srs_budget_remaining(user.id, real_db) == canonical_new
