@@ -10,7 +10,9 @@ from app.srs.counting import (
     count_due_cards,
     count_new_cards_today,
     count_reviews_today,
+    get_new_card_budget,
 )
+from app.study.models import StudySettings
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db as real_db
 from app.words.models import CollectionWords
@@ -225,6 +227,86 @@ class TestCountNewAndReviewsToday:
 class TestNaiveUtcImport:
     def test_import_path(self):
         from app.srs.counting import count_due_cards as cdc  # noqa: F401
+
+
+class TestGetNewCardBudget:
+    def _settings(self, db_session, user, *, new_per_day: int = 10, reviews_per_day: int = 50) -> StudySettings:
+        settings = StudySettings(user_id=user.id)
+        settings.new_words_per_day = new_per_day
+        settings.reviews_per_day = reviews_per_day
+        db_session.add(settings)
+        db_session.commit()
+        return settings
+
+    def test_full_budget_with_no_activity(self, db_session):
+        user = _make_user(db_session)
+        self._settings(db_session, user, new_per_day=10, reviews_per_day=50)
+        remaining_new, remaining_reviews = get_new_card_budget(user.id, real_db)
+        assert remaining_new == 10
+        assert remaining_reviews == 50
+
+    def test_budget_consumed_by_new_cards(self, db_session):
+        user = _make_user(db_session)
+        self._settings(db_session, user, new_per_day=3, reviews_per_day=20)
+        now = _now_naive()
+
+        # Two first-reviewed-today cards.
+        for _ in range(2):
+            word = _make_word(db_session)
+            uw = _make_user_word(db_session, user, word)
+            _make_direction(
+                db_session, uw,
+                state=CardState.LEARNING.value,
+                first_reviewed=now,
+                last_reviewed=now,
+                next_review=now + timedelta(days=1),
+            )
+
+        remaining_new, _ = get_new_card_budget(user.id, real_db)
+        assert remaining_new == 1
+
+    def test_budget_never_negative(self, db_session):
+        user = _make_user(db_session)
+        self._settings(db_session, user, new_per_day=1, reviews_per_day=5)
+        now = _now_naive()
+
+        for _ in range(3):
+            word = _make_word(db_session)
+            uw = _make_user_word(db_session, user, word)
+            _make_direction(
+                db_session, uw,
+                state=CardState.LEARNING.value,
+                first_reviewed=now,
+                last_reviewed=now,
+                next_review=now + timedelta(days=1),
+            )
+
+        remaining_new, remaining_reviews = get_new_card_budget(user.id, real_db)
+        assert remaining_new == 0
+        assert remaining_reviews == 5
+
+    def test_low_accuracy_triggers_adaptive_cap(self, db_session):
+        user = _make_user(db_session)
+        self._settings(db_session, user, new_per_day=10, reviews_per_day=50)
+        now = _now_naive()
+
+        # Create a reviewed card with 70% accuracy (7 correct / 3 incorrect) → accuracy < 85.
+        word = _make_word(db_session)
+        uw = _make_user_word(db_session, user, word)
+        card = _make_direction(
+            db_session, uw,
+            state=CardState.REVIEW.value,
+            first_reviewed=now - timedelta(days=5),
+            last_reviewed=now - timedelta(hours=1),
+            next_review=now + timedelta(days=1),
+        )
+        card.correct_count = 7
+        card.incorrect_count = 3
+        db_session.commit()
+
+        remaining_new, _ = get_new_card_budget(user.id, real_db)
+        # Adaptive clamp: min(2, base=10) = 2, minus 0 today = 2.
+        assert remaining_new == 2
 
 
 class TestUnifiedCountingAcrossCallsites:

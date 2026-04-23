@@ -85,6 +85,29 @@ def count_new_cards_today(user_id: int, db: Any = _db, now_utc: Optional[datetim
     )
 
 
+def get_new_card_budget(
+    user_id: int, db: Any = _db, now_utc: Optional[datetime] = None
+) -> tuple[int, int]:
+    """Canonical daily budget: (remaining_new, remaining_reviews).
+
+    Adaptive limits from `SRSService.get_adaptive_limits()` are the single
+    source of truth — they already reduce the new-card ceiling when a user
+    is struggling (accuracy < 85% or backlog > 50). Mission-plan, linear-plan
+    and /study all route through this function to avoid drift.
+
+    Results are clamped to ≥ 0.
+    """
+    from app.study.services import SRSService
+
+    adaptive_new, adaptive_reviews = SRSService.get_adaptive_limits(user_id)
+    new_today = count_new_cards_today(user_id, db, now_utc=now_utc)
+    rev_today = count_reviews_today(user_id, db, now_utc=now_utc)
+    return (
+        max(0, adaptive_new - new_today),
+        max(0, adaptive_reviews - rev_today),
+    )
+
+
 def count_reviews_today(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> int:
     """Count card reviews that happened today excluding first-time reviews."""
     today_start = _today_start_naive(now_utc)

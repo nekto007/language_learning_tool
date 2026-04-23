@@ -133,10 +133,10 @@
 - Modify: `app/srs/counting.py`
 - Modify: `tests/srs/test_counting.py`
 
-- [ ] `get_new_card_budget(user_id, db) -> tuple[int, int]` — возвращает `(remaining_new, remaining_reviews)`, используя `SRSService.get_adaptive_limits(user_id)` минус `count_new_cards_today` / `count_reviews_today`
-- [ ] Никаких дополнительных параметров — adaptive_limits это единый источник истины
-- [ ] Write tests: при `new_cards_today >= adaptive_new` → `remaining_new = 0`; при низкой accuracy adaptive снижается и budget снижается; результат ≥ 0 всегда
-- [ ] Run pytest — must pass before task 4
+- [x] `get_new_card_budget(user_id, db) -> tuple[int, int]` — возвращает `(remaining_new, remaining_reviews)`, используя `SRSService.get_adaptive_limits(user_id)` минус `count_new_cards_today` / `count_reviews_today`
+- [x] Никаких дополнительных параметров — adaptive_limits это единый источник истины
+- [x] Write tests: при `new_cards_today >= adaptive_new` → `remaining_new = 0`; при низкой accuracy adaptive снижается и budget снижается; результат ≥ 0 всегда
+- [x] Run pytest — must pass before task 4
 
 ---
 
