@@ -84,10 +84,10 @@ def get_study_items():
         ).scalar() or 0
 
         if is_linear_plan_srs:
-            from app.daily_plan.linear.slots.srs_slot import count_srs_due_cards
+            from app.daily_plan.linear.slots.srs_slot import count_linear_plan_srs_due_cards
 
             new_cards_limit = new_cards_today
-            reviews_limit = reviews_today + count_srs_due_cards(current_user.id, db)
+            reviews_limit = reviews_today + count_linear_plan_srs_due_cards(current_user.id, db)
         else:
             adaptive_new, adaptive_reviews = SRSService.get_adaptive_limits(current_user.id)
             new_cards_limit = adaptive_new

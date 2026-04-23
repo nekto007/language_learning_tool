@@ -126,6 +126,16 @@ def count_srs_reviews_today(user_id: int, db: Any) -> int:
     )
 
 
+def count_linear_plan_srs_due_cards(user_id: int, db: Any) -> int:
+    """Count cards the linear-plan SRS slot can actually serve today."""
+    settings = StudySettings.get_settings(user_id)
+    reviews_limit = max(int(settings.reviews_per_day or 0), 0)
+    reviews_today = count_srs_reviews_today(user_id, db)
+    reviews_remaining = max(reviews_limit - reviews_today, 0)
+    backlog_due_count = count_srs_due_cards(user_id, db)
+    return min(backlog_due_count, reviews_remaining)
+
+
 def _linear_srs_completed_today(user_id: int, db: Any) -> bool:
     """Return whether the linear SRS/global study slot has awarded XP today."""
     from app.achievements.models import StreakEvent
@@ -246,9 +256,8 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
     reviews_limit = max(int(settings.reviews_per_day or 0), 0)
     reviews_today = count_srs_reviews_today(user_id, db)
     reviews_remaining = max(reviews_limit - reviews_today, 0)
-
     backlog_due_count = count_srs_due_cards(user_id, db)
-    due_count = min(backlog_due_count, reviews_remaining)
+    due_count = count_linear_plan_srs_due_cards(user_id, db)
     studied_today = count_srs_cards_studied_today(user_id, db)
     budget_remaining = get_srs_budget_remaining(user_id, db)
 

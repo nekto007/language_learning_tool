@@ -156,6 +156,79 @@ class TestGetStudyItems:
         assert all(item['is_new'] is False for item in data['items'])
         assert data['stats']['new_cards_limit'] == data['stats']['new_cards_today']
 
+    def test_linear_plan_srs_respects_remaining_review_budget(
+        self, authenticated_client, db_session, test_user, study_settings,
+    ):
+        """Linear-plan card session size must match the slot's capped due count."""
+        from app.daily_plan.linear.slots.srs_slot import count_linear_plan_srs_due_cards
+        from app.study.models import UserCardDirection, UserWord
+        from app.words.models import CollectionWords
+
+        now = datetime.now(timezone.utc)
+        study_settings.reviews_per_day = 50
+
+        for index in range(10):
+            word = CollectionWords(
+                english_word=f'reviewed_{index}',
+                russian_word=f'повтор_{index}',
+                level='A1',
+            )
+            db_session.add(word)
+            db_session.flush()
+
+            user_word = UserWord(user_id=test_user.id, word_id=word.id)
+            user_word.status = 'review'
+            db_session.add(user_word)
+            db_session.flush()
+
+            direction = UserCardDirection(
+                user_word_id=user_word.id,
+                direction='eng-rus',
+            )
+            direction.state = 'review'
+            direction.first_reviewed = now - timedelta(days=10)
+            direction.last_reviewed = now - timedelta(minutes=5)
+            direction.next_review = now + timedelta(days=1)
+            db_session.add(direction)
+
+        for index in range(80):
+            word = CollectionWords(
+                english_word=f'due_{index}',
+                russian_word=f'долг_{index}',
+                level='A1',
+            )
+            db_session.add(word)
+            db_session.flush()
+
+            user_word = UserWord(user_id=test_user.id, word_id=word.id)
+            user_word.status = 'review'
+            db_session.add(user_word)
+            db_session.flush()
+
+            direction = UserCardDirection(
+                user_word_id=user_word.id,
+                direction='eng-rus',
+            )
+            direction.state = 'review'
+            direction.first_reviewed = now - timedelta(days=20)
+            direction.last_reviewed = now - timedelta(days=2)
+            direction.next_review = now - timedelta(hours=1)
+            db_session.add(direction)
+
+        db_session.commit()
+
+        response = authenticated_client.get(
+            '/study/api/get-study-items?source=linear_plan&from=linear_plan&slot=srs'
+        )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['status'] == 'success'
+        assert count_linear_plan_srs_due_cards(test_user.id, db) == 40
+        assert len(data['items']) == 40
+        assert data['stats']['reviews_today'] == 10
+        assert data['stats']['reviews_limit'] == 50
+
     def test_prioritizes_due_reviews(self, authenticated_client, user_words, user_card_directions, study_settings):
         """Test that due reviews are prioritized over new cards"""
         response = authenticated_client.get('/study/api/get-study-items?source=auto')

@@ -259,9 +259,9 @@ def cards():
         fetch_cards_params['slot'] = request.args['slot']
 
     if source == 'linear_plan' and request.args.get('slot') == 'srs':
-        from app.daily_plan.linear.slots.srs_slot import count_srs_due_cards
+        from app.daily_plan.linear.slots.srs_slot import count_linear_plan_srs_due_cards
 
-        due_count = count_srs_due_cards(current_user.id, db)
+        due_count = count_linear_plan_srs_due_cards(current_user.id, db)
         counts = {
             'due_count': due_count,
             'new_count': 0,
