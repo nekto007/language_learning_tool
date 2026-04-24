@@ -14,7 +14,7 @@ from app.curriculum.service import (
     get_card_session_for_lesson, process_card_review_for_lesson, sync_lesson_cards_to_words,
 )
 from app.curriculum.validators import SRSReviewSchema, validate_request_data
-from app.study.models import UserCardDirection, UserWord, UserXP
+from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
 
@@ -589,7 +589,13 @@ def complete_srs_session(lesson_id):
                 )
                 db.session.rollback()
 
-        user_xp = UserXP.get_or_create(current_user.id)
+        from app.achievements.models import UserStatistics
+        from app.achievements.xp_service import get_level_info
+
+        stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
+        total_xp = (stats.total_xp if stats else 0) or 0
+        level = get_level_info(total_xp).current_level
+
         correct = int(round(cards_studied * (accuracy / 100))) if cards_studied > 0 else 0
         incorrect = max(int(cards_studied) - correct, 0)
 
@@ -604,8 +610,8 @@ def complete_srs_session(lesson_id):
                 'percentage': accuracy,
             },
             'xp_earned': xp_award.xp_awarded if xp_award else 0,
-            'total_xp': user_xp.total_xp,
-            'level': user_xp.level,
+            'total_xp': total_xp,
+            'level': level,
         })
 
     except Exception as e:

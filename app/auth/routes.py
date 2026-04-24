@@ -437,9 +437,10 @@ def logout():
 
 def _get_profile_stats(user_id: int) -> dict:
     """Gather learning stats for profile page."""
-    from app.study.models import UserWord, UserXP
+    from app.study.models import UserWord
     from app.curriculum.models import LessonProgress
     from app.achievements.models import UserStatistics
+    from app.achievements.xp_service import get_level_info
     from app.telegram.queries import get_current_streak
 
     # Words learned (any status means user is studying it)
@@ -450,16 +451,14 @@ def _get_profile_stats(user_id: int) -> dict:
         user_id=user_id, status='completed'
     ).count()
 
-    # XP and level
-    user_xp = UserXP.query.filter_by(user_id=user_id).first()
-    xp_level = user_xp.level if user_xp else 1
-    total_xp = user_xp.total_xp if user_xp else 0
+    # Streak record and XP from UserStatistics
+    user_stats = UserStatistics.query.filter_by(user_id=user_id).first()
+    total_xp = (user_stats.total_xp if user_stats else 0) or 0
+    xp_level = get_level_info(total_xp).current_level
 
     # Streak
     current_streak = get_current_streak(user_id)
 
-    # Streak record from UserStatistics
-    user_stats = UserStatistics.query.filter_by(user_id=user_id).first()
     longest_streak = user_stats.longest_streak_days if user_stats else current_streak
 
     return {

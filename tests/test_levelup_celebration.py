@@ -58,9 +58,13 @@ class TestCelebrationAPI:
 
     def test_celebrations_with_xp(self, auth_client, celebration_user, db_session):
         """After adding XP, level should be reflected."""
-        from app.study.models import UserXP
-        xp = UserXP.get_or_create(celebration_user.id)
-        xp.add_xp(500)
+        from app.achievements.models import UserStatistics
+        stats = UserStatistics.query.filter_by(user_id=celebration_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=celebration_user.id, total_xp=500)
+            db_session.add(stats)
+        else:
+            stats.total_xp = 500
         db_session.commit()
 
         response = auth_client.get('/study/api/celebrations')

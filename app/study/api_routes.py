@@ -644,13 +644,15 @@ def api_search_words():
 @study.route('/api/celebrations')
 @login_required
 def check_celebrations():
-    from app.study.models import UserXP, UserAchievement, Achievement
+    from app.study.models import UserAchievement, Achievement
+    from app.achievements.models import UserStatistics
+    from app.achievements.xp_service import get_level_info
 
     celebrations = []
 
-    user_xp = UserXP.query.filter_by(user_id=current_user.id).first()
-    current_level = user_xp.level if user_xp else 1
-    current_total_xp = user_xp.total_xp if user_xp else 0
+    stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
+    current_total_xp = (stats.total_xp if stats else 0) or 0
+    current_level = get_level_info(current_total_xp).current_level
 
     from dateutil.parser import isoparse
     after_param = request.args.get('after')
