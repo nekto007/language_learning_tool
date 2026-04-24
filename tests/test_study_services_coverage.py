@@ -482,10 +482,13 @@ class TestSessionService:
     def test_award_xp(self, app, db_session, test_user):
         """Test awarding XP through session service"""
         from app.study.services.session_service import SessionService
+        from app.achievements.models import UserStatistics
 
         with app.app_context():
-            user_xp = SessionService.award_xp(test_user.id, 50)
-            assert user_xp.total_xp >= 50
+            SessionService.award_xp(test_user.id, 50)
+            stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+            assert stats is not None
+            assert stats.total_xp >= 50
 
     def test_get_user_total_xp_no_record(self, app, db_session, test_user):
         """Test getting XP for user without record"""

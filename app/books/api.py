@@ -896,16 +896,15 @@ def save_reading_position():
     response_data = {'success': True}
 
     # Award XP if chapter just completed (was incomplete, now complete)
-    if was_incomplete and position >= 1.0:
-        xp_breakdown = XPService.calculate_book_chapter_xp()
-        user_xp = XPService.award_xp(current_user.id, xp_breakdown['total_xp'])
+    chapter_completed = was_incomplete and position >= 1.0
+    chapter_xp_award = None
+    if chapter_completed:
+        from app.achievements.xp_service import award_xp as _award_xp_unified
 
-        response_data.update({
-            'chapter_completed': True,
-            'xp_earned': xp_breakdown['total_xp'],
-            'total_xp': user_xp.total_xp,
-            'level': user_xp.level
-        })
+        xp_breakdown = XPService.calculate_book_chapter_xp()
+        if xp_breakdown['total_xp'] > 0:
+            chapter_xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'book_chapter')
+        db.session.commit()
 
     # Linear plan: award book-reading slot XP once per day when the
     # reading slot's completion threshold is crossed. Gated on the
@@ -934,5 +933,20 @@ def save_reading_position():
             current_user.id, exc_info=True,
         )
         db.session.rollback()
+
+    if chapter_completed:
+        from app.achievements.xp_service import get_level_info
+        from app.achievements.models import UserStatistics
+
+        stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
+        total_xp = stats.total_xp if stats else 0
+        level_info = get_level_info(total_xp)
+
+        response_data.update({
+            'chapter_completed': True,
+            'xp_earned': chapter_xp_award.xp_awarded if chapter_xp_award else 0,
+            'total_xp': total_xp,
+            'level': level_info.current_level,
+        })
 
     return jsonify(response_data)

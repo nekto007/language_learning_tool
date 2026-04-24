@@ -38,118 +38,20 @@ def _user_day_boundaries(tz_name: str = DEFAULT_TZ,
 
 def has_activity_today(user_id: int, tz: str = DEFAULT_TZ) -> bool:
     """Check if user had any learning activity today in their timezone."""
+    from app.utils.activity_tracker import has_learning_activity
     today_start, today_end = _user_day_boundaries(tz)
-
-    # Check lesson progress
-    lesson_activity = LessonProgress.query.filter(
-        LessonProgress.user_id == user_id,
-        LessonProgress.last_activity >= today_start,
-        LessonProgress.last_activity < today_end,
-    ).first()
-    if lesson_activity:
-        return True
-
-    # Check grammar exercises
-    grammar_activity = UserGrammarExercise.query.filter(
-        UserGrammarExercise.user_id == user_id,
-        UserGrammarExercise.last_reviewed >= today_start,
-        UserGrammarExercise.last_reviewed < today_end,
-    ).first()
-    if grammar_activity:
-        return True
-
-    # Check word reviews
-    word_activity = db.session.query(UserCardDirection).join(UserWord).filter(
-        UserWord.user_id == user_id,
-        UserCardDirection.last_reviewed >= today_start,
-        UserCardDirection.last_reviewed < today_end,
-    ).first()
-    if word_activity:
-        return True
-
-    # Check book reading
-    book_activity = UserChapterProgress.query.filter(
-        UserChapterProgress.user_id == user_id,
-        UserChapterProgress.updated_at >= today_start,
-        UserChapterProgress.updated_at < today_end,
-    ).first()
-    if book_activity:
-        return True
-
-    # Check book course lesson progress
-    book_course_activity = UserLessonProgress.query.filter(
-        UserLessonProgress.user_id == user_id,
-        UserLessonProgress.completed_at >= today_start,
-        UserLessonProgress.completed_at < today_end,
-    ).first()
-    if book_course_activity:
-        return True
-
-    return False
+    return has_learning_activity(user_id, today_start, today_end)
 
 
 def _has_activity_in_range(user_id: int, start_utc: datetime,
                            end_utc: datetime) -> bool:
-    """Check if user had any activity between start_utc and end_utc.
+    """Check if user had any learning activity in [start_utc, end_utc).
 
-    Must check the same sources as has_activity_today() to avoid
-    streak gaps when user only did one type of activity.
-
-    Handles both timezone-aware and naive datetime columns by stripping
-    tzinfo from boundaries before comparison with naive DB columns.
+    Delegates to the canonical helper so streak math, telegram, and admin
+    DAU all see the same set of users.
     """
-    from app.study.models import StudySession
-
-    # Some columns store naive UTC datetimes, so we need both variants
-    start_naive = start_utc.replace(tzinfo=None)
-    end_naive = end_utc.replace(tzinfo=None)
-
-    if LessonProgress.query.filter(
-        LessonProgress.user_id == user_id,
-        LessonProgress.last_activity >= start_naive,
-        LessonProgress.last_activity < end_naive,
-    ).first():
-        return True
-
-    if UserGrammarExercise.query.filter(
-        UserGrammarExercise.user_id == user_id,
-        UserGrammarExercise.last_reviewed >= start_naive,
-        UserGrammarExercise.last_reviewed < end_naive,
-    ).first():
-        return True
-
-    if db.session.query(UserCardDirection).join(UserWord).filter(
-        UserWord.user_id == user_id,
-        UserCardDirection.last_reviewed >= start_naive,
-        UserCardDirection.last_reviewed < end_naive,
-    ).first():
-        return True
-
-    # Study sessions (flashcard reviews)
-    if StudySession.query.filter(
-        StudySession.user_id == user_id,
-        StudySession.start_time >= start_naive,
-        StudySession.start_time < end_naive,
-    ).first():
-        return True
-
-    # Book reading progress
-    if UserChapterProgress.query.filter(
-        UserChapterProgress.user_id == user_id,
-        UserChapterProgress.updated_at >= start_naive,
-        UserChapterProgress.updated_at < end_naive,
-    ).first():
-        return True
-
-    # Book course lesson progress
-    if UserLessonProgress.query.filter(
-        UserLessonProgress.user_id == user_id,
-        UserLessonProgress.completed_at >= start_naive,
-        UserLessonProgress.completed_at < end_naive,
-    ).first():
-        return True
-
-    return False
+    from app.utils.activity_tracker import has_learning_activity
+    return has_learning_activity(user_id, start_utc, end_utc)
 
 
 def get_current_streak(user_id: int, tz: str = DEFAULT_TZ) -> int:

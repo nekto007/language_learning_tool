@@ -157,17 +157,25 @@ class XPService:
         """
         Award XP to a user.
 
-        Args:
-            user_id: User ID
-            amount: Amount of XP to award
-
-        Returns:
-            Updated UserXP object
+        .. deprecated::
+            Use ``app.achievements.xp_service.award_xp`` which writes to
+            ``UserStatistics.total_xp`` (the single source of truth used by
+            the leaderboard and dashboard level). This shim now forwards
+            to the unified write-path so any stale caller still credits the
+            canonical counter; it will be removed once all imports migrate.
         """
-        user_xp = UserXP.get_or_create(user_id)
-        user_xp.add_xp(amount)
-        db.session.commit()
-        return user_xp
+        import warnings
+        warnings.warn(
+            "study.xp_service.XPService.award_xp is deprecated; "
+            "use achievements.xp_service.award_xp instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from app.achievements.xp_service import award_xp as _unified_award_xp
+        if amount > 0:
+            _unified_award_xp(user_id, amount, 'legacy_xp_service_shim')
+            db.session.commit()
+        return UserXP.get_or_create(user_id)
 
     @staticmethod
     def check_quiz_achievements(user_id: int, quiz_data: Dict[str, Any]) -> List[Achievement]:
@@ -261,30 +269,19 @@ class XPService:
         Returns:
             Achievement object or None
         """
+        from app.achievements.services import grant_achievement
+
         achievement = Achievement.query.filter_by(code=achievement_code).first()
         if not achievement:
             return None
 
-        # Check if already earned
-        existing = UserAchievement.query.filter_by(
-            user_id=user_id,
-            achievement_id=achievement.id
-        ).first()
-
-        if existing:
+        _, is_new = grant_achievement(user_id, achievement.id)
+        if not is_new:
             return None
 
-        # Award achievement
-        user_achievement = UserAchievement(
-            user_id=user_id,
-            achievement_id=achievement.id
-        )
-        db.session.add(user_achievement)
-
-        # Award bonus XP
         if achievement.xp_reward > 0:
-            user_xp = UserXP.get_or_create(user_id)
-            user_xp.add_xp(achievement.xp_reward)
+            from app.achievements.xp_service import award_xp as _award_xp_unified
+            _award_xp_unified(user_id, achievement.xp_reward, f'achievement:{achievement_code}')
 
         db.session.commit()
 

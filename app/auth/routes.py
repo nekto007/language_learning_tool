@@ -21,7 +21,8 @@ auth = Blueprint('auth', __name__)
 
 def _check_referral_achievements(referrer_id: int) -> None:
     """Check and award referral achievements based on referral count."""
-    from app.study.models import Achievement, UserAchievement
+    from app.study.models import Achievement
+    from app.achievements.services import grant_achievement
     from app.notifications.services import notify_achievement
 
     referral_count = User.query.filter_by(referred_by_id=referrer_id).count()
@@ -43,20 +44,13 @@ def _check_referral_achievements(referrer_id: int) -> None:
             db.session.add(ach)
             db.session.flush()
 
-        # Check if already awarded
-        already = UserAchievement.query.filter_by(user_id=referrer_id, achievement_id=ach.id).first()
-        if already:
+        _, is_new = grant_achievement(referrer_id, ach.id)
+        if not is_new:
             continue
 
-        ua = UserAchievement(user_id=referrer_id, achievement_id=ach.id)
-        db.session.add(ua)
+        from app.achievements.xp_service import award_xp as _award_xp_unified
+        _award_xp_unified(referrer_id, xp_reward, f'referral_achievement:{code}')
 
-        # Award XP
-        from app.study.models import UserXP
-        xp = UserXP.get_or_create(referrer_id)
-        xp.add_xp(xp_reward)
-
-        # Notify
         notify_achievement(referrer_id, name, icon)
 
 
@@ -443,9 +437,10 @@ def logout():
 
 def _get_profile_stats(user_id: int) -> dict:
     """Gather learning stats for profile page."""
-    from app.study.models import UserWord, UserXP
+    from app.study.models import UserWord
     from app.curriculum.models import LessonProgress
     from app.achievements.models import UserStatistics
+    from app.achievements.xp_service import get_level_info
     from app.telegram.queries import get_current_streak
 
     # Words learned (any status means user is studying it)
@@ -456,16 +451,14 @@ def _get_profile_stats(user_id: int) -> dict:
         user_id=user_id, status='completed'
     ).count()
 
-    # XP and level
-    user_xp = UserXP.query.filter_by(user_id=user_id).first()
-    xp_level = user_xp.level if user_xp else 1
-    total_xp = user_xp.total_xp if user_xp else 0
+    # Streak record and XP from UserStatistics
+    user_stats = UserStatistics.query.filter_by(user_id=user_id).first()
+    total_xp = (user_stats.total_xp if user_stats else 0) or 0
+    xp_level = get_level_info(total_xp).current_level
 
     # Streak
     current_streak = get_current_streak(user_id)
 
-    # Streak record from UserStatistics
-    user_stats = UserStatistics.query.filter_by(user_id=user_id).first()
     longest_streak = user_stats.longest_streak_days if user_stats else current_streak
 
     return {
@@ -644,7 +637,9 @@ def referrals():
 def public_profile(username: str):
     """Public user achievement showcase — no login required."""
     from flask import abort
-    from app.study.models import UserXP, UserAchievement, Achievement
+    from app.study.models import UserAchievement, Achievement
+    from app.achievements.models import UserStatistics
+    from app.achievements.xp_service import get_level_info
     from app.telegram.queries import get_current_streak
     from app.curriculum.models import LessonProgress
 
@@ -652,10 +647,10 @@ def public_profile(username: str):
     if not user:
         abort(404)
 
-    # XP and level
-    user_xp = UserXP.query.filter_by(user_id=user.id).first()
-    level = user_xp.level if user_xp else 1
-    total_xp = user_xp.total_xp if user_xp else 0
+    # XP and level — read canonical UserStatistics.total_xp
+    stats = UserStatistics.query.filter_by(user_id=user.id).first()
+    total_xp = (stats.total_xp if stats else 0) or 0
+    level = get_level_info(total_xp).current_level
 
     # Streak
     streak = get_current_streak(user.id)

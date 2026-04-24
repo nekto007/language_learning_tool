@@ -543,12 +543,15 @@ class TestCompleteSession:
         initial_xp = user_xp.total_xp
 
         with patch('app.study.xp_service.XPService.calculate_flashcard_xp') as mock_calc, \
-             patch('app.study.xp_service.XPService.award_xp') as mock_award:
+             patch('app.achievements.xp_service.award_xp') as mock_award:
 
             # Mock the XP calculation
             mock_calc.return_value = {'total_xp': 50}
-            # Mock award_xp to return the user_xp object
-            mock_award.return_value = user_xp
+            from app.achievements.xp_service import XPAward
+            mock_award.return_value = XPAward(
+                xp_awarded=50, multiplier=1.0, new_total_xp=initial_xp + 50,
+                previous_level=1, new_level=1, leveled_up=False,
+            )
 
             response = authenticated_client.post('/study/api/complete-session', json={
                 'session_id': study_session.id
@@ -717,10 +720,14 @@ class TestCompleteMatchingGame:
         db_session.commit()
 
         with patch('app.study.xp_service.XPService.calculate_matching_xp') as mock_calc, \
-             patch('app.study.xp_service.XPService.award_xp') as mock_award:
+             patch('app.achievements.xp_service.award_xp') as mock_award:
 
             mock_calc.return_value = {'total_xp': 100}
-            mock_award.return_value = user_xp
+            from app.achievements.xp_service import XPAward
+            mock_award.return_value = XPAward(
+                xp_awarded=100, multiplier=1.0, new_total_xp=100,
+                previous_level=1, new_level=1, leveled_up=False,
+            )
 
             game_data = {
                 'difficulty': 'medium',
@@ -825,10 +832,14 @@ class TestCompleteQuiz:
     def test_awards_xp(self, authenticated_client, quiz_deck_with_words, user_xp):
         """Test that XP is awarded"""
         with patch('app.study.xp_service.XPService.calculate_quiz_xp') as mock_calc, \
-             patch('app.study.xp_service.XPService.award_xp') as mock_award:
+             patch('app.achievements.xp_service.award_xp') as mock_award:
 
             mock_calc.return_value = {'total_xp': 75}
-            mock_award.return_value = user_xp
+            from app.achievements.xp_service import XPAward
+            mock_award.return_value = XPAward(
+                xp_awarded=75, multiplier=1.0, new_total_xp=75,
+                previous_level=1, new_level=1, leveled_up=False,
+            )
 
             quiz_data = {
                 'deck_id': quiz_deck_with_words.id,

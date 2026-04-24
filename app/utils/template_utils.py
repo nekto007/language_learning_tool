@@ -331,7 +331,8 @@ def init_template_utils(app):
     def inject_xp_data():
         """Inject user XP and level data into templates (cached for 60 seconds)"""
         from flask_login import current_user
-        from app.study.models import UserXP
+        from app.achievements.models import UserStatistics
+        from app.achievements.xp_service import get_level_info
         from app.curriculum.cache import cache
 
         if not current_user.is_authenticated:
@@ -343,25 +344,15 @@ def init_template_utils(app):
         if cached_data:
             return cached_data
 
-        # Get user XP from database
-        user_xp = UserXP.query.filter_by(user_id=current_user.id).first()
+        stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
+        total_xp = (stats.total_xp if stats else 0) or 0
+        info = get_level_info(total_xp)
 
-        if not user_xp:
-            result = {
-                'user_xp': 0,
-                'user_level': 1,
-                'xp_to_next_level': 100,
-                'xp_progress_percent': 0
-            }
-            cache.set(cache_key, result, timeout=60)
-            return result
-
-        # Use progressive level system from UserXP model
         result = {
-            'user_xp': user_xp.total_xp,
-            'user_level': user_xp.level,
-            'xp_to_next_level': user_xp.xp_needed_for_next - user_xp.xp_current_level,
-            'xp_progress_percent': int(user_xp.level_progress_percent)
+            'user_xp': total_xp,
+            'user_level': info.current_level,
+            'xp_to_next_level': info.xp_to_next,
+            'xp_progress_percent': int(info.progress_percent),
         }
 
         # Cache for 60 seconds

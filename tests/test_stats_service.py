@@ -34,13 +34,21 @@ def study_session(db_session, test_user):
 
 @pytest.fixture
 def user_xp(db_session, test_user):
-    """Create UserXP record for test user"""
-    from app.study.models import UserXP
+    """Create UserStatistics with XP for test user.
 
-    user_xp = UserXP(user_id=test_user.id, total_xp=250)
-    db_session.add(user_xp)
+    Note: Leaderboard now reads UserStatistics.total_xp (unified XP source).
+    UserXP is legacy and no longer queried by leaderboard / rank methods.
+    """
+    from app.achievements.models import UserStatistics
+
+    stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+    if stats is None:
+        stats = UserStatistics(user_id=test_user.id, total_xp=250)
+        db_session.add(stats)
+    else:
+        stats.total_xp = 250
     db_session.commit()
-    return user_xp
+    return stats
 
 
 @pytest.fixture
@@ -467,20 +475,15 @@ class TestGetLeaderboard:
             assert 'avg_score' in entry
 
     def test_xp_leaderboard(self, db_session, test_user, user_xp):
-        """Test XP leaderboard (game_type='all')
-
-        KNOWN BUG: Service queries UserXP.xp_amount and UserXP.earned_at which don't exist.
-        Should query UserXP.total_xp (stats_service.py:153)
-        """
+        """Test XP leaderboard (game_type='all') reads UserStatistics.total_xp."""
         from app.study.services.stats_service import StatsService
-        import pytest
-
-        # Skip due to known service bug
-        pytest.skip("Service bug: UserXP.xp_amount/earned_at don't exist")
 
         leaderboard = StatsService.get_leaderboard(game_type='all', limit=10)
 
         assert isinstance(leaderboard, list)
+        entry = next((u for u in leaderboard if u['user_id'] == test_user.id), None)
+        assert entry is not None
+        assert entry['total_xp'] == 250
 
     def test_leaderboard_respects_limit(self, db_session, admin_user):
         """Test leaderboard respects limit parameter
@@ -570,11 +573,15 @@ class TestGetXpLeaderboard:
     def test_level_calculation(self, db_session, test_user):
         """Test level is calculated correctly (100 XP = 1 level)"""
         from app.study.services.stats_service import StatsService
-        from app.study.models import UserXP
+        from app.achievements.models import UserStatistics
 
-        # Create user with 350 XP (should be level 3)
-        user_xp = UserXP(user_id=test_user.id, total_xp=350)
-        db_session.add(user_xp)
+        # Create user stats with 350 XP (should be level 3)
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=test_user.id, total_xp=350)
+            db_session.add(stats)
+        else:
+            stats.total_xp = 350
         db_session.commit()
 
         leaderboard = StatsService.get_xp_leaderboard(limit=100)
@@ -589,7 +596,7 @@ class TestGetXpLeaderboard:
     def test_sorted_by_xp_descending(self, db_session):
         """Test leaderboard is sorted by XP (highest first)"""
         from app.study.services.stats_service import StatsService
-        from app.study.models import UserXP
+        from app.achievements.models import UserStatistics
         from app.auth.models import User
         import uuid
 
@@ -605,8 +612,8 @@ class TestGetXpLeaderboard:
             db_session.add(user)
             db_session.flush()
 
-            user_xp = UserXP(user_id=user.id, total_xp=xp)
-            db_session.add(user_xp)
+            stats = UserStatistics(user_id=user.id, total_xp=xp)
+            db_session.add(stats)
 
         db_session.commit()
 
@@ -696,6 +703,63 @@ class TestGetAchievementLeaderboard:
             assert leaderboard[i]['achievement_count'] >= leaderboard[i+1]['achievement_count']
 
 
+class TestLeaderboardUsesUserStatistics:
+    """Verify leaderboard / rank methods read UserStatistics.total_xp, not legacy UserXP."""
+
+    def test_xp_leaderboard_ignores_legacy_user_xp(self, db_session):
+        """User with only legacy UserXP rows but no UserStatistics is NOT on leaderboard."""
+        from app.study.services.stats_service import StatsService
+        from app.study.models import UserXP
+        from app.achievements.models import UserStatistics
+        from app.auth.models import User
+        import uuid
+
+        unique_id = uuid.uuid4().hex[:6]
+        user = User(
+            username=f'legacy_{unique_id}',
+            email=f'legacy_{unique_id}@test.com',
+        )
+        user.set_password('password')
+        db_session.add(user)
+        db_session.flush()
+
+        # Only legacy XP — no UserStatistics row
+        db_session.add(UserXP(user_id=user.id, total_xp=9999))
+        db_session.commit()
+
+        leaderboard = StatsService.get_xp_leaderboard(limit=100)
+        assert all(entry['id'] != user.id for entry in leaderboard)
+
+        # And no rank either
+        assert StatsService.get_user_xp_rank(user.id) is None
+
+    def test_user_xp_rank_uses_user_statistics(self, db_session):
+        """get_user_xp_rank ranks users by UserStatistics.total_xp."""
+        from app.study.services.stats_service import StatsService
+        from app.achievements.models import UserStatistics
+        from app.auth.models import User
+        import uuid
+
+        users = []
+        for xp in [4200, 4400, 4100, 4500, 4300]:
+            unique_id = uuid.uuid4().hex[:6]
+            user = User(
+                username=f'usrank_{unique_id}',
+                email=f'usrank_{unique_id}@test.com',
+            )
+            user.set_password('password')
+            db_session.add(user)
+            db_session.flush()
+            db_session.add(UserStatistics(user_id=user.id, total_xp=xp))
+            users.append((user, xp))
+        db_session.commit()
+
+        # Top XP user should rank above lower XP user (lower rank = better)
+        top = next(u for u, xp in users if xp == 4500)
+        bottom = next(u for u, xp in users if xp == 4100)
+        assert StatsService.get_user_xp_rank(top.id) < StatsService.get_user_xp_rank(bottom.id)
+
+
 class TestGetUserXpRank:
     """Test get_user_xp_rank method"""
 
@@ -712,12 +776,9 @@ class TestGetUserXpRank:
     def test_rank_calculation_accurate(self, db_session):
         """Test rank is calculated correctly"""
         from app.study.services.stats_service import StatsService
-        from app.study.models import UserXP
+        from app.achievements.models import UserStatistics
         from app.auth.models import User
         import uuid
-
-        # Count existing users with very high XP (>1000) to account for test isolation
-        existing_high_xp = UserXP.query.filter(UserXP.total_xp > 1000).count()
 
         # Create 5 users with different XP (using higher values to ensure ranking among our test users)
         users = []
@@ -733,8 +794,8 @@ class TestGetUserXpRank:
             db_session.add(user)
             db_session.flush()
 
-            user_xp = UserXP(user_id=user.id, total_xp=xp)
-            db_session.add(user_xp)
+            stats = UserStatistics(user_id=user.id, total_xp=xp)
+            db_session.add(stats)
             users.append((user, xp))
 
         db_session.commit()

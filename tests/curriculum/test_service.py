@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from app.curriculum.models import CEFRLevel, Module, Lessons, LessonProgress
-from app.curriculum.service import get_next_lesson
+from app.curriculum.service import complete_lesson, get_next_lesson
 from app.curriculum.security import check_lesson_access, check_module_access
 from app.daily_plan.level_utils import get_user_current_cefr_level
 
@@ -466,3 +466,48 @@ class TestModuleCheckPrerequisites:
             accessible, reasons = target_module.check_prerequisites(test_user.id)
             assert accessible is False
             assert len(reasons) > 0
+
+
+# ---------------------------------------------------------------------------
+# complete_lesson XP idempotency (Task 7 integration)
+# ---------------------------------------------------------------------------
+
+class TestCompleteLessonXPIdempotent:
+    """Calling complete_lesson twice on the same day must not duplicate XP."""
+
+    def test_second_same_day_call_does_not_duplicate_xp(
+        self, app, db_session, test_user, test_lesson_vocabulary
+    ):
+        from datetime import date as _date
+
+        from app.achievements.models import StreakEvent, UserStatistics
+        from app.curriculum.xp import CURRICULUM_LESSON_EVENT_TYPE
+
+        with app.app_context():
+            progress1 = complete_lesson(test_user.id, test_lesson_vocabulary.id, score=90.0)
+            assert progress1 is not None
+
+            stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+            assert stats is not None
+            xp_after_first = int(stats.total_xp or 0)
+            assert xp_after_first > 0
+
+            progress2 = complete_lesson(test_user.id, test_lesson_vocabulary.id, score=95.0)
+            assert progress2 is not None
+
+            db_session.refresh(stats)
+            assert int(stats.total_xp or 0) == xp_after_first
+
+            events = (
+                StreakEvent.query.filter_by(
+                    user_id=test_user.id,
+                    event_type=CURRICULUM_LESSON_EVENT_TYPE,
+                    event_date=_date.today(),
+                )
+                .filter(
+                    StreakEvent.details['lesson_id'].astext
+                    == str(test_lesson_vocabulary.id)
+                )
+                .all()
+            )
+            assert len(events) == 1

@@ -562,7 +562,12 @@ def complete_session():
             cards_reviewed=session.words_studied or 0,
             correct_answers=session.correct_answers or 0
         )
-        user_xp = XPService.award_xp(current_user.id, xp_breakdown['total_xp'])
+        from app.achievements.xp_service import award_xp as _award_xp_unified, get_level_info
+        from app.achievements.models import UserStatistics as _UserStats
+        xp_award = None
+        if xp_breakdown['total_xp'] > 0:
+            xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_cards_session')
+            db.session.commit()
 
         try:
             from app.daily_plan.linear.xp import (
@@ -579,6 +584,10 @@ def complete_session():
             )
             db.session.rollback()
 
+        _stats = _UserStats.query.filter_by(user_id=current_user.id).first()
+        _total_xp = int(_stats.total_xp or 0) if _stats else 0
+        _level = get_level_info(_total_xp).current_level
+
         from app.achievements.models import UserStatistics
         user_stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
         current_streak = user_stats.current_streak_days if user_stats else 0
@@ -592,9 +601,9 @@ def complete_session():
                 'incorrect': session.incorrect_answers,
                 'percentage': session.performance_percentage
             },
-            'xp_earned': xp_breakdown['total_xp'],
-            'total_xp': user_xp.total_xp,
-            'level': user_xp.level,
+            'xp_earned': xp_award.xp_awarded if xp_award else 0,
+            'total_xp': _total_xp,
+            'level': _level,
             'streak': current_streak,
         })
 
@@ -637,13 +646,15 @@ def api_search_words():
 @study.route('/api/celebrations')
 @login_required
 def check_celebrations():
-    from app.study.models import UserXP, UserAchievement, Achievement
+    from app.study.models import UserAchievement, Achievement
+    from app.achievements.models import UserStatistics
+    from app.achievements.xp_service import get_level_info
 
     celebrations = []
 
-    user_xp = UserXP.query.filter_by(user_id=current_user.id).first()
-    current_level = user_xp.level if user_xp else 1
-    current_total_xp = user_xp.total_xp if user_xp else 0
+    stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
+    current_total_xp = (stats.total_xp if stats else 0) or 0
+    current_level = get_level_info(current_total_xp).current_level
 
     from dateutil.parser import isoparse
     after_param = request.args.get('after')

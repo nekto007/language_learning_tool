@@ -4,9 +4,10 @@ Service for managing lesson grades, user statistics, and achievement tracking
 """
 import logging
 from datetime import date, datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 from app.achievements.models import LessonGrade, UserStatistics
 from app.study.models import Achievement, UserAchievement
@@ -14,6 +15,41 @@ from app.utils.db import db
 from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
+
+
+def grant_achievement(
+    user_id: int,
+    achievement_id: int,
+    earned_at: Optional[datetime] = None,
+) -> Tuple[UserAchievement, bool]:
+    """Idempotent insert of UserAchievement, safe under concurrent calls.
+
+    Returns (user_achievement, is_new). If a concurrent writer wins the race
+    and the unique constraint fires on our INSERT, we roll back the savepoint
+    and return the existing row instead of raising.
+    """
+    existing = UserAchievement.query.filter_by(
+        user_id=user_id, achievement_id=achievement_id,
+    ).first()
+    if existing is not None:
+        return existing, False
+
+    ua = UserAchievement(
+        user_id=user_id,
+        achievement_id=achievement_id,
+        earned_at=earned_at or datetime.now(timezone.utc),
+    )
+    try:
+        with db.session.begin_nested():
+            db.session.add(ua)
+    except IntegrityError:
+        existing = UserAchievement.query.filter_by(
+            user_id=user_id, achievement_id=achievement_id,
+        ).first()
+        if existing is None:
+            raise
+        return existing, False
+    return ua, True
 
 
 class GradingService:
@@ -212,19 +248,8 @@ class AchievementService:
                 if not achievement:
                     continue
 
-                existing = UserAchievement.query.filter_by(
-                    user_id=user_id,
-                    achievement_id=achievement.id
-                ).first()
-
-                if not existing:
-                    # Award the achievement
-                    user_achievement = UserAchievement(
-                        user_id=user_id,
-                        achievement_id=achievement.id,
-                        earned_at=datetime.now(timezone.utc)
-                    )
-                    db.session.add(user_achievement)
+                _, is_new = grant_achievement(user_id, achievement.id)
+                if is_new:
                     newly_awarded.append(achievement)
 
                     # Send notification
@@ -269,18 +294,8 @@ class AchievementService:
                 if not achievement:
                     continue
 
-                existing = UserAchievement.query.filter_by(
-                    user_id=user_id,
-                    achievement_id=achievement.id
-                ).first()
-
-                if not existing:
-                    user_achievement = UserAchievement(
-                        user_id=user_id,
-                        achievement_id=achievement.id,
-                        earned_at=datetime.now(timezone.utc)
-                    )
-                    db.session.add(user_achievement)
+                _, is_new = grant_achievement(user_id, achievement.id)
+                if is_new:
                     newly_awarded.append(achievement)
 
                     try:
@@ -471,11 +486,9 @@ class AchievementService:
         for achievement in achievements:
             if achievement.id in already_owned_ids:
                 continue
-            db.session.add(UserAchievement(
-                user_id=user_id,
-                achievement_id=achievement.id,
-                earned_at=datetime.now(timezone.utc),
-            ))
+            _, is_new = grant_achievement(user_id, achievement.id)
+            if not is_new:
+                continue
             newly_awarded.append(achievement)
 
             try:

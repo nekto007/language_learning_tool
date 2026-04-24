@@ -528,12 +528,20 @@ def complete_matching_game():
             }), 200
 
     from app.study.xp_service import XPService
+    from app.achievements.xp_service import award_xp as _award_xp_unified, get_level_info
+    from app.achievements.models import UserStatistics as _UserStats
     score_percentage = (pairs_matched / total_pairs * 100) if total_pairs > 0 else 0
     xp_breakdown = XPService.calculate_matching_xp(
         score=score_percentage,
         total_pairs=total_pairs
     )
-    user_xp = XPService.award_xp(current_user.id, xp_breakdown['total_xp'])
+    xp_award = None
+    if xp_breakdown['total_xp'] > 0:
+        xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_matching_game')
+        db.session.commit()
+    _matching_stats = _UserStats.query.filter_by(user_id=current_user.id).first()
+    _matching_total_xp = int(_matching_stats.total_xp or 0) if _matching_stats else 0
+    _matching_level = get_level_info(_matching_total_xp).current_level
 
     if word_ids and pairs_matched > 0:
         performance = pairs_matched / total_pairs if total_pairs > 0 else 0
@@ -623,9 +631,9 @@ def complete_matching_game():
             'rank': rank,
             'is_personal_best': is_personal_best,
             'game_score_id': game_score.id,
-            'xp_earned': xp_breakdown['total_xp'],
-            'total_xp': user_xp.total_xp,
-            'level': user_xp.level
+            'xp_earned': xp_award.xp_awarded if xp_award else 0,
+            'total_xp': _matching_total_xp,
+            'level': _matching_level
         })
     except Exception as e:
         logger.exception('Error saving matching game score: %s', e)
@@ -704,7 +712,12 @@ def complete_quiz():
         has_streak=has_streak
     )
 
-    user_xp = XPService.award_xp(current_user.id, xp_breakdown['total_xp'])
+    from app.achievements.xp_service import award_xp as _award_xp_unified, get_level_info
+    from app.achievements.models import UserStatistics as _UserStats
+    xp_award = None
+    if xp_breakdown['total_xp'] > 0:
+        xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_quiz_game')
+        db.session.commit()
 
     if (
         source == LINEAR_PLAN_DECK_QUIZ_SOURCE
@@ -737,6 +750,10 @@ def complete_quiz():
     }
     newly_earned = XPService.check_quiz_achievements(current_user.id, quiz_data)
 
+    _quiz_stats = _UserStats.query.filter_by(user_id=current_user.id).first()
+    _quiz_total_xp = int(_quiz_stats.total_xp or 0) if _quiz_stats else 0
+    _quiz_level = get_level_info(_quiz_total_xp).current_level
+
     achievements_list = [
         {
             'code': ach.code,
@@ -751,10 +768,10 @@ def complete_quiz():
     return jsonify({
         'success': True,
         'score': score,
-        'xp_earned': xp_breakdown['total_xp'],
+        'xp_earned': xp_award.xp_awarded if xp_award else 0,
         'xp_breakdown': xp_breakdown,
-        'total_xp': user_xp.total_xp,
-        'level': user_xp.level,
+        'total_xp': _quiz_total_xp,
+        'level': _quiz_level,
         'achievements': achievements_list
     })
 
