@@ -334,18 +334,10 @@ class StatsService:
         if word_count >= 1:
             achievement = Achievement.query.filter_by(code='first_word').first()
             if achievement:
-                existing = UserAchievement.query.filter_by(
-                    user_id=user_id,
-                    achievement_id=achievement.id
-                ).first()
+                from app.achievements.services import grant_achievement
 
-                if not existing:
-                    ua = UserAchievement(
-                        user_id=user_id,
-                        achievement_id=achievement.id,
-                        earned_at=datetime.now(timezone.utc)
-                    )
-                    db.session.add(ua)
+                _, is_new = grant_achievement(user_id, achievement.id)
+                if is_new:
                     newly_earned.append(achievement)
 
         if newly_earned:

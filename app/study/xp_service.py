@@ -268,25 +268,15 @@ class XPService:
         Returns:
             Achievement object or None
         """
+        from app.achievements.services import grant_achievement
+
         achievement = Achievement.query.filter_by(code=achievement_code).first()
         if not achievement:
             return None
 
-        # Check if already earned
-        existing = UserAchievement.query.filter_by(
-            user_id=user_id,
-            achievement_id=achievement.id
-        ).first()
-
-        if existing:
+        _, is_new = grant_achievement(user_id, achievement.id)
+        if not is_new:
             return None
-
-        # Award achievement
-        user_achievement = UserAchievement(
-            user_id=user_id,
-            achievement_id=achievement.id
-        )
-        db.session.add(user_achievement)
 
         # Award bonus XP
         if achievement.xp_reward > 0:

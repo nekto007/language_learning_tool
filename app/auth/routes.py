@@ -21,7 +21,8 @@ auth = Blueprint('auth', __name__)
 
 def _check_referral_achievements(referrer_id: int) -> None:
     """Check and award referral achievements based on referral count."""
-    from app.study.models import Achievement, UserAchievement
+    from app.study.models import Achievement
+    from app.achievements.services import grant_achievement
     from app.notifications.services import notify_achievement
 
     referral_count = User.query.filter_by(referred_by_id=referrer_id).count()
@@ -43,13 +44,9 @@ def _check_referral_achievements(referrer_id: int) -> None:
             db.session.add(ach)
             db.session.flush()
 
-        # Check if already awarded
-        already = UserAchievement.query.filter_by(user_id=referrer_id, achievement_id=ach.id).first()
-        if already:
+        _, is_new = grant_achievement(referrer_id, ach.id)
+        if not is_new:
             continue
-
-        ua = UserAchievement(user_id=referrer_id, achievement_id=ach.id)
-        db.session.add(ua)
 
         # Award XP
         from app.study.models import UserXP
