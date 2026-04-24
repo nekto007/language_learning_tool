@@ -15,6 +15,7 @@ from app.study.models import (
     UserWord, GameScore, QuizResult, UserXP, Achievement, UserAchievement, StudySession,
     UserCardDirection
 )
+from app.achievements.models import UserStatistics
 from app.auth.models import User
 
 
@@ -249,15 +250,11 @@ class StatsService:
             results = db.session.query(
                 User.id,
                 User.username,
-                func.sum(UserXP.xp_amount).label('total_xp')
+                UserStatistics.total_xp.label('total_xp')
             ).join(
-                UserXP, User.id == UserXP.user_id
-            ).filter(
-                UserXP.earned_at >= start_date
-            ).group_by(
-                User.id, User.username
+                UserStatistics, User.id == UserStatistics.user_id
             ).order_by(
-                desc('total_xp')
+                desc(UserStatistics.total_xp)
             ).limit(limit).all()
 
             return [
@@ -370,19 +367,19 @@ class StatsService:
         results = db.session.query(
             User.id,
             User.username,
-            UserXP.total_xp
+            UserStatistics.total_xp
         ).join(
-            UserXP, User.id == UserXP.user_id
+            UserStatistics, User.id == UserStatistics.user_id
         ).order_by(
-            desc(UserXP.total_xp)
+            desc(UserStatistics.total_xp)
         ).limit(limit).all()
 
         return [
             {
                 'id': row.id,
                 'username': row.username,
-                'total_xp': row.total_xp,
-                'level': max(1, row.total_xp // 100)
+                'total_xp': row.total_xp or 0,
+                'level': max(1, (row.total_xp or 0) // 100)
             }
             for row in results
         ]
@@ -422,14 +419,14 @@ class StatsService:
     @staticmethod
     def get_user_xp_rank(user_id: int) -> Optional[int]:
         """Get user's XP rank"""
-        user_xp = UserXP.query.filter_by(user_id=user_id).first()
-        if not user_xp:
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        if not stats or not stats.total_xp:
             return None
 
         higher_xp_count = db.session.query(
-            func.count(UserXP.id)
+            func.count(UserStatistics.id)
         ).filter(
-            UserXP.total_xp > user_xp.total_xp
+            UserStatistics.total_xp > stats.total_xp
         ).scalar()
 
         return (higher_xp_count or 0) + 1

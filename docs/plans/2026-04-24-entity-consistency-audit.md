@@ -128,12 +128,12 @@
 - Modify: `app/study/services/stats_service.py` (get_xp_leaderboard, get_user_xp_rank, get_leaderboard_data)
 - Modify: `tests/study/test_stats_service.py`
 
-- [ ] `get_xp_leaderboard()`: заменить JOIN с `UserXP` на JOIN с `UserStatistics`, поле `total_xp`
-- [ ] `get_user_xp_rank()`: заменить `UserXP.query` на `UserStatistics.query.filter_by(user_id=user_id)` для rank calculation
-- [ ] `get_leaderboard_data()` (если есть, ~line 248 обрабатывает 'all' case): перевести `func.sum(UserXP.xp_amount)` на `UserStatistics.total_xp`
-- [ ] Убедиться что `StatsService.get_xp_leaderboard()` вызывается из `_get_cached_leaderboard()` в `words/routes.py` — cache автоматически инвалидируется при изменении логики
-- [ ] Write tests: leaderboard возвращает users отсортированных по `UserStatistics.total_xp`; `get_user_xp_rank` использует `UserStatistics`
-- [ ] Run pytest — must pass before task 4
+- [x] `get_xp_leaderboard()`: заменить JOIN с `UserXP` на JOIN с `UserStatistics`, поле `total_xp`
+- [x] `get_user_xp_rank()`: заменить `UserXP.query` на `UserStatistics.query.filter_by(user_id=user_id)` для rank calculation
+- [x] `get_leaderboard_data()` (если есть, ~line 248 обрабатывает 'all' case): перевести `func.sum(UserXP.xp_amount)` на `UserStatistics.total_xp`
+- [x] Убедиться что `StatsService.get_xp_leaderboard()` вызывается из `_get_cached_leaderboard()` в `words/routes.py` — cache автоматически инвалидируется при изменении логики
+- [x] Write tests: leaderboard возвращает users отсортированных по `UserStatistics.total_xp`; `get_user_xp_rank` использует `UserStatistics`
+- [x] Run pytest — must pass before task 4
 
 ---
 
