@@ -58,7 +58,7 @@ def get_word_of_day(user_id: int) -> dict | None:
     ).filter(
         UserWord.user_id == user_id,
         UserCardDirection.direction == 'eng-rus',
-        UserCardDirection.next_review <= datetime.now(timezone.utc),
+        UserCardDirection.next_review <= datetime.now(timezone.utc).replace(tzinfo=None),
     ).limit(20).all()
 
     if overdue:

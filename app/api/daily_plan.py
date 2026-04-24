@@ -50,27 +50,14 @@ def daily_status():
         daily_plan=plan, plan_completion=plan_completion,
     )
 
-    # Recompute day_secured from actual activity (plan payload always has completed=False
-    # because the assembler constructs phases before activity is recorded).
+    from app.daily_plan.service import compute_day_secured_from_activity
     phases = plan.get('phases', [])
     effective_mode = plan.get('_plan_meta', {}).get('effective_mode')
-    if phases and effective_mode == 'mission':
-        required_phases = [p for p in phases if p.get('required', True)]
-        day_secured = bool(required_phases) and all(
-            plan_completion.get(p.get('id', ''), False) for p in required_phases
+    day_secured = compute_day_secured_from_activity(plan, plan_completion)
+    if effective_mode == 'linear' and isinstance(plan.get('continuation'), dict):
+        plan['continuation']['available'] = bool(
+            day_secured and (plan['continuation'].get('next_lessons') or [])
         )
-    elif effective_mode == 'linear':
-        baseline_slots = plan.get('baseline_slots') or []
-        day_secured = bool(baseline_slots) and all(
-            plan_completion.get(slot.get('kind', ''), False)
-            for slot in baseline_slots
-        )
-        if isinstance(plan.get('continuation'), dict):
-            plan['continuation']['available'] = bool(
-                day_secured and (plan['continuation'].get('next_lessons') or [])
-            )
-    else:
-        day_secured = plan.get('day_secured', False)
     plan['day_secured'] = day_secured
 
     # Sync route progress for completed phases so steps are recorded even if
@@ -197,23 +184,13 @@ def daily_plan():
 
     route_state = get_route_state(user_id, steps_today, db.session)
 
-    # Recompute day_secured from actual activity (assembler always returns False).
+    from app.daily_plan.service import compute_day_secured_from_activity
     effective_mode = plan.get('_plan_meta', {}).get('effective_mode')
-    if phases and effective_mode == 'mission':
-        required_phases = [p for p in phases if p.get('required', True)]
-        plan['day_secured'] = bool(required_phases) and all(
-            plan_completion.get(p.get('id', ''), False) for p in required_phases
+    plan['day_secured'] = compute_day_secured_from_activity(plan, plan_completion)
+    if effective_mode == 'linear' and isinstance(plan.get('continuation'), dict):
+        plan['continuation']['available'] = bool(
+            plan['day_secured'] and (plan['continuation'].get('next_lessons') or [])
         )
-    elif effective_mode == 'linear':
-        baseline_slots = plan.get('baseline_slots') or []
-        plan['day_secured'] = bool(baseline_slots) and all(
-            plan_completion.get(slot.get('kind', ''), False)
-            for slot in baseline_slots
-        )
-        if isinstance(plan.get('continuation'), dict):
-            plan['continuation']['available'] = bool(
-                plan['day_secured'] and (plan['continuation'].get('next_lessons') or [])
-            )
 
     return jsonify({'success': True, 'route_state': route_state, **plan})
 

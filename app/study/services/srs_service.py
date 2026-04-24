@@ -8,7 +8,7 @@ Responsibilities:
 - Daily limits tracking
 """
 from typing import List, Dict, Tuple, Set
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from sqlalchemy import func, and_, or_, case
 from sqlalchemy.orm import joinedload
 
@@ -41,7 +41,12 @@ def get_user_word_ids(user_id: int, word_ids: List[int] = None) -> Set[int]:
 
 
 class SRSService:
-    """Service for Anki-like Spaced Repetition System logic"""
+    """Service for Anki-like Spaced Repetition System logic.
+
+    SRS-scheduling использует `UserCardDirection.update_after_review()`
+    (Anki state machine, quality 1-2-3). Классический SM-2 (quality 0-5)
+    в кодбейзе не используется.
+    """
 
     @staticmethod
     def get_due_cards(
@@ -67,7 +72,7 @@ class SRSService:
         Returns:
             List of UserCardDirection objects due for review, ordered by priority
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Create a priority column for ordering
         # RELEARNING = 1, LEARNING = 2, REVIEW = 3, other = 4
@@ -134,7 +139,7 @@ class SRSService:
             Tuple of (new_cards_studied_today, reviews_done_today, new_limit, review_limit)
         """
         settings = StudySettings.get_settings(user_id)
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0)
 
         # Count new cards: first_reviewed is today (card was studied for the first time today)
         new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
@@ -192,7 +197,7 @@ class SRSService:
         settings = StudySettings.get_settings(user_id)
         base_new = settings.new_words_per_day
         base_reviews = settings.reviews_per_day
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Calculate accuracy over last 50 reviewed cards
         recent_cards = db.session.query(UserCardDirection).filter(
@@ -239,7 +244,7 @@ class SRSService:
             'nothing_to_study', 'limit_reached'
         """
         settings = StudySettings.get_settings(user_id)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         # End of today - show cards due anytime today (matches fetching logic)
         end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
@@ -372,50 +377,6 @@ class SRSService:
         return forward, backward
 
     @staticmethod
-    def update_card_after_review(card: UserCardDirection, quality: int) -> None:
-        """
-        Update card using SM-2 algorithm
-
-        Args:
-            card: UserCardDirection object to update
-            quality: Quality rating (0-5)
-                0-2: Incorrect (reset card)
-                3-5: Correct (advance card)
-        """
-        now = datetime.now(timezone.utc)
-
-        card.last_reviewed = now
-        card.session_attempts = (card.session_attempts or 0) + 1
-
-        if quality < 3:
-            # Failed - reset card
-            card.interval = 1
-            card.repetitions = 0
-            card.ease_factor = max(1.3, card.ease_factor - 0.2)
-            card.next_review = now + timedelta(days=1)
-            card.incorrect_count = (card.incorrect_count or 0) + 1
-        else:
-            # Success - advance card using SM-2
-            if card.repetitions == 0:
-                card.interval = 1
-            elif card.repetitions == 1:
-                card.interval = 6
-            else:
-                card.interval = int(card.interval * card.ease_factor)
-
-            card.repetitions += 1
-
-            # Update easiness factor
-            new_ef = card.ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
-            card.ease_factor = max(1.3, new_ef)
-
-            # Schedule next review
-            card.next_review = now + timedelta(days=card.interval)
-            card.correct_count = (card.correct_count or 0) + 1
-
-        db.session.flush()
-
-    @staticmethod
     def update_word_status_after_review(user_word: UserWord) -> None:
         """
         Update UserWord status based on card performance
@@ -479,7 +440,7 @@ class SRSService:
             List of dictionaries with word, card, and state data
         """
         items = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Check daily limits
         can_new = cls.can_study_new_cards(user_id)
@@ -660,7 +621,7 @@ class SRSService:
         Returns:
             tuple: (new_cards_today, reviews_today)
         """
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0)
 
         # Get word IDs for this deck
         deck_word_ids = [dw.word_id for dw in QuizDeckWord.query.filter_by(deck_id=deck_id).all() if dw.word_id]

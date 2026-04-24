@@ -43,11 +43,13 @@ def index():
     if request.args.get('from') == 'linear_plan' and request.args.get('slot') == 'srs':
         return redirect(url_for('study.cards', **request.args.to_dict(flat=True)))
 
+    now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+
     due_items_count = UserCardDirection.query \
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
         .filter(
         UserWord.user_id == current_user.id,
-        UserCardDirection.next_review <= datetime.now(timezone.utc)
+        UserCardDirection.next_review <= now_naive
     ).count()
 
     new_items_count = UserCardDirection.query \
@@ -57,7 +59,7 @@ def index():
         UserCardDirection.state == 'new',
         or_(
             UserCardDirection.next_review.is_(None),
-            UserCardDirection.next_review <= datetime.now(timezone.utc)
+            UserCardDirection.next_review <= now_naive
         )
     ).count()
 
@@ -119,7 +121,7 @@ def index():
                 user_word_ids_with_cards = set(row[0] for row in cards_exist)
 
     deck_stats = {}
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
     if my_decks and all_deck_word_ids:
         from app.study.models import QuizDeckWord

@@ -5,9 +5,10 @@ When the current curriculum slot is itself a card lesson, this slot becomes
 a deck quiz so the same card session does not satisfy both baseline tasks.
 
 Budget semantics:
-- ``budget = max_new_per_day - first_reviewed_today_count``
-- ``max_new_per_day`` is ``StudySettings.new_words_per_day`` — the same
-  source /study uses, so linear and /study share one daily budget.
+- ``budget = adaptive_new_per_day - first_reviewed_today_count``
+- ``adaptive_new_per_day`` comes from `SRSService.get_adaptive_limits`
+  via the canonical `get_new_card_budget` in `app/srs/counting.py` — the
+  same source /study uses, so linear and /study share one daily budget.
 
 Slot states:
 - due > 0 → active, links directly to ``/study/cards?source=linear_plan``.
@@ -35,7 +36,7 @@ _DECK_QUIZ_SOURCE = 'linear_plan_deck_quiz'
 
 
 def _today_start() -> datetime:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     return now.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
@@ -46,52 +47,21 @@ def _user_word_ids_subquery(user_id: int, db: Any):
 def get_srs_budget_remaining(user_id: int, db: Any) -> int:
     """Return remaining daily new-card budget for the user.
 
-    Reads ``max_new_per_day`` from ``StudySettings`` (the same knob /study
-    uses) and subtracts the count of ``UserCardDirection`` rows whose
-    ``first_reviewed`` is today. Never returns a negative number.
+    Delegates to the canonical `get_new_card_budget` (adaptive-limits source
+    of truth shared by mission-plan, linear-plan and /study). Returns only
+    the new-card half — review budget is tracked separately in this slot.
     """
-    settings = StudySettings.get_settings(user_id)
-    max_new = int(settings.new_words_per_day or 0)
+    from app.srs.counting import get_new_card_budget
 
-    start = _today_start()
-    used_today = (
-        db.session.query(func.count(UserCardDirection.id))
-        .filter(
-            UserCardDirection.user_word_id.in_(_user_word_ids_subquery(user_id, db)),
-            UserCardDirection.first_reviewed.isnot(None),
-            UserCardDirection.first_reviewed >= start,
-        )
-        .scalar()
-        or 0
-    )
-    return max(max_new - int(used_today), 0)
+    remaining_new, _ = get_new_card_budget(user_id, db)
+    return remaining_new
 
 
 def count_srs_due_cards(user_id: int, db: Any) -> int:
     """Count review/learning/relearning cards due for the user right now."""
-    now = datetime.now(timezone.utc)
-    return int(
-        db.session.query(func.count(UserCardDirection.id))
-        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
-        .filter(
-            UserWord.user_id == user_id,
-            UserWord.status.in_(('new', 'learning', 'review')),
-            UserCardDirection.next_review <= now,
-            or_(
-                UserCardDirection.buried_until.is_(None),
-                UserCardDirection.buried_until <= now,
-            ),
-            UserCardDirection.state.in_(
-                (
-                    CardState.LEARNING.value,
-                    CardState.RELEARNING.value,
-                    CardState.REVIEW.value,
-                )
-            ),
-        )
-        .scalar()
-        or 0
-    )
+    from app.srs.counting import count_due_cards
+
+    return count_due_cards(user_id, db)
 
 
 def count_srs_cards_studied_today(user_id: int, db: Any) -> int:
@@ -111,19 +81,9 @@ def count_srs_cards_studied_today(user_id: int, db: Any) -> int:
 
 def count_srs_reviews_today(user_id: int, db: Any) -> int:
     """Count review cards done today using the same semantics as /study."""
-    start = _today_start()
-    return int(
-        db.session.query(func.count(UserCardDirection.id))
-        .filter(
-            UserCardDirection.user_word_id.in_(_user_word_ids_subquery(user_id, db)),
-            UserCardDirection.last_reviewed.isnot(None),
-            UserCardDirection.last_reviewed >= start,
-            UserCardDirection.first_reviewed.isnot(None),
-            UserCardDirection.first_reviewed < start,
-        )
-        .scalar()
-        or 0
-    )
+    from app.srs.counting import count_reviews_today
+
+    return count_reviews_today(user_id, db)
 
 
 def count_linear_plan_srs_due_cards(user_id: int, db: Any) -> int:
@@ -304,7 +264,7 @@ def get_linear_plan_due_mix_cards(user_id: int, db: Any, limit: int) -> list[dic
 
     from app.curriculum.routes.card_lessons import _build_cards_for_words
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     due_directions = (
         db.session.query(UserCardDirection)
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)

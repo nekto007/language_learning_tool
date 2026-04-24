@@ -19,7 +19,6 @@ from app.grammar_lab.models import (
     UserGrammarTopicStatus,
 )
 from app.study.deck_utils import get_daily_plan_mix_word_ids
-from app.study.models import UserWord, UserCardDirection
 from app.books.models import Book, Chapter, UserChapterProgress
 
 from app.daily_plan.models import (
@@ -160,24 +159,18 @@ def _deduplicate_phases(phases: list[MissionPhase]) -> list[MissionPhase]:
 
 
 def _count_srs_due(user_id: int) -> int:
-    # next_review is stored as naive UTC (Column(DateTime)), so now must be naive UTC too
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    """Count SRS cards due within the daily-plan mix pool.
+
+    Mission-plan allocation only promises cards the ``/study?source=daily_plan_mix``
+    endpoint can actually serve, so we filter by the mix word ids. An empty mix
+    means zero due cards are plannable.
+    """
+    from app.srs.counting import count_due_cards
+
     mix_word_ids = get_daily_plan_mix_word_ids(user_id)
-
-    query = (
-        db.session.query(func.count(UserCardDirection.id))
-        .join(UserWord)
-        .filter(
-            UserWord.user_id == user_id,
-            UserCardDirection.state.in_(('review', 'relearning')),
-            UserCardDirection.next_review <= now,
-        )
-    )
-
-    if mix_word_ids:
-        query = query.filter(UserWord.word_id.in_(mix_word_ids))
-
-    return query.scalar() or 0
+    if not mix_word_ids:
+        return 0
+    return count_due_cards(user_id, db, word_ids=mix_word_ids)
 
 
 def _count_grammar_due(user_id: int) -> int:
@@ -198,41 +191,12 @@ def _count_grammar_due(user_id: int) -> int:
 def _get_remaining_card_budget(user_id: int) -> tuple[int, int]:
     """Return (remaining_new, remaining_reviews) the user can still study today.
 
-    Mirrors the daily-budget math in app/study/api_routes.py so plan previews
-    promise only what the card API can actually serve. Without this, the
-    plan advertises e.g. 109 SRS cards while the user's reviews_per_day is
-    capped at 40 — the remaining 69 get pushed to tomorrow, growing the
-    backlog.
+    Delegates to the canonical `get_new_card_budget` so mission-plan,
+    linear-plan and /study all share one adaptive-limit source of truth.
     """
-    from app.study.services import SRSService
+    from app.srs.counting import get_new_card_budget
 
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    user_word_ids_subq = db.session.query(UserWord.id).filter_by(user_id=user_id)
-    new_cards_today = (
-        db.session.query(func.count(UserCardDirection.id))
-        .filter(
-            UserCardDirection.user_word_id.in_(user_word_ids_subq),
-            UserCardDirection.first_reviewed >= today_start,
-            UserCardDirection.first_reviewed.isnot(None),
-        ).scalar() or 0
-    )
-    reviews_today = (
-        db.session.query(func.count(UserCardDirection.id))
-        .filter(
-            UserCardDirection.user_word_id.in_(user_word_ids_subq),
-            UserCardDirection.last_reviewed >= today_start,
-            UserCardDirection.first_reviewed < today_start,
-            UserCardDirection.first_reviewed.isnot(None),
-        ).scalar() or 0
-    )
-
-    adaptive_new, adaptive_reviews = SRSService.get_adaptive_limits(user_id)
-    return (
-        max(0, adaptive_new - new_cards_today),
-        max(0, adaptive_reviews - reviews_today),
-    )
+    return get_new_card_budget(user_id, db)
 
 
 def _allocate_srs_budget(srs_due: int, remaining_reviews: int) -> tuple[int, int]:

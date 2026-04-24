@@ -173,7 +173,7 @@ def _check_srs_due(user_id: int, db) -> Optional[NextStep]:
 
     user = User.query.get(user_id)
     default_deck_id = user.default_study_deck_id if user else None
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     if default_deck_id:
         user_word_subq = (
@@ -221,7 +221,7 @@ def _check_grammar_weak(user_id: int, db) -> Optional[NextStep]:
         UserGrammarExercise,
         GrammarExercise,
     )
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     # Find active topic with due exercises
     active_statuses = (

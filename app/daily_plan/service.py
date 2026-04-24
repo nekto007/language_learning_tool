@@ -15,12 +15,47 @@ from app.daily_plan.assembler import (
 logger = logging.getLogger(__name__)
 
 
-def compute_day_secured(phases: list[dict]) -> bool:
-    """Return True when all required phases are marked completed."""
+def compute_day_secured_at_assembly(phases: list[dict]) -> bool:
+    """Return True when all required phases are marked completed.
+
+    Assembly-time evaluator: reads ``phase['completed']`` from the plan payload,
+    which is always False when the assembler constructs the plan. Use
+    :func:`compute_day_secured_from_activity` for real-time status derived from
+    actual user activity.
+    """
     required = [p for p in phases if p.get('required', True)]
     if not required:
         return False
     return all(p.get('completed', False) for p in required)
+
+
+def compute_day_secured_from_activity(
+    plan: dict[str, Any],
+    plan_completion: dict[str, bool],
+) -> bool:
+    """Real-time day_secured derived from actual user activity.
+
+    Handles both mission (phase id keyed) and linear (slot kind keyed) plans.
+    For any other effective_mode, returns the plan payload's own ``day_secured``.
+    """
+    effective_mode = (plan.get('_plan_meta') or {}).get('effective_mode')
+    if effective_mode == 'mission':
+        phases = plan.get('phases') or []
+        required_phases = [p for p in phases if p.get('required', True)]
+        if not required_phases:
+            return False
+        return all(
+            plan_completion.get(p.get('id', ''), False) for p in required_phases
+        )
+    if effective_mode == 'linear':
+        baseline_slots = plan.get('baseline_slots') or []
+        if not baseline_slots:
+            return False
+        return all(
+            plan_completion.get(slot.get('kind', ''), False)
+            for slot in baseline_slots
+        )
+    return bool(plan.get('day_secured', False))
 
 
 def resolve_next_phase(
@@ -39,11 +74,31 @@ def resolve_next_phase(
     return None
 
 
-def has_extra_review_capacity(user_id: int) -> bool:
-    """True when SRS cards are due AND the user still has review budget today."""
+def has_extra_review_capacity(user_id: int, deck_id: Optional[int] = None) -> bool:
+    """True when SRS cards are due AND the user still has review budget today.
+
+    When ``deck_id`` is given, restricts the due-card count to that deck's
+    word set — the CTA gated by this helper points at ``/study/cards/<deck_id>``
+    for users with a default deck, so counting globally would surface the CTA
+    even when all due cards live outside the deck and the session would be empty.
+    """
     try:
-        from app.daily_plan.assembler import _count_srs_due, _get_remaining_card_budget
-        due = _count_srs_due(user_id)
+        from app.daily_plan.assembler import _get_remaining_card_budget
+        from app.srs.counting import count_due_cards
+        from app.study.models import QuizDeckWord
+        from app.utils.db import db
+
+        word_ids: Optional[list[int]] = None
+        if deck_id is not None:
+            word_ids = [
+                wid for (wid,) in db.session.query(QuizDeckWord.word_id)
+                .filter(QuizDeckWord.deck_id == deck_id, QuizDeckWord.word_id.isnot(None))
+                .all()
+            ]
+            if not word_ids:
+                return False
+
+        due = count_due_cards(user_id, db, word_ids=word_ids)
         _, remaining_reviews = _get_remaining_card_budget(user_id)
         return due > 0 and remaining_reviews > 0
     except Exception:
@@ -70,7 +125,7 @@ def write_secured_at(user_id: int, plan_date: date, mission_type: Optional[str] 
         )
         db.session.add(log)
     if log.secured_at is None:
-        log.secured_at = datetime.now(timezone.utc)
+        log.secured_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.flush()
 
 
@@ -116,7 +171,7 @@ def _mission_plan_to_dict(plan: MissionPlan) -> dict[str, Any]:
 
     result: dict[str, Any] = {
         'plan_version': plan.plan_version,
-        'day_secured': compute_day_secured(phases_list),
+        'day_secured': compute_day_secured_at_assembly(phases_list),
         'mission': {
             'type': _enum_value(plan.mission.type),
             'title': plan.mission.title,

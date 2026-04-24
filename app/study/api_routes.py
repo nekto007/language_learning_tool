@@ -15,6 +15,7 @@ from app.utils.db import db
 from app.words.models import CollectionWords
 from app.study.services import DeckService, SRSService
 from app.srs.stats_service import srs_stats_service
+from app.api.errors import api_error
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +44,8 @@ def get_study_items():
 
     settings = StudySettings.get_settings(current_user.id)
 
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    now = datetime.now(timezone.utc)
+    today_start = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     deck_word_ids = None
     deck = None
@@ -53,11 +54,7 @@ def get_study_items():
         if deck and (deck.user_id == current_user.id or deck.is_public):
             deck_word_ids = [dw.word_id for dw in deck.words.all() if dw.word_id]
         else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Deck not found or access denied',
-                'items': []
-            })
+            return api_error('deck_not_found', 'Deck not found or access denied', 404)
     elif word_source == 'daily_plan_mix':
         deck_word_ids = get_daily_plan_mix_word_ids(current_user.id)
 
@@ -66,22 +63,13 @@ def get_study_items():
         new_cards_limit = deck.get_new_words_limit(settings)
         reviews_limit = deck.get_reviews_limit(settings)
     else:
-        new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
-            UserCardDirection.user_word_id.in_(
-                db.session.query(UserWord.id).filter_by(user_id=current_user.id)
-            ),
-            UserCardDirection.first_reviewed >= today_start,
-            UserCardDirection.first_reviewed.isnot(None)
-        ).scalar() or 0
+        from app.srs.counting import (
+            count_new_cards_today,
+            count_reviews_today,
+        )
 
-        reviews_today = db.session.query(func.count(UserCardDirection.id)).filter(
-            UserCardDirection.user_word_id.in_(
-                db.session.query(UserWord.id).filter_by(user_id=current_user.id)
-            ),
-            UserCardDirection.last_reviewed >= today_start,
-            UserCardDirection.first_reviewed < today_start,
-            UserCardDirection.first_reviewed.isnot(None)
-        ).scalar() or 0
+        new_cards_today = count_new_cards_today(current_user.id, db)
+        reviews_today = count_reviews_today(current_user.id, db)
 
         if is_linear_plan_srs:
             from app.daily_plan.linear.slots.srs_slot import count_linear_plan_srs_due_cards
@@ -451,7 +439,7 @@ def update_study_item():
             db.session.add(settings)
             db.session.flush()
 
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        from app.srs.counting import count_new_cards_today
 
         if deck_id:
             deck = QuizDeck.query.get(deck_id)
@@ -459,23 +447,13 @@ def update_study_item():
                 new_cards_today, _ = SRSService.get_deck_stats_today(current_user.id, deck_id)
                 new_cards_limit = deck.get_new_words_limit(settings)
             else:
-                new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
-                    UserCardDirection.user_word_id.in_(
-                        db.session.query(UserWord.id).filter_by(user_id=current_user.id)
-                    ),
-                    UserCardDirection.first_reviewed >= today_start,
-                    UserCardDirection.first_reviewed.isnot(None)
-                ).scalar() or 0
-                new_cards_limit = settings.new_words_per_day
+                new_cards_today = count_new_cards_today(current_user.id, db)
+                adaptive_new, _ = SRSService.get_adaptive_limits(current_user.id)
+                new_cards_limit = adaptive_new
         else:
-            new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
-                UserCardDirection.user_word_id.in_(
-                    db.session.query(UserWord.id).filter_by(user_id=current_user.id)
-                ),
-                UserCardDirection.first_reviewed >= today_start,
-                UserCardDirection.first_reviewed.isnot(None)
-            ).scalar() or 0
-            new_cards_limit = settings.new_words_per_day
+            new_cards_today = count_new_cards_today(current_user.id, db)
+            adaptive_new, _ = SRSService.get_adaptive_limits(current_user.id)
+            new_cards_limit = adaptive_new
 
         if new_cards_today >= new_cards_limit:
             db.session.rollback()

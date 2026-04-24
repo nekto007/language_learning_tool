@@ -670,65 +670,6 @@ class TestSRSService:
             assert forward.id is not None
             assert backward.id is not None
 
-    def test_update_card_after_review_fail(self, app, db_session, user_card_directions):
-        """Test card update after failed review"""
-        from app.study.services.srs_service import SRSService
-
-        with app.app_context():
-            card = user_card_directions[0]
-            original_incorrect = card.incorrect_count or 0
-
-            SRSService.update_card_after_review(card, quality=1)
-
-            assert card.interval == 1
-            assert card.repetitions == 0
-            assert card.incorrect_count == original_incorrect + 1
-
-    def test_update_card_after_review_success(self, app, db_session, user_card_directions):
-        """Test card update after successful review"""
-        from app.study.services.srs_service import SRSService
-
-        with app.app_context():
-            card = user_card_directions[0]
-            card.repetitions = 0
-            card.interval = 0
-            original_correct = card.correct_count or 0
-
-            SRSService.update_card_after_review(card, quality=4)
-
-            assert card.interval >= 1
-            assert card.repetitions == 1
-            assert card.correct_count == original_correct + 1
-
-    def test_update_card_after_review_second_rep(self, app, db_session, user_card_directions):
-        """Test card update after second successful review"""
-        from app.study.services.srs_service import SRSService
-
-        with app.app_context():
-            card = user_card_directions[0]
-            card.repetitions = 1
-            card.interval = 1
-
-            SRSService.update_card_after_review(card, quality=4)
-
-            assert card.interval == 6  # Second rep interval
-            assert card.repetitions == 2
-
-    def test_update_card_after_review_third_rep(self, app, db_session, user_card_directions):
-        """Test card update using ease factor"""
-        from app.study.services.srs_service import SRSService
-
-        with app.app_context():
-            card = user_card_directions[0]
-            card.repetitions = 2
-            card.interval = 6
-            card.ease_factor = 2.5
-
-            SRSService.update_card_after_review(card, quality=4)
-
-            assert card.interval == 15  # 6 * 2.5 = 15
-            assert card.repetitions == 3
-
     def test_get_due_cards_empty(self, app, db_session, test_user, test_words_list):
         """Test getting due cards when none are due"""
         from app.study.services.srs_service import SRSService
