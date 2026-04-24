@@ -870,16 +870,19 @@ def save_reading_position():
     if not chapter:
         return jsonify({'success': False, 'message': 'Chapter not found'}), 404
 
-    # Check if chapter was previously incomplete
-    progress = UserChapterProgress.query.filter_by(
-        user_id=current_user.id,
-        chapter_id=chapter.id
-    ).first()
+    # Lock existing progress row to serialize concurrent updates from
+    # two tabs completing the same chapter. First insert wins via PK;
+    # second request sees the row and advances offset_pct only.
+    progress = (
+        db.session.query(UserChapterProgress)
+        .filter_by(user_id=current_user.id, chapter_id=chapter.id)
+        .with_for_update()
+        .first()
+    )
 
     was_incomplete = not progress or progress.offset_pct < 1.0
     previous_offset = progress.offset_pct if progress else 0.0
 
-    # Update or create progress
     if not progress:
         progress = UserChapterProgress(
             user_id=current_user.id,
@@ -887,30 +890,37 @@ def save_reading_position():
             offset_pct=position
         )
         db.session.add(progress)
+        db.session.flush()
     else:
         progress.offset_pct = position
         progress.updated_at = datetime.now(UTC)
-
-    db.session.commit()
+        db.session.flush()
 
     response_data = {'success': True}
 
-    # Award XP if chapter just completed (was incomplete, now complete)
     chapter_completed = was_incomplete and position >= 1.0
     chapter_xp_award = None
     if chapter_completed:
-        from app.achievements.xp_service import award_xp as _award_xp_unified
+        from app.achievements.xp_service import award_book_chapter_xp_idempotent
 
         xp_breakdown = XPService.calculate_book_chapter_xp()
         if xp_breakdown['total_xp'] > 0:
-            chapter_xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'book_chapter')
-        db.session.commit()
+            chapter_xp_award = award_book_chapter_xp_idempotent(
+                user_id=current_user.id,
+                book_id=book_id,
+                chapter_id=chapter.id,
+                xp=xp_breakdown['total_xp'],
+                for_date=datetime.now(UTC).date(),
+                db_session=db,
+            )
 
     # Linear plan: award book-reading slot XP once per day when the
     # reading slot's completion threshold is crossed. Gated on the
     # user's UserReadingPreference — progress in any other book does
     # not satisfy the slot, matching the dashboard semantics "read
-    # your chosen book today".
+    # your chosen book today". Wrapped in a savepoint so a linear-path
+    # failure doesn't roll back the book_chapter XP, keeping the outer
+    # transaction atomic at the endpoint boundary.
     try:
         from app.daily_plan.linear.slots.reading_slot import (
             READ_PROGRESS_THRESHOLD,
@@ -924,15 +934,16 @@ def save_reading_position():
         if position >= READ_PROGRESS_THRESHOLD and advanced >= READ_PROGRESS_THRESHOLD:
             pref = get_user_reading_preference(current_user.id, db)
             if pref is not None and pref.book_id == book_id:
-                if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
-                    maybe_award_linear_perfect_day(current_user.id, db_session=db)
-                    db.session.commit()
+                with db.session.begin_nested():
+                    if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
+                        maybe_award_linear_perfect_day(current_user.id, db_session=db)
     except Exception:
         logger.warning(
             "linear_xp: book-reading award failed user=%s",
             current_user.id, exc_info=True,
         )
-        db.session.rollback()
+
+    db.session.commit()
 
     if chapter_completed:
         from app.achievements.xp_service import get_level_info
