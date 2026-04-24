@@ -960,6 +960,7 @@ class UserXP(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
     total_xp = db.Column(db.Integer, default=0, nullable=False)
+    synced_to_stats = db.Column(db.Boolean, default=False, nullable=False, server_default=db.false())
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationship
