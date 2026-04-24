@@ -278,10 +278,9 @@ class XPService:
         if not is_new:
             return None
 
-        # Award bonus XP
         if achievement.xp_reward > 0:
-            user_xp = UserXP.get_or_create(user_id)
-            user_xp.add_xp(achievement.xp_reward)
+            from app.achievements.xp_service import award_xp as _award_xp_unified
+            _award_xp_unified(user_id, achievement.xp_reward, f'achievement:{achievement_code}')
 
         db.session.commit()
 

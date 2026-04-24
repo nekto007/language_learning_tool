@@ -48,12 +48,9 @@ def _check_referral_achievements(referrer_id: int) -> None:
         if not is_new:
             continue
 
-        # Award XP
-        from app.study.models import UserXP
-        xp = UserXP.get_or_create(referrer_id)
-        xp.add_xp(xp_reward)
+        from app.achievements.xp_service import award_xp as _award_xp_unified
+        _award_xp_unified(referrer_id, xp_reward, f'referral_achievement:{code}')
 
-        # Notify
         notify_achievement(referrer_id, name, icon)
 
 
