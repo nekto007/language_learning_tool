@@ -637,7 +637,9 @@ def referrals():
 def public_profile(username: str):
     """Public user achievement showcase — no login required."""
     from flask import abort
-    from app.study.models import UserXP, UserAchievement, Achievement
+    from app.study.models import UserAchievement, Achievement
+    from app.achievements.models import UserStatistics
+    from app.achievements.xp_service import get_level_info
     from app.telegram.queries import get_current_streak
     from app.curriculum.models import LessonProgress
 
@@ -645,10 +647,10 @@ def public_profile(username: str):
     if not user:
         abort(404)
 
-    # XP and level
-    user_xp = UserXP.query.filter_by(user_id=user.id).first()
-    level = user_xp.level if user_xp else 1
-    total_xp = user_xp.total_xp if user_xp else 0
+    # XP and level — read canonical UserStatistics.total_xp
+    stats = UserStatistics.query.filter_by(user_id=user.id).first()
+    total_xp = (stats.total_xp if stats else 0) or 0
+    level = get_level_info(total_xp).current_level
 
     # Streak
     streak = get_current_streak(user.id)
