@@ -46,6 +46,10 @@ def find_next_lesson_linear(user_id: int, db: Any) -> Optional[Lessons]:
 
     Lessons are ordered by (CEFRLevel.order, Module.number, Lessons.number).
     Anything whose level is below the user's onboarding level is skipped.
+    Any module whose prerequisites are not satisfied for the user is skipped
+    so users cannot bypass checkpoints by URL manipulation — if that leaves
+    nothing accessible, returns None.
+
     Returns None when the user has completed every eligible lesson.
     """
     min_order = _user_min_level_order(user_id, db)
@@ -59,7 +63,7 @@ def find_next_lesson_linear(user_id: int, db: Any) -> Optional[Lessons]:
         .subquery()
     )
 
-    lesson = (
+    candidates = (
         db.session.query(Lessons)
         .join(Module, Module.id == Lessons.module_id)
         .join(CEFRLevel, CEFRLevel.id == Module.level_id)
@@ -73,9 +77,22 @@ def find_next_lesson_linear(user_id: int, db: Any) -> Optional[Lessons]:
             Lessons.number.asc(),
             Lessons.id.asc(),
         )
-        .first()
     )
-    return lesson
+
+    module_access: dict[int, bool] = {}
+    for lesson in candidates:
+        module_id = lesson.module_id
+        accessible = module_access.get(module_id)
+        if accessible is None:
+            module = db.session.get(Module, module_id)
+            accessible = True
+            if module is not None:
+                ok, _reasons = module.check_prerequisites(user_id)
+                accessible = bool(ok)
+            module_access[module_id] = accessible
+        if accessible:
+            return lesson
+    return None
 
 
 def get_user_level_progress(user_id: int, db: Any) -> LevelProgress:

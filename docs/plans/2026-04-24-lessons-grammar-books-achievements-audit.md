@@ -269,11 +269,11 @@
 - Modify: `app/curriculum/service.py` (`get_user_active_lessons`)
 - Modify: `tests/daily_plan/test_progression.py`
 
-- [ ] Сделать `app/daily_plan/linear/progression.py:find_next_lesson_linear()` канонической функцией; переименовать в `find_next_lesson(user_id, db)` и переместить в `app/curriculum/navigation.py` (новый модуль) или оставить где есть с переименованием
-- [ ] Mission assembler (`app/daily_plan/service.py`) и `get_user_active_lessons()` делегируют в `find_next_lesson()`; убрать дубликаты алгоритма
-- [ ] Учесть checkpoint-логику в едином алгоритме: если предыдущий checkpoint не пройден (score < threshold), следующий модуль не доступен
-- [ ] Write tests: linear/mission/dashboard возвращают одинаковый next_lesson для одного пользователя; checkpoint failed → next_lesson = checkpoint, а не next module lesson
-- [ ] Run pytest — must pass before task 9
+- [x] Сделать `app/daily_plan/linear/progression.py:find_next_lesson_linear()` канонической функцией; новый модуль `app/curriculum/navigation.py` экспортирует `find_next_lesson(user_id, db)` тонкой обёрткой над линейной реализацией
+- [x] Mission assembler (`app/daily_plan/assembler.py:_find_next_lesson`) делегирует в `find_next_lesson()`; удалён `_find_next_lesson_legacy` и orphan-хелпер `_next_unfinished_lesson_in_module`. `get_user_active_lessons()` — отдельный концепт (список in-progress уроков, а не "следующий к старту"), остаётся без изменений; задача убирает дубликаты именно алгоритма "next lesson".
+- [x] Учесть checkpoint-логику в едином алгоритме: `find_next_lesson_linear` пропускает модули, чей `Module.check_prerequisites(user_id)` возвращает False — locked modules больше нельзя обойти через URL/next-lesson
+- [x] Write tests: `tests/curriculum/test_navigation.py` — linear/mission/canonical возвращают одинаковый next_lesson на cold start, после частичного прогресса и при полном завершении; locked module c недостаточным score пропускается в пользу следующего доступного уровня
+- [x] Run pytest — must pass before task 9
 
 ---
 
