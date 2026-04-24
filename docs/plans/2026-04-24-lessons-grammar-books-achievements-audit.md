@@ -218,12 +218,12 @@
 - Modify: `app/daily_plan/linear/errors.py` (если contract нужно расширить)
 - Modify: `tests/curriculum/test_grammar_quiz_lessons.py`
 
-- [ ] В `process_grammar_submission()` (строки 105-146): собрать `errors_payload` в формате, совместимом с `log_quiz_errors_from_result` (список `{question_index, question_payload, user_answer, correct_answer}`)
-- [ ] Вызвать `log_quiz_errors_from_result(user_id, lesson_id, errors_payload, db)` после grading
-- [ ] Если contract не подходит (grammar — не quiz) → расширить `log_quiz_errors_from_result` на `question_type ∈ {'quiz', 'grammar'}` с общим dedup-ключом
-- [ ] Убедиться, что `should_show_error_review()` корректно учитывает grammar-ошибки в счётчике unresolved
-- [ ] Write tests: grammar submission с 2 неверными ответами → 2 строки в `QuizErrorLog`; resolve через повторное прохождение сбрасывает `answered_wrong_at → resolved_at`
-- [ ] Run pytest — must pass before task 6
+- [x] В `process_grammar_submission()` (строки 105-146): собрать `errors_payload` в формате, совместимом с `log_quiz_errors_from_result` (список `{question_index, question_payload, user_answer, correct_answer}`)
+- [x] Вызвать `log_quiz_errors_from_result(user_id, lesson_id, errors_payload, db)` после grading
+- [x] Если contract не подходит (grammar — не quiz) → расширить `log_quiz_errors_from_result` на `question_type ∈ {'quiz', 'grammar'}` с общим dedup-ключом
+- [x] Убедиться, что `should_show_error_review()` корректно учитывает grammar-ошибки в счётчике unresolved
+- [x] Write tests: grammar submission с 2 неверными ответами → 2 строки в `QuizErrorLog`; resolve через повторное прохождение сбрасывает `answered_wrong_at → resolved_at`
+- [x] Run pytest — must pass before task 6
 
 ---
 

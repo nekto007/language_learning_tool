@@ -109,16 +109,23 @@ def log_quiz_errors_from_result(
     questions: list[dict],
     result: dict,
     db: Any,
+    *,
+    source: str = 'quiz',
 ) -> list[QuizErrorLog]:
-    """Iterate a ``process_quiz_submission`` result and log each incorrect answer.
+    """Iterate a grading result and log each incorrect answer.
 
-    The result ``feedback`` dict keys are stringified question indices
-    (``'0'``, ``'1'``, ...) with a ``status`` of ``'correct'`` or
-    ``'incorrect'``. We log one row per incorrect entry, embedding the
-    original question, user answer, and correct answer into the payload
-    so the review slot can rebuild the question later. If the same
-    question already has an unresolved row (quiz re-attempt), we skip
-    it so the pool doesn't accumulate duplicates.
+    Works for both ``process_quiz_submission`` and
+    ``process_grammar_submission`` — both return a ``feedback`` dict keyed
+    by stringified question/exercise indices with ``status`` of
+    ``'correct'`` or ``'incorrect'``. We log one row per incorrect entry,
+    embedding the original question, user answer, and correct answer into
+    the payload so the review slot can rebuild it later. If the same
+    question already has an unresolved row (re-attempt), we skip it so
+    the pool doesn't accumulate duplicates.
+
+    ``source`` distinguishes ``'quiz'`` from ``'grammar'`` in the stored
+    payload so the review slot can group/filter by origin; dedup still
+    uses ``question_index`` regardless.
 
     Silent no-op when feedback is missing/empty — malformed results from
     older test flows must not crash grading.
@@ -149,13 +156,21 @@ def log_quiz_errors_from_result(
         else:
             question = questions[q_idx] or {}
 
+        question_text = (
+            question.get('question')
+            or question.get('prompt')
+            or question.get('task')
+            or question.get('sentence')
+            or question.get('text')
+        )
         payload = {
             'question_index': q_idx,
             'question_type': question.get('type'),
-            'question_text': question.get('question') or question.get('prompt'),
+            'question_text': question_text,
             'options': question.get('options'),
             'user_answer': entry.get('user_answer'),
             'correct_answer': entry.get('correct_answer'),
+            'source': source,
         }
         logged.append(log_quiz_error(user_id, lesson_id, payload, db))
         already_logged.add(q_idx)
