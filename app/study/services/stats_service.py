@@ -366,12 +366,14 @@ class StatsService:
             desc(UserStatistics.total_xp)
         ).limit(limit).all()
 
+        from app.achievements.xp_service import get_level_info
+
         return [
             {
                 'id': row.id,
                 'username': row.username,
                 'total_xp': row.total_xp or 0,
-                'level': max(1, (row.total_xp or 0) // 100)
+                'level': get_level_info(row.total_xp or 0).current_level,
             }
             for row in results
         ]
