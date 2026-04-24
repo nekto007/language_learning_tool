@@ -186,11 +186,11 @@
 - Modify: `app/daily_plan/linear/xp.py` (если нужно)
 - Modify: `tests/grammar_lab/test_service.py`
 
-- [ ] В `grammar_lab_service.submit_answer()` (строки 402-403): проверить `user.use_linear_plan` — если linear, XP начисляет только linear-путь (для grammar через `maybe_award_curriculum_xp` при завершении lesson). grammar_lab submit в linear режиме → `srs.add_xp` не вызывается, только SRS update.
-- [ ] В legacy (mission/пустой) режиме `grammar_lab.submit_answer` продолжает начислять XP как сейчас (это standalone grammar практика вне curriculum)
-- [ ] Документировать в docstring `submit_answer`: XP зависит от mode user'а
-- [ ] Write tests: linear user — submit_answer не увеличивает XP напрямую; mission/legacy user — XP начисляется; при наличии curriculum-контекста XP приходит через linear_curriculum_grammar, не дважды
-- [ ] Run pytest — must pass before task 4
+- [x] В `grammar_lab_service.submit_answer()` (строки 402-403): проверить `user.use_linear_plan` — если linear, XP начисляет только linear-путь (для grammar через `maybe_award_curriculum_xp` при завершении lesson). grammar_lab submit в linear режиме → `srs.add_xp` не вызывается, только SRS update.
+- [x] В legacy (mission/пустой) режиме `grammar_lab.submit_answer` продолжает начислять XP как сейчас (это standalone grammar практика вне curriculum)
+- [x] Документировать в docstring `submit_answer`: XP зависит от mode user'а
+- [x] Write tests: linear user — submit_answer не увеличивает XP напрямую; mission/legacy user — XP начисляется; при наличии curriculum-контекста XP приходит через linear_curriculum_grammar, не дважды
+- [x] Run pytest — must pass before task 4
 
 ---
 
