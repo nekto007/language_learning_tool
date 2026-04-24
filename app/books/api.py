@@ -898,10 +898,11 @@ def save_reading_position():
     # Award XP if chapter just completed (was incomplete, now complete)
     if was_incomplete and position >= 1.0:
         from app.achievements.xp_service import award_xp as _award_xp_unified, get_level_info
-        from app.study.models import UserStatistics
+        from app.achievements.models import UserStatistics
 
         xp_breakdown = XPService.calculate_book_chapter_xp()
-        _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'book_chapter')
+        if xp_breakdown['total_xp'] > 0:
+            _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'book_chapter')
         db.session.commit()
 
         stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
