@@ -547,7 +547,11 @@ class TestCompleteSession:
 
             # Mock the XP calculation
             mock_calc.return_value = {'total_xp': 50}
-            mock_award.return_value = {'xp_awarded': 50, 'level_up': False, 'new_level': 1}
+            from app.achievements.xp_service import XPAward
+            mock_award.return_value = XPAward(
+                xp_awarded=50, multiplier=1.0, new_total_xp=initial_xp + 50,
+                previous_level=1, new_level=1, leveled_up=False,
+            )
 
             response = authenticated_client.post('/study/api/complete-session', json={
                 'session_id': study_session.id
@@ -719,7 +723,11 @@ class TestCompleteMatchingGame:
              patch('app.achievements.xp_service.award_xp') as mock_award:
 
             mock_calc.return_value = {'total_xp': 100}
-            mock_award.return_value = {'xp_awarded': 100, 'level_up': False, 'new_level': 1}
+            from app.achievements.xp_service import XPAward
+            mock_award.return_value = XPAward(
+                xp_awarded=100, multiplier=1.0, new_total_xp=100,
+                previous_level=1, new_level=1, leveled_up=False,
+            )
 
             game_data = {
                 'difficulty': 'medium',
@@ -827,7 +835,11 @@ class TestCompleteQuiz:
              patch('app.achievements.xp_service.award_xp') as mock_award:
 
             mock_calc.return_value = {'total_xp': 75}
-            mock_award.return_value = {'xp_awarded': 75, 'level_up': False, 'new_level': 1}
+            from app.achievements.xp_service import XPAward
+            mock_award.return_value = XPAward(
+                xp_awarded=75, multiplier=1.0, new_total_xp=75,
+                previous_level=1, new_level=1, leveled_up=False,
+            )
 
             quiz_data = {
                 'deck_id': quiz_deck_with_words.id,

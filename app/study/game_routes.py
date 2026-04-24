@@ -535,8 +535,9 @@ def complete_matching_game():
         score=score_percentage,
         total_pairs=total_pairs
     )
+    xp_award = None
     if xp_breakdown['total_xp'] > 0:
-        _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_matching_game')
+        xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_matching_game')
         db.session.commit()
     _matching_stats = _UserStats.query.filter_by(user_id=current_user.id).first()
     _matching_total_xp = int(_matching_stats.total_xp or 0) if _matching_stats else 0
@@ -630,7 +631,7 @@ def complete_matching_game():
             'rank': rank,
             'is_personal_best': is_personal_best,
             'game_score_id': game_score.id,
-            'xp_earned': xp_breakdown['total_xp'],
+            'xp_earned': xp_award.xp_awarded if xp_award else 0,
             'total_xp': _matching_total_xp,
             'level': _matching_level
         })
@@ -713,8 +714,9 @@ def complete_quiz():
 
     from app.achievements.xp_service import award_xp as _award_xp_unified, get_level_info
     from app.achievements.models import UserStatistics as _UserStats
+    xp_award = None
     if xp_breakdown['total_xp'] > 0:
-        _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_quiz_game')
+        xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_quiz_game')
         db.session.commit()
 
     if (
@@ -766,7 +768,7 @@ def complete_quiz():
     return jsonify({
         'success': True,
         'score': score,
-        'xp_earned': xp_breakdown['total_xp'],
+        'xp_earned': xp_award.xp_awarded if xp_award else 0,
         'xp_breakdown': xp_breakdown,
         'total_xp': _quiz_total_xp,
         'level': _quiz_level,

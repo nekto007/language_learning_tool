@@ -897,12 +897,13 @@ def save_reading_position():
 
     # Award XP if chapter just completed (was incomplete, now complete)
     chapter_completed = was_incomplete and position >= 1.0
+    chapter_xp_award = None
     if chapter_completed:
         from app.achievements.xp_service import award_xp as _award_xp_unified
 
         xp_breakdown = XPService.calculate_book_chapter_xp()
         if xp_breakdown['total_xp'] > 0:
-            _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'book_chapter')
+            chapter_xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'book_chapter')
         db.session.commit()
 
     # Linear plan: award book-reading slot XP once per day when the
@@ -943,7 +944,7 @@ def save_reading_position():
 
         response_data.update({
             'chapter_completed': True,
-            'xp_earned': xp_breakdown['total_xp'],
+            'xp_earned': chapter_xp_award.xp_awarded if chapter_xp_award else 0,
             'total_xp': total_xp,
             'level': level_info.current_level,
         })

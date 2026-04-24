@@ -160,9 +160,9 @@ class XPService:
         .. deprecated::
             Use ``app.achievements.xp_service.award_xp`` which writes to
             ``UserStatistics.total_xp`` (the single source of truth used by
-            the leaderboard and dashboard level). This shim still updates
-            the legacy ``UserXP`` row for backward compatibility but will
-            be removed once all callers migrate.
+            the leaderboard and dashboard level). This shim now forwards
+            to the unified write-path so any stale caller still credits the
+            canonical counter; it will be removed once all imports migrate.
         """
         import warnings
         warnings.warn(
@@ -171,10 +171,11 @@ class XPService:
             DeprecationWarning,
             stacklevel=2,
         )
-        user_xp = UserXP.get_or_create(user_id)
-        user_xp.add_xp(amount)
-        db.session.commit()
-        return user_xp
+        from app.achievements.xp_service import award_xp as _unified_award_xp
+        if amount > 0:
+            _unified_award_xp(user_id, amount, 'legacy_xp_service_shim')
+            db.session.commit()
+        return UserXP.get_or_create(user_id)
 
     @staticmethod
     def check_quiz_achievements(user_id: int, quiz_data: Dict[str, Any]) -> List[Achievement]:

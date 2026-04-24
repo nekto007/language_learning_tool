@@ -564,8 +564,9 @@ def complete_session():
         )
         from app.achievements.xp_service import award_xp as _award_xp_unified, get_level_info
         from app.achievements.models import UserStatistics as _UserStats
+        xp_award = None
         if xp_breakdown['total_xp'] > 0:
-            _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_cards_session')
+            xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_cards_session')
             db.session.commit()
 
         try:
@@ -600,7 +601,7 @@ def complete_session():
                 'incorrect': session.incorrect_answers,
                 'percentage': session.performance_percentage
             },
-            'xp_earned': xp_breakdown['total_xp'],
+            'xp_earned': xp_award.xp_awarded if xp_award else 0,
             'total_xp': _total_xp,
             'level': _level,
             'streak': current_streak,
