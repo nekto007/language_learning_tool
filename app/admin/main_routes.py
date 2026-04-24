@@ -38,7 +38,7 @@ def _activity_date_expr(*columns):
 
 
 def _active_user_ids_for_date(target_date):
-    """UNION DISTINCT user_id across all 6 activity tables for a single date.
+    """UNION DISTINCT user_id across all 7 activity tables for a single date.
 
     This is the single source of truth for DAU — used by chart, DAU/WAU/MAU,
     and retention calculations. See Key Definitions in plan.
@@ -47,6 +47,7 @@ def _active_user_ids_for_date(target_date):
     from app.grammar_lab.models import UserGrammarExercise
     from app.books.models import UserChapterProgress
     from app.curriculum.book_courses import BookCourseEnrollment
+    from app.curriculum.daily_lessons import UserLessonProgress
 
     q1 = db.session.query(LessonProgress.user_id).filter(
         _activity_date_expr(LessonProgress.last_activity, LessonProgress.completed_at) == target_date,
@@ -69,11 +70,15 @@ def _active_user_ids_for_date(target_date):
     q6 = db.session.query(LessonAttempt.user_id).filter(
         func.date(LessonAttempt.started_at) == target_date,
     )
-    return q1.union(q2, q3, q4, q5, q6)
+    q7 = db.session.query(UserLessonProgress.user_id).filter(
+        UserLessonProgress.completed_at.isnot(None),
+        func.date(UserLessonProgress.completed_at) == target_date,
+    )
+    return q1.union(q2, q3, q4, q5, q6, q7)
 
 
 def _count_active_users_in_range(start_date, end_date) -> int:
-    """Count distinct active users in a date range using all 6 activity tables.
+    """Count distinct active users in a date range using all 7 activity tables.
 
     Does NOT use User.last_login — that's visitor data, not learning activity.
     """
@@ -81,6 +86,7 @@ def _count_active_users_in_range(start_date, end_date) -> int:
     from app.grammar_lab.models import UserGrammarExercise
     from app.books.models import UserChapterProgress
     from app.curriculum.book_courses import BookCourseEnrollment
+    from app.curriculum.daily_lessons import UserLessonProgress
 
     q1 = db.session.query(LessonProgress.user_id).filter(
         _activity_date_expr(LessonProgress.last_activity, LessonProgress.completed_at) >= start_date,
@@ -109,7 +115,12 @@ def _count_active_users_in_range(start_date, end_date) -> int:
         func.date(LessonAttempt.started_at) >= start_date,
         func.date(LessonAttempt.started_at) <= end_date,
     )
-    union_q = q1.union(q2, q3, q4, q5, q6).subquery()
+    q7 = db.session.query(UserLessonProgress.user_id).filter(
+        UserLessonProgress.completed_at.isnot(None),
+        func.date(UserLessonProgress.completed_at) >= start_date,
+        func.date(UserLessonProgress.completed_at) <= end_date,
+    )
+    union_q = q1.union(q2, q3, q4, q5, q6, q7).subquery()
     return db.session.query(func.count()).select_from(union_q).scalar() or 0
 
 

@@ -218,6 +218,92 @@ class TestCountActiveUsersInRange:
         count = _count_active_users_in_range(today, today)
         assert count >= 1
 
+    def test_user_lesson_progress_counted(self, app, db_session):
+        """User with UserLessonProgress.completed_at in range is counted (7th source)."""
+        from app.admin.main_routes import _count_active_users_in_range, _active_user_ids_for_date
+        from app.books.models import Book, Chapter
+        from app.curriculum.book_courses import BookCourse, BookCourseModule, BookCourseEnrollment
+        from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
+
+        user = _make_user(db_session)
+        now = datetime.now(timezone.utc)
+        today = now.date()
+
+        book = Book(
+            title=f'Book {uuid.uuid4().hex[:8]}',
+            author='Author',
+            chapters_cnt=1,
+            level='B1',
+            unique_words=100,
+        )
+        db_session.add(book)
+        db_session.flush()
+
+        chapter = Chapter(
+            book_id=book.id,
+            chap_num=1,
+            title='Chapter 1',
+            words=500,
+            text_raw='Some text here.',
+        )
+        db_session.add(chapter)
+        db_session.flush()
+
+        course = BookCourse(
+            book_id=book.id,
+            title='Course',
+            level='B1',
+            slug=f'course-{uuid.uuid4().hex[:8]}',
+        )
+        db_session.add(course)
+        db_session.flush()
+
+        module = BookCourseModule(
+            course_id=course.id,
+            module_number=1,
+            title='Module 1',
+        )
+        db_session.add(module)
+        db_session.flush()
+
+        dl = DailyLesson(
+            book_course_module_id=module.id,
+            slice_number=1,
+            day_number=1,
+            lesson_type='reading',
+            chapter_id=chapter.id,
+            word_count=200,
+        )
+        db_session.add(dl)
+        db_session.flush()
+
+        enrollment = BookCourseEnrollment(
+            user_id=user.id,
+            course_id=course.id,
+            status='active',
+            current_module_id=module.id,
+        )
+        db_session.add(enrollment)
+        db_session.flush()
+
+        progress = UserLessonProgress(
+            user_id=user.id,
+            daily_lesson_id=dl.id,
+            enrollment_id=enrollment.id,
+            status='completed',
+            completed_at=now,
+        )
+        # Explicitly null out enrollment.last_activity to isolate the source under test
+        enrollment.last_activity = None
+        db_session.add(progress)
+        db_session.commit()
+
+        count = _count_active_users_in_range(today, today)
+        assert count >= 1
+
+        ids = [row[0] for row in _active_user_ids_for_date(today).all()]
+        assert user.id in ids
+
     def test_user_active_in_multiple_tables_counted_once(self, app, db_session):
         """User active in multiple tables is counted only once (UNION deduplication)."""
         from app.admin.main_routes import _count_active_users_in_range
