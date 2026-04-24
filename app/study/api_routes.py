@@ -567,9 +567,6 @@ def complete_session():
         if xp_breakdown['total_xp'] > 0:
             _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_cards_session')
             db.session.commit()
-        _stats = _UserStats.query.filter_by(user_id=current_user.id).first()
-        _total_xp = int(_stats.total_xp or 0) if _stats else 0
-        _level = get_level_info(_total_xp).current_level
 
         try:
             from app.daily_plan.linear.xp import (
@@ -585,6 +582,10 @@ def complete_session():
                 current_user.id, exc_info=True,
             )
             db.session.rollback()
+
+        _stats = _UserStats.query.filter_by(user_id=current_user.id).first()
+        _total_xp = int(_stats.total_xp or 0) if _stats else 0
+        _level = get_level_info(_total_xp).current_level
 
         from app.achievements.models import UserStatistics
         user_stats = UserStatistics.query.filter_by(user_id=current_user.id).first()

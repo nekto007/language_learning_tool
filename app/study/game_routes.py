@@ -716,9 +716,6 @@ def complete_quiz():
     if xp_breakdown['total_xp'] > 0:
         _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_quiz_game')
         db.session.commit()
-    _quiz_stats = _UserStats.query.filter_by(user_id=current_user.id).first()
-    _quiz_total_xp = int(_quiz_stats.total_xp or 0) if _quiz_stats else 0
-    _quiz_level = get_level_info(_quiz_total_xp).current_level
 
     if (
         source == LINEAR_PLAN_DECK_QUIZ_SOURCE
@@ -750,6 +747,10 @@ def complete_quiz():
         'has_streak': has_streak
     }
     newly_earned = XPService.check_quiz_achievements(current_user.id, quiz_data)
+
+    _quiz_stats = _UserStats.query.filter_by(user_id=current_user.id).first()
+    _quiz_total_xp = int(_quiz_stats.total_xp or 0) if _quiz_stats else 0
+    _quiz_level = get_level_info(_quiz_total_xp).current_level
 
     achievements_list = [
         {
