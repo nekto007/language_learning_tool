@@ -251,11 +251,15 @@ def complete_lesson(user_id: int, lesson_id: int, score: float = 100.0) -> Optio
         db.session.refresh(progress)
 
         # Award XP for completing lesson, idempotent per user+lesson+day.
+        # Use the user's local date so the dedup key aligns with
+        # card_lessons.complete_srs_session (which awards through
+        # maybe_award_curriculum_xp → get_user_local_date). A UTC-naive
+        # fallback would let a cross-midnight completion double-credit.
         try:
-            from datetime import date as _date
             from app.curriculum.xp import award_curriculum_lesson_xp_idempotent
+            from app.utils.time_utils import get_user_local_date
             award_curriculum_lesson_xp_idempotent(
-                user_id, lesson_id, _date.today(), db_session=db,
+                user_id, lesson_id, get_user_local_date(user_id, db), db_session=db,
             )
             db.session.commit()
         except Exception:

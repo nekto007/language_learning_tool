@@ -18,7 +18,7 @@ mutations in a single commit.
 from __future__ import annotations
 
 import logging
-from datetime import date as date_cls, datetime, timezone
+from datetime import date as date_cls
 from typing import Any, Optional
 
 from app.achievements.xp_service import (
@@ -70,15 +70,14 @@ def get_linear_event_local_date(
     user_id: int,
     db_session: Any = None,
 ) -> date_cls:
-    """Return the user's local date for linear-plan idempotency keys."""
-    from zoneinfo import ZoneInfo
+    """Return the user's local date for linear-plan idempotency keys.
 
-    tz_name = _get_user_timezone(user_id, db_session)
-    try:
-        tz_obj = ZoneInfo(tz_name)
-    except Exception:
-        tz_obj = ZoneInfo('UTC')
-    return datetime.now(tz_obj).date()
+    Delegates to the canonical ``app.utils.time_utils.get_user_local_date``
+    so the curriculum, linear, and card-lesson write paths all agree.
+    """
+    from app.utils.time_utils import get_user_local_date
+
+    return get_user_local_date(user_id, db_session)
 
 
 def is_linear_user(user_id: int) -> bool:

@@ -306,7 +306,7 @@ class TestMaybeAwardSlotHelpers:
                 base = datetime(2026, 4, 20, 21, 30, tzinfo=timezone.utc)
                 return base if tz is None else base.astimezone(tz)
 
-        with patch('app.daily_plan.linear.xp.datetime', _FakeNow):
+        with patch('app.utils.time_utils.datetime', _FakeNow):
             assert get_linear_event_local_date(user.id, real_db).isoformat() == '2026-04-21'
 
 

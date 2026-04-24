@@ -202,10 +202,10 @@
 - Modify: `app/utils/time_utils.py` (если helper для user-tz нужен)
 - Modify: `tests/curriculum/test_xp.py`
 
-- [ ] В `app/curriculum/service.py:complete_lesson()`: вместо `date.today()` использовать дату пользователя — если `user.timezone` задан, `datetime.now(ZoneInfo(user.timezone)).date()`, иначе UTC-date
-- [ ] Если нет helper-а — добавить `get_user_local_date(user) -> date` в `app/utils/time_utils.py`; вызвать его в `complete_lesson()` и `card_lessons.complete_srs_session()` — одна функция для обоих путей
-- [ ] Write tests: пользователь с timezone `America/New_York` в 23:30 EDT = UTC next-day → `complete_lesson` использует EDT-дату; повторный вызов в UTC next-day дедуплит корректно
-- [ ] Run pytest — must pass before task 5
+- [x] В `app/curriculum/service.py:complete_lesson()`: вместо `date.today()` использовать дату пользователя — если `user.timezone` задан, `datetime.now(ZoneInfo(user.timezone)).date()`, иначе UTC-date
+- [x] Если нет helper-а — добавить `get_user_local_date(user) -> date` в `app/utils/time_utils.py`; вызвать его в `complete_lesson()` и `card_lessons.complete_srs_session()` — одна функция для обоих путей (card_lessons already uses it via `get_linear_event_local_date`, which now delegates to the canonical helper)
+- [x] Write tests: пользователь с timezone `America/New_York` в 23:30 EDT = UTC next-day → `complete_lesson` использует EDT-дату; повторный вызов в UTC next-day дедуплит корректно
+- [x] Run pytest — must pass before task 5
 
 ---
 
