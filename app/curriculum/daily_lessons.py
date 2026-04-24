@@ -176,7 +176,15 @@ class SliceVocabulary(db.Model):
 
 
 class UserLessonProgress(db.Model):
-    """Track user progress through daily lessons"""
+    """Track user progress through book-course daily lessons.
+
+    Distinct from ``app.curriculum.models.LessonProgress`` (``lesson_progress``),
+    which tracks the standalone curriculum spine (Module/Lesson JSON content).
+    This table is the source of truth for BookCourseEnrollment daily lessons
+    (``daily_lessons`` table) — keyed by (user_id, daily_lesson_id) and scoped
+    to an enrollment. Referenced by DAU/streak aggregators in
+    ``app/utils/activity_tracker.py`` and ``app/achievements/streak_service.py``.
+    """
     __tablename__ = 'user_lesson_progress'
 
     id = Column(Integer, primary_key=True)

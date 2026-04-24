@@ -4,6 +4,11 @@ Revision ID: d35366cf95ab
 Revises: 51563928c8a8
 Create Date: 2025-11-27 12:00:00.000000
 
+Note: the ``user_lesson_progress`` table is defined by the
+``UserLessonProgress`` model in ``app/curriculum/daily_lessons.py`` and
+backs the book-course daily-lesson flow. It is a separate table from
+``lesson_progress`` (``LessonProgress`` in ``app/curriculum/models.py``),
+which tracks the standalone curriculum spine.
 """
 from alembic import op
 import sqlalchemy as sa

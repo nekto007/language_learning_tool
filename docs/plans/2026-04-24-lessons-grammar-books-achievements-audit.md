@@ -252,12 +252,12 @@
 - Possibly delete: orphan migration
 - Modify: `tests/test_migrations.py` (если есть migration chain check)
 
-- [ ] Grep: есть ли `user_lesson_progress` таблица в текущей БД (проверить через `alembic current` и introspection); есть ли модель с такой `__tablename__`
-- [ ] Если таблица реально используется (например, book-course lessons) — добавить модель `UserLessonProgress` в `app/models/` и документировать её роль vs `LessonProgress`
-- [ ] Если таблица неиспользуемая — создать downgrade-миграцию с `DROP TABLE user_lesson_progress IF EXISTS` и удалить `d35366cf95ab`
-- [ ] Проверить migration chain: `alembic history` — нет orphan'ов, все revisions связаны
-- [ ] Write tests: migration chain integrity check (если нет — добавить базовый smoke)
-- [ ] Run pytest — must pass before task 8
+- [x] Grep: есть ли `user_lesson_progress` таблица в текущей БД (проверить через `alembic current` и introspection); есть ли модель с такой `__tablename__` — модель есть: `UserLessonProgress` в `app/curriculum/daily_lessons.py` (book-course daily lessons)
+- [x] Если таблица реально используется (например, book-course lessons) — добавить модель `UserLessonProgress` в `app/models/` и документировать её роль vs `LessonProgress` — проект не использует `app/models/` package (модели живут в доменных модулях). Добавлен docstring на `UserLessonProgress`, разграничивающий её и `LessonProgress`; добавлена заметка в миграции `d35366cf95ab`.
+- [x] Если таблица неиспользуемая — создать downgrade-миграцию с `DROP TABLE user_lesson_progress IF EXISTS` и удалить `d35366cf95ab` — таблица используется, не удаляем.
+- [x] Проверить migration chain: `alembic history` — нет orphan'ов, все revisions связаны (покрыто новым тестом `tests/migrations/test_migration_chain.py`, проверяющим orphan parents и single head; repo имеет multiple исторические roots, объединённые merge-миграциями)
+- [x] Write tests: migration chain integrity check — `tests/migrations/test_migration_chain.py`
+- [x] Run pytest — must pass before task 8
 
 ---
 
