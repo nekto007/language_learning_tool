@@ -406,6 +406,104 @@ def award_book_chapter_xp_idempotent(
     return result
 
 
+REFERRAL_XP_EVENT_TYPE = 'xp_referral'
+GAME_XP_EVENT_TYPE = 'xp_game'
+
+
+def award_referral_xp_idempotent(
+    referrer_id: int,
+    referee_id: int,
+    xp: int,
+    db_session=None,
+) -> XPAward | None:
+    """Award referral XP to referrer once per referee (lifetime dedup).
+
+    Dedup via ``StreakEvent(event_type='xp_referral',
+    details={'referee_id': ...})`` across all dates. Caller commits.
+    """
+    from app.achievements.models import StreakEvent
+    from app.utils.db import db
+
+    db_obj = db_session if db_session is not None else db
+
+    if xp <= 0:
+        return None
+
+    already = db_obj.session.query(StreakEvent).filter(
+        StreakEvent.user_id == referrer_id,
+        StreakEvent.event_type == REFERRAL_XP_EVENT_TYPE,
+        StreakEvent.details['referee_id'].astext == str(referee_id),
+    ).first()
+    if already is not None:
+        return None
+
+    result = award_xp(referrer_id, xp, 'referral')
+
+    db_obj.session.add(StreakEvent(
+        user_id=referrer_id,
+        event_type=REFERRAL_XP_EVENT_TYPE,
+        event_date=date.today(),
+        coins_delta=0,
+        details={
+            'referee_id': referee_id,
+            'xp': result.xp_awarded,
+        },
+    ))
+    db_obj.session.flush()
+    return result
+
+
+def award_game_xp_idempotent(
+    user_id: int,
+    session_id: int | None,
+    game_type: str,
+    xp: int,
+    for_date: date,
+    db_session=None,
+) -> XPAward | None:
+    """Award game-completion XP once per (user, session_id, game_type).
+
+    ``session_id`` is the ``StudySession.id`` that bounds the game attempt.
+    When ``session_id`` is None the dedup falls back to the caller — no
+    ledger row is written and XP is awarded unconditionally (legacy path).
+    Caller commits.
+    """
+    from app.achievements.models import StreakEvent
+    from app.utils.db import db
+
+    db_obj = db_session if db_session is not None else db
+
+    if xp <= 0:
+        return None
+
+    if session_id is not None:
+        already = db_obj.session.query(StreakEvent).filter(
+            StreakEvent.user_id == user_id,
+            StreakEvent.event_type == GAME_XP_EVENT_TYPE,
+            StreakEvent.details['session_id'].astext == str(session_id),
+            StreakEvent.details['game_type'].astext == game_type,
+        ).first()
+        if already is not None:
+            return None
+
+    result = award_xp(user_id, xp, f'study_{game_type}_game')
+
+    if session_id is not None:
+        db_obj.session.add(StreakEvent(
+            user_id=user_id,
+            event_type=GAME_XP_EVENT_TYPE,
+            event_date=for_date,
+            coins_delta=0,
+            details={
+                'session_id': session_id,
+                'game_type': game_type,
+                'xp': result.xp_awarded,
+            },
+        ))
+        db_obj.session.flush()
+    return result
+
+
 def get_linear_xp_amount(source: str) -> int:
     """Return base XP for a linear daily plan source key.
 

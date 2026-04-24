@@ -528,7 +528,7 @@ def complete_matching_game():
             }), 200
 
     from app.study.xp_service import XPService
-    from app.achievements.xp_service import award_xp as _award_xp_unified, get_level_info
+    from app.achievements.xp_service import award_game_xp_idempotent, get_level_info
     from app.achievements.models import UserStatistics as _UserStats
     score_percentage = (pairs_matched / total_pairs * 100) if total_pairs > 0 else 0
     xp_breakdown = XPService.calculate_matching_xp(
@@ -537,7 +537,13 @@ def complete_matching_game():
     )
     xp_award = None
     if xp_breakdown['total_xp'] > 0:
-        xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_matching_game')
+        xp_award = award_game_xp_idempotent(
+            current_user.id,
+            int(session_id) if session_id else None,
+            'matching',
+            xp_breakdown['total_xp'],
+            datetime.now(timezone.utc).date(),
+        )
         db.session.commit()
     _matching_stats = _UserStats.query.filter_by(user_id=current_user.id).first()
     _matching_total_xp = int(_matching_stats.total_xp or 0) if _matching_stats else 0
@@ -712,11 +718,17 @@ def complete_quiz():
         has_streak=has_streak
     )
 
-    from app.achievements.xp_service import award_xp as _award_xp_unified, get_level_info
+    from app.achievements.xp_service import award_game_xp_idempotent, get_level_info
     from app.achievements.models import UserStatistics as _UserStats
     xp_award = None
     if xp_breakdown['total_xp'] > 0:
-        xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_quiz_game')
+        xp_award = award_game_xp_idempotent(
+            current_user.id,
+            int(session_id) if session_id else None,
+            'quiz',
+            xp_breakdown['total_xp'],
+            datetime.now(timezone.utc).date(),
+        )
         db.session.commit()
 
     if (

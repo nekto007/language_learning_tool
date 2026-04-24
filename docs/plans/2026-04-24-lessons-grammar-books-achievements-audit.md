@@ -170,12 +170,12 @@
 - Modify: `app/achievements/xp_service.py` (helpers)
 - Modify: `tests/test_referrals.py`, `tests/test_study_games.py`
 
-- [ ] Ввести `award_referral_xp_idempotent(referrer_id, referee_id, xp, db)` — dedup через `StreakEvent(event_type='xp_referral', details={'referee_id': ...})`. Раз навсегда — не по дате.
-- [ ] Заменить ручные `_award_xp_unified(..., 'referral')` в `app/words/routes.py` и `app/auth/routes.py` на новый helper
-- [ ] Ввести `award_game_xp_idempotent(user_id, game_session_id, game_type, xp, db, for_date)` — dedup через `StreakEvent(event_type='xp_game', details={'session_id': ..., 'game_type': ...})`
-- [ ] Заменить `award_xp(user_id, xp, 'study_matching_game')` и `'study_quiz_game'` на новый helper с session_id из game-логики
-- [ ] Write tests: повторный POST на reward referral не даёт double-XP; повторная отправка matching/quiz result не даёт double-XP; новая сессия game → новый XP
-- [ ] Run pytest — must pass before task 3
+- [x] Ввести `award_referral_xp_idempotent(referrer_id, referee_id, xp, db)` — dedup через `StreakEvent(event_type='xp_referral', details={'referee_id': ...})`. Раз навсегда — не по дате.
+- [x] Заменить ручные `_award_xp_unified(..., 'referral')` в `app/words/routes.py` и `app/auth/routes.py` на новый helper
+- [x] Ввести `award_game_xp_idempotent(user_id, game_session_id, game_type, xp, db, for_date)` — dedup через `StreakEvent(event_type='xp_game', details={'session_id': ..., 'game_type': ...})`
+- [x] Заменить `award_xp(user_id, xp, 'study_matching_game')` и `'study_quiz_game'` на новый helper с session_id из game-логики
+- [x] Write tests: повторный POST на reward referral не даёт double-XP; повторная отправка matching/quiz result не даёт double-XP; новая сессия game → новый XP
+- [x] Run pytest — must pass before task 3
 
 ---
 
