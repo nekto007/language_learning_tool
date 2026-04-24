@@ -137,9 +137,8 @@ def _process_referral_reward_on_first_visit(user) -> None:
         return
 
     try:
-        from app.study.models import UserXP
-        referrer_xp = UserXP.get_or_create(user.referred_by_id)
-        referrer_xp.add_xp(100)
+        from app.achievements.xp_service import award_xp as _award_xp_unified
+        _award_xp_unified(user.referred_by_id, 100, 'referral')
 
         from app.notifications.services import notify_referral
         notify_referral(user.referred_by_id, user.username)

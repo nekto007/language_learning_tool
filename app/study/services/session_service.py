@@ -68,18 +68,17 @@ class SessionService:
     @staticmethod
     def award_xp(user_id: int, amount: int, source: str = None, source_id: int = None) -> UserXP:
         """
-        Award XP to user. Delegates to XPService.award_xp().
-
-        Args:
-            user_id: User ID
-            amount: XP amount to award
-            source: XP source (not stored, kept for API compatibility)
-            source_id: Optional ID of the source (not stored, kept for API compatibility)
-
-        Returns:
-            Updated UserXP record
+        Award XP to user. Delegates to the unified ``achievements.xp_service.award_xp``
+        to keep UserStatistics.total_xp as the single source of truth. Returns the
+        legacy ``UserXP`` record for API backward compatibility (kept in sync via
+        the one-time migration); callers should prefer ``UserStatistics.total_xp``.
         """
-        return XPService.award_xp(user_id, amount)
+        from app.achievements.xp_service import award_xp as _unified_award_xp
+
+        if amount and amount > 0:
+            _unified_award_xp(user_id, amount, source or 'session_service')
+            db.session.commit()
+        return UserXP.get_or_create(user_id)
 
     @staticmethod
     def get_user_total_xp(user_id: int) -> int:

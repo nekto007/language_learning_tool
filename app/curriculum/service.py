@@ -250,13 +250,17 @@ def complete_lesson(user_id: int, lesson_id: int, score: float = 100.0) -> Optio
         # Refresh to load relationships
         db.session.refresh(progress)
 
-        # Award XP for completing lesson (optional - may not be available)
+        # Award XP for completing lesson, idempotent per user+lesson+day.
         try:
-            from app.study.xp_service import XPService
-            xp_breakdown = XPService.calculate_lesson_xp()
-            XPService.award_xp(user_id, xp_breakdown['total_xp'])
-        except (ImportError, AttributeError):
-            logger.warning("XP service not available, skipping XP award")
+            from datetime import date as _date
+            from app.curriculum.xp import award_curriculum_lesson_xp_idempotent
+            award_curriculum_lesson_xp_idempotent(
+                user_id, lesson_id, _date.today(), db_session=db,
+            )
+            db.session.commit()
+        except Exception:
+            logger.warning("Curriculum lesson XP award failed for user=%s lesson=%s", user_id, lesson_id, exc_info=True)
+            db.session.rollback()
 
         return progress
     except SQLAlchemyError as e:

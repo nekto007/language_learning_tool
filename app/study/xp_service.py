@@ -157,13 +157,20 @@ class XPService:
         """
         Award XP to a user.
 
-        Args:
-            user_id: User ID
-            amount: Amount of XP to award
-
-        Returns:
-            Updated UserXP object
+        .. deprecated::
+            Use ``app.achievements.xp_service.award_xp`` which writes to
+            ``UserStatistics.total_xp`` (the single source of truth used by
+            the leaderboard and dashboard level). This shim still updates
+            the legacy ``UserXP`` row for backward compatibility but will
+            be removed once all callers migrate.
         """
+        import warnings
+        warnings.warn(
+            "study.xp_service.XPService.award_xp is deprecated; "
+            "use achievements.xp_service.award_xp instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         user_xp = UserXP.get_or_create(user_id)
         user_xp.add_xp(amount)
         db.session.commit()
