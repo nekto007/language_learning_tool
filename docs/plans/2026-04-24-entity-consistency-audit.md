@@ -149,12 +149,12 @@
 - Modify: `app/achievements/streak_service.py` (если использует свою логику)
 - Create: `tests/utils/test_activity_tracker.py`
 
-- [ ] `has_learning_activity(user_id, start_utc, end_utc, db) -> bool` — проверяет 6 источников: LessonProgress.last_activity, UserGrammarExercise.last_reviewed, UserCardDirection.last_reviewed (через join UserWord), UserChapterProgress.updated_at, UserLessonProgress.completed_at, StudySession (created_at или ended_at за период)
-- [ ] Все datetime comparisons — явно приводить к naive UTC (`.replace(tzinfo=None)`) если колонки без TZ, или к aware если с TZ — проверить каждую колонку в schemas
-- [ ] В `telegram/queries.py:has_activity_today()` → заменить тело на `has_learning_activity(user_id, today_start.replace(tzinfo=None), today_end.replace(tzinfo=None), db)` (или через naive conversion внутри функции)
-- [ ] В `telegram/queries.py:_has_activity_in_range()` → аналогично делегировать на `has_learning_activity`
-- [ ] Write tests: пользователь с только StudySession активностью → True; пользователь без активности → False; boundary cases (активность ровно в полночь)
-- [ ] Run pytest — must pass before task 5
+- [x] `has_learning_activity(user_id, start_utc, end_utc, db) -> bool` — проверяет 6 источников: LessonProgress.last_activity, UserGrammarExercise.last_reviewed, UserCardDirection.last_reviewed (через join UserWord), UserChapterProgress.updated_at, UserLessonProgress.completed_at, StudySession (created_at или ended_at за период)
+- [x] Все datetime comparisons — явно приводить к naive UTC (`.replace(tzinfo=None)`) если колонки без TZ, или к aware если с TZ — проверить каждую колонку в schemas
+- [x] В `telegram/queries.py:has_activity_today()` → заменить тело на `has_learning_activity(user_id, today_start.replace(tzinfo=None), today_end.replace(tzinfo=None), db)` (или через naive conversion внутри функции)
+- [x] В `telegram/queries.py:_has_activity_in_range()` → аналогично делегировать на `has_learning_activity`
+- [x] Write tests: пользователь с только StudySession активностью → True; пользователь без активности → False; boundary cases (активность ровно в полночь)
+- [x] Run pytest — must pass before task 5
 
 ---
 
