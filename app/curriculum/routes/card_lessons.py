@@ -694,6 +694,7 @@ def rate_card_api():
 
 @lessons_bp.route('/api/lesson/<int:lesson_id>/next-review-time', methods=['GET'])
 @login_required
+@require_lesson_access
 def get_next_review_time(lesson_id):
     """Get next review time for lesson"""
     try:

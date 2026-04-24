@@ -234,11 +234,11 @@
 - Modify: `app/curriculum/models.py` (если `check_prerequisites` нужно доработать)
 - Modify: `tests/curriculum/test_routes.py`
 
-- [ ] В `lesson_by_id()` (строки 260-336 `main.py`): после загрузки lesson вызвать `lesson.module.check_prerequisites(current_user)`; если False → `flash('Module is locked')` + redirect на `url_for('curriculum.module_view', module_id=...)`
-- [ ] Отдельный decorator `@require_lesson_access` — инкапсулирует валидацию, применим ко всем route'ам, которые загружают lesson по id (включая quiz, grammar, card, reading, final_test)
-- [ ] Применить decorator ко всем relevant route'ам в `app/curriculum/routes/*.py`
-- [ ] Write tests: prerequisite не удовлетворён → redirect + flash; admin user обходит проверку; final_test блокируется если предыдущие уроки не завершены
-- [ ] Run pytest — must pass before task 7
+- [x] В `lesson_by_id()` (строки 260-336 `main.py`): после загрузки lesson вызвать `lesson.module.check_prerequisites(current_user)`; если False → `flash('Module is locked')` + redirect на `url_for('curriculum.module_view', module_id=...)` (реализовано внутри `require_lesson_access`: `check_module_access` теперь респектит `Module.check_prerequisites`, HTML-путь делает flash + redirect на `learn.learn_by_module`)
+- [x] Отдельный decorator `@require_lesson_access` — инкапсулирует валидацию, применим ко всем route'ам, которые загружают lesson по id (включая quiz, grammar, card, reading, final_test)
+- [x] Применить decorator ко всем relevant route'ам в `app/curriculum/routes/*.py` (добавлен к `api.py` `api_get_lesson_info`/`api_get_card_session` и `card_lessons.py` `get_next_review_time`; остальные маршруты уже использовали декоратор)
+- [x] Write tests: prerequisite не удовлетворён → redirect + flash; admin user обходит проверку; final_test блокируется если предыдущие уроки не завершены (`TestModulePrerequisitesBlocksLesson`, `TestRequireLessonAccessDecorator` в `tests/curriculum/test_service.py`)
+- [x] Run pytest — must pass before task 7
 
 ---
 

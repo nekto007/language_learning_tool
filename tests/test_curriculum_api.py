@@ -222,14 +222,15 @@ class TestApiGetCardSession:
         lid = curriculum_data['vocab'].id
         assert authenticated_client.get(f'/curriculum/api/lesson/{lid}/card/session').status_code == 400
 
-    def test_missing_400(self, authenticated_client):
-        assert authenticated_client.get('/curriculum/api/lesson/999999/card/session').status_code == 400
+    def test_missing_404(self, authenticated_client):
+        # Missing lesson resolves to 404 via @require_lesson_access.
+        assert authenticated_client.get('/curriculum/api/lesson/999999/card/session').status_code == 404
 
     @pytest.mark.smoke
     def test_success(self, authenticated_client, curriculum_data):
         lid = curriculum_data['card'].id
         with patch('app.curriculum.routes.api.get_card_session_for_lesson') as m, \
-             patch('app.curriculum.routes.api.check_lesson_access', return_value=True):
+             patch('app.curriculum.security.check_lesson_access', return_value=True):
             m.return_value = {'session_key': 'k', 'cards': [], 'total_due': 0}
             r = authenticated_client.get(f'/curriculum/api/lesson/{lid}/card/session')
             assert r.status_code == 200 and r.get_json()['success']
