@@ -40,21 +40,28 @@ def check_final_test_attempts_exhausted(user_id, lesson_id, db_session=None,
     window_start = datetime.now(UTC) - timedelta(hours=window_hours)
     window_start_naive = window_start.replace(tzinfo=None)
 
+    # Filter on completed_at, not started_at: production code in
+    # complete_lesson reuses progress.started_at across every attempt
+    # (set once on initial LessonProgress creation), so a started_at
+    # filter would let the rolling window age out by 24h after the
+    # first attempt and never gate a retry. completed_at is set fresh
+    # per attempt.
     attempts = (
         session.query(LessonAttempt)
         .filter(
             LessonAttempt.user_id == user_id,
             LessonAttempt.lesson_id == lesson_id,
-            LessonAttempt.started_at >= window_start_naive,
+            LessonAttempt.completed_at.isnot(None),
+            LessonAttempt.completed_at >= window_start_naive,
         )
-        .order_by(LessonAttempt.started_at.asc())
+        .order_by(LessonAttempt.completed_at.asc())
         .all()
     )
 
     if len(attempts) < max_attempts:
         return None
 
-    oldest = attempts[0].started_at
+    oldest = attempts[0].completed_at
     if oldest.tzinfo is None:
         oldest = oldest.replace(tzinfo=UTC)
     retry_after = oldest + timedelta(hours=window_hours)
@@ -112,7 +119,14 @@ def _strict_text_match(user_answer, candidates):
             continue
         if user_normalized == correct_normalized:
             return True
-        if ' ' not in correct_normalized and ' ' not in user_normalized:
+        # Typo tolerance only for single-word answers >=4 chars; on shorter
+        # tokens a 1-edit window admits substantively different words
+        # (e.g. "is"/"in", "a"/"o").
+        if (
+            ' ' not in correct_normalized
+            and ' ' not in user_normalized
+            and len(correct_normalized) >= 4
+        ):
             if _levenshtein(user_normalized, correct_normalized) <= 1:
                 return True
     return False
@@ -127,6 +141,8 @@ def _grade_matching_pairs(user_pairs, correct_pairs):
     and the user submitted no extras.
     """
     if not isinstance(user_pairs, list) or not isinstance(correct_pairs, list):
+        return False
+    if not correct_pairs:
         return False
     if len(user_pairs) != len(correct_pairs):
         return False

@@ -331,10 +331,17 @@ class TestBuildCurriculumSlotStates:
             db_session,
             user,
             first,
-            event_date=date.today(),
+            event_date=date(2026, 4, 25),
         )
 
-        slot = build_curriculum_slot(user.id, real_db)
+        with patch(
+            'app.daily_plan.linear.slots.curriculum_slot.get_user_local_day_bounds',
+            return_value=(datetime(2026, 4, 25, 0, 0, 0), datetime(2026, 4, 26, 0, 0, 0)),
+        ), patch(
+            'app.daily_plan.linear.slots.curriculum_slot.get_linear_event_local_date',
+            return_value=date(2026, 4, 25),
+        ):
+            slot = build_curriculum_slot(user.id, real_db)
 
         assert slot.completed is True
         assert slot.data['lesson_id'] == first.id
@@ -460,15 +467,17 @@ class TestWeakGrammarHint:
 
         assert 'weak_topic_hint' not in slot.data
 
-    def test_hint_via_sibling_lesson_in_same_module(self, db_session):
-        """Vocab lesson in a grammar-themed module surfaces the weak hint."""
+    def test_no_hint_when_only_sibling_lesson_carries_topic(self, db_session):
+        """Hint must NOT surface on vocab lessons that lack their own
+        ``grammar_topic_id`` — even if a sibling grammar lesson in the
+        same module is tied to a weak topic. Surfacing it would tag a
+        tangential lesson as "weak".
+        """
         level = _make_level(db_session, _unique_code(), 1)
         module = _make_module(db_session, level, 1)
         topic = self._make_topic(
             db_session, level.code, slug_suffix='sib', title='Past Simple',
         )
-        # First lesson is vocabulary (no grammar_topic_id), second carries
-        # the topic — only the vocab lesson is incomplete and surfaces next.
         vocab = _make_lesson(db_session, module, 1, lesson_type='vocabulary')
         grammar = _make_lesson(db_session, module, 2, lesson_type='grammar')
         grammar.grammar_topic_id = topic.id
@@ -480,8 +489,7 @@ class TestWeakGrammarHint:
         slot = build_curriculum_slot(user.id, real_db)
 
         assert slot.data['lesson_id'] == vocab.id
-        assert slot.data.get('weak_topic_hint') is True
-        assert slot.data.get('weak_topic_id') == topic.id
+        assert 'weak_topic_hint' not in slot.data
 
 
 class TestLinearPlanIntegration:

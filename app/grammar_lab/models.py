@@ -408,7 +408,18 @@ class UserGrammarExercise(SRSFieldsMixin, db.Model):
         self.state = 'new'
         self.step_index = 0
         self.lapses = 0
-        self.ease_factor = 2.5
+        # Seed ease from the exercise's difficulty so harder exercises
+        # need more correct streaks before intervals scale up. Falls back
+        # to DEFAULT_EASE_FACTOR if the exercise lookup fails (e.g. unit
+        # tests building progress without a row).
+        try:
+            exercise = GrammarExercise.query.get(exercise_id)
+        except Exception:  # noqa: BLE001
+            exercise = None
+        if exercise is not None:
+            self.ease_factor = compute_initial_ease_for_difficulty(exercise.difficulty)
+        else:
+            self.ease_factor = DEFAULT_EASE_FACTOR
         self.interval = 0
         self.repetitions = 0
         self.correct_count = 0
@@ -425,9 +436,6 @@ class UserGrammarExercise(SRSFieldsMixin, db.Model):
         progress = cls.query.filter_by(user_id=user_id, exercise_id=exercise_id).first()
         if not progress:
             progress = cls(user_id=user_id, exercise_id=exercise_id)
-            exercise = GrammarExercise.query.get(exercise_id)
-            if exercise is not None:
-                progress.ease_factor = compute_initial_ease_for_difficulty(exercise.difficulty)
             db.session.add(progress)
             db.session.flush()
         return progress

@@ -1033,13 +1033,15 @@ def reading_session_end():
     except (TypeError, ValueError):
         offset_delta = 0.0
 
-    session = end_session(session_id, offset_delta, db)
-    if session is None:
+    from app.books.reading_session import UserReadingSession
+
+    existing = db.session.get(UserReadingSession, session_id)
+    if existing is None:
         return jsonify({'success': False, 'error': 'session not found'}), 404
-    if session.user_id != current_user.id:
-        db.session.rollback()
+    if existing.user_id != current_user.id:
         return jsonify({'success': False, 'error': 'forbidden'}), 403
 
+    session = end_session(session_id, offset_delta, db)
     db.session.commit()
     return jsonify({
         'success': True,

@@ -165,33 +165,14 @@ def _get_weak_grammar_topic_ids(
 
 
 def _lesson_grammar_topic_ids(lesson: Lessons, db: Any) -> list[int]:
-    """Return grammar_topic_ids associated with a lesson or its module.
+    """Return the lesson's own ``grammar_topic_id`` (if any).
 
-    Prefers the lesson's own ``grammar_topic_id`` and falls back to topic
-    ids of sibling lessons in the same module so that vocab/quiz lessons
-    in a grammar-themed module still surface a hint.
+    Per the plan spec the hint fires only when the upcoming lesson is
+    itself tied to a weak grammar topic — sibling/module-wide lookups
+    surface false-positive hints for tangential lessons.
     """
-    ids: list[int] = []
     direct = getattr(lesson, 'grammar_topic_id', None)
-    if direct:
-        ids.append(int(direct))
-    if lesson.module_id is not None:
-        sibling_ids = (
-            db.session.query(Lessons.grammar_topic_id)
-            .filter(
-                Lessons.module_id == lesson.module_id,
-                Lessons.grammar_topic_id.isnot(None),
-            )
-            .distinct()
-            .all()
-        )
-        for (tid,) in sibling_ids:
-            if tid is None:
-                continue
-            tid_int = int(tid)
-            if tid_int not in ids:
-                ids.append(tid_int)
-    return ids
+    return [int(direct)] if direct else []
 
 
 def build_curriculum_slot(
