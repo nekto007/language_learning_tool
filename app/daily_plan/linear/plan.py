@@ -83,7 +83,7 @@ def get_linear_plan(
     session_provider = db_session if db_session is not None else db
 
     next_lesson = find_next_lesson_linear(user_id, session_provider)
-    level_progress = get_user_level_progress(user_id, session_provider)
+    level_progress = get_user_level_progress(user_id, session_provider, next_lesson=next_lesson)
     upcoming = []
     if next_lesson is not None:
         upcoming = [next_lesson]

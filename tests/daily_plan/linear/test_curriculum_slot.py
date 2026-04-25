@@ -9,9 +9,12 @@ and defensive handling when the resolved lesson already has a
 from __future__ import annotations
 
 import uuid
+from datetime import date, datetime
+from unittest.mock import patch
 
 import pytest
 
+from app.achievements.models import StreakEvent
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.daily_plan.linear.slots import LinearSlot
@@ -20,6 +23,7 @@ from app.daily_plan.linear.slots.curriculum_slot import (
     _LESSON_ETA_MINUTES,
     build_curriculum_slot,
 )
+from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE, get_source_for_lesson_type
 from app.utils.db import db as real_db
 
 
@@ -111,6 +115,42 @@ def _complete(db_session, user: User, lesson: Lessons) -> None:
     db_session.commit()
 
 
+def _complete_at(
+    db_session,
+    user: User,
+    lesson: Lessons,
+    *,
+    completed_at: datetime,
+) -> None:
+    db_session.add(LessonProgress(
+        user_id=user.id,
+        lesson_id=lesson.id,
+        status='completed',
+        score=100.0,
+        completed_at=completed_at,
+    ))
+    db_session.commit()
+
+
+def _award_linear_curriculum_event(
+    db_session,
+    user: User,
+    lesson: Lessons,
+    *,
+    event_date: date,
+) -> None:
+    source = get_source_for_lesson_type(lesson.type)
+    assert source is not None
+    db_session.add(StreakEvent(
+        user_id=user.id,
+        event_type=LINEAR_XP_EVENT_TYPE,
+        event_date=event_date,
+        coins_delta=0,
+        details={'source': source, 'xp': 1},
+    ))
+    db_session.commit()
+
+
 @pytest.fixture
 def curriculum(db_session):
     """Single level / single module with one lesson per lesson_type."""
@@ -188,10 +228,9 @@ class TestBuildCurriculumSlotStates:
         assert slot.completed is True
         assert slot.data == {}
 
-    def test_completed_flag_reflects_progress_status(self, db_session, curriculum):
-        """If an explicit lesson is passed in with a completed progress row,
-        slot.completed is True — the caller may pre-resolve next_lesson and
-        the slot is defensive about progress state."""
+    def test_completed_progress_alone_does_not_complete_slot(self, db_session, curriculum):
+        """Curriculum slot completion is keyed off the linear XP event, not
+        just any LessonProgress row."""
         level_code = curriculum['level'].code
         user = _make_user(db_session, onboarding_level=level_code)
         first = curriculum['lessons'][TWELVE_LESSON_TYPES[0]]
@@ -200,7 +239,7 @@ class TestBuildCurriculumSlotStates:
         slot = build_curriculum_slot(user.id, real_db, next_lesson=first)
 
         assert slot.data['lesson_id'] == first.id
-        assert slot.completed is True
+        assert slot.completed is False
 
     def test_in_progress_status_not_completed(self, db_session, curriculum):
         level_code = curriculum['level'].code
@@ -241,6 +280,65 @@ class TestBuildCurriculumSlotStates:
         }
         assert slot_dict['kind'] == 'curriculum'
         assert isinstance(slot_dict['data'], dict)
+
+    def test_completed_slot_uses_user_local_day_bounds(self, db_session, curriculum):
+        level_code = curriculum['level'].code
+        user = _make_user(db_session, onboarding_level=level_code)
+        first = curriculum['lessons'][TWELVE_LESSON_TYPES[0]]
+
+        _complete_at(
+            db_session,
+            user,
+            first,
+            completed_at=datetime(2026, 4, 24, 20, 0, 0),
+        )
+        _award_linear_curriculum_event(
+            db_session,
+            user,
+            first,
+            event_date=date(2026, 4, 24),
+        )
+
+        with patch(
+            'app.daily_plan.linear.slots.curriculum_slot.get_user_local_day_bounds',
+            return_value=(datetime(2026, 4, 24, 4, 0, 0), datetime(2026, 4, 25, 4, 0, 0)),
+        ), patch(
+            'app.daily_plan.linear.slots.curriculum_slot.get_linear_event_local_date',
+            return_value=date(2026, 4, 24),
+        ):
+            slot = build_curriculum_slot(user.id, real_db)
+
+        assert slot.completed is True
+        assert slot.data['lesson_id'] == first.id
+        assert slot.title == first.title
+        assert slot.url is None
+
+    def test_completed_slot_ignores_non_curriculum_progress(self, db_session, curriculum):
+        level_code = curriculum['level'].code
+        user = _make_user(db_session, onboarding_level=level_code)
+        first = curriculum['lessons'][TWELVE_LESSON_TYPES[0]]
+        extra = _make_lesson(
+            db_session,
+            curriculum['module'],
+            len(curriculum['lessons']) + 1,
+            lesson_type='nonstandard_future_type',
+        )
+        now = datetime(2026, 4, 25, 12, 0, 0)
+
+        _complete_at(db_session, user, first, completed_at=now)
+        _complete_at(db_session, user, extra, completed_at=now.replace(microsecond=1))
+        _award_linear_curriculum_event(
+            db_session,
+            user,
+            first,
+            event_date=date.today(),
+        )
+
+        slot = build_curriculum_slot(user.id, real_db)
+
+        assert slot.completed is True
+        assert slot.data['lesson_id'] == first.id
+        assert slot.title == first.title
 
 
 class TestLinearPlanIntegration:

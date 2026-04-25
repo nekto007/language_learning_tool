@@ -13,8 +13,24 @@ then UTC) and return ``datetime.now(tz).date()``.
 """
 from __future__ import annotations
 
-from datetime import date as date_cls, datetime, timezone
+from datetime import date as date_cls, datetime, time, timedelta, timezone
 from typing import Any, Optional
+
+
+def _get_user_timezone(user_id: int, db_session: Any = None):
+    from zoneinfo import ZoneInfo
+
+    from app.auth.models import User
+    from app.utils.db import db
+    from config.settings import DEFAULT_TIMEZONE
+
+    db_obj = db_session if db_session is not None else db
+    user = db_obj.session.get(User, user_id)
+    tz_name: Optional[str] = getattr(user, 'timezone', None) or DEFAULT_TIMEZONE
+    try:
+        return ZoneInfo(tz_name)
+    except Exception:
+        return timezone.utc
 
 
 def get_user_local_date(
@@ -27,17 +43,25 @@ def get_user_local_date(
     no timezone set, and to UTC if that value fails to resolve (e.g. on
     a malformed override).
     """
-    from zoneinfo import ZoneInfo
-
-    from app.auth.models import User
-    from app.utils.db import db
-    from config.settings import DEFAULT_TIMEZONE
-
-    db_obj = db_session if db_session is not None else db
-    user = db_obj.session.get(User, user_id)
-    tz_name: Optional[str] = getattr(user, 'timezone', None) or DEFAULT_TIMEZONE
-    try:
-        tz_obj = ZoneInfo(tz_name)
-    except Exception:
-        tz_obj = timezone.utc
+    tz_obj = _get_user_timezone(user_id, db_session)
     return datetime.now(tz_obj).date()
+
+
+def get_user_local_day_bounds(
+    user_id: int,
+    db_session: Any = None,
+) -> tuple[datetime, datetime]:
+    """Return UTC-naive bounds for the user's current local day.
+
+    The returned tuple is ``(start_utc_naive, end_utc_naive)`` so callers can
+    compare against legacy ``DateTime`` columns that store UTC timestamps
+    without tzinfo.
+    """
+    tz_obj = _get_user_timezone(user_id, db_session)
+    local_today = datetime.now(tz_obj).date()
+    local_start = datetime.combine(local_today, time.min, tzinfo=tz_obj)
+    local_end = local_start + timedelta(days=1)
+    return (
+        local_start.astimezone(timezone.utc).replace(tzinfo=None),
+        local_end.astimezone(timezone.utc).replace(tzinfo=None),
+    )
