@@ -6,7 +6,7 @@ This table records actual time-on-page so the slot's XP path can require
 both ``offset_delta >= 0.05`` and ``time_spent >= 60s``.
 
 Revision ID: 20260426_reading_session
-Revises: 20260425_grammar_cascade
+Revises: 20260425_drop_user_xp
 Create Date: 2026-04-26
 """
 
@@ -15,7 +15,7 @@ import sqlalchemy as sa
 
 
 revision = '20260426_reading_session'
-down_revision = '20260425_grammar_cascade'
+down_revision = '20260425_drop_user_xp'
 branch_labels = None
 depends_on = None
 
