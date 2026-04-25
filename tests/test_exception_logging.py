@@ -94,7 +94,7 @@ class TestCurriculumServiceExceptionLogging:
         with app.app_context():
             with patch('app.curriculum.service.logger') as mock_logger:
                 try:
-                    raise ImportError("No module named 'app.study.xp_service'")
+                    raise ImportError("No module named 'app.achievements.xp_service'")
                 except (ImportError, AttributeError):
                     mock_logger.warning("XP service not available, skipping XP award")
                 assert mock_logger.warning.called

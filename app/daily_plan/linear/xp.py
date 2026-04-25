@@ -18,7 +18,7 @@ mutations in a single commit.
 from __future__ import annotations
 
 import logging
-from datetime import date as date_cls, datetime, timezone
+from datetime import date as date_cls
 from typing import Any, Optional
 
 from app.achievements.xp_service import (
@@ -70,15 +70,14 @@ def get_linear_event_local_date(
     user_id: int,
     db_session: Any = None,
 ) -> date_cls:
-    """Return the user's local date for linear-plan idempotency keys."""
-    from zoneinfo import ZoneInfo
+    """Return the user's local date for linear-plan idempotency keys.
 
-    tz_name = _get_user_timezone(user_id, db_session)
-    try:
-        tz_obj = ZoneInfo(tz_name)
-    except Exception:
-        tz_obj = ZoneInfo('UTC')
-    return datetime.now(tz_obj).date()
+    Delegates to the canonical ``app.utils.time_utils.get_user_local_date``
+    so the curriculum, linear, and card-lesson write paths all agree.
+    """
+    from app.utils.time_utils import get_user_local_date
+
+    return get_user_local_date(user_id, db_session)
 
 
 def is_linear_user(user_id: int) -> bool:
@@ -217,6 +216,54 @@ def maybe_award_error_review_xp(
     return award_linear_slot_xp_idempotent(
         user_id, 'linear_error_review', for_date, db_session,
     )
+
+
+def maybe_record_linear_plan_completion(
+    user_id: int,
+    plan: dict,
+    plan_completion: dict,
+    for_date: Optional[date_cls] = None,
+    db_session: Any = None,
+) -> Any:
+    """Record plan-completion + rank-up for a linear user when day is secured.
+
+    Returns the ``RankUp`` produced by ``record_plan_completion`` (or ``None``
+    when no threshold was crossed / the call was a duplicate). Idempotent:
+    ``record_plan_completion`` dedups via ``StreakEvent('plan_completed')``
+    per (user, date), so repeated invocations on the same day are a no-op.
+    Caller owns the commit — this helper only flushes.
+    """
+    if not is_linear_user(user_id):
+        return None
+
+    baseline_slots = plan.get('baseline_slots') or []
+    if not baseline_slots:
+        return None
+    all_done = all(
+        plan_completion.get(slot.get('kind', ''), False)
+        for slot in baseline_slots
+    )
+    if not all_done:
+        return None
+
+    from app.achievements.ranks import record_plan_completion
+    from app.utils.db import db
+
+    db_obj = db_session if db_session is not None else db
+    when = for_date or get_linear_event_local_date(user_id, db_obj)
+
+    rank_up = record_plan_completion(user_id, for_date=when)
+    db_obj.session.flush()
+    if rank_up is not None:
+        try:
+            from app.notifications.services import notify_rank_up
+            notify_rank_up(user_id, rank_up.new_name)
+        except Exception:
+            logger.warning(
+                "Failed to send rank-up notification for linear user %s",
+                user_id, exc_info=True,
+            )
+    return rank_up
 
 
 def maybe_award_linear_perfect_day(

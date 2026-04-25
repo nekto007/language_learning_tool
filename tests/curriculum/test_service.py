@@ -236,6 +236,163 @@ class TestCheckLessonAccess:
 
 
 # ---------------------------------------------------------------------------
+# Module prerequisites (Module.check_prerequisites integration)
+# ---------------------------------------------------------------------------
+
+
+class TestModulePrerequisitesBlocksLesson:
+    """`Module.check_prerequisites` must gate lesson access, even if the
+    user already has a progress row in the target module."""
+
+    def _setup_prereq(self, db_session, test_user, min_score=80):
+        level = _make_level(db_session, order=7)
+        prev_module = _make_module(db_session, level, number=1)
+        prev_lesson = _make_lesson(db_session, prev_module, number=1)
+        target_module = _make_module(db_session, level, number=2)
+        target_module.prerequisites = [
+            {'type': 'module', 'id': prev_module.id, 'min_score': min_score}
+        ]
+        db_session.commit()
+        target_lesson = _make_lesson(db_session, target_module, number=1)
+        return {
+            'prev_module': prev_module,
+            'prev_lesson': prev_lesson,
+            'target_module': target_module,
+            'target_lesson': target_lesson,
+        }
+
+    def test_lesson_locked_when_prereq_module_not_completed(
+        self, app, db_session, test_user
+    ):
+        with app.app_context():
+            data = self._setup_prereq(db_session, test_user)
+            mock_user = MagicMock()
+            mock_user.is_authenticated = True
+            mock_user.is_admin = False
+            mock_user.id = test_user.id
+            with patch('app.curriculum.security.current_user', mock_user):
+                assert check_lesson_access(data['target_lesson'].id) is False
+
+    def test_lesson_locked_when_prereq_min_score_not_met(
+        self, app, db_session, test_user
+    ):
+        with app.app_context():
+            data = self._setup_prereq(db_session, test_user, min_score=90)
+            # Complete previous lesson but with a score below min_score.
+            _complete_lesson(db_session, test_user, data['prev_lesson'], score=50.0)
+
+            mock_user = MagicMock()
+            mock_user.is_authenticated = True
+            mock_user.is_admin = False
+            mock_user.id = test_user.id
+            with patch('app.curriculum.security.current_user', mock_user):
+                assert check_lesson_access(data['target_lesson'].id) is False
+
+    def test_lesson_unlocked_when_prereq_satisfied(
+        self, app, db_session, test_user
+    ):
+        with app.app_context():
+            data = self._setup_prereq(db_session, test_user, min_score=80)
+            _complete_lesson(db_session, test_user, data['prev_lesson'], score=95.0)
+
+            mock_user = MagicMock()
+            mock_user.is_authenticated = True
+            mock_user.is_admin = False
+            mock_user.id = test_user.id
+            with patch('app.curriculum.security.current_user', mock_user):
+                assert check_lesson_access(data['target_lesson'].id) is True
+
+    def test_admin_bypasses_prereq(self, app, db_session, test_user):
+        with app.app_context():
+            data = self._setup_prereq(db_session, test_user)
+            mock_user = MagicMock()
+            mock_user.is_authenticated = True
+            mock_user.is_admin = True
+            with patch('app.curriculum.security.current_user', mock_user):
+                assert check_lesson_access(data['target_lesson'].id) is True
+
+    def test_locked_even_with_stray_progress_in_module(
+        self, app, db_session, test_user
+    ):
+        """A stray in-progress row must not bypass declared prerequisites."""
+        with app.app_context():
+            data = self._setup_prereq(db_session, test_user)
+            # Stray progress row on target lesson
+            db_session.add(LessonProgress(
+                user_id=test_user.id,
+                lesson_id=data['target_lesson'].id,
+                status='in_progress',
+                score=0.0,
+            ))
+            db_session.commit()
+
+            mock_user = MagicMock()
+            mock_user.is_authenticated = True
+            mock_user.is_admin = False
+            mock_user.id = test_user.id
+            with patch('app.curriculum.security.current_user', mock_user):
+                assert check_lesson_access(data['target_lesson'].id) is False
+
+
+# ---------------------------------------------------------------------------
+# require_lesson_access decorator — HTML vs API behavior
+# ---------------------------------------------------------------------------
+
+
+class TestRequireLessonAccessDecorator:
+    """Covers the HTML redirect+flash and JSON 403 paths."""
+
+    def test_html_prereq_locked_redirects_to_module(
+        self, app, client, authenticated_client, db_session, test_user
+    ):
+        """HTML lesson route returns a redirect to the module view when
+        prerequisites are not met."""
+        with app.app_context():
+            # Build locked-lesson scenario
+            level = _make_level(db_session, order=8)
+            prev_module = _make_module(db_session, level, number=1)
+            prev_lesson = _make_lesson(db_session, prev_module, number=1)
+            target_module = _make_module(db_session, level, number=2)
+            target_module.prerequisites = [
+                {'type': 'module', 'id': prev_module.id, 'min_score': 80}
+            ]
+            db_session.commit()
+            target_lesson = _make_lesson(db_session, target_module, number=1)
+            lesson_id = target_lesson.id
+            level_code = level.code.lower()
+            module_number = target_module.number
+
+        resp = authenticated_client.get(f'/learn/{lesson_id}/', follow_redirects=False)
+        assert resp.status_code in (301, 302)
+        assert f'/learn/{level_code}/module-{module_number}/' in resp.headers['Location']
+
+    def test_api_prereq_locked_returns_403_json(
+        self, app, authenticated_client, db_session, test_user
+    ):
+        """API lesson route returns a 403 JSON when prerequisites are not met."""
+        with app.app_context():
+            level = _make_level(db_session, order=9)
+            prev_module = _make_module(db_session, level, number=1)
+            _make_lesson(db_session, prev_module, number=1)
+            target_module = _make_module(db_session, level, number=2)
+            target_module.prerequisites = [
+                {'type': 'module', 'id': prev_module.id, 'min_score': 80}
+            ]
+            db_session.commit()
+            target_lesson = _make_lesson(db_session, target_module, number=1)
+            lesson_id = target_lesson.id
+
+        resp = authenticated_client.get(f'/curriculum/api/lesson/{lesson_id}/info')
+        assert resp.status_code == 403
+        assert resp.is_json
+        assert resp.get_json().get('success') is False
+
+    def test_missing_lesson_returns_404(self, authenticated_client):
+        resp = authenticated_client.get('/curriculum/api/lesson/999999/info')
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
 # Lesson ordering and availability
 # ---------------------------------------------------------------------------
 

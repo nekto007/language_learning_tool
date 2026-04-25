@@ -137,8 +137,8 @@ def _process_referral_reward_on_first_visit(user) -> None:
         return
 
     try:
-        from app.achievements.xp_service import award_xp as _award_xp_unified
-        _award_xp_unified(user.referred_by_id, 100, 'referral')
+        from app.achievements.xp_service import award_referral_xp_idempotent
+        award_referral_xp_idempotent(user.referred_by_id, user.id, 100)
 
         from app.notifications.services import notify_referral
         notify_referral(user.referred_by_id, user.username)

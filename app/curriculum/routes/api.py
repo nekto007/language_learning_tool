@@ -9,7 +9,7 @@ from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.curriculum.security import check_lesson_access, check_module_access
+from app.curriculum.security import check_lesson_access, check_module_access, require_lesson_access
 from app.curriculum.service import get_card_session_for_lesson, get_cards_for_lesson
 from app.utils.db import db
 
@@ -201,16 +201,11 @@ def api_get_module_lessons(module_id):
 
 @api_bp.route('/api/lesson/<int:lesson_id>/info')
 @login_required
+@require_lesson_access
 def api_get_lesson_info(lesson_id):
     """Get detailed lesson information"""
     try:
-        lesson = Lessons.query.get(lesson_id)
-        if not lesson:
-            return jsonify({'success': False, 'error': 'Lesson not found'}), 404
-
-        # Check access
-        if not check_lesson_access(lesson_id):
-            return jsonify({'success': False, 'error': 'Access denied'}), 403
+        lesson = Lessons.query.get_or_404(lesson_id)
 
         # Get progress
         progress = LessonProgress.query.filter_by(
@@ -340,16 +335,13 @@ def api_get_user_progress():
 
 @api_bp.route('/api/lesson/<int:lesson_id>/card/session')
 @login_required
+@require_lesson_access
 def api_get_card_session(lesson_id):
     """Get card session data for SRS lesson"""
     try:
         lesson = Lessons.query.get(lesson_id)
         if not lesson or lesson.type != 'card':
             return jsonify({'success': False, 'error': 'Invalid lesson'}), 400
-
-        # Check access
-        if not check_lesson_access(lesson_id):
-            return jsonify({'success': False, 'error': 'Access denied'}), 403
 
         # Get session data
         session_data = get_card_session_for_lesson(lesson, current_user.id)

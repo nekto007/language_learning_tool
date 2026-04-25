@@ -131,6 +131,14 @@ def edit_book_content(book_id):
                     book.unique_words = len(set(words))
                     content_changed = True
 
+            # Sync linked BookCourse rows when book opts into course generation
+            if book.create_course:
+                try:
+                    from app.curriculum.book_courses import sync_book_course_from_book
+                    sync_book_course_from_book(book.id, db.session)
+                except Exception as sync_err:
+                    logger.error(f"BookCourse sync failed for book {book.id}: {sync_err}")
+
             # Сохраняем изменения
             db.session.commit()
 
@@ -254,23 +262,23 @@ def read_selection():
         UserChapterProgress.user_id == current_user.id
     ).all()
 
-    book_progress_map = {}
+    from app.books.progress import _progress_from_records
+
     book_chapter_counts = {}
     for book in all_books:
         book_chapter_counts[book.id] = book.chapters_cnt or len(book.chapters)
 
+    book_progress_map = {}
     for ucp, chapter in user_progress:
         bid = chapter.book_id
         if bid not in book_progress_map:
             book_progress_map[bid] = {
-                'total_offset': 0.0,
-                'chapter_count': 0,
+                'records': [],
                 'last_chapter_num': chapter.chap_num,
                 'last_read': ucp.updated_at,
             }
         entry = book_progress_map[bid]
-        entry['total_offset'] += ucp.offset_pct
-        entry['chapter_count'] += 1
+        entry['records'].append(ucp)
         if ucp.updated_at and (entry['last_read'] is None or ucp.updated_at > entry['last_read']):
             entry['last_read'] = ucp.updated_at
             entry['last_chapter_num'] = chapter.chap_num
@@ -278,7 +286,7 @@ def read_selection():
     book_progress = {}
     for bid, entry in book_progress_map.items():
         total_chapters = book_chapter_counts.get(bid, 1) or 1
-        pct = int((entry['total_offset'] / total_chapters) * 100)
+        pct = int(_progress_from_records(entry['records'], total_chapters))
         book_progress[bid] = {
             'progress_pct': min(pct, 100),
             'last_chapter_num': entry['last_chapter_num'],
@@ -304,19 +312,9 @@ def read_selection():
 @login_required
 @module_required('books')
 def read_book(book_id):
-    book = Book.query.get_or_404(book_id)
-
-    has_chapters = Chapter.query.filter_by(book_id=book_id).first() is not None
-
-    if has_chapters:
-        # Redirect to chapter-based reader, preserving query params (e.g.
-        # ?from=linear_plan&slot=book for linear-plan navigation context).
-        forwarded_args = {k: v for k, v in request.args.items() if k not in {'book_id'}}
-        return redirect(url_for('books.read_book_chapters', book_id=book_id, **forwarded_args))
-
-    # Since there's no content field in the new schema, old-style books won't work
-    flash('Этот формат книги не поддерживается. Пожалуйста, используйте книги с главами.', 'warning')
-    return redirect(url_for('books.book_details', book_id=book.id))
+    Book.query.get_or_404(book_id)
+    forwarded_args = {k: v for k, v in request.args.items() if k not in {'book_id'}}
+    return redirect(url_for('books.read_book_chapters', book_id=book_id, **forwarded_args))
 
 
 @books.route('/books/<string:book_slug>/chapter/<int:chapter_num>')
@@ -335,8 +333,8 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
     chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
 
     if not chapters:
-        flash('В этой книге нет глав. Перенаправляем к обычному ридеру.', 'info')
-        return redirect(url_for('books.read_book', book_id=book_id))
+        flash('В этой книге пока нет глав для чтения.', 'warning')
+        return redirect(url_for('books.book_list'))
 
     if not chapter_num:
         chapter_num = request.args.get('chapter', type=int)
@@ -392,41 +390,6 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
                            chapter_progress=chapter_progress,
                            back_url=back_url
                            )
-
-
-@books.route('/books/<string:book_slug>/reader-v2')
-@books.route('/books/<string:book_slug>/chapter/<int:chapter_num>/v2')
-@login_required
-@module_required('books')
-def read_book_v2(book_slug, chapter_num=None):
-    book = Book.query.filter_by(slug=book_slug).first_or_404()
-
-    chapters = Chapter.query.filter_by(book_id=book.id).order_by(Chapter.chap_num).all()
-
-    if not chapters:
-        flash('This book has no chapters available.', 'warning')
-        return redirect(url_for('books.book_details', book_id=book.id))
-
-    current_chapter = None
-    if chapter_num:
-        current_chapter = Chapter.query.filter_by(
-            book_id=book.id,
-            chap_num=chapter_num
-        ).first()
-
-    if not current_chapter:
-        current_chapter = chapters[0]  # Default to first chapter
-
-    return render_template('books/reader-v2.html',
-                           book=book,
-                           chapters=chapters,
-                           current_chapter=current_chapter
-                           )
-
-
-# Old reading position API removed - using chapter-based progress only
-
-# Legacy save progress API removed - using chapter-based progress only
 
 
 @books.route('/books')
@@ -609,13 +572,13 @@ def book_details(book_id):
         word_progress = 0
 
     from app.books.models import UserChapterProgress, Chapter
+    from app.books.progress import compute_book_progress_percent
 
     total_chapters = Chapter.query.filter_by(book_id=book_id).count()
     reading_progress = 0
     last_read_chapter = None
 
     if total_chapters > 0:
-        # Get all user's progress for this book's chapters
         user_chapters = db.session.query(
             UserChapterProgress, Chapter
         ).join(
@@ -626,19 +589,13 @@ def book_details(book_id):
         ).order_by(Chapter.chap_num).all()
 
         if user_chapters:
-            # Calculate overall reading progress
-            total_progress = 0
             latest_updated = None
             for progress_record, chapter in user_chapters:
-                # Each chapter contributes 1/total_chapters to overall progress
-                chapter_contribution = progress_record.offset_pct / total_chapters
-                total_progress += chapter_contribution
-                # Track last read chapter
                 if latest_updated is None or (progress_record.updated_at and progress_record.updated_at > latest_updated):
                     latest_updated = progress_record.updated_at
                     last_read_chapter = chapter.chap_num
 
-            reading_progress = int(total_progress * 100)
+            reading_progress = int(compute_book_progress_percent(current_user.id, book_id, db))
 
     frequent_words_query = db.select(
         CollectionWords,

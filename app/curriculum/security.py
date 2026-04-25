@@ -5,7 +5,7 @@ from functools import wraps
 from typing import Any, Dict, List, Optional, Union
 
 import bleach
-from flask import abort
+from flask import abort, flash, jsonify, redirect, request, url_for
 from flask_login import current_user
 from markupsafe import escape
 
@@ -172,6 +172,12 @@ def check_lesson_access(lesson_id: int) -> bool:
     if not lesson:
         return False
 
+    # Module-level prerequisites must always be satisfied — even if the user
+    # already touched a lesson in this module (stray/legacy progress rows could
+    # otherwise bypass checkpoints via direct URL on lesson 2+).
+    if not check_module_access(lesson.module_id):
+        return False
+
     # Already completed lessons are always accessible (for review)
     own_progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
@@ -180,7 +186,6 @@ def check_lesson_access(lesson_id: int) -> bool:
     if own_progress and own_progress.status == 'completed':
         return True
 
-    # First lesson in module — check module-level access
     module_lessons = Lessons.query.filter_by(
         module_id=lesson.module_id,
     ).order_by(Lessons.number).all()
@@ -189,7 +194,7 @@ def check_lesson_access(lesson_id: int) -> bool:
         return False
 
     if lesson.id == module_lessons[0].id:
-        return check_module_access(lesson.module_id)
+        return True
 
     # Otherwise, previous lesson in order must be completed
     prev_lesson = None
@@ -229,6 +234,15 @@ def check_module_access(module_id: int) -> bool:
     module = Module.query.get(module_id)
     if not module:
         return False
+
+    # Explicit prerequisites (declared in Module.prerequisites JSON) must always
+    # be satisfied — even if the user already touched a lesson in this module.
+    # This protects against bypass via direct lesson URL after a stray progress
+    # row was created.
+    if module.prerequisites:
+        accessible, _reasons = module.check_prerequisites(current_user.id)
+        if not accessible:
+            return False
 
     # Check if user has started any lesson in this module
     module_progress = LessonProgress.query.filter_by(
@@ -275,11 +289,25 @@ def check_module_access(module_id: int) -> bool:
     return False
 
 
+def _is_api_request() -> bool:
+    """Detect whether the current request expects a JSON/API response."""
+    path = (request.path or '')
+    if '/api/' in path:
+        return True
+    if request.is_json:
+        return True
+    best = request.accept_mimetypes.best_match(['application/json', 'text/html'])
+    return best == 'application/json'
+
+
 def require_lesson_access(f):
     """
     Decorator to check lesson access permissions.
 
-    Returns 404 when the lesson does not exist, 403 when the user lacks access.
+    - Returns 404 when the lesson does not exist.
+    - For HTML requests: flash + redirect to the module view when the user
+      lacks access (e.g. prerequisites not met or preceding lesson incomplete).
+    - For JSON/API requests: abort with a 403 JSON response.
     """
 
     @wraps(f)
@@ -288,16 +316,28 @@ def require_lesson_access(f):
         if not lesson_id:
             abort(400, "Lesson ID is required")
 
-        # Explicitly return 404 for non-existent lessons so callers receive the
-        # correct HTTP status code instead of the generic 403 that check_lesson_access
-        # would produce when the lesson is missing.
-        if not Lessons.query.get(lesson_id):
+        lesson = Lessons.query.get(lesson_id)
+        if not lesson:
             abort(404)
 
-        if not check_lesson_access(lesson_id):
-            abort(403, "You don't have access to this lesson")
+        if check_lesson_access(lesson_id):
+            return f(*args, **kwargs)
 
-        return f(*args, **kwargs)
+        if _is_api_request():
+            return jsonify({
+                'success': False,
+                'error': 'Module is locked. Complete prerequisites to unlock this lesson.',
+            }), 403
+
+        flash('Модуль заблокирован: выполните предыдущие задания, чтобы открыть урок.', 'warning')
+        module = lesson.module
+        if module and module.level:
+            return redirect(url_for(
+                'learn.learn_by_module',
+                level_code=module.level.code.lower(),
+                module_number=module.number,
+            ))
+        return redirect(url_for('learn.learn_index'))
 
     return decorated_function
 

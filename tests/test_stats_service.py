@@ -493,9 +493,9 @@ class TestGetLeaderboard:
         from app.study.services.stats_service import StatsService
         import pytest
 
-        pytest.skip("Service bug: UserXP.xp_amount/earned_at don't exist")
+        pytest.skip("Service bug: legacy UserXP fields don't exist (model removed)")
 
-        from app.study.models import UserXP
+        from app.achievements.models import UserStatistics
         from app.auth.models import User
         import uuid
 
@@ -509,8 +509,7 @@ class TestGetLeaderboard:
             db_session.add(user)
             db_session.flush()
 
-            user_xp = UserXP(user_id=user.id, total_xp=100 * (i + 1))
-            db_session.add(user_xp)
+            db_session.add(UserStatistics(user_id=user.id, total_xp=100 * (i + 1)))
 
         db_session.commit()
 
@@ -705,33 +704,6 @@ class TestGetAchievementLeaderboard:
 
 class TestLeaderboardUsesUserStatistics:
     """Verify leaderboard / rank methods read UserStatistics.total_xp, not legacy UserXP."""
-
-    def test_xp_leaderboard_ignores_legacy_user_xp(self, db_session):
-        """User with only legacy UserXP rows but no UserStatistics is NOT on leaderboard."""
-        from app.study.services.stats_service import StatsService
-        from app.study.models import UserXP
-        from app.achievements.models import UserStatistics
-        from app.auth.models import User
-        import uuid
-
-        unique_id = uuid.uuid4().hex[:6]
-        user = User(
-            username=f'legacy_{unique_id}',
-            email=f'legacy_{unique_id}@test.com',
-        )
-        user.set_password('password')
-        db_session.add(user)
-        db_session.flush()
-
-        # Only legacy XP — no UserStatistics row
-        db_session.add(UserXP(user_id=user.id, total_xp=9999))
-        db_session.commit()
-
-        leaderboard = StatsService.get_xp_leaderboard(limit=100)
-        assert all(entry['id'] != user.id for entry in leaderboard)
-
-        # And no rank either
-        assert StatsService.get_user_xp_rank(user.id) is None
 
     def test_user_xp_rank_uses_user_statistics(self, db_session):
         """get_user_xp_rank ranks users by UserStatistics.total_xp."""

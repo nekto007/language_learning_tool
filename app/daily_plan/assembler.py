@@ -9,6 +9,7 @@ from sqlalchemy import func
 
 from app.utils.db import db
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
+from app.curriculum.navigation import find_next_lesson
 from app.daily_plan.level_utils import get_user_current_cefr_level, _cefr_code_to_order
 from app.daily_plan.mission_selector import detect_primary_track
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule
@@ -237,149 +238,26 @@ def _has_guided_recall_content(user_id: int) -> bool:
     return counts['new_count'] > 0 and counts['can_study_new']
 
 
-def _next_unfinished_lesson_in_module(user_id: int, module_id: int) -> Optional[Any]:
-    """Return the next unfinished lesson in a module for a user.
-
-    Checks for prior completed progress and resumes after the last completed lesson.
-    Returns None if the module is empty or all lessons are already completed.
-    """
-    last_in_mod = (
-        LessonProgress.query
-        .join(Lessons, LessonProgress.lesson_id == Lessons.id)
-        .filter(
-            LessonProgress.user_id == user_id,
-            LessonProgress.status == 'completed',
-            Lessons.module_id == module_id,
-        )
-        .order_by(Lessons.number.desc())
-        .first()
-    )
-    if last_in_mod:
-        completed_l = Lessons.query.get(last_in_mod.lesson_id)
-        if completed_l:
-            return Lessons.query.filter(
-                Lessons.module_id == module_id,
-                Lessons.number > completed_l.number,
-            ).order_by(Lessons.number).first()
-        return None  # broken FK — skip module
-    return Lessons.query.filter_by(module_id=module_id).order_by(Lessons.number).first()
-
-
 def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
-    last_completed = LessonProgress.query.filter(
-        LessonProgress.user_id == user_id,
-        LessonProgress.status == 'completed',
-    ).order_by(LessonProgress.completed_at.desc().nullslast(), LessonProgress.id.desc()).first()
+    """Return the next lesson for the mission assembler.
 
-    if last_completed:
-        lesson = Lessons.query.get(last_completed.lesson_id)
-        if lesson:
-            module = Module.query.get(lesson.module_id)
-            if module:
-                # Determine the user's effective CEFR level (max of progress and onboarding).
-                # If onboarding level exceeds the current module's level, jump ahead instead
-                # of continuing sequentially — handles "A2 progress + C1 onboarding" case.
-                current_level = CEFRLevel.query.get(module.level_id)
-                effective_level_code = get_user_current_cefr_level(user_id, db)
-                effective_level_order = _cefr_code_to_order(effective_level_code, db)
-                if current_level and effective_level_order > current_level.order:
-                    eligible_modules = Module.query.join(CEFRLevel).filter(
-                        CEFRLevel.order >= effective_level_order,
-                    ).order_by(CEFRLevel.order.asc(), Module.number.asc()).all()
-                    if eligible_modules:
-                        for m in eligible_modules:
-                            next_l = _next_unfinished_lesson_in_module(user_id, m.id)
-                            if next_l:
-                                jm = Module.query.get(next_l.module_id)
-                                return {
-                                    'title': next_l.title,
-                                    'lesson_id': next_l.id,
-                                    'module_id': next_l.module_id,
-                                    'module_number': jm.number if jm else None,
-                                    'lesson_type': next_l.type,
-                                }
-                        # No unfinished lesson found in any eligible module.
-                        # If any of those modules actually contains lessons, all content at
-                        # the target level is complete — do not regress to lower-level content.
-                        # If all are empty shells, fall through to the sequential scan below.
-                        if any(
-                            Lessons.query.filter_by(module_id=m.id).first() is not None
-                            for m in eligible_modules
-                        ):
-                            return None
-                    # No target-level modules in DB yet, or all are empty shells
-                    # — fall through to sequential scan.
-
-                next_l = Lessons.query.filter(
-                    Lessons.module_id == module.id,
-                    Lessons.number > lesson.number,
-                ).order_by(Lessons.number).first()
-
-                if not next_l:
-                    # Iterate through all next modules in same CEFR level.
-                    # Resume from the next unfinished lesson if the user already has
-                    # progress in a later module (e.g. unlocked early via 80% rule).
-                    next_modules = Module.query.filter(
-                        Module.level_id == module.level_id,
-                        Module.number > module.number,
-                    ).order_by(Module.number).all()
-                    for nm in next_modules:
-                        next_l = _next_unfinished_lesson_in_module(user_id, nm.id)
-                        if next_l:
-                            break
-
-                if not next_l and current_level:
-                    # Iterate through all higher CEFR levels in order.
-                    # Resume from next unfinished lesson to handle cross-level early unlocks.
-                    higher_levels = CEFRLevel.query.filter(
-                        CEFRLevel.order > current_level.order,
-                    ).order_by(CEFRLevel.order).all()
-                    for next_level in higher_levels:
-                        next_level_modules = Module.query.filter_by(
-                            level_id=next_level.id,
-                        ).order_by(Module.number).all()
-                        for nlm in next_level_modules:
-                            next_l = _next_unfinished_lesson_in_module(user_id, nlm.id)
-                            if next_l:
-                                break
-                        if next_l:
-                            break
-
-                if next_l:
-                    nl_module = Module.query.get(next_l.module_id)
-                    return {
-                        'title': next_l.title,
-                        'lesson_id': next_l.id,
-                        'module_id': next_l.module_id,
-                        'module_number': nl_module.number if nl_module else None,
-                        'lesson_type': next_l.type,
-                    }
-        # User has progress but no next lesson found (all lessons done or broken FK).
-        # Do not fall through to cold start — signal to caller that there is nothing to advance.
+    Delegates to the canonical curriculum navigation
+    (`app.curriculum.navigation.find_next_lesson`) so the mission assembler,
+    the linear daily plan, and other surfaces all surface the same
+    next-lesson for a given user. The dict shape is preserved for
+    downstream mission-assembly code.
+    """
+    canonical = find_next_lesson(user_id, db)
+    if canonical is None:
         return None
-
-    # Cold start: pick first module at or above the user's effective CEFR level.
-    level_code = get_user_current_cefr_level(user_id, db)
-    user_level_order = _cefr_code_to_order(level_code, db)
-
-    cold_query = Module.query.join(CEFRLevel)
-    if user_level_order >= 0:
-        cold_query = cold_query.filter(CEFRLevel.order >= user_level_order)
-    eligible_modules = cold_query.order_by(CEFRLevel.order.asc(), Module.number.asc()).all()
-
-    for first_module in eligible_modules:
-        first_lesson = Lessons.query.filter_by(
-            module_id=first_module.id,
-        ).order_by(Lessons.number).first()
-        if first_lesson:
-            return {
-                'title': first_lesson.title,
-                'lesson_id': first_lesson.id,
-                'module_id': first_lesson.module_id,
-                'module_number': first_module.number,
-                'lesson_type': first_lesson.type,
-            }
-    return None
+    nl_module = Module.query.get(canonical.module_id)
+    return {
+        'title': canonical.title,
+        'lesson_id': canonical.id,
+        'module_id': canonical.module_id,
+        'module_number': nl_module.number if nl_module else None,
+        'lesson_type': canonical.type,
+    }
 
 
 def _find_next_book_course_lesson(user_id: int) -> Optional[dict[str, Any]]:

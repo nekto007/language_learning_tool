@@ -1,7 +1,7 @@
 """Canonical learning-activity check.
 
 Single source of truth for "did this user do any learning between A and B?".
-Used by streak service, telegram queries, admin DAU computation. Checks 6
+Used by streak service, telegram queries, admin DAU computation. Checks 7
 activity sources so all callers count the same set of users.
 
 Sources:
@@ -11,6 +11,14 @@ Sources:
 - UserChapterProgress.updated_at (book reading)
 - UserLessonProgress.completed_at (book-course daily lessons)
 - StudySession.start_time (flashcard study sessions)
+- StreakEvent.created_at where event_type LIKE 'xp_linear%' (linear-only
+  /api/* activity that doesn't touch any of the legacy tables above)
+
+Note on DAU/WAU/MAU: admin metrics in `_active_user_ids_for_date()` keep the
+6-source UNION (legacy + lesson_attempts) to preserve historical comparability.
+The 7th source here (xp_linear StreakEvent) is intentionally streak-only —
+linear users may complete a day entirely through /api/* without any row in
+the legacy activity tables, which would otherwise break their streak.
 """
 from __future__ import annotations
 
@@ -55,6 +63,7 @@ def has_learning_activity(user_id: int, start_utc: datetime,
     from app.grammar_lab.models import UserGrammarExercise
     from app.study.models import UserWord, UserCardDirection, StudySession
     from app.books.models import UserChapterProgress
+    from app.achievements.models import StreakEvent
 
     session = db_session if db_session is not None else db.session
 
@@ -112,6 +121,16 @@ def has_learning_activity(user_id: int, start_utc: datetime,
         StudySession.user_id == user_id,
         StudySession.start_time >= start_naive,
         StudySession.start_time < end_naive,
+    ).first():
+        return True
+
+    # 7. Linear-plan XP events (naive). Covers users who only hit /api/*
+    # endpoints and never touch the legacy activity tables.
+    if session.query(StreakEvent.id).filter(
+        StreakEvent.user_id == user_id,
+        StreakEvent.event_type.like('xp_linear%'),
+        StreakEvent.created_at >= start_naive,
+        StreakEvent.created_at < end_naive,
     ).first():
         return True
 

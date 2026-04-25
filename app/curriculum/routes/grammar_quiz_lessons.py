@@ -124,6 +124,18 @@ def render_grammar_lesson(lesson):
                 flash('Ошибка при обработке ответов', 'error')
                 return redirect(f'/learn/{lesson.id}/')
 
+        try:
+            log_quiz_errors_from_result(
+                current_user.id,
+                lesson.id,
+                exercises,
+                result,
+                db,
+                source='grammar',
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log grammar errors for lesson {lesson.id}: {log_error}")
+
         progress, completion_result = ProgressService.update_progress_with_grading(
             user_id=current_user.id,
             lesson=lesson,
@@ -686,6 +698,18 @@ def grammar_lesson(lesson_id):
             else:
                 flash('Ошибка при обработке ответов', 'error')
                 return redirect(url_for('curriculum_lessons.grammar_lesson', lesson_id=lesson_id))
+
+        try:
+            log_quiz_errors_from_result(
+                current_user.id,
+                lesson.id,
+                exercises,
+                result,
+                db,
+                source='grammar',
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log grammar errors for lesson {lesson.id}: {log_error}")
 
         progress, completion_result = ProgressService.update_progress_with_grading(
             user_id=current_user.id,

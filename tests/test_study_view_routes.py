@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from app.study.models import (
     StudySettings, UserWord, UserCardDirection,
-    QuizDeck, QuizDeckWord, StudySession, GameScore, UserXP, Achievement
+    QuizDeck, QuizDeckWord, StudySession, GameScore, Achievement
 )
 from app.utils.db import db
 
@@ -370,9 +370,14 @@ class TestLeaderboard:
 
     def test_shows_top_users(self, authenticated_client, user_xp, second_user, study_settings, db_session):
         """Test that top users are shown"""
-        # Create XP for second user
-        second_xp = UserXP(user_id=second_user.id, total_xp=500)
-        db_session.add(second_xp)
+        # Create XP for second user (canonical store: UserStatistics)
+        from app.achievements.models import UserStatistics
+        second_xp = UserStatistics.query.filter_by(user_id=second_user.id).first()
+        if second_xp is None:
+            second_xp = UserStatistics(user_id=second_user.id, total_xp=500)
+            db_session.add(second_xp)
+        else:
+            second_xp.total_xp = 500
         db_session.commit()
 
         response = authenticated_client.get('/study/leaderboard')

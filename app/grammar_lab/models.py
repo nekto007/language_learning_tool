@@ -135,6 +135,12 @@ class GrammarExercise(db.Model):
         Index('idx_grammar_exercises_topic', 'topic_id'),
     )
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.exercise_type is not None:
+            from app.grammar_lab.content_validator import validate_exercise_content
+            validate_exercise_content(self.exercise_type, self.content)
+
     def __repr__(self):
         return f"<GrammarExercise {self.id}: {self.exercise_type}>"
 

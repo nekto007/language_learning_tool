@@ -360,7 +360,15 @@ class GrammarLabService:
     def submit_answer(self, exercise_id: int, user_id: int, answer: Any,
                       session_id: str = None, source: str = 'topic_practice',
                       time_spent: int = None) -> Dict:
-        """Submit and grade an exercise answer."""
+        """Submit and grade an exercise answer.
+
+        XP award depends on the user's plan mode. For linear-plan users,
+        grammar XP flows only through the curriculum linear path
+        (``maybe_award_curriculum_xp`` with ``linear_curriculum_grammar``)
+        when the containing lesson completes; this method therefore skips
+        its own ``srs.add_xp`` call to avoid double-awarding. For mission /
+        legacy users, grammar_lab stays standalone and still awards XP here.
+        """
         exercise = GrammarExercise.query.get(exercise_id)
         if not exercise:
             return {'error': 'Exercise not found'}
@@ -400,7 +408,11 @@ class GrammarLabService:
                     xp_earned += GRAMMAR_XP['exercise_mastered']
 
         if xp_earned > 0:
-            self.srs.add_xp(user_id, exercise.topic_id, xp_earned)
+            from app.daily_plan.linear.xp import is_linear_user
+            if is_linear_user(user_id):
+                xp_earned = 0
+            else:
+                self.srs.add_xp(user_id, exercise.topic_id, xp_earned)
 
         # Update topic status based on exercise activity
         topic_status = self.srs.get_or_create_topic_status(user_id, exercise.topic_id)
