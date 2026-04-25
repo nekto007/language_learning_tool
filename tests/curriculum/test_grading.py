@@ -114,6 +114,27 @@ def test_quiz_submission_matching_legacy_completed_rejected():
     assert result["correct_answers"] == 0
 
 
+def test_quiz_submission_matching_json_string_dict():
+    """Frontend posts matching as JSON.stringify({left: right, ...})."""
+    import json as _json
+    questions = [
+        {
+            "type": "matching",
+            "pairs": [
+                {"left": "cat", "right": "кот"},
+                {"left": "dog", "right": "пёс"},
+            ],
+        }
+    ]
+    payload = _json.dumps({"cat": "кот", "dog": "пёс"})
+    result = process_quiz_submission(questions, {0: payload})
+    assert result["correct_answers"] == 1
+
+    bad_payload = _json.dumps({"cat": "пёс", "dog": "кот"})
+    result = process_quiz_submission(questions, {0: bad_payload})
+    assert result["correct_answers"] == 0
+
+
 def test_quiz_submission_matching_with_pairs():
     questions = [
         {

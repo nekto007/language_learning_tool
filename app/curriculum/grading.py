@@ -53,6 +53,7 @@ def check_final_test_attempts_exhausted(user_id, lesson_id, db_session=None,
             LessonAttempt.lesson_id == lesson_id,
             LessonAttempt.completed_at.isnot(None),
             LessonAttempt.completed_at >= window_start_naive,
+            (LessonAttempt.passed.is_(False)) | (LessonAttempt.passed.is_(None)),
         )
         .order_by(LessonAttempt.completed_at.asc())
         .all()
@@ -720,10 +721,24 @@ def process_quiz_submission(questions, answers):
                 correct_answer = correct_pairs
 
             user_pairs = None
-            if isinstance(user_answer, list):
-                user_pairs = user_answer
-            elif isinstance(user_answer, dict) and isinstance(user_answer.get('pairs'), list):
-                user_pairs = user_answer['pairs']
+            raw = user_answer
+            # Frontend posts matching answers as a JSON-stringified dict
+            # ({left_value: right_value, ...}); decode into pairs here so
+            # the strict grader can compare keys against ``correct_pairs``.
+            if isinstance(raw, str):
+                try:
+                    raw = json.loads(raw)
+                except (ValueError, TypeError):
+                    raw = None
+            if isinstance(raw, list):
+                user_pairs = raw
+            elif isinstance(raw, dict):
+                if isinstance(raw.get('pairs'), list):
+                    user_pairs = raw['pairs']
+                else:
+                    user_pairs = [
+                        {'left': k, 'right': v} for k, v in raw.items()
+                    ]
             else:
                 pairs_field = answers.get(f'{i}_pairs', answers.get(f'{str(i)}_pairs'))
                 if isinstance(pairs_field, list):

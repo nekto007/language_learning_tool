@@ -119,6 +119,17 @@ def test_admin_user_bypasses_limit(db_session):
     assert check_final_test_attempts_exhausted(user.id, lesson.id, db_session=db_session) is None
 
 
+def test_passed_attempts_do_not_count_toward_limit(db_session):
+    """Plan: 'не более 3 провалов за 24h' — passes don't consume retries."""
+    user = _make_user(db_session)
+    lesson = _make_final_test_lesson(db_session)
+
+    for _ in range(FINAL_TEST_MAX_ATTEMPTS_PER_DAY + 2):
+        _add_attempt(db_session, user.id, lesson.id, hours_ago=1, score=85.0)
+
+    assert check_final_test_attempts_exhausted(user.id, lesson.id, db_session=db_session) is None
+
+
 def test_attempts_for_other_lesson_do_not_count(db_session):
     user = _make_user(db_session)
     lesson_a = _make_final_test_lesson(db_session)
