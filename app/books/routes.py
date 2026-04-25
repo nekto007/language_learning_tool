@@ -312,19 +312,9 @@ def read_selection():
 @login_required
 @module_required('books')
 def read_book(book_id):
-    book = Book.query.get_or_404(book_id)
-
-    has_chapters = Chapter.query.filter_by(book_id=book_id).first() is not None
-
-    if has_chapters:
-        # Redirect to chapter-based reader, preserving query params (e.g.
-        # ?from=linear_plan&slot=book for linear-plan navigation context).
-        forwarded_args = {k: v for k, v in request.args.items() if k not in {'book_id'}}
-        return redirect(url_for('books.read_book_chapters', book_id=book_id, **forwarded_args))
-
-    # Since there's no content field in the new schema, old-style books won't work
-    flash('Этот формат книги не поддерживается. Пожалуйста, используйте книги с главами.', 'warning')
-    return redirect(url_for('books.book_details', book_id=book.id))
+    Book.query.get_or_404(book_id)
+    forwarded_args = {k: v for k, v in request.args.items() if k not in {'book_id'}}
+    return redirect(url_for('books.read_book_chapters', book_id=book_id, **forwarded_args))
 
 
 @books.route('/books/<string:book_slug>/chapter/<int:chapter_num>')
@@ -400,41 +390,6 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
                            chapter_progress=chapter_progress,
                            back_url=back_url
                            )
-
-
-@books.route('/books/<string:book_slug>/reader-v2')
-@books.route('/books/<string:book_slug>/chapter/<int:chapter_num>/v2')
-@login_required
-@module_required('books')
-def read_book_v2(book_slug, chapter_num=None):
-    book = Book.query.filter_by(slug=book_slug).first_or_404()
-
-    chapters = Chapter.query.filter_by(book_id=book.id).order_by(Chapter.chap_num).all()
-
-    if not chapters:
-        flash('This book has no chapters available.', 'warning')
-        return redirect(url_for('books.book_details', book_id=book.id))
-
-    current_chapter = None
-    if chapter_num:
-        current_chapter = Chapter.query.filter_by(
-            book_id=book.id,
-            chap_num=chapter_num
-        ).first()
-
-    if not current_chapter:
-        current_chapter = chapters[0]  # Default to first chapter
-
-    return render_template('books/reader-v2.html',
-                           book=book,
-                           chapters=chapters,
-                           current_chapter=current_chapter
-                           )
-
-
-# Old reading position API removed - using chapter-based progress only
-
-# Legacy save progress API removed - using chapter-based progress only
 
 
 @books.route('/books')

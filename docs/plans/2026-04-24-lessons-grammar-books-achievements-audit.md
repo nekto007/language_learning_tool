@@ -386,13 +386,12 @@
 - Modify: templates (если legacy reader-v2 template есть)
 - Modify: tests
 
-[//]: # (- [ ] Grep: `grammar_public` — ноль ссылок &#40;кроме `__init__.py`&#41;; удалить `app/grammar_public/` директорию целиком)
-- [ ] В `app/__init__.py`: убрать `register_blueprint(grammar_public_bp)` и import
-- [ ] В `app/books/routes.py:397-424`: удалить `/reader-v2` endpoint если ноль ссылок; grep templates на `reader-v2` URL
-- [ ] В `app/books/routes.py:317-319`: удалить old-style blocks (книги без `content` field)
-
-[//]: # (- [ ] Write tests: `app.url_map` не содержит `grammar_public.*` и `reader-v2` routes; старые URL'ы возвращают 404)
-- [ ] Run pytest — must pass before task 16
+- [x] Grep: `grammar_public` — ноль ссылок (нет register_blueprint в `app/__init__.py`); удалена `app/grammar_public/` директория целиком (содержала только `__pycache__`)
+- [x] В `app/__init__.py`: проверено — нет `register_blueprint(grammar_public_bp)` или import (изначально 0 ссылок)
+- [x] В `app/books/routes.py`: удалён `/reader-v2` endpoint `read_book_v2` (0 ссылок в коде/templates); template `reader-v2.html` отсутствует
+- [x] В `app/books/routes.py:read_book`: удалены old-style блоки для книг без `content` field — функция теперь thin redirect на `read_book_chapters`
+- [x] Write tests: `tests/books/test_dead_routes_removed.py` — `app.url_map` не содержит `reader-v2`/`/v2`/`books.read_book_v2`/`grammar_public.*`; `import app.grammar_public` raises `ImportError`
+- [x] Run pytest — `pytest -m smoke` 145 passed
 
 ---
 
