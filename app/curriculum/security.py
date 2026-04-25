@@ -172,6 +172,12 @@ def check_lesson_access(lesson_id: int) -> bool:
     if not lesson:
         return False
 
+    # Module-level prerequisites must always be satisfied — even if the user
+    # already touched a lesson in this module (stray/legacy progress rows could
+    # otherwise bypass checkpoints via direct URL on lesson 2+).
+    if not check_module_access(lesson.module_id):
+        return False
+
     # Already completed lessons are always accessible (for review)
     own_progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
@@ -180,7 +186,6 @@ def check_lesson_access(lesson_id: int) -> bool:
     if own_progress and own_progress.status == 'completed':
         return True
 
-    # First lesson in module — check module-level access
     module_lessons = Lessons.query.filter_by(
         module_id=lesson.module_id,
     ).order_by(Lessons.number).all()
@@ -189,7 +194,7 @@ def check_lesson_access(lesson_id: int) -> bool:
         return False
 
     if lesson.id == module_lessons[0].id:
-        return check_module_access(lesson.module_id)
+        return True
 
     # Otherwise, previous lesson in order must be completed
     prev_lesson = None

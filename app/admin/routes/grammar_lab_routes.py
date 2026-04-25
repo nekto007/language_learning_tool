@@ -253,6 +253,14 @@ def edit_exercise(exercise_id):
                 flash('Invalid JSON in content field', 'danger')
                 return render_template('admin/grammar_lab/exercise_form.html', topic=topic, exercise=exercise)
 
+            from app.grammar_lab.content_validator import validate_exercise_content
+            try:
+                validate_exercise_content(exercise.exercise_type, exercise.content)
+            except ValueError as ve:
+                db.session.rollback()
+                flash(f'Invalid exercise content: {ve}', 'danger')
+                return render_template('admin/grammar_lab/exercise_form.html', topic=topic, exercise=exercise)
+
             db.session.commit()
             flash('Exercise updated successfully!', 'success')
             return redirect(url_for('grammar_lab_admin.edit_topic', topic_id=topic.id))

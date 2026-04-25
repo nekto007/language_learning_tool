@@ -945,8 +945,13 @@ def save_reading_position():
             maybe_award_book_reading_xp,
             maybe_award_linear_perfect_day,
         )
+        # The reader auto-saves every ~3 seconds, so each save's delta is
+        # tiny — gating on per-save delta would never fire for users reading
+        # incrementally. Require absolute position past the threshold and
+        # *some* forward progress this save; daily idempotency in
+        # ``maybe_award_book_reading_xp`` prevents double-awards.
         advanced = position - previous_offset
-        if position >= READ_PROGRESS_THRESHOLD and advanced >= READ_PROGRESS_THRESHOLD:
+        if position >= READ_PROGRESS_THRESHOLD and advanced > 0:
             pref = get_user_reading_preference(current_user.id, db)
             if pref is not None and pref.book_id == book_id:
                 with db.session.begin_nested():

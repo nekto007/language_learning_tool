@@ -352,6 +352,31 @@ def award_xp(user_id: int, base_amount: int, source: str) -> XPAward:
     )
 
 
+# Namespace ints for pg_advisory_xact_lock(namespace, user_id) so concurrent
+# retries of an idempotent XP path serialize per (user, kind) and the
+# check-then-insert window cannot double-award.
+_LOCK_NS_BOOK_CHAPTER = 0x1B00C
+_LOCK_NS_REFERRAL = 0x1B00D
+_LOCK_NS_GAME = 0x1B00E
+
+
+def _serialize_user_xp(db_obj, namespace: int, user_id: int) -> None:
+    """Acquire a per-user transaction-scoped advisory lock on PostgreSQL.
+
+    No-op on other dialects (SQLite test backend has no real concurrency).
+    Released automatically at COMMIT/ROLLBACK.
+    """
+    import sqlalchemy as sa
+
+    bind = db_obj.session.get_bind()
+    if bind.dialect.name != 'postgresql':
+        return
+    db_obj.session.execute(
+        sa.text("SELECT pg_advisory_xact_lock(:ns, :uid)"),
+        {"ns": namespace, "uid": user_id},
+    )
+
+
 BOOK_CHAPTER_XP_EVENT_TYPE = 'xp_book_chapter'
 
 
@@ -379,6 +404,8 @@ def award_book_chapter_xp_idempotent(
 
     if xp <= 0:
         return None
+
+    _serialize_user_xp(db_obj, _LOCK_NS_BOOK_CHAPTER, user_id)
 
     already = db_obj.session.query(StreakEvent).filter(
         StreakEvent.user_id == user_id,
@@ -429,6 +456,8 @@ def award_referral_xp_idempotent(
     if xp <= 0:
         return None
 
+    _serialize_user_xp(db_obj, _LOCK_NS_REFERRAL, referrer_id)
+
     already = db_obj.session.query(StreakEvent).filter(
         StreakEvent.user_id == referrer_id,
         StreakEvent.event_type == REFERRAL_XP_EVENT_TYPE,
@@ -478,6 +507,8 @@ def award_game_xp_idempotent(
 
     if xp <= 0 or session_id is None:
         return None
+
+    _serialize_user_xp(db_obj, _LOCK_NS_GAME, user_id)
 
     already = db_obj.session.query(StreakEvent).filter(
         StreakEvent.user_id == user_id,

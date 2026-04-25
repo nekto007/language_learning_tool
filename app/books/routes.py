@@ -333,8 +333,8 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
     chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
 
     if not chapters:
-        flash('В этой книге нет глав. Перенаправляем к обычному ридеру.', 'info')
-        return redirect(url_for('books.read_book', book_id=book_id))
+        flash('В этой книге пока нет глав для чтения.', 'warning')
+        return redirect(url_for('books.book_list'))
 
     if not chapter_num:
         chapter_num = request.args.get('chapter', type=int)

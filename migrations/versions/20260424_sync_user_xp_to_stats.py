@@ -60,17 +60,27 @@ def _sync_user_xp_to_statistics(bind) -> None:
 
 
 def upgrade():
+    # The legacy ``user_xp`` table was never created via Alembic — historical
+    # production environments produced it via Flask-SQLAlchemy ``create_all``,
+    # while fresh installations (and the test bootstrap) skip it entirely. This
+    # migration must be a no-op when the table is absent so an upgrade-from-zero
+    # can reach the later ``20260425_drop_user_xp`` revision without error.
     bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if 'user_xp' not in inspector.get_table_names():
+        return
 
-    op.add_column(
-        'user_xp',
-        sa.Column(
-            'synced_to_stats',
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.false(),
-        ),
-    )
+    existing_cols = {col['name'] for col in inspector.get_columns('user_xp')}
+    if 'synced_to_stats' not in existing_cols:
+        op.add_column(
+            'user_xp',
+            sa.Column(
+                'synced_to_stats',
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.false(),
+            ),
+        )
 
     _sync_user_xp_to_statistics(bind)
 
@@ -78,4 +88,10 @@ def upgrade():
 def downgrade():
     # Data merge cannot be safely undone (we cannot tell the legacy contribution
     # apart from subsequent mission/linear XP awards). Only drop the sentinel.
-    op.drop_column('user_xp', 'synced_to_stats')
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if 'user_xp' not in inspector.get_table_names():
+        return
+    existing_cols = {col['name'] for col in inspector.get_columns('user_xp')}
+    if 'synced_to_stats' in existing_cols:
+        op.drop_column('user_xp', 'synced_to_stats')
