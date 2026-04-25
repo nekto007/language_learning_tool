@@ -11,6 +11,7 @@ from marshmallow import ValidationError
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.routes.lessons import lessons_bp
 from app.curriculum.security import require_lesson_access, sanitize_html
+from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.service import get_next_lesson, process_quiz_submission
 from app.curriculum.services.progress_service import ProgressService
 from app.curriculum.validators import LessonContentValidator
@@ -957,6 +958,13 @@ def final_test_lesson(lesson_id):
         db.session.commit()
 
     if request.method == 'POST':
+        rate_limit = check_final_test_attempts_exhausted(current_user.id, lesson.id, db_session=db)
+        if rate_limit is not None:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, **rate_limit}), 429
+            flash('Достигнут лимит попыток финального теста. Попробуйте позже.', 'error')
+            return redirect(url_for('curriculum_lessons.final_test_lesson', lesson_id=lesson.id))
+
         answers = {}
         for key in request.form:
             if key.startswith('answer_'):

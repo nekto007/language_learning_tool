@@ -4,11 +4,68 @@
 import json
 import logging
 import re
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 
 from app.utils.normalization import normalize_text
 
 logger = logging.getLogger(__name__)
+
+
+FINAL_TEST_MAX_ATTEMPTS_PER_DAY = 3
+FINAL_TEST_ATTEMPT_WINDOW_HOURS = 24
+
+
+def check_final_test_attempts_exhausted(user_id, lesson_id, db_session=None,
+                                        max_attempts=FINAL_TEST_MAX_ATTEMPTS_PER_DAY,
+                                        window_hours=FINAL_TEST_ATTEMPT_WINDOW_HOURS):
+    """Return rate-limit dict if user has met or exceeded the final-test attempt cap
+    within the rolling window. Admins are exempt. Returns None when allowed.
+
+    Response on exhaustion:
+        {"passed": False, "error": "attempts_exhausted",
+         "retry_after": <ISO8601 UTC>, "max_attempts": N, "window_hours": H}
+    """
+    from app.curriculum.models import LessonAttempt
+    from app.auth.models import User
+    from app.utils.db import db as default_db
+
+    session = db_session if db_session is not None else default_db.session
+    if hasattr(session, 'session'):
+        session = session.session
+
+    user = session.get(User, user_id)
+    if user is not None and getattr(user, 'is_admin', False):
+        return None
+
+    window_start = datetime.now(UTC) - timedelta(hours=window_hours)
+    window_start_naive = window_start.replace(tzinfo=None)
+
+    attempts = (
+        session.query(LessonAttempt)
+        .filter(
+            LessonAttempt.user_id == user_id,
+            LessonAttempt.lesson_id == lesson_id,
+            LessonAttempt.started_at >= window_start_naive,
+        )
+        .order_by(LessonAttempt.started_at.asc())
+        .all()
+    )
+
+    if len(attempts) < max_attempts:
+        return None
+
+    oldest = attempts[0].started_at
+    if oldest.tzinfo is None:
+        oldest = oldest.replace(tzinfo=UTC)
+    retry_after = oldest + timedelta(hours=window_hours)
+
+    return {
+        "passed": False,
+        "error": "attempts_exhausted",
+        "retry_after": retry_after.isoformat(),
+        "max_attempts": max_attempts,
+        "window_hours": window_hours,
+    }
 
 
 def _normalize_answer(s):
