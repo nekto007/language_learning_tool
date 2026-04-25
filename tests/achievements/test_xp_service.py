@@ -13,6 +13,7 @@ from app.achievements.xp_service import (
     PERFECT_DAY_MULTIPLIERS,
     LevelInfo,
     XPAward,
+    apply_score_to_base,
     award_linear_xp,
     award_xp,
     award_phase_xp_idempotent,
@@ -236,6 +237,108 @@ class TestAwardXp:
             award_xp(test_user.id, 0, 'zero')
         with pytest.raises(ValueError):
             award_xp(test_user.id, -10, 'negative')
+
+    def test_score_none_is_full_base(self, db_session, test_user):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=test_user.id)
+            db.session.add(stats)
+            db.session.flush()
+        stats.current_streak_days = 0
+        stats.total_xp = 0
+        result = award_xp(test_user.id, 100, 'graded_none', score=None)
+        assert result.xp_awarded == 100
+
+    def test_score_100_is_full_base(self, db_session, test_user):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=test_user.id)
+            db.session.add(stats)
+            db.session.flush()
+        stats.current_streak_days = 0
+        stats.total_xp = 0
+        result = award_xp(test_user.id, 100, 'graded_perfect', score=100)
+        assert result.xp_awarded == 100
+
+    def test_score_0_is_half_base(self, db_session, test_user):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=test_user.id)
+            db.session.add(stats)
+            db.session.flush()
+        stats.current_streak_days = 0
+        stats.total_xp = 0
+        result = award_xp(test_user.id, 100, 'graded_zero', score=0)
+        assert result.xp_awarded == 50
+
+    def test_score_70_scales_to_85_percent(self, db_session, test_user):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=test_user.id)
+            db.session.add(stats)
+            db.session.flush()
+        stats.current_streak_days = 0
+        stats.total_xp = 0
+        # 100 * (0.5 + 70/200) = 100 * 0.85 = 85
+        result = award_xp(test_user.id, 100, 'graded_70', score=70)
+        assert result.xp_awarded == 85
+
+    def test_score_clamped_above_100(self, db_session, test_user):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=test_user.id)
+            db.session.add(stats)
+            db.session.flush()
+        stats.current_streak_days = 0
+        stats.total_xp = 0
+        result = award_xp(test_user.id, 100, 'graded_above', score=150)
+        assert result.xp_awarded == 100
+
+    def test_score_clamped_below_0(self, db_session, test_user):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=test_user.id)
+            db.session.add(stats)
+            db.session.flush()
+        stats.current_streak_days = 0
+        stats.total_xp = 0
+        result = award_xp(test_user.id, 100, 'graded_neg', score=-50)
+        assert result.xp_awarded == 50
+
+    def test_score_with_streak_multiplier(self, db_session, test_user):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=test_user.id)
+            db.session.add(stats)
+            db.session.flush()
+        stats.current_streak_days = 50  # 2.0x
+        stats.total_xp = 0
+        # base 100, score=50 → 75; * 2.0 streak = 150
+        result = award_xp(test_user.id, 100, 'graded_streak', score=50)
+        assert result.multiplier == 2.0
+        assert result.xp_awarded == 150
+
+    def test_apply_score_to_base_helper(self):
+        assert apply_score_to_base(100, None) == 100
+        assert apply_score_to_base(100, 0) == 50
+        assert apply_score_to_base(100, 100) == 100
+        assert apply_score_to_base(100, 70) == 85
+        assert apply_score_to_base(20, 100) == 20
+        assert apply_score_to_base(20, 0) == 10
 
     def test_phase_xp_constants_all_positive(self):
         for phase, xp in PHASE_XP.items():
@@ -943,6 +1046,27 @@ class TestAwardLinearXp:
         self._ensure_stats(db_session, test_user.id)
         with pytest.raises(KeyError):
             award_linear_xp(test_user.id, 'linear_bogus_source')
+
+    def test_score_scales_linear_xp(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        # quiz base = 12, score=100 → 12; score=0 → 6; score=50 → 9
+        r_full = award_linear_xp(
+            test_user.id, 'linear_curriculum_quiz', score=100,
+        )
+        assert r_full.xp_awarded == 12
+        r_half = award_linear_xp(
+            test_user.id, 'linear_curriculum_quiz', score=0,
+        )
+        assert r_half.xp_awarded == 6
+        r_mid = award_linear_xp(
+            test_user.id, 'linear_curriculum_quiz', score=50,
+        )
+        assert r_mid.xp_awarded == 9
+
+    def test_score_none_unchanged_for_linear(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        result = award_linear_xp(test_user.id, 'linear_curriculum_quiz', score=None)
+        assert result.xp_awarded == 12
 
     def test_baseline_day_without_streak_is_43_xp(self, db_session, test_user):
         """Baseline linear day (card + srs + book) without streak = 43 XP."""

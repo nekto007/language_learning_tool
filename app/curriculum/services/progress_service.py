@@ -295,7 +295,9 @@ class ProgressService:
                     maybe_award_curriculum_xp,
                     maybe_award_linear_perfect_day,
                 )
-                if maybe_award_curriculum_xp(user_id, lesson, db_session=db) is not None:
+                if maybe_award_curriculum_xp(
+                    user_id, lesson, db_session=db, score=score,
+                ) is not None:
                     maybe_award_linear_perfect_day(user_id, db_session=db)
                     db.session.commit()
             except Exception:
