@@ -200,6 +200,13 @@ def log_quiz_errors_from_result(
             'correct_answer': entry.get('correct_answer'),
             'source': source,
         }
+        # Preserve the original GrammarExercise id and difficulty when we have
+        # them — the review-slot sibling lookup uses both to pick a related but
+        # not-identical exercise.
+        if question.get('id') is not None:
+            payload['exercise_id'] = question.get('id')
+        if question.get('difficulty') is not None:
+            payload['difficulty'] = question.get('difficulty')
         logged.append(log_quiz_error(user_id, lesson_id, payload, db))
         already_logged.add(q_idx)
     return logged
@@ -291,6 +298,110 @@ def get_review_pool(
         .limit(limit)
         .all()
     )
+
+
+def _resolve_original_exercise_meta(
+    error: QuizErrorLog,
+    db: Any,
+) -> tuple[Optional[int], Optional[int]]:
+    """Return ``(original_exercise_id, difficulty)`` for the logged error.
+
+    Falls back to looking up the original ``GrammarExercise`` row by id when
+    the payload only stored the id. Returns ``(None, None)`` for non-grammar
+    errors or when no metadata is available.
+    """
+    payload = error.question_payload if isinstance(error.question_payload, dict) else {}
+    raw_exercise_id = payload.get('exercise_id')
+    raw_difficulty = payload.get('difficulty')
+
+    exercise_id: Optional[int]
+    if isinstance(raw_exercise_id, int):
+        exercise_id = raw_exercise_id
+    else:
+        try:
+            exercise_id = int(raw_exercise_id) if raw_exercise_id is not None else None
+        except (TypeError, ValueError):
+            exercise_id = None
+
+    difficulty: Optional[int]
+    if isinstance(raw_difficulty, int) and not isinstance(raw_difficulty, bool):
+        difficulty = raw_difficulty
+    else:
+        try:
+            difficulty = int(raw_difficulty) if raw_difficulty is not None else None
+        except (TypeError, ValueError):
+            difficulty = None
+
+    if difficulty is None and exercise_id is not None:
+        from app.grammar_lab.models import GrammarExercise
+
+        original = db.session.get(GrammarExercise, exercise_id)
+        if original is not None:
+            difficulty = original.difficulty
+
+    return exercise_id, difficulty
+
+
+def get_sibling_exercise(
+    error: QuizErrorLog,
+    db: Any,
+    exclude_exercise_ids: Optional[Iterable[int]] = None,
+):
+    """Find a related ``GrammarExercise`` for an error's lesson topic.
+
+    Returns ``None`` when the error's lesson has no ``grammar_topic_id``
+    (vocab/non-grammar lesson) or no other exercise exists on that topic.
+    Filters by matching difficulty when known, and excludes the original
+    exercise plus anything in ``exclude_exercise_ids``.
+    """
+    lesson = error.lesson
+    if lesson is None or lesson.grammar_topic_id is None:
+        return None
+
+    from app.grammar_lab.models import GrammarExercise
+
+    exercise_id, difficulty = _resolve_original_exercise_meta(error, db)
+
+    excluded: set[int] = set(exclude_exercise_ids or ())
+    if exercise_id is not None:
+        excluded.add(exercise_id)
+
+    query = db.session.query(GrammarExercise).filter(
+        GrammarExercise.topic_id == lesson.grammar_topic_id,
+    )
+    if difficulty is not None:
+        query = query.filter(GrammarExercise.difficulty == difficulty)
+    if excluded:
+        query = query.filter(~GrammarExercise.id.in_(excluded))
+
+    return query.order_by(func.random()).first()
+
+
+def get_review_pool_with_siblings(
+    user_id: int,
+    db: Any,
+    limit: Optional[int] = None,
+) -> list[dict]:
+    """Return the review pool with an optional sibling exercise per topic.
+
+    Each item is ``{'error': QuizErrorLog, 'sibling': GrammarExercise | None}``.
+    Sibling lookup runs once per ``grammar_topic_id`` so the same topic does
+    not surface multiple sibling questions in one session.
+    """
+    pool = get_review_pool(user_id, db, limit=limit)
+    items: list[dict] = []
+    covered_topics: set[int] = set()
+    used_sibling_ids: set[int] = set()
+    for error in pool:
+        sibling = None
+        topic_id = error.lesson.grammar_topic_id if error.lesson is not None else None
+        if topic_id is not None and topic_id not in covered_topics:
+            sibling = get_sibling_exercise(error, db, exclude_exercise_ids=used_sibling_ids)
+            if sibling is not None:
+                used_sibling_ids.add(sibling.id)
+            covered_topics.add(topic_id)
+        items.append({'error': error, 'sibling': sibling})
+    return items
 
 
 def should_show_error_review(
