@@ -343,10 +343,10 @@
 **Files:**
 - Modify: `CLAUDE.md` (Key Patterns секция)
 
-- [ ] Добавить паттерны:
+- [x] Добавить паттерны:
   - **Score-aware XP**: `award_xp(user_id, amount, source, score=None)` — если `score` передан, `actual = round(base * (0.5 + score/200))`. Все graded sources (quiz, grammar, final_test) должны передавать score.
   - **Leech auto-suspend**: `LEECH_THRESHOLD=6 lapses → buried_until=+7d`. `leech_suspended_count` в `/api/daily-status`.
   - **Matching server-grade**: matching exercises всегда валидируются сервером через `_grade_matching_pairs(user_pairs, correct_pairs)`.
   - **Error review scaling**: `get_review_pool_size(unresolved)` — динамический размер (10/15/20). Dynamic cooldown при unresolved≥15.
   - **Reading time gate**: `user_reading_sessions` table + `time_spent >= 60s AND offset_delta >= 0.05` для reading slot credit.
-- [ ] Run final `pytest -m smoke` — confirm ≥141 passed
+- [x] Run final `pytest -m smoke` — 141 passed
