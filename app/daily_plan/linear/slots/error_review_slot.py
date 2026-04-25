@@ -11,8 +11,8 @@ from typing import Any, Optional
 
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 from app.daily_plan.linear.errors import (
-    DEFAULT_REVIEW_POOL_LIMIT,
     count_unresolved,
+    get_review_pool_size,
     should_show_error_review,
 )
 from app.daily_plan.linear.slots import LinearSlot
@@ -26,7 +26,7 @@ def build_error_review_slot(user_id: int, db: Any) -> Optional[LinearSlot]:
         return None
 
     unresolved = count_unresolved(user_id, db)
-    pool_size = min(unresolved, DEFAULT_REVIEW_POOL_LIMIT)
+    pool_size = min(unresolved, get_review_pool_size(unresolved))
 
     return LinearSlot(
         kind='error_review',

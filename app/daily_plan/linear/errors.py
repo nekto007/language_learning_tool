@@ -30,6 +30,34 @@ REVIEW_TRIGGER_MIN_UNRESOLVED = 5
 REVIEW_TRIGGER_COOLDOWN = timedelta(days=3)
 DEFAULT_REVIEW_POOL_LIMIT = 10
 
+# Dynamic cooldown thresholds — larger backlogs surface more often.
+REVIEW_HIGH_BACKLOG_THRESHOLD = 15
+REVIEW_HIGH_BACKLOG_COOLDOWN = timedelta(days=1)
+REVIEW_CRITICAL_BACKLOG_THRESHOLD = 25
+REVIEW_CRITICAL_BACKLOG_COOLDOWN = timedelta(hours=12)
+
+
+def get_review_pool_size(unresolved_count: int) -> int:
+    """Scale the review-slot pool size with the unresolved backlog.
+
+    Tiers: ≥20 → 20, ≥10 → 15, else 10. Matches the dynamic cooldown
+    so high-backlog users get both more frequent and larger sessions.
+    """
+    if unresolved_count >= 20:
+        return 20
+    if unresolved_count >= 10:
+        return 15
+    return DEFAULT_REVIEW_POOL_LIMIT
+
+
+def get_review_cooldown(unresolved_count: int) -> timedelta:
+    """Return the cooldown gating ``should_show_error_review``."""
+    if unresolved_count >= REVIEW_CRITICAL_BACKLOG_THRESHOLD:
+        return REVIEW_CRITICAL_BACKLOG_COOLDOWN
+    if unresolved_count >= REVIEW_HIGH_BACKLOG_THRESHOLD:
+        return REVIEW_HIGH_BACKLOG_COOLDOWN
+    return REVIEW_TRIGGER_COOLDOWN
+
 
 def _sanitize_payload(question_payload: Any) -> dict:
     """Return a JSONB-safe copy of ``question_payload``.
@@ -240,13 +268,17 @@ def get_last_resolved_at(user_id: int, db: Any) -> Optional[datetime]:
 def get_review_pool(
     user_id: int,
     db: Any,
-    limit: int = DEFAULT_REVIEW_POOL_LIMIT,
+    limit: Optional[int] = None,
 ) -> list[QuizErrorLog]:
     """Return oldest unresolved errors, capped at ``limit``.
 
     Ordered by ``created_at`` ascending so the review session surfaces
-    the stalest mistakes first.
+    the stalest mistakes first. ``limit=None`` (default) scales the cap
+    to the user's unresolved backlog via ``get_review_pool_size`` so the
+    pool grows from 10 → 15 → 20 as errors accumulate.
     """
+    if limit is None:
+        limit = get_review_pool_size(count_unresolved(user_id, db))
     if limit <= 0:
         return []
     return (
@@ -285,4 +317,4 @@ def should_show_error_review(
     # Normalise naive timestamps from SQLite so the comparison works.
     if last_resolved.tzinfo is None:
         last_resolved = last_resolved.replace(tzinfo=timezone.utc)
-    return (reference - last_resolved) >= REVIEW_TRIGGER_COOLDOWN
+    return (reference - last_resolved) >= get_review_cooldown(unresolved)
