@@ -38,7 +38,7 @@ MAX_SESSION_ATTEMPTS = 3  # Max shows per card per session
 # Steps are in MINUTES for intra-session requeue
 # These define how many minutes until the card is shown again during learning
 
-LEARNING_STEPS = [1, 10]  # [1 minute, 10 minutes] - steps for NEW cards
+LEARNING_STEPS = [1, 10, 1440]  # [1 min, 10 min, 1 day] - 3 steps to graduate NEW cards
 RELEARNING_STEPS = [10, 1440]   # [10 minutes, 1 day] - steps for failed REVIEW cards
 
 # Graduating interval - when card graduates from LEARNING to REVIEW

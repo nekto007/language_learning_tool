@@ -109,7 +109,10 @@ def daily_status():
             logger.warning("secured_at write failed in daily_status", exc_info=True)
             db.session.rollback()
 
-    return jsonify({
+    from app.study.services import SRSService
+    srs_limit_reason = SRSService.get_adaptive_limit_reason(user_id)
+
+    payload = {
         'success': True,
         'plan': plan,
         'summary': summary,
@@ -121,7 +124,10 @@ def daily_status():
         'required_steps': streak_result['required_steps'],
         'streak_repaired': streak_result['streak_repaired'],
         'day_secured': day_secured,
-    })
+    }
+    if srs_limit_reason != 'normal':
+        payload['srs_limit_reason'] = srs_limit_reason
+    return jsonify(payload)
 
 
 
@@ -199,7 +205,12 @@ def daily_plan():
             plan['day_secured'] and (plan['continuation'].get('next_lessons') or [])
         )
 
-    return jsonify({'success': True, 'route_state': route_state, **plan})
+    from app.study.services import SRSService
+    srs_limit_reason = SRSService.get_adaptive_limit_reason(user_id)
+    payload = {'success': True, 'route_state': route_state, **plan}
+    if srs_limit_reason != 'normal':
+        payload['srs_limit_reason'] = srs_limit_reason
+    return jsonify(payload)
 
 
 @api_daily_plan.route('/daily-summary')
