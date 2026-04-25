@@ -317,11 +317,11 @@
 - Modify: `app/grammar_lab/content_validator.py` (новый)
 - Modify: `tests/grammar_lab/test_content_validation.py`
 
-- [ ] Создать миграцию: `ALTER TABLE user_grammar_exercises DROP CONSTRAINT ... ADD CONSTRAINT ... FOREIGN KEY (exercise_id) REFERENCES grammar_exercises(id) ON DELETE CASCADE` (аналогично для `grammar_attempts`)
-- [ ] Создать `app/grammar_lab/content_validator.py` — `validate_exercise_content(exercise_type, content) -> None | raise ValueError`; проверяет наличие `correct_answer` для типов `fill_blank`, `multiple_choice`, `reorder`, `transformation`, `error_correction`, `matching`, `true_false`
-- [ ] Вызвать validator в `GrammarExercise.__init__` и на import (`curriculum_import_service.py`)
-- [ ] Write tests: exercise без `correct_answer` → `ValueError`; delete exercise → cascade удаляет `user_grammar_exercises` и `grammar_attempts`; import broken exercise → validation ошибка
-- [ ] Run pytest — must pass before task 12
+- [x] Создать миграцию: `ALTER TABLE user_grammar_exercises DROP CONSTRAINT ... ADD CONSTRAINT ... FOREIGN KEY (exercise_id) REFERENCES grammar_exercises(id) ON DELETE CASCADE` (аналогично для `grammar_attempts`) — `migrations/versions/20260425_grammar_exercise_cascade.py` (idempotent, postgres-only)
+- [x] Создать `app/grammar_lab/content_validator.py` — `validate_exercise_content(exercise_type, content) -> None | raise ValueError`; проверяет наличие `correct_answer` для типов `fill_blank`, `multiple_choice`, `reorder`, `transformation`, `error_correction`, `matching`, `true_false`
+- [x] Вызвать validator в `GrammarExercise.__init__` (импорты в admin grammar_lab routes / seed_grammar_a1 проходят через `GrammarExercise(...)` конструктор, поэтому валидация срабатывает автоматически — отдельный hook в `curriculum_import_service.py` не требуется, у него нет точки входа GrammarExercise)
+- [x] Write tests: exercise без `correct_answer` → `ValueError`; delete exercise → cascade удаляет `user_grammar_exercises` и `grammar_attempts`; broken content на конструкторе → ValueError (`tests/grammar_lab/test_content_validation.py`)
+- [x] Run pytest — must pass before task 12
 
 ---
 

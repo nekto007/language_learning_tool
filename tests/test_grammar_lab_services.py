@@ -350,11 +350,13 @@ class TestGraderExceptionHandling:
         """Grader should catch exceptions and return error dict."""
         ex = GrammarExercise(
             topic_id=grammar_topic.id, exercise_type='fill_blank',
-            content=None,  # Will cause AttributeError in _grade_fill_blank
+            content={'correct_answer': 'placeholder'},
             difficulty=1
         )
         db_session.add(ex)
         db_session.commit()
+        # Simulate legacy DB row that pre-dates content schema validation.
+        ex.content = None
         result = grader.grade(ex, 'test')
         assert result['is_correct'] is False
         assert 'error' in result
