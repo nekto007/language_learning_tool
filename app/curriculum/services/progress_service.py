@@ -276,6 +276,36 @@ class ProgressService:
         db.session.commit()
         _invalidate_user_progress_cache(user_id)
 
+        # Persist a LessonAttempt row for failed final_test submissions so the
+        # rate-limit gate (check_final_test_attempts_exhausted) can count them.
+        # complete_lesson() only creates attempts on pass; without this, failed
+        # attempts disappear and the per-user 24h cap never fires.
+        if not is_completed and getattr(lesson, 'type', None) == 'final_test':
+            try:
+                from app.curriculum.models import LessonAttempt
+                attempt_number = len(progress.attempts) + 1 if progress.attempts else 1
+                now = datetime.now(UTC)
+                failed_attempt = LessonAttempt(
+                    user_id=user_id,
+                    lesson_id=lesson.id,
+                    lesson_progress_id=progress.id,
+                    attempt_number=attempt_number,
+                    started_at=progress.started_at or now,
+                    completed_at=now,
+                    score=score,
+                    passed=False,
+                    correct_answers=result.get('correct_count', 0),
+                    total_questions=result.get('total_count', 0),
+                )
+                db.session.add(failed_attempt)
+                db.session.commit()
+            except Exception:
+                logger.warning(
+                    "Failed to record failed final_test attempt for user=%s lesson=%s",
+                    user_id, lesson.id, exc_info=True,
+                )
+                db.session.rollback()
+
         # Process grading and achievements if lesson completed
         completion_result = None
         if is_completed:

@@ -306,9 +306,11 @@ class UnifiedSRSService:
                 'requeue_minutes': RELEARNING_STEPS[0] if RELEARNING_STEPS else 10,
                 'days_until_review': 0
             }
-            # Auto-suspend leech cards: when lapse count crosses the threshold,
-            # bury the card so it stops showing daily and demotivating the user.
-            if new_lapses >= LEECH_THRESHOLD and lapses < LEECH_THRESHOLD:
+            # Auto-suspend leech cards: re-bury whenever a card at or above
+            # the threshold lapses. Firing only on the threshold-crossing
+            # transition would leave already-leeched cards (lapses>=threshold,
+            # bury expired) cycling through daily failures without protection.
+            if new_lapses >= LEECH_THRESHOLD:
                 result['bury_days'] = LEECH_SUSPEND_DAYS
             return result
         elif rating == RATING_DOUBT:

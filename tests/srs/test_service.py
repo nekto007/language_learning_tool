@@ -102,9 +102,10 @@ class TestLeechAutoSuspend:
         )
         assert 'bury_days' not in result or result.get('bury_days') is None
 
-    def test_calc_dict_does_not_rebury_above_threshold(self):
-        # Already past threshold (e.g. user un-buried via CTA and lapsed again):
-        # we don't keep adding new bury_days, only on the crossing event.
+    def test_calc_dict_reburies_above_threshold(self):
+        # Cards already past threshold should re-bury on every lapse: firing
+        # only on the crossing event leaves recurring leeches cycling through
+        # daily failures once their first bury expires.
         result = UnifiedSRSService.calculate_sm2_update(
             rating=RATING_DONT_KNOW,
             state=CardState.REVIEW.value,
@@ -114,7 +115,7 @@ class TestLeechAutoSuspend:
             ease_factor=2.0,
             lapses=LEECH_THRESHOLD,
         )
-        assert 'bury_days' not in result
+        assert result.get('bury_days') == LEECH_SUSPEND_DAYS
 
     def test_grade_card_buries_on_threshold(self, db_session):
         user = _make_user(db_session)

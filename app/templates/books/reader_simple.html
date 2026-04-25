@@ -1223,6 +1223,64 @@ readerBody.addEventListener('scroll', updateProgress);
 window.addEventListener('resize', updateProgress);
 setTimeout(updateProgress, 100);
 
+// Reading session — time-on-page tracking for the linear-plan reading slot.
+// Server-side gate (`has_min_reading_time_today`) requires >=60s of closed
+// session time per book per day before linear book-reading XP is awarded.
+(function () {
+    const csrfToken = '{{ csrf_token() }}';
+    const chapterId = {{ current_chapter.id }};
+    const initialOffset = {{ chapter_progress.offset_pct if chapter_progress and chapter_progress.offset_pct else 0 }};
+    let sessionId = null;
+    let sessionEnded = false;
+
+    function startReadingSession() {
+        fetch('/api/books/reading-session/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({ chapter_id: chapterId }),
+            keepalive: true,
+        })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (data && data.session_id) {
+                    sessionId = data.session_id;
+                }
+            })
+            .catch(() => {});
+    }
+
+    function endReadingSession() {
+        if (!sessionId || sessionEnded) return;
+        sessionEnded = true;
+        const scrollHeight = readerBody.scrollHeight - readerBody.clientHeight;
+        const currentOffset = scrollHeight > 0
+            ? Math.min((readerBody.scrollTop / scrollHeight) || 0, 1)
+            : 0;
+        const offsetDelta = Math.max(0, currentOffset - initialOffset);
+        // fetch+keepalive is used instead of sendBeacon because the books_api
+        // blueprint is CSRF-protected and sendBeacon cannot send custom headers.
+        fetch('/api/books/reading-session/end', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({
+                session_id: sessionId,
+                offset_delta: offsetDelta,
+            }),
+            keepalive: true,
+        }).catch(() => {});
+    }
+
+    startReadingSession();
+    window.addEventListener('pagehide', endReadingSession);
+    window.addEventListener('beforeunload', endReadingSession);
+})();
+
 // Word translation
 function makeWordsClickable() {
     const paragraphs = chapterContent.getElementsByTagName('p');
