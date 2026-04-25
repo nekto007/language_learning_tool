@@ -762,16 +762,18 @@ def second_user(db_session):
 
 @pytest.fixture(scope='function')
 def user_xp(db_session, test_user):
-    """Create user XP record"""
-    from app.study.models import UserXP
+    """Create user XP record (now backed by UserStatistics — the canonical XP store)."""
+    from app.achievements.models import UserStatistics
 
-    xp = UserXP(
-        user_id=test_user.id,
-        total_xp=250  # Level 2
-    )
-    db_session.add(xp)
+    stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+    if stats is None:
+        stats = UserStatistics(user_id=test_user.id, total_xp=250, current_level=2)
+        db_session.add(stats)
+    else:
+        stats.total_xp = 250
+        stats.current_level = 2
     db_session.commit()
-    return xp
+    return stats
 
 
 @pytest.fixture(scope='function')

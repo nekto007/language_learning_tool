@@ -96,16 +96,20 @@ class TestReferralFlowEndToEnd:
 
     def test_referral_xp_award(self, db_session):
         suffix = uuid.uuid4().hex[:8]
-        from app.study.models import UserXP
+        from app.achievements.models import UserStatistics
+        from app.achievements.xp_service import award_xp
 
         referrer = User(username=f'refa_{suffix}', email=f'refa_{suffix}@test.com', active=True)
         referrer.set_password('test')
         db_session.add(referrer)
         db_session.flush()
 
-        xp = UserXP.get_or_create(referrer.id)
-        initial = xp.total_xp
-        xp.add_xp(100)
+        stats = UserStatistics.query.filter_by(user_id=referrer.id).first()
+        initial = int(stats.total_xp) if stats and stats.total_xp else 0
+
+        award_xp(referrer.id, 100, 'referral')
         db_session.commit()
 
-        assert UserXP.query.filter_by(user_id=referrer.id).first().total_xp == initial + 100
+        stats = UserStatistics.query.filter_by(user_id=referrer.id).first()
+        assert stats is not None
+        assert int(stats.total_xp) == initial + 100

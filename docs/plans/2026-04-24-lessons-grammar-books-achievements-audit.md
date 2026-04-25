@@ -366,13 +366,13 @@
 - Create: `migrations/versions/YYYYMMDD_drop_user_xp_table.py`
 - Modify: tests
 
-- [ ] Grep: `UserXP`, `user_xp` — ноль производственных writer'ов (только legacy shim); ноль читателей вне deprecated модуля
-- [ ] Удалить `app/study/xp_service.py` полностью (класс `XPService` с 320 строк — методы `calculate_quiz_xp`, `check_quiz_achievements` и пр.)
-- [ ] В `session_service.py` и `stats_service.py`: убрать `UserXP.get_or_create()` возврат из `award_xp`-shim; вернуть что-то совместимое (либо dict, либо `UserStatistics`)
-- [ ] Удалить `UserXP` model из `app/models/`
-- [ ] Создать миграцию: `DROP TABLE user_xp` (после проверки что миграция `20260424_sync_user_xp_to_stats` уже применена везде)
-- [ ] Write tests: smoke тесты XP-путей проходят без UserXP; `assert not hasattr(app.study, 'xp_service')` (или import fails)
-- [ ] Run pytest — must pass before task 15
+- [x] Grep: `UserXP`, `user_xp` — ноль production-writer'ов в `app/`; оставшиеся ссылки только в docstrings/comments миграций и в строковых cache-ключах `f'user_xp_{user_id}'`/Jinja-переменной `{{ user_xp }}` (не модель)
+- [x] Удалён `app/study/xp_service.py` целиком; `_calculate_quiz_xp`/`_calculate_matching_xp`/`_check_quiz_achievements` инлайнены в `app/study/game_routes.py`, `_calculate_flashcard_xp` — в `app/study/api_routes.py`; `XPService.calculate_book_chapter_xp()` заменён на inline-константу в `app/books/api.py`
+- [x] `session_service.py`: `award_xp` теперь возвращает `int` (новое значение `UserStatistics.total_xp`); `get_user_total_xp` читает `UserStatistics`. `stats_service.py`: убран `UserXP` из импорта моделей.
+- [x] Удалён `UserXP` из `app/study/models.py` (~95 строк) + удалён хелпер `app/study/xp_sync.py` (его SQL инлайнен в migration `20260424_sync_user_xp_to_stats` чтобы миграция была self-contained); удалён orphan one-off script `migrate_xp_system.py` в корне репо.
+- [x] Создана миграция `migrations/versions/20260425_drop_user_xp.py` (`down_revision='20260425_grammar_cascade'`): `DROP TABLE IF EXISTS user_xp CASCADE` (PG) / `DROP TABLE IF EXISTS user_xp` (SQLite); downgrade best-effort пересоздаёт схему без данных.
+- [x] Write tests: фикстура `tests/conftest.py:user_xp` теперь backed by `UserStatistics`; удалены/переписаны legacy-тесты (`TestXPService`, `TestUserXPModel`, `tests/migrations/test_xp_sync.py`, skipped-tests в `test_session_service_real.py`); patches XPService.calculate_* заменены на patches новых inline-хелперов в `tests/test_study_api_routes.py`.
+- [x] Run pytest — `pytest -m smoke` 138 passed; целевой набор (10 файлов) 337 passed, 4 skipped, 2 failed (pre-existing на master, MagicMock/app-context issues, не связаны с UserXP)
 
 ---
 

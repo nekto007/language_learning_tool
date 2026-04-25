@@ -542,7 +542,7 @@ class TestCompleteSession:
         """Test that XP is awarded on session completion"""
         initial_xp = user_xp.total_xp
 
-        with patch('app.study.xp_service.XPService.calculate_flashcard_xp') as mock_calc, \
+        with patch('app.study.api_routes._calculate_flashcard_xp') as mock_calc, \
              patch('app.achievements.xp_service.award_xp') as mock_award:
 
             # Mock the XP calculation
@@ -719,7 +719,7 @@ class TestCompleteMatchingGame:
             word_ids.append(word.id)
         db_session.commit()
 
-        with patch('app.study.xp_service.XPService.calculate_matching_xp') as mock_calc, \
+        with patch('app.study.game_routes._calculate_matching_xp') as mock_calc, \
              patch('app.achievements.xp_service.award_xp') as mock_award:
 
             mock_calc.return_value = {'total_xp': 100}
@@ -831,7 +831,7 @@ class TestCompleteQuiz:
 
     def test_awards_xp(self, authenticated_client, quiz_deck_with_words, user_xp):
         """Test that XP is awarded"""
-        with patch('app.study.xp_service.XPService.calculate_quiz_xp') as mock_calc, \
+        with patch('app.study.game_routes._calculate_quiz_xp') as mock_calc, \
              patch('app.achievements.xp_service.award_xp') as mock_award:
 
             mock_calc.return_value = {'total_xp': 75}

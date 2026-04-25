@@ -12,7 +12,7 @@ from sqlalchemy import func, desc
 
 from app.utils.db import db
 from app.study.models import (
-    UserWord, GameScore, QuizResult, UserXP, Achievement, UserAchievement, StudySession,
+    UserWord, GameScore, QuizResult, Achievement, UserAchievement, StudySession,
     UserCardDirection
 )
 from app.achievements.models import UserStatistics

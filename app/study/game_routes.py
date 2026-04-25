@@ -18,6 +18,106 @@ from app.study.services import (
 
 logger = logging.getLogger(__name__)
 
+# ============ Game XP / achievement helpers (inlined from former XPService) ============
+
+_XP_PER_CORRECT_ANSWER = 10
+_XP_STREAK_BONUS = 5  # Per correct answer when streak >= 5
+_XP_QUIZ_COMPLETION = 20
+_XP_MATCHING_COMPLETION = 25
+_XP_MATCHING_PERFECT = 15  # Bonus for 100% accuracy
+
+
+def _calculate_quiz_xp(correct_answers, total_questions, time_taken, has_streak=False):
+    """Quiz XP breakdown. Returns dict with base_xp, streak_bonus, completion_bonus, total_xp."""
+    if total_questions == 0:
+        return {'base_xp': 0, 'streak_bonus': 0, 'completion_bonus': 0, 'total_xp': 0}
+
+    base_xp = correct_answers * _XP_PER_CORRECT_ANSWER
+    streak_bonus = (_XP_STREAK_BONUS * correct_answers) if has_streak else 0
+    completion_bonus = _XP_QUIZ_COMPLETION
+    return {
+        'base_xp': base_xp,
+        'streak_bonus': streak_bonus,
+        'completion_bonus': completion_bonus,
+        'total_xp': base_xp + streak_bonus + completion_bonus,
+    }
+
+
+def _calculate_matching_xp(score, total_pairs):
+    """Matching game XP. score is percentage 0-100."""
+    base_xp = _XP_MATCHING_COMPLETION
+    perfect_bonus = _XP_MATCHING_PERFECT if score == 100 else 0
+    return {
+        'base_xp': base_xp,
+        'perfect_bonus': perfect_bonus,
+        'total_xp': base_xp + perfect_bonus,
+    }
+
+
+def _check_quiz_achievements(user_id, quiz_data):
+    """Check and grant quiz-related achievements. Returns list of newly earned Achievement rows."""
+    from app.study.models import Achievement, UserAchievement, QuizResult
+    from app.achievements.services import grant_achievement
+    from app.achievements.xp_service import award_xp as _award_xp_unified
+
+    newly_earned = []
+
+    existing_codes = set(
+        ach.achievement.code
+        for ach in UserAchievement.query
+            .join(Achievement)
+            .filter(UserAchievement.user_id == user_id)
+            .all()
+    )
+
+    def _grant(code):
+        achievement = Achievement.query.filter_by(code=code).first()
+        if not achievement:
+            return None
+        _, is_new = grant_achievement(user_id, achievement.id)
+        if not is_new:
+            return None
+        if achievement.xp_reward > 0:
+            _award_xp_unified(user_id, achievement.xp_reward, f'achievement:{code}')
+        db.session.commit()
+        return achievement
+
+    if 'first_quiz' not in existing_codes:
+        if QuizResult.query.filter_by(user_id=user_id).count() == 1:
+            newly_earned.append(_grant('first_quiz'))
+
+    if 'perfect_score' not in existing_codes and quiz_data.get('score') == 100:
+        newly_earned.append(_grant('perfect_score'))
+
+    if 'speed_demon' not in existing_codes:
+        if quiz_data.get('total_questions', 0) >= 10 and quiz_data.get('time_taken', 999) <= 120:
+            newly_earned.append(_grant('speed_demon'))
+
+    if 'quiz_streak_5' not in existing_codes and quiz_data.get('has_streak'):
+        newly_earned.append(_grant('quiz_streak_5'))
+
+    if 'high_score_90' not in existing_codes:
+        if quiz_data.get('score', 0) >= 90 and quiz_data.get('total_questions', 0) >= 10:
+            newly_earned.append(_grant('high_score_90'))
+
+    if 'quiz_master_10' not in existing_codes:
+        if QuizResult.query.filter_by(user_id=user_id).count() >= 10:
+            newly_earned.append(_grant('quiz_master_10'))
+
+    if 'quiz_master_50' not in existing_codes:
+        if QuizResult.query.filter_by(user_id=user_id).count() >= 50:
+            newly_earned.append(_grant('quiz_master_50'))
+
+    now = datetime.now()
+    if 'early_bird' not in existing_codes and now.hour < 8:
+        newly_earned.append(_grant('early_bird'))
+
+    if 'night_owl' not in existing_codes and now.hour >= 23:
+        newly_earned.append(_grant('night_owl'))
+
+    return newly_earned
+
+
 LINEAR_PLAN_DECK_QUIZ_SOURCE = 'linear_plan_deck_quiz'
 LINEAR_PLAN_DECK_QUIZ_DEFAULT_LIMIT = 30
 LINEAR_PLAN_DECK_QUIZ_MAX_LIMIT = 30
@@ -527,13 +627,12 @@ def complete_matching_game():
                 'error': 'Invalid game data detected'
             }), 200
 
-    from app.study.xp_service import XPService
     from app.achievements.xp_service import award_game_xp_idempotent, get_level_info
     from app.achievements.models import UserStatistics as _UserStats
     score_percentage = (pairs_matched / total_pairs * 100) if total_pairs > 0 else 0
-    xp_breakdown = XPService.calculate_matching_xp(
+    xp_breakdown = _calculate_matching_xp(
         score=score_percentage,
-        total_pairs=total_pairs
+        total_pairs=total_pairs,
     )
     xp_award = None
     if xp_breakdown['total_xp'] > 0:
@@ -655,7 +754,6 @@ def complete_matching_game():
 @login_required
 def complete_quiz():
     from app.study.models import QuizDeck, QuizResult
-    from app.study.xp_service import XPService
 
     if not request.is_json:
         return jsonify({'success': False, 'error': 'Content-Type must be application/json'}), 415
@@ -711,11 +809,11 @@ def complete_quiz():
     db.session.add(game_score)
     db.session.commit()
 
-    xp_breakdown = XPService.calculate_quiz_xp(
+    xp_breakdown = _calculate_quiz_xp(
         correct_answers=correct_answers,
         total_questions=total_questions,
         time_taken=time_taken,
-        has_streak=has_streak
+        has_streak=has_streak,
     )
 
     from app.achievements.xp_service import award_game_xp_idempotent, get_level_info
@@ -760,7 +858,7 @@ def complete_quiz():
         'time_taken': time_taken,
         'has_streak': has_streak
     }
-    newly_earned = XPService.check_quiz_achievements(current_user.id, quiz_data)
+    newly_earned = _check_quiz_achievements(current_user.id, quiz_data)
 
     _quiz_stats = _UserStats.query.filter_by(user_id=current_user.id).first()
     _quiz_total_xp = int(_quiz_stats.total_xp or 0) if _quiz_stats else 0

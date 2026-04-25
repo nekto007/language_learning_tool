@@ -10,8 +10,7 @@ from typing import Dict, Optional
 from datetime import datetime, timezone
 
 from app.utils.db import db
-from app.study.models import StudySession, UserXP
-from app.study.xp_service import XPService
+from app.study.models import StudySession
 
 
 class SessionService:
@@ -66,25 +65,28 @@ class SessionService:
         return session
 
     @staticmethod
-    def award_xp(user_id: int, amount: int, source: str = None, source_id: int = None) -> UserXP:
+    def award_xp(user_id: int, amount: int, source: str = None, source_id: int = None) -> int:
         """
-        Award XP to user. Delegates to the unified ``achievements.xp_service.award_xp``
-        to keep UserStatistics.total_xp as the single source of truth. Returns the
-        legacy ``UserXP`` record for API backward compatibility (kept in sync via
-        the one-time migration); callers should prefer ``UserStatistics.total_xp``.
+        Award XP to the user via the unified ``achievements.xp_service.award_xp``
+        write-path (which writes to ``UserStatistics.total_xp``). Returns the
+        user's total XP after the award.
         """
         from app.achievements.xp_service import award_xp as _unified_award_xp
+        from app.achievements.models import UserStatistics
 
         if amount and amount > 0:
             _unified_award_xp(user_id, amount, source or 'session_service')
             db.session.commit()
-        return UserXP.get_or_create(user_id)
+
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        return int(stats.total_xp or 0) if stats else 0
 
     @staticmethod
     def get_user_total_xp(user_id: int) -> int:
-        """Get total XP for user"""
-        xp_record = UserXP.query.filter_by(user_id=user_id).first()
-        return xp_record.total_xp if xp_record else 0
+        """Get total XP for user from UserStatistics (canonical source)."""
+        from app.achievements.models import UserStatistics
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        return int(stats.total_xp or 0) if stats else 0
 
     @staticmethod
     def get_session_stats(user_id: int, days: int = 7) -> Dict:

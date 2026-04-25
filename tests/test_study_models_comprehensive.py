@@ -338,33 +338,3 @@ class TestQuizDeckWordModel:
         assert deck_word.english_word == 'custom word'
 
 
-class TestUserXPModel:
-    """Test UserXP model"""
-
-    def test_get_or_create_new(self, app, test_user, db_session):
-        from app.study.models import UserXP
-        
-        xp = UserXP.get_or_create(test_user.id)
-        
-        assert xp.user_id == test_user.id
-        assert xp.total_xp == 0
-        assert xp.level == 1
-
-    def test_level_calculation(self, app, test_user, db_session):
-        from app.study.models import UserXP
-        import math
-
-        # Progressive level formula: L = int((-1 + sqrt(9 + 4*xp/25)) / 2)
-        # For 250 XP: int((-1 + sqrt(49)) / 2) = int(6/2) = 3
-        xp = UserXP(user_id=test_user.id, total_xp=250)
-        assert xp.level == 3  # Progressive formula, not linear
-
-    def test_add_xp(self, app, test_user, db_session):
-        from app.study.models import UserXP
-        
-        xp = UserXP(user_id=test_user.id, total_xp=50)
-        db_session.add(xp)
-        db_session.commit()
-        
-        xp.add_xp(75)
-        assert xp.total_xp == 125

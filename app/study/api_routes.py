@@ -19,6 +19,21 @@ from app.api.errors import api_error
 
 logger = logging.getLogger(__name__)
 
+# Inlined flashcard XP helper (formerly XPService.calculate_flashcard_xp)
+_XP_PER_CARD_REVIEWED = 5
+_XP_FLASHCARD_SESSION = 15
+
+
+def _calculate_flashcard_xp(cards_reviewed, correct_answers):
+    """Flashcard session XP: 5 XP per card + 15 XP completion bonus (only if any cards studied)."""
+    base_xp = cards_reviewed * _XP_PER_CARD_REVIEWED
+    completion_bonus = _XP_FLASHCARD_SESSION if cards_reviewed > 0 else 0
+    return {
+        'base_xp': base_xp,
+        'completion_bonus': completion_bonus,
+        'total_xp': base_xp + completion_bonus,
+    }
+
 
 @study.route('/api/get-study-items', methods=['GET'])
 @login_required
@@ -541,8 +556,6 @@ def update_study_item():
 @study.route('/api/complete-session', methods=['POST'])
 @login_required
 def complete_session():
-    from app.study.xp_service import XPService
-
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json'}), 415
     data = request.json or {}
@@ -558,9 +571,9 @@ def complete_session():
             current_user.id, session.id, session.session_type, session.duration, session.words_studied
         )
 
-        xp_breakdown = XPService.calculate_flashcard_xp(
+        xp_breakdown = _calculate_flashcard_xp(
             cards_reviewed=session.words_studied or 0,
-            correct_answers=session.correct_answers or 0
+            correct_answers=session.correct_answers or 0,
         )
         from app.achievements.xp_service import award_xp as _award_xp_unified, get_level_info
         from app.achievements.models import UserStatistics as _UserStats

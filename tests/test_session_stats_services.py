@@ -123,88 +123,61 @@ class TestSessionServiceCompleteSession:
 
 
 class TestSessionServiceAwardXP:
-    """Tests for SessionService.award_xp
-
-    Note: SessionService.award_xp now delegates to XPService.award_xp,
-    which uses UserXP.get_or_create() and add_xp() instead of creating
-    new records for each XP award.
+    """Tests for SessionService.award_xp — delegates to the unified
+    achievements.xp_service.award_xp write-path; the canonical store is
+    UserStatistics.total_xp.
     """
 
-    @patch('app.study.xp_service.db')
-    @patch('app.study.xp_service.UserXP')
-    def test_award_xp_uses_xp_service(self, mock_xp_class, mock_db):
-        """Test awarding XP delegates to XPService and updates total_xp"""
+    def test_award_xp_writes_to_user_statistics(self, db_session, test_user):
+        """Awarding XP should increase UserStatistics.total_xp."""
         from app.study.services.session_service import SessionService
+        from app.achievements.models import UserStatistics
 
-        mock_xp = MagicMock()
-        mock_xp.total_xp = 0
-        mock_xp_class.get_or_create.return_value = mock_xp
+        before = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        baseline = int(before.total_xp) if before and before.total_xp else 0
 
-        result = SessionService.award_xp(1, 100, 'quiz')
+        total = SessionService.award_xp(test_user.id, 100, 'quiz')
 
-        mock_xp_class.get_or_create.assert_called_once_with(1)
-        mock_xp.add_xp.assert_called_once_with(100)
-        mock_db.session.commit.assert_called_once()
-        assert result == mock_xp
+        after = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        assert after is not None
+        assert int(after.total_xp) == baseline + 100
+        assert total == int(after.total_xp)
 
-    @patch('app.study.xp_service.db')
-    @patch('app.study.xp_service.UserXP')
-    def test_award_xp_adds_to_existing(self, mock_xp_class, mock_db):
-        """Test awarding XP adds to existing total_xp"""
+    def test_award_xp_zero_amount_is_noop(self, db_session, test_user):
+        """Zero or negative amount should not change UserStatistics.total_xp."""
         from app.study.services.session_service import SessionService
+        from app.achievements.models import UserStatistics
 
-        mock_xp = MagicMock()
-        mock_xp.total_xp = 100
-        mock_xp_class.get_or_create.return_value = mock_xp
+        SessionService.award_xp(test_user.id, 50, 'seed')
+        baseline = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        baseline_xp = int(baseline.total_xp)
 
-        SessionService.award_xp(42, 150, 'lesson', source_id=5)
-
-        mock_xp_class.get_or_create.assert_called_once_with(42)
-        mock_xp.add_xp.assert_called_once_with(150)
-
-    @patch('app.study.xp_service.db')
-    @patch('app.study.xp_service.UserXP')
-    def test_award_xp_source_params_ignored(self, mock_xp_class, mock_db):
-        """Test that source and source_id params are accepted but not stored"""
-        from app.study.services.session_service import SessionService
-
-        mock_xp = MagicMock()
-        mock_xp_class.get_or_create.return_value = mock_xp
-
-        # Should not raise error even with source params (kept for API compatibility)
-        result = SessionService.award_xp(1, 50, 'achievement', source_id=123)
-
-        # XPService only stores total_xp, not individual transactions
-        mock_xp.add_xp.assert_called_once_with(50)
+        SessionService.award_xp(test_user.id, 0, 'noop')
+        after = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        assert int(after.total_xp) == baseline_xp
 
 
 class TestSessionServiceGetUserTotalXP:
-    """Tests for SessionService.get_user_total_xp"""
+    """Tests for SessionService.get_user_total_xp — reads UserStatistics.total_xp."""
 
-    @patch('app.study.services.session_service.UserXP')
-    def test_get_user_total_xp_with_xp(self, mock_xp_class):
-        """Test getting total XP when user has XP"""
+    def test_get_user_total_xp_with_xp(self, db_session, test_user):
         from app.study.services.session_service import SessionService
+        from app.achievements.models import UserStatistics
 
-        mock_xp_record = MagicMock()
-        mock_xp_record.total_xp = 500
-        mock_xp_class.query.filter_by.return_value.first.return_value = mock_xp_record
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=test_user.id, total_xp=500)
+            db_session.add(stats)
+        else:
+            stats.total_xp = 500
+        db_session.commit()
 
-        result = SessionService.get_user_total_xp(1)
+        assert SessionService.get_user_total_xp(test_user.id) == 500
 
-        mock_xp_class.query.filter_by.assert_called_once_with(user_id=1)
-        assert result == 500
-
-    @patch('app.study.services.session_service.UserXP')
-    def test_get_user_total_xp_no_xp(self, mock_xp_class):
-        """Test getting total XP when user has no XP"""
+    def test_get_user_total_xp_no_xp(self, db_session, test_user):
         from app.study.services.session_service import SessionService
-
-        mock_xp_class.query.filter_by.return_value.first.return_value = None
-
-        result = SessionService.get_user_total_xp(1)
-
-        assert result == 0
+        # No UserStatistics row — should return 0.
+        assert SessionService.get_user_total_xp(test_user.id) == 0
 
 
 class TestSessionServiceGetSessionStats:
@@ -516,14 +489,11 @@ class TestStatsServiceGetUserXPRank:
 
         assert 'user_id' in params
 
-    @patch('app.study.services.stats_service.UserXP')
-    def test_get_user_xp_rank_no_xp(self, mock_xp):
-        """Test getting XP rank for user with no XP"""
+    def test_get_user_xp_rank_no_xp(self, db_session, test_user):
+        """User with no UserStatistics row should have no XP rank."""
         from app.study.services.stats_service import StatsService
 
-        mock_xp.query.filter_by.return_value.first.return_value = None
-
-        result = StatsService.get_user_xp_rank(1)
+        result = StatsService.get_user_xp_rank(test_user.id)
 
         assert result is None
 

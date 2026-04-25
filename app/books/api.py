@@ -845,7 +845,6 @@ def save_reading_position():
     Save user's reading position and award XP for chapter completion
     """
     from app.books.models import UserChapterProgress, Chapter
-    from app.study.xp_service import XPService
 
     data = request.json
     book_id = data.get('book_id')
@@ -903,16 +902,16 @@ def save_reading_position():
     if chapter_completed:
         from app.achievements.xp_service import award_book_chapter_xp_idempotent
 
-        xp_breakdown = XPService.calculate_book_chapter_xp()
-        if xp_breakdown['total_xp'] > 0:
-            chapter_xp_award = award_book_chapter_xp_idempotent(
-                user_id=current_user.id,
-                book_id=book_id,
-                chapter_id=chapter.id,
-                xp=xp_breakdown['total_xp'],
-                for_date=datetime.now(UTC).date(),
-                db_session=db,
-            )
+        # Inlined former XPService.calculate_book_chapter_xp (constant 50 XP).
+        BOOK_CHAPTER_XP = 50
+        chapter_xp_award = award_book_chapter_xp_idempotent(
+            user_id=current_user.id,
+            book_id=book_id,
+            chapter_id=chapter.id,
+            xp=BOOK_CHAPTER_XP,
+            for_date=datetime.now(UTC).date(),
+            db_session=db,
+        )
 
     # Linear plan: award book-reading slot XP once per day when the
     # reading slot's completion threshold is crossed. Gated on the

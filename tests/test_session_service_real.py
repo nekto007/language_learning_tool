@@ -157,68 +157,6 @@ class TestCompleteSession:
         assert saved.end_time is not None
 
 
-class TestAwardXP:
-    """Test award_xp method
-
-    NOTE: This method has bugs - UserXP model doesn't have xp_amount, source, source_id, earned_at fields.
-    Tests are skipped until bugs are fixed.
-    """
-
-    @pytest.mark.skip(reason="Service bug: UserXP model doesn't support these fields")
-    def test_awards_xp_to_user(self, db_session, test_user):
-        """Test awards XP (SKIPPED - service bug)"""
-        from app.study.services.session_service import SessionService
-
-        xp = SessionService.award_xp(test_user.id, amount=50, source='quiz')
-
-        assert xp.xp_amount == 50
-
-    @pytest.mark.skip(reason="Service bug: UserXP field mismatch")
-    def test_tracks_xp_source(self, db_session, test_user):
-        """Test tracks XP source (SKIPPED - service bug)"""
-        from app.study.services.session_service import SessionService
-
-        xp = SessionService.award_xp(
-            test_user.id,
-            amount=30,
-            source='lesson',
-            source_id=123
-        )
-
-        assert xp.source == 'lesson'
-        assert xp.source_id == 123
-
-
-class TestGetUserTotalXP:
-    """Test get_user_total_xp method
-
-    NOTE: get_user_total_xp() has a bug - it uses UserXP.xp_amount which doesn't exist.
-    UserXP model only has total_xp field. Test is skipped until bug is fixed.
-    """
-
-    @pytest.mark.skip(reason="Service bug: get_user_total_xp uses UserXP.xp_amount but should use total_xp")
-    def test_returns_zero_for_new_user(self, db_session, test_user):
-        """Test returns 0 for user with no XP (SKIPPED - service bug)"""
-        from app.study.services.session_service import SessionService
-
-        total = SessionService.get_user_total_xp(test_user.id)
-
-        assert total == 0
-
-    @pytest.mark.skip(reason="Service bug: award_xp uses wrong fields")
-    def test_sums_all_xp_for_user(self, db_session, test_user):
-        """Test sums all XP records (SKIPPED - depends on buggy award_xp)"""
-        from app.study.services.session_service import SessionService
-
-        SessionService.award_xp(test_user.id, 50, 'quiz')
-        SessionService.award_xp(test_user.id, 30, 'lesson')
-        SessionService.award_xp(test_user.id, 20, 'cards')
-
-        total = SessionService.get_user_total_xp(test_user.id)
-
-        assert total == 100
-
-
 class TestGetSessionStats:
     """Test get_session_stats method"""
 
