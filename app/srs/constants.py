@@ -39,7 +39,7 @@ MAX_SESSION_ATTEMPTS = 3  # Max shows per card per session
 # These define how many minutes until the card is shown again during learning
 
 LEARNING_STEPS = [1, 10]  # [1 minute, 10 minutes] - steps for NEW cards
-RELEARNING_STEPS = [10]   # [10 minutes] - steps for failed REVIEW cards
+RELEARNING_STEPS = [10, 1440]   # [10 minutes, 1 day] - steps for failed REVIEW cards
 
 # Graduating interval - when card graduates from LEARNING to REVIEW
 GRADUATING_INTERVAL = 1  # days
@@ -95,6 +95,7 @@ EF_INCREASE_KNOW = 0.15
 LAPSE_NEW_INTERVAL_PERCENT = 0  # New interval = 0% of old (i.e., reset to 1 day)
 LAPSE_MINIMUM_INTERVAL = 1      # Minimum interval after lapse (days)
 LEECH_THRESHOLD = 6             # Card becomes a "leech" after 6 lapses (was 8)
+LEECH_SUSPEND_DAYS = 7          # When leech threshold reached, bury card for 7 days
 
 # =============================================================================
 # CARD STATUSES (UserWord level)

@@ -601,12 +601,18 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
 
         if rating == RATING_DONT_KNOW:
             # Lapse: go to RELEARNING
+            from app.srs.constants import LEECH_THRESHOLD, LEECH_SUSPEND_DAYS
+            previous_lapses = self.lapses or 0
             self.state = CardState.RELEARNING.value
-            self.lapses = (self.lapses or 0) + 1
+            self.lapses = previous_lapses + 1
             self.step_index = 0
             self.ease_factor = max(min_ef, old_ef - ef_lapse)
             # New interval will be set after relearning
             self.interval = min_interval
+            # Auto-suspend on crossing the leech threshold so the card stops
+            # showing daily until the user revisits it via the leech CTA.
+            if self.lapses >= LEECH_THRESHOLD and previous_lapses < LEECH_THRESHOLD:
+                self.buried_until = datetime.now(timezone.utc) + timedelta(days=LEECH_SUSPEND_DAYS)
 
         elif rating == RATING_DOUBT:
             # Hard: small interval increase, ease decrease

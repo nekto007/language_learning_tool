@@ -38,6 +38,8 @@ from app.srs.constants import (
     INTERVAL_MULTIPLIER_HARD,
     INTERVAL_MULTIPLIER_EASY,
     LAPSE_MINIMUM_INTERVAL,
+    LEECH_THRESHOLD,
+    LEECH_SUSPEND_DAYS,
     DIRECTION_ENG_RUS,
     DIRECTION_RUS_ENG,
 )
@@ -294,15 +296,21 @@ class UnifiedSRSService:
 
         if rating == RATING_DONT_KNOW:
             # Lapse: go to RELEARNING
-            return {
+            new_lapses = lapses + 1
+            result = {
                 'state': CardState.RELEARNING.value,
                 'step_index': 0,
                 'interval': LAPSE_MINIMUM_INTERVAL,
                 'ease_factor': max(MIN_EASE_FACTOR, old_ef - EF_DECREASE_LAPSE),
-                'lapses': lapses + 1,
+                'lapses': new_lapses,
                 'requeue_minutes': RELEARNING_STEPS[0] if RELEARNING_STEPS else 10,
                 'days_until_review': 0
             }
+            # Auto-suspend leech cards: when lapse count crosses the threshold,
+            # bury the card so it stops showing daily and demotivating the user.
+            if new_lapses >= LEECH_THRESHOLD and lapses < LEECH_THRESHOLD:
+                result['bury_days'] = LEECH_SUSPEND_DAYS
+            return result
         elif rating == RATING_DOUBT:
             # Hard: small increase, ease penalty
             new_interval = max(old_interval + 1, round(old_interval * INTERVAL_MULTIPLIER_HARD))
@@ -450,6 +458,10 @@ class UnifiedSRSService:
             card.lapses = update_result['lapses']
             card.last_reviewed = datetime.now(timezone.utc)
 
+            bury_days = update_result.get('bury_days')
+            if bury_days:
+                card.buried_until = datetime.now(timezone.utc) + timedelta(days=bury_days)
+
             # Update correct/incorrect count
             if rating >= RATING_DOUBT:
                 card.correct_count = (card.correct_count or 0) + 1
@@ -592,6 +604,10 @@ class UnifiedSRSService:
             progress.ease_factor = update_result['ease_factor']
             progress.lapses = update_result['lapses']
             progress.last_reviewed = datetime.now(timezone.utc)
+
+            bury_days = update_result.get('bury_days')
+            if bury_days:
+                progress.buried_until = datetime.now(timezone.utc) + timedelta(days=bury_days)
 
             # Set first_reviewed on first review
             if progress.first_reviewed is None:
