@@ -118,7 +118,6 @@ def _compute_linear_slot_completion(
     # includes curriculum card-lesson reviews that belong to the
     # curriculum slot, not the /study-based SRS slot.
     summary_signals = {
-        'curriculum': int(daily_summary.get('lessons_count', 0) or 0) > 0,
         'srs': (
             int(daily_summary.get('srs_review_reviewed', 0) or 0) > 0
             or srs_words_reviewed > 0

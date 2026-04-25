@@ -422,10 +422,13 @@ class TestComputePlanStepsLinear:
             self._plan(baseline_slots), summary,
         )
 
-        # Reading has no summary fallback; it relies on slot.completed
-        # (which is gated on the linear_book_reading XP event).
-        assert plan_completion == {'curriculum': True, 'srs': True, 'reading': True}
-        assert steps_done == 3
+        # Curriculum has no summary fallback: lessons_count is too broad
+        # (fires on any lesson, not just the slot's target). Completion is
+        # authoritative from slot.completed set by build_curriculum_slot().
+        # Reading has no summary fallback either; it relies on slot.completed
+        # (gated on the linear_book_reading XP event).
+        assert plan_completion == {'curriculum': False, 'srs': True, 'reading': True}
+        assert steps_done == 2
         assert steps_total == 3
 
     def test_reading_summary_signal_does_not_promote_slot(self):

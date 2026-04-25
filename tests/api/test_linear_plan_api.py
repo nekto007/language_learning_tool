@@ -166,16 +166,16 @@ class TestDailyPlanApiLinearShape:
         assert data['continuation']['available'] is True
 
     def test_linear_day_secured_true_via_summary_signals(self, authenticated_client):
-        # Reading has no summary fallback (see streak_service), so the
-        # plan's reading slot must report completed=True for this scenario.
-        plan = _linear_plan(reading_done=True)
+        # Curriculum completion is authoritative (slot.completed=True set by
+        # build_curriculum_slot via XP StreakEvent) — no lessons_count fallback.
+        # SRS still has a summary fallback (srs_review_reviewed > 0).
+        # Reading has no summary fallback; slot.completed must be True.
+        plan = _linear_plan(curriculum_done=True, reading_done=True)
         summary = {
             **_empty_summary(),
-            'lessons_count': 1,
             'words_reviewed': 10,
             'srs_words_reviewed': 10,
             'srs_review_reviewed': 10,
-            'books_read': ['Book A'],
         }
         with patch(
             'app.daily_plan.service.get_daily_plan_unified', return_value=plan,

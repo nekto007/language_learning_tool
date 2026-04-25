@@ -95,16 +95,24 @@ def find_next_lesson_linear(user_id: int, db: Any) -> Optional[Lessons]:
     return None
 
 
-def get_user_level_progress(user_id: int, db: Any) -> LevelProgress:
+def get_user_level_progress(
+    user_id: int,
+    db: Any,
+    next_lesson: Optional[Lessons] = None,
+) -> LevelProgress:
     """Return current-level progress metrics for the linear dashboard.
 
     "Current level" is the level of the next lesson returned by
     find_next_lesson_linear. When the user has completed everything,
     fall back to the highest eligible level and report it fully complete.
+
+    ``next_lesson`` may be passed by the plan assembler to avoid a second
+    DB round-trip when it already resolved the next lesson.
     """
     min_order = _user_min_level_order(user_id, db)
 
-    next_lesson = find_next_lesson_linear(user_id, db)
+    if next_lesson is None:
+        next_lesson = find_next_lesson_linear(user_id, db)
 
     if next_lesson is not None:
         module = db.session.get(Module, next_lesson.module_id)
