@@ -286,11 +286,11 @@
 - Modify: `app/achievements/streak_service.py` (если helper нужно расширить)
 - Modify: `tests/daily_plan/test_linear_completion.py`
 
-- [ ] Ввести `maybe_record_linear_plan_completion(user_id, plan, plan_completion, for_date, db)` — если `compute_day_secured_from_activity(plan, plan_completion) == True`, вызвать `record_plan_completion(user_id, db)` и `check_rank_up(user_id, db)`
-- [ ] Dedup через `StreakEvent(event_type='linear_plan_completed', details={'date': ...})` — один раз в день
-- [ ] Вызвать helper в `/api/daily-status` при обнаружении `day_secured=True` (там где уже `write_secured_at`)
-- [ ] Write tests: linear user завершает 3 required slot — `plans_completed_total` инкрементится на 1; повторный вызов API — не инкрементит; rank_up триггерится при переходе порога
-- [ ] Run pytest — must pass before task 10
+- [x] Ввести `maybe_record_linear_plan_completion(user_id, plan, plan_completion, for_date, db)` в `app/daily_plan/linear/xp.py` — гейтит на `is_linear_user` + проверку всех baseline_slots; делегирует в `record_plan_completion`, который сам идемпотентен и обновляет ранг
+- [x] Dedup через существующий `StreakEvent(event_type='plan_completed')` per (user, date) внутри `record_plan_completion` — отдельный `linear_plan_completed` маркер не нужен, реиспользуем mission-канал чтобы переключение режимов в течение дня не инкрементировало дважды
+- [x] Вызвать helper в `/api/daily-status` (внутри блока `if day_secured` для `effective_mode == 'linear'`) и `/api/daily-plan/next-slot` (рядом с `write_secured_at`)
+- [x] Write tests: `tests/daily_plan/test_linear_completion.py` — секьюрный день инкрементит `plans_completed_total` один раз, повторный вызов идемпотентен, незакрытый день не инкрементит, mission-юзер игнорируется, rank_up возвращается при переходе порога explorer
+- [x] Run pytest — must pass before task 10
 
 ---
 

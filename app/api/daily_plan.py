@@ -97,6 +97,13 @@ def daily_status():
         try:
             emit_minimum_completed(user_id, mission_type, today)
             write_secured_at(user_id, today, mission_type)
+            if effective_mode == 'linear':
+                from app.daily_plan.linear.xp import (
+                    maybe_record_linear_plan_completion,
+                )
+                maybe_record_linear_plan_completion(
+                    user_id, plan, plan_completion, today, db,
+                )
             db.session.commit()
         except Exception:
             logger.warning("secured_at write failed in daily_status", exc_info=True)
@@ -412,6 +419,12 @@ def daily_plan_next_slot():
         try:
             emit_minimum_completed(user.id, None, today)
             write_secured_at(user.id, today, None)
+            from app.daily_plan.linear.xp import (
+                maybe_record_linear_plan_completion,
+            )
+            maybe_record_linear_plan_completion(
+                user.id, plan, plan_completion, today, db,
+            )
             db.session.commit()
             secured_just_now = not was_already_secured
         except Exception:
