@@ -563,6 +563,7 @@ def complete_session():
 
     session = StudySession.query.get(session_id)
     if session and session.user_id == current_user.id:
+        was_already_completed = session.end_time is not None
         session.complete_session()
         db.session.commit()
 
@@ -578,7 +579,7 @@ def complete_session():
         from app.achievements.xp_service import award_xp as _award_xp_unified, get_level_info
         from app.achievements.models import UserStatistics as _UserStats
         xp_award = None
-        if xp_breakdown['total_xp'] > 0:
+        if xp_breakdown['total_xp'] > 0 and not was_already_completed:
             xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_cards_session')
             db.session.commit()
 

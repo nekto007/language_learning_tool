@@ -773,11 +773,15 @@ def complete_quiz():
     source = data.get('source')
     plan_from = data.get('from')
     plan_slot = data.get('slot')
-    score = data.get('score', 0)
-    total_questions = data.get('total_questions', 0)
-    correct_answers = data.get('correct_answers', 0)
-    time_taken = data.get('time_taken', 0)
-    has_streak = data.get('has_streak', False)
+    try:
+        total_questions = max(0, min(int(data.get('total_questions', 0) or 0), 200))
+        correct_answers = max(0, int(data.get('correct_answers', 0) or 0))
+        time_taken = max(0, int(data.get('time_taken', 0) or 0))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Invalid quiz data'}), 400
+    correct_answers = min(correct_answers, total_questions)
+    score = round((correct_answers / total_questions) * 100, 2) if total_questions > 0 else 0
+    has_streak = bool(data.get('has_streak', False))
 
     if session_id:
         session = StudySession.query.get(session_id)

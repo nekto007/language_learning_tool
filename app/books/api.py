@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from flask import Blueprint, jsonify, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 from app.books.models import Bookmark, Chapter
 from app.study.models import UserWord
@@ -883,12 +884,26 @@ def save_reading_position():
     previous_offset = progress.offset_pct if progress else 0.0
 
     if not progress:
-        progress = UserChapterProgress(
-            user_id=current_user.id,
-            chapter_id=chapter.id,
-            offset_pct=position
-        )
-        db.session.add(progress)
+        try:
+            with db.session.begin_nested():
+                progress = UserChapterProgress(
+                    user_id=current_user.id,
+                    chapter_id=chapter.id,
+                    offset_pct=position
+                )
+                db.session.add(progress)
+        except IntegrityError:
+            progress = (
+                db.session.query(UserChapterProgress)
+                .filter_by(user_id=current_user.id, chapter_id=chapter.id)
+                .with_for_update()
+                .first()
+            )
+            previous_offset = progress.offset_pct if progress else 0.0
+            was_incomplete = not progress or progress.offset_pct < 1.0
+            if progress:
+                progress.offset_pct = position
+                progress.updated_at = datetime.now(UTC)
         db.session.flush()
     else:
         progress.offset_pct = position
@@ -901,6 +916,7 @@ def save_reading_position():
     chapter_xp_award = None
     if chapter_completed:
         from app.achievements.xp_service import award_book_chapter_xp_idempotent
+        from app.utils.time_utils import get_user_local_date
 
         # Inlined former XPService.calculate_book_chapter_xp (constant 50 XP).
         BOOK_CHAPTER_XP = 50
@@ -909,7 +925,7 @@ def save_reading_position():
             book_id=book_id,
             chapter_id=chapter.id,
             xp=BOOK_CHAPTER_XP,
-            for_date=datetime.now(UTC).date(),
+            for_date=get_user_local_date(current_user.id, db),
             db_session=db,
         )
 
