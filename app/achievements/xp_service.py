@@ -437,12 +437,14 @@ def award_referral_xp_idempotent(
     if already is not None:
         return None
 
+    from app.utils.time_utils import get_user_local_date
+
     result = award_xp(referrer_id, xp, 'referral')
 
     db_obj.session.add(StreakEvent(
         user_id=referrer_id,
         event_type=REFERRAL_XP_EVENT_TYPE,
-        event_date=date.today(),
+        event_date=get_user_local_date(referrer_id, db_obj),
         coins_delta=0,
         details={
             'referee_id': referee_id,

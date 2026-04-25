@@ -646,12 +646,13 @@ def complete_matching_game():
                 verified_session_id = _sid
     xp_award = None
     if xp_breakdown['total_xp'] > 0 and verified_session_id is not None:
+        from app.utils.time_utils import get_user_local_date
         xp_award = award_game_xp_idempotent(
             current_user.id,
             verified_session_id,
             'matching',
             xp_breakdown['total_xp'],
-            datetime.now(timezone.utc).date(),
+            get_user_local_date(current_user.id, db),
         )
         db.session.commit()
     _matching_stats = _UserStats.query.filter_by(user_id=current_user.id).first()
@@ -844,12 +845,13 @@ def complete_quiz():
                 verified_session_id = _sid
     xp_award = None
     if xp_breakdown['total_xp'] > 0 and verified_session_id is not None:
+        from app.utils.time_utils import get_user_local_date
         xp_award = award_game_xp_idempotent(
             current_user.id,
             verified_session_id,
             'quiz',
             xp_breakdown['total_xp'],
-            datetime.now(timezone.utc).date(),
+            get_user_local_date(current_user.id, db),
         )
         db.session.commit()
 
