@@ -705,19 +705,23 @@ class TestCompleteMatchingGame:
         assert response.status_code in [200, 400]
 
     def test_awards_xp(self, authenticated_client, user_xp, db_session, test_words_list):
-        """Test that XP is awarded for completing game"""
-        from app.study.models import UserWord
+        """XP is awarded only when a verified session_id is provided."""
+        from app.study.models import UserWord, StudySession
 
-        # Create user words for the game
         word_ids = []
         for word in test_words_list[:8]:
             user_word = UserWord.query.filter_by(user_id=user_xp.user_id, word_id=word.id).first()
             if not user_word:
                 user_word = UserWord(user_id=user_xp.user_id, word_id=word.id)
-                user_word.status = 'learning'  # Set status after creation
+                user_word.status = 'learning'
                 db_session.add(user_word)
             word_ids.append(word.id)
         db_session.commit()
+
+        owned = StudySession(user_id=user_xp.user_id, session_type='matching')
+        db_session.add(owned)
+        db_session.commit()
+        owned_id = owned.id
 
         with patch('app.study.game_routes._calculate_matching_xp') as mock_calc, \
              patch('app.achievements.xp_service.award_xp') as mock_award:
@@ -730,6 +734,7 @@ class TestCompleteMatchingGame:
             )
 
             game_data = {
+                'session_id': owned_id,
                 'difficulty': 'medium',
                 'pairs_matched': 8,
                 'total_pairs': 8,
@@ -745,6 +750,37 @@ class TestCompleteMatchingGame:
             assert data['success'] is True
             mock_calc.assert_called_once()
             mock_award.assert_called_once()
+
+    def test_no_xp_without_verified_session(self, authenticated_client, user_xp, db_session, test_words_list):
+        """Submitting a fake/missing session_id must not mint XP."""
+        from app.study.models import UserWord
+
+        for word in test_words_list[:4]:
+            uw = UserWord.query.filter_by(user_id=user_xp.user_id, word_id=word.id).first()
+            if not uw:
+                uw = UserWord(user_id=user_xp.user_id, word_id=word.id)
+                uw.status = 'learning'
+                db_session.add(uw)
+        db_session.commit()
+
+        with patch('app.study.game_routes._calculate_matching_xp') as mock_calc, \
+             patch('app.achievements.xp_service.award_xp') as mock_award:
+            mock_calc.return_value = {'total_xp': 100}
+
+            response = authenticated_client.post('/study/api/complete-matching-game', json={
+                'session_id': 9999999,
+                'difficulty': 'medium',
+                'pairs_matched': 4,
+                'total_pairs': 4,
+                'time_taken': 30,
+                'moves': 8,
+                'word_ids': [],
+            })
+
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data['xp_earned'] == 0
+            mock_award.assert_not_called()
 
     def test_requires_authentication(self, client):
         """Test that authentication is required"""
@@ -829,8 +865,13 @@ class TestCompleteQuiz:
         db_session.refresh(quiz_deck_with_words)
         assert quiz_deck_with_words.average_score == 80
 
-    def test_awards_xp(self, authenticated_client, quiz_deck_with_words, user_xp):
-        """Test that XP is awarded"""
+    def test_awards_xp(self, authenticated_client, quiz_deck_with_words, user_xp, db_session):
+        """XP is awarded when a verified session_id accompanies the quiz completion."""
+        owned = StudySession(user_id=user_xp.user_id, session_type='quiz')
+        db_session.add(owned)
+        db_session.commit()
+        owned_id = owned.id
+
         with patch('app.study.game_routes._calculate_quiz_xp') as mock_calc, \
              patch('app.achievements.xp_service.award_xp') as mock_award:
 
@@ -842,6 +883,7 @@ class TestCompleteQuiz:
             )
 
             quiz_data = {
+                'session_id': owned_id,
                 'deck_id': quiz_deck_with_words.id,
                 'total_questions': 5,
                 'correct_answers': 5,

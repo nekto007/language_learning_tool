@@ -116,15 +116,18 @@ class TestAwardGameXpIdempotent:
         b = award_game_xp_idempotent(user.id, 400, 'quiz', 25, date(2026, 4, 25))
         assert a is not None and b is not None
 
-    def test_none_session_does_not_write_event(self, app, db_session):
+    def test_none_session_rejects_award(self, app, db_session):
+        """No verified session => no XP. Prevents minting XP via fake session_ids."""
         user = _mk_user(db_session)
         result = award_game_xp_idempotent(
             user.id, session_id=None, game_type='matching', xp=25, for_date=date(2026, 4, 25),
         )
-        assert result is not None
+        assert result is None
         assert StreakEvent.query.filter_by(
             user_id=user.id, event_type=GAME_XP_EVENT_TYPE,
         ).count() == 0
+        stats = UserStatistics.query.filter_by(user_id=user.id).first()
+        assert (stats.total_xp if stats else 0) == 0
 
     def test_zero_xp_is_noop(self, app, db_session):
         user = _mk_user(db_session)

@@ -634,11 +634,21 @@ def complete_matching_game():
         score=score_percentage,
         total_pairs=total_pairs,
     )
+    verified_session_id = None
+    if session_id:
+        try:
+            _sid = int(session_id)
+        except (TypeError, ValueError):
+            _sid = None
+        if _sid is not None:
+            _sess = StudySession.query.get(_sid)
+            if _sess and _sess.user_id == current_user.id:
+                verified_session_id = _sid
     xp_award = None
-    if xp_breakdown['total_xp'] > 0:
+    if xp_breakdown['total_xp'] > 0 and verified_session_id is not None:
         xp_award = award_game_xp_idempotent(
             current_user.id,
-            int(session_id) if session_id else None,
+            verified_session_id,
             'matching',
             xp_breakdown['total_xp'],
             datetime.now(timezone.utc).date(),
@@ -818,11 +828,21 @@ def complete_quiz():
 
     from app.achievements.xp_service import award_game_xp_idempotent, get_level_info
     from app.achievements.models import UserStatistics as _UserStats
+    verified_session_id = None
+    if session_id:
+        try:
+            _sid = int(session_id)
+        except (TypeError, ValueError):
+            _sid = None
+        if _sid is not None:
+            _sess = StudySession.query.get(_sid)
+            if _sess and _sess.user_id == current_user.id:
+                verified_session_id = _sid
     xp_award = None
-    if xp_breakdown['total_xp'] > 0:
+    if xp_breakdown['total_xp'] > 0 and verified_session_id is not None:
         xp_award = award_game_xp_idempotent(
             current_user.id,
-            int(session_id) if session_id else None,
+            verified_session_id,
             'quiz',
             xp_breakdown['total_xp'],
             datetime.now(timezone.utc).date(),

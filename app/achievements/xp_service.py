@@ -463,44 +463,43 @@ def award_game_xp_idempotent(
 ) -> XPAward | None:
     """Award game-completion XP once per (user, session_id, game_type).
 
-    ``session_id`` is the ``StudySession.id`` that bounds the game attempt.
-    When ``session_id`` is None the dedup falls back to the caller — no
-    ledger row is written and XP is awarded unconditionally (legacy path).
-    Caller commits.
+    ``session_id`` is the ``StudySession.id`` that bounds the game attempt
+    and MUST be verified by the caller to belong to ``user_id`` before this
+    function is called — otherwise an attacker could mint XP by submitting
+    arbitrary integers. When ``session_id`` is None (no verified session),
+    no XP is awarded. Caller commits.
     """
     from app.achievements.models import StreakEvent
     from app.utils.db import db
 
     db_obj = db_session if db_session is not None else db
 
-    if xp <= 0:
+    if xp <= 0 or session_id is None:
         return None
 
-    if session_id is not None:
-        already = db_obj.session.query(StreakEvent).filter(
-            StreakEvent.user_id == user_id,
-            StreakEvent.event_type == GAME_XP_EVENT_TYPE,
-            StreakEvent.details['session_id'].astext == str(session_id),
-            StreakEvent.details['game_type'].astext == game_type,
-        ).first()
-        if already is not None:
-            return None
+    already = db_obj.session.query(StreakEvent).filter(
+        StreakEvent.user_id == user_id,
+        StreakEvent.event_type == GAME_XP_EVENT_TYPE,
+        StreakEvent.details['session_id'].astext == str(session_id),
+        StreakEvent.details['game_type'].astext == game_type,
+    ).first()
+    if already is not None:
+        return None
 
     result = award_xp(user_id, xp, f'study_{game_type}_game')
 
-    if session_id is not None:
-        db_obj.session.add(StreakEvent(
-            user_id=user_id,
-            event_type=GAME_XP_EVENT_TYPE,
-            event_date=for_date,
-            coins_delta=0,
-            details={
-                'session_id': session_id,
-                'game_type': game_type,
-                'xp': result.xp_awarded,
-            },
-        ))
-        db_obj.session.flush()
+    db_obj.session.add(StreakEvent(
+        user_id=user_id,
+        event_type=GAME_XP_EVENT_TYPE,
+        event_date=for_date,
+        coins_delta=0,
+        details={
+            'session_id': session_id,
+            'game_type': game_type,
+            'xp': result.xp_awarded,
+        },
+    ))
+    db_obj.session.flush()
     return result
 
 
