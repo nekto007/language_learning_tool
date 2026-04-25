@@ -12,10 +12,37 @@ Models:
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import Column, Integer, String, Text, Boolean, Float, DateTime, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
-from app.srs.constants import MASTERED_THRESHOLD_DAYS as _MASTERED_DAYS, MATURE_THRESHOLD_DAYS as _MATURE_DAYS
+from app.srs.constants import MATURE_THRESHOLD_DAYS as _MATURE_DAYS, DEFAULT_EASE_FACTOR, MIN_EASE_FACTOR
 from app.srs.mixins import SRSFieldsMixin
 from app.utils.db import db
 from app.utils.types import JSONBCompat
+
+
+def compute_initial_ease_for_difficulty(difficulty) -> float:
+    """
+    Map a GrammarExercise.difficulty (int 1-3, or normalized float 0..1)
+    to a starting SM-2 ease factor.
+
+    Harder exercises start with a lower ease so they require more correct
+    answers before intervals scale up. Formula:
+        ease = DEFAULT_EASE_FACTOR * (1.1 - normalized * 0.2)
+    where normalized = (difficulty - 1) / 2 for ints, or difficulty itself
+    for floats already in [0, 1]. Clamped at MIN_EASE_FACTOR.
+    """
+    if difficulty is None:
+        return DEFAULT_EASE_FACTOR
+    try:
+        d = float(difficulty)
+    except (TypeError, ValueError):
+        return DEFAULT_EASE_FACTOR
+    if isinstance(difficulty, bool):
+        return DEFAULT_EASE_FACTOR
+    if isinstance(difficulty, int) or d > 1.0:
+        d = max(0.0, min(1.0, (d - 1.0) / 2.0))
+    else:
+        d = max(0.0, min(1.0, d))
+    ease = DEFAULT_EASE_FACTOR * (1.1 - d * 0.2)
+    return max(MIN_EASE_FACTOR, ease)
 
 
 class GrammarTopic(db.Model):
@@ -322,9 +349,12 @@ class UserGrammarExercise(SRSFieldsMixin, db.Model):
     """
     __tablename__ = 'user_grammar_exercises'
 
-    # Thresholds for mature/mastered — canonical source: app/srs/constants.py
+    # Thresholds for mature/mastered.
+    # Grammar exercises use a shorter mastery horizon than vocabulary words:
+    # 30 days ≈ 6 successful reviews with default ease=2.5; achievable in
+    # 2-3 months of regular practice. Words keep the canonical 180-day threshold.
     MATURE_THRESHOLD_DAYS = _MATURE_DAYS
-    MASTERED_THRESHOLD_DAYS = _MASTERED_DAYS
+    MASTERED_THRESHOLD_DAYS = 30
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
@@ -395,6 +425,9 @@ class UserGrammarExercise(SRSFieldsMixin, db.Model):
         progress = cls.query.filter_by(user_id=user_id, exercise_id=exercise_id).first()
         if not progress:
             progress = cls(user_id=user_id, exercise_id=exercise_id)
+            exercise = GrammarExercise.query.get(exercise_id)
+            if exercise is not None:
+                progress.ease_factor = compute_initial_ease_for_difficulty(exercise.difficulty)
             db.session.add(progress)
             db.session.flush()
         return progress

@@ -16,6 +16,9 @@ class SRSFieldsMixin:
         state, interval, next_review, correct_count, incorrect_count
     """
 
+    def _mastered_threshold(self) -> int:
+        return getattr(self, 'MASTERED_THRESHOLD_DAYS', MASTERED_THRESHOLD_DAYS)
+
     def classify(self) -> str:
         """
         Classify this SRS item into a display category.
@@ -27,7 +30,7 @@ class SRSFieldsMixin:
         if state in ('learning', 'relearning'):
             return 'learning'
         if state == 'review':
-            if self.interval and self.interval >= MASTERED_THRESHOLD_DAYS:
+            if self.interval and self.interval >= self._mastered_threshold():
                 return 'mastered'
             return 'review'
         return 'new'
@@ -51,7 +54,7 @@ class SRSFieldsMixin:
         return (
             self.state == 'review'
             and self.interval is not None
-            and self.interval >= MASTERED_THRESHOLD_DAYS
+            and self.interval >= self._mastered_threshold()
         )
 
     @property
