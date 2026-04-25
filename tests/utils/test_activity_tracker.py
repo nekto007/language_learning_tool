@@ -120,6 +120,62 @@ def test_boundary_inclusive_start_exclusive_end(db_session, test_user, today_win
     assert has_learning_activity(test_user.id, start, end) is False
 
 
+def test_xp_linear_streak_event_counts(db_session, test_user, today_window):
+    """Linear-only user with xp_linear StreakEvent registers as active."""
+    from datetime import date as _date
+    from app.achievements.models import StreakEvent
+
+    start, end = today_window
+    event = StreakEvent(
+        user_id=test_user.id,
+        event_type='xp_linear',
+        event_date=_date.today(),
+        details={'source': 'linear_curriculum_card'},
+        created_at=start + timedelta(hours=3),
+    )
+    db_session.add(event)
+    db_session.commit()
+
+    assert has_learning_activity(test_user.id, start, end) is True
+
+
+def test_xp_linear_outside_window_excluded(db_session, test_user, today_window):
+    from datetime import date as _date, timedelta as _td
+    from app.achievements.models import StreakEvent
+
+    start, end = today_window
+    yesterday_event = StreakEvent(
+        user_id=test_user.id,
+        event_type='xp_linear',
+        event_date=_date.today() - _td(days=1),
+        details={'source': 'linear_curriculum_card'},
+        created_at=start - timedelta(hours=2),
+    )
+    db_session.add(yesterday_event)
+    db_session.commit()
+
+    assert has_learning_activity(test_user.id, start, end) is False
+
+
+def test_non_linear_streak_event_ignored(db_session, test_user, today_window):
+    """Only event_type starting with 'xp_linear' counts; other events do not."""
+    from datetime import date as _date
+    from app.achievements.models import StreakEvent
+
+    start, end = today_window
+    other = StreakEvent(
+        user_id=test_user.id,
+        event_type='xp_curriculum_lesson',
+        event_date=_date.today(),
+        details={'lesson_id': 1},
+        created_at=start + timedelta(hours=4),
+    )
+    db_session.add(other)
+    db_session.commit()
+
+    assert has_learning_activity(test_user.id, start, end) is False
+
+
 def test_telegram_has_activity_today_delegates(db_session, test_user, monkeypatch):
     """telegram.queries.has_activity_today must delegate to canonical helper."""
     import app.utils.activity_tracker as tracker

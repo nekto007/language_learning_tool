@@ -300,10 +300,10 @@
 - Modify: `app/utils/activity_tracker.py`
 - Modify: `tests/test_activity_tracker.py`
 
-- [ ] Добавить 7-й источник: `StreakEvent.query.filter(StreakEvent.user_id == user_id, StreakEvent.event_type.like('xp_linear%'), StreakEvent.event_date >= start_utc, StreakEvent.event_date < end_utc).exists()`
-- [ ] Убедиться, что DAU/WAU/MAU (`_active_user_ids_for_date`) остаётся согласованным — либо синхронно добавить туда же, либо документировать расхождение (DAU = 7 source, streak = 7 sources с +StreakEvent)
-- [ ] Write tests: linear user делает только `/api/*` calls → `has_learning_activity=True` если есть `xp_linear` event за дату; нет events → False; legacy источники продолжают работать
-- [ ] Run pytest — must pass before task 11
+- [x] Добавить 7-й источник: `StreakEvent.query.filter(StreakEvent.user_id == user_id, StreakEvent.event_type.like('xp_linear%'), StreakEvent.created_at >= start_naive, StreakEvent.created_at < end_naive).exists()` (используется `created_at` вместо `event_date` для сохранения timestamp-precision границ окна, как у остальных 6 источников)
+- [x] DAU/WAU/MAU (`_active_user_ids_for_date`) намеренно остаётся на 6 legacy-источниках для исторической сравнимости; расхождение задокументировано в module docstring `app/utils/activity_tracker.py` — 7-й источник используется только для streak/telegram-логики
+- [x] Write tests: `tests/utils/test_activity_tracker.py` — `xp_linear` event в окне → True; вне окна → False; не-`xp_linear` event (например `xp_curriculum_lesson`) → False
+- [x] Run pytest — must pass before task 11
 
 ---
 
