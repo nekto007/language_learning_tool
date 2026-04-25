@@ -954,9 +954,11 @@ def save_reading_position():
         if position >= READ_PROGRESS_THRESHOLD and advanced > 0:
             pref = get_user_reading_preference(current_user.id, db)
             if pref is not None and pref.book_id == book_id:
-                with db.session.begin_nested():
-                    if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
-                        maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                from app.books.reading_session import has_min_reading_time_today
+                if has_min_reading_time_today(current_user.id, book_id, db):
+                    with db.session.begin_nested():
+                        if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
+                            maybe_award_linear_perfect_day(current_user.id, db_session=db)
     except Exception:
         logger.warning(
             "linear_xp: book-reading award failed user=%s",
@@ -981,3 +983,66 @@ def save_reading_position():
         })
 
     return jsonify(response_data)
+
+
+# ============================================================================
+# Reading session — time-on-page tracking for the linear plan reading slot
+# ============================================================================
+
+@books_api.route('/api/books/reading-session/start', methods=['POST'])
+@login_required
+def reading_session_start():
+    """Open a reading session. Frontend calls this on chapter scroll-in."""
+    from app.books.reading_session import start_session
+
+    data = request.get_json(silent=True) or {}
+    chapter_id = data.get('chapter_id')
+    if not chapter_id:
+        return jsonify({'success': False, 'error': 'chapter_id is required'}), 400
+    try:
+        chapter_id = int(chapter_id)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'invalid chapter_id'}), 400
+
+    chapter = Chapter.query.get(chapter_id)
+    if chapter is None:
+        return jsonify({'success': False, 'error': 'chapter not found'}), 404
+
+    session = start_session(current_user.id, chapter_id, db)
+    db.session.commit()
+    return jsonify({'success': True, 'session_id': session.id})
+
+
+@books_api.route('/api/books/reading-session/end', methods=['POST'])
+@login_required
+def reading_session_end():
+    """Close a reading session. Frontend calls this on page-leave/scroll-out."""
+    from app.books.reading_session import end_session
+
+    data = request.get_json(silent=True) or {}
+    session_id = data.get('session_id')
+    if not session_id:
+        return jsonify({'success': False, 'error': 'session_id is required'}), 400
+    try:
+        session_id = int(session_id)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'invalid session_id'}), 400
+
+    try:
+        offset_delta = float(data.get('offset_delta') or 0.0)
+    except (TypeError, ValueError):
+        offset_delta = 0.0
+
+    session = end_session(session_id, offset_delta, db)
+    if session is None:
+        return jsonify({'success': False, 'error': 'session not found'}), 404
+    if session.user_id != current_user.id:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'forbidden'}), 403
+
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'session_id': session.id,
+        'duration_seconds': session.duration_seconds(),
+    })

@@ -267,10 +267,12 @@ def update_chapter_progress():
             if offset_pct >= READ_PROGRESS_THRESHOLD and advanced > 0:
                 pref = get_user_reading_preference(current_user.id, db)
                 if pref is not None and pref.book_id == book_id:
-                    if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
-                        maybe_award_linear_perfect_day(current_user.id, db_session=db)
-                        db.session.commit()
-                        reading_slot_completed = True
+                    from app.books.reading_session import has_min_reading_time_today
+                    if has_min_reading_time_today(current_user.id, book_id, db):
+                        if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
+                            maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                            db.session.commit()
+                            reading_slot_completed = True
         except Exception:
             logger.warning(
                 "linear_xp: book-reading award failed user=%s",
