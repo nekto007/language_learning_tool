@@ -262,23 +262,23 @@ def read_selection():
         UserChapterProgress.user_id == current_user.id
     ).all()
 
-    book_progress_map = {}
+    from app.books.progress import _progress_from_records
+
     book_chapter_counts = {}
     for book in all_books:
         book_chapter_counts[book.id] = book.chapters_cnt or len(book.chapters)
 
+    book_progress_map = {}
     for ucp, chapter in user_progress:
         bid = chapter.book_id
         if bid not in book_progress_map:
             book_progress_map[bid] = {
-                'total_offset': 0.0,
-                'chapter_count': 0,
+                'records': [],
                 'last_chapter_num': chapter.chap_num,
                 'last_read': ucp.updated_at,
             }
         entry = book_progress_map[bid]
-        entry['total_offset'] += ucp.offset_pct
-        entry['chapter_count'] += 1
+        entry['records'].append(ucp)
         if ucp.updated_at and (entry['last_read'] is None or ucp.updated_at > entry['last_read']):
             entry['last_read'] = ucp.updated_at
             entry['last_chapter_num'] = chapter.chap_num
@@ -286,7 +286,7 @@ def read_selection():
     book_progress = {}
     for bid, entry in book_progress_map.items():
         total_chapters = book_chapter_counts.get(bid, 1) or 1
-        pct = int((entry['total_offset'] / total_chapters) * 100)
+        pct = int(_progress_from_records(entry['records'], total_chapters))
         book_progress[bid] = {
             'progress_pct': min(pct, 100),
             'last_chapter_num': entry['last_chapter_num'],
@@ -617,13 +617,13 @@ def book_details(book_id):
         word_progress = 0
 
     from app.books.models import UserChapterProgress, Chapter
+    from app.books.progress import compute_book_progress_percent
 
     total_chapters = Chapter.query.filter_by(book_id=book_id).count()
     reading_progress = 0
     last_read_chapter = None
 
     if total_chapters > 0:
-        # Get all user's progress for this book's chapters
         user_chapters = db.session.query(
             UserChapterProgress, Chapter
         ).join(
@@ -634,19 +634,13 @@ def book_details(book_id):
         ).order_by(Chapter.chap_num).all()
 
         if user_chapters:
-            # Calculate overall reading progress
-            total_progress = 0
             latest_updated = None
             for progress_record, chapter in user_chapters:
-                # Each chapter contributes 1/total_chapters to overall progress
-                chapter_contribution = progress_record.offset_pct / total_chapters
-                total_progress += chapter_contribution
-                # Track last read chapter
                 if latest_updated is None or (progress_record.updated_at and progress_record.updated_at > latest_updated):
                     latest_updated = progress_record.updated_at
                     last_read_chapter = chapter.chap_num
 
-            reading_progress = int(total_progress * 100)
+            reading_progress = int(compute_book_progress_percent(current_user.id, book_id, db))
 
     frequent_words_query = db.select(
         CollectionWords,

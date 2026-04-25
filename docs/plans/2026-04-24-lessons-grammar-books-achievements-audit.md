@@ -347,13 +347,10 @@
 - Modify: `app/books/services.py` (новая функция `compute_book_progress_percent`)
 - Modify: `tests/books/test_progress.py`
 
-- [ ] Ввести `compute_book_progress_percent(user_id, book_id, db) -> float`:
-  - `completed_chapters = count(UserChapterProgress WHERE user=X, book=Y, offset_pct >= 1.0)`
-  - `current_chapter_partial = max(offset_pct for incomplete chapters) or 0`
-  - `progress = (completed_chapters + current_chapter_partial) / total_chapters`
-- [ ] Заменить inline `sum(offset_pct) / total_chapters` в `app/books/routes.py:279-286, 630-641` на новую функцию
-- [ ] Write tests: 2/10 глав completed + 50% главы 3 → (2 + 0.5) / 10 = 25% (не 15%); 0 completed → 0%; все 10 → 100%
-- [ ] Run pytest — must pass before task 14
+- [x] Ввести `compute_book_progress_percent(user_id, book_id, session) -> float` в `app/books/progress.py` — completed-chapters + max-partial-of-incomplete / total_chapters, clamped 0..100. Принимает либо SQLAlchemy session, либо `db`-extension (через `getattr(session, 'session', session)`). Helper `_progress_from_records(records, total_chapters)` переиспользуется в `read_selection` для bulk-расчёта без N+1 запросов.
+- [x] Заменить inline `sum(offset_pct) / total_chapters` в `app/books/routes.py:read_selection` (bulk) и в `book_details` (per-book) на новые функции
+- [x] Write tests: `tests/books/test_progress.py` — _progress_from_records и compute_book_progress_percent (0 chapters/0 progress/all-complete/2+0.5/10=25%, изоляция per-user, clamp >100%, None offset).
+- [x] Run pytest — must pass before task 14 (12 progress + 34 books all green; full smoke 138 passed)
 
 ---
 
