@@ -642,7 +642,11 @@ def complete_matching_game():
             _sid = None
         if _sid is not None:
             _sess = StudySession.query.get(_sid)
-            if _sess and _sess.user_id == current_user.id:
+            if (
+                _sess
+                and _sess.user_id == current_user.id
+                and _sess.session_type == 'matching'
+            ):
                 verified_session_id = _sid
     xp_award = None
     if xp_breakdown['total_xp'] > 0 and verified_session_id is not None:
@@ -841,7 +845,11 @@ def complete_quiz():
             _sid = None
         if _sid is not None:
             _sess = StudySession.query.get(_sid)
-            if _sess and _sess.user_id == current_user.id:
+            if (
+                _sess
+                and _sess.user_id == current_user.id
+                and _sess.session_type == 'quiz'
+            ):
                 verified_session_id = _sid
     xp_award = None
     if xp_breakdown['total_xp'] > 0 and verified_session_id is not None:

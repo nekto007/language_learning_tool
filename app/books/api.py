@@ -902,11 +902,11 @@ def save_reading_position():
             previous_offset = progress.offset_pct if progress else 0.0
             was_incomplete = not progress or progress.offset_pct < 1.0
             if progress:
-                progress.offset_pct = position
+                progress.offset_pct = max(progress.offset_pct or 0.0, position)
                 progress.updated_at = datetime.now(UTC)
         db.session.flush()
     else:
-        progress.offset_pct = position
+        progress.offset_pct = max(progress.offset_pct or 0.0, position)
         progress.updated_at = datetime.now(UTC)
         db.session.flush()
 

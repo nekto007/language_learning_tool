@@ -254,6 +254,15 @@ def maybe_record_linear_plan_completion(
 
     rank_up = record_plan_completion(user_id, for_date=when)
     db_obj.session.flush()
+    if rank_up is not None:
+        try:
+            from app.notifications.services import notify_rank_up
+            notify_rank_up(user_id, rank_up.new_name)
+        except Exception:
+            logger.warning(
+                "Failed to send rank-up notification for linear user %s",
+                user_id, exc_info=True,
+            )
     return rank_up
 
 
