@@ -539,3 +539,89 @@ class TestWriteSecuredAtLinear:
         ).one().secured_at
 
         assert first_secured_at == second_secured_at
+
+
+# ── onboarding_focus routing ─────────────────────────────────────────
+
+
+def _slot_by_kind(slots: list[dict], kind: str) -> dict:
+    return next(s for s in slots if s['kind'] == kind)
+
+
+class TestOnboardingFocusRouting:
+    def test_focus_none_keeps_default_order_no_priority(
+        self, db_session, curriculum_setup
+    ):
+        level = curriculum_setup['level']
+        user = _make_user(db_session, onboarding_level=level.code)
+        # focus is None by default
+
+        payload = get_linear_plan(user.id, real_db)
+
+        kinds = [slot['kind'] for slot in payload['baseline_slots']]
+        assert kinds == ['curriculum', 'srs', 'reading']
+        reading = _slot_by_kind(payload['baseline_slots'], 'reading')
+        assert reading['data'].get('priority') is False
+        curriculum = _slot_by_kind(payload['baseline_slots'], 'curriculum')
+        assert 'prioritize_grammar' not in curriculum['data']
+
+    def test_focus_all_keeps_default_order(self, db_session, curriculum_setup):
+        level = curriculum_setup['level']
+        user = _make_user(db_session, onboarding_level=level.code)
+        user.onboarding_focus = 'all'
+        db_session.commit()
+
+        payload = get_linear_plan(user.id, real_db)
+
+        kinds = [slot['kind'] for slot in payload['baseline_slots']]
+        assert kinds == ['curriculum', 'srs', 'reading']
+        reading = _slot_by_kind(payload['baseline_slots'], 'reading')
+        assert reading['data'].get('priority') is False
+
+    def test_focus_reading_promotes_reading_slot(self, db_session, curriculum_setup):
+        level = curriculum_setup['level']
+        user = _make_user(db_session, onboarding_level=level.code)
+        user.onboarding_focus = 'reading'
+        db_session.commit()
+
+        payload = get_linear_plan(user.id, real_db)
+
+        kinds = [slot['kind'] for slot in payload['baseline_slots']]
+        # Curriculum stays first; reading moves up to index 1.
+        assert kinds == ['curriculum', 'reading', 'srs']
+        reading = _slot_by_kind(payload['baseline_slots'], 'reading')
+        assert reading['data']['priority'] is True
+
+    def test_focus_grammar_adds_prioritize_grammar_no_reorder(
+        self, db_session, curriculum_setup
+    ):
+        level = curriculum_setup['level']
+        user = _make_user(db_session, onboarding_level=level.code)
+        user.onboarding_focus = 'grammar'
+        db_session.commit()
+
+        payload = get_linear_plan(user.id, real_db)
+
+        kinds = [slot['kind'] for slot in payload['baseline_slots']]
+        assert kinds == ['curriculum', 'srs', 'reading']
+        curriculum = _slot_by_kind(payload['baseline_slots'], 'curriculum')
+        assert curriculum['data']['prioritize_grammar'] is True
+        reading = _slot_by_kind(payload['baseline_slots'], 'reading')
+        assert reading['data'].get('priority') is False
+
+    def test_focus_multi_uses_first_tag(self, db_session, curriculum_setup):
+        level = curriculum_setup['level']
+        user = _make_user(db_session, onboarding_level=level.code)
+        user.onboarding_focus = 'reading,grammar'
+        db_session.commit()
+
+        payload = get_linear_plan(user.id, real_db)
+
+        kinds = [slot['kind'] for slot in payload['baseline_slots']]
+        # First tag is reading → reading promoted.
+        assert kinds == ['curriculum', 'reading', 'srs']
+        reading = _slot_by_kind(payload['baseline_slots'], 'reading')
+        assert reading['data']['priority'] is True
+        # Grammar is the secondary tag → curriculum hint NOT applied.
+        curriculum = _slot_by_kind(payload['baseline_slots'], 'curriculum')
+        assert 'prioritize_grammar' not in curriculum['data']
