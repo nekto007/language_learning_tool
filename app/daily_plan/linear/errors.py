@@ -303,19 +303,20 @@ def get_review_pool(
 def _resolve_original_exercise_meta(
     error: QuizErrorLog,
     db: Any,
-) -> tuple[Optional[int], Optional[int]]:
-    """Return ``(original_exercise_id, difficulty)`` for the logged error.
+) -> tuple[Optional[int], Optional[int], Optional[str]]:
+    """Return ``(original_exercise_id, difficulty, exercise_type)`` for the logged error.
 
     Falls back to looking up the original ``GrammarExercise`` row by id when
-    the payload only stored the id. Returns ``(None, None)`` for non-grammar
-    errors or when no metadata is available.
+    the payload only stored the id. Returns ``(None, None, None)`` for
+    non-grammar errors or when no metadata is available.
     """
     payload = error.question_payload if isinstance(error.question_payload, dict) else {}
     raw_exercise_id = payload.get('exercise_id')
     raw_difficulty = payload.get('difficulty')
+    raw_question_type = payload.get('question_type')
 
     exercise_id: Optional[int]
-    if isinstance(raw_exercise_id, int):
+    if isinstance(raw_exercise_id, int) and not isinstance(raw_exercise_id, bool):
         exercise_id = raw_exercise_id
     else:
         try:
@@ -332,14 +333,19 @@ def _resolve_original_exercise_meta(
         except (TypeError, ValueError):
             difficulty = None
 
-    if difficulty is None and exercise_id is not None:
+    exercise_type: Optional[str] = raw_question_type if isinstance(raw_question_type, str) else None
+
+    if (difficulty is None or exercise_type is None) and exercise_id is not None:
         from app.grammar_lab.models import GrammarExercise
 
         original = db.session.get(GrammarExercise, exercise_id)
         if original is not None:
-            difficulty = original.difficulty
+            if difficulty is None:
+                difficulty = original.difficulty
+            if exercise_type is None:
+                exercise_type = original.exercise_type
 
-    return exercise_id, difficulty
+    return exercise_id, difficulty, exercise_type
 
 
 def get_sibling_exercise(
@@ -360,7 +366,7 @@ def get_sibling_exercise(
 
     from app.grammar_lab.models import GrammarExercise
 
-    exercise_id, difficulty = _resolve_original_exercise_meta(error, db)
+    exercise_id, difficulty, exercise_type = _resolve_original_exercise_meta(error, db)
 
     excluded: set[int] = set(exclude_exercise_ids or ())
     if exercise_id is not None:
@@ -371,6 +377,8 @@ def get_sibling_exercise(
     )
     if difficulty is not None:
         query = query.filter(GrammarExercise.difficulty == difficulty)
+    if exercise_type is not None:
+        query = query.filter(GrammarExercise.exercise_type == exercise_type)
     if excluded:
         query = query.filter(~GrammarExercise.id.in_(excluded))
 

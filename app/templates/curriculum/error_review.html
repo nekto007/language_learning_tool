@@ -34,6 +34,16 @@
                 Правильный ответ: {{ p.correct_answer }}
               </div>
             {% endif %}
+            {% if entry.sibling %}
+              <div class="error-review__sibling" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--color-border, #e0e0e0);">
+                <div style="font-size: 0.85rem; color: var(--color-text-secondary, #666); margin-bottom: 0.25rem;">
+                  Похожее упражнение для закрепления:
+                </div>
+                <div class="error-review__sibling-question" style="font-weight: 500;">
+                  {{ entry.sibling.question }}
+                </div>
+              </div>
+            {% endif %}
           </li>
         {% endfor %}
       </ol>

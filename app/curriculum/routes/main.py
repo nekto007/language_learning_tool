@@ -108,19 +108,22 @@ def error_review_session():
     to mark them resolved and credit the linear slot XP. Reachable via
     the linear plan 4th baseline slot.
     """
-    from app.daily_plan.linear.errors import (
-        DEFAULT_REVIEW_POOL_LIMIT, get_review_pool,
-    )
+    from app.daily_plan.linear.errors import get_review_pool_with_siblings
 
-    pool = get_review_pool(current_user.id, db, limit=DEFAULT_REVIEW_POOL_LIMIT)
-    entries = [
-        {
+    items = get_review_pool_with_siblings(current_user.id, db)
+    entries = []
+    for item in items:
+        e = item['error']
+        sibling = item.get('sibling')
+        sibling_data = None
+        if sibling is not None:
+            sibling_data = sibling.to_dict(hide_answer=True)
+        entries.append({
             'id': e.id,
             'payload': e.question_payload or {},
             'created_at': e.created_at,
-        }
-        for e in pool
-    ]
+            'sibling': sibling_data,
+        })
     return render_template(
         'curriculum/error_review.html',
         entries=entries,
