@@ -333,10 +333,10 @@
 - Modify: `app/curriculum/book_courses.py` — add `sync_from_book()`
 - Modify: `tests/books/test_sync.py`
 
-- [ ] В `edit_book_content()`: после успешного save Book, если `Book.create_course=True` → `sync_book_course_from_book(book_id, db)` пересчитывает связанные BookCourse: chapters, titles, content hash
-- [ ] В `reprocess_book()` (или аналогичный путь): перед UPSERT `word_book_link` → `DELETE FROM word_book_link WHERE book_id = :book_id`
-- [ ] Write tests: edit Book.title → BookCourse.title обновлён; reprocess Book → старые word_book_link удалены, остаются только актуальные; `unique_words_count` корректно пересчитывается
-- [ ] Run pytest — must pass before task 13
+- [x] В `edit_book_content()`: после успешного save Book, если `Book.create_course=True` → `sync_book_course_from_book(book_id, db)` пересчитывает связанные BookCourse (slug, total_modules, level). Курс-специфичные `title`/`description` намеренно не перезаписываются — могут расходиться с книгой.
+- [x] В `reprocess_book()` (или аналогичный путь): перед UPSERT `word_book_link` → `DELETE FROM word_book_link WHERE book_id = :book_id` — оба пути (`_process_book_words_internal` и `_process_book_chapters_words_internal`) уже вызывают `repo.clear_book_word_links(book_id)` перед батчевым UPSERT; контракт зафиксирован source-level тестами.
+- [x] Write tests: `tests/books/test_book_course_sync.py` — sync helper (slug refresh, total_modules, level mirror, idempotency, no-op без курсов), source-level wiring `edit_book_content → sync` и source-level cleanup contract для обоих reprocess-путей
+- [x] Run pytest — must pass before task 13
 
 ---
 

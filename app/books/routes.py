@@ -131,6 +131,14 @@ def edit_book_content(book_id):
                     book.unique_words = len(set(words))
                     content_changed = True
 
+            # Sync linked BookCourse rows when book opts into course generation
+            if book.create_course:
+                try:
+                    from app.curriculum.book_courses import sync_book_course_from_book
+                    sync_book_course_from_book(book.id, db.session)
+                except Exception as sync_err:
+                    logger.error(f"BookCourse sync failed for book {book.id}: {sync_err}")
+
             # Сохраняем изменения
             db.session.commit()
 

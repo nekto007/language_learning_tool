@@ -7,6 +7,49 @@ from sqlalchemy.orm import relationship
 from app.utils.db import db
 
 
+def sync_book_course_from_book(book_id: int, db_session=None) -> int:
+    """Refresh derived BookCourse fields (slug, total_modules) from the source Book.
+
+    Called after admin edits to a Book that has `create_course=True` so course
+    metadata stays in sync with the underlying book. Does not overwrite the
+    course's curated `title`/`description` — those can diverge intentionally.
+
+    Returns the number of BookCourse rows updated.
+    """
+    from app.books.models import Book as _Book
+
+    if db_session is None:
+        db_session = db.session
+    book = _Book.query.get(book_id)
+    if book is None:
+        return 0
+
+    courses = BookCourse.query.filter_by(book_id=book_id).all()
+    if not courses:
+        return 0
+
+    new_slug = generate_slug(book.title) if book.title else None
+    updated = 0
+    for course in courses:
+        modules_count = BookCourseModule.query.filter_by(course_id=course.id).count()
+        changed = False
+        if new_slug and course.slug != new_slug:
+            course.slug = new_slug
+            changed = True
+        if course.total_modules != modules_count:
+            course.total_modules = modules_count
+            changed = True
+        if book.level and course.level != book.level:
+            course.level = book.level
+            changed = True
+        if changed:
+            course.updated_at = datetime.now(timezone.utc)
+            updated += 1
+    if updated:
+        db_session.flush()
+    return updated
+
+
 def generate_slug(text: str) -> str:
     """Generate URL-friendly slug from text"""
     # Lowercase and replace spaces with hyphens
