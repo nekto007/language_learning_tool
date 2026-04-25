@@ -609,9 +609,9 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
             self.ease_factor = max(min_ef, old_ef - ef_lapse)
             # New interval will be set after relearning
             self.interval = min_interval
-            # Auto-suspend on crossing the leech threshold so the card stops
-            # showing daily until the user revisits it via the leech CTA.
-            if self.lapses >= LEECH_THRESHOLD and previous_lapses < LEECH_THRESHOLD:
+            # Re-bury on every lapse at/above the threshold so already-leeched
+            # cards (bury expired) don't cycle through daily failures.
+            if self.lapses >= LEECH_THRESHOLD:
                 self.buried_until = datetime.now(timezone.utc) + timedelta(days=LEECH_SUSPEND_DAYS)
 
         elif rating == RATING_DOUBT:
