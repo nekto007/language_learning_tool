@@ -36,11 +36,16 @@ def _calculate_flashcard_xp(cards_reviewed, correct_answers):
 
 
 def _count_leech_suspended(user_id: int, now: datetime) -> int:
-    """Count cards currently buried because they crossed the leech threshold."""
+    """Count distinct words currently buried because they crossed the leech threshold.
+
+    Counts distinct user_word_id rather than UserCardDirection rows so a word
+    leeched in both directions surfaces as a single suspended card in the UI.
+    """
     from app.srs.constants import LEECH_THRESHOLD
+    from sqlalchemy import distinct
 
     return (
-        UserCardDirection.query
+        db.session.query(func.count(distinct(UserCardDirection.user_word_id)))
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
             UserWord.user_id == user_id,
@@ -48,7 +53,7 @@ def _count_leech_suspended(user_id: int, now: datetime) -> int:
             UserCardDirection.buried_until.isnot(None),
             UserCardDirection.buried_until > now,
         )
-        .count()
+        .scalar() or 0
     )
 
 
