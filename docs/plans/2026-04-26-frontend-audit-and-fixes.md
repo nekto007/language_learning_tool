@@ -46,9 +46,9 @@
 **Files (read-only audit):**
 - `app/templates/grammar_lab/`, `app/templates/achievements/`, `app/templates/race/`, `app/templates/admin/`, `app/templates/components/`, `app/templates/partials/`
 
-- [ ] Пройти grammar exercises, achievements/badges, daily race board, admin dashboards, общие компоненты (notification dropdown, modals)
-- [ ] Проверить интерактив, leaderboards, mission popups, admin tables responsive
-- [ ] Дописать находки в audit-документ (раздел "Auxiliary")
+- [x] Пройти grammar exercises, achievements/badges, daily race board, admin dashboards, общие компоненты (notification dropdown, modals)
+- [x] Проверить интерактив, leaderboards, mission popups, admin tables responsive
+- [x] Дописать находки в audit-документ (раздел "Auxiliary")
 
 ### Task 4: Аудит CSS design-system + JS
 

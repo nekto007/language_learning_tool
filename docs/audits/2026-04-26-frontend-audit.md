@@ -79,7 +79,69 @@
 
 ## Auxiliary
 
-(Заполняется в Task 3.)
+Шаблоны: `app/templates/{grammar_lab,achievements,race,admin,components,partials}`.
+
+### P0 — критичные
+
+- **grammar_lab/practice.html:1314** — `onclick="selectOption(this, ${i})"` в динамически генерируемых label-элементах нарушает CSP `unsafe-inline`. Перенести на `addEventListener` + `data-*`.
+- **grammar_lab/practice.html:1327, :1333** — `onclick="selectTF(this, 'true'/'false')"` на button-элементах — тот же CSP риск.
+- **grammar_lab/practice.html:1159** — `{{ session.exercises|tojson|safe }}` гидрирует JS из шаблона; если данные содержат XSS-вектор, фильтр `|safe` его не блокирует. Проверить sanitization на бэкенде.
+- **grammar_lab/topic_detail.html:619** — `onmouseover="this.style..."` / `onmouseout="this.style..."` встроены в HTML — CSP violation. Использовать CSS `:hover`.
+- **admin/dashboard.html:301** — `{{ u.last_login.strftime('%d %b') }}` без guard на None упадёт у first-time users.
+- **admin/users.html:94** — datetime арифметика `(now - user.last_login).total_seconds() / 86400` упадёт при None last_login (порядковая зависимость от guard на line 93).
+- **admin/base.html:310-316** — `innerHTML` из JS без escaping search-результатов (`item.title`, `item.section`) — XSS-вектор в admin search.
+- **components/_flashcard_session.html:382** — `{{ fc_grade_payload | default('null') | safe }}` — `|safe` на JS-payload без верификации.
+- **race/today.html:46** — `{{ daily_race.steps_done / daily_race.steps_total * 100 }}` — division by zero при пустой race (`steps_total=0`).
+- **admin/dashboard.html:110** — `(srs_health.words_srs.new / srs_health.words_srs.total * 100)` — потенциальный divide-by-zero при `total=0` (полагается на хрупкий `if` выше).
+
+### P1 — важные UX
+
+- **race/today.html** — leaderboard-таблица не имеет empty-state-сообщения, если `daily_race.leaderboard` пустой; нет loading/error state.
+- **race/today.html:30, :84** — emoji-medal/trophy без `aria-hidden="true"` (декоративные); SR озвучивает невнятно.
+- **race/today.html:284** — `onclick="alert(...)"` для информационного сообщения; заменить на toast/modal.
+- **race/today.html** — нет `@media (prefers-reduced-motion: reduce)` для transform/box-shadow transitions (lines 283-288).
+- **admin/users.html:54-65** — table headers без `scope="col"`, чекбоксы без `aria-label`.
+- **admin/users.html:148** — `sendReminder({{ user.id }}, {{ user.username|tojson }})` inline onclick; tight coupling JS ↔ template.
+- **admin/users.html:52-166** — responsive wrapper есть, но нет horizontal scroll indicator/overflow hint на mobile.
+- **admin/dashboard.html** — charts (activityChart, progressChart) без `aria-label` / fallback для SR.
+- **admin/dashboard.html:383** — `total_users - active_users - new_users` может быть отрицательным при stale data; без clamp.
+- **admin/base.html:200** — flash `role="alert"` без `aria-live="polite/assertive"`.
+- **admin/base.html:56-58** — dropdown без `role="menu"` и `aria-label` на toggle; keyboard nav неясна.
+- **admin/base.html:283-292** — Cmd+K shortcut без Ctrl+K fallback на Windows.
+- **admin/components.html:203** — `delete_modal` macro с `aria-modal="true"`, но не у всех modals есть `aria-labelledby`.
+- **admin/components.html:149** — `confirm('{{ confirm }}')` — Jinja-autoescape работает, но риск edge-case-инъекции при отключении.
+- **admin/database.html:104** — `style="width: {{ stat.percentage }}%"` без clamp 0..100.
+- **admin/stats.html:17-19** — period-selector кнопки `onclick="updatePeriod(...)"` без loading-state при data fetch.
+- **achievements/public_streak.html:14-30** — захардкоженные hex (#2563eb, #0ea5e9, #ef4444, #22c55e) вместо design-токенов.
+- **partials/linear_daily_plan.html:69** — day-secured banner `aria-hidden` на emoji, но сам banner интерактивный (line 93-100); должен иметь `role="status"`.
+- **partials/linear_daily_plan.html:128-149** — Russian plural-логика inline в шаблоне; вынести в filter/helper.
+- **partials/telegram_banner.html:15** — `onclick="dismissTgBanner()"` inline + `localStorage` без availability check.
+- **components/_flashcard_session.html:55-56** — counter "Карточка 1 из 20" hardcoded без `aria-live` на динамическое обновление `#card-counter`.
+- **components/_daily_plan_progress.html:106** — `.dp-bar__text` max-width 140px на 576px breakpoint может всё равно переполняться на 320px.
+- **grammar_lab/practice.html** — нет skeleton/loading state до JS-гидратации (~0.3-0.5s пустой экран).
+- **grammar_lab/practice.html:368-376, topic_detail.html:761-774, index.html:487-500** — `@keyframes float-1/2/3` в `<style>` без локального `@media (prefers-reduced-motion: reduce)` override.
+- **grammar_lab/practice.html:1417** — `document.getElementById('word-bank').querySelector(...)` без null-check.
+- **grammar_lab/topic_detail.html:1656** — `[data-pos="${pos}"]` selector без null-guard перед `.dataset.word`.
+- **grammar_lab/topics.html, stats.html** — empty-state без `role="status"` / `aria-live="polite"`.
+
+### P2 — polish
+
+- **achievements/public_streak.html:55** — calendar `grid-template-columns: repeat(13, 1fr)` без label / month-indicator.
+- **achievements/public_streak.html:76-79** — 3-col grid на mobile стэкается; нет max-width на `.strk-page`.
+- **admin/components.html:117** — `empty_message` macro plain text без иконки/визуальной emphasis.
+- **race/today.html:126, :363-371** — `.dash-race__stats` `minmax(0, 1fr)` может переполняться на узких экранах.
+- **grammar_lab/index.html:1383-1385, topic_detail.html:1383-1385** — hex `#dbeafe`/`#fef3c7`/`#fce7f3` для level-badge inline; вынести в `--level-*-light` токены.
+- **grammar_lab/practice.html:453-456, index.html:722-732** — `#dc2626`/`#d97706`/`#16a34a`/`#2563eb` вместо `var(--color-danger/warning/success/info)`.
+- **grammar_lab/index.html:1633** — inline `style="animation:spin 0.8s linear infinite"`; вынести в `.btn--loading`.
+- **grammar_lab/practice.html:1314** — `<label class="practice-option" onclick=...>` вместо `<button>`/`role="radio"` уменьшает семантику.
+- **grammar_lab/practice.html:1701** — inline `this.style.opacity = '0.7'` вместо CSS `.btn--loading`.
+- **grammar_lab/practice.html:1341** — true/false buttons без `:disabled` стиля; полагаются на browser default.
+- **grammar_lab/topic_detail.html:68-69, :84-85** — emoji в topic-nav-adjacent без `aria-hidden="true"`.
+- **grammar_lab/topic_detail.html:620-636** — inline `style="..."` для related-topics/words; вынести в CSS-классы.
+- **grammar_lab/topics.html** — длинные topic-имена без `word-break: break-word` могут переполняться на узких экранах.
+- **grammar_lab/stats.html, index.html** — progress fill `width: {{ pct }}%` без `min(pct, 100)` clamp при NaN.
+- **admin/database.html:103-104** — progress-bar width не clamped (может выходить за 100% при inconsistent data).
+- **race/today.html:46** — нет `@supports (grid)` fallback.
 
 ## Design System & JS
 
