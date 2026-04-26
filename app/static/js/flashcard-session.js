@@ -543,6 +543,9 @@ class FlashcardSession {
         }
 
         if (index >= this.cards.length) {
+            if (this.els.cardFront) this.els.cardFront.style.display = 'none';
+            if (this.els.cardBack) this.els.cardBack.style.display = 'none';
+            if (this.els.showAnswerBtn) this.els.showAnswerBtn.style.display = 'none';
             this.completeSession();
             return;
         }

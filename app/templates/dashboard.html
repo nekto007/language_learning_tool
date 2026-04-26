@@ -4722,15 +4722,23 @@ document.addEventListener('click', function(e) {
   } else if (action === 'share-day-results') {
     var msg = t.getAttribute('data-share-text') || '';
     var fallbackPrompt = function() { try { window.prompt('Скопируйте текст:', msg); } catch (e) {} };
+    var copyToClipboard = function() {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(msg).then(function() {
+          t.textContent = 'Скопировано!';
+          setTimeout(function() { t.textContent = 'Поделиться'; }, 2000);
+        }).catch(fallbackPrompt);
+      } else {
+        fallbackPrompt();
+      }
+    };
     if (navigator.share) {
-      navigator.share({ text: msg }).catch(function() {});
-    } else if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(msg).then(function() {
-        t.textContent = 'Скопировано!';
-        setTimeout(function() { t.textContent = 'Поделиться'; }, 2000);
-      }).catch(fallbackPrompt);
+      navigator.share({ text: msg }).catch(function(err) {
+        if (err && err.name === 'AbortError') return;
+        copyToClipboard();
+      });
     } else {
-      fallbackPrompt();
+      copyToClipboard();
     }
   }
 });

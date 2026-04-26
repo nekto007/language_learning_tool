@@ -565,7 +565,7 @@
         <p>{{ _('Вы увидите результаты после прохождения всех вопросов. Отвечайте внимательно!') }}</p>
       </div>
 
-      <button type="button" id="start-final-test-btn">
+      <button type="button" id="start-final-test-btn"{% if not exercises or exercises|length == 0 %} disabled aria-disabled="true"{% endif %}>
         <i class="fas fa-play"></i> {{ _('Начать тест') }}
       </button>
     </div>
@@ -1155,6 +1155,9 @@ window.FinalTestApp = {
   },
 
   startTest() {
+    if (!window.finalTestData.totalQuestions) {
+      return;
+    }
     const startScreen = document.getElementById('start-screen');
     const testScreen = document.getElementById('test-screen');
 
@@ -1461,10 +1464,11 @@ window.FinalTestApp = {
   },
 
   updateProgress() {
+    const total = window.finalTestData.totalQuestions || 0;
     const currentNum = this.state.currentQuestion + 1;
-    const percent = (currentNum / window.finalTestData.totalQuestions) * 100;
+    const percent = total > 0 ? (currentNum / total) * 100 : 0;
     document.getElementById('test-progress-bar').style.width = percent + '%';
-    document.getElementById('current-num').textContent = currentNum;
+    document.getElementById('current-num').textContent = total > 0 ? currentNum : 0;
   },
 
   submitResults() {
