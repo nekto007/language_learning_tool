@@ -4724,8 +4724,10 @@ document.addEventListener('click', function(e) {
     if (navigator.share) {
       navigator.share({ text: msg });
     } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(msg).then(function() { t.textContent = 'Скопировано!'; });
-      setTimeout(function() { t.textContent = 'Поделиться'; }, 2000);
+      navigator.clipboard.writeText(msg).then(function() {
+        t.textContent = 'Скопировано!';
+        setTimeout(function() { t.textContent = 'Поделиться'; }, 2000);
+      });
     }
   }
 });

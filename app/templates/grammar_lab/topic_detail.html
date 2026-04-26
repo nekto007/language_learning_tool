@@ -641,10 +641,10 @@
 
   <!-- Continue Learning -->
   <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem;">
-    <a href="{{ url_for('courses.level_detail', level_code=topic.level) }}" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:var(--grammar-surface); border:1px solid var(--grammar-border); border-radius:10px; text-decoration:none; font-size:0.85rem; color:var(--grammar-text); font-weight:500; transition:all 0.2s;">
+    <a href="{{ url_for('courses.level_detail', level_code=topic.level) }}" class="topic-related-cta" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:var(--grammar-surface); border:1px solid var(--grammar-border); border-radius:10px; text-decoration:none; font-size:0.85rem; color:var(--grammar-text); font-weight:500; transition:all 0.2s;">
       <span style="font-size:1.25rem;">🎓</span> Курс {{ topic.level }}
     </a>
-    <a href="{{ url_for('grammar_lab.topics', level=topic.level) }}" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:var(--grammar-surface); border:1px solid var(--grammar-border); border-radius:10px; text-decoration:none; font-size:0.85rem; color:var(--grammar-text); font-weight:500; transition:all 0.2s;">
+    <a href="{{ url_for('grammar_lab.topics', level=topic.level) }}" class="topic-related-cta" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:var(--grammar-surface); border:1px solid var(--grammar-border); border-radius:10px; text-decoration:none; font-size:0.85rem; color:var(--grammar-text); font-weight:500; transition:all 0.2s;">
       <span style="font-size:1.25rem;">🧠</span> Все темы {{ topic.level }}
     </a>
   </div>
