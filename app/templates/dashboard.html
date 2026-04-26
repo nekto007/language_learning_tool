@@ -4721,13 +4721,16 @@ document.addEventListener('click', function(e) {
     if (typeof repairStreak === 'function') repairStreak();
   } else if (action === 'share-day-results') {
     var msg = t.getAttribute('data-share-text') || '';
+    var fallbackPrompt = function() { try { window.prompt('Скопируйте текст:', msg); } catch (e) {} };
     if (navigator.share) {
-      navigator.share({ text: msg });
-    } else if (navigator.clipboard) {
+      navigator.share({ text: msg }).catch(function() {});
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(msg).then(function() {
         t.textContent = 'Скопировано!';
         setTimeout(function() { t.textContent = 'Поделиться'; }, 2000);
-      });
+      }).catch(fallbackPrompt);
+    } else {
+      fallbackPrompt();
     }
   }
 });

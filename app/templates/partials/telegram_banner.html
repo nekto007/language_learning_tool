@@ -21,8 +21,12 @@
     var banner = document.getElementById('tg-banner');
     if (!banner) return;
     var canStorage = false;
-    try { canStorage = typeof localStorage !== 'undefined'; } catch (e) { canStorage = false; }
-    if (!canStorage || !localStorage.getItem('tg_banner_dismissed')) {
+    var dismissed = false;
+    try {
+        canStorage = typeof localStorage !== 'undefined';
+        if (canStorage) dismissed = !!localStorage.getItem('tg_banner_dismissed');
+    } catch (e) { canStorage = false; dismissed = false; }
+    if (!dismissed) {
         banner.style.display = '';
     }
     var btn = document.getElementById('tg-banner-dismiss');
