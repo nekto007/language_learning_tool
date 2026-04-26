@@ -37,9 +37,9 @@
 **Files (read-only audit):**
 - `app/templates/study/`, `app/templates/words/`, `app/templates/curriculum/`, `app/templates/books/`, `app/templates/lesson_base_template.html`
 
-- [ ] Пройти: dashboard.html, study session UI, vocab learning, lesson templates (все типы карточек/quiz/matching/final-test), book reader, daily plan widgets
-- [ ] Проверить: SRS card animations, loading states при API-вызовах, error toasts, day_secured UI, linear plan slots, reading progress, скелетоны
-- [ ] Дописать находки в audit-документ (раздел "Learning Core")
+- [x] Пройти: dashboard.html, study session UI, vocab learning, lesson templates (все типы карточек/quiz/matching/final-test), book reader, daily plan widgets
+- [x] Проверить: SRS card animations, loading states при API-вызовах, error toasts, day_secured UI, linear plan slots, reading progress, скелетоны
+- [x] Дописать находки в audit-документ (раздел "Learning Core")
 
 ### Task 3: Аудит вспомогательных разделов (grammar_lab, achievements, race, admin)
 
