@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 
@@ -255,7 +256,7 @@ def _build_vocabulary_fc_vars(
             ' return { card_id: card.card_id || card.word_id,'
             ' rating: rating,'
             ' session_key: '
-            + (f'"{srs_session_key}"' if srs_session_key else '"book_vocab"')
+            + (json.dumps(srs_session_key) if srs_session_key else '"book_vocab"')
             + ' };'
             '})'
         ),

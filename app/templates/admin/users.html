@@ -43,7 +43,7 @@
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Пользователи ({{ pagination.total }})</h5>
         <div>
-            <button class="btn btn-sm btn-outline-primary" onclick="showBulkActions()">
+            <button class="btn btn-sm btn-outline-primary" data-action="show-bulk-actions">
                 <i class="fas fa-tasks"></i> Массовые действия
             </button>
         </div>
@@ -53,23 +53,23 @@
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th style="width: 40px;">
-                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        <th scope="col" style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAll" aria-label="Выбрать всех пользователей">
                         </th>
-                        <th>ID</th>
-                        <th>Имя пользователя</th>
-                        <th>Email</th>
-                        <th>Регистрация</th>
-                        <th>Последняя активность</th>
-                        <th>Статус</th>
-                        <th>Действия</th>
+                        <th scope="col">ID</th>
+                        <th scope="col">Имя пользователя</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Регистрация</th>
+                        <th scope="col">Последняя активность</th>
+                        <th scope="col">Статус</th>
+                        <th scope="col">Действия</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in users %}
                     <tr>
                         <td>
-                            <input type="checkbox" class="form-check-input user-checkbox" value="{{ user.id }}">
+                            <input type="checkbox" class="form-check-input user-checkbox" value="{{ user.id }}" aria-label="Выбрать пользователя {{ user.username }}">
                         </td>
                         <td>{{ user.id }}</td>
                         <td>
@@ -145,7 +145,9 @@
 
                                 <!-- Send Reminder -->
                                 <button type="button" class="btn btn-outline-primary"
-                                        onclick='sendReminder({{ user.id }}, {{ user.username|tojson }})'
+                                        data-action="send-reminder"
+                                        data-user-id="{{ user.id }}"
+                                        data-username="{{ user.username }}"
                                         title="Отправить напоминание">
                                     <i class="fas fa-bell"></i>
                                 </button>
@@ -255,6 +257,20 @@ if (selectAllEl) {
         checkboxes.forEach(cb => cb.checked = this.checked);
     });
 }
+
+// Bind data-action handlers (CSP-safe)
+document.addEventListener('click', function(e) {
+    var sendBtn = e.target.closest('[data-action="send-reminder"]');
+    if (sendBtn) {
+        var uid = parseInt(sendBtn.getAttribute('data-user-id'), 10);
+        var uname = sendBtn.getAttribute('data-username') || '';
+        sendReminder(uid, uname);
+        return;
+    }
+    if (e.target.closest('[data-action="show-bulk-actions"]')) {
+        showBulkActions();
+    }
+});
 
 // Send reminder
 function sendReminder(userId, username) {

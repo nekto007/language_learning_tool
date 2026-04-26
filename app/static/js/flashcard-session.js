@@ -543,6 +543,9 @@ class FlashcardSession {
         }
 
         if (index >= this.cards.length) {
+            if (this.els.cardFront) this.els.cardFront.style.display = 'none';
+            if (this.els.cardBack) this.els.cardBack.style.display = 'none';
+            if (this.els.showAnswerBtn) this.els.showAnswerBtn.style.display = 'none';
             this.completeSession();
             return;
         }
@@ -740,10 +743,12 @@ class FlashcardSession {
      * Rate a card and move to the next.
      */
     async rateCard(rating) {
+        if (this._rateInFlight) return;
         if (!this.cards || this.currentCardIndex >= this.cards.length) {
             console.error('Cannot rate card - invalid card index');
             return;
         }
+        this._rateInFlight = true;
 
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfMeta && csrfMeta.content;
@@ -888,6 +893,8 @@ class FlashcardSession {
         } catch (error) {
             console.error('Error rating card:', error);
             alert('Не удалось сохранить оценку. Попробуйте ещё раз.');
+        } finally {
+            this._rateInFlight = false;
         }
     }
 

@@ -826,13 +826,13 @@
             </div>
             {% endif %}
             {% if word_of_day.get_download and word_of_day.listening %}
-            <button onclick="playAudio('{{ url_for('static', filename='audio/' + word_of_day.listening|audio_filename) }}')" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border: 1px solid var(--land-border); background: var(--land-surface); border-radius: 999px; cursor: pointer; font-size: 0.85rem; color: var(--land-text-muted); font-family: var(--land-font); transition: all 0.2s; margin-bottom: 1rem;" onmouseover="this.style.borderColor='var(--land-primary)'; this.style.color='var(--land-primary)'" onmouseout="this.style.borderColor='var(--land-border)'; this.style.color='var(--land-text-muted)'">
+            <button class="land-audio-btn" data-audio-url="{{ url_for('static', filename='audio/' + word_of_day.listening|audio_filename) }}" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border: 1px solid var(--land-border); background: var(--land-surface); border-radius: 999px; cursor: pointer; font-size: 0.85rem; color: var(--land-text-muted); font-family: var(--land-font); transition: all 0.2s; margin-bottom: 1rem;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
                 Послушать
             </button>
             {% endif %}
             <div>
-                <a href="{{ url_for('auth.register') }}" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1.5rem; background: var(--land-gradient); color: #fff; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 0.9rem; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='none'">
+                <a href="{{ url_for('auth.register') }}" class="land-wod-cta" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1.5rem; background: var(--land-gradient); color: #fff; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 0.9rem; transition: all 0.2s;">
                     Учить больше слов
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </a>
@@ -868,11 +868,27 @@
 
 {% if word_of_day and word_of_day.get_download and word_of_day.listening %}
 <audio id="audioPlayer" style="display:none;"></audio>
+<style>
+.land-audio-btn:hover { border-color: var(--land-primary) !important; color: var(--land-primary) !important; }
+.land-wod-cta:hover { transform: translateY(-1px); }
+</style>
 <script>
-function playAudio(url) {
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.land-audio-btn');
+    if (!btn) return;
     var a = document.getElementById('audioPlayer');
-    if (a) { a.src = url; a.play().catch(function(){}); }
-}
+    if (!a) return;
+    a.src = btn.getAttribute('data-audio-url') || '';
+    a.play().catch(function() {
+        if (btn.dataset.audioErrShown) return;
+        var msg = document.createElement('span');
+        msg.textContent = ' Аудио недоступно';
+        msg.style.color = 'var(--land-text-muted)';
+        msg.style.fontSize = '0.8rem';
+        btn.parentNode.insertBefore(msg, btn.nextSibling);
+        btn.dataset.audioErrShown = '1';
+    });
+});
 </script>
 {% endif %}
 {% endblock %}

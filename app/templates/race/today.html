@@ -26,8 +26,8 @@
         <div class="dash-race__hero">
             {% if daily_race.is_complete %}
             <div class="dash-race__final">
-                <div class="dash-race__final-place dash-race__final-place--{{ daily_race.place_class or 'default' }}">
-                    {% if daily_race.rank == 1 %}&#129351;{% elif daily_race.rank == 2 %}&#129352;{% elif daily_race.rank == 3 %}&#129353;{% else %}{{ daily_race.rank }}-е место{% endif %}
+                <div class="dash-race__final-place dash-race__final-place--{{ daily_race.place_class or 'default' }}" aria-label="{{ daily_race.rank }}-е место">
+                    {% if daily_race.rank == 1 %}<span aria-hidden="true">&#129351;</span>{% elif daily_race.rank == 2 %}<span aria-hidden="true">&#129352;</span>{% elif daily_race.rank == 3 %}<span aria-hidden="true">&#129353;</span>{% else %}{{ daily_race.rank }}-е место{% endif %}
                 </div>
                 <div class="dash-race__final-score">{{ daily_race.score }} очков</div>
                 <div class="dash-race__final-message">
@@ -96,7 +96,7 @@
                         <div class="dash-race__avatar">{{ rival.initials }}</div>
                         <div class="dash-race__user">
                             <div class="dash-race__name">{% if rival.is_me %}Ты{% else %}{{ rival.username }}{% endif %}</div>
-                            <div class="dash-race__user-meta">{{ rival.steps_done }}/{{ rival.steps_total }} этапов &middot; &#128293; {{ rival.streak }}{% if rival.is_bot %} &middot; тренировка{% endif %}</div>
+                            <div class="dash-race__user-meta">{{ rival.steps_done }}/{{ rival.steps_total }} этапов &middot; <span aria-hidden="true">&#128293;</span> {{ rival.streak }}{% if rival.is_bot %} &middot; тренировка{% endif %}</div>
                         </div>
                         <div class="dash-race__points">{{ rival.score }}</div>
                     </div>

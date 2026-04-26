@@ -6,7 +6,7 @@
 <div class="onboarding-page">
   <div class="onboarding-card">
     <!-- Progress bar -->
-    <div class="onboarding-progress">
+    <div class="onboarding-progress" role="progressbar" aria-label="Прогресс настройки" aria-valuemin="0" aria-valuemax="100" aria-valuenow="33" id="progressContainer">
       <div class="onboarding-progress__bar" id="progressBar" style="width: 33%"></div>
     </div>
 
@@ -266,7 +266,7 @@
   margin-top: 1.25rem;
 }
 .onboarding-next-btn:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); }
-.onboarding-next-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.onboarding-next-btn:disabled { opacity: 0.5; cursor: not-allowed; background: var(--ob-text-muted); box-shadow: none; transform: none; }
 
 /* Start button */
 .onboarding-start-btn {
@@ -331,7 +331,10 @@ document.addEventListener('DOMContentLoaded', function() {
     for (var k in steps) {
       steps[k].style.display = k == n ? '' : 'none';
     }
-    progressBar.style.width = (n * 33.33) + '%';
+    var pct = Math.round(n * 33.33);
+    progressBar.style.width = pct + '%';
+    var pc = document.getElementById('progressContainer');
+    if (pc) pc.setAttribute('aria-valuenow', String(pct));
     backBtn.style.display = n > 1 ? '' : 'none';
     currentStep = n;
   }

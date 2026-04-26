@@ -258,8 +258,8 @@
 /* ── Auto-save Toast ── */
 .lsn-save-toast {
   position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  right: calc(1.5rem + env(safe-area-inset-right, 0px));
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -473,7 +473,7 @@
               class="lsn-btn lsn-btn--outline btn-lesson btn-outline"
               id="retry-button"
               style="display: none;"
-              onclick="retryLesson()">
+              data-action="retry-lesson">
         <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
         {{ _('Заново') }}
       </button>
@@ -484,7 +484,7 @@
                 id="complete-exercise"
                 style="display: none;"
                 data-next-url="/learn/{{ next_lesson.id }}/"
-                onclick="window.location.href=this.getAttribute('data-next-url')">
+                data-action="navigate-next-url">
           {{ _('Следующий урок') }}
           <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
@@ -493,7 +493,8 @@
                 class="lsn-btn lsn-btn--primary btn-lesson btn-primary"
                 id="complete-module"
                 style="display: none;"
-                onclick="window.location.href='{{ '/learn/' }}'">
+                data-next-url="/learn/"
+                data-action="navigate-next-url">
           <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           {{ _('Завершить') }}
         </button>
@@ -669,5 +670,18 @@ window.showLessonCompletion = function(opts) {
   });
   observer.observe(completeBtn, { attributes: true, attributeFilter: ['style'] });
 })();
+
+// Bind data-action handlers (CSP-safe replacement for inline onclick)
+document.addEventListener('click', function(e) {
+  var target = e.target.closest('[data-action]');
+  if (!target) return;
+  var action = target.getAttribute('data-action');
+  if (action === 'retry-lesson') {
+    if (typeof retryLesson === 'function') retryLesson();
+  } else if (action === 'navigate-next-url') {
+    var url = target.getAttribute('data-next-url');
+    if (url) window.location.href = url;
+  }
+});
 </script>
 {% endblock %}

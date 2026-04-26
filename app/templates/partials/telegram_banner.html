@@ -12,19 +12,32 @@
             <a href="{{ url_for('study.settings') }}#telegram-section" class="btn btn-primary btn-sm">
                 Подключить <i class="fas fa-arrow-right ms-1"></i>
             </a>
-            <button type="button" class="btn-close" aria-label="Закрыть" onclick="dismissTgBanner()"></button>
+            <button type="button" class="btn-close" aria-label="Закрыть" id="tg-banner-dismiss"></button>
         </div>
     </div>
 </div>
 <script>
 (function() {
-    if (!localStorage.getItem('tg_banner_dismissed')) {
-        document.getElementById('tg-banner').style.display = '';
+    var banner = document.getElementById('tg-banner');
+    if (!banner) return;
+    var canStorage = false;
+    var dismissed = false;
+    try {
+        canStorage = typeof localStorage !== 'undefined';
+        if (canStorage) dismissed = !!localStorage.getItem('tg_banner_dismissed');
+    } catch (e) { canStorage = false; dismissed = false; }
+    if (!dismissed) {
+        banner.style.display = '';
+    }
+    var btn = document.getElementById('tg-banner-dismiss');
+    if (btn) {
+        btn.addEventListener('click', function() {
+            if (canStorage) {
+                try { localStorage.setItem('tg_banner_dismissed', '1'); } catch (e) {}
+            }
+            banner.style.display = 'none';
+        });
     }
 })();
-function dismissTgBanner() {
-    localStorage.setItem('tg_banner_dismissed', '1');
-    document.getElementById('tg-banner').style.display = 'none';
-}
 </script>
 {% endif %}

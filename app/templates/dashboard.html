@@ -7,10 +7,10 @@
 
     {% if unseen_badges %}
     <!-- Badge popup: celebratory stack for badges earned since last visit -->
-    <div class="dash-badge-popup" id="dash-badge-popup" role="dialog" aria-live="polite" aria-label="Новые награды">
+    <div class="dash-badge-popup" id="dash-badge-popup" role="dialog" aria-modal="false" aria-live="polite" aria-label="Новые награды">
       {% for badge in unseen_badges %}
       <div class="dash-badge-popup__card" data-badge-code="{{ badge.code }}" data-user-achievement-id="{{ badge.user_achievement_id }}" style="animation-delay: {{ loop.index0 * 0.15 }}s">
-        <button type="button" class="dash-badge-popup__dismiss" aria-label="Закрыть" onclick="this.closest('.dash-badge-popup__card').classList.add('dash-badge-popup__card--dismissed')">&times;</button>
+        <button type="button" class="dash-badge-popup__dismiss" aria-label="Закрыть" data-action="dismiss-badge">&times;</button>
         <div class="dash-badge-popup__icon" aria-hidden="true">{{ badge.icon or '🏆' }}</div>
         <div class="dash-badge-popup__body">
           <div class="dash-badge-popup__title">Новая награда!</div>
@@ -74,7 +74,7 @@
                     <button class="dash-streak__share-btn"
                             data-share-text="{{ _share_text|e }}"
                             data-share-ref="{{ current_user.referral_code|e }}"
-                            onclick="shareVia('telegram', this.dataset.shareText, window.location.origin + '/register?ref=' + this.dataset.shareRef)"
+                            data-action="share-streak-telegram"
                             title="Поделиться">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
                     </button>
@@ -94,7 +94,7 @@
                         <div class="dash-streak-recovery__paid">
                             &#128176; Или восстановите за <strong>{{ streak_status.repair_cost }}</strong> coins
                             <button class="btn btn-sm btn-warning" id="repair-streak-btn"
-                                    onclick="repairStreak()" {% if streak_status.coins_balance < streak_status.repair_cost %}disabled{% endif %}>
+                                    data-action="repair-streak" {% if streak_status.coins_balance < streak_status.repair_cost %}disabled{% endif %}>
                                 Восстановить
                             </button>
                             <span class="dash-streak-recovery__balance">Баланс: {{ streak_status.coins_balance }}</span>
@@ -376,7 +376,7 @@
                 <p class="dash-completion-summary__closing">{{ completion_summary.closing_message }}</p>
                 <button class="dash-completion-summary__share-btn"
                         data-share-text="{{ completion_summary.share_text }}"
-                        onclick="(function(btn){var txt=btn.getAttribute('data-share-text');if(navigator.share){navigator.share({text:txt})}else if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){btn.textContent='Скопировано!'});setTimeout(function(){btn.textContent='Поделиться'},2000)}})(this)"
+                        data-action="share-day-results"
                         type="button" aria-label="Поделиться результатами дня">
                     Поделиться
                 </button>
@@ -4701,4 +4701,46 @@ async function repairStreak() {
 </div>
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/share.js') }}" defer></script>
-<script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}" defer></script>{% endblock %}
+<script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}" defer></script>
+<script>
+// CSP-safe delegated handlers for dashboard actions
+document.addEventListener('click', function(e) {
+  var t = e.target.closest('[data-action]');
+  if (!t) return;
+  var action = t.getAttribute('data-action');
+  if (action === 'dismiss-badge') {
+    var card = t.closest('.dash-badge-popup__card');
+    if (card) card.classList.add('dash-badge-popup__card--dismissed');
+  } else if (action === 'share-streak-telegram') {
+    if (typeof shareVia === 'function') {
+      var txt = t.getAttribute('data-share-text') || '';
+      var ref = t.getAttribute('data-share-ref') || '';
+      shareVia('telegram', txt, window.location.origin + '/register?ref=' + ref);
+    }
+  } else if (action === 'repair-streak') {
+    if (typeof repairStreak === 'function') repairStreak();
+  } else if (action === 'share-day-results') {
+    var msg = t.getAttribute('data-share-text') || '';
+    var fallbackPrompt = function() { try { window.prompt('Скопируйте текст:', msg); } catch (e) {} };
+    var copyToClipboard = function() {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(msg).then(function() {
+          t.textContent = 'Скопировано!';
+          setTimeout(function() { t.textContent = 'Поделиться'; }, 2000);
+        }).catch(fallbackPrompt);
+      } else {
+        fallbackPrompt();
+      }
+    };
+    if (navigator.share) {
+      navigator.share({ text: msg }).catch(function(err) {
+        if (err && err.name === 'AbortError') return;
+        copyToClipboard();
+      });
+    } else {
+      copyToClipboard();
+    }
+  }
+});
+</script>
+{% endblock %}

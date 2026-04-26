@@ -171,7 +171,7 @@
         <li class="pf-rank__timeline-item pf-rank__timeline-item--{{ milestone.code }}">
           <span class="pf-rank__timeline-icon" aria-hidden="true">{{ rank_icons.get(milestone.code, '🏆') }}</span>
           <span class="pf-rank__timeline-name">{{ rank_ru_names.get(milestone.code, milestone.name) }}</span>
-          <span class="pf-rank__timeline-date">{{ milestone.achieved_on.strftime('%d.%m.%Y') }}</span>
+          <span class="pf-rank__timeline-date">{% if milestone.achieved_on %}{{ milestone.achieved_on.strftime('%d.%m.%Y') }}{% else %}—{% endif %}</span>
         </li>
         {% endfor %}
       </ol>
@@ -312,16 +312,16 @@
   <div class="pf-card">
     <h2 class="pf-card__title">{{ _('Ссылки') }}</h2>
     <a href="{{ url_for('auth.referrals') }}" class="pf-link">
-      <span class="pf-link__icon">👥</span> {{ _('Пригласить друзей (+100 XP)') }}
-      <span class="pf-link__arrow">&rsaquo;</span>
+      <span class="pf-link__icon" aria-hidden="true">👥</span> {{ _('Пригласить друзей (+100 XP)') }}
+      <span class="pf-link__arrow" aria-hidden="true">&rsaquo;</span>
     </a>
     <a href="{{ url_for('auth.public_streak', username=user.username) }}" class="pf-link">
-      <span class="pf-link__icon">🔥</span> {{ _('Страница стрика') }}
-      <span class="pf-link__arrow">&rsaquo;</span>
+      <span class="pf-link__icon" aria-hidden="true">🔥</span> {{ _('Страница стрика') }}
+      <span class="pf-link__arrow" aria-hidden="true">&rsaquo;</span>
     </a>
     <a href="{{ url_for('auth.change_password') }}" class="pf-link">
-      <span class="pf-link__icon">🔑</span> {{ _('Изменить пароль') }}
-      <span class="pf-link__arrow">&rsaquo;</span>
+      <span class="pf-link__icon" aria-hidden="true">🔑</span> {{ _('Изменить пароль') }}
+      <span class="pf-link__arrow" aria-hidden="true">&rsaquo;</span>
     </a>
   </div>
 </div>

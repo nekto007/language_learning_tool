@@ -306,19 +306,30 @@
                     item.section.toLowerCase().includes(query)
                 );
 
+                while (searchResults.firstChild) searchResults.removeChild(searchResults.firstChild);
                 if (results.length > 0) {
-                    searchResults.innerHTML = results.map(item => `
-                        <a href="${item.url}" class="admin-search-result-item">
-                            <i class="fas ${item.icon}"></i>
-                            <span>${item.title}</span>
-                            <small>${item.section}</small>
-                        </a>
-                    `).join('');
-                    searchResults.classList.add('show');
+                    results.forEach(item => {
+                        const a = document.createElement('a');
+                        a.href = item.url;
+                        a.className = 'admin-search-result-item';
+                        const icon = document.createElement('i');
+                        icon.className = 'fas ' + item.icon;
+                        const title = document.createElement('span');
+                        title.textContent = item.title;
+                        const section = document.createElement('small');
+                        section.textContent = item.section;
+                        a.appendChild(icon);
+                        a.appendChild(title);
+                        a.appendChild(section);
+                        searchResults.appendChild(a);
+                    });
                 } else {
-                    searchResults.innerHTML = '<div class="admin-search-no-results">Ничего не найдено</div>';
-                    searchResults.classList.add('show');
+                    const empty = document.createElement('div');
+                    empty.className = 'admin-search-no-results';
+                    empty.textContent = 'Ничего не найдено';
+                    searchResults.appendChild(empty);
                 }
+                searchResults.classList.add('show');
             });
 
             // Hide results on blur (with delay for click)
