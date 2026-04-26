@@ -96,7 +96,7 @@
       {% set progress_pct = topic.progress.progress_pct|default(0) %}
       <div class="topic-card__progress">
         <div class="topic-card__progress-bar">
-          <div class="topic-card__progress-fill" style="width: {{ progress_pct }}%;"></div>
+          <div class="topic-card__progress-fill" style="width: {{ [[progress_pct|default(0), 0]|max, 100]|min }}%;"></div>
         </div>
         <span class="topic-card__progress-text">{{ progress_pct }}%</span>
       </div>
@@ -477,6 +477,8 @@
   color: var(--grammar-text);
   margin: 0 0 0.25rem;
   line-height: 1.3;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .topic-card__subtitle {

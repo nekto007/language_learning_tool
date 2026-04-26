@@ -7,7 +7,7 @@
 
     {% if unseen_badges %}
     <!-- Badge popup: celebratory stack for badges earned since last visit -->
-    <div class="dash-badge-popup" id="dash-badge-popup" role="dialog" aria-live="polite" aria-label="Новые награды">
+    <div class="dash-badge-popup" id="dash-badge-popup" role="dialog" aria-modal="false" aria-live="polite" aria-label="Новые награды">
       {% for badge in unseen_badges %}
       <div class="dash-badge-popup__card" data-badge-code="{{ badge.code }}" data-user-achievement-id="{{ badge.user_achievement_id }}" style="animation-delay: {{ loop.index0 * 0.15 }}s">
         <button type="button" class="dash-badge-popup__dismiss" aria-label="Закрыть" data-action="dismiss-badge">&times;</button>

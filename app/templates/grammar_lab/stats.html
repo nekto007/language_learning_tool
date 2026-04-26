@@ -100,7 +100,7 @@
         </div>
         <div class="progress-row__bar">
           {% set mastery_pct = (stats.topics_mastered / stats.total_topics * 100) if stats.total_topics > 0 else 0 %}
-          <div class="progress-row__fill progress-row__fill--success" style="width: {{ mastery_pct }}%;"></div>
+          <div class="progress-row__fill progress-row__fill--success" style="width: {{ [[mastery_pct, 0]|max, 100]|min }}%;"></div>
         </div>
         <span class="progress-row__pct">{{ mastery_pct|round(1) }}%</span>
       </div>
@@ -112,7 +112,7 @@
         </div>
         <div class="progress-row__bar">
           {% set started_pct = (stats.topics_started / stats.total_topics * 100) if stats.total_topics > 0 else 0 %}
-          <div class="progress-row__fill progress-row__fill--primary" style="width: {{ started_pct }}%;"></div>
+          <div class="progress-row__fill progress-row__fill--primary" style="width: {{ [[started_pct, 0]|max, 100]|min }}%;"></div>
         </div>
         <span class="progress-row__pct">{{ started_pct|round(1) }}%</span>
       </div>
@@ -151,7 +151,7 @@
               <span>{{ level_data.mastered }} / {{ level_data.total }}</span>
             </div>
             <div class="level-stat__progress-bar">
-              <div class="level-stat__progress-fill" style="width: {{ level_data.progress_pct }}%;"></div>
+              <div class="level-stat__progress-fill" style="width: {{ [[level_data.progress_pct|default(0), 0]|max, 100]|min }}%;"></div>
             </div>
           </div>
 
@@ -200,7 +200,7 @@
           <div class="chart-row__badge chart-row__badge--{{ level_code[0]|lower }}">{{ level_code }}</div>
           <div class="chart-row__bar-container">
             <div class="chart-row__bar">
-              <div class="chart-row__fill chart-row__fill--{{ level_code[0]|lower }}" style="width: {{ level_data.progress_pct }}%;"></div>
+              <div class="chart-row__fill chart-row__fill--{{ level_code[0]|lower }}" style="width: {{ [[level_data.progress_pct|default(0), 0]|max, 100]|min }}%;"></div>
             </div>
             <span class="chart-row__text">{{ level_data.mastered }} / {{ level_data.total }}</span>
           </div>

@@ -268,7 +268,7 @@
               {% if level.topic_count > 0 %}
                 <div class="level-card__progress">
                   <div class="level-card__progress-bar">
-                    <div class="level-card__progress-fill" style="width: {{ level.progress_pct }}%"></div>
+                    <div class="level-card__progress-fill" style="width: {{ [[level.progress_pct|default(0), 0]|max, 100]|min }}%"></div>
                   </div>
                   <span class="level-card__progress-text">{{ level.progress_pct|round(0)|int }}%</span>
                 </div>
@@ -276,7 +276,7 @@
                   {% set lm = level_mastery[level.level] %}
                   <div class="level-card__mastery">
                     <div class="level-card__mastery-bar">
-                      <div class="level-card__mastery-fill" style="width: {{ lm.mastery_pct }}%"></div>
+                      <div class="level-card__mastery-fill" style="width: {{ [[lm.mastery_pct|default(0), 0]|max, 100]|min }}%"></div>
                     </div>
                     <span class="level-card__mastery-text">{{ lm.topics_mastered }}/{{ lm.topics_total }} тем освоено</span>
                   </div>

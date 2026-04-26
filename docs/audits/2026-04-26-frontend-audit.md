@@ -310,7 +310,28 @@ Misc:
 - partials/linear_daily_plan.html:128-149 — plural helper
 - admin/components.html:117 — empty_message macro icon
 
-### P2 — Task 7 (polish)
+### P2 — Task 7 (polish) [DONE]
+
+P2 fixes shipped (focused subset addressing the highest-leverage items):
+- [DONE] errors/{403,404,500}.html — `btn btn-primary` → `btn btn--primary` (design-system).
+- [DONE] grammar_lab/topics.html — `.topic-card__title` получил `word-break: break-word; overflow-wrap: anywhere;`.
+- [DONE] grammar_lab/{stats,index,topics}.html — все `style="width: {{ pct }}%"` обёрнуты в `[[pct, 0]|max, 100]|min` clamp (защита от NaN/overflow).
+- [DONE] lesson_base_template.html — `.lsn-save-toast` использует `env(safe-area-inset-bottom/right)` для iPhone home-bar.
+- [DONE] dashboard.html — badge popup получил `aria-modal="false"` (полу-modal toast-style, не блокирует focus).
+- [DONE] achievements/public_streak.html — `--strk-primary/-gradient/-surface/-text/-text-muted/-border/-fire` + `.strk-day--active` переведены на `var(--color-*)` токены с hex fallback'ами.
+- [DONE] auth/referrals.html — `.ref-users__empty` получил `role="status" aria-live="polite"`.
+- [DONE] auth/public_profile.html — `.prof-empty` получил `role="status" aria-live="polite"`.
+- [DONE] auth/profile.html:314-325 — emoji в `.pf-link__icon` и стрелки `.pf-link__arrow` получили `aria-hidden="true"` (декоративные).
+
+Deferred to future polish (cosmetic, no functional impact):
+- study/quiz.html specificity/inline-style refactor (lines 1162, 1206-1207, 1273, 1478-1485, 912) — требует серии CSS-классов, отдельная итерация.
+- grammar_lab inline `style="..."` для related-topics, `<label onclick=...>` → `<button role="radio">`, `.btn--loading` adoption — отдельный рефакторинг grammar_lab.
+- design-system.css duplicate `@keyframes float/spin/pulse` cleanup и z-index layer-map — отдельная итерация по design-system, требует regression-pass.
+- _optimized.html dead-code audit — отдельная задача под dead-code-cleaner subagent.
+- linear-plan-context.js `.style.display` → CSS-class toggle, word-translator.js popup cleanup, main.js/unified-js.js `.btn--loading` adoption — JS lifecycle refactor.
+- race/today.html minmax overflow, achievements/public_streak.html calendar a11y — нишевые, низкий impact.
+
+Original P2 items:
 
 Hardcoded colors / tokens:
 - grammar_lab/index.html:1383-1385, topic_detail.html:1383-1385
