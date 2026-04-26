@@ -283,21 +283,18 @@ class ProgressService:
         if not is_completed and getattr(lesson, 'type', None) == 'final_test':
             try:
                 from app.curriculum.models import LessonAttempt
-                attempt_number = len(progress.attempts) + 1 if progress.attempts else 1
                 now = datetime.now(UTC)
-                failed_attempt = LessonAttempt(
+                failed_attempt = LessonAttempt.create_attempt(
                     user_id=user_id,
                     lesson_id=lesson.id,
                     lesson_progress_id=progress.id,
-                    attempt_number=attempt_number,
-                    started_at=progress.started_at or now,
-                    completed_at=now,
-                    score=score,
-                    passed=False,
-                    correct_answers=result.get('correct_count', 0),
-                    total_questions=result.get('total_count', 0),
                 )
-                db.session.add(failed_attempt)
+                failed_attempt.started_at = progress.started_at or now
+                failed_attempt.completed_at = now
+                failed_attempt.score = score
+                failed_attempt.passed = False
+                failed_attempt.correct_answers = result.get('correct_answers', 0)
+                failed_attempt.total_questions = result.get('total_questions', 0)
                 db.session.commit()
             except Exception:
                 logger.warning(
