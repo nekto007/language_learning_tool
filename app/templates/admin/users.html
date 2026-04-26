@@ -43,7 +43,7 @@
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Пользователи ({{ pagination.total }})</h5>
         <div>
-            <button class="btn btn-sm btn-outline-primary" onclick="showBulkActions()">
+            <button class="btn btn-sm btn-outline-primary" data-action="show-bulk-actions">
                 <i class="fas fa-tasks"></i> Массовые действия
             </button>
         </div>
@@ -260,11 +260,16 @@ if (selectAllEl) {
 
 // Bind data-action handlers (CSP-safe)
 document.addEventListener('click', function(e) {
-    var btn = e.target.closest('[data-action="send-reminder"]');
-    if (!btn) return;
-    var uid = parseInt(btn.getAttribute('data-user-id'), 10);
-    var uname = btn.getAttribute('data-username') || '';
-    sendReminder(uid, uname);
+    var sendBtn = e.target.closest('[data-action="send-reminder"]');
+    if (sendBtn) {
+        var uid = parseInt(sendBtn.getAttribute('data-user-id'), 10);
+        var uname = sendBtn.getAttribute('data-username') || '';
+        sendReminder(uid, uname);
+        return;
+    }
+    if (e.target.closest('[data-action="show-bulk-actions"]')) {
+        showBulkActions();
+    }
 });
 
 // Send reminder
