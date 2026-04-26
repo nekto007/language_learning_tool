@@ -145,7 +145,9 @@
 
                                 <!-- Send Reminder -->
                                 <button type="button" class="btn btn-outline-primary"
-                                        onclick='sendReminder({{ user.id }}, {{ user.username|tojson }})'
+                                        data-action="send-reminder"
+                                        data-user-id="{{ user.id }}"
+                                        data-username="{{ user.username }}"
                                         title="Отправить напоминание">
                                     <i class="fas fa-bell"></i>
                                 </button>
@@ -255,6 +257,15 @@ if (selectAllEl) {
         checkboxes.forEach(cb => cb.checked = this.checked);
     });
 }
+
+// Bind data-action handlers (CSP-safe)
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action="send-reminder"]');
+    if (!btn) return;
+    var uid = parseInt(btn.getAttribute('data-user-id'), 10);
+    var uname = btn.getAttribute('data-username') || '';
+    sendReminder(uid, uname);
+});
 
 // Send reminder
 function sendReminder(userId, username) {

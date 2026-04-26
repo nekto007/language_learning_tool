@@ -171,7 +171,7 @@
         <li class="pf-rank__timeline-item pf-rank__timeline-item--{{ milestone.code }}">
           <span class="pf-rank__timeline-icon" aria-hidden="true">{{ rank_icons.get(milestone.code, '🏆') }}</span>
           <span class="pf-rank__timeline-name">{{ rank_ru_names.get(milestone.code, milestone.name) }}</span>
-          <span class="pf-rank__timeline-date">{{ milestone.achieved_on.strftime('%d.%m.%Y') }}</span>
+          <span class="pf-rank__timeline-date">{% if milestone.achieved_on %}{{ milestone.achieved_on.strftime('%d.%m.%Y') }}{% else %}—{% endif %}</span>
         </li>
         {% endfor %}
       </ol>

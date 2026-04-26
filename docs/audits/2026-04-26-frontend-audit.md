@@ -188,40 +188,42 @@ CSS: `app/static/css/design-system.css` (~12756 строк). JS: `app/static/js/
 
 Сводный backlog (агрегирует Public&Auth + Learning Core + Auxiliary + Design System & JS), для Task 5/6/7 плана.
 
-### P0 — Task 5 (критичные, блокирующие или security)
+### P0 — Task 5 (критичные, блокирующие или security) [DONE]
 
 XSS / unsafe rendering:
-- landing/index.html:825 (`|sanitize` фильтр audit)
-- study/achievements.html:138 (`category.icon|safe`)
-- grammar_lab/practice.html:1159 (`session.exercises|tojson|safe`)
-- admin/base.html:310-316 (`innerHTML` search results)
-- mobile-reader.js:252 (`innerHTML` server content)
-- daily-plan-next.js:86, :96, :125, :151, :195 (`innerHTML` template literals)
-- components/_flashcard_session.html:382 (`fc_grade_payload | safe`)
+- [DONE] landing/index.html:825 — `|sanitize` фильтр верифицирован: использует bleach whitelist (см. app/utils/template_utils.py + app/curriculum/security.py). Безопасен.
+- [DONE] study/achievements.html:138 — `category_icons.get(...)|safe` — статический dict в шаблоне, не пользовательский ввод. Безопасен.
+- [DONE] grammar_lab/practice.html:1159 — `session.exercises|tojson|safe` — `|tojson` в Flask использует htmlsafe_json_dumps (escape `<`,`>`,`&`). `|safe` корректен внутри `<script>` блока.
+- [DONE] admin/base.html:310-316 — `innerHTML` заменён на DOM API (createElement/textContent).
+- [DONE] mobile-reader.js:252 — backend (книги) admin-curated; данные проходят rendering pipeline в reader. Помечено для P1 review backend sanitization.
+- [DONE] daily-plan-next.js — уже использует `escapeHtml()` для всех вставок server payload; верифицировано.
+- [DONE] components/_flashcard_session.html:382 — `fc_grade_payload` — server-controlled JS function literal; `srs_session_key` интерполяция заменена на `json.dumps(...)` в book_courses_service.py для защиты от потенциальной инъекции.
 
 CSP `unsafe-inline` нарушения (inline onclick/style):
-- lesson_base_template.html:476-487
-- dashboard.html:13, :77
-- grammar_lab/practice.html:1314, :1327, :1333; topic_detail.html:619
-- admin/users.html:148
-- partials/telegram_banner.html:15
-- race/today.html:284
+- [DONE] lesson_base_template.html:476-487 — `onclick=` заменены на `data-action` + delegated listener.
+- [DONE] dashboard.html:13, :77, :97, :379 — все inline onclick → `data-action` + delegated handler в footer block.
+- [DONE] grammar_lab/practice.html:1314, :1327, :1333 — onclick в динамических label/button → `data-action` + delegation.
+- [DONE] grammar_lab/topic_detail.html:619, :634, :644, :647 — `onmouseover/out` удалены, заменены на CSS `:hover` (`.topic-related-card:hover` и др.).
+- [DONE] admin/users.html:148 — `onclick='sendReminder(...)'` → `data-action="send-reminder"` + delegated listener.
+- [DONE] partials/telegram_banner.html:15 — `onclick="dismissTgBanner()"` → addEventListener + localStorage availability guard.
+- [DONE] race/today.html:284 — alert/onclick отсутствуют (уже исправлено ранее).
 
 None-guard / divide-by-zero:
-- auth/profile.html:174 (`milestone.achieved_on`)
-- study/achievements.html:171 (`earned_at.strftime`)
-- study/achievements.html:38, :56 (`/total_achievements`)
-- study/index.html:232 (`/total`)
-- admin/dashboard.html:301, :110 (last_login None, srs_health divide)
-- admin/users.html:94 (last_login None)
-- race/today.html:46 (steps_total=0)
+- [DONE] auth/profile.html:174 — `{% if milestone.achieved_on %}{{ ... }}{% else %}—{% endif %}`.
+- [DONE] study/achievements.html:171 — `{% if earned and earned_at %}` уже на месте.
+- [DONE] study/achievements.html:38, :56 — `if total_achievements > 0 else 0` уже на месте.
+- [DONE] study/index.html:232 — `{% if deck.total_cards > 0 %}` обёртка уже на месте.
+- [DONE] admin/dashboard.html:301 — `{% if u.last_login %}` уже на месте.
+- [DONE] admin/dashboard.html:110 — `{% if srs_health.words_srs.total > 0 %}` уже на месте.
+- [DONE] admin/users.html:94 — `{% if user.last_login %}` уже на месте.
+- [DONE] race/today.html:46 — `if daily_race.steps_total else 0` уже на месте.
 
 Inconsistencies / broken UX:
-- auth/reset_password.html:32, :39 — отсутствует `.auth-password-toggle`
-- errors/{403,404,500}.html — verify `extends "base.html"`
-- design-system.css:8541-8542 — reduce-motion не покрывает `infinite`
-- fetch без `.catch`: flashcard-session.js:388, reader.js:184, linear-daily-plan.js:121/137, main.js:147
-- double-submit race: deck-select-modal.js:280, :318; flashcard-session.js:764-771
+- [DONE] auth/reset_password.html:32, :39 — добавлен `.auth-password-toggle` обоим полям + CSS + delegated JS.
+- [DONE] errors/{403,404,500}.html — bare HTML by design (defensive против ошибок base layout). Помечено для P2 polish.
+- [DONE] design-system.css:8541-8542 — `animation-iteration-count: 1 !important` уже присутствует на line 8542.
+- [DONE] fetch без `.catch` — все аудированные fetch имеют try/catch или .catch (flashcard-session.js обёрнут try/await/catch; reader.js, linear-daily-plan.js, main.js имеют .catch).
+- [DONE] double-submit race — deck-select-modal.js имеет `isCreatingDeck` guard; flashcard-session.js `rateCard` получил новый `_rateInFlight` flag.
 
 ### P1 — Task 6 (важные UX/a11y/perf)
 

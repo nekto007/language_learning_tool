@@ -616,7 +616,7 @@
     <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--grammar-text); margin: 0 0 1rem;">Похожие темы уровня {{ topic.level }}</h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem;">
       {% for rt in related_topics %}
-      <a href="{{ url_for('grammar_lab.topic_detail', topic_id=rt.id) }}" style="display: block; padding: 1rem; background: var(--grammar-surface); border: 1px solid var(--grammar-border); border-radius: 12px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--grammar-primary)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--grammar-border)'; this.style.transform='none'">
+      <a href="{{ url_for('grammar_lab.topic_detail', topic_id=rt.id) }}" class="topic-related-card" style="display: block; padding: 1rem; background: var(--grammar-surface); border: 1px solid var(--grammar-border); border-radius: 12px; text-decoration: none; transition: all 0.2s;">
         <div style="font-weight: 600; color: var(--grammar-text); font-size: 0.9rem;">{{ rt.title }}</div>
         <div style="font-size: 0.8rem; color: var(--grammar-text-muted); margin-top: 0.25rem;">{{ rt.title_ru }}</div>
       </a>
@@ -631,7 +631,7 @@
     <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--grammar-text); margin: 0 0 1rem;">Словарь уровня {{ topic.level }}</h3>
     <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
       {% for w in related_words %}
-      <a href="{{ url_for('words.public_word', word_slug=w.english_word|lower|replace(' ', '-')) }}" style="padding: 0.5rem 0.875rem; background: var(--grammar-surface); border: 1px solid var(--grammar-border); border-radius: 999px; text-decoration: none; font-size: 0.85rem; color: var(--grammar-text); transition: all 0.2s;" onmouseover="this.style.borderColor='var(--grammar-primary)'" onmouseout="this.style.borderColor='var(--grammar-border)'">
+      <a href="{{ url_for('words.public_word', word_slug=w.english_word|lower|replace(' ', '-')) }}" class="topic-related-word" style="padding: 0.5rem 0.875rem; background: var(--grammar-surface); border: 1px solid var(--grammar-border); border-radius: 999px; text-decoration: none; font-size: 0.85rem; color: var(--grammar-text); transition: all 0.2s;">
         {{ w.english_word }} <span style="color: var(--grammar-text-muted);">— {{ w.russian_word }}</span>
       </a>
       {% endfor %}
@@ -641,10 +641,10 @@
 
   <!-- Continue Learning -->
   <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem;">
-    <a href="{{ url_for('courses.level_detail', level_code=topic.level) }}" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:var(--grammar-surface); border:1px solid var(--grammar-border); border-radius:10px; text-decoration:none; font-size:0.85rem; color:var(--grammar-text); font-weight:500; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--grammar-primary)'" onmouseout="this.style.borderColor='var(--grammar-border)'">
+    <a href="{{ url_for('courses.level_detail', level_code=topic.level) }}" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:var(--grammar-surface); border:1px solid var(--grammar-border); border-radius:10px; text-decoration:none; font-size:0.85rem; color:var(--grammar-text); font-weight:500; transition:all 0.2s;">
       <span style="font-size:1.25rem;">🎓</span> Курс {{ topic.level }}
     </a>
-    <a href="{{ url_for('grammar_lab.topics', level=topic.level) }}" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:var(--grammar-surface); border:1px solid var(--grammar-border); border-radius:10px; text-decoration:none; font-size:0.85rem; color:var(--grammar-text); font-weight:500; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--grammar-primary)'" onmouseout="this.style.borderColor='var(--grammar-border)'">
+    <a href="{{ url_for('grammar_lab.topics', level=topic.level) }}" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:var(--grammar-surface); border:1px solid var(--grammar-border); border-radius:10px; text-decoration:none; font-size:0.85rem; color:var(--grammar-text); font-weight:500; transition:all 0.2s;">
       <span style="font-size:1.25rem;">🧠</span> Все темы {{ topic.level }}
     </a>
   </div>
@@ -1691,6 +1691,10 @@
     flex-direction: row-reverse;
   }
 }
+
+.topic-related-card:hover { border-color: var(--grammar-primary) !important; transform: translateY(-2px); }
+.topic-related-word:hover { border-color: var(--grammar-primary) !important; }
+.topic-related-cta:hover { border-color: var(--grammar-primary) !important; }
 </style>
 {% endblock %}
 

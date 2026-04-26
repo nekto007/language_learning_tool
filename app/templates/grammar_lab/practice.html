@@ -1311,7 +1311,7 @@ function renderExercise(exercise) {
       let html = `<label>${question || 'Выберите правильный ответ:'}</label>`;
       options.forEach((option, i) => {
         html += `
-          <label class="practice-option" onclick="selectOption(this, ${i})">
+          <label class="practice-option" data-action="select-option" data-value="${i}">
             <input type="radio" name="answer" value="${i}">
             <span class="practice-option__radio"></span>
             <span class="practice-option__text">${option}</span>
@@ -1324,13 +1324,13 @@ function renderExercise(exercise) {
       return `
         <label>${statement}</label>
         <div class="practice-tf">
-          <button type="button" class="practice-tf__btn practice-tf__btn--true" onclick="selectTF(this, 'true')">
+          <button type="button" class="practice-tf__btn practice-tf__btn--true" data-action="select-tf" data-value="true">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 6L9 17l-5-5"/>
             </svg>
             Верно
           </button>
-          <button type="button" class="practice-tf__btn practice-tf__btn--false" onclick="selectTF(this, 'false')">
+          <button type="button" class="practice-tf__btn practice-tf__btn--false" data-action="select-tf" data-value="false">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
@@ -1389,6 +1389,19 @@ function selectTF(el, value) {
   el.classList.add('selected');
   document.getElementById('user-answer').value = value;
 }
+
+// CSP-safe delegated handlers for dynamic exercise UI
+document.addEventListener('click', function(e) {
+  var optEl = e.target.closest('[data-action="select-option"]');
+  if (optEl) {
+    selectOption(optEl, parseInt(optEl.getAttribute('data-value'), 10));
+    return;
+  }
+  var tfEl = e.target.closest('[data-action="select-tf"]');
+  if (tfEl) {
+    selectTF(tfEl, tfEl.getAttribute('data-value'));
+  }
+});
 
 function renderReorder(exercise) {
   const words = exercise.words || [];
