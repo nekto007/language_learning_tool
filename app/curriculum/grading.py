@@ -153,11 +153,13 @@ def _grade_matching_pairs(user_pairs, correct_pairs):
             return None
         return (_normalize_answer(p.get('left')), _normalize_answer(p.get('right')))
 
-    user_keys = sorted(_key(p) for p in user_pairs)
-    correct_keys = sorted(_key(p) for p in correct_pairs)
+    user_keys = [_key(p) for p in user_pairs]
+    correct_keys = [_key(p) for p in correct_pairs]
     if any(k is None or k == ("", "") for k in user_keys):
         return False
-    return user_keys == correct_keys
+    if any(k is None for k in correct_keys):
+        return False
+    return sorted(user_keys) == sorted(correct_keys)
 
 
 def process_grammar_submission(exercises, answers):

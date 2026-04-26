@@ -519,6 +519,13 @@ def render_final_test_lesson(lesson):
         db.session.commit()
 
     if request.method == 'POST':
+        rate_limit = check_final_test_attempts_exhausted(current_user.id, lesson.id, db_session=db)
+        if rate_limit is not None:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, **rate_limit}), 429
+            flash('Достигнут лимит попыток финального теста. Попробуйте позже.', 'error')
+            return redirect(url_for('curriculum.lesson_by_id', lesson_id=lesson.id))
+
         answers = {}
         for key in request.form:
             if key.startswith('answer_'):
