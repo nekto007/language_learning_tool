@@ -145,8 +145,179 @@
 
 ## Design System & JS
 
-(Заполняется в Task 4.)
+CSS: `app/static/css/design-system.css` (~12756 строк). JS: `app/static/js/`.
+
+### P0 — критичные
+
+- **design-system.css:8541-8542** — глобальный `prefers-reduced-motion` блок использует `animation-duration: 0.01ms !important`, но не `animation-iteration-count: 1` — `infinite`-keyframes (lines 1181, 2683, 3216, 7911, 11459, 11950, 12218) продолжают цикл (CPU-overhead). Добавить `animation-iteration-count: 1 !important` в reduce-motion блок.
+- **mobile-reader.js:252** — `element.innerHTML = processedText` с server-side контентом; если backend пропустит unsanitized markup — XSS. Заменить на `textContent` или DOMParser + whitelist.
+- **flashcard-session.js:388, reader.js:184, linear-daily-plan.js:121, :137, main.js:147** — `fetch()` без `.catch()` / без AbortController. Silent failures, нет user-facing feedback. Добавить unified `apiFetch(...)` helper с error toast.
+- **deck-select-modal.js:280, :318; flashcard-session.js:764-771** — race condition: rapid double-click до `disabled=true` отправляет два запроса. Использовать sync flag `inFlight` + раннюю установку.
+- **daily-plan-next.js:86, :96, :125, :151, :195** — `.innerHTML` с template-literal без escape для server payload (`step.title`, `step.reason`). XSS-вектор. Заменить на DOM API (`textContent` + createElement).
+- **quiz-deck-editor.js:355** — `z-index: 9999` inline, обходит token system; одновременно есть `--z-modal: 1050` и хардкод `9999` в design-system.css:1894, :1913, :9998. Stacking-context bug при одновременных modal+toast.
+
+### P1 — важные UX/perf/a11y
+
+- **design-system.css:1894, 1913, 9998-9999, 8337, 8396, 10296, 11080** — z-index конфликты: смесь токенов (`var(--z-modal)`) и хардкодов (`1040`, `1050`, `9999`). Унифицировать через `--z-*`.
+- **design-system.css:1184-1191 vs 7984-8011** — `@keyframes float/spin/pulse/fadeIn` дублируются. Удалить duplicate definitions.
+- **design-system.css:8566-8600+** — 95+ `!important` в utility-классах создают specificity debt; новые компоненты не могут переопределить без `!important`-arms-race.
+- **study-guide.js:202-203** — `window.addEventListener('scroll'/'resize')` без `removeEventListener` — leak при re-init guide.
+- **mobile-reader.js:166-189** — 12+ listener'ов в `attachEventHandlers()` без cleanup; SPA-style re-mount теряет память.
+- **reader.js:226, :287, :764, :776** — click handlers на динамических word-элементах без delegation; orphan handlers после re-render.
+- **mobile-reader.js:41, :50-52, :231-277** — 40+ `console.log()` debug-statements в проде; шум, минор-perf hit.
+- **flashcard-session.js:225, :354, :425, :699, :778, :792, :836, :863, :889** — 10+ `console.log/error` логирующих grading state. Gate за `DEBUG` flag или удалить.
+- **main.js:2, :27, :62, :65** — `console.log/warn` debug в проде.
+- **study-guide.js:160, :305, :311, :319; mobile-reader.js:96-98; linear-plan-context.js:236, :248, :356, :417, :422** — `querySelector()` без null-check, далее `.addEventListener` / `.style.*` упадёт если элемента нет.
+- **study-guide.js:202-203** — `scroll`/`resize` без debounce/throttle; reflow на каждый pixel.
+- **mobile-reader.js:180** — scroll-listener вызывает `debouncedSave` (2s) но сам hot-path не throttled — каждый scroll-tick исполняет проверки.
+- **unified-js.js:54-57** — `.disabled` toggle без `.btn--loading` (нет spinner/loading копии). UX inconsistency.
+- **linear-plan-context.js:238, :267, :419, :424** — `.style.display = 'none'` напрямую вместо CSS-класса (`.is-hidden`) — нарушает паттерн.
+- **mobile-reader.js:187-189** — close-кнопка popup без `aria-label`.
+
+### P2 — polish / consistency
+
+- **design-system.css:1184-1191, 2687-2693, 7984-8011** — multiple `@keyframes` redefinitions (`float`, `spin`, `pulse`); namespace или удалить дубликаты.
+- **design-system.css:5065, 8016, 10275-10291, 12112, 12245** — z-index: scattered values 1/10/50/100/999/1000/1040/1050/2 без иерархии в комментарии в начале файла. Добавить layer-map в комментарии.
+- **design-system.css:11459, 12070** — `.dash-badge-popup__card`, `.cs-share-pulse` — высокая specificity для animation override; reduce-motion override line 11570 требует explicit `animation: none`. Можно вынести в отдельную layer.
+- **reader.js:183, :433; mobile-reader.js:287, :613; deck-select-modal.js:198, :285; linear-daily-plan.js:121, :137** — hardcoded API URL'ы. Вынести в `data-*`-attrs или window.config.
+- **quiz-deck-editor.js:85-92; reader-optimized.js:303-307** — `innerHTML + escapeHtml()` где-то применён, где-то нет. Стандартизировать на DOM API.
+- **word-translator.js** — popup-DOM не cleanup'ится при destroy instance.
+- **main.js, unified-js.js** — submit-кнопки без `.btn--loading` визуальной обратной связи (хотя CLAUDE.md упоминает паттерн).
 
 ## Prioritized Backlog
 
-(Сводный backlog формируется после Task 4.)
+Сводный backlog (агрегирует Public&Auth + Learning Core + Auxiliary + Design System & JS), для Task 5/6/7 плана.
+
+### P0 — Task 5 (критичные, блокирующие или security)
+
+XSS / unsafe rendering:
+- landing/index.html:825 (`|sanitize` фильтр audit)
+- study/achievements.html:138 (`category.icon|safe`)
+- grammar_lab/practice.html:1159 (`session.exercises|tojson|safe`)
+- admin/base.html:310-316 (`innerHTML` search results)
+- mobile-reader.js:252 (`innerHTML` server content)
+- daily-plan-next.js:86, :96, :125, :151, :195 (`innerHTML` template literals)
+- components/_flashcard_session.html:382 (`fc_grade_payload | safe`)
+
+CSP `unsafe-inline` нарушения (inline onclick/style):
+- lesson_base_template.html:476-487
+- dashboard.html:13, :77
+- grammar_lab/practice.html:1314, :1327, :1333; topic_detail.html:619
+- admin/users.html:148
+- partials/telegram_banner.html:15
+- race/today.html:284
+
+None-guard / divide-by-zero:
+- auth/profile.html:174 (`milestone.achieved_on`)
+- study/achievements.html:171 (`earned_at.strftime`)
+- study/achievements.html:38, :56 (`/total_achievements`)
+- study/index.html:232 (`/total`)
+- admin/dashboard.html:301, :110 (last_login None, srs_health divide)
+- admin/users.html:94 (last_login None)
+- race/today.html:46 (steps_total=0)
+
+Inconsistencies / broken UX:
+- auth/reset_password.html:32, :39 — отсутствует `.auth-password-toggle`
+- errors/{403,404,500}.html — verify `extends "base.html"`
+- design-system.css:8541-8542 — reduce-motion не покрывает `infinite`
+- fetch без `.catch`: flashcard-session.js:388, reader.js:184, linear-daily-plan.js:121/137, main.js:147
+- double-submit race: deck-select-modal.js:280, :318; flashcard-session.js:764-771
+
+### P1 — Task 6 (важные UX/a11y/perf)
+
+Loading/empty/error states:
+- curriculum/lessons/{quiz,matching,vocabulary,final_test}.html — empty + loading
+- study/{matching,quiz,leaderboard,insights,stats}.html — empty/loading
+- grammar_lab/practice.html — skeleton до гидратации
+- race/today.html — leaderboard empty/error
+- admin/stats.html:17-19 — period-selector loading
+- auth/reset_request.html — success message
+- landing/index.html:827-832 — playAudio error toast
+- study/quiz.html:1418 + dashboard repair-streak — fetch errors → toast
+
+Accessibility:
+- study/quiz.html — score `aria-live="polite"`
+- onboarding/wizard.html:159 — progressbar a11y
+- admin/users.html:54-65 — `scope="col"`, checkbox `aria-label`
+- admin/dashboard.html — chart `aria-label`/fallback
+- admin/base.html:200, :56-58, :283-292 — flash live-region, dropdown role, Cmd/Ctrl+K
+- partials/linear_daily_plan.html:69 — `role="status"` для banner
+- components/_flashcard_session.html:55-56 — counter `aria-live`
+- mobile-reader.js:187-189 — close `aria-label`
+- race/today.html:30, :84 — emoji `aria-hidden`
+- grammar_lab/{topics,stats}.html — empty `role="status"`
+- study-guide.js / mobile-reader.js — focus management
+
+Mobile responsive:
+- books/reader_simple.html:345 — fixed 320px sidebar
+- books/reading_widget.html:15-18 — fixed thumbnail
+- admin/users.html:52-166 — overflow indicator
+- components/_daily_plan_progress.html:106 — 320px overflow
+
+Form & double-submit:
+- auth/register.html:96, login.html:73 — form-level submit guard
+- all auth — CSRF flash
+- curriculum/lessons/{matching,quiz}.html — `aria-invalid` error states
+
+Memory leaks / perf:
+- study-guide.js:202-203 — listener cleanup, debounce/throttle
+- mobile-reader.js:166-189 — listener cleanup
+- reader.js:226, :287, :764, :776 — event delegation
+- console.log noise: mobile-reader.js, flashcard-session.js, main.js
+
+Z-index / motion:
+- design-system.css z-index unify
+- prefers-reduced-motion в `<style>` шаблонов: lesson_base_template.html:32-85; study/quiz.html:91-99; grammar_lab/practice.html:368-376, topic_detail.html:761-774, index.html:487-500; race/today.html:283-288
+
+Hardcoded design tokens:
+- curriculum/lessons/quiz.html:95, :152
+- curriculum/lessons/final_test_results.html:40-41
+- achievements/public_streak.html:14-30
+- grammar_lab hex tokens (см. P1/P2 Auxiliary)
+
+Misc:
+- linear_daily_plan.html:186-187 — `slot.data or {}`
+- curriculum/error_review.html:119 — null-guard ctx
+- study/quiz.html score/counter — CSS classes vs inline style
+- onboarding/wizard.html:268-269 — disabled state visuals
+- admin/stats — period loading
+- admin/database.html:104, admin/dashboard.html:383 — clamp 0..100
+- partials/linear_daily_plan.html:128-149 — plural helper
+- admin/components.html:117 — empty_message macro icon
+
+### P2 — Task 7 (polish)
+
+Hardcoded colors / tokens:
+- grammar_lab/index.html:1383-1385, topic_detail.html:1383-1385
+- grammar_lab/practice.html:453-456, index.html:722-732
+- design-system.css duplicate keyframes
+- inline styles в grammar_lab/topic_detail.html:620-636
+- study/quiz.html:1162, :1206-1207, :1478-1485 (specificity war → CSS-классы)
+- study/quiz.html:912 (pulse class)
+
+A11y polish:
+- auth/referrals.html:142-144, public_profile.html:140 — empty `role="status"`
+- auth/profile.html:314-325 — emoji `aria-label`
+- dashboard.html:10 — `aria-modal`/backdrop
+- dashboard.html:60, :79 — emoji aria
+- lesson_base_template.html:260-277 — `safe-area-inset-bottom`
+
+Consistency / dead code:
+- words/list_optimized.html, books/{list,details,read,words}_optimized.html — verify live vs legacy
+- errors/*.html — design-system buttons
+- landing — `.alert--form-error` паттерн
+- linear_daily_plan.html — skeleton при secured
+- curriculum/lessons/final_test.html — gating skeleton
+- study/quiz.html:1273 — `:disabled` стиль
+- grammar_lab/practice.html:1701, :1314, :1341 — semantic buttons + .btn--loading
+- grammar_lab/topics.html — word-break
+- grammar_lab/stats.html, index.html — clamp progress
+- admin/database.html:103-104 — clamp
+- race/today.html:126, :363-371 — minmax overflow
+- achievements/public_streak.html:55, :76-79 — calendar a11y, mobile max-width
+- admin/components.html:117 — empty_message icon
+- design-system.css — z-index layer-map в комментариях
+- main.js / unified-js.js — `.btn--loading` adoption
+- linear-plan-context.js — CSS-класс toggles вместо `.style.display`
+- word-translator.js — popup cleanup
+

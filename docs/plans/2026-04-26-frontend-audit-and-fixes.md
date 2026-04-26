@@ -55,9 +55,9 @@
 **Files (read-only audit):**
 - `app/static/css/design-system.css`, `app/static/js/`
 
-- [ ] Найти дубликаты правил, неиспользуемые классы, отсутствие prefers-reduced-motion для новых анимаций, токены вне системы (хардкод цветов/spacing)
-- [ ] Проверить JS: console.error в проде, отсутствие debounce, неотменяемые fetch, утечки event listeners
-- [ ] Дописать находки в audit-документ (раздел "Design System & JS"), сформировать сводный приоритезированный backlog в конце документа
+- [x] Найти дубликаты правил, неиспользуемые классы, отсутствие prefers-reduced-motion для новых анимаций, токены вне системы (хардкод цветов/spacing)
+- [x] Проверить JS: console.error в проде, отсутствие debounce, неотменяемые fetch, утечки event listeners
+- [x] Дописать находки в audit-документ (раздел "Design System & JS"), сформировать сводный приоритезированный backlog в конце документа
 
 ### Task 5: Фиксы P0 (критичные — сломанные/недоступные UI)
 
