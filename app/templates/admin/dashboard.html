@@ -59,7 +59,7 @@
         <div class="col-lg-8">
             <div class="card">
                 <div class="card-header"><h5 class="mb-0"><i class="fas fa-chart-line me-2 text-muted"></i>Активность (30 дней)</h5></div>
-                <div class="card-body"><div style="position:relative;height:280px;"><canvas id="activityChart"></canvas></div></div>
+                <div class="card-body"><div style="position:relative;height:280px;"><canvas id="activityChart" role="img" aria-label="График активности пользователей"></canvas></div></div>
             </div>
         </div>
         <!-- Platform Stats -->
@@ -74,7 +74,7 @@
                         ('Слов с аудио', "{:,}".format(words_with_audio), 'fa-volume-up'),
                         ('Уроков', total_lessons, 'fa-file-alt')
                     ]) }}
-                    <div style="position:relative;height:180px;" class="mt-3"><canvas id="progressChart"></canvas></div>
+                    <div style="position:relative;height:180px;" class="mt-3"><canvas id="progressChart" role="img" aria-label="Распределение прогресса пользователей"></canvas></div>
                 </div>
             </div>
         </div>
@@ -380,7 +380,7 @@ new Chart(document.getElementById('progressChart').getContext('2d'), {
     type: 'doughnut',
     data: {
         labels: ['Активные','Неактивные','Новые'],
-        datasets: [{data:[{{ active_users }},{{ total_users - active_users - new_users }},{{ new_users }}], backgroundColor:[C.success,C.danger,C.info], borderWidth:0}]
+        datasets: [{data:[{{ active_users }},{{ [total_users - active_users - new_users, 0] | max }},{{ new_users }}], backgroundColor:[C.success,C.danger,C.info], borderWidth:0}]
     },
     options: {responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}}
 });

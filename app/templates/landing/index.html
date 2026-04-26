@@ -871,7 +871,19 @@
 <script>
 function playAudio(url) {
     var a = document.getElementById('audioPlayer');
-    if (a) { a.src = url; a.play().catch(function(){}); }
+    if (!a) return;
+    a.src = url;
+    a.play().catch(function() {
+        var btn = event && event.currentTarget;
+        if (btn && !btn.dataset.audioErrShown) {
+            var msg = document.createElement('span');
+            msg.textContent = ' Аудио недоступно';
+            msg.style.color = 'var(--land-text-muted)';
+            msg.style.fontSize = '0.8rem';
+            btn.parentNode.insertBefore(msg, btn.nextSibling);
+            btn.dataset.audioErrShown = '1';
+        }
+    });
 }
 </script>
 {% endif %}

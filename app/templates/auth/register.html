@@ -232,13 +232,19 @@ function togglePasswordVisibility(btn) {
   btn.querySelector('.eye-off-icon').style.display = isPassword ? '' : 'none';
 }
 
-document.getElementById('register-submit-btn').closest('form').addEventListener('submit', function(e) {
-  if (!this.checkValidity()) { this.reportValidity(); return; }
-  const btn = document.getElementById('register-submit-btn');
-  btn.disabled = true;
-  btn.textContent = 'Регистрация...';
-  btn.classList.add('auth-btn--loading');
-});
+(function(){
+  var regForm = document.getElementById('register-submit-btn').closest('form');
+  var regSubmitting = false;
+  regForm.addEventListener('submit', function(e) {
+    if (regSubmitting) { e.preventDefault(); return; }
+    if (!this.checkValidity()) { this.reportValidity(); return; }
+    regSubmitting = true;
+    var btn = document.getElementById('register-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Регистрация...';
+    btn.classList.add('auth-btn--loading');
+  });
+})();
 
 document.addEventListener('DOMContentLoaded', function() {
   const firstError = document.querySelector('.auth-field__error');

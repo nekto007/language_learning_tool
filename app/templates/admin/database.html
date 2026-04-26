@@ -100,8 +100,9 @@
                                     <td>{{ stat.users }}</td>
                                     <td>
                                         <div class="progress progress-sm">
+                                            {% set _pct = [[stat.percentage|float, 0]|max, 100]|min %}
                                             <div class="progress-bar bg-{% if stat.status == 'new' %}secondary{% elif stat.status == 'learning' %}warning{% elif stat.status == 'review' %}info{% else %}success{% endif %}"
-                                                 role="progressbar" style="width: {{ stat.percentage }}%">
+                                                 role="progressbar" aria-valuenow="{{ _pct }}" aria-valuemin="0" aria-valuemax="100" style="width: {{ _pct }}%">
                                                 {{ stat.percentage }}%
                                             </div>
                                         </div>

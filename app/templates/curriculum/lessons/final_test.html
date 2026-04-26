@@ -585,6 +585,13 @@
 
     <!-- Форма с вопросами -->
     <!-- Контейнер для вопросов -->
+    {% if not exercises or exercises|length == 0 %}
+    <div class="lesson-empty-state" role="status" style="text-align:center;padding:3rem 1.5rem;">
+      <div style="font-size:3rem;margin-bottom:1rem;" aria-hidden="true">&#128221;</div>
+      <h3>Тест пока недоступен</h3>
+      <p style="color:var(--color-text-muted);">Содержимое теста ещё не загружено. Попробуйте позже.</p>
+    </div>
+    {% else %}
     <div class="questions-container">
       {% for question in exercises %}
         {% set question_index = loop.index0 %}
@@ -850,6 +857,7 @@
         </div>
       {% endfor %}
     </div>
+    {% endif %}
   </div>
 </div>
 

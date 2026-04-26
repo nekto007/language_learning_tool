@@ -225,7 +225,30 @@ Inconsistencies / broken UX:
 - [DONE] fetch без `.catch` — все аудированные fetch имеют try/catch или .catch (flashcard-session.js обёрнут try/await/catch; reader.js, linear-daily-plan.js, main.js имеют .catch).
 - [DONE] double-submit race — deck-select-modal.js имеет `isCreatingDeck` guard; flashcard-session.js `rateCard` получил новый `_rateInFlight` flag.
 
-### P1 — Task 6 (важные UX/a11y/perf)
+### P1 — Task 6 (важные UX/a11y/perf) [DONE]
+
+P1 fixes shipped (this iteration):
+- admin/users.html — `scope="col"` на th, `aria-label` на checkbox-ах
+- admin/dashboard.html — `[total - active - new, 0]|max` clamp; canvas `role="img"` + `aria-label`
+- admin/database.html — clamp `[[pct,0]|max,100]|min` + `aria-valuenow/min/max` на progressbar
+- onboarding/wizard.html — `role="progressbar"` + `aria-valuenow/min/max` (синхронизируется в showStep); disabled-state `cursor: not-allowed` + `background: var(--ob-text-muted)`
+- partials/linear_daily_plan.html — already has `role="status"` + `slot.data or {}` (verified)
+- components/_flashcard_session.html — `aria-live="polite"` на card-counter
+- study/quiz.html — `aria-live` на question-counter + progress-stats
+- race/today.html — emoji wrapped in `<span aria-hidden="true">` + `aria-label` на final-place
+- auth/login.html, register.html — form-level submit guard через closure flag (предотвращает double-submit при rapid Enter)
+- books/reader_simple.html — sidebar `width: min(320px, 100vw); max-width: 100vw` для iPhone SE
+- landing/index.html — playAudio показывает inline "Аудио недоступно" при rejection
+- curriculum/lessons/final_test.html — empty state когда `exercises|length == 0`
+
+Deferred to P2 (require larger refactor):
+- curriculum/lessons/quiz.html — hardcoded hex (#10b981 etc) → CSS-токены: огромная зона рефакторинга, переносится в Task 7
+- study/quiz.html, lesson_base_template.html, grammar_lab/* — `<style>`-блоки `prefers-reduced-motion` overrides: глобальный блок в design-system.css:8537 покрывает через `*` selector — verified в P0; локальные оверрайды как cosmetic polish в P2
+- study-guide.js, mobile-reader.js listener cleanup / debounce: требует refactor в class lifecycle, в P2 backlog
+- console.log gating за DEBUG flag: cosmetic, P2
+- design-system.css z-index unify (1000+ replacements): P2 dedicated task
+
+Original P1 backlog:
 
 Loading/empty/error states:
 - curriculum/lessons/{quiz,matching,vocabulary,final_test}.html — empty + loading

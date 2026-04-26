@@ -456,13 +456,19 @@ function togglePasswordVisibility(btn) {
   btn.querySelector('.eye-off-icon').style.display = isPassword ? '' : 'none';
 }
 
-document.getElementById('login-submit-btn').closest('form').addEventListener('submit', function(e) {
-  if (!this.checkValidity()) { this.reportValidity(); return; }
-  const btn = document.getElementById('login-submit-btn');
-  btn.disabled = true;
-  btn.textContent = 'Вход...';
-  btn.classList.add('auth-btn--loading');
-});
+(function(){
+  var loginForm = document.getElementById('login-submit-btn').closest('form');
+  var loginSubmitting = false;
+  loginForm.addEventListener('submit', function(e) {
+    if (loginSubmitting) { e.preventDefault(); return; }
+    if (!this.checkValidity()) { this.reportValidity(); return; }
+    loginSubmitting = true;
+    var btn = document.getElementById('login-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Вход...';
+    btn.classList.add('auth-btn--loading');
+  });
+})();
 
 document.addEventListener('DOMContentLoaded', function() {
   const firstError = document.querySelector('.auth-field__error');

@@ -53,23 +53,23 @@
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th style="width: 40px;">
-                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        <th scope="col" style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAll" aria-label="Выбрать всех пользователей">
                         </th>
-                        <th>ID</th>
-                        <th>Имя пользователя</th>
-                        <th>Email</th>
-                        <th>Регистрация</th>
-                        <th>Последняя активность</th>
-                        <th>Статус</th>
-                        <th>Действия</th>
+                        <th scope="col">ID</th>
+                        <th scope="col">Имя пользователя</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Регистрация</th>
+                        <th scope="col">Последняя активность</th>
+                        <th scope="col">Статус</th>
+                        <th scope="col">Действия</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in users %}
                     <tr>
                         <td>
-                            <input type="checkbox" class="form-check-input user-checkbox" value="{{ user.id }}">
+                            <input type="checkbox" class="form-check-input user-checkbox" value="{{ user.id }}" aria-label="Выбрать пользователя {{ user.username }}">
                         </td>
                         <td>{{ user.id }}</td>
                         <td>
