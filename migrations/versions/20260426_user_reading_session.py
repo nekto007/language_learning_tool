@@ -47,6 +47,7 @@ def upgrade():
         ),
         sa.Column('started_at', sa.DateTime(timezone=True), nullable=False),
         sa.Column('ended_at', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('start_offset_pct', sa.Float(), nullable=False, server_default='0'),
         sa.Column('offset_delta', sa.Float(), nullable=False, server_default='0'),
     )
     op.create_index(
@@ -57,11 +58,23 @@ def upgrade():
         'idx_user_reading_session_started',
         'user_reading_sessions', ['started_at'],
     )
+    # Partial unique index: at most one open session per (user, chapter).
+    # Prevents two concurrent /reading-session/start requests from both
+    # creating open rows whose later /end could pair an idle tab's 60s
+    # duration with another tab's chapter progress.
+    op.create_index(
+        'uq_user_reading_session_open',
+        'user_reading_sessions', ['user_id', 'chapter_id'],
+        unique=True,
+        postgresql_where=sa.text('ended_at IS NULL'),
+        sqlite_where=sa.text('ended_at IS NULL'),
+    )
 
 
 def downgrade():
     if not _table_exists('user_reading_sessions'):
         return
+    op.drop_index('uq_user_reading_session_open', table_name='user_reading_sessions')
     op.drop_index('idx_user_reading_session_started', table_name='user_reading_sessions')
     op.drop_index('idx_user_reading_session_user_chapter', table_name='user_reading_sessions')
     op.drop_table('user_reading_sessions')

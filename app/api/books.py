@@ -260,15 +260,16 @@ def update_chapter_progress():
                 maybe_award_book_reading_xp,
                 maybe_award_linear_perfect_day,
             )
-            # See note in app/books/api.py — auto-save deltas are tiny so the
-            # per-save delta check would never fire; require absolute position
-            # past the threshold plus forward progress this save.
+            # See note in app/books/api.py — auto-save deltas are tiny so
+            # the per-save delta check would never fire. Gate on a closed
+            # session today that itself met both 60s and 5%-offset
+            # thresholds; this prevents trivial nudges from minting XP.
             advanced = offset_pct - previous_offset
             if offset_pct >= READ_PROGRESS_THRESHOLD and advanced > 0:
                 pref = get_user_reading_preference(current_user.id, db)
                 if pref is not None and pref.book_id == book_id:
-                    from app.books.reading_session import has_min_reading_time_today
-                    if has_min_reading_time_today(current_user.id, book_id, db):
+                    from app.books.reading_session import has_qualifying_reading_session_today
+                    if has_qualifying_reading_session_today(current_user.id, book_id, db):
                         if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
                             maybe_award_linear_perfect_day(current_user.id, db_session=db)
                             db.session.commit()

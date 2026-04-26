@@ -552,6 +552,9 @@ def update_study_item():
         if direction.step_index < len(steps):
             requeue_minutes = steps[direction.step_index]
 
+    if requeue_minutes is not None and requeue_minutes >= 60:
+        requeue_position = None
+
     is_buried = False
     if direction.session_attempts >= MAX_SESSION_ATTEMPTS:
         direction.bury_for_session(session_duration_hours=4)

@@ -1229,7 +1229,6 @@ setTimeout(updateProgress, 100);
 (function () {
     const csrfToken = '{{ csrf_token() }}';
     const chapterId = {{ current_chapter.id }};
-    const initialOffset = {{ chapter_progress.offset_pct if chapter_progress and chapter_progress.offset_pct else 0 }};
     let sessionId = null;
     let sessionEnded = false;
 
@@ -1255,11 +1254,18 @@ setTimeout(updateProgress, 100);
     function endReadingSession() {
         if (!sessionId || sessionEnded) return;
         sessionEnded = true;
-        const scrollHeight = readerBody.scrollHeight - readerBody.clientHeight;
-        const currentOffset = scrollHeight > 0
-            ? Math.min((readerBody.scrollTop / scrollHeight) || 0, 1)
-            : 0;
-        const offsetDelta = Math.max(0, currentOffset - initialOffset);
+        // saveProgress is debounced 3s, so the persisted UserChapterProgress
+        // may lag the latest scroll on page-leave. Send the live offset as a
+        // hint so the server's per-visit delta reflects what the user
+        // actually reached. This does not expand the trust boundary because
+        // PATCH /api/progress already accepts arbitrary client offset values.
+        let currentOffsetPct = null;
+        try {
+            const scrollHeight = readerBody.scrollHeight - readerBody.clientHeight;
+            if (scrollHeight > 0) {
+                currentOffsetPct = Math.min(readerBody.scrollTop / scrollHeight, 1);
+            }
+        } catch (e) { /* readerBody may be detached on pagehide */ }
         // fetch+keepalive is used instead of sendBeacon because the books_api
         // blueprint is CSRF-protected and sendBeacon cannot send custom headers.
         fetch('/api/books/reading-session/end', {
@@ -1270,7 +1276,7 @@ setTimeout(updateProgress, 100);
             },
             body: JSON.stringify({
                 session_id: sessionId,
-                offset_delta: offsetDelta,
+                current_offset_pct: currentOffsetPct,
             }),
             keepalive: true,
         }).catch(() => {});

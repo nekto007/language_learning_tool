@@ -501,6 +501,12 @@ class UnifiedSRSService:
                 step_index=current_step
             )
 
+            # If the next learning/relearning step is scheduled hours away
+            # (e.g. RELEARNING_STEPS=[10, 1440] — second step is 1 day),
+            # the card must not be requeued in the current session.
+            if requeue_minutes is not None and requeue_minutes >= 60:
+                requeue_position = None
+
             # Check session limit
             if card.session_attempts >= MAX_SESSION_ATTEMPTS:
                 requeue_position = None  # Don't show again this session
@@ -648,6 +654,12 @@ class UnifiedSRSService:
                 state=current_state,
                 step_index=current_step
             )
+
+            # If the next learning/relearning step is scheduled hours away
+            # (e.g. RELEARNING_STEPS=[10, 1440] — second step is 1 day),
+            # the card must not be requeued in the current session.
+            if requeue_minutes is not None and requeue_minutes >= 60:
+                requeue_position = None
 
             # Check session limit
             if progress.session_attempts >= MAX_SESSION_ATTEMPTS:
