@@ -1,5 +1,4 @@
 import html
-import json
 import logging
 import random
 from datetime import UTC, datetime
@@ -11,6 +10,7 @@ from marshmallow import ValidationError
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.routes.lessons import lessons_bp
 from app.curriculum.security import require_lesson_access, sanitize_html
+from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.service import get_next_lesson, process_quiz_submission
 from app.curriculum.services.progress_service import ProgressService
 from app.curriculum.validators import LessonContentValidator
@@ -327,34 +327,7 @@ def render_quiz_lesson(lesson):
                 except ValueError:
                     logger.error(f"Invalid question index: {question_idx}")
 
-        if 'client_results' in request.form:
-            try:
-                client_results = json.loads(request.form['client_results'])
-                client_score = float(request.form['client_score'])
-                client_correct_count = int(request.form.get('client_correct_count') or request.form.get('client_correct_answers') or 0)
-
-                feedback = _build_quiz_feedback(client_results, cleaned_content['questions'])
-
-                result = {
-                    'score': client_score,
-                    'correct_answers': client_correct_count,
-                    'total_questions': len(cleaned_content['questions']),
-                    'feedback': feedback,
-                    'answers': answers
-                }
-            except (ValueError, TypeError) as e:
-                logger.error(f"Invalid client results data: {e}")
-                result = process_quiz_submission(cleaned_content['questions'], answers)
-        else:
-            result = process_quiz_submission(cleaned_content['questions'], answers)
-            if 'client_score' in request.form:
-                try:
-                    client_score = float(request.form['client_score'])
-                    client_correct_count = int(request.form.get('client_correct_count') or request.form.get('client_correct_answers') or 0)
-                    result['score'] = client_score
-                    result['correct_answers'] = client_correct_count
-                except (ValueError, TypeError) as e:
-                    logger.error(f"Invalid client score data: {e}")
+        result = process_quiz_submission(cleaned_content['questions'], answers)
 
         try:
             log_quiz_errors_from_result(
@@ -398,61 +371,6 @@ def render_quiz_lesson(lesson):
         progress=progress,
         next_lesson=next_lesson
     )
-
-
-def _build_quiz_feedback(client_results: list, questions: list) -> dict:
-    """Build feedback dict from client-side quiz results."""
-    feedback = {}
-    for item in client_results:
-        q_idx = item['question_index']
-        is_correct = item['is_correct']
-        attempts = item['attempts']
-        user_answer = item['answer']
-        question = questions[q_idx]
-        correct_answer = question.get('correct_answer') or question.get('correct') or question.get('answer')
-
-        if question.get('type') == 'matching' and 'pairs' in question:
-            correct_answer = ', '.join(
-                f"{p.get('left', '')} → {p.get('right', '')}"
-                for p in question['pairs']
-            )
-
-        q_type = question.get('type', '')
-        if q_type in ('multiple_choice', 'fill_blank', 'fill_in_blank', 'listening_choice', 'dialogue_completion') and 'options' in question:
-            opts = question['options']
-            if isinstance(correct_answer, int) and 0 <= correct_answer < len(opts):
-                correct_answer = opts[correct_answer]
-            elif isinstance(correct_answer, str) and correct_answer.isdigit():
-                ca_idx = int(correct_answer)
-                if 0 <= ca_idx < len(opts):
-                    correct_answer = opts[ca_idx]
-                elif 1 <= ca_idx <= len(opts):
-                    correct_answer = opts[ca_idx - 1]
-            if isinstance(user_answer, str) and user_answer.isdigit():
-                ua_idx = int(user_answer)
-                if 0 <= ua_idx < len(opts):
-                    user_answer = opts[ua_idx]
-                elif 1 <= ua_idx <= len(opts):
-                    user_answer = opts[ua_idx - 1]
-
-        if is_correct:
-            feedback[str(q_idx)] = {
-                'status': 'correct',
-                'message': 'Правильно!' if attempts == 1 else f'Правильно! (попытка {attempts})',
-                'user_answer': user_answer,
-                'correct_answer': correct_answer,
-                'attempts': attempts
-            }
-        else:
-            feedback[str(q_idx)] = {
-                'status': 'incorrect',
-                'message': f'Неправильно. Правильный ответ: {correct_answer}',
-                'user_answer': user_answer,
-                'correct_answer': correct_answer,
-                'attempts': attempts
-            }
-
-    return feedback
 
 
 def render_final_test_lesson(lesson):
@@ -518,6 +436,13 @@ def render_final_test_lesson(lesson):
         db.session.commit()
 
     if request.method == 'POST':
+        rate_limit = check_final_test_attempts_exhausted(current_user.id, lesson.id, db_session=db)
+        if rate_limit is not None:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, **rate_limit}), 429
+            flash('Достигнут лимит попыток финального теста. Попробуйте позже.', 'error')
+            return redirect(url_for('curriculum.lesson_by_id', lesson_id=lesson.id))
+
         answers = {}
         for key in request.form:
             if key.startswith('answer_'):
@@ -815,35 +740,7 @@ def quiz_lesson(lesson_id):
                 except ValueError:
                     logger.error(f"Invalid question index: {question_idx}")
 
-        if 'client_results' in request.form:
-            try:
-                client_results = json.loads(request.form['client_results'])
-                client_score = float(request.form['client_score'])
-                client_correct_count = int(request.form.get('client_correct_count') or request.form.get('client_correct_answers') or 0)
-
-                feedback = _build_quiz_feedback(client_results, cleaned_content['questions'])
-
-                result = {
-                    'score': client_score,
-                    'correct_answers': client_correct_count,
-                    'total_questions': len(cleaned_content['questions']),
-                    'feedback': feedback,
-                    'answers': answers
-                }
-            except (ValueError, TypeError, json.JSONDecodeError) as e:
-                logger.error(f"Invalid client results data: {e}")
-                result = process_quiz_submission(cleaned_content['questions'], answers)
-        else:
-            result = process_quiz_submission(cleaned_content['questions'], answers)
-
-            if 'client_score' in request.form:
-                try:
-                    client_score = float(request.form['client_score'])
-                    client_correct_count = int(request.form.get('client_correct_count') or request.form.get('client_correct_answers') or 0)
-                    result['score'] = client_score
-                    result['correct_answers'] = client_correct_count
-                except (ValueError, TypeError) as e:
-                    logger.error(f"Invalid client score data: {e}")
+        result = process_quiz_submission(cleaned_content['questions'], answers)
 
         try:
             log_quiz_errors_from_result(
@@ -957,6 +854,13 @@ def final_test_lesson(lesson_id):
         db.session.commit()
 
     if request.method == 'POST':
+        rate_limit = check_final_test_attempts_exhausted(current_user.id, lesson.id, db_session=db)
+        if rate_limit is not None:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, **rate_limit}), 429
+            flash('Достигнут лимит попыток финального теста. Попробуйте позже.', 'error')
+            return redirect(url_for('curriculum_lessons.final_test_lesson', lesson_id=lesson.id))
+
         answers = {}
         for key in request.form:
             if key.startswith('answer_'):

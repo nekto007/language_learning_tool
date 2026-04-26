@@ -77,12 +77,19 @@ def _read_today(user_id: int, db: Any) -> bool:
     return db.session.query(query.exists()).scalar() or False
 
 
-def build_reading_slot(user_id: int, db: Any) -> LinearSlot:
+def build_reading_slot(
+    user_id: int, db: Any, *, focus: Optional[str] = None
+) -> LinearSlot:
     """Build the book-reading baseline slot.
 
     Always returns a slot — when the user has not chosen a book the
     slot is in "select-book" mode (URL opens the dashboard modal).
+
+    When ``focus='reading'`` (the user picked reading as their primary
+    onboarding focus), ``slot.data['priority']=True`` is set as a hint
+    for the UI to render the slot as recommended.
     """
+    priority = focus == 'reading'
     pref = get_user_reading_preference(user_id, db)
 
     if pref is None:
@@ -93,7 +100,7 @@ def build_reading_slot(user_id: int, db: Any) -> LinearSlot:
             eta_minutes=_READING_SLOT_ETA_MINUTES,
             url='#book-select-modal',
             completed=False,
-            data={'needs_selection': True},
+            data={'needs_selection': True, 'priority': priority},
         )
 
     book = db.session.get(Book, pref.book_id)
@@ -107,7 +114,7 @@ def build_reading_slot(user_id: int, db: Any) -> LinearSlot:
             eta_minutes=_READING_SLOT_ETA_MINUTES,
             url='#book-select-modal',
             completed=False,
-            data={'needs_selection': True},
+            data={'needs_selection': True, 'priority': priority},
         )
 
     latest = _latest_chapter_progress(user_id, book.id, db)
@@ -137,5 +144,6 @@ def build_reading_slot(user_id: int, db: Any) -> LinearSlot:
             'current_chapter_num': chapter_num,
             'current_chapter_title': chapter_title,
             'needs_selection': False,
+            'priority': priority,
         },
     )

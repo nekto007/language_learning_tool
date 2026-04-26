@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
+from app.auth.models import User
 from app.daily_plan.linear.progression import (
     LevelProgress,
     find_next_lesson_linear,
@@ -25,6 +26,32 @@ from app.daily_plan.linear.slots.error_review_slot import build_error_review_slo
 from app.daily_plan.linear.slots.reading_slot import build_reading_slot
 from app.daily_plan.linear.slots.srs_slot import build_srs_slot
 from app.utils.db import db
+
+VALID_FOCUSES = {'grammar', 'vocabulary', 'reading', 'all'}
+
+
+def _get_user_focus(user_id: int, db_session: Any) -> Optional[str]:
+    """Return the first onboarding-focus tag for the user, or None.
+
+    ``User.onboarding_focus`` is stored as a comma-separated string of
+    tags (one of ``grammar``/``vocabulary``/``reading``/``all``). Plan
+    routing only uses the primary tag, so we split and return the first
+    valid value. Unknown tags fall back to None to keep the plan in its
+    standard shape.
+    """
+    user = db_session.session.get(User, user_id)
+    if user is None:
+        return None
+    raw = getattr(user, 'onboarding_focus', None)
+    if not raw:
+        return None
+    parts = [p.strip() for p in raw.split(',') if p.strip()]
+    if not parts:
+        return None
+    primary = parts[0]
+    if primary not in VALID_FOCUSES or primary == 'all':
+        return None
+    return primary
 
 logger = logging.getLogger(__name__)
 
@@ -91,16 +118,26 @@ def get_linear_plan(
             get_spine_upcoming(user_id, next_lesson, session_provider, limit=2)
         )
 
+    focus = _get_user_focus(user_id, session_provider)
+
     curriculum_slot = build_curriculum_slot(user_id, session_provider, next_lesson=next_lesson)
     srs_slot = build_srs_slot(user_id, session_provider, curriculum_lesson=next_lesson)
-    reading_slot = build_reading_slot(user_id, session_provider)
+    reading_slot = build_reading_slot(user_id, session_provider, focus=focus)
     error_review_slot = build_error_review_slot(user_id, session_provider)
 
-    baseline_slots = [
-        curriculum_slot.to_dict(),
-        srs_slot.to_dict(),
-        reading_slot.to_dict(),
-    ]
+    curriculum_dict = curriculum_slot.to_dict()
+    srs_dict = srs_slot.to_dict()
+    reading_dict = reading_slot.to_dict()
+
+    if focus == 'grammar':
+        curriculum_dict['data']['prioritize_grammar'] = True
+
+    if focus == 'reading':
+        # Reading-focused users see the reading slot promoted to position 2
+        # (curriculum stays first as the spine anchor).
+        baseline_slots = [curriculum_dict, reading_dict, srs_dict]
+    else:
+        baseline_slots = [curriculum_dict, srs_dict, reading_dict]
     if error_review_slot is not None:
         baseline_slots.append(error_review_slot.to_dict())
 

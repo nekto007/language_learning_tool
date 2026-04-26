@@ -303,8 +303,33 @@ def award_perfect_day_xp_idempotent(
     return result
 
 
-def award_xp(user_id: int, base_amount: int, source: str) -> XPAward:
+def apply_score_to_base(base_amount: int, score: Optional[float]) -> int:
+    """Scale a base XP amount by an accuracy score (0..100).
+
+    Returns the original base when ``score`` is None (backward compatible
+    for non-graded sources). When provided, the awarded base lands in
+    ``[0.5 * base, 1.0 * base]`` linearly with the score: 0% accuracy
+    earns half, 100% earns the full base.
+    """
+    if score is None:
+        return base_amount
+    clamped = max(0.0, min(100.0, float(score)))
+    scaled = base_amount * (0.5 + clamped / 200.0)
+    return max(1, round(scaled))
+
+
+def award_xp(
+    user_id: int,
+    base_amount: int,
+    source: str,
+    score: Optional[float] = None,
+) -> XPAward:
     """Award XP to a user with streak multiplier applied.
+
+    When ``score`` (0..100) is provided, the base is first scaled to
+    ``base * (0.5 + score / 200)`` so graded sources reward accuracy.
+    ``score=None`` is the legacy path (full base, used by SRS, reading,
+    error review, perfect-day bonus).
 
     Idempotency is the caller's responsibility (e.g. only call once per phase
     completion). Updates UserStatistics.total_xp and current_level in-place;
@@ -316,6 +341,8 @@ def award_xp(user_id: int, base_amount: int, source: str) -> XPAward:
     if base_amount <= 0:
         raise ValueError(f"base_amount must be positive, got {base_amount}")
 
+    effective_base = apply_score_to_base(base_amount, score)
+
     stats = UserStatistics.query.filter_by(user_id=user_id).first()
     if stats is None:
         stats = UserStatistics(user_id=user_id)
@@ -324,7 +351,7 @@ def award_xp(user_id: int, base_amount: int, source: str) -> XPAward:
 
     streak_days = int(stats.current_streak_days or 0)
     multiplier = get_streak_multiplier(streak_days)
-    awarded = max(1, round(base_amount * multiplier))
+    awarded = max(1, round(effective_base * multiplier))
 
     previous_total = int(stats.total_xp or 0)
     previous_level = get_level_info(previous_total).current_level
@@ -546,14 +573,19 @@ def get_linear_xp_amount(source: str) -> int:
     return LINEAR_XP[source]
 
 
-def award_linear_xp(user_id: int, source: str) -> XPAward:
+def award_linear_xp(
+    user_id: int,
+    source: str,
+    score: Optional[float] = None,
+) -> XPAward:
     """Award XP for a linear daily plan slot completion by source key.
 
     Thin wrapper around `award_xp` that looks the base amount up in
-    `LINEAR_XP`. Streak multiplier is applied by `award_xp`.
+    `LINEAR_XP`. Streak multiplier is applied by `award_xp`. When
+    ``score`` is supplied, the base scales with accuracy (graded slots).
     """
     base = get_linear_xp_amount(source)
-    return award_xp(user_id, base, source)
+    return award_xp(user_id, base, source, score=score)
 
 
 def get_today_xp(user_id: int, for_date: date) -> int:

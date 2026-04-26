@@ -276,6 +276,33 @@ class ProgressService:
         db.session.commit()
         _invalidate_user_progress_cache(user_id)
 
+        # Persist a LessonAttempt row for failed final_test submissions so the
+        # rate-limit gate (check_final_test_attempts_exhausted) can count them.
+        # complete_lesson() only creates attempts on pass; without this, failed
+        # attempts disappear and the per-user 24h cap never fires.
+        if not is_completed and getattr(lesson, 'type', None) == 'final_test':
+            try:
+                from app.curriculum.models import LessonAttempt
+                now = datetime.now(UTC)
+                failed_attempt = LessonAttempt.create_attempt(
+                    user_id=user_id,
+                    lesson_id=lesson.id,
+                    lesson_progress_id=progress.id,
+                )
+                failed_attempt.started_at = progress.started_at or now
+                failed_attempt.completed_at = now
+                failed_attempt.score = score
+                failed_attempt.passed = False
+                failed_attempt.correct_answers = result.get('correct_answers', 0)
+                failed_attempt.total_questions = result.get('total_questions', 0)
+                db.session.commit()
+            except Exception:
+                logger.warning(
+                    "Failed to record failed final_test attempt for user=%s lesson=%s",
+                    user_id, lesson.id, exc_info=True,
+                )
+                db.session.rollback()
+
         # Process grading and achievements if lesson completed
         completion_result = None
         if is_completed:
@@ -295,7 +322,9 @@ class ProgressService:
                     maybe_award_curriculum_xp,
                     maybe_award_linear_perfect_day,
                 )
-                if maybe_award_curriculum_xp(user_id, lesson, db_session=db) is not None:
+                if maybe_award_curriculum_xp(
+                    user_id, lesson, db_session=db, score=score,
+                ) is not None:
                     maybe_award_linear_perfect_day(user_id, db_session=db)
                     db.session.commit()
             except Exception:

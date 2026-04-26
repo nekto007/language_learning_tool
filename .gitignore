@@ -331,7 +331,7 @@ requirements-test.txt
 run_tests.sh
 
 # Books data (fb2, images, txt)
-books/
+/books/
 
 # User uploads (covers, etc)
 uploads/

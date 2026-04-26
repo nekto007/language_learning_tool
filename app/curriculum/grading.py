@@ -4,11 +4,162 @@
 import json
 import logging
 import re
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 
 from app.utils.normalization import normalize_text
 
 logger = logging.getLogger(__name__)
+
+
+FINAL_TEST_MAX_ATTEMPTS_PER_DAY = 3
+FINAL_TEST_ATTEMPT_WINDOW_HOURS = 24
+
+
+def check_final_test_attempts_exhausted(user_id, lesson_id, db_session=None,
+                                        max_attempts=FINAL_TEST_MAX_ATTEMPTS_PER_DAY,
+                                        window_hours=FINAL_TEST_ATTEMPT_WINDOW_HOURS):
+    """Return rate-limit dict if user has met or exceeded the final-test attempt cap
+    within the rolling window. Admins are exempt. Returns None when allowed.
+
+    Response on exhaustion:
+        {"passed": False, "error": "attempts_exhausted",
+         "retry_after": <ISO8601 UTC>, "max_attempts": N, "window_hours": H}
+    """
+    from app.curriculum.models import LessonAttempt
+    from app.auth.models import User
+    from app.utils.db import db as default_db
+
+    session = db_session if db_session is not None else default_db.session
+    if hasattr(session, 'session'):
+        session = session.session
+
+    user = session.get(User, user_id)
+    if user is not None and getattr(user, 'is_admin', False):
+        return None
+
+    window_start = datetime.now(UTC) - timedelta(hours=window_hours)
+    window_start_naive = window_start.replace(tzinfo=None)
+
+    # Filter on completed_at, not started_at: production code in
+    # complete_lesson reuses progress.started_at across every attempt
+    # (set once on initial LessonProgress creation), so a started_at
+    # filter would let the rolling window age out by 24h after the
+    # first attempt and never gate a retry. completed_at is set fresh
+    # per attempt.
+    attempts = (
+        session.query(LessonAttempt)
+        .filter(
+            LessonAttempt.user_id == user_id,
+            LessonAttempt.lesson_id == lesson_id,
+            LessonAttempt.completed_at.isnot(None),
+            LessonAttempt.completed_at >= window_start_naive,
+            (LessonAttempt.passed.is_(False)) | (LessonAttempt.passed.is_(None)),
+        )
+        .order_by(LessonAttempt.completed_at.asc())
+        .all()
+    )
+
+    if len(attempts) < max_attempts:
+        return None
+
+    oldest = attempts[0].completed_at
+    if oldest.tzinfo is None:
+        oldest = oldest.replace(tzinfo=UTC)
+    retry_after = oldest + timedelta(hours=window_hours)
+
+    return {
+        "passed": False,
+        "error": "attempts_exhausted",
+        "retry_after": retry_after.isoformat(),
+        "max_attempts": max_attempts,
+        "window_hours": window_hours,
+    }
+
+
+def _normalize_answer(s):
+    """Normalize answer for strict comparison: strip, lower, strip punctuation, collapse spaces."""
+    if s is None:
+        return ""
+    return normalize_text(str(s))
+
+
+def _levenshtein(a, b):
+    """Compute Levenshtein edit distance between two strings."""
+    if a == b:
+        return 0
+    if not a:
+        return len(b)
+    if not b:
+        return len(a)
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        curr = [i] + [0] * len(b)
+        for j, cb in enumerate(b, 1):
+            cost = 0 if ca == cb else 1
+            curr[j] = min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost)
+        prev = curr
+    return prev[-1]
+
+
+def _strict_text_match(user_answer, candidates):
+    """
+    Strict grading for fill-in-blank / translation answers.
+
+    Exact match after normalization. For single-word candidates, allow
+    Levenshtein distance ≤1 (typo tolerance). Multi-word answers require
+    exact match — overlap heuristics are intentionally not used.
+    """
+    user_normalized = _normalize_answer(user_answer)
+    if not user_normalized:
+        return False
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        correct_normalized = _normalize_answer(candidate)
+        if not correct_normalized:
+            continue
+        if user_normalized == correct_normalized:
+            return True
+        # Typo tolerance only for single-word answers >=4 chars; on shorter
+        # tokens a 1-edit window admits substantively different words
+        # (e.g. "is"/"in", "a"/"o").
+        if (
+            ' ' not in correct_normalized
+            and ' ' not in user_normalized
+            and len(correct_normalized) >= 4
+        ):
+            if _levenshtein(user_normalized, correct_normalized) <= 1:
+                return True
+    return False
+
+
+def _grade_matching_pairs(user_pairs, correct_pairs):
+    """
+    Server-side validation of matching pairs.
+
+    Both inputs are lists of {"left": X, "right": Y} dicts. Returns True iff
+    every correct pair has a corresponding user pair (order-independent),
+    and the user submitted no extras.
+    """
+    if not isinstance(user_pairs, list) or not isinstance(correct_pairs, list):
+        return False
+    if not correct_pairs:
+        return False
+    if len(user_pairs) != len(correct_pairs):
+        return False
+
+    def _key(p):
+        if not isinstance(p, dict):
+            return None
+        return (_normalize_answer(p.get('left')), _normalize_answer(p.get('right')))
+
+    user_keys = [_key(p) for p in user_pairs]
+    correct_keys = [_key(p) for p in correct_pairs]
+    if any(k is None or k == ("", "") for k in user_keys):
+        return False
+    if any(k is None for k in correct_keys):
+        return False
+    return sorted(user_keys) == sorted(correct_keys)
 
 
 def process_grammar_submission(exercises, answers):
@@ -515,73 +666,21 @@ def process_quiz_submission(questions, answers):
                 is_correct = False
 
         elif question_type in ['fill_in_blank', 'fill-in-blank', 'fill_blank', 'translation', 'transformation']:
-            # Для текстовых вопросов проверяем с возможными правильными ответами
+            # Strict grading: exact match after normalization, with single-word
+            # Levenshtein ≤1 typo tolerance. Multi-word overlap heuristics removed —
+            # they previously credited substantively wrong answers.
 
             if correct_answer is None:
                 is_correct = True
-            elif isinstance(correct_answer, list):
-                # Если правильный ответ - массив вариантов
-
-                user_normalized = normalize_text(user_answer)
-
-                # Проверяем совпадение с любым из правильных ответов
-                is_correct = False
-                for correct_variant in correct_answer:
-                    correct_normalized = normalize_text(correct_variant)
-
-                    # Проверяем точное совпадение или содержание ключевых слов
-                    if user_normalized == correct_normalized:
-                        is_correct = True
-                        break
-                    elif len(correct_normalized.split()) <= 3:
-                        # Для коротких ответов (1-3 слова) проверяем содержание
-                        if correct_normalized in user_normalized:
-                            is_correct = True
-                            break
-                    else:
-                        # Для длинных ответов проверяем больше слов совпадений
-                        correct_words = set(correct_normalized.split())
-                        user_words = set(user_normalized.split())
-                        common_words = correct_words.intersection(user_words)
-
-                        # Если совпадает больше 60% ключевых слов
-                        if len(common_words) >= len(correct_words) * 0.6:
-                            is_correct = True
-                            break
-
             else:
-                # Если правильный ответ - строка
+                if isinstance(correct_answer, list):
+                    candidates = list(correct_answer)
+                else:
+                    candidates = [correct_answer]
+                    candidates.extend(question.get('alternative_answers', []) or [])
+                    candidates.extend(question.get('acceptable_answers', []) or [])
 
-                # Специальная обработка для вопросов с альтернативными ответами
-                alternative_answers = question.get('alternative_answers', [])
-                acceptable_answers = question.get('acceptable_answers', [])
-                all_possible_answers = [correct_answer] + alternative_answers + acceptable_answers
-
-
-                user_normalized = normalize_text(user_answer)
-
-                # Проверяем против всех возможных ответов
-                is_correct = False
-                for possible_answer in all_possible_answers:
-                    correct_normalized = normalize_text(possible_answer)
-
-                    # Проверяем точное совпадение или разумное содержание
-                    if user_normalized == correct_normalized:
-                        is_correct = True
-                        break
-                    elif len(correct_normalized.split()) <= 3:
-                        # Для коротких ответов
-                        if correct_normalized in user_normalized:
-                            is_correct = True
-                            break
-                    else:
-                        # Для длинных ответов проверяем пересечение слов
-                        correct_words = set(correct_normalized.split())
-                        user_words = set(user_normalized.split())
-                        common_words = correct_words.intersection(user_words)
-                        if len(common_words) >= len(correct_words) * 0.6:
-                            is_correct = True
-                            break
+                is_correct = _strict_text_match(user_answer, candidates)
 
 
         elif question_type in ['reorder', 'ordering']:
@@ -616,14 +715,41 @@ def process_quiz_submission(questions, answers):
                     is_correct = user_normalized.lower() == correct_normalized.lower()
 
         elif question_type == 'matching':
-            # For matching questions, user_answer should be 'completed' if all pairs matched
-            # We always consider matching as correct if user submitted it
-            # (the frontend validates all pairs are matched before allowing submit)
-            is_correct = user_answer == 'completed'
-
-            # For display purposes, show the pairs if available
+            # Server-side validation: client must submit explicit pairs.
+            # Legacy clients sending 'completed' (no pairs) are rejected — they
+            # cannot prove they actually solved the matching.
+            correct_pairs = question.get('pairs', []) or []
             if 'pairs' in question:
-                correct_answer = question.get('pairs', [])
+                correct_answer = correct_pairs
+
+            user_pairs = None
+            raw = user_answer
+            # Frontend posts matching answers as a JSON-stringified dict
+            # ({left_value: right_value, ...}); decode into pairs here so
+            # the strict grader can compare keys against ``correct_pairs``.
+            if isinstance(raw, str):
+                try:
+                    raw = json.loads(raw)
+                except (ValueError, TypeError):
+                    raw = None
+            if isinstance(raw, list):
+                user_pairs = raw
+            elif isinstance(raw, dict):
+                if isinstance(raw.get('pairs'), list):
+                    user_pairs = raw['pairs']
+                else:
+                    user_pairs = [
+                        {'left': k, 'right': v} for k, v in raw.items()
+                    ]
+            else:
+                pairs_field = answers.get(f'{i}_pairs', answers.get(f'{str(i)}_pairs'))
+                if isinstance(pairs_field, list):
+                    user_pairs = pairs_field
+
+            if user_pairs is None:
+                is_correct = False
+            else:
+                is_correct = _grade_matching_pairs(user_pairs, correct_pairs)
 
         else:
             # Если нет правильного ответа и неизвестный тип - засчитываем как правильный

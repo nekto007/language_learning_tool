@@ -121,11 +121,13 @@ def award_linear_slot_xp_idempotent(
     source: str,
     for_date: Optional[date_cls] = None,
     db_session: Any = None,
+    score: Optional[float] = None,
 ) -> Optional[XPAward]:
     """Award linear XP once per (user, date, source).
 
     Returns the ``XPAward`` on first call for that tuple, ``None`` on
-    subsequent calls the same day. Caller owns the commit.
+    subsequent calls the same day. Caller owns the commit. ``score``
+    (0..100) scales the base XP for graded sources.
     """
     if source not in LINEAR_XP:
         logger.warning('linear_xp: unknown source %r for user=%s', source, user_id)
@@ -140,7 +142,7 @@ def award_linear_slot_xp_idempotent(
     if _already_awarded(user_id, source, when, db_obj):
         return None
 
-    result = award_linear_xp(user_id, source)
+    result = award_linear_xp(user_id, source, score=score)
     db_obj.session.add(StreakEvent(
         user_id=user_id,
         event_type=LINEAR_XP_EVENT_TYPE,
@@ -157,12 +159,14 @@ def maybe_award_curriculum_xp(
     lesson: Any,
     for_date: Optional[date_cls] = None,
     db_session: Any = None,
+    score: Optional[float] = None,
 ) -> Optional[XPAward]:
     """Award linear XP for a completed curriculum lesson.
 
     Silent no-op when the user is not on the linear plan, the lesson
     type has no registered source, or the award was already recorded
-    for today.
+    for today. ``score`` (0..100) scales base XP for graded lesson
+    types (quiz, grammar, final test, card accuracy).
     """
     if not is_linear_user(user_id):
         return None
@@ -171,7 +175,9 @@ def maybe_award_curriculum_xp(
     if source is None:
         return None
 
-    return award_linear_slot_xp_idempotent(user_id, source, for_date, db_session)
+    return award_linear_slot_xp_idempotent(
+        user_id, source, for_date, db_session, score=score,
+    )
 
 
 def maybe_award_srs_global_xp(

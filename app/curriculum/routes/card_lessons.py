@@ -578,7 +578,9 @@ def complete_srs_session(lesson_id):
                     maybe_award_curriculum_xp,
                     maybe_award_linear_perfect_day,
                 )
-                xp_award = maybe_award_curriculum_xp(current_user.id, lesson, db_session=db)
+                xp_award = maybe_award_curriculum_xp(
+                    current_user.id, lesson, db_session=db, score=accuracy,
+                )
                 if xp_award is not None:
                     maybe_award_linear_perfect_day(current_user.id, db_session=db)
                     db.session.commit()

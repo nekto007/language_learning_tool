@@ -35,6 +35,28 @@ def _calculate_flashcard_xp(cards_reviewed, correct_answers):
     }
 
 
+def _count_leech_suspended(user_id: int, now: datetime) -> int:
+    """Count distinct words currently buried because they crossed the leech threshold.
+
+    Counts distinct user_word_id rather than UserCardDirection rows so a word
+    leeched in both directions surfaces as a single suspended card in the UI.
+    """
+    from app.srs.constants import LEECH_THRESHOLD
+    from sqlalchemy import distinct
+
+    return (
+        db.session.query(func.count(distinct(UserCardDirection.user_word_id)))
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(
+            UserWord.user_id == user_id,
+            UserCardDirection.lapses >= LEECH_THRESHOLD,
+            UserCardDirection.buried_until.isnot(None),
+            UserCardDirection.buried_until > now,
+        )
+        .scalar() or 0
+    )
+
+
 @study.route('/api/get-study-items', methods=['GET'])
 @login_required
 def get_study_items():
@@ -105,6 +127,8 @@ def get_study_items():
     # renders "session complete" instead of the scary limit message.
     is_daily_plan_session = word_source == 'daily_plan_mix'
 
+    leech_suspended_count = _count_leech_suspended(current_user.id, now)
+
     if (not extra_study
             and not is_linear_plan_srs
             and not is_daily_plan_session
@@ -117,7 +141,8 @@ def get_study_items():
                 'new_cards_today': new_cards_today,
                 'reviews_today': reviews_today,
                 'new_cards_limit': new_cards_limit,
-                'reviews_limit': reviews_limit
+                'reviews_limit': reviews_limit,
+                'leech_suspended_count': leech_suspended_count,
             },
             'items': []
         })
@@ -408,7 +433,8 @@ def get_study_items():
             'new_cards_limit': new_cards_limit,
             'reviews_limit': reviews_limit,
             'has_more_new': has_more_new,
-            'has_more_reviews': has_more_reviews
+            'has_more_reviews': has_more_reviews,
+            'leech_suspended_count': leech_suspended_count,
         },
         'items': result_items
     })
@@ -530,6 +556,9 @@ def update_study_item():
         steps = LEARNING_STEPS if direction.state == CardState.LEARNING.value else RELEARNING_STEPS
         if direction.step_index < len(steps):
             requeue_minutes = steps[direction.step_index]
+
+    if requeue_minutes is not None and requeue_minutes >= 60:
+        requeue_position = None
 
     is_buried = False
     if direction.session_attempts >= MAX_SESSION_ATTEMPTS:

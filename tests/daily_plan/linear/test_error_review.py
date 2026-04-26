@@ -23,11 +23,15 @@ import pytest
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.daily_plan.linear.errors import (
+    REVIEW_CRITICAL_BACKLOG_COOLDOWN,
+    REVIEW_HIGH_BACKLOG_COOLDOWN,
     REVIEW_TRIGGER_COOLDOWN,
     REVIEW_TRIGGER_MIN_UNRESOLVED,
     count_unresolved,
     get_last_resolved_at,
+    get_review_cooldown,
     get_review_pool,
+    get_review_pool_size,
     log_quiz_error,
     log_quiz_errors_from_result,
     resolve_quiz_error,
@@ -336,6 +340,79 @@ class TestShouldShowErrorReview:
         assert last is not None
 
 
+class TestReviewScaling:
+    def test_pool_size_tiers(self):
+        assert get_review_pool_size(0) == 10
+        assert get_review_pool_size(5) == 10
+        assert get_review_pool_size(9) == 10
+        assert get_review_pool_size(10) == 15
+        assert get_review_pool_size(14) == 15
+        assert get_review_pool_size(19) == 15
+        assert get_review_pool_size(20) == 20
+        assert get_review_pool_size(50) == 20
+
+    def test_cooldown_tiers(self):
+        assert get_review_cooldown(5) == REVIEW_TRIGGER_COOLDOWN
+        assert get_review_cooldown(14) == REVIEW_TRIGGER_COOLDOWN
+        assert get_review_cooldown(15) == REVIEW_HIGH_BACKLOG_COOLDOWN
+        assert get_review_cooldown(24) == REVIEW_HIGH_BACKLOG_COOLDOWN
+        assert get_review_cooldown(25) == REVIEW_CRITICAL_BACKLOG_COOLDOWN
+        assert get_review_cooldown(50) == REVIEW_CRITICAL_BACKLOG_COOLDOWN
+
+    def test_pool_uses_dynamic_size_when_limit_omitted(self, db_session):
+        user = _make_user(db_session)
+        lesson = _make_lesson(db_session)
+        _seed_errors(db_session, user, lesson, count=12)
+
+        pool = get_review_pool(user.id, real_db)
+
+        # tier(12) == 15, only 12 rows exist
+        assert len(pool) == 12
+
+    def test_pool_explicit_limit_still_respected(self, db_session):
+        user = _make_user(db_session)
+        lesson = _make_lesson(db_session)
+        _seed_errors(db_session, user, lesson, count=20)
+
+        pool = get_review_pool(user.id, real_db, limit=5)
+        assert len(pool) == 5
+
+    def test_high_backlog_shortens_cooldown_to_one_day(self, db_session):
+        user = _make_user(db_session)
+        lesson = _make_lesson(db_session)
+        _seed_errors(db_session, user, lesson, count=15)
+        # Resolved 1.5d ago — under default 3d cooldown but past 1d high-backlog cooldown.
+        _seed_errors(
+            db_session, user, lesson, count=1,
+            resolved_at=datetime.now(timezone.utc) - timedelta(days=1, hours=12),
+        )
+
+        assert should_show_error_review(user.id, real_db) is True
+
+    def test_critical_backlog_shortens_cooldown_to_twelve_hours(self, db_session):
+        user = _make_user(db_session)
+        lesson = _make_lesson(db_session)
+        _seed_errors(db_session, user, lesson, count=25)
+        # Resolved 14h ago — under 1d high-backlog cooldown but past 12h critical cooldown.
+        _seed_errors(
+            db_session, user, lesson, count=1,
+            resolved_at=datetime.now(timezone.utc) - timedelta(hours=14),
+        )
+
+        assert should_show_error_review(user.id, real_db) is True
+
+    def test_high_backlog_still_respects_one_day_cooldown(self, db_session):
+        user = _make_user(db_session)
+        lesson = _make_lesson(db_session)
+        _seed_errors(db_session, user, lesson, count=15)
+        _seed_errors(
+            db_session, user, lesson, count=1,
+            resolved_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        )
+
+        assert should_show_error_review(user.id, real_db) is False
+
+
 class TestBuildErrorReviewSlot:
     def test_slot_none_below_threshold(self, db_session):
         user = _make_user(db_session)
@@ -368,7 +445,8 @@ class TestBuildErrorReviewSlot:
 
         assert slot is not None
         assert slot.data['unresolved_count'] == 25
-        assert slot.data['pool_size'] == 10
+        # 25 unresolved → tier 20 from get_review_pool_size.
+        assert slot.data['pool_size'] == 20
 
     def test_slot_suppressed_during_cooldown(self, db_session):
         user = _make_user(db_session)

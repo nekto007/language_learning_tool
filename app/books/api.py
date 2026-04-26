@@ -8,6 +8,7 @@ import os
 import sys
 
 from datetime import UTC, datetime
+from typing import Optional
 
 from flask import Blueprint, jsonify, request, url_for
 from flask_login import current_user, login_required
@@ -947,16 +948,20 @@ def save_reading_position():
         )
         # The reader auto-saves every ~3 seconds, so each save's delta is
         # tiny — gating on per-save delta would never fire for users reading
-        # incrementally. Require absolute position past the threshold and
-        # *some* forward progress this save; daily idempotency in
-        # ``maybe_award_book_reading_xp`` prevents double-awards.
+        # incrementally. Instead require a closed reading session today
+        # that itself met BOTH the 60s and 5%-offset thresholds, plus
+        # absolute position past the threshold and forward progress this
+        # save. This closes the bypass where a user reads 60s once and
+        # then mints XP from later trivial nudges.
         advanced = position - previous_offset
         if position >= READ_PROGRESS_THRESHOLD and advanced > 0:
             pref = get_user_reading_preference(current_user.id, db)
             if pref is not None and pref.book_id == book_id:
-                with db.session.begin_nested():
-                    if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
-                        maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                from app.books.reading_session import has_qualifying_reading_session_today
+                if has_qualifying_reading_session_today(current_user.id, book_id, db):
+                    with db.session.begin_nested():
+                        if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
+                            maybe_award_linear_perfect_day(current_user.id, db_session=db)
     except Exception:
         logger.warning(
             "linear_xp: book-reading award failed user=%s",
@@ -981,3 +986,154 @@ def save_reading_position():
         })
 
     return jsonify(response_data)
+
+
+# ============================================================================
+# Reading session — time-on-page tracking for the linear plan reading slot
+# ============================================================================
+
+@books_api.route('/api/books/reading-session/start', methods=['POST'])
+@login_required
+def reading_session_start():
+    """Open a reading session. Frontend calls this on chapter scroll-in."""
+    from app.books.reading_session import start_session
+
+    data = request.get_json(silent=True) or {}
+    chapter_id = data.get('chapter_id')
+    if not chapter_id:
+        return jsonify({'success': False, 'error': 'chapter_id is required'}), 400
+    try:
+        chapter_id = int(chapter_id)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'invalid chapter_id'}), 400
+
+    chapter = Chapter.query.get(chapter_id)
+    if chapter is None:
+        return jsonify({'success': False, 'error': 'chapter not found'}), 404
+
+    session = start_session(current_user.id, chapter_id, db)
+    db.session.commit()
+    return jsonify({'success': True, 'session_id': session.id})
+
+
+@books_api.route('/api/books/reading-session/end', methods=['POST'])
+@login_required
+def reading_session_end():
+    """Close a reading session. Frontend calls this on page-leave/scroll-out."""
+    from app.books.reading_session import end_session
+
+    data = request.get_json(silent=True) or {}
+    session_id = data.get('session_id')
+    if not session_id:
+        return jsonify({'success': False, 'error': 'session_id is required'}), 400
+    try:
+        session_id = int(session_id)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'invalid session_id'}), 400
+
+    from app.books.reading_session import UserReadingSession
+
+    existing = db.session.get(UserReadingSession, session_id)
+    if existing is None:
+        return jsonify({'success': False, 'error': 'session not found'}), 404
+    if existing.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'forbidden'}), 403
+
+    raw_hint = data.get('current_offset_pct')
+    current_offset_hint: Optional[float] = None
+    if raw_hint is not None:
+        try:
+            current_offset_hint = float(raw_hint)
+        except (TypeError, ValueError):
+            current_offset_hint = None
+
+    # Capture pre-close persisted offset so we can detect when the unload
+    # hint is what pushes the chapter to 1.0. The /progress save path owns
+    # chapter-completion XP, but a user who scrolls to 1.0 inside the
+    # final 3s debounce window may leave before that fires — without this
+    # check the hint silently writes 1.0 and the completion event/XP is
+    # lost forever (later saves see was_incomplete=False).
+    from app.books.models import UserChapterProgress
+
+    pre_progress = (
+        db.session.query(UserChapterProgress)
+        .filter_by(user_id=current_user.id, chapter_id=existing.chapter_id)
+        .first()
+    )
+    pre_offset = pre_progress.offset_pct if pre_progress else 0.0
+
+    session = end_session(session_id, db, current_offset_pct=current_offset_hint)
+    db.session.commit()
+
+    chapter = Chapter.query.get(session.chapter_id)
+    post_progress = (
+        db.session.query(UserChapterProgress)
+        .filter_by(user_id=current_user.id, chapter_id=session.chapter_id)
+        .first()
+    )
+    post_offset = post_progress.offset_pct if post_progress else 0.0
+
+    if chapter is not None and pre_offset < 1.0 and post_offset >= 1.0:
+        try:
+            from app.achievements.xp_service import award_book_chapter_xp_idempotent
+            from app.utils.time_utils import get_user_local_date
+
+            BOOK_CHAPTER_XP = 50
+            award_book_chapter_xp_idempotent(
+                user_id=current_user.id,
+                book_id=chapter.book_id,
+                chapter_id=chapter.id,
+                xp=BOOK_CHAPTER_XP,
+                for_date=get_user_local_date(current_user.id, db),
+                db_session=db,
+            )
+            db.session.commit()
+        except Exception:
+            logger.warning(
+                "chapter_xp: hint-completed award failed user=%s chapter=%s",
+                current_user.id, chapter.id, exc_info=True,
+            )
+            db.session.rollback()
+
+    # Closing the session may itself push the user past the 60s reading-time
+    # gate; re-run the slot-award check so a single qualifying visit credits
+    # the reading slot without waiting for the next progress save.
+    reading_slot_completed = False
+    try:
+        from app.daily_plan.linear.slots.reading_slot import get_user_reading_preference
+        from app.daily_plan.linear.xp import (
+            maybe_award_book_reading_xp,
+            maybe_award_linear_perfect_day,
+        )
+        from app.books.reading_session import has_qualifying_reading_session_today
+
+        chapter = Chapter.query.get(session.chapter_id)
+        # Per the reading-gate contract (docs/plans/2026-04-26-learning-quality-audit.md
+        # task 11), linear reading XP requires a per-session offset_delta
+        # >= READ_PROGRESS_THRESHOLD AND duration >= MIN_READING_SECONDS in a
+        # single closed session — has_qualifying_reading_session_today enforces
+        # both. We must NOT additionally gate on the persisted
+        # UserChapterProgress.offset_pct here: the reader debounces progress
+        # saves by 3s, so on page-leave the persisted row may still trail the
+        # session's own snapshot+hint and starve the slot of XP.
+        if chapter is not None:
+            pref = get_user_reading_preference(current_user.id, db)
+            if pref is not None and pref.book_id == chapter.book_id:
+                if has_qualifying_reading_session_today(current_user.id, chapter.book_id, db):
+                    if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
+                        maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                        db.session.commit()
+                        reading_slot_completed = True
+    except Exception:
+        logger.warning(
+            "linear_xp: reading-session-end award failed user=%s",
+            current_user.id, exc_info=True,
+        )
+        db.session.rollback()
+
+    return jsonify({
+        'success': True,
+        'session_id': session.id,
+        'duration_seconds': session.duration_seconds(),
+        'reading_slot_completed': reading_slot_completed,
+    })

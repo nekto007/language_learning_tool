@@ -180,26 +180,17 @@ class SRSService:
         return reviews_today < review_limit
 
     @staticmethod
-    def get_adaptive_limits(user_id: int) -> Tuple[int, int]:
-        """
-        Returns adaptive limits based on accuracy and backlog.
+    def _compute_adaptive_state(user_id: int) -> Tuple[int, int, str]:
+        """Internal: returns (adaptive_new, adaptive_reviews, reason).
 
-        If accuracy < 85% over last 50 reviews OR backlog > 50 overdue cards:
-        → reduce new cards limit to min(2, base_limit)
-
-        This helps users:
-        - Not accumulate debt when struggling
-        - Focus on retention before adding new material
-
-        Returns:
-            Tuple of (adaptive_new_limit, adaptive_review_limit)
+        reason ∈ {'normal', 'accuracy_low', 'backlog_reduction'}.
+        Accuracy takes precedence over backlog when both trigger.
         """
         settings = StudySettings.get_settings(user_id)
         base_new = settings.new_words_per_day
         base_reviews = settings.reviews_per_day
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-        # Calculate accuracy over last 50 reviewed cards
         recent_cards = db.session.query(UserCardDirection).filter(
             UserCardDirection.user_word_id.in_(
                 db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
@@ -213,7 +204,6 @@ class SRSService:
 
         accuracy = (total_correct / total * 100) if total > 0 else 100
 
-        # Count backlog (overdue REVIEW cards)
         backlog = db.session.query(func.count(UserCardDirection.id)).filter(
             UserCardDirection.user_word_id.in_(
                 db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
@@ -222,13 +212,36 @@ class SRSService:
             UserCardDirection.state == 'review'
         ).scalar() or 0
 
-        # Adaptive logic: reduce new cards if struggling or backlog is high
-        if accuracy < 85 or backlog > 50:
-            adaptive_new = min(2, base_new)  # Reduce to max 2 new cards
-        else:
-            adaptive_new = base_new
+        if accuracy < 85:
+            return (min(2, base_new), base_reviews, 'accuracy_low')
+        if backlog > 50:
+            return (min(2, base_new), base_reviews, 'backlog_reduction')
+        return (base_new, base_reviews, 'normal')
 
-        return (adaptive_new, base_reviews)
+    @staticmethod
+    def get_adaptive_limits(user_id: int) -> Tuple[int, int]:
+        """
+        Returns adaptive limits based on accuracy and backlog.
+
+        If accuracy < 85% over last 50 reviews OR backlog > 50 overdue cards:
+        → reduce new cards limit to min(2, base_limit)
+
+        Returns:
+            Tuple of (adaptive_new_limit, adaptive_review_limit)
+        """
+        adaptive_new, adaptive_reviews, _ = SRSService._compute_adaptive_state(user_id)
+        return (adaptive_new, adaptive_reviews)
+
+    @staticmethod
+    def get_adaptive_limit_reason(user_id: int) -> str:
+        """Returns reason for current adaptive new-card limit.
+
+        One of 'normal', 'accuracy_low', 'backlog_reduction'. Used by
+        /api/daily-status and /api/daily-plan to surface a one-time tooltip
+        when the new-card cap is reduced.
+        """
+        _, _, reason = SRSService._compute_adaptive_state(user_id)
+        return reason
 
     @staticmethod
     def get_card_counts(user_id: int, deck_word_ids: List[int] = None) -> Dict:

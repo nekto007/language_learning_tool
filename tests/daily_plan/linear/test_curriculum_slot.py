@@ -331,14 +331,165 @@ class TestBuildCurriculumSlotStates:
             db_session,
             user,
             first,
-            event_date=date.today(),
+            event_date=date(2026, 4, 25),
         )
 
-        slot = build_curriculum_slot(user.id, real_db)
+        with patch(
+            'app.daily_plan.linear.slots.curriculum_slot.get_user_local_day_bounds',
+            return_value=(datetime(2026, 4, 25, 0, 0, 0), datetime(2026, 4, 26, 0, 0, 0)),
+        ), patch(
+            'app.daily_plan.linear.slots.curriculum_slot.get_linear_event_local_date',
+            return_value=date(2026, 4, 25),
+        ):
+            slot = build_curriculum_slot(user.id, real_db)
 
         assert slot.completed is True
         assert slot.data['lesson_id'] == first.id
         assert slot.title == first.title
+
+
+class TestWeakGrammarHint:
+    """Curriculum slot enrichment with `weak_topic_hint` (Task 7)."""
+
+    def _make_topic(self, db_session, level_code: str, *, slug_suffix: str, title: str):
+        from app.grammar_lab.models import GrammarTopic
+
+        topic = GrammarTopic(
+            slug=f'topic-{slug_suffix}-{uuid.uuid4().hex[:6]}',
+            title=title,
+            title_ru=title,
+            level=level_code,
+            order=1,
+            content={},
+        )
+        db_session.add(topic)
+        db_session.commit()
+        return topic
+
+    def _make_exercise(self, db_session, topic):
+        from app.grammar_lab.models import GrammarExercise
+
+        ex = GrammarExercise(
+            topic_id=topic.id,
+            exercise_type='multiple_choice',
+            content={
+                'question': 'q',
+                'options': ['a', 'b'],
+                'correct_answer': 'a',
+            },
+            difficulty=1,
+        )
+        db_session.add(ex)
+        db_session.commit()
+        return ex
+
+    def _record_attempts(self, db_session, user, exercise, *, correct: int, incorrect: int):
+        from app.grammar_lab.models import UserGrammarExercise
+
+        row = UserGrammarExercise(user_id=user.id, exercise_id=exercise.id)
+        row.correct_count = correct
+        row.incorrect_count = incorrect
+        db_session.add(row)
+        db_session.commit()
+        return row
+
+    def test_hint_set_when_lesson_topic_is_weak(self, db_session):
+        level = _make_level(db_session, _unique_code(), 1)
+        module = _make_module(db_session, level, 1)
+        topic = self._make_topic(
+            db_session, level.code, slug_suffix='pp', title='Present Perfect',
+        )
+        lesson = _make_lesson(db_session, module, 1, lesson_type='grammar')
+        lesson.grammar_topic_id = topic.id
+        db_session.commit()
+        user = _make_user(db_session, onboarding_level=level.code)
+        exercise = self._make_exercise(db_session, topic)
+        # 4 attempts, 40% accuracy → weak.
+        self._record_attempts(db_session, user, exercise, correct=2, incorrect=3)
+
+        slot = build_curriculum_slot(user.id, real_db)
+
+        assert slot.data['lesson_id'] == lesson.id
+        assert slot.data.get('weak_topic_hint') is True
+        assert slot.data.get('weak_topic_id') == topic.id
+        assert slot.data.get('weak_topic_name') == 'Present Perfect'
+        assert slot.data.get('weak_topic_accuracy') == pytest.approx(0.4, abs=0.01)
+
+    def test_no_hint_when_accuracy_above_threshold(self, db_session):
+        level = _make_level(db_session, _unique_code(), 1)
+        module = _make_module(db_session, level, 1)
+        topic = self._make_topic(
+            db_session, level.code, slug_suffix='ok', title='Articles',
+        )
+        lesson = _make_lesson(db_session, module, 1, lesson_type='grammar')
+        lesson.grammar_topic_id = topic.id
+        db_session.commit()
+        user = _make_user(db_session, onboarding_level=level.code)
+        exercise = self._make_exercise(db_session, topic)
+        # 5 attempts, 80% accuracy → strong.
+        self._record_attempts(db_session, user, exercise, correct=4, incorrect=1)
+
+        slot = build_curriculum_slot(user.id, real_db)
+
+        assert slot.data['lesson_id'] == lesson.id
+        assert 'weak_topic_hint' not in slot.data
+
+    def test_no_hint_when_attempts_below_minimum(self, db_session):
+        level = _make_level(db_session, _unique_code(), 1)
+        module = _make_module(db_session, level, 1)
+        topic = self._make_topic(
+            db_session, level.code, slug_suffix='few', title='Conditionals',
+        )
+        lesson = _make_lesson(db_session, module, 1, lesson_type='grammar')
+        lesson.grammar_topic_id = topic.id
+        db_session.commit()
+        user = _make_user(db_session, onboarding_level=level.code)
+        exercise = self._make_exercise(db_session, topic)
+        # Only 2 attempts → below min_attempts.
+        self._record_attempts(db_session, user, exercise, correct=0, incorrect=2)
+
+        slot = build_curriculum_slot(user.id, real_db)
+
+        assert 'weak_topic_hint' not in slot.data
+
+    def test_no_hint_when_zero_attempts(self, db_session):
+        level = _make_level(db_session, _unique_code(), 1)
+        module = _make_module(db_session, level, 1)
+        topic = self._make_topic(
+            db_session, level.code, slug_suffix='zero', title='Modals',
+        )
+        lesson = _make_lesson(db_session, module, 1, lesson_type='grammar')
+        lesson.grammar_topic_id = topic.id
+        db_session.commit()
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        slot = build_curriculum_slot(user.id, real_db)
+
+        assert 'weak_topic_hint' not in slot.data
+
+    def test_no_hint_when_only_sibling_lesson_carries_topic(self, db_session):
+        """Hint must NOT surface on vocab lessons that lack their own
+        ``grammar_topic_id`` — even if a sibling grammar lesson in the
+        same module is tied to a weak topic. Surfacing it would tag a
+        tangential lesson as "weak".
+        """
+        level = _make_level(db_session, _unique_code(), 1)
+        module = _make_module(db_session, level, 1)
+        topic = self._make_topic(
+            db_session, level.code, slug_suffix='sib', title='Past Simple',
+        )
+        vocab = _make_lesson(db_session, module, 1, lesson_type='vocabulary')
+        grammar = _make_lesson(db_session, module, 2, lesson_type='grammar')
+        grammar.grammar_topic_id = topic.id
+        db_session.commit()
+        user = _make_user(db_session, onboarding_level=level.code)
+        exercise = self._make_exercise(db_session, topic)
+        self._record_attempts(db_session, user, exercise, correct=1, incorrect=4)
+
+        slot = build_curriculum_slot(user.id, real_db)
+
+        assert slot.data['lesson_id'] == vocab.id
+        assert 'weak_topic_hint' not in slot.data
 
 
 class TestLinearPlanIntegration:

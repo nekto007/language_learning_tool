@@ -1223,6 +1223,70 @@ readerBody.addEventListener('scroll', updateProgress);
 window.addEventListener('resize', updateProgress);
 setTimeout(updateProgress, 100);
 
+// Reading session — time-on-page tracking for the linear-plan reading slot.
+// Server-side gate (`has_min_reading_time_today`) requires >=60s of closed
+// session time per book per day before linear book-reading XP is awarded.
+(function () {
+    const csrfToken = '{{ csrf_token() }}';
+    const chapterId = {{ current_chapter.id }};
+    let sessionId = null;
+    let sessionEnded = false;
+
+    function startReadingSession() {
+        fetch('/api/books/reading-session/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({ chapter_id: chapterId }),
+            keepalive: true,
+        })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (data && data.session_id) {
+                    sessionId = data.session_id;
+                }
+            })
+            .catch(() => {});
+    }
+
+    function endReadingSession() {
+        if (!sessionId || sessionEnded) return;
+        sessionEnded = true;
+        // saveProgress is debounced 3s, so the persisted UserChapterProgress
+        // may lag the latest scroll on page-leave. Send the live offset as a
+        // hint so the server's per-visit delta reflects what the user
+        // actually reached. This does not expand the trust boundary because
+        // PATCH /api/progress already accepts arbitrary client offset values.
+        let currentOffsetPct = null;
+        try {
+            const scrollHeight = readerBody.scrollHeight - readerBody.clientHeight;
+            if (scrollHeight > 0) {
+                currentOffsetPct = Math.min(readerBody.scrollTop / scrollHeight, 1);
+            }
+        } catch (e) { /* readerBody may be detached on pagehide */ }
+        // fetch+keepalive is used instead of sendBeacon because the books_api
+        // blueprint is CSRF-protected and sendBeacon cannot send custom headers.
+        fetch('/api/books/reading-session/end', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({
+                session_id: sessionId,
+                current_offset_pct: currentOffsetPct,
+            }),
+            keepalive: true,
+        }).catch(() => {});
+    }
+
+    startReadingSession();
+    window.addEventListener('pagehide', endReadingSession);
+    window.addEventListener('beforeunload', endReadingSession);
+})();
+
 // Word translation
 function makeWordsClickable() {
     const paragraphs = chapterContent.getElementsByTagName('p');

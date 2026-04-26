@@ -38,6 +38,8 @@ from app.srs.constants import (
     INTERVAL_MULTIPLIER_HARD,
     INTERVAL_MULTIPLIER_EASY,
     LAPSE_MINIMUM_INTERVAL,
+    LEECH_THRESHOLD,
+    LEECH_SUSPEND_DAYS,
     DIRECTION_ENG_RUS,
     DIRECTION_RUS_ENG,
 )
@@ -294,15 +296,23 @@ class UnifiedSRSService:
 
         if rating == RATING_DONT_KNOW:
             # Lapse: go to RELEARNING
-            return {
+            new_lapses = lapses + 1
+            result = {
                 'state': CardState.RELEARNING.value,
                 'step_index': 0,
                 'interval': LAPSE_MINIMUM_INTERVAL,
                 'ease_factor': max(MIN_EASE_FACTOR, old_ef - EF_DECREASE_LAPSE),
-                'lapses': lapses + 1,
+                'lapses': new_lapses,
                 'requeue_minutes': RELEARNING_STEPS[0] if RELEARNING_STEPS else 10,
                 'days_until_review': 0
             }
+            # Auto-suspend leech cards: re-bury whenever a card at or above
+            # the threshold lapses. Firing only on the threshold-crossing
+            # transition would leave already-leeched cards (lapses>=threshold,
+            # bury expired) cycling through daily failures without protection.
+            if new_lapses >= LEECH_THRESHOLD:
+                result['bury_days'] = LEECH_SUSPEND_DAYS
+            return result
         elif rating == RATING_DOUBT:
             # Hard: small increase, ease penalty
             new_interval = max(old_interval + 1, round(old_interval * INTERVAL_MULTIPLIER_HARD))
@@ -450,6 +460,10 @@ class UnifiedSRSService:
             card.lapses = update_result['lapses']
             card.last_reviewed = datetime.now(timezone.utc)
 
+            bury_days = update_result.get('bury_days')
+            if bury_days:
+                card.buried_until = datetime.now(timezone.utc) + timedelta(days=bury_days)
+
             # Update correct/incorrect count
             if rating >= RATING_DOUBT:
                 card.correct_count = (card.correct_count or 0) + 1
@@ -486,6 +500,12 @@ class UnifiedSRSService:
                 state=current_state,
                 step_index=current_step
             )
+
+            # If the next learning/relearning step is scheduled hours away
+            # (e.g. RELEARNING_STEPS=[10, 1440] — second step is 1 day),
+            # the card must not be requeued in the current session.
+            if requeue_minutes is not None and requeue_minutes >= 60:
+                requeue_position = None
 
             # Check session limit
             if card.session_attempts >= MAX_SESSION_ATTEMPTS:
@@ -593,6 +613,10 @@ class UnifiedSRSService:
             progress.lapses = update_result['lapses']
             progress.last_reviewed = datetime.now(timezone.utc)
 
+            bury_days = update_result.get('bury_days')
+            if bury_days:
+                progress.buried_until = datetime.now(timezone.utc) + timedelta(days=bury_days)
+
             # Set first_reviewed on first review
             if progress.first_reviewed is None:
                 progress.first_reviewed = datetime.now(timezone.utc)
@@ -630,6 +654,12 @@ class UnifiedSRSService:
                 state=current_state,
                 step_index=current_step
             )
+
+            # If the next learning/relearning step is scheduled hours away
+            # (e.g. RELEARNING_STEPS=[10, 1440] — second step is 1 day),
+            # the card must not be requeued in the current session.
+            if requeue_minutes is not None and requeue_minutes >= 60:
+                requeue_position = None
 
             # Check session limit
             if progress.session_attempts >= MAX_SESSION_ATTEMPTS:

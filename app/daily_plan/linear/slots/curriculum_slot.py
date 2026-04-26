@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from sqlalchemy import func
+
 from app.curriculum.models import LessonProgress, Lessons
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 from app.daily_plan.linear.progression import find_next_lesson_linear
@@ -100,6 +102,79 @@ def _lesson_url(lesson: Lessons) -> str:
     return build_slot_url(base, LinearSlotKind.CURRICULUM)
 
 
+# Accuracy threshold below which a grammar topic is considered weak.
+_WEAK_ACCURACY_MAX = 0.6
+# Minimum number of attempts before a topic is eligible to be marked weak.
+_WEAK_MIN_ATTEMPTS = 3
+
+
+def _get_weak_grammar_topic_ids(
+    user_id: int,
+    db: Any,
+    *,
+    min_attempts: int = _WEAK_MIN_ATTEMPTS,
+    max_accuracy: float = _WEAK_ACCURACY_MAX,
+) -> dict[int, dict[str, Any]]:
+    """Return ``{topic_id: {'title': str, 'accuracy': float}}`` for weak topics.
+
+    A topic is weak when the user has at least ``min_attempts`` total
+    attempts on its exercises and overall accuracy is strictly below
+    ``max_accuracy`` (0..1 fraction).
+    """
+    from app.grammar_lab.models import (
+        GrammarExercise,
+        GrammarTopic,
+        UserGrammarExercise,
+    )
+
+    correct_sum = func.sum(UserGrammarExercise.correct_count)
+    total_sum = func.sum(
+        UserGrammarExercise.correct_count + UserGrammarExercise.incorrect_count
+    )
+
+    rows = (
+        db.session.query(
+            GrammarTopic.id,
+            GrammarTopic.title,
+            correct_sum.label('correct'),
+            total_sum.label('total'),
+        )
+        .join(GrammarExercise, GrammarExercise.topic_id == GrammarTopic.id)
+        .join(
+            UserGrammarExercise,
+            UserGrammarExercise.exercise_id == GrammarExercise.id,
+        )
+        .filter(UserGrammarExercise.user_id == user_id)
+        .group_by(GrammarTopic.id, GrammarTopic.title)
+        .having(total_sum >= min_attempts)
+        .all()
+    )
+
+    result: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        total = int(row.total or 0)
+        if total <= 0:
+            continue
+        accuracy = float(row.correct or 0) / total
+        if accuracy < max_accuracy:
+            result[int(row.id)] = {
+                'title': row.title,
+                'accuracy': round(accuracy, 3),
+            }
+    return result
+
+
+def _lesson_grammar_topic_ids(lesson: Lessons, db: Any) -> list[int]:
+    """Return the lesson's own ``grammar_topic_id`` (if any).
+
+    Per the plan spec the hint fires only when the upcoming lesson is
+    itself tied to a weak grammar topic — sibling/module-wide lookups
+    surface false-positive hints for tangential lessons.
+    """
+    direct = getattr(lesson, 'grammar_topic_id', None)
+    return [int(direct)] if direct else []
+
+
 def build_curriculum_slot(
     user_id: int,
     db: Any,
@@ -164,6 +239,25 @@ def build_curriculum_slot(
     module = next_lesson.module
     level = module.level if module is not None else None
 
+    data: dict[str, Any] = {
+        'lesson_id': next_lesson.id,
+        'lesson_number': next_lesson.number,
+        'module_id': next_lesson.module_id,
+        'module_number': module.number if module is not None else None,
+        'level_code': level.code if level is not None else None,
+    }
+
+    weak_topics = _get_weak_grammar_topic_ids(user_id, db)
+    if weak_topics:
+        for tid in _lesson_grammar_topic_ids(next_lesson, db):
+            info = weak_topics.get(tid)
+            if info is not None:
+                data['weak_topic_hint'] = True
+                data['weak_topic_id'] = tid
+                data['weak_topic_name'] = info['title']
+                data['weak_topic_accuracy'] = info['accuracy']
+                break
+
     return LinearSlot(
         kind='curriculum',
         title=next_lesson.title,
@@ -171,11 +265,5 @@ def build_curriculum_slot(
         eta_minutes=_eta_minutes(next_lesson.type),
         url=_lesson_url(next_lesson),
         completed=False,
-        data={
-            'lesson_id': next_lesson.id,
-            'lesson_number': next_lesson.number,
-            'module_id': next_lesson.module_id,
-            'module_number': module.number if module is not None else None,
-            'level_code': level.code if level is not None else None,
-        },
+        data=data,
     )

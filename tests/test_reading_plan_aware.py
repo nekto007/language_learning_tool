@@ -19,7 +19,7 @@ These tests pin:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -27,9 +27,31 @@ import pytest
 from app.achievements.models import StreakEvent, UserStatistics
 from app.auth.models import User
 from app.books.models import Book, Chapter, UserChapterProgress
+from app.books.reading_session import (
+    MIN_READING_SECONDS,
+    UserReadingSession,
+)
 from app.daily_plan.linear.models import UserReadingPreference
 from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
 from app.utils.db import db as real_db
+
+
+def _seed_qualifying_session(db_session, user, chapter, offset_delta=0.1):
+    """Create a closed reading session that satisfies the per-visit gate
+    (>=60s duration AND offset_delta >= 5%). Used by /api/progress tests
+    that exercise the linear book-reading award path.
+    """
+    now = datetime.now(timezone.utc)
+    session = UserReadingSession(
+        user_id=user.id,
+        chapter_id=chapter.id,
+        started_at=now - timedelta(seconds=MIN_READING_SECONDS + 10),
+        ended_at=now,
+        offset_delta=offset_delta,
+    )
+    db_session.add(session)
+    db_session.commit()
+    return session
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -223,6 +245,7 @@ class TestProgressEndpointSlotCompletion:
         db_session.commit()
         book, chapter = _make_book_with_chapter(db_session)
         _set_preference(db_session, test_user, book)
+        _seed_qualifying_session(db_session, test_user, chapter)
 
         response = authenticated_client.patch(
             '/api/progress',
@@ -324,6 +347,7 @@ class TestProgressEndpointSlotCompletion:
         book, chapter = _make_book_with_chapter(db_session)
         _set_preference(db_session, test_user, book)
 
+        _seed_qualifying_session(db_session, test_user, chapter)
         first = authenticated_client.patch(
             '/api/progress',
             json={

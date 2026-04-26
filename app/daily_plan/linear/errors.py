@@ -30,6 +30,34 @@ REVIEW_TRIGGER_MIN_UNRESOLVED = 5
 REVIEW_TRIGGER_COOLDOWN = timedelta(days=3)
 DEFAULT_REVIEW_POOL_LIMIT = 10
 
+# Dynamic cooldown thresholds — larger backlogs surface more often.
+REVIEW_HIGH_BACKLOG_THRESHOLD = 15
+REVIEW_HIGH_BACKLOG_COOLDOWN = timedelta(days=1)
+REVIEW_CRITICAL_BACKLOG_THRESHOLD = 25
+REVIEW_CRITICAL_BACKLOG_COOLDOWN = timedelta(hours=12)
+
+
+def get_review_pool_size(unresolved_count: int) -> int:
+    """Scale the review-slot pool size with the unresolved backlog.
+
+    Tiers: ≥20 → 20, ≥10 → 15, else 10. Matches the dynamic cooldown
+    so high-backlog users get both more frequent and larger sessions.
+    """
+    if unresolved_count >= 20:
+        return 20
+    if unresolved_count >= 10:
+        return 15
+    return DEFAULT_REVIEW_POOL_LIMIT
+
+
+def get_review_cooldown(unresolved_count: int) -> timedelta:
+    """Return the cooldown gating ``should_show_error_review``."""
+    if unresolved_count >= REVIEW_CRITICAL_BACKLOG_THRESHOLD:
+        return REVIEW_CRITICAL_BACKLOG_COOLDOWN
+    if unresolved_count >= REVIEW_HIGH_BACKLOG_THRESHOLD:
+        return REVIEW_HIGH_BACKLOG_COOLDOWN
+    return REVIEW_TRIGGER_COOLDOWN
+
 
 def _sanitize_payload(question_payload: Any) -> dict:
     """Return a JSONB-safe copy of ``question_payload``.
@@ -172,6 +200,13 @@ def log_quiz_errors_from_result(
             'correct_answer': entry.get('correct_answer'),
             'source': source,
         }
+        # Preserve the original GrammarExercise id and difficulty when we have
+        # them — the review-slot sibling lookup uses both to pick a related but
+        # not-identical exercise.
+        if question.get('id') is not None:
+            payload['exercise_id'] = question.get('id')
+        if question.get('difficulty') is not None:
+            payload['difficulty'] = question.get('difficulty')
         logged.append(log_quiz_error(user_id, lesson_id, payload, db))
         already_logged.add(q_idx)
     return logged
@@ -240,13 +275,17 @@ def get_last_resolved_at(user_id: int, db: Any) -> Optional[datetime]:
 def get_review_pool(
     user_id: int,
     db: Any,
-    limit: int = DEFAULT_REVIEW_POOL_LIMIT,
+    limit: Optional[int] = None,
 ) -> list[QuizErrorLog]:
     """Return oldest unresolved errors, capped at ``limit``.
 
     Ordered by ``created_at`` ascending so the review session surfaces
-    the stalest mistakes first.
+    the stalest mistakes first. ``limit=None`` (default) scales the cap
+    to the user's unresolved backlog via ``get_review_pool_size`` so the
+    pool grows from 10 → 15 → 20 as errors accumulate.
     """
+    if limit is None:
+        limit = get_review_pool_size(count_unresolved(user_id, db))
     if limit <= 0:
         return []
     return (
@@ -259,6 +298,118 @@ def get_review_pool(
         .limit(limit)
         .all()
     )
+
+
+def _resolve_original_exercise_meta(
+    error: QuizErrorLog,
+    db: Any,
+) -> tuple[Optional[int], Optional[int], Optional[str]]:
+    """Return ``(original_exercise_id, difficulty, exercise_type)`` for the logged error.
+
+    Falls back to looking up the original ``GrammarExercise`` row by id when
+    the payload only stored the id. Returns ``(None, None, None)`` for
+    non-grammar errors or when no metadata is available.
+    """
+    payload = error.question_payload if isinstance(error.question_payload, dict) else {}
+    raw_exercise_id = payload.get('exercise_id')
+    raw_difficulty = payload.get('difficulty')
+    raw_question_type = payload.get('question_type')
+
+    exercise_id: Optional[int]
+    if isinstance(raw_exercise_id, int) and not isinstance(raw_exercise_id, bool):
+        exercise_id = raw_exercise_id
+    else:
+        try:
+            exercise_id = int(raw_exercise_id) if raw_exercise_id is not None else None
+        except (TypeError, ValueError):
+            exercise_id = None
+
+    difficulty: Optional[int]
+    if isinstance(raw_difficulty, int) and not isinstance(raw_difficulty, bool):
+        difficulty = raw_difficulty
+    else:
+        try:
+            difficulty = int(raw_difficulty) if raw_difficulty is not None else None
+        except (TypeError, ValueError):
+            difficulty = None
+
+    exercise_type: Optional[str] = raw_question_type if isinstance(raw_question_type, str) else None
+
+    if (difficulty is None or exercise_type is None) and exercise_id is not None:
+        from app.grammar_lab.models import GrammarExercise
+
+        original = db.session.get(GrammarExercise, exercise_id)
+        if original is not None:
+            if difficulty is None:
+                difficulty = original.difficulty
+            if exercise_type is None:
+                exercise_type = original.exercise_type
+
+    return exercise_id, difficulty, exercise_type
+
+
+def get_sibling_exercise(
+    error: QuizErrorLog,
+    db: Any,
+    exclude_exercise_ids: Optional[Iterable[int]] = None,
+):
+    """Find a related ``GrammarExercise`` for an error's lesson topic.
+
+    Returns ``None`` when the error's lesson has no ``grammar_topic_id``
+    (vocab/non-grammar lesson) or no other exercise exists on that topic.
+    Filters by matching difficulty when known, and excludes the original
+    exercise plus anything in ``exclude_exercise_ids``.
+    """
+    lesson = error.lesson
+    if lesson is None or lesson.grammar_topic_id is None:
+        return None
+
+    from app.grammar_lab.models import GrammarExercise
+
+    exercise_id, difficulty, exercise_type = _resolve_original_exercise_meta(error, db)
+
+    excluded: set[int] = set(exclude_exercise_ids or ())
+    if exercise_id is not None:
+        excluded.add(exercise_id)
+
+    query = db.session.query(GrammarExercise).filter(
+        GrammarExercise.topic_id == lesson.grammar_topic_id,
+    )
+    if difficulty is not None:
+        query = query.filter(GrammarExercise.difficulty == difficulty)
+    if exercise_type is not None:
+        query = query.filter(GrammarExercise.exercise_type == exercise_type)
+    if excluded:
+        query = query.filter(~GrammarExercise.id.in_(excluded))
+
+    return query.order_by(func.random()).first()
+
+
+def get_review_pool_with_siblings(
+    user_id: int,
+    db: Any,
+    limit: Optional[int] = None,
+) -> list[dict]:
+    """Return the review pool with an optional sibling exercise per topic.
+
+    Each item is ``{'error': QuizErrorLog, 'sibling': GrammarExercise | None}``.
+    Sibling lookup runs once per ``grammar_topic_id`` so the same topic does
+    not surface multiple sibling questions in one session.
+    """
+    pool = get_review_pool(user_id, db, limit=limit)
+    items: list[dict] = []
+    covered_topics: set[int] = set()
+    used_sibling_ids: set[int] = set()
+    for error in pool:
+        sibling = None
+        topic_id = error.lesson.grammar_topic_id if error.lesson is not None else None
+        if topic_id is not None and topic_id not in covered_topics:
+            sibling = get_sibling_exercise(error, db, exclude_exercise_ids=used_sibling_ids)
+            if sibling is not None:
+                used_sibling_ids.add(sibling.id)
+            covered_topics.add(topic_id)
+        items.append({'error': error, 'sibling': sibling})
+    return items
 
 
 def should_show_error_review(
@@ -285,4 +436,4 @@ def should_show_error_review(
     # Normalise naive timestamps from SQLite so the comparison works.
     if last_resolved.tzinfo is None:
         last_resolved = last_resolved.replace(tzinfo=timezone.utc)
-    return (reference - last_resolved) >= REVIEW_TRIGGER_COOLDOWN
+    return (reference - last_resolved) >= get_review_cooldown(unresolved)

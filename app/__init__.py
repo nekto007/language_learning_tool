@@ -96,6 +96,7 @@ def create_app(config_class=Config):
     # Import all models in dependency order - MUST happen before any blueprint that uses models
     from app.auth import models as auth_models  # noqa: F401
     from app.books import models as books_models  # noqa: F401
+    from app.books import reading_session as books_reading_session  # noqa: F401
     from app.words import models as words_models  # noqa: F401  # Also defines word_book_link table
     from app.study import models as study_models  # noqa: F401
     from app.curriculum import models as curriculum_models  # noqa: F401
