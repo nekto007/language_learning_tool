@@ -15,6 +15,7 @@ import logging
 from typing import Any, Optional
 
 from app.auth.models import User
+from app.curriculum.models import Lessons
 from app.daily_plan.linear.progression import (
     LevelProgress,
     find_next_lesson_linear,
@@ -96,6 +97,18 @@ def _position_from_lesson(lesson: Any) -> Optional[dict[str, Any]]:
     }
 
 
+def _lesson_from_slot_data(slot_dict: dict[str, Any], db_session: Any) -> Optional[Lessons]:
+    """Return the lesson referenced by a slot payload, if it still exists."""
+    data = slot_dict.get('data') or {}
+    lesson_id = data.get('lesson_id')
+    if not lesson_id:
+        return None
+    try:
+        return db_session.session.get(Lessons, int(lesson_id))
+    except (TypeError, ValueError):
+        return None
+
+
 def get_linear_plan(
     user_id: int,
     db_session: Any = None,
@@ -121,11 +134,18 @@ def get_linear_plan(
     focus = _get_user_focus(user_id, session_provider)
 
     curriculum_slot = build_curriculum_slot(user_id, session_provider, next_lesson=next_lesson)
-    srs_slot = build_srs_slot(user_id, session_provider, curriculum_lesson=next_lesson)
+    curriculum_dict = curriculum_slot.to_dict()
+
+    # The second slot is paired with the day's curriculum task. Once that
+    # task is completed, ``next_lesson`` advances; using it here would mutate
+    # the SRS slot from deck quiz to normal cards mid-day.
+    srs_anchor_lesson = next_lesson
+    if curriculum_dict.get('completed'):
+        srs_anchor_lesson = _lesson_from_slot_data(curriculum_dict, session_provider) or next_lesson
+    srs_slot = build_srs_slot(user_id, session_provider, curriculum_lesson=srs_anchor_lesson)
     reading_slot = build_reading_slot(user_id, session_provider, focus=focus)
     error_review_slot = build_error_review_slot(user_id, session_provider)
 
-    curriculum_dict = curriculum_slot.to_dict()
     srs_dict = srs_slot.to_dict()
     reading_dict = reading_slot.to_dict()
 

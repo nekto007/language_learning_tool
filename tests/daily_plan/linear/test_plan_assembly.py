@@ -28,7 +28,7 @@ from app.daily_plan.linear.plan import (
 from app.daily_plan.models import DailyPlanLog
 from app.daily_plan.service import write_secured_at
 from app.achievements.streak_service import compute_plan_steps
-from app.study.models import StudySettings, UserCardDirection, UserWord
+from app.study.models import QuizDeck, QuizDeckWord, StudySettings, UserCardDirection, UserWord
 from app.srs.constants import CardState
 from app.utils.db import db as real_db
 from app.words.models import CollectionWords
@@ -101,6 +101,21 @@ def _complete_lesson(db_session, user: User, lesson: Lessons) -> None:
         lesson_id=lesson.id,
         status='completed',
         score=100.0,
+        completed_at=datetime.now(timezone.utc).replace(tzinfo=None),
+    ))
+    db_session.commit()
+
+
+def _record_curriculum_xp_event(db_session, user: User, source: str) -> None:
+    from app.achievements.models import StreakEvent
+    from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE, get_linear_event_local_date
+
+    db_session.add(StreakEvent(
+        user_id=user.id,
+        event_type=LINEAR_XP_EVENT_TYPE,
+        event_date=get_linear_event_local_date(user.id, real_db),
+        coins_delta=0,
+        details={'source': source, 'xp': 10},
     ))
     db_session.commit()
 
@@ -212,6 +227,24 @@ def _setup_srs_cards(
         direction.first_reviewed = now
         db_session.add(direction)
         db_session.commit()
+
+
+def _make_quiz_deck_with_words(db_session, user: User, count: int) -> QuizDeck:
+    deck = QuizDeck(title=f'Deck {uuid.uuid4().hex[:6]}', user_id=user.id)
+    db_session.add(deck)
+    db_session.commit()
+
+    for index in range(count):
+        word = CollectionWords(
+            english_word=f'deck_{index}_{uuid.uuid4().hex[:6]}',
+            russian_word=f'слово_{index}_{uuid.uuid4().hex[:6]}',
+            level='A1',
+        )
+        db_session.add(word)
+        db_session.commit()
+        db_session.add(QuizDeckWord(deck_id=deck.id, word_id=word.id, order_index=index))
+    db_session.commit()
+    return deck
 
 
 @pytest.fixture
@@ -373,6 +406,37 @@ class TestGetLinearPlanAssembly:
         assert payload['continuation']['next_lessons'][0]['lesson_id'] == lesson_2.id
         assert payload['continuation']['next_lessons'][0]['module_number'] == 2
 
+    def test_card_day_keeps_deck_quiz_after_curriculum_completion(self, db_session):
+        level = _make_level(db_session, _unique_code(), order=1)
+        module = _make_module(db_session, level, number=1)
+        card_lesson = _make_lesson(db_session, module, number=1, lesson_type='card')
+        grammar_lesson = _make_lesson(db_session, module, number=2, lesson_type='grammar')
+        user = _make_user(db_session, onboarding_level=level.code)
+        _make_quiz_deck_with_words(db_session, user, 12)
+
+        before = get_linear_plan(user.id, real_db)
+        before_srs = _slot_by_kind(before['baseline_slots'], 'srs')
+        assert before_srs['data']['mode'] == 'deck_quiz'
+        assert before_srs['completed'] is False
+
+        _complete_lesson(db_session, user, card_lesson)
+        _record_curriculum_xp_event(db_session, user, 'linear_curriculum_card')
+        # This would collapse the normal SRS card slot, but must not satisfy
+        # the separate deck-quiz task paired with today's card lesson.
+        _setup_srs_cards(db_session, user, due=0, studied_today=1)
+
+        after = get_linear_plan(user.id, real_db)
+        curriculum = _slot_by_kind(after['baseline_slots'], 'curriculum')
+        srs = _slot_by_kind(after['baseline_slots'], 'srs')
+
+        assert after['position']['lesson_id'] == grammar_lesson.id
+        assert curriculum['completed'] is True
+        assert curriculum['data']['lesson_id'] == card_lesson.id
+        assert srs['data']['mode'] == 'deck_quiz'
+        assert srs['lesson_type'] == 'quiz'
+        assert srs['completed'] is False
+        assert 'linear_plan_deck_quiz' in srs['url']
+
 
 # ── compute_plan_steps for linear payload ────────────────────────────
 
@@ -478,6 +542,28 @@ class TestComputePlanStepsLinear:
         assert set(steps_available.keys()) == {
             'curriculum', 'srs', 'reading', 'error_review',
         }
+
+    def test_deck_quiz_srs_slot_ignores_generic_srs_summary_signal(self):
+        baseline_slots = [
+            {'kind': 'curriculum', 'completed': True},
+            {
+                'kind': 'srs',
+                'completed': False,
+                'data': {'mode': 'deck_quiz', 'completed_today': False},
+            },
+            {'kind': 'reading', 'completed': False},
+        ]
+        summary = {
+            'srs_words_reviewed': 10,
+            'srs_review_reviewed': 10,
+        }
+
+        plan_completion, _, steps_done, _ = compute_plan_steps(
+            self._plan(baseline_slots), summary,
+        )
+
+        assert plan_completion['srs'] is False
+        assert steps_done == 1
 
     def test_empty_baseline_slots_falls_through_to_legacy(self):
         """If mode is not linear and there are no baseline_slots, the

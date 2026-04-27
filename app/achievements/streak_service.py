@@ -131,7 +131,14 @@ def _compute_linear_slot_completion(
     for slot in baseline_slots:
         kind = slot.get('kind', '')
         slot_completed = bool(slot.get('completed', False))
-        summary_done = summary_signals.get(kind, False)
+        data = slot.get('data') or {}
+        if kind == 'srs' and data.get('mode') == 'deck_quiz':
+            # Deck quiz completion is recorded by the linear_srs_global XP
+            # event. Generic SRS/card counters can be incremented by the
+            # paired curriculum card lesson and must not complete this slot.
+            summary_done = False
+        else:
+            summary_done = summary_signals.get(kind, False)
         result[kind] = slot_completed or summary_done
     return result
 
