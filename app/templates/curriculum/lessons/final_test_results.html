@@ -715,6 +715,40 @@ document.addEventListener('DOMContentLoaded', function() {
     scoreElement.textContent = Math.round(currentScore) + '%';
     progressBar.style.width = Math.round(currentScore) + '%';
   }, 16);
+
+  // Linear plan context: inject plan-aware CTAs when the user came from a linear plan slot
+  (function() {
+    var ctx = window.linearPlanContext;
+    if (!ctx || !ctx.isActive()) return;
+    {% if results.score >= passing_score %}
+    var primaryBtn = document.querySelector('.result-actions .action-btn.primary');
+    if (!primaryBtn) return;
+    ctx.fetchNextSlot().then(function(data) {
+      if (!data || data.success === false) return;
+      if (data.day_secured) {
+        try { ctx.clear(); } catch(e) {}
+        window.location.href = '/dashboard?day_secured=1';
+        return;
+      }
+      if (!data.next || !data.next.url) return;
+      primaryBtn.style.display = 'none';
+      var planNext = document.createElement('a');
+      planNext.className = 'action-btn primary';
+      planNext.setAttribute('data-plan-cta', 'next-slot');
+      planNext.href = data.next.url;
+      var title = data.next.title;
+      planNext.textContent = title ? '\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0441\u043b\u043e\u0442 \u043f\u043b\u0430\u043d\u0430 \u00b7 ' + title : '\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0441\u043b\u043e\u0442 \u043f\u043b\u0430\u043d\u0430';
+      var planDash = document.createElement('a');
+      planDash.className = 'action-btn secondary';
+      planDash.setAttribute('data-plan-cta', 'dashboard');
+      planDash.href = '/dashboard';
+      planDash.textContent = '\u041d\u0430 \u0434\u0430\u0448\u0431\u043e\u0440\u0434';
+      var actions = document.querySelector('.result-actions');
+      actions.insertBefore(planNext, primaryBtn);
+      primaryBtn.after(planDash);
+    }).catch(function() {});
+    {% endif %}
+  })();
 });
 </script>
 {% endblock %}

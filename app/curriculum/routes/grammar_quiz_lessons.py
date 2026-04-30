@@ -143,6 +143,18 @@ def render_grammar_lesson(lesson):
             passing_score=70
         )
 
+        if progress and progress.status == 'completed':
+            try:
+                from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+                maybe_award_curriculum_xp(
+                    current_user.id, lesson,
+                    db_session=db,
+                    score=result.get('score'),
+                )
+                db.session.commit()
+            except Exception as _xp_err:
+                logger.warning(f"Linear XP award failed for grammar lesson {lesson.id}: {_xp_err}")
+
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             response_data = {
                 'success': True,
@@ -347,6 +359,18 @@ def render_quiz_lesson(lesson):
             passing_score=70
         )
 
+        if progress and progress.status == 'completed':
+            try:
+                from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+                maybe_award_curriculum_xp(
+                    current_user.id, lesson,
+                    db_session=db,
+                    score=result.get('score'),
+                )
+                db.session.commit()
+            except Exception as _xp_err:
+                logger.warning(f"Linear XP award failed for quiz lesson {lesson.id}: {_xp_err}")
+
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             response_data = {
                 'success': True,
@@ -483,6 +507,18 @@ def render_final_test_lesson(lesson):
             passing_score=passing_score
         )
 
+        if progress and progress.status == 'completed':
+            try:
+                from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+                maybe_award_curriculum_xp(
+                    current_user.id, lesson,
+                    db_session=db,
+                    score=result.get('score'),
+                )
+                db.session.commit()
+            except Exception as _xp_err:
+                logger.warning(f"Linear XP award failed for final test {lesson.id}: {_xp_err}")
+
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             response_data = {
                 'success': True,
@@ -499,7 +535,14 @@ def render_final_test_lesson(lesson):
                 response_data['new_achievements'] = completion_result['new_achievements']
             return jsonify(response_data)
         else:
-            return redirect(url_for('curriculum_lessons.final_test_results', lesson_id=lesson.id))
+            _from = request.args.get('from', '')
+            _slot = request.args.get('slot', '')
+            _results_url = url_for('curriculum_lessons.final_test_results', lesson_id=lesson.id)
+            if _from:
+                _results_url += f'?from={_from}'
+                if _slot:
+                    _results_url += f'&slot={_slot}'
+            return redirect(_results_url)
 
     next_lesson = get_next_lesson(lesson.id)
 
@@ -643,6 +686,18 @@ def grammar_lesson(lesson_id):
             passing_score=70
         )
 
+        if progress and progress.status == 'completed':
+            try:
+                from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+                maybe_award_curriculum_xp(
+                    current_user.id, lesson,
+                    db_session=db,
+                    score=result.get('score'),
+                )
+                db.session.commit()
+            except Exception as _xp_err:
+                logger.warning(f"Linear XP award failed for grammar lesson {lesson_id}: {_xp_err}")
+
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             response_data = {
                 'success': True,
@@ -759,6 +814,18 @@ def quiz_lesson(lesson_id):
             result=result,
             passing_score=70
         )
+
+        if progress and progress.status == 'completed':
+            try:
+                from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+                maybe_award_curriculum_xp(
+                    current_user.id, lesson,
+                    db_session=db,
+                    score=result.get('score'),
+                )
+                db.session.commit()
+            except Exception as _xp_err:
+                logger.warning(f"Linear XP award failed for quiz lesson {lesson.id}: {_xp_err}")
 
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             response_data = {
@@ -901,6 +968,18 @@ def final_test_lesson(lesson_id):
             passing_score=passing_score
         )
 
+        if progress and progress.status == 'completed':
+            try:
+                from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+                maybe_award_curriculum_xp(
+                    current_user.id, lesson,
+                    db_session=db,
+                    score=result.get('score'),
+                )
+                db.session.commit()
+            except Exception as _xp_err:
+                logger.warning(f"Linear XP award failed for final test {lesson.id}: {_xp_err}")
+
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             response_data = {
                 'success': True,
@@ -917,7 +996,14 @@ def final_test_lesson(lesson_id):
                 response_data['new_achievements'] = completion_result['new_achievements']
             return jsonify(response_data)
         else:
-            return redirect(url_for('curriculum_lessons.final_test_results', lesson_id=lesson.id))
+            _from = request.args.get('from', '')
+            _slot = request.args.get('slot', '')
+            _results_url = url_for('curriculum_lessons.final_test_results', lesson_id=lesson.id)
+            if _from:
+                _results_url += f'?from={_from}'
+                if _slot:
+                    _results_url += f'&slot={_slot}'
+            return redirect(_results_url)
 
     next_lesson = get_next_lesson(lesson.id)
 

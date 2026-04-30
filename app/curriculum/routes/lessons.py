@@ -150,6 +150,20 @@ def update_lesson_progress(lesson_id):
 
         db.session.commit()
 
+        if progress.status == 'completed':
+            try:
+                from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+                lesson_for_xp = Lessons.query.get(lesson_id)
+                if lesson_for_xp:
+                    maybe_award_curriculum_xp(
+                        current_user.id, lesson_for_xp,
+                        db_session=db,
+                        score=progress.score,
+                    )
+                    db.session.commit()
+            except Exception as xp_err:
+                logger.warning(f"Linear XP award failed for lesson {lesson_id}: {xp_err}")
+
         completion_result = None
         if progress.status == 'completed' and progress.score is not None:
             try:
