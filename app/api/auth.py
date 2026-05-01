@@ -24,8 +24,8 @@ def api_login():
     No CSRF needed as tokens are sent in Authorization header, not cookies
 
     Rate limits:
-    - 5 per minute per username (prevent targeted account brute force)
-    - 20 per hour per IP (prevent distributed brute force)
+    - 15 per minute per username (allows retry storms on token expiry)
+    - 60 per hour per IP (prevent distributed brute force)
 
     Request Body:
         {
@@ -52,8 +52,8 @@ def api_login():
     from app.utils.jwt_auth import create_tokens_for_user
 
     # Apply rate limiting decorators
-    @limiter.limit("5 per minute", key_func=lambda: get_username_key())
-    @limiter.limit("20 per hour")
+    @limiter.limit("15 per minute", key_func=lambda: get_username_key())
+    @limiter.limit("60 per hour")
     def _api_login_impl():
         if not request.is_json:
             return api_error('invalid_json', 'Invalid JSON format', 400)
