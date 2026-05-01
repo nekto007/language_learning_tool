@@ -1,4 +1,5 @@
 import html
+import json
 import logging
 import random
 from datetime import UTC, datetime
@@ -19,6 +20,73 @@ from app.daily_plan.linear.grammar_theory import get_theory_for_lesson
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
+
+_OPTION_ANSWER_TYPES = frozenset({
+    'multiple_choice',
+    'dialogue_completion',
+    'listening_choice',
+    'reading_comprehension',
+})
+
+
+def _uses_option_answer_text(question: dict) -> bool:
+    """Return True when posted option indexes are unstable across shuffles."""
+    question_type = question.get('type', 'multiple_choice')
+    return (
+        question_type in _OPTION_ANSWER_TYPES
+        or (question_type in {'fill_blank', 'fill_in_blank'} and bool(question.get('options')))
+    )
+
+
+def _collect_quiz_form_answers(questions: list[dict]) -> dict:
+    """Collect quiz answers without trusting client-calculated scores.
+
+    The browser submits ``answer_N`` for backward compatibility. For
+    option-based questions that value is the rendered option index, but this
+    route sanitizes/shuffles options again on POST. When ``client_results`` is
+    present, use only its selected answer text as the canonical answer and let
+    the server grader recompute correctness against the freshly sanitized
+    question payload.
+    """
+    answers: dict[int, str] = {}
+    for key in request.form:
+        if key.startswith('answer_'):
+            question_idx = key.replace('answer_', '')
+            try:
+                idx = int(question_idx)
+            except ValueError:
+                logger.error(f"Invalid question index: {question_idx}")
+                continue
+            answers[idx] = request.form[key]
+
+    raw_client_results = request.form.get('client_results')
+    if not raw_client_results:
+        return answers
+
+    try:
+        client_results = json.loads(raw_client_results)
+    except (TypeError, ValueError):
+        logger.warning("Invalid client_results payload on quiz submission")
+        return answers
+
+    if not isinstance(client_results, list):
+        return answers
+
+    for item in client_results:
+        if not isinstance(item, dict):
+            continue
+        try:
+            idx = int(item.get('question_index'))
+        except (TypeError, ValueError):
+            continue
+        if idx < 0 or idx >= len(questions):
+            continue
+        selected_text = item.get('answer')
+        if selected_text is None or not _uses_option_answer_text(questions[idx]):
+            continue
+        answers[idx] = str(selected_text)
+
+    return answers
 
 
 def render_grammar_lesson(lesson):
@@ -329,16 +397,7 @@ def render_quiz_lesson(lesson):
         db.session.commit()
 
     if request.method == 'POST':
-        answers = {}
-        for key in request.form:
-            if key.startswith('answer_'):
-                question_idx = key.replace('answer_', '')
-                try:
-                    idx = int(question_idx)
-                    answers[idx] = request.form[key]
-                except ValueError:
-                    logger.error(f"Invalid question index: {question_idx}")
-
+        answers = _collect_quiz_form_answers(cleaned_content['questions'])
         result = process_quiz_submission(cleaned_content['questions'], answers)
 
         try:
@@ -785,16 +844,7 @@ def quiz_lesson(lesson_id):
         db.session.commit()
 
     if request.method == 'POST':
-        answers = {}
-        for key in request.form:
-            if key.startswith('answer_'):
-                question_idx = key.replace('answer_', '')
-                try:
-                    idx = int(question_idx)
-                    answers[idx] = request.form[key]
-                except ValueError:
-                    logger.error(f"Invalid question index: {question_idx}")
-
+        answers = _collect_quiz_form_answers(cleaned_content['questions'])
         result = process_quiz_submission(cleaned_content['questions'], answers)
 
         try:

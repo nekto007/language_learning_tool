@@ -675,6 +675,80 @@ class TestUpdateLessonProgress:
         assert progress.score == 100.0
 
 
+class TestQuizSubmission:
+    """Test quiz submission edge cases."""
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    def test_option_answer_text_completes_when_post_shuffle_changes_indexes(
+        self, mock_module, mock_lesson,
+        authenticated_client, db_session, level_and_module, test_user
+    ):
+        """Client option indexes are stale if POST sanitization reshuffles choices."""
+        _, module = level_and_module
+        test_user.use_linear_plan = True
+        db_session.commit()
+        lesson = Lessons(
+            title='Quiz With Shuffled Options',
+            type='quiz',
+            number=2,
+            module_id=module.id,
+            content={
+                'questions': [{
+                    'type': 'multiple_choice',
+                    'question': 'Choose the correct option',
+                    'options': ['wrong', 'right'],
+                    'correct_index': 1,
+                }]
+            },
+        )
+        db_session.add(lesson)
+        db_session.commit()
+
+        # The rendered page had "right" at index 1. On POST the server's
+        # sanitization reverses options, so index 1 would now point to "wrong";
+        # client_results.answer text must be used and re-graded server-side.
+        with patch(
+            'app.curriculum.routes.grammar_quiz_lessons.random.shuffle',
+            side_effect=lambda values: values.reverse(),
+        ):
+            response = authenticated_client.post(
+                f'/learn/{lesson.id}/?from=linear_plan&slot=curriculum',
+                data={
+                    'answer_0': '1',
+                    'client_results': json.dumps([{
+                        'question_index': 0,
+                        'answer': 'right',
+                        'is_correct': True,
+                        'attempts': 1,
+                    }]),
+                    'client_score': '100',
+                    'client_correct_answers': '1',
+                },
+                headers={'X-Requested-With': 'XMLHttpRequest'},
+            )
+
+        assert response.status_code == 200
+        payload = json.loads(response.data)
+        assert payload['success'] is True
+        assert payload['score'] == 100
+
+        progress = LessonProgress.query.filter_by(lesson_id=lesson.id).first()
+        assert progress is not None
+        assert progress.status == 'completed'
+        assert progress.score == 100.0
+
+        from app.achievements.models import StreakEvent
+        from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
+
+        linear_event = StreakEvent.query.filter_by(
+            user_id=test_user.id,
+            event_type=LINEAR_XP_EVENT_TYPE,
+        ).first()
+        assert linear_event is not None
+        assert linear_event.details['source'] == 'linear_curriculum_quiz'
+
+
 class TestModuleLockReasons:
     """Test that module lock reasons show prerequisite module name and required score."""
 
