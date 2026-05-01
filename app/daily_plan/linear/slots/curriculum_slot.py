@@ -8,9 +8,12 @@ for SRS budget handling; this slot stays source-agnostic.
 """
 from __future__ import annotations
 
+import logging
 from typing import Any, Optional
 
 from sqlalchemy import func
+
+logger = logging.getLogger(__name__)
 
 from app.curriculum.models import LessonProgress, Lessons
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
@@ -191,6 +194,7 @@ def build_curriculum_slot(
         next_lesson = find_next_lesson_linear(user_id, db)
 
     if next_lesson is None:
+        logger.info("curriculum_slot user=%s state=complete no_lessons_remaining", user_id)
         return LinearSlot(
             kind='curriculum',
             title='Curriculum complete',
@@ -209,6 +213,7 @@ def build_curriculum_slot(
     if done_today:
         completed_lesson = _get_lesson_completed_today(user_id, db)
         if completed_lesson is None:
+            logger.info("curriculum_slot user=%s state=done_today lesson=unknown", user_id)
             return LinearSlot(
                 kind='curriculum',
                 title='Урок завершён',
@@ -220,6 +225,12 @@ def build_curriculum_slot(
             )
         module = completed_lesson.module
         level = module.level if module is not None else None
+        logger.info(
+            "curriculum_slot user=%s state=done_today lesson=%s type=%s module=%s level=%s",
+            user_id, completed_lesson.id, completed_lesson.type,
+            getattr(module, 'number', None),
+            getattr(level, 'code', None),
+        )
         return LinearSlot(
             kind='curriculum',
             title=completed_lesson.title,
@@ -248,6 +259,7 @@ def build_curriculum_slot(
     }
 
     weak_topics = _get_weak_grammar_topic_ids(user_id, db)
+    weak_hint_fired = False
     if weak_topics:
         for tid in _lesson_grammar_topic_ids(next_lesson, db):
             info = weak_topics.get(tid)
@@ -256,8 +268,22 @@ def build_curriculum_slot(
                 data['weak_topic_id'] = tid
                 data['weak_topic_name'] = info['title']
                 data['weak_topic_accuracy'] = info['accuracy']
+                weak_hint_fired = True
+                logger.info(
+                    "curriculum_slot user=%s weak_grammar_hint topic=%s accuracy=%.2f",
+                    user_id, info['title'], info['accuracy'],
+                )
                 break
 
+    logger.info(
+        "curriculum_slot user=%s state=pending lesson=%s type=%s module=%s level=%s"
+        " eta=%d weak_hint=%s",
+        user_id, next_lesson.id, next_lesson.type,
+        getattr(module, 'number', None),
+        getattr(level, 'code', None),
+        _eta_minutes(next_lesson.type),
+        weak_hint_fired,
+    )
     return LinearSlot(
         kind='curriculum',
         title=next_lesson.title,

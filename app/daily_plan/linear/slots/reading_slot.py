@@ -14,10 +14,13 @@ States:
 """
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 from app.books.models import Book, Chapter, UserChapterProgress
+
+logger = logging.getLogger(__name__)
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 from app.daily_plan.linear.models import UserReadingPreference
 from app.daily_plan.linear.slots import LinearSlot
@@ -93,6 +96,7 @@ def build_reading_slot(
     pref = get_user_reading_preference(user_id, db)
 
     if pref is None:
+        logger.info("reading_slot user=%s state=no_preference focus=%s", user_id, focus)
         return LinearSlot(
             kind='reading',
             title='Выбрать книгу',
@@ -107,6 +111,7 @@ def build_reading_slot(
     if book is None:
         # Defensive: preference points at a deleted book — fall back to
         # the select state so the user can pick another.
+        logger.warning("reading_slot user=%s book=%s not_found preference_stale", user_id, pref.book_id)
         return LinearSlot(
             kind='reading',
             title='Выбрать книгу',
@@ -128,6 +133,12 @@ def build_reading_slot(
 
     completed = _read_today(user_id, db)
 
+    logger.info(
+        "reading_slot user=%s book=%s chapter=%s state=%s priority=%s",
+        user_id, book.id, chapter_num,
+        'done_today' if completed else 'pending',
+        priority,
+    )
     title = book.title
     return LinearSlot(
         kind='reading',

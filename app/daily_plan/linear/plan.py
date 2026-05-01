@@ -122,6 +122,8 @@ def get_linear_plan(
     """
     session_provider = db_session if db_session is not None else db
 
+    logger.info("linear_plan_assemble user=%s start", user_id)
+
     next_lesson = find_next_lesson_linear(user_id, session_provider)
     level_progress = get_user_level_progress(user_id, session_provider, next_lesson=next_lesson)
     upcoming = []
@@ -132,6 +134,13 @@ def get_linear_plan(
         )
 
     focus = _get_user_focus(user_id, session_provider)
+
+    logger.info(
+        "linear_plan_assemble user=%s focus=%s level=%s level_pct=%d remaining=%d",
+        user_id, focus or 'none',
+        level_progress.level, level_progress.percent,
+        level_progress.lessons_remaining_in_level,
+    )
 
     curriculum_slot = build_curriculum_slot(user_id, session_provider, next_lesson=next_lesson)
     curriculum_dict = curriculum_slot.to_dict()
@@ -162,6 +171,15 @@ def get_linear_plan(
         baseline_slots.append(error_review_slot.to_dict())
 
     day_secured = compute_linear_day_secured(baseline_slots)
+
+    slot_summary = " ".join(
+        f"{s.get('kind')}={'done' if s.get('completed') else 'pending'}"
+        for s in baseline_slots
+    )
+    logger.info(
+        "linear_plan_assemble user=%s done slots=%d day_secured=%s [%s]",
+        user_id, len(baseline_slots), day_secured, slot_summary,
+    )
 
     return {
         'mode': 'linear',

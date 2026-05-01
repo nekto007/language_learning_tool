@@ -300,6 +300,7 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
     if user and user.use_linear_plan:
         linear_payload = _get_linear_plan_safe(user_id)
         if linear_payload is not None:
+            logger.info("daily_plan_unified user=%s mode=linear", user_id)
             return _with_plan_meta(
                 linear_payload,
                 mission_plan_enabled=bool(user.use_mission_plan),
@@ -312,12 +313,14 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
         if user.use_mission_plan:
             mission_payload = get_mission_plan(user_id, tz)
             if mission_payload is not None:
+                logger.info("daily_plan_unified user=%s mode=mission fallback_reason=linear_build_failed", user_id)
                 return _with_plan_meta(
                     mission_payload,
                     mission_plan_enabled=True,
                     effective_mode='mission',
                     fallback_reason='linear_build_failed',
                 )
+        logger.warning("daily_plan_unified user=%s mode=legacy_fallback fallback_reason=linear_build_failed", user_id)
         from app.telegram.queries import get_daily_plan_v2
         legacy_payload = get_daily_plan_v2(user_id, tz) if tz else get_daily_plan_v2(user_id)
         return _with_plan_meta(
@@ -330,6 +333,7 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
     if user and user.use_mission_plan:
         mission_payload = get_mission_plan(user_id, tz)
         if mission_payload is not None:
+            logger.info("daily_plan_unified user=%s mode=mission", user_id)
             return _with_plan_meta(
                 mission_payload,
                 mission_plan_enabled=True,
@@ -345,6 +349,7 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
             fallback_reason='mission_build_failed',
         )
 
+    logger.info("daily_plan_unified user=%s mode=legacy", user_id)
     from app.telegram.queries import get_daily_plan_v2
     payload = get_daily_plan_v2(user_id, tz) if tz else get_daily_plan_v2(user_id)
     return _with_plan_meta(

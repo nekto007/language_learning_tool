@@ -89,9 +89,25 @@ def find_next_lesson_linear(user_id: int, db: Any) -> Optional[Lessons]:
             if module is not None:
                 ok, _reasons = module.check_prerequisites(user_id)
                 accessible = bool(ok)
+                if not ok:
+                    logger.debug(
+                        "linear_progression user=%s module=%s blocked prereqs=%s",
+                        user_id, module_id, _reasons,
+                    )
             module_access[module_id] = accessible
         if accessible:
+            module = db.session.get(Module, lesson.module_id)
+            level_code = None
+            if module is not None:
+                level = db.session.get(CEFRLevel, module.level_id)
+                level_code = level.code if level is not None else None
+            logger.debug(
+                "linear_progression user=%s next_lesson=%s type=%s module=%s level=%s",
+                user_id, lesson.id, lesson.type,
+                getattr(module, 'number', None), level_code,
+            )
             return lesson
+    logger.debug("linear_progression user=%s no_eligible_lesson min_order=%s", user_id, min_order)
     return None
 
 

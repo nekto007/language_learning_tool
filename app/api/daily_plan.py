@@ -83,6 +83,11 @@ def daily_status():
             logger.warning("route_step sync failed in daily_status", exc_info=True)
             db.session.rollback()
 
+    logger.info(
+        "daily_status user=%s mode=%s steps=%d/%d day_secured=%s",
+        user_id, effective_mode, steps_done, steps_total, day_secured,
+    )
+
     if day_secured:
         from datetime import datetime
         import pytz
@@ -105,6 +110,10 @@ def daily_status():
                     user_id, plan, plan_completion, today, db,
                 )
             db.session.commit()
+            logger.info(
+                "daily_status user=%s day_secured=true mission_type=%s date=%s",
+                user_id, mission_type, today,
+            )
         except Exception:
             logger.warning("secured_at write failed in daily_status", exc_info=True)
             db.session.rollback()
@@ -414,6 +423,17 @@ def daily_plan_next_slot():
             }
             break
 
+    completion_summary = " ".join(
+        f"{s.get('kind')}={'done' if plan_completion.get(s.get('kind', ''), False) else 'pending'}"
+        for s in baseline_slots
+    )
+    logger.info(
+        "next_slot user=%s current=%s day_secured=%s next=%s [%s]",
+        user.id, raw_current, day_secured,
+        next_slot_payload.get('kind') if next_slot_payload else 'none',
+        completion_summary,
+    )
+
     secured_just_now = False
     if day_secured:
         try:
@@ -438,6 +458,8 @@ def daily_plan_next_slot():
             )
             db.session.commit()
             secured_just_now = not was_already_secured
+            if secured_just_now:
+                logger.info("next_slot user=%s day_secured_just_now=true date=%s", user.id, today)
         except Exception:
             logger.warning(
                 "secured_at write failed in daily_plan_next_slot",
@@ -642,11 +664,25 @@ def complete_error_review():
 
     user_id = current_user.id
     resolved = resolve_quiz_errors(error_ids, user_id, db, commit=False)
+    logger.info(
+        "error_review_complete user=%s resolved=%d of %d submitted",
+        user_id, len(resolved), len(error_ids),
+    )
 
     xp_award = maybe_award_error_review_xp(user_id, db_session=db)
     perfect_day = None
     if xp_award is not None:
+        logger.info(
+            "error_review_xp user=%s xp=%d total=%d level=%d leveled_up=%s",
+            user_id, xp_award.xp_awarded, xp_award.new_total_xp,
+            xp_award.new_level, xp_award.leveled_up,
+        )
         perfect_day = maybe_award_linear_perfect_day(user_id, db_session=db)
+        if perfect_day is not None:
+            logger.info(
+                "perfect_day_bonus user=%s xp=%d total=%d level=%d",
+                user_id, perfect_day.xp_awarded, perfect_day.new_total_xp, perfect_day.new_level,
+            )
 
     try:
         db.session.commit()

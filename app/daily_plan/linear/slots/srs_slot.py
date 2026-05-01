@@ -17,10 +17,13 @@ Slot states:
 """
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import and_, func, or_
+
+logger = logging.getLogger(__name__)
 
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 from app.daily_plan.linear.slots import LinearSlot
@@ -167,6 +170,7 @@ def _build_deck_quiz_slot(user_id: int, db: Any) -> LinearSlot:
     }
 
     if completed:
+        logger.info("srs_slot user=%s mode=deck_quiz state=done_today words=%d", user_id, deck_word_count)
         return LinearSlot(
             kind='srs',
             title='Квиз по словам из колод готов',
@@ -178,6 +182,7 @@ def _build_deck_quiz_slot(user_id: int, db: Any) -> LinearSlot:
         )
 
     if deck_word_count <= 0:
+        logger.info("srs_slot user=%s mode=deck_quiz state=empty no_deck_words", user_id)
         return LinearSlot(
             kind='srs',
             title='Нет слов для квиза в колодах',
@@ -188,6 +193,7 @@ def _build_deck_quiz_slot(user_id: int, db: Any) -> LinearSlot:
             data=data,
         )
 
+    logger.info("srs_slot user=%s mode=deck_quiz state=pending words=%d limit=%d", user_id, deck_word_count, limit)
     return LinearSlot(
         kind='srs',
         title='Квиз по словам из колод',
@@ -232,6 +238,11 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
     }
 
     if due_count > 0:
+        logger.info(
+            "srs_slot user=%s mode=cards state=pending due=%d backlog=%d"
+            " reviews_today=%d reviews_limit=%d budget=%d",
+            user_id, due_count, backlog_due_count, reviews_today, reviews_limit, budget_remaining,
+        )
         return LinearSlot(
             kind='srs',
             title=f'Повторить {due_count} карточек',
@@ -244,8 +255,14 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
 
     if backlog_due_count > 0 and reviews_remaining == 0:
         title = 'Лимит повторений на сегодня достигнут'
+        state = 'limit_reached'
     else:
         title = 'Карточки повторим завтра' if studied_today > 0 else 'Сегодня повторять нечего'
+        state = 'done_today' if studied_today > 0 else 'nothing_due'
+    logger.info(
+        "srs_slot user=%s mode=cards state=%s studied=%d backlog=%d reviews_remaining=%d",
+        user_id, state, studied_today, backlog_due_count, reviews_remaining,
+    )
     return LinearSlot(
         kind='srs',
         title=title,
