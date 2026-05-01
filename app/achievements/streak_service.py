@@ -794,8 +794,11 @@ def find_missed_date(user_id: int, tz: str = DEFAULT_TIMEZONE,
     """Find the most recent missed date that could be repaired.
 
     Walks backwards up to max_days looking for the first gap in activity
-    that hasn't been repaired yet. Stops at the first day WITH activity
-    (the gap must be adjacent to the current streak).
+    that hasn't been repaired yet. Only returns the gap if the day
+    immediately before it (farther from today) has activity or a repair —
+    meaning the gap is adjacent to a real streak chain. Repairing an
+    isolated gap that isn't connected to any streak is pointless (streak
+    would remain 1), so we return None in that case.
     """
     from app.telegram.queries import _user_day_boundaries, _has_activity_in_range
     import pytz
@@ -813,8 +816,16 @@ def find_missed_date(user_id: int, tz: str = DEFAULT_TIMEZONE,
             # Already repaired — keep looking further back
             continue
         else:
-            # Found an unrepaired gap — return it
-            return check_date
+            # Found an unrepaired gap. Only surface it if the day before
+            # (farther from today) has activity or a prior repair — i.e.,
+            # the gap sits inside an otherwise continuous streak chain.
+            # Without this check, a user inactive for many days would see
+            # repair for "yesterday" that only creates an isolated 1-day streak.
+            prev_date = check_date - timedelta(days=1)
+            prev_start, prev_end = _user_day_boundaries(tz, offset_days=-(offset + 1))
+            if _has_activity_in_range(user_id, prev_start, prev_end) or has_repair_for_date(user_id, prev_date):
+                return check_date
+            return None
     return None
 
 
