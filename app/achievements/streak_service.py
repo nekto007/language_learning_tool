@@ -405,6 +405,21 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
             required_steps = streak_status.get('required_steps', 1)
             streak_repaired = True
 
+    # Auto-heal: fill in any adjacent gaps on every real-activity session,
+    # up to 3 days back.  Also refunds paid repairs that are now covered.
+    if real_activity:
+        try:
+            healed = auto_heal_streak_on_activity(user_id, tz=tz)
+            if healed > 0:
+                db.session.commit()
+                streak = get_current_streak(user_id, tz=tz)
+                streak_status = get_streak_status(user_id, tz=tz, steps_total=max(steps_total, 1))
+                streak_status['streak'] = streak
+                required_steps = streak_status.get('required_steps', 1)
+                streak_repaired = streak_repaired or True
+        except Exception:
+            logger.warning("auto_heal_streak failed for user %s", user_id, exc_info=True)
+
     # Check streak milestones and award bonus coins
     milestone_reward = check_streak_milestone(
         user_id, streak_status.get('streak', 0), for_date=user_today)
@@ -827,6 +842,130 @@ def find_missed_date(user_id: int, tz: str = DEFAULT_TIMEZONE,
                 return check_date
             return None
     return None
+
+
+def _is_spent_repair(user_id: int, target_date: date) -> bool:
+    return StreakEvent.query.filter_by(
+        user_id=user_id,
+        event_date=target_date,
+        event_type='spent_repair',
+    ).first() is not None
+
+
+def find_auto_heal_date(
+    user_id: int,
+    tz: str = DEFAULT_TIMEZONE,
+    max_days: int = 3,
+) -> date | None:
+    """Find the most recent gap eligible for automatic free healing.
+
+    Unlike ``find_missed_date`` (which requires activity on the PAST side
+    only, for paid repair UI), this function accepts a gap if EITHER side
+    is anchored:
+    - Future side (closer to today): real activity OR any repair event
+    - Past side (farther from today): real activity only
+
+    Only looks within ``max_days`` from today.  Spent-repair rows are
+    treated as gaps so they can be upgraded to free repairs with a refund.
+    """
+    from app.telegram.queries import _user_day_boundaries, _has_activity_in_range
+    import pytz
+
+    local_now = datetime.now(pytz.timezone(tz))
+    local_today = local_now.date()
+
+    today_start, today_end = _user_day_boundaries(tz, offset_days=0)
+    today_has_activity = _has_activity_in_range(user_id, today_start, today_end)
+
+    for offset in range(1, max_days + 1):
+        day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
+        check_date = local_today - timedelta(days=offset)
+
+        if _has_activity_in_range(user_id, day_start, day_end):
+            continue
+
+        # Free repairs are already done — skip.  Spent repairs count as
+        # gaps because they may be refunded and replaced with a free one.
+        if has_repair_for_date(user_id, check_date) and not _is_spent_repair(user_id, check_date):
+            continue
+
+        # Future side: activity today (offset=1) or activity/repair on offset-1
+        if offset == 1:
+            future_ok = today_has_activity
+        else:
+            f_start, f_end = _user_day_boundaries(tz, offset_days=-(offset - 1))
+            future_day = local_today - timedelta(days=offset - 1)
+            future_ok = (
+                _has_activity_in_range(user_id, f_start, f_end)
+                or has_repair_for_date(user_id, future_day)
+            )
+
+        # Past side: real activity only (prevent cascading into dead zones)
+        p_start, p_end = _user_day_boundaries(tz, offset_days=-(offset + 1))
+        past_ok = _has_activity_in_range(user_id, p_start, p_end)
+
+        if future_ok or past_ok:
+            return check_date
+
+        return None  # Isolated — no point looking further
+
+    return None
+
+
+def auto_heal_streak_on_activity(
+    user_id: int,
+    tz: str = DEFAULT_TIMEZONE,
+    max_days: int = 3,
+) -> int:
+    """Auto-apply free repairs for gaps adjacent to the streak chain.
+
+    Called whenever the user has real learning activity.  Bridges gaps
+    that would otherwise silently break a continuous streak.
+
+    Paid (spent_repair) events that cover a gap now eligible for free
+    healing are refunded: coins returned, spent_repair removed, free_repair
+    added.
+
+    Returns the number of gaps healed (including paid→free upgrades).
+    """
+    healed = 0
+
+    for _ in range(max_days):
+        missed = find_auto_heal_date(user_id, tz, max_days=max_days)
+        if missed is None:
+            break
+
+        # Refund any paid repair covering this gap
+        spent = StreakEvent.query.filter_by(
+            user_id=user_id,
+            event_date=missed,
+            event_type='spent_repair',
+        ).first()
+
+        if spent:
+            cost = abs(spent.coins_delta) if spent.coins_delta and spent.coins_delta < 0 else 3
+            coins = get_or_create_coins(user_id)
+            coins.earn(cost)
+            db.session.add(StreakEvent(
+                user_id=user_id,
+                event_type='repair_refund',
+                coins_delta=cost,
+                event_date=missed,
+                details={'reason': 'covered_by_auto_heal', 'original_cost': cost},
+            ))
+            db.session.delete(spent)
+            db.session.flush()
+
+        if apply_free_repair(user_id, missed):
+            healed += 1
+            logger.info(
+                "auto_heal_streak user=%s healed=%s refunded_paid=%s",
+                user_id, missed.isoformat(), bool(spent),
+            )
+
+        db.session.flush()  # Ensure new repair is visible to next iteration
+
+    return healed
 
 
 def _get_today_mission_type(user_id: int, today_local: date) -> str | None:
