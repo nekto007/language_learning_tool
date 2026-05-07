@@ -108,25 +108,52 @@ def error_review_session():
     to mark them resolved and credit the linear slot XP. Reachable via
     the linear plan 4th baseline slot.
     """
-    from app.daily_plan.linear.errors import get_review_pool_with_siblings
+    from app.daily_plan.linear.errors import get_review_pool_grouped
 
-    items = get_review_pool_with_siblings(current_user.id, db)
-    entries = []
-    for item in items:
-        e = item['error']
-        sibling = item.get('sibling')
-        sibling_data = None
-        if sibling is not None:
-            sibling_data = sibling.to_dict(hide_answer=True)
-        entries.append({
-            'id': e.id,
-            'payload': e.question_payload or {},
-            'created_at': e.created_at,
-            'sibling': sibling_data,
+    raw_groups = get_review_pool_grouped(current_user.id, db)
+    topic_groups = []
+    all_error_ids: list[int] = []
+
+    for group in raw_groups:
+        topic = group['topic']
+        all_error_ids.extend(group['error_ids'])
+
+        # Preprocess topic theory so template stays logic-free
+        topic_title = None
+        grammar_url = None
+        theory_text = None
+        common_mistakes = None
+
+        if topic is not None:
+            topic_title = topic.title_ru or topic.title
+            grammar_url = f'/grammar/{topic.slug}'
+            content = topic.content or {}
+            if topic.telegram_summary:
+                theory_text = topic.telegram_summary
+            elif content.get('introduction'):
+                theory_text = content['introduction']
+            raw_mistakes = content.get('common_mistakes') or []
+            if raw_mistakes:
+                common_mistakes = raw_mistakes[:2]
+
+        topic_groups.append({
+            'topic_title': topic_title,
+            'grammar_url': grammar_url,
+            'theory_text': theory_text,
+            'common_mistakes': common_mistakes,
+            'errors': [
+                {'id': e.id, 'payload': e.question_payload or {}}
+                for e in group['errors']
+            ],
+            'exercises': [ex.to_dict(hide_answer=False) for ex in group['exercises']],
+            'error_ids': group['error_ids'],
         })
+
     return render_template(
         'curriculum/error_review.html',
-        entries=entries,
+        topic_groups=topic_groups,
+        all_error_ids=all_error_ids,
+        total_errors=len(all_error_ids),
     )
 
 

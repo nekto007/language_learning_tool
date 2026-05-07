@@ -19,7 +19,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Optional
 
-from sqlalchemy import func
+from sqlalchemy import case, func
 
 from app.daily_plan.linear.models import QuizErrorLog
 
@@ -410,6 +410,120 @@ def get_review_pool_with_siblings(
             covered_topics.add(topic_id)
         items.append({'error': error, 'sibling': sibling})
     return items
+
+
+def get_topic_sibling_exercises(
+    topic_id: int,
+    exclude_ids: set[int],
+    db: Any,
+    count: int = 2,
+) -> list:
+    """Return up to ``count`` GrammarExercise objects for a topic.
+
+    Prefers ``multiple_choice`` and ``fill_blank`` types because those
+    render interactively in the review quiz. Falls back to other types
+    when the preferred pool is exhausted. Excluded ids (original exercises
+    already seen in errors + exercises picked earlier in the session)
+    prevent duplicates within the review session.
+    """
+    from app.grammar_lab.models import GrammarExercise
+
+    type_priority = case(
+        [
+            (GrammarExercise.exercise_type == 'multiple_choice', 0),
+            (GrammarExercise.exercise_type == 'fill_blank', 1),
+        ],
+        else_=2,
+    )
+
+    query = db.session.query(GrammarExercise).filter(
+        GrammarExercise.topic_id == topic_id,
+    )
+    if exclude_ids:
+        query = query.filter(~GrammarExercise.id.in_(exclude_ids))
+
+    return (
+        query
+        .order_by(type_priority, GrammarExercise.difficulty.asc(), func.random())
+        .limit(count)
+        .all()
+    )
+
+
+def get_review_pool_grouped(
+    user_id: int,
+    db: Any,
+    limit: Optional[int] = None,
+) -> list[dict]:
+    """Return the review pool grouped by grammar topic, with sibling exercises.
+
+    Each group dict::
+
+        {
+            'topic_id': int | None,
+            'topic':    GrammarTopic | None,
+            'errors':   list[QuizErrorLog],
+            'exercises': list[GrammarExercise],  # sibling exercises for quiz
+            'error_ids': list[int],
+        }
+
+    Groups are sorted by error count descending so the most-problematic
+    topic appears first. Errors without a grammar topic (vocab-quiz source)
+    are collected in a single trailing group with ``topic=None``.
+    """
+    pool = get_review_pool(user_id, db, limit=limit)
+
+    topic_groups: dict[Optional[int], list[QuizErrorLog]] = {}
+    topic_objects: dict[int, Any] = {}
+
+    for error in pool:
+        lesson = error.lesson
+        topic_id: Optional[int] = lesson.grammar_topic_id if lesson is not None else None
+        if topic_id not in topic_groups:
+            topic_groups[topic_id] = []
+        if topic_id is not None and topic_id not in topic_objects and lesson is not None:
+            topic_objects[topic_id] = lesson.grammar_topic
+        topic_groups[topic_id].append(error)
+
+    # Sort: most errors first; None-topic group appended last
+    sorted_topic_ids = sorted(
+        [tid for tid in topic_groups if tid is not None],
+        key=lambda tid: len(topic_groups[tid]),
+        reverse=True,
+    )
+    if None in topic_groups:
+        sorted_topic_ids.append(None)
+
+    used_exercise_ids: set[int] = set()
+    result: list[dict] = []
+
+    for topic_id in sorted_topic_ids:
+        errors = topic_groups[topic_id]
+        topic = topic_objects.get(topic_id) if topic_id is not None else None
+
+        # Collect original exercise ids from error payloads to exclude them
+        excluded: set[int] = set(used_exercise_ids)
+        for error in errors:
+            payload = error.question_payload if isinstance(error.question_payload, dict) else {}
+            eid = payload.get('exercise_id')
+            if isinstance(eid, int):
+                excluded.add(eid)
+
+        exercises: list = []
+        if topic_id is not None:
+            exercises = get_topic_sibling_exercises(topic_id, excluded, db, count=2)
+            for ex in exercises:
+                used_exercise_ids.add(ex.id)
+
+        result.append({
+            'topic_id': topic_id,
+            'topic': topic,
+            'errors': errors,
+            'exercises': exercises,
+            'error_ids': [e.id for e in errors],
+        })
+
+    return result
 
 
 def should_show_error_review(
