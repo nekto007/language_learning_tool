@@ -629,6 +629,27 @@ def emit_minimum_completed(user_id: int, mission_type: str | None, plan_date) ->
         )
 
 
+@api_daily_plan.route('/error-review/summary', methods=['GET'])
+@api_auth_required
+def error_review_summary():
+    """Return unresolved-error breakdown by lesson and grammar topic."""
+    from app.daily_plan.linear.errors import (
+        count_unresolved,
+        get_last_resolved_at,
+        get_unresolved_breakdown,
+    )
+
+    user_id = current_user.id
+    breakdown = get_unresolved_breakdown(user_id, db)
+    last_resolved = get_last_resolved_at(user_id, db)
+    return jsonify({
+        'unresolved_count': count_unresolved(user_id, db),
+        'last_resolved_at': last_resolved.isoformat() if last_resolved is not None else None,
+        'by_lesson': breakdown['by_lesson'],
+        'by_topic': breakdown['by_topic'],
+    })
+
+
 @api_daily_plan.route('/daily-plan/error-review/complete', methods=['POST'])
 @csrf.exempt
 @api_auth_required
