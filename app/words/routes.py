@@ -1075,9 +1075,9 @@ def dashboard():
                     elif top.kind == 'srs':
                         url = '/study?source=linear_plan'
                     elif top.kind == 'reading' and data.get('book_id'):
-                        url = f"/books/read/{int(data['book_id'])}"
+                        url = f"/read/{int(data['book_id'])}"
                     elif top.kind == 'grammar' and data.get('topic_id'):
-                        url = f"/grammar/topic/{int(data['topic_id'])}"
+                        url = f"/grammar-lab/topic/{int(data['topic_id'])}"
                     elif top.kind == 'vocab':
                         url = '/study'
                     return {
