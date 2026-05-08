@@ -12631,6 +12631,20 @@ footer .col-md-4 {
     font-size: 0.8rem;
     margin-top: 0.15rem;
 }
+.linear-slot__pill {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    margin-top: 0.3rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+.linear-slot__pill--weak-grammar {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
 .linear-slot__action {
     display: flex;
     align-items: center;

@@ -209,6 +209,13 @@
                             {{ l_lesson_type_labels.get(slot.lesson_type, slot.lesson_type) }}
                             {% if _eta > 0 %}· ~{{ _eta }} мин{% endif %}
                         </div>
+                        {% if _data.get('weak_topic_hint') and _data.get('weak_topic_name') %}
+                        <div class="linear-slot__pill linear-slot__pill--weak-grammar"
+                             data-weak-grammar-topic-id="{{ _data.get('weak_topic_id', '') }}"
+                             role="note">
+                            Слабая тема: {{ _data.weak_topic_name }}
+                        </div>
+                        {% endif %}
                         {% elif _kind == 'srs' and _data.get('mode') == 'deck_quiz' %}
                         <div class="linear-slot__meta">
                             {% set _deck_count = _data.get('deck_word_count', 0) | int %}
