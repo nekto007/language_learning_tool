@@ -151,6 +151,33 @@ def error_review_session():
             if raw_mistakes:
                 common_mistakes = raw_mistakes[:2]
 
+        # Fallback: infer grammar topic from the module's grammar/language_focus lesson
+        if topic is None:
+            module_ids: set[int] = set()
+            for e in group['errors']:
+                lesson_obj = getattr(e, 'lesson', None)
+                if lesson_obj and lesson_obj.module_id:
+                    module_ids.add(lesson_obj.module_id)
+            for mid in module_ids:
+                gl = Lessons.query.filter(
+                    Lessons.module_id == mid,
+                    Lessons.type.in_(['grammar', 'language_focus']),
+                    Lessons.grammar_topic_id.isnot(None),
+                ).first()
+                if gl and gl.grammar_topic:
+                    topic = gl.grammar_topic
+                    topic_title = topic.title_ru or topic.title
+                    grammar_url = f'/grammar/{topic.slug}'
+                    content = topic.content or {}
+                    if topic.telegram_summary:
+                        theory_text = topic.telegram_summary
+                    elif content.get('introduction'):
+                        theory_text = content['introduction']
+                    raw_mistakes = content.get('common_mistakes') or []
+                    if raw_mistakes:
+                        common_mistakes = raw_mistakes[:2]
+                    break
+
         # Collect unique lesson titles for the theory card (needed when topic is None)
         lesson_titles: list[str] = []
         seen_lesson_ids: set[int] = set()
