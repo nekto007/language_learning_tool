@@ -121,6 +121,42 @@ class TestReadingSessionEndApi:
         body = response.get_json()
         assert body['error'] == 'missing_session_id'
 
+    def test_text_plain_beacon_body_succeeds(
+        self, authenticated_client, db_session, test_chapter,
+    ):
+        """sendBeacon forces text/plain — server must parse the JSON body."""
+        import json
+
+        user_id = authenticated_client.application.test_user.id
+        session = start_session(user_id, test_chapter.id, db)
+        db_session.commit()
+
+        payload = json.dumps({'session_id': session.id, 'current_offset_pct': 0.3})
+        response = authenticated_client.post(
+            '/api/books/reading-session/end',
+            data=payload,
+            content_type='text/plain',
+        )
+
+        assert response.status_code == 200
+        body = response.get_json()
+        assert body['success'] is True
+        assert body['session_id'] == session.id
+
+        db_session.expire_all()
+        row = db_session.get(UserReadingSession, session.id)
+        assert row.ended_at is not None
+
+    def test_text_plain_invalid_json_returns_400(self, authenticated_client):
+        response = authenticated_client.post(
+            '/api/books/reading-session/end',
+            data='not-json',
+            content_type='text/plain',
+        )
+        assert response.status_code == 400
+        body = response.get_json()
+        assert body['error'] == 'missing_session_id'
+
     def test_unknown_session_returns_404_json(self, authenticated_client):
         response = authenticated_client.post(
             '/api/books/reading-session/end',

@@ -15,6 +15,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
+from app import csrf
 from app.books.models import Bookmark, Chapter
 from app.study.models import UserWord
 from app.utils.db import db
@@ -1018,13 +1019,32 @@ def reading_session_start():
 
 
 @books_api.route('/api/books/reading-session/end', methods=['POST'])
+@csrf.exempt
 @login_required
 def reading_session_end():
-    """Close a reading session. Frontend calls this on page-leave/scroll-out."""
+    """Close a reading session. Frontend calls this on page-leave/scroll-out.
+
+    On `pagehide` the browser uses `navigator.sendBeacon`, which forces
+    Content-Type to text/plain (or multipart). We accept both JSON and
+    text/plain bodies and parse them as JSON. CSRF is exempted because the
+    endpoint is gated by `@login_required` (session cookie required) and only
+    operates on a session whose ownership is verified server-side.
+    """
+    import json as _json
+
     from app.api.errors import api_error
     from app.books.reading_session import end_session
 
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True)
+    if data is None:
+        raw = request.get_data(cache=False, as_text=True) or ''
+        if raw:
+            try:
+                data = _json.loads(raw)
+            except (ValueError, TypeError):
+                data = None
+    if not isinstance(data, dict):
+        data = {}
     session_id = data.get('session_id')
     if not session_id:
         return api_error('missing_session_id', 'session_id is required', 400)
