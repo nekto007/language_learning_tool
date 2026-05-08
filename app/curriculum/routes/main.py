@@ -122,9 +122,19 @@ def error_review_session():
             pass
         return None
 
-    from app.daily_plan.linear.errors import get_review_pool_grouped
+    from app.daily_plan.linear.errors import (
+        get_review_pool_grouped,
+        get_unresolved_breakdown,
+    )
 
     raw_groups = get_review_pool_grouped(current_user.id, db)
+    breakdown = get_unresolved_breakdown(current_user.id, db)
+    top_lessons = [
+        item for item in breakdown.get('by_lesson', []) if item.get('title')
+    ][:3]
+    top_topics = [
+        item for item in breakdown.get('by_topic', []) if item.get('title')
+    ][:3]
     topic_groups = []
     all_error_ids: list[int] = []
 
@@ -230,6 +240,8 @@ def error_review_session():
         topic_groups=topic_groups,
         all_error_ids=all_error_ids,
         total_errors=len(all_error_ids),
+        top_lessons=top_lessons,
+        top_topics=top_topics,
     )
 
 
