@@ -178,6 +178,17 @@
     </div>
     {% endif %}
 
+    {# ── Late-day hint: shown when slots remain and user-local hour ≥ 20:00 ── #}
+    {% set _pending = l_total - l_done %}
+    {% if l_total > 0 and _pending > 0 and (local_hour is not none) and (local_hour | int) >= 20 %}
+    <div class="linear-plan__late-hint"
+         data-linear-late-hint="true"
+         data-local-hour="{{ local_hour | int }}"
+         role="note">
+        До конца дня осталось мало времени
+    </div>
+    {% endif %}
+
     {% if l_day_secured %}
     <div class="linear-plan__secured" data-linear-secured="true">
         <span class="linear-plan__secured-icon">&#127881;</span>

@@ -1098,6 +1098,18 @@ def dashboard():
             logger.warning("day_secured_banner build failed", exc_info=True)
             day_secured_banner = None
 
+    # Local hour for time-of-day hints in linear plan partial.
+    try:
+        import pytz as _pytz_lh
+        _tz_lh_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
+        try:
+            _tz_lh = _pytz_lh.timezone(_tz_lh_name)
+        except Exception:
+            _tz_lh = _pytz_lh.timezone(DEFAULT_TIMEZONE)
+        local_hour = datetime.now(_tz_lh).hour
+    except Exception:
+        local_hour = datetime.utcnow().hour
+
     return render_template('dashboard.html',
         # Daily plan
         greeting=greeting,
@@ -1114,6 +1126,7 @@ def dashboard():
         linear_plan=linear_plan,
         use_linear_plan=bool(getattr(current_user, 'use_linear_plan', False)),
         day_secured_banner=day_secured_banner,
+        local_hour=local_hour,
         plan_meta=plan_meta,
         phase_urls=phase_urls,
         cards_url=cards_url,

@@ -88,6 +88,63 @@ class TestPartialNextStepRender:
         assert 'data-linear-day-secured-next-step' not in html
 
 
+class TestLateDayHint:
+    """Task 12: subtle hint when slots pending and local hour ≥ 20."""
+
+    def _plan_with_pending(self) -> dict:
+        plan = _linear_plan_payload(all_done=False)
+        # Mark first slot done, keep second pending.
+        plan['baseline_slots'][0]['completed'] = True
+        plan['baseline_slots'][1]['completed'] = False
+        return plan
+
+    def test_hint_renders_at_20(self, app):
+        plan = self._plan_with_pending()
+        html = _render_partial(app, {
+            'linear_plan': plan,
+            'plan_completion': {},
+            'local_hour': 20,
+        })
+        assert 'data-linear-late-hint="true"' in html
+        assert 'До конца дня осталось мало времени' in html
+
+    def test_hint_renders_at_23(self, app):
+        plan = self._plan_with_pending()
+        html = _render_partial(app, {
+            'linear_plan': plan,
+            'plan_completion': {},
+            'local_hour': 23,
+        })
+        assert 'data-linear-late-hint="true"' in html
+
+    def test_hint_hidden_at_19(self, app):
+        plan = self._plan_with_pending()
+        html = _render_partial(app, {
+            'linear_plan': plan,
+            'plan_completion': {},
+            'local_hour': 19,
+        })
+        assert 'data-linear-late-hint' not in html
+
+    def test_hint_hidden_when_all_slots_done(self, app):
+        plan = _linear_plan_payload(all_done=True)
+        html = _render_partial(app, {
+            'linear_plan': plan,
+            'plan_completion': {},
+            'local_hour': 22,
+        })
+        assert 'data-linear-late-hint' not in html
+
+    def test_hint_hidden_when_local_hour_missing(self, app):
+        plan = self._plan_with_pending()
+        html = _render_partial(app, {
+            'linear_plan': plan,
+            'plan_completion': {},
+            'local_hour': None,
+        })
+        assert 'data-linear-late-hint' not in html
+
+
 # ── Dashboard route integration ───────────────────────────────────────
 
 
