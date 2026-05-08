@@ -108,6 +108,19 @@ def error_review_session():
     to mark them resolved and credit the linear slot XP. Reachable via
     the linear plan 4th baseline slot.
     """
+    import re as _re
+
+    def _fill_word(question_text: str, correct_answer: str):
+        """Extract the word/phrase that fills ___ from the correct sentence."""
+        try:
+            pattern = '^' + _re.escape(question_text.strip()).replace(r'\_\_\_', r'(.+?)') + r'\s*$'
+            m = _re.match(pattern, correct_answer.strip(), _re.IGNORECASE)
+            if m:
+                return m.group(1).strip()
+        except Exception:
+            pass
+        return None
+
     from app.daily_plan.linear.errors import get_review_pool_grouped
 
     raw_groups = get_review_pool_grouped(current_user.id, db)
@@ -150,9 +163,16 @@ def error_review_session():
             formatted_correct = correct_ans
             if isinstance(correct_ans, str) and ' → ' in correct_ans and ',' in correct_ans:
                 formatted_correct = [seg.strip() for seg in correct_ans.split(',') if seg.strip()]
+            # For fill-blank questions extract just the missing word
+            fw = None
+            if p.get('question_type') in ('fill_blank', 'fill-in-blank', 'fill_in_blank'):
+                q_text = p.get('question_text', '') or ''
+                c_str = correct_ans if isinstance(correct_ans, str) else ''
+                if '___' in q_text and c_str:
+                    fw = _fill_word(q_text, c_str)
             errors_display.append({
                 'id': e.id,
-                'payload': {**p, 'correct_answer': formatted_correct},
+                'payload': {**p, 'correct_answer': formatted_correct, 'fill_word': fw},
             })
 
         topic_groups.append({
@@ -161,7 +181,6 @@ def error_review_session():
             'theory_text': theory_text,
             'common_mistakes': common_mistakes,
             'errors': errors_display,
-            'exercises': [ex.to_dict(hide_answer=False) for ex in group['exercises']],
             'error_ids': group['error_ids'],
         })
 

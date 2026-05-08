@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% block title %}Разбор ошибок{% endblock %}
 
 {% block content %}
@@ -8,399 +7,312 @@
   <div class="er-header">
     <h1 class="er-title">Разбор ошибок</h1>
     {% if total_errors %}
-      <p class="er-subtitle">{{ total_errors }} {{ 'вопрос' if total_errors == 1 else ('вопроса' if total_errors in [2,3,4] else 'вопросов') }} · Теория и мини-квиз по следам ошибок</p>
+    <div class="er-progress-wrap">
+      <div class="er-progress">
+        <div class="er-progress__fill" id="er-progress-fill" style="width:0%"></div>
+      </div>
+      <span class="er-progress__label" id="er-progress-label">
+        0&thinsp;/&thinsp;{{ total_errors }}
+      </span>
+    </div>
     {% endif %}
   </div>
 
   {% if not topic_groups %}
     <div class="er-empty">
-      <p>Нераспознанных ошибок нет. Возвращайтесь к урокам.</p>
+      <p>Ошибок нет — возвращайтесь к урокам.</p>
       <a href="/dashboard" class="btn btn--primary">На дашборд</a>
     </div>
 
   {% else %}
-    <div id="error-review-container" data-completion-mode="standalone">
+  <div id="error-review-container" data-completion-mode="standalone">
 
-      {% for group in topic_groups %}
-      <section class="er-topic">
+    {% for group in topic_groups %}
+      {% for e in group.errors %}
+      {% set p = e.payload %}
+      {% set fill_target = p.fill_word or (p.correct_answer if p.correct_answer is string else '') %}
+      {% set is_mc   = p.question_type == 'multiple_choice' and p.options %}
+      {% set is_fill = p.question_type in ('fill_blank', 'fill-in-blank', 'fill_in_blank')
+                       and '___' in (p.question_text or '')
+                       and fill_target %}
+      {% set is_pairs = p.correct_answer is iterable and p.correct_answer is not string %}
 
-        {# ── Topic header ── #}
-        <div class="er-topic__header">
-          <div class="er-topic__title-row">
-            <h2 class="er-topic__name">
-              {{ group.topic_title or 'Другие ошибки' }}
-            </h2>
-            <span class="er-badge">{{ group.errors|length }} {{ 'ошибка' if group.errors|length == 1 else ('ошибки' if group.errors|length in [2,3,4] else 'ошибок') }}</span>
-          </div>
+      <div class="er-card"
+           data-error-id="{{ e.id }}"
+           data-correct="{{ fill_target if not is_pairs else '' }}"
+           data-type="{{ p.question_type or '' }}">
+
+        {% if group.topic_title %}
+        <div class="er-card__topic">
+          {{ group.topic_title }}
           {% if group.grammar_url %}
-            <a class="er-topic__link" href="{{ group.grammar_url }}" target="_blank" rel="noopener">
-              Полная теория →
-            </a>
+          &middot; <a class="er-card__topic-link"
+                     href="{{ group.grammar_url }}"
+                     target="_blank" rel="noopener">теория</a>
           {% endif %}
         </div>
+        {% endif %}
 
-        {# ── Mistakes ── #}
-        <div class="er-section">
-          <h3 class="er-section__title er-section__title--mistakes">Ваши ошибки</h3>
-          <ol class="er-mistakes-list">
-            {% for e in group.errors %}
-              {% set p = e.payload %}
-              <li class="er-mistake er-mistake--{{ loop.index }}" data-error-id="{{ e.id }}">
-                {% if p.question_text %}
-                  <div class="er-mistake__q">{{ p.question_text }}</div>
-                {% endif %}
-                <div class="er-mistake__answers">
-                  {% if p.user_answer is not none and p.user_answer != 'completed' %}
-                    <span class="er-answer er-answer--wrong">
-                      <span class="er-answer__label">Вы:</span> {{ p.user_answer if p.user_answer else '(пусто)' }}
-                    </span>
-                  {% endif %}
-                  {% if p.correct_answer is not none %}
-                    <span class="er-answer er-answer--right">
-                      <span class="er-answer__label">Верно:</span>
-                      {% if p.correct_answer is iterable and p.correct_answer is not string %}
-                        <ul class="er-answer__pairs">
-                          {% for pair in p.correct_answer %}<li>{{ pair }}</li>{% endfor %}
-                        </ul>
-                      {% else %}
-                        {{ p.correct_answer }}
-                      {% endif %}
-                    </span>
-                  {% endif %}
-                </div>
-              </li>
+        {% if p.question_text %}
+        <p class="er-card__question">{{ p.question_text }}</p>
+        {% endif %}
+
+        {# ── Interactive input ── #}
+        {% if is_mc %}
+          <div class="er-options" role="group" aria-label="Варианты ответа">
+            {% for opt in p.options %}
+            <button class="er-opt" data-value="{{ opt }}" type="button">{{ opt }}</button>
             {% endfor %}
-          </ol>
-        </div>
+          </div>
 
-        {# ── Theory ── #}
-        {% if group.theory_text or group.common_mistakes %}
-        <div class="er-section er-section--theory">
-          <h3 class="er-section__title er-section__title--theory">Правило</h3>
+        {% elif is_fill %}
+          <div class="er-fill">
+            <input class="er-fill__input" type="text"
+                   placeholder="Вставьте пропущенное…"
+                   autocomplete="off" autocorrect="off"
+                   autocapitalize="off" spellcheck="false">
+            <button class="er-fill__btn btn btn--sm btn--outline" type="button">
+              Проверить
+            </button>
+          </div>
+
+        {% elif is_pairs %}
+          <ul class="er-pairs">
+            {% for pair in p.correct_answer %}
+            <li class="er-pair">{{ pair }}</li>
+            {% endfor %}
+          </ul>
+          <button class="er-self-ok btn btn--sm btn--outline" type="button">
+            Запомнил →
+          </button>
+
+        {% else %}
+          <div class="er-card__reveal">{{ p.correct_answer }}</div>
+          <button class="er-self-ok btn btn--sm btn--outline" type="button">
+            Понятно →
+          </button>
+        {% endif %}
+
+        {# ── Feedback block (hidden until answered) ── #}
+        <div class="er-card__fb" hidden>
+          <div class="er-card__fb-msg"></div>
           {% if group.theory_text %}
-            <div class="er-theory__text">{{ group.theory_text }}</div>
-          {% endif %}
-          {% if group.common_mistakes %}
-            <div class="er-theory__mistakes">
-              <div class="er-theory__mistakes-label">Частые ошибки:</div>
-              {% for m in group.common_mistakes %}
-                <div class="er-common-mistake">
-                  <span class="er-answer er-answer--wrong">✗ {{ m.wrong }}</span>
-                  <span class="er-answer er-answer--right">✓ {{ m.correct }}</span>
-                  {% if m.explanation %}
-                    <span class="er-common-mistake__hint">{{ m.explanation }}</span>
-                  {% endif %}
-                </div>
-              {% endfor %}
-            </div>
-          {% endif %}
-        </div>
-        {% endif %}
-
-        {# ── Quiz ── #}
-        {% if group.exercises %}
-        <div class="er-section er-section--quiz">
-          <h3 class="er-section__title er-section__title--quiz">Закрепление</h3>
-          {% for ex in group.exercises %}
-            <div class="er-quiz-item"
-                 data-correct="{{ ex.correct_answer or '' }}"
-                 data-alternatives="{{ (ex.alternatives or []) | tojson }}"
-                 data-type="{{ ex.exercise_type }}">
-
-              {% if ex.instruction %}
-                <div class="er-quiz__instruction">{{ ex.instruction }}</div>
-              {% endif %}
-              <p class="er-quiz__question">{{ ex.question }}</p>
-
-              {% if ex.exercise_type == 'multiple_choice' and ex.options %}
-                <div class="er-options" role="group">
-                  {% for opt in ex.options %}
-                    <button class="er-option-btn" data-value="{{ opt }}" type="button">{{ opt }}</button>
-                  {% endfor %}
-                </div>
-
-              {% elif ex.exercise_type == 'fill_blank' %}
-                <div class="er-fill">
-                  <input class="er-fill__input" type="text" placeholder="Ваш ответ…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-                  <button class="er-fill__check btn btn--outline btn--sm" type="button">Проверить</button>
-                </div>
-
-              {% else %}
-                {# Unsupported type — reveal answer directly #}
-                <div class="er-quiz__fallback">
-                  Ответ: <strong>{{ ex.correct_answer }}</strong>
-                </div>
-              {% endif %}
-
-              <div class="er-quiz__feedback" hidden></div>
-              {% if ex.explanation %}
-                <div class="er-quiz__explanation" hidden>{{ ex.explanation }}</div>
-              {% endif %}
-              {% if ex.hint %}
-                <div class="er-quiz__hint">Подсказка: {{ ex.hint }}</div>
+          <div class="er-card__hint" hidden>
+            <div class="er-card__hint-icon">📖</div>
+            <div class="er-card__hint-body">
+              <div class="er-card__hint-label">Правило</div>
+              <div class="er-card__hint-text">{{ group.theory_text }}</div>
+              {% if group.grammar_url %}
+              <a class="er-card__hint-link"
+                 href="{{ group.grammar_url }}"
+                 target="_blank" rel="noopener">Читать подробнее →</a>
               {% endif %}
             </div>
-          {% endfor %}
+          </div>
+          {% endif %}
         </div>
-        {% endif %}
 
-      </section>
-      {% endfor %}
-
-      {# ── Complete button ── #}
-      <div class="er-footer">
-        <button type="button"
-                id="error-review-complete-btn"
-                class="btn btn--primary">Отметить разобранными</button>
-        <p id="error-review-status" class="er-footer__status"></p>
       </div>
+      {% endfor %}
+    {% endfor %}
 
-    </div>{# /error-review-container #}
+    <div class="er-footer">
+      <button type="button"
+              id="error-review-complete-btn"
+              class="btn btn--primary btn--lg">
+        Завершить разбор
+      </button>
+      <p id="error-review-status" class="er-footer__status"></p>
+    </div>
+
+  </div>
   {% endif %}
 </div>
 
 <style>
-/* ── Page layout ── */
-.er-page {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 3rem;
-}
+/* ── Layout ── */
+.er-page { max-width: 640px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
 .er-header { margin-bottom: 1.5rem; }
-.er-title { font-size: 1.5rem; font-weight: 700; margin: 0 0 .25rem; }
-.er-subtitle { color: var(--color-text-secondary, #666); margin: 0; font-size: .9rem; }
+.er-title  { font-size: 1.5rem; font-weight: 700; margin: 0 0 .875rem; }
+
+/* Progress bar */
+.er-progress-wrap { display: flex; align-items: center; gap: .75rem; }
+.er-progress {
+  flex: 1; height: 8px;
+  background: var(--color-border, #e0e0e0);
+  border-radius: 999px; overflow: hidden;
+}
+.er-progress__fill {
+  height: 100%;
+  background: var(--color-primary, #1a56db);
+  border-radius: 999px;
+  transition: width .35s ease;
+}
+.er-progress__label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #666);
+  white-space: nowrap;
+}
+
+/* Empty state */
 .er-empty { text-align: center; padding: 3rem 1rem; }
 .er-empty p { margin-bottom: 1rem; color: var(--color-text-secondary, #666); }
 
-/* ── Topic section ── */
-.er-topic {
-  border: 1px solid var(--color-border, #e0e0e0);
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 1.5rem;
+/* ── Card ── */
+.er-card {
+  background: #fff;
+  border: 1.5px solid var(--color-border, #e0e0e0);
+  border-radius: 14px;
+  padding: 1.125rem 1.25rem;
+  margin-bottom: 1rem;
+  transition: border-color .2s, background .2s;
 }
-.er-topic__header {
+.er-card.is-done {
+  border-color: transparent;
   background: var(--color-surface-raised, #f9f9f9);
-  padding: .875rem 1.125rem;
-  border-bottom: 1px solid var(--color-border, #e0e0e0);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: .4rem;
 }
-.er-topic__title-row {
-  display: flex;
-  align-items: center;
-  gap: .6rem;
-  flex-wrap: wrap;
-}
-.er-topic__name {
-  font-size: 1.05rem;
+
+.er-card__topic {
+  font-size: .73rem;
   font-weight: 700;
-  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--color-text-secondary, #999);
+  margin-bottom: .5rem;
 }
-.er-badge {
-  font-size: .75rem;
-  font-weight: 600;
-  padding: .15rem .5rem;
-  border-radius: 999px;
-  background: var(--color-primary-light, #e8f0fe);
-  color: var(--color-primary, #1a56db);
-}
-.er-topic__link {
-  font-size: .82rem;
+.er-card__topic-link {
   color: var(--color-primary, #1a56db);
   text-decoration: none;
-  white-space: nowrap;
+  font-weight: 600;
 }
-.er-topic__link:hover { text-decoration: underline; }
+.er-card__topic-link:hover { text-decoration: underline; }
 
-/* ── Sections ── */
-.er-section { padding: .875rem 1.125rem; }
-.er-section + .er-section { border-top: 1px solid var(--color-border, #e0e0e0); }
-.er-section--theory { background: var(--color-info-bg, #f0f4ff); }
-.er-section--quiz { background: var(--color-surface-raised, #f9f9f9); }
-.er-section__title {
-  font-size: .8rem;
-  font-weight: 700;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  margin: 0 0 .75rem;
-  opacity: .65;
+.er-card__question {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0 0 .875rem;
 }
-.er-section__title--mistakes { color: var(--color-danger, #c0392b); }
-.er-section__title--theory   { color: var(--color-primary, #1a56db); opacity: 1; }
-.er-section__title--quiz      { color: var(--color-success, #27ae60); opacity: 1; }
 
-/* ── Mistakes list ── */
-.er-mistakes-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: .625rem;
-}
-.er-mistake {
-  background: #fff;
-  border: 1px solid var(--color-border, #e0e0e0);
+/* ── MC options ── */
+.er-options { display: flex; flex-wrap: wrap; gap: .5rem; }
+.er-opt {
+  padding: .45rem 1.05rem;
   border-radius: 8px;
-  padding: .625rem .875rem;
-}
-.er-mistake__q {
-  font-weight: 600;
-  margin-bottom: .35rem;
-  font-size: .95rem;
-}
-.er-mistake__answers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .5rem .75rem;
-  font-size: .875rem;
-}
-.er-answer { display: flex; gap: .3rem; align-items: baseline; flex-wrap: wrap; }
-.er-answer__pairs { margin: .2rem 0 0 .4rem; padding: 0; list-style: none; }
-.er-answer__pairs li { margin: .1rem 0; }
-.er-answer__label { font-weight: 600; opacity: .65; font-size: .8rem; }
-.er-answer--wrong { color: var(--color-danger, #c0392b); }
-.er-answer--right  { color: var(--color-success, #27ae60); }
-
-/* ── Theory ── */
-.er-theory__text {
-  white-space: pre-wrap;
-  font-size: .9rem;
-  line-height: 1.55;
-  margin: 0 0 .75rem;
-}
-.er-theory__mistakes { margin-top: .5rem; }
-.er-theory__mistakes-label {
-  font-size: .8rem;
-  font-weight: 600;
-  opacity: .7;
-  margin-bottom: .4rem;
-}
-.er-common-mistake {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .3rem .75rem;
-  font-size: .875rem;
-  margin-bottom: .4rem;
-  align-items: baseline;
-}
-.er-common-mistake__hint {
-  font-size: .8rem;
-  color: var(--color-text-secondary, #666);
-  flex-basis: 100%;
-  margin-left: .1rem;
-}
-
-/* ── Quiz ── */
-.er-quiz-item {
-  background: #fff;
-  border: 1px solid var(--color-border, #e0e0e0);
-  border-radius: 8px;
-  padding: .75rem 1rem;
-  margin-bottom: .75rem;
-}
-.er-quiz-item:last-child { margin-bottom: 0; }
-.er-quiz__instruction {
-  font-size: .8rem;
-  color: var(--color-text-secondary, #666);
-  margin-bottom: .3rem;
-}
-.er-quiz__question {
-  font-weight: 600;
-  margin: 0 0 .6rem;
-  font-size: .95rem;
-}
-.er-quiz__hint {
-  font-size: .8rem;
-  color: var(--color-text-secondary, #666);
-  margin-top: .4rem;
-  font-style: italic;
-}
-.er-quiz__fallback {
-  font-size: .9rem;
-  color: var(--color-success, #27ae60);
-  margin-top: .25rem;
-}
-
-/* Options (multiple choice) */
-.er-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .5rem;
-  margin-bottom: .25rem;
-}
-.er-option-btn {
-  padding: .4rem .85rem;
-  border-radius: 6px;
-  border: 1.5px solid var(--color-border, #ccc);
+  border: 1.5px solid var(--color-border, #d0d0d0);
   background: #fff;
   cursor: pointer;
   font-size: .9rem;
-  transition: border-color .15s, background .15s;
+  line-height: 1.3;
+  transition: border-color .12s, background .12s, color .12s;
 }
-.er-option-btn:hover:not(:disabled) {
+.er-opt:hover:not(:disabled) {
   border-color: var(--color-primary, #1a56db);
   background: var(--color-primary-light, #e8f0fe);
 }
-.er-option-btn:disabled { cursor: default; }
-.er-option-btn.is-correct {
-  border-color: var(--color-success, #27ae60);
-  background: #eafaf1;
-  color: var(--color-success, #1e8449);
-  font-weight: 600;
+.er-opt:disabled { cursor: default; }
+.er-opt.is-correct {
+  border-color: var(--color-success, #27ae60) !important;
+  background: #eafaf1 !important;
+  color: #1e8449;
+  font-weight: 700;
 }
-.er-option-btn.is-wrong {
-  border-color: var(--color-danger, #c0392b);
-  background: #fdf0ef;
+.er-opt.is-wrong {
+  border-color: var(--color-danger, #c0392b) !important;
+  background: #fdf0ef !important;
   color: var(--color-danger, #c0392b);
 }
 
-/* Fill blank */
-.er-fill { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+/* ── Fill blank ── */
+.er-fill { display: flex; gap: .5rem; flex-wrap: wrap; }
 .er-fill__input {
-  flex: 1;
-  min-width: 140px;
-  padding: .4rem .65rem;
-  border-radius: 6px;
-  border: 1.5px solid var(--color-border, #ccc);
-  font-size: .9rem;
+  flex: 1; min-width: 140px;
+  padding: .45rem .75rem;
+  border: 1.5px solid var(--color-border, #d0d0d0);
+  border-radius: 8px;
+  font-size: .95rem;
+  transition: border-color .15s;
 }
 .er-fill__input:focus { outline: none; border-color: var(--color-primary, #1a56db); }
-.er-fill__input:disabled { background: #f5f5f5; }
+.er-fill__input.is-correct { border-color: var(--color-success, #27ae60); background: #eafaf1; }
+.er-fill__input.is-wrong   { border-color: var(--color-danger, #c0392b);  background: #fdf0ef; }
+.er-fill__input:disabled { opacity: .7; }
 
-/* Feedback */
-.er-quiz__feedback {
-  margin-top: .5rem;
-  font-size: .875rem;
+/* ── Pairs ── */
+.er-pairs {
+  list-style: none; padding: 0; margin: 0 0 .75rem;
+  border: 1px solid var(--color-border, #e8e8e8);
+  border-radius: 8px; overflow: hidden;
+}
+.er-pair {
+  padding: .45rem .75rem;
+  font-size: .9rem;
+  border-bottom: 1px solid var(--color-border, #f0f0f0);
+}
+.er-pair:last-child { border-bottom: none; }
+
+/* ── Reveal ── */
+.er-card__reveal {
+  font-size: .95rem;
   font-weight: 600;
-  border-radius: 6px;
-  padding: .3rem .6rem;
+  color: var(--color-success, #27ae60);
+  margin-bottom: .625rem;
 }
-.er-quiz__feedback.is-correct { color: var(--color-success, #1e8449); background: #eafaf1; }
-.er-quiz__feedback.is-wrong   { color: var(--color-danger, #c0392b);  background: #fdf0ef; }
-.er-quiz__explanation {
+
+/* ── Feedback ── */
+.er-card__fb { margin-top: .875rem; }
+
+.er-card__fb-msg {
+  font-size: .9rem;
+  font-weight: 600;
+  padding: .35rem .7rem;
+  border-radius: 7px;
+  margin-bottom: .5rem;
+}
+.er-card__fb-msg.ok  { color: #1e8449; background: #eafaf1; }
+.er-card__fb-msg.err { color: var(--color-danger, #c0392b); background: #fdf0ef; }
+
+/* Grammar hint (shown only on wrong answer) */
+.er-card__hint {
+  display: flex;
+  gap: .625rem;
+  background: var(--color-info-bg, #f0f4ff);
+  border-left: 3px solid var(--color-primary, #1a56db);
+  border-radius: 0 8px 8px 0;
+  padding: .625rem .875rem;
+}
+.er-card__hint-icon { font-size: 1rem; flex-shrink: 0; line-height: 1.5; }
+.er-card__hint-body { flex: 1; min-width: 0; }
+.er-card__hint-label {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--color-primary, #1a56db);
+  margin-bottom: .2rem;
+}
+.er-card__hint-text {
+  font-size: .875rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  color: var(--color-text, #333);
+}
+.er-card__hint-link {
+  display: inline-block;
   margin-top: .35rem;
-  font-size: .82rem;
-  color: var(--color-text-secondary, #555);
-  line-height: 1.45;
+  font-size: .8rem;
+  color: var(--color-primary, #1a56db);
+  text-decoration: none;
 }
+.er-card__hint-link:hover { text-decoration: underline; }
 
 /* ── Footer ── */
 .er-footer {
   padding: 1.25rem 0 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: .5rem;
+  display: flex; flex-direction: column; gap: .5rem;
 }
 .er-footer__status { font-size: .875rem; color: var(--color-text-secondary, #666); margin: 0; }
-
-/* Plan-mode dim */
-#error-review-container[data-completion-mode="plan"] .er-topic { opacity: .6; }
 </style>
 
 <script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
@@ -409,29 +321,59 @@
   'use strict';
 
   var ALL_ERROR_IDS = {{ all_error_ids | tojson }};
+  var total         = ALL_ERROR_IDS.length;
+  var answered      = 0;
+
+  var progressFill  = document.getElementById('er-progress-fill');
+  var progressLabel = document.getElementById('er-progress-label');
+
+  function _tick() {
+    answered++;
+    if (progressFill)
+      progressFill.style.width = (total > 0 ? Math.round(answered / total * 100) : 0) + '%';
+    if (progressLabel)
+      progressLabel.textContent = answered + '\u202f/\u202f' + total;
+  }
+
+  function _norm(s) {
+    return String(s || '').trim().toLowerCase().replace(/[.,!?;:'"()\-]/g, '').replace(/\s+/g, ' ');
+  }
+
+  function _showFeedback(card, ok, correctStr) {
+    var fb   = card.querySelector('.er-card__fb');
+    var msg  = card.querySelector('.er-card__fb-msg');
+    var hint = card.querySelector('.er-card__hint');
+    if (!msg) return;
+
+    if (ok) {
+      msg.textContent = '✅ Верно!';
+      msg.className   = 'er-card__fb-msg ok';
+    } else {
+      var shown = correctStr || card.dataset.correct || '';
+      msg.textContent = '❌ Правильно: ' + shown;
+      msg.className   = 'er-card__fb-msg err';
+      if (hint) hint.hidden = false;
+    }
+    if (fb) fb.hidden = false;
+    card.classList.add('is-done');
+    _tick();
+  }
 
   /* ── Multiple choice ── */
   document.querySelectorAll('.er-options').forEach(function (group) {
-    group.querySelectorAll('.er-option-btn').forEach(function (btn) {
+    group.querySelectorAll('.er-opt').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var item = btn.closest('.er-quiz-item');
-        var correct = item.dataset.correct || '';
-        var alternatives = [];
-        try { alternatives = JSON.parse(item.dataset.alternatives || '[]'); } catch (e) {}
+        var card    = btn.closest('.er-card');
+        var correct = card.dataset.correct;
+        var ok      = _norm(btn.dataset.value) === _norm(correct);
 
-        var isCorrect = btn.dataset.value === correct ||
-                        alternatives.indexOf(btn.dataset.value) !== -1;
-
-        group.querySelectorAll('.er-option-btn').forEach(function (b) {
+        group.querySelectorAll('.er-opt').forEach(function (b) {
           b.disabled = true;
-          if (b.dataset.value === correct || alternatives.indexOf(b.dataset.value) !== -1) {
-            b.classList.add('is-correct');
-          } else if (b === btn && !isCorrect) {
-            b.classList.add('is-wrong');
-          }
+          if (_norm(b.dataset.value) === _norm(correct)) b.classList.add('is-correct');
+          else if (b === btn && !ok)                     b.classList.add('is-wrong');
         });
 
-        _showFeedback(item, isCorrect);
+        _showFeedback(card, ok);
       });
     });
   });
@@ -439,56 +381,35 @@
   /* ── Fill blank ── */
   document.querySelectorAll('.er-fill').forEach(function (fill) {
     var input = fill.querySelector('.er-fill__input');
-    var checkBtn = fill.querySelector('.er-fill__check');
-    if (!input || !checkBtn) return;
+    var btn   = fill.querySelector('.er-fill__btn');
+    if (!input || !btn) return;
 
     function check() {
-      var item = fill.closest('.er-quiz-item');
-      var correct = item.dataset.correct || '';
-      var alternatives = [];
-      try { alternatives = JSON.parse(item.dataset.alternatives || '[]'); } catch (e) {}
-
-      var userVal = _normalise(input.value);
-      var isCorrect = userVal === _normalise(correct) ||
-                      alternatives.some(function (a) { return userVal === _normalise(a); });
-
-      input.disabled = true;
-      checkBtn.disabled = true;
-      _showFeedback(item, isCorrect, isCorrect ? '' : correct);
+      var card    = fill.closest('.er-card');
+      var correct = card.dataset.correct;
+      var ok      = _norm(input.value) === _norm(correct);
+      input.disabled = btn.disabled = true;
+      input.classList.add(ok ? 'is-correct' : 'is-wrong');
+      _showFeedback(card, ok, correct);
     }
 
-    checkBtn.addEventListener('click', check);
-    input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') check();
+    btn.addEventListener('click', check);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') check(); });
+  });
+
+  /* ── Self-check (pairs / reveal) ── */
+  document.querySelectorAll('.er-self-ok').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.disabled = true;
+      _showFeedback(btn.closest('.er-card'), true);
     });
   });
 
-  function _normalise(s) {
-    return String(s || '').trim().toLowerCase().replace(/[.,!?;:]/g, '');
-  }
-
-  function _showFeedback(item, isCorrect, wrongCorrect) {
-    var fb = item.querySelector('.er-quiz__feedback');
-    var expl = item.querySelector('.er-quiz__explanation');
-    if (!fb) return;
-
-    if (isCorrect) {
-      fb.textContent = '✅ Верно!';
-      fb.className = 'er-quiz__feedback is-correct';
-    } else {
-      var correctStr = wrongCorrect || item.dataset.correct || '';
-      fb.textContent = '❌ Правильно: ' + correctStr;
-      fb.className = 'er-quiz__feedback is-wrong';
-    }
-    fb.hidden = false;
-    if (expl) expl.hidden = false;
-  }
-
-  /* ── Complete button (unchanged POST mechanism) ── */
-  var container = document.getElementById('error-review-container');
-  var btn = document.getElementById('error-review-complete-btn');
-  var statusEl = document.getElementById('error-review-status');
-  if (!btn) return;
+  /* ── Complete button ── */
+  var container   = document.getElementById('error-review-container');
+  var completeBtn = document.getElementById('error-review-complete-btn');
+  var statusEl    = document.getElementById('error-review-status');
+  if (!completeBtn) return;
 
   function _isPlanAware() {
     try {
@@ -498,13 +419,13 @@
     } catch (e) { return false; }
   }
 
-  btn.addEventListener('click', function () {
-    btn.disabled = true;
-    btn.classList.add('btn--loading');
+  completeBtn.addEventListener('click', function () {
+    completeBtn.disabled = true;
+    completeBtn.classList.add('btn--loading');
 
-    var metaTok = document.querySelector('meta[name="csrf-token"]');
+    var tok = document.querySelector('meta[name="csrf-token"]');
     var headers = { 'Content-Type': 'application/json' };
-    if (metaTok) headers['X-CSRFToken'] = metaTok.getAttribute('content');
+    if (tok) headers['X-CSRFToken'] = tok.getAttribute('content');
 
     fetch('/api/daily-plan/error-review/complete', {
       method: 'POST',
@@ -512,30 +433,27 @@
       headers: headers,
       body: JSON.stringify({ error_ids: ALL_ERROR_IDS }),
     })
-      .then(function (res) { return res.ok ? res.json() : Promise.reject(res); })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
       .then(function () {
-        function _redirectToDashboard() {
+        function _done() {
           try {
-            if (window.linearPlanContext && typeof window.linearPlanContext.clear === 'function') {
+            if (window.linearPlanContext && typeof window.linearPlanContext.clear === 'function')
               window.linearPlanContext.clear();
-            }
-          } catch (e) { /* ignore */ }
+          } catch (e) {}
           if (statusEl) statusEl.textContent = 'Готово. Возвращаемся на дашборд.';
           window.location.href = '/dashboard';
         }
         if (_isPlanAware() && window.linearPlanContext.applyErrorReviewPlanAwareCompletion) {
           return window.linearPlanContext
             .applyErrorReviewPlanAwareCompletion(container)
-            .then(function (mode) {
-              if (mode !== 'plan') _redirectToDashboard();
-            });
+            .then(function (mode) { if (mode !== 'plan') _done(); });
         }
-        _redirectToDashboard();
+        _done();
       })
       .catch(function () {
-        if (statusEl) statusEl.textContent = 'Не удалось сохранить результат. Попробуйте ещё раз.';
-        btn.disabled = false;
-        btn.classList.remove('btn--loading');
+        if (statusEl) statusEl.textContent = 'Не удалось сохранить. Попробуйте ещё раз.';
+        completeBtn.disabled = false;
+        completeBtn.classList.remove('btn--loading');
       });
   });
 })();
