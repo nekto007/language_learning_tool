@@ -11,9 +11,7 @@
       <div class="er-progress">
         <div class="er-progress__fill" id="er-progress-fill" style="width:0%"></div>
       </div>
-      <span class="er-progress__label" id="er-progress-label">
-        0&thinsp;/&thinsp;{{ total_errors }}
-      </span>
+      <span class="er-progress__label" id="er-progress-label">0&thinsp;/&thinsp;…</span>
     </div>
     {% endif %}
   </div>
@@ -31,10 +29,8 @@
       {% for e in group.errors %}
       {% set p = e.payload %}
       {% set fill_target = p.fill_word or (p.correct_answer if p.correct_answer is string else '') %}
-      {% set is_mc   = p.question_type == 'multiple_choice' and p.options %}
-      {% set is_fill = p.question_type in ('fill_blank', 'fill-in-blank', 'fill_in_blank')
-                       and '___' in (p.question_text or '')
-                       and fill_target %}
+      {% set is_mc    = p.question_type == 'multiple_choice' and p.options %}
+      {% set is_fill  = '___' in (p.question_text or '') and fill_target %}
       {% set is_pairs = p.correct_answer is iterable and p.correct_answer is not string %}
 
       <div class="er-card"
@@ -321,11 +317,12 @@
   'use strict';
 
   var ALL_ERROR_IDS = {{ all_error_ids | tojson }};
-  var total         = ALL_ERROR_IDS.length;
+  var total         = document.querySelectorAll('.er-card').length;
   var answered      = 0;
 
   var progressFill  = document.getElementById('er-progress-fill');
   var progressLabel = document.getElementById('er-progress-label');
+  if (progressLabel) progressLabel.textContent = '0\u202f/\u202f' + total;
 
   function _tick() {
     answered++;
