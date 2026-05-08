@@ -996,20 +996,21 @@ def save_reading_position():
 @login_required
 def reading_session_start():
     """Open a reading session. Frontend calls this on chapter scroll-in."""
+    from app.api.errors import api_error
     from app.books.reading_session import start_session
 
     data = request.get_json(silent=True) or {}
     chapter_id = data.get('chapter_id')
     if not chapter_id:
-        return jsonify({'success': False, 'error': 'chapter_id is required'}), 400
+        return api_error('missing_chapter_id', 'chapter_id is required', 400)
     try:
         chapter_id = int(chapter_id)
     except (TypeError, ValueError):
-        return jsonify({'success': False, 'error': 'invalid chapter_id'}), 400
+        return api_error('invalid_chapter_id', 'invalid chapter_id', 400)
 
     chapter = Chapter.query.get(chapter_id)
     if chapter is None:
-        return jsonify({'success': False, 'error': 'chapter not found'}), 404
+        return api_error('not_found', 'chapter not found', 404)
 
     session = start_session(current_user.id, chapter_id, db)
     db.session.commit()
@@ -1020,24 +1021,25 @@ def reading_session_start():
 @login_required
 def reading_session_end():
     """Close a reading session. Frontend calls this on page-leave/scroll-out."""
+    from app.api.errors import api_error
     from app.books.reading_session import end_session
 
     data = request.get_json(silent=True) or {}
     session_id = data.get('session_id')
     if not session_id:
-        return jsonify({'success': False, 'error': 'session_id is required'}), 400
+        return api_error('missing_session_id', 'session_id is required', 400)
     try:
         session_id = int(session_id)
     except (TypeError, ValueError):
-        return jsonify({'success': False, 'error': 'invalid session_id'}), 400
+        return api_error('invalid_session_id', 'invalid session_id', 400)
 
     from app.books.reading_session import UserReadingSession
 
     existing = db.session.get(UserReadingSession, session_id)
     if existing is None:
-        return jsonify({'success': False, 'error': 'session not found'}), 404
+        return api_error('not_found', 'session not found', 404)
     if existing.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'forbidden'}), 403
+        return api_error('forbidden', 'session does not belong to current user', 403)
 
     raw_hint = data.get('current_offset_pct')
     current_offset_hint: Optional[float] = None
@@ -1045,7 +1047,17 @@ def reading_session_end():
         try:
             current_offset_hint = float(raw_hint)
         except (TypeError, ValueError):
-            current_offset_hint = None
+            return api_error(
+                'invalid_offset_delta',
+                'current_offset_pct must be a number between 0 and 1',
+                400,
+            )
+        if current_offset_hint < 0.0 or current_offset_hint > 1.0:
+            return api_error(
+                'invalid_offset_delta',
+                'current_offset_pct must be between 0 and 1',
+                400,
+            )
 
     # Capture pre-close persisted offset so we can detect when the unload
     # hint is what pushes the chapter to 1.0. The /progress save path owns
