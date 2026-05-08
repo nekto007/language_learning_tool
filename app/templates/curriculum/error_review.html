@@ -351,6 +351,13 @@
 
   var ALL_ERROR_IDS = {{ all_error_ids | tojson }};
 
+  // Auto-skip theory screen when there is no theory to show
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!document.querySelector('.er-theory-card')) {
+      erStartQuiz();
+    }
+  });
+
   var QUESTIONS = [
     {% for group in topic_groups %}{% for e in group.errors %}
     {% set p = e.payload %}
