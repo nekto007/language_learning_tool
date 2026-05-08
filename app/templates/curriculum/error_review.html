@@ -50,14 +50,21 @@
                   <div class="er-mistake__q">{{ p.question_text }}</div>
                 {% endif %}
                 <div class="er-mistake__answers">
-                  {% if p.user_answer is not none %}
+                  {% if p.user_answer is not none and p.user_answer != 'completed' %}
                     <span class="er-answer er-answer--wrong">
                       <span class="er-answer__label">Вы:</span> {{ p.user_answer if p.user_answer else '(пусто)' }}
                     </span>
                   {% endif %}
                   {% if p.correct_answer is not none %}
                     <span class="er-answer er-answer--right">
-                      <span class="er-answer__label">Верно:</span> {{ p.correct_answer }}
+                      <span class="er-answer__label">Верно:</span>
+                      {% if p.correct_answer is iterable and p.correct_answer is not string %}
+                        <ul class="er-answer__pairs">
+                          {% for pair in p.correct_answer %}<li>{{ pair }}</li>{% endfor %}
+                        </ul>
+                      {% else %}
+                        {{ p.correct_answer }}
+                      {% endif %}
                     </span>
                   {% endif %}
                 </div>
@@ -252,7 +259,9 @@
   gap: .5rem .75rem;
   font-size: .875rem;
 }
-.er-answer { display: flex; gap: .3rem; align-items: baseline; }
+.er-answer { display: flex; gap: .3rem; align-items: baseline; flex-wrap: wrap; }
+.er-answer__pairs { margin: .2rem 0 0 .4rem; padding: 0; list-style: none; }
+.er-answer__pairs li { margin: .1rem 0; }
 .er-answer__label { font-weight: 600; opacity: .65; font-size: .8rem; }
 .er-answer--wrong { color: var(--color-danger, #c0392b); }
 .er-answer--right  { color: var(--color-success, #27ae60); }

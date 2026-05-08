@@ -136,15 +136,31 @@ def error_review_session():
             if raw_mistakes:
                 common_mistakes = raw_mistakes[:2]
 
+        errors_display = []
+        for e in group['errors']:
+            p = e.question_payload or {}
+            user_ans = p.get('user_answer', '')
+            correct_ans = p.get('correct_answer') or ''
+            # Skip matching errors with no meaningful data (empty arrows)
+            if user_ans == 'completed' and isinstance(correct_ans, str) and '→' in correct_ans:
+                pairs = [seg.strip() for seg in correct_ans.split(',')]
+                if all(seg in ('→', '') for seg in pairs):
+                    continue
+            # Format arrow-pair strings (translation/matching) as a list
+            formatted_correct = correct_ans
+            if isinstance(correct_ans, str) and ' → ' in correct_ans and ',' in correct_ans:
+                formatted_correct = [seg.strip() for seg in correct_ans.split(',') if seg.strip()]
+            errors_display.append({
+                'id': e.id,
+                'payload': {**p, 'correct_answer': formatted_correct},
+            })
+
         topic_groups.append({
             'topic_title': topic_title,
             'grammar_url': grammar_url,
             'theory_text': theory_text,
             'common_mistakes': common_mistakes,
-            'errors': [
-                {'id': e.id, 'payload': e.question_payload or {}}
-                for e in group['errors']
-            ],
+            'errors': errors_display,
             'exercises': [ex.to_dict(hide_answer=False) for ex in group['exercises']],
             'error_ids': group['error_ids'],
         })
