@@ -80,6 +80,28 @@ def _read_today(user_id: int, db: Any) -> bool:
     return db.session.query(query.exists()).scalar() or False
 
 
+def _compute_level_mismatch(
+    user_id: int, book_level: Optional[str], db: Any
+) -> tuple[bool, bool]:
+    """Return (too_hard, too_easy) flags by comparing book level to the user's
+    effective CEFR level. A 2+ level gap in either direction triggers a hint.
+    Returns (False, False) when either side cannot be resolved."""
+    if not book_level:
+        return False, False
+    from app.daily_plan.level_utils import (
+        _cefr_code_to_order,
+        get_user_current_cefr_level,
+    )
+
+    user_code = get_user_current_cefr_level(user_id, db)
+    user_order = _cefr_code_to_order(user_code, db)
+    book_order = _cefr_code_to_order(book_level, db)
+    if user_order < 0 or book_order < 0:
+        return False, False
+    diff = book_order - user_order
+    return diff >= 2, diff <= -2
+
+
 def build_reading_slot(
     user_id: int, db: Any, *, focus: Optional[str] = None
 ) -> LinearSlot:
@@ -141,6 +163,8 @@ def build_reading_slot(
     time_spent_seconds = get_book_reading_seconds_today(user_id, book.id, db)
     gate_reached = time_spent_seconds >= MIN_READING_SECONDS
 
+    level_too_hard, level_too_easy = _compute_level_mismatch(user_id, book.level, db)
+
     logger.info(
         "reading_slot user=%s book=%s chapter=%s state=%s priority=%s time=%ss gate=%s",
         user_id, book.id, chapter_num,
@@ -167,5 +191,7 @@ def build_reading_slot(
             'time_spent_seconds': time_spent_seconds,
             'gate_seconds': MIN_READING_SECONDS,
             'gate_reached': gate_reached,
+            'level_too_hard': level_too_hard,
+            'level_too_easy': level_too_easy,
         },
     )

@@ -248,6 +248,21 @@
                                 {% if _eta > 0 %}{% if _data.get('current_chapter_num') %} · {% endif %}~{{ _eta }} мин{% endif %}
                             {% endif %}
                         </div>
+                        {% if not _needs_selection and (_data.get('level_too_hard') or _data.get('level_too_easy')) %}
+                        <div class="linear-slot__meta linear-slot__meta--level-mismatch"
+                             data-reading-level-mismatch="{% if _data.get('level_too_hard') %}too_hard{% else %}too_easy{% endif %}"
+                             role="note">
+                            {% if _data.get('level_too_hard') %}
+                                Книга может быть сложной для вашего уровня.
+                            {% else %}
+                                Книга может быть слишком простой для вашего уровня.
+                            {% endif %}
+                            <a href="#book-select-modal"
+                               class="linear-slot__level-mismatch-link"
+                               data-linear-action="select-book"
+                               data-linear-event="reading_slot_level_mismatch_change">Сменить книгу</a>
+                        </div>
+                        {% endif %}
                         {% if not _needs_selection and not _completed and _data.get('gate_seconds') %}
                             {% set _time_spent = _data.get('time_spent_seconds', 0) | int %}
                             {% set _gate = _data.get('gate_seconds', 60) | int %}

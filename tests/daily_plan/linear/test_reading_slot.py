@@ -315,6 +315,78 @@ class TestReadingTimeGate:
         assert slot.data['gate_reached'] is True
 
 
+class TestLevelMismatch:
+    @staticmethod
+    def _seed_levels(db_session):
+        from app.curriculum.models import CEFRLevel
+
+        existing = {
+            row.code for row in db_session.query(CEFRLevel.code).all()
+        }
+        codes_orders = [
+            ('A0', 0), ('A1', 1), ('A2', 2),
+            ('B1', 3), ('B2', 4), ('C1', 5), ('C2', 6),
+        ]
+        for code, order in codes_orders:
+            if code not in existing:
+                db_session.add(
+                    CEFRLevel(code=code, name=f'Level {code}', description='x', order=order)
+                )
+        db_session.commit()
+
+    def test_in_range_no_flags(self, db_session):
+        self._seed_levels(db_session)
+        user = _make_user(db_session)
+        user.onboarding_level = 'A2'
+        db_session.commit()
+        book = _make_book(db_session, level='A2')
+        _set_preference(db_session, user, book)
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert slot.data['level_too_hard'] is False
+        assert slot.data['level_too_easy'] is False
+
+    def test_book_too_hard(self, db_session):
+        self._seed_levels(db_session)
+        user = _make_user(db_session)
+        user.onboarding_level = 'A1'
+        db_session.commit()
+        book = _make_book(db_session, level='B1')  # gap = 2
+        _set_preference(db_session, user, book)
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert slot.data['level_too_hard'] is True
+        assert slot.data['level_too_easy'] is False
+
+    def test_book_too_easy(self, db_session):
+        self._seed_levels(db_session)
+        user = _make_user(db_session)
+        user.onboarding_level = 'C1'
+        db_session.commit()
+        book = _make_book(db_session, level='A2')  # gap = -3
+        _set_preference(db_session, user, book)
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert slot.data['level_too_hard'] is False
+        assert slot.data['level_too_easy'] is True
+
+    def test_one_level_gap_no_warning(self, db_session):
+        self._seed_levels(db_session)
+        user = _make_user(db_session)
+        user.onboarding_level = 'A2'
+        db_session.commit()
+        book = _make_book(db_session, level='B1')  # gap = 1
+        _set_preference(db_session, user, book)
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert slot.data['level_too_hard'] is False
+        assert slot.data['level_too_easy'] is False
+
+
 class TestPlanIntegration:
     def test_get_linear_plan_includes_reading_slot(self, db_session):
         from app.daily_plan.linear.plan import get_linear_plan
