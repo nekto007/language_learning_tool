@@ -23,6 +23,12 @@ user base. Four aggregate ratios over the cohort of users with
   who *did* resolve work today are counted in both numerator and
   denominator. 0 when nobody qualifies.
 
+- ``focus_distribution`` — count of cohort users in each
+  ``onboarding_focus`` bucket (``grammar``/``vocabulary``/``reading``/
+  ``all``/``none``).
+- ``focus_average_slots`` — average ``slot_count`` per focus bucket
+  (0.0 when the bucket is empty).
+
 All metrics return floats in [0, 100] or absolute averages. When the
 cohort is empty the helpers short-circuit to 0 — callers can rely on a
 non-None payload regardless of rollout state.
@@ -74,10 +80,30 @@ def _day_secured_rate(user_ids: list[int], today: date, session: Any) -> float:
     return round(secured / len(user_ids) * 100, 1)
 
 
-def _average_slots_completed(user_ids: list[int], today: date, session: Any) -> float:
-    """Proxy: count activity-completed baseline slots per user, average."""
+FOCUS_BUCKETS = ('grammar', 'vocabulary', 'reading', 'all', 'none')
+
+
+def _classify_focus(raw: Optional[str]) -> str:
+    """Bucket ``User.onboarding_focus`` into one of FOCUS_BUCKETS."""
+    if not raw:
+        return 'none'
+    parts = [p.strip() for p in raw.split(',') if p.strip()]
+    if not parts:
+        return 'none'
+    primary = parts[0]
+    if primary in FOCUS_BUCKETS and primary != 'none':
+        return primary
+    return 'none'
+
+
+def _per_user_slot_counts(user_ids: list[int], today: date, session: Any) -> dict[int, int]:
+    """Return ``{user_id: slot_count}`` for activity-completed slots today.
+
+    Uses the same proxy signals as ``_average_slots_completed`` (curriculum
+    completion, study session, reading-progress update, error resolved).
+    """
     if not user_ids:
-        return 0.0
+        return {}
 
     curriculum_users: set[int] = set()
     srs_users: set[int] = set()
@@ -133,7 +159,7 @@ def _average_slots_completed(user_ids: list[int], today: date, session: Any) -> 
         ):
             error_users.add(row[0])
 
-    total = 0
+    counts: dict[int, int] = {}
     for uid in user_ids:
         slots = 0
         if uid in curriculum_users:
@@ -144,8 +170,51 @@ def _average_slots_completed(user_ids: list[int], today: date, session: Any) -> 
             slots += 1
         if uid in error_users:
             slots += 1
-        total += slots
+        counts[uid] = slots
+    return counts
+
+
+def _average_slots_completed(user_ids: list[int], today: date, session: Any) -> float:
+    """Proxy: count activity-completed baseline slots per user, average."""
+    if not user_ids:
+        return 0.0
+    counts = _per_user_slot_counts(user_ids, today, session)
+    total = sum(counts.values())
     return round(total / len(user_ids), 2)
+
+
+def _focus_distribution_and_avg_slots(
+    user_ids: list[int], today: date, session: Any
+) -> tuple[dict[str, int], dict[str, float]]:
+    """Return (counts_per_focus, avg_slots_per_focus) over the cohort."""
+    counts: dict[str, int] = {bucket: 0 for bucket in FOCUS_BUCKETS}
+    sums: dict[str, int] = {bucket: 0 for bucket in FOCUS_BUCKETS}
+    averages: dict[str, float] = {bucket: 0.0 for bucket in FOCUS_BUCKETS}
+
+    if not user_ids:
+        return counts, averages
+
+    user_focus: dict[int, str] = {}
+    for chunk in chunk_ids(user_ids):
+        rows = (
+            session.query(User.id, User.onboarding_focus)
+            .filter(User.id.in_(chunk))
+            .all()
+        )
+        for uid, raw in rows:
+            user_focus[int(uid)] = _classify_focus(raw)
+
+    slot_counts = _per_user_slot_counts(user_ids, today, session)
+
+    for uid in user_ids:
+        bucket = user_focus.get(uid, 'none')
+        counts[bucket] += 1
+        sums[bucket] += slot_counts.get(uid, 0)
+
+    for bucket, n in counts.items():
+        if n > 0:
+            averages[bucket] = round(sums[bucket] / n, 2)
+    return counts, averages
 
 
 def _triggered_user_ids(user_ids: list[int], session: Any) -> set[int]:
@@ -305,6 +374,7 @@ def get_linear_plan_metrics(session: Any = None, today: Optional[date] = None) -
     s = session if session is not None else db.session
     eval_date = today if today is not None else _today_utc()
     user_ids = _cohort_user_ids(s)
+    focus_counts, focus_avg_slots = _focus_distribution_and_avg_slots(user_ids, eval_date, s)
 
     return {
         'cohort_size': len(user_ids),
@@ -314,4 +384,6 @@ def get_linear_plan_metrics(session: Any = None, today: Optional[date] = None) -
         'error_review_completion_rate': _error_review_completion_rate(user_ids, eval_date, s),
         'book_select_rate': _book_select_rate(user_ids, s),
         'reading_gate_completion_rate': _reading_gate_completion_rate(user_ids, eval_date, s),
+        'focus_distribution': focus_counts,
+        'focus_average_slots': focus_avg_slots,
     }

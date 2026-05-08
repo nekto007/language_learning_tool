@@ -391,5 +391,76 @@ class TestReturnShape:
             'error_review_completion_rate',
             'book_select_rate',
             'reading_gate_completion_rate',
+            'focus_distribution',
+            'focus_average_slots',
         }
         assert expected.issubset(metrics.keys())
+
+
+class TestFocusDistribution:
+    def _set_focus(self, db_session, user, focus):
+        user.onboarding_focus = focus
+        db_session.commit()
+
+    def test_empty_cohort_returns_zero_buckets(self, app, db_session):
+        metrics = get_linear_plan_metrics(session=db_session)
+        assert metrics['focus_distribution'] == {
+            'grammar': 0, 'vocabulary': 0, 'reading': 0, 'all': 0, 'none': 0,
+        }
+        assert metrics['focus_average_slots'] == {
+            'grammar': 0.0, 'vocabulary': 0.0, 'reading': 0.0, 'all': 0.0, 'none': 0.0,
+        }
+
+    def test_buckets_split_across_focuses(self, app, db_session):
+        u_grammar = _make_user(db_session)
+        u_vocab = _make_user(db_session)
+        u_reading = _make_user(db_session)
+        u_all = _make_user(db_session)
+        u_none = _make_user(db_session)
+        self._set_focus(db_session, u_grammar, 'grammar')
+        self._set_focus(db_session, u_vocab, 'vocabulary,reading')
+        self._set_focus(db_session, u_reading, 'reading')
+        self._set_focus(db_session, u_all, 'all')
+        # u_none has no focus set
+        metrics = get_linear_plan_metrics(session=db_session)
+        dist = metrics['focus_distribution']
+        assert dist['grammar'] == 1
+        assert dist['vocabulary'] == 1
+        assert dist['reading'] == 1
+        assert dist['all'] == 1
+        assert dist['none'] == 1
+
+    def test_unknown_focus_value_buckets_into_none(self, app, db_session):
+        u = _make_user(db_session)
+        self._set_focus(db_session, u, 'something_weird')
+        metrics = get_linear_plan_metrics(session=db_session)
+        assert metrics['focus_distribution']['none'] == 1
+
+    def test_average_slots_per_focus(self, app, db_session, test_lesson_vocabulary):
+        u_grammar1 = _make_user(db_session)
+        u_grammar2 = _make_user(db_session)
+        u_reading = _make_user(db_session)
+        self._set_focus(db_session, u_grammar1, 'grammar')
+        self._set_focus(db_session, u_grammar2, 'grammar')
+        self._set_focus(db_session, u_reading, 'reading')
+
+        today = datetime.now(timezone.utc).date()
+        now = datetime.now(timezone.utc)
+        # Only u_grammar1 completes a curriculum lesson today.
+        db_session.add(
+            LessonProgress(
+                user_id=u_grammar1.id,
+                lesson_id=test_lesson_vocabulary.id,
+                status='completed',
+                completed_at=now,
+            )
+        )
+        db_session.commit()
+
+        metrics = get_linear_plan_metrics(session=db_session, today=today)
+        # grammar bucket: 1 slot across 2 users = 0.5 avg
+        assert metrics['focus_average_slots']['grammar'] == 0.5
+        # reading bucket: 0 slots / 1 user = 0.0
+        assert metrics['focus_average_slots']['reading'] == 0.0
+        # empty buckets stay 0.0
+        assert metrics['focus_average_slots']['vocabulary'] == 0.0

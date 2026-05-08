@@ -243,6 +243,23 @@
                         ('Book select %', linear_plan.book_select_rate|string + '%', 'fa-book-open'),
                         ('Reading gate %', linear_plan.reading_gate_completion_rate|string + '%', 'fa-stopwatch')
                     ]) }}
+                    {% if linear_plan.focus_distribution %}
+                    <div class="mt-3">
+                        <h6 class="text-muted mb-2"><i class="fas fa-bullseye me-1"></i>Распределение по фокусу</h6>
+                        <table class="table table-sm mb-0">
+                            <thead><tr><th>Фокус</th><th>Польз.</th><th>Avg слотов</th></tr></thead>
+                            <tbody>
+                                {% for bucket in ['grammar', 'vocabulary', 'reading', 'all', 'none'] %}
+                                <tr>
+                                    <td>{{ bucket }}</td>
+                                    <td>{{ linear_plan.focus_distribution.get(bucket, 0) }}</td>
+                                    <td>{{ linear_plan.focus_average_slots.get(bucket, 0.0) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
