@@ -1061,6 +1061,39 @@ def dashboard():
                     'slots_done': _slots_done,
                     'slots_total': _slots_total,
                 }
+
+                def _build_next_step_for_banner():
+                    from app.daily_plan.next_step import get_next_best_step
+                    steps = get_next_best_step(current_user.id, db)
+                    if not steps:
+                        return None
+                    top = steps[0]
+                    data = top.data or {}
+                    url = None
+                    if top.kind == 'lesson' and data.get('lesson_id'):
+                        url = f"/learn/{int(data['lesson_id'])}/"
+                    elif top.kind == 'srs':
+                        url = '/study?source=linear_plan'
+                    elif top.kind == 'reading' and data.get('book_id'):
+                        url = f"/books/read/{int(data['book_id'])}"
+                    elif top.kind == 'grammar' and data.get('topic_id'):
+                        url = f"/grammar/topic/{int(data['topic_id'])}"
+                    elif top.kind == 'vocab':
+                        url = '/study'
+                    return {
+                        'kind': top.kind,
+                        'reason': top.reason,
+                        'estimated_minutes': top.estimated_minutes,
+                        'url': url,
+                    }
+
+                next_best = _safe_widget_call(
+                    'day_secured_next_step',
+                    _build_next_step_for_banner,
+                    default=None,
+                )
+                if next_best:
+                    day_secured_banner['next_step'] = next_best
         except Exception:
             logger.warning("day_secured_banner build failed", exc_info=True)
             day_secured_banner = None

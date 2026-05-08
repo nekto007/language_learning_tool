@@ -89,6 +89,23 @@
                 <span class="linear-plan__day-secured-banner-stat-label">слотов</span>
             </li>
         </ul>
+        {% if day_secured_banner.next_step %}
+        {% set _ns = day_secured_banner.next_step %}
+        <div class="linear-plan__day-secured-banner-next" data-linear-day-secured-next-step="true">
+            <span class="linear-plan__day-secured-banner-next-label">Следующий шаг</span>
+            {% if _ns.url %}
+            <a href="{{ _ns.url }}"
+               class="linear-plan__day-secured-banner-next-link"
+               data-linear-event="day_secured_next_step_clicked"
+               data-linear-step-kind="{{ _ns.kind }}">{{ _ns.reason }}</a>
+            {% else %}
+            <span class="linear-plan__day-secured-banner-next-text">{{ _ns.reason }}</span>
+            {% endif %}
+            {% if _ns.estimated_minutes %}
+            <span class="linear-plan__day-secured-banner-next-eta">~{{ _ns.estimated_minutes | int }} мин</span>
+            {% endif %}
+        </div>
+        {% endif %}
         <div class="linear-plan__day-secured-banner-actions">
             <a href="#linear-plan-continuation"
                class="linear-plan__day-secured-banner-cta linear-plan__day-secured-banner-cta--primary"
