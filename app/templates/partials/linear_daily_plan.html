@@ -279,6 +279,13 @@
                             Неразобранных ошибок: {{ _data.get('unresolved_count', 0) }}
                             {% if _eta > 0 %}· ~{{ _eta }} мин{% endif %}
                         </div>
+                        {% set _hours_since = _data.get('hours_since_resolved') %}
+                        {% if _hours_since is not none %}
+                        <div class="linear-slot__meta linear-slot__meta--review-cooldown"
+                             data-review-cooldown="last-resolved">
+                            Последний разбор: {{ _hours_since }} ч назад
+                        </div>
+                        {% endif %}
                         {% elif _eta > 0 %}
                         <div class="linear-slot__meta">~{{ _eta }} мин</div>
                         {% endif %}
