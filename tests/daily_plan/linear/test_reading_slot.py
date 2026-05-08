@@ -30,11 +30,17 @@ from app.utils.db import db as real_db
 def _record_reading_xp_event(
     db_session, user: User, *, when: datetime | None = None
 ) -> StreakEvent:
-    ts = when or datetime.now(timezone.utc)
+    from app.daily_plan.linear.xp import get_linear_event_local_date
+    from app.utils.db import db as real_db
+
+    if when is None:
+        event_date = get_linear_event_local_date(user.id, real_db)
+    else:
+        event_date = when.date()
     event = StreakEvent(
         user_id=user.id,
         event_type=LINEAR_XP_EVENT_TYPE,
-        event_date=ts.date(),
+        event_date=event_date,
         coins_delta=0,
         details={'source': 'linear_book_reading', 'xp': 15},
     )
