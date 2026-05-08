@@ -133,11 +133,19 @@ def build_reading_slot(
 
     completed = _read_today(user_id, db)
 
+    from app.books.reading_session import (
+        MIN_READING_SECONDS,
+        get_book_reading_seconds_today,
+    )
+
+    time_spent_seconds = get_book_reading_seconds_today(user_id, book.id, db)
+    gate_reached = time_spent_seconds >= MIN_READING_SECONDS
+
     logger.info(
-        "reading_slot user=%s book=%s chapter=%s state=%s priority=%s",
+        "reading_slot user=%s book=%s chapter=%s state=%s priority=%s time=%ss gate=%s",
         user_id, book.id, chapter_num,
         'done_today' if completed else 'pending',
-        priority,
+        priority, time_spent_seconds, gate_reached,
     )
     title = book.title
     return LinearSlot(
@@ -156,5 +164,8 @@ def build_reading_slot(
             'current_chapter_title': chapter_title,
             'needs_selection': False,
             'priority': priority,
+            'time_spent_seconds': time_spent_seconds,
+            'gate_seconds': MIN_READING_SECONDS,
+            'gate_reached': gate_reached,
         },
     )

@@ -249,6 +249,72 @@ class TestCompletedToday:
         assert slot.completed is False
 
 
+class TestReadingTimeGate:
+    def test_no_preference_has_no_gate_fields(self, db_session):
+        user = _make_user(db_session)
+        slot = build_reading_slot(user.id, real_db)
+        assert 'time_spent_seconds' not in slot.data
+        assert 'gate_seconds' not in slot.data
+        assert 'gate_reached' not in slot.data
+
+    def test_zero_seconds_when_no_sessions(self, db_session):
+        user = _make_user(db_session)
+        book = _make_book(db_session)
+        _set_preference(db_session, user, book)
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert slot.data['time_spent_seconds'] == 0
+        assert slot.data['gate_seconds'] == 60
+        assert slot.data['gate_reached'] is False
+
+    def test_partial_seconds_below_gate(self, db_session):
+        from app.books.reading_session import UserReadingSession
+
+        user = _make_user(db_session)
+        book = _make_book(db_session)
+        _set_preference(db_session, user, book)
+        chapter = book.chapters[0]
+        now = datetime.now(timezone.utc)
+        db_session.add(UserReadingSession(
+            user_id=user.id,
+            chapter_id=chapter.id,
+            started_at=now - timedelta(seconds=30),
+            ended_at=now,
+            start_offset_pct=0.0,
+            offset_delta=0.0,
+        ))
+        db_session.commit()
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert 28 <= slot.data['time_spent_seconds'] <= 32
+        assert slot.data['gate_reached'] is False
+
+    def test_gate_reached_with_sufficient_time(self, db_session):
+        from app.books.reading_session import UserReadingSession
+
+        user = _make_user(db_session)
+        book = _make_book(db_session)
+        _set_preference(db_session, user, book)
+        chapter = book.chapters[0]
+        now = datetime.now(timezone.utc)
+        db_session.add(UserReadingSession(
+            user_id=user.id,
+            chapter_id=chapter.id,
+            started_at=now - timedelta(seconds=120),
+            ended_at=now,
+            start_offset_pct=0.0,
+            offset_delta=0.0,
+        ))
+        db_session.commit()
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert slot.data['time_spent_seconds'] >= 60
+        assert slot.data['gate_reached'] is True
+
+
 class TestPlanIntegration:
     def test_get_linear_plan_includes_reading_slot(self, db_session):
         from app.daily_plan.linear.plan import get_linear_plan

@@ -274,6 +274,32 @@ def get_session_duration(
     return sum(r.duration_seconds() for r in rows)
 
 
+def get_book_reading_seconds_today(
+    user_id: int,
+    book_id: int,
+    db_session: Any = db,
+) -> int:
+    """Total closed-session seconds across all chapters of ``book_id`` for
+    the user's local day. Used by the linear reading slot to surface
+    "Прочитано N сек / 60 сек" progress against the time gate."""
+    from app.books.models import Chapter
+
+    start_utc, end_utc = _user_local_day_window_utc(user_id, db_session)
+    rows = (
+        db_session.session.query(UserReadingSession)
+        .join(Chapter, Chapter.id == UserReadingSession.chapter_id)
+        .filter(
+            UserReadingSession.user_id == user_id,
+            Chapter.book_id == book_id,
+            UserReadingSession.ended_at.isnot(None),
+            UserReadingSession.ended_at >= start_utc,
+            UserReadingSession.ended_at < end_utc,
+        )
+        .all()
+    )
+    return sum(r.duration_seconds() for r in rows)
+
+
 def has_min_reading_time_today(
     user_id: int,
     book_id: int,

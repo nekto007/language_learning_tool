@@ -248,6 +248,17 @@
                                 {% if _eta > 0 %}{% if _data.get('current_chapter_num') %} · {% endif %}~{{ _eta }} мин{% endif %}
                             {% endif %}
                         </div>
+                        {% if not _needs_selection and not _completed and _data.get('gate_seconds') %}
+                            {% set _time_spent = _data.get('time_spent_seconds', 0) | int %}
+                            {% set _gate = _data.get('gate_seconds', 60) | int %}
+                            {% if not _data.get('gate_reached') %}
+                            <div class="linear-slot__meta linear-slot__meta--reading-gate"
+                                 data-reading-gate="pending"
+                                 role="note">
+                                Прочитано {{ _time_spent }} сек / {{ _gate }} сек
+                            </div>
+                            {% endif %}
+                        {% endif %}
                         {% elif _kind == 'error_review' %}
                         <div class="linear-slot__meta">
                             Неразобранных ошибок: {{ _data.get('unresolved_count', 0) }}
