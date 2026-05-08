@@ -16,6 +16,12 @@ user base. Four aggregate ratios over the cohort of users with
 - ``reading_gate_completion_rate`` — fraction of cohort users who earned
   ``linear_book_reading`` XP today (i.e. cleared the ≥5% delta + ≥60s
   reading-time gate at least once).
+- ``error_review_completion_rate`` — among cohort users with enough
+  unresolved errors to qualify for the slot today (≥5 unresolved), the
+  fraction who resolved at least one ``QuizErrorLog`` row today.
+  Cooldown is intentionally ignored in the denominator so that users
+  who *did* resolve work today are counted in both numerator and
+  denominator. 0 when nobody qualifies.
 
 All metrics return floats in [0, 100] or absolute averages. When the
 cohort is empty the helpers short-circuit to 0 — callers can rely on a
@@ -142,10 +148,10 @@ def _average_slots_completed(user_ids: list[int], today: date, session: Any) -> 
     return round(total / len(user_ids), 2)
 
 
-def _error_review_trigger_rate(user_ids: list[int], session: Any) -> float:
+def _triggered_user_ids(user_ids: list[int], session: Any) -> set[int]:
     """Replicate the trigger SQL-side: ≥5 unresolved AND cooldown elapsed."""
     if not user_ids:
-        return 0.0
+        return set()
 
     cooldown_cutoff = datetime.now(timezone.utc) - REVIEW_TRIGGER_COOLDOWN
 
@@ -166,21 +172,82 @@ def _error_review_trigger_rate(user_ids: list[int], session: Any) -> float:
             .all()
         )
 
-    triggered = 0
+    triggered: set[int] = set()
     for row in per_user:
         unresolved = int(row.unresolved or 0)
         if unresolved < REVIEW_TRIGGER_MIN_UNRESOLVED:
             continue
         last_resolved = row.last_resolved
         if last_resolved is None:
-            triggered += 1
+            triggered.add(int(row.uid))
             continue
         if last_resolved.tzinfo is None:
             last_resolved = last_resolved.replace(tzinfo=timezone.utc)
         if last_resolved <= cooldown_cutoff:
-            triggered += 1
+            triggered.add(int(row.uid))
 
-    return round(triggered / len(user_ids) * 100, 1)
+    return triggered
+
+
+def _error_review_trigger_rate(user_ids: list[int], session: Any) -> float:
+    if not user_ids:
+        return 0.0
+    triggered = _triggered_user_ids(user_ids, session)
+    return round(len(triggered) / len(user_ids) * 100, 1)
+
+
+def _error_review_qualified_user_ids(user_ids: list[int], session: Any) -> set[int]:
+    """Cohort users with ≥REVIEW_TRIGGER_MIN_UNRESOLVED unresolved errors."""
+    if not user_ids:
+        return set()
+    qualified: set[int] = set()
+    for chunk in chunk_ids(user_ids):
+        rows = (
+            session.query(
+                QuizErrorLog.user_id,
+                func.count(QuizErrorLog.id).label('unresolved'),
+            )
+            .filter(
+                QuizErrorLog.user_id.in_(chunk),
+                QuizErrorLog.resolved_at.is_(None),
+            )
+            .group_by(QuizErrorLog.user_id)
+            .having(func.count(QuizErrorLog.id) >= REVIEW_TRIGGER_MIN_UNRESOLVED)
+            .all()
+        )
+        for row in rows:
+            qualified.add(int(row[0]))
+    return qualified
+
+
+def _error_review_completion_rate(
+    user_ids: list[int],
+    today: date,
+    session: Any,
+) -> float:
+    """Fraction of qualified users who resolved at least one error today."""
+    if not user_ids:
+        return 0.0
+    qualified = _error_review_qualified_user_ids(user_ids, session)
+    if not qualified:
+        return 0.0
+
+    resolved_users: set[int] = set()
+    for chunk in chunk_ids(list(qualified)):
+        rows = (
+            session.query(QuizErrorLog.user_id)
+            .filter(
+                QuizErrorLog.user_id.in_(chunk),
+                QuizErrorLog.resolved_at.isnot(None),
+                func.date(QuizErrorLog.resolved_at) == today,
+            )
+            .distinct()
+            .all()
+        )
+        for row in rows:
+            resolved_users.add(int(row[0]))
+
+    return round(len(resolved_users) / len(qualified) * 100, 1)
 
 
 def _reading_gate_completion_rate(
@@ -244,6 +311,7 @@ def get_linear_plan_metrics(session: Any = None, today: Optional[date] = None) -
         'day_secured_rate': _day_secured_rate(user_ids, eval_date, s),
         'average_slots_completed': _average_slots_completed(user_ids, eval_date, s),
         'error_review_trigger_rate': _error_review_trigger_rate(user_ids, s),
+        'error_review_completion_rate': _error_review_completion_rate(user_ids, eval_date, s),
         'book_select_rate': _book_select_rate(user_ids, s),
         'reading_gate_completion_rate': _reading_gate_completion_rate(user_ids, eval_date, s),
     }

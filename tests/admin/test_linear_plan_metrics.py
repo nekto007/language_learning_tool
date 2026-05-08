@@ -294,6 +294,91 @@ class TestReadingGateCompletionRate:
         assert metrics['reading_gate_completion_rate'] == 0.0
 
 
+class TestErrorReviewCompletionRate:
+    def _seed_unresolved(self, db_session, user, lesson, *, count=5):
+        for _ in range(count):
+            db_session.add(
+                QuizErrorLog(
+                    user_id=user.id,
+                    lesson_id=lesson.id,
+                    question_payload={'q': 'x'},
+                )
+            )
+        db_session.commit()
+
+    def test_zero_qualified_returns_zero(self, app, db_session):
+        _make_user(db_session)
+        metrics = get_linear_plan_metrics(session=db_session)
+        assert metrics['error_review_completion_rate'] == 0.0
+
+    def test_below_threshold_not_qualified(self, app, db_session, test_lesson_quiz):
+        user = _make_user(db_session)
+        self._seed_unresolved(db_session, user, test_lesson_quiz, count=4)
+        # Even a resolve today shouldn't matter: not enough unresolved.
+        db_session.add(
+            QuizErrorLog(
+                user_id=user.id,
+                lesson_id=test_lesson_quiz.id,
+                question_payload={'q': 'r'},
+                resolved_at=datetime.now(timezone.utc),
+            )
+        )
+        db_session.commit()
+        metrics = get_linear_plan_metrics(session=db_session)
+        assert metrics['error_review_completion_rate'] == 0.0
+
+    def test_all_qualified_resolved_today(self, app, db_session, test_lesson_quiz):
+        user = _make_user(db_session)
+        self._seed_unresolved(db_session, user, test_lesson_quiz, count=5)
+        today = datetime.now(timezone.utc).date()
+        db_session.add(
+            QuizErrorLog(
+                user_id=user.id,
+                lesson_id=test_lesson_quiz.id,
+                question_payload={'q': 'r'},
+                resolved_at=datetime.now(timezone.utc),
+            )
+        )
+        db_session.commit()
+        metrics = get_linear_plan_metrics(session=db_session, today=today)
+        assert metrics['error_review_completion_rate'] == 100.0
+
+    def test_mixed_qualified_users(self, app, db_session, test_lesson_quiz):
+        u1 = _make_user(db_session)
+        u2 = _make_user(db_session)
+        self._seed_unresolved(db_session, u1, test_lesson_quiz, count=5)
+        self._seed_unresolved(db_session, u2, test_lesson_quiz, count=5)
+        today = datetime.now(timezone.utc).date()
+        # Only u1 resolves today.
+        db_session.add(
+            QuizErrorLog(
+                user_id=u1.id,
+                lesson_id=test_lesson_quiz.id,
+                question_payload={'q': 'r'},
+                resolved_at=datetime.now(timezone.utc),
+            )
+        )
+        db_session.commit()
+        metrics = get_linear_plan_metrics(session=db_session, today=today)
+        assert metrics['error_review_completion_rate'] == 50.0
+
+    def test_resolved_yesterday_does_not_count(self, app, db_session, test_lesson_quiz):
+        user = _make_user(db_session)
+        self._seed_unresolved(db_session, user, test_lesson_quiz, count=5)
+        today = datetime.now(timezone.utc).date()
+        db_session.add(
+            QuizErrorLog(
+                user_id=user.id,
+                lesson_id=test_lesson_quiz.id,
+                question_payload={'q': 'r'},
+                resolved_at=datetime.now(timezone.utc) - timedelta(days=1),
+            )
+        )
+        db_session.commit()
+        metrics = get_linear_plan_metrics(session=db_session, today=today)
+        assert metrics['error_review_completion_rate'] == 0.0
+
+
 class TestReturnShape:
     def test_returns_all_expected_keys(self, app, db_session):
         _make_user(db_session)
@@ -303,6 +388,7 @@ class TestReturnShape:
             'day_secured_rate',
             'average_slots_completed',
             'error_review_trigger_rate',
+            'error_review_completion_rate',
             'book_select_rate',
             'reading_gate_completion_rate',
         }
