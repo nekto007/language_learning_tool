@@ -234,7 +234,7 @@ class TestDashboardNextStepBanner:
         html = response.data.decode('utf-8')
         assert 'data-linear-day-secured-next-step="true"' in html
         assert 'cards due for review' in html
-        assert 'href="/study?source=linear_plan"' in html
+        assert 'href="/study/cards?source=linear_plan&amp;from=linear_plan&amp;slot=srs"' in html
         assert 'data-linear-step-kind="srs"' in html
 
     def test_next_step_absent_when_no_steps(

@@ -1071,15 +1071,15 @@ def dashboard():
                     data = top.data or {}
                     url = None
                     if top.kind == 'lesson' and data.get('lesson_id'):
-                        url = f"/learn/{int(data['lesson_id'])}/"
+                        url = f"/learn/{int(data['lesson_id'])}/?from=linear_plan&slot=curriculum"
                     elif top.kind == 'srs':
-                        url = '/study?source=linear_plan'
+                        url = '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
                     elif top.kind == 'reading' and data.get('book_id'):
-                        url = f"/read/{int(data['book_id'])}"
+                        url = f"/read/{int(data['book_id'])}?from=linear_plan&slot=book"
                     elif top.kind == 'grammar' and data.get('topic_id'):
-                        url = f"/grammar-lab/topic/{int(data['topic_id'])}"
+                        url = f"/grammar-lab/practice/topic/{int(data['topic_id'])}"
                     elif top.kind == 'vocab':
-                        url = '/study'
+                        url = '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
                     return {
                         'kind': top.kind,
                         'reason': top.reason,

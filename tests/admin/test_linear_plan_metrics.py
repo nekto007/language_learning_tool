@@ -154,6 +154,30 @@ class TestErrorReviewTriggerRate:
         metrics = get_linear_plan_metrics(session=db_session)
         assert metrics['error_review_trigger_rate'] == 100.0
 
+    def test_high_backlog_overrides_default_cooldown(self, app, db_session, test_lesson_quiz):
+        """At ≥15 unresolved, cooldown drops to 1 day (vs default 3d)."""
+        user = _make_user(db_session)
+        for _ in range(15):
+            db_session.add(
+                QuizErrorLog(
+                    user_id=user.id,
+                    lesson_id=test_lesson_quiz.id,
+                    question_payload={'q': 'x'},
+                )
+            )
+        # Resolved 2 days ago — past 1d high-backlog cooldown but inside default 3d.
+        db_session.add(
+            QuizErrorLog(
+                user_id=user.id,
+                lesson_id=test_lesson_quiz.id,
+                question_payload={'q': 'r'},
+                resolved_at=datetime.now(timezone.utc) - timedelta(days=2),
+            )
+        )
+        db_session.commit()
+        metrics = get_linear_plan_metrics(session=db_session)
+        assert metrics['error_review_trigger_rate'] == 100.0
+
     def test_recent_resolve_suppresses_trigger(self, app, db_session, test_lesson_quiz):
         user = _make_user(db_session)
         for _ in range(5):
@@ -295,13 +319,21 @@ class TestReadingGateCompletionRate:
 
 
 class TestErrorReviewCompletionRate:
-    def _seed_unresolved(self, db_session, user, lesson, *, count=5):
+    def _seed_unresolved(self, db_session, user, lesson, *, count=5, days_ago=1):
+        """Seed backlog rows dated `days_ago` in the past.
+
+        Rows must predate today to be counted as start-of-day backlog —
+        a row created and resolved on the same day is not carryover.
+        """
+        backdated = datetime.now(timezone.utc) - timedelta(days=days_ago)
         for _ in range(count):
             db_session.add(
                 QuizErrorLog(
                     user_id=user.id,
                     lesson_id=lesson.id,
                     question_payload={'q': 'x'},
+                    answered_wrong_at=backdated,
+                    created_at=backdated,
                 )
             )
         db_session.commit()
@@ -313,8 +345,8 @@ class TestErrorReviewCompletionRate:
 
     def test_below_threshold_not_qualified(self, app, db_session, test_lesson_quiz):
         user = _make_user(db_session)
-        self._seed_unresolved(db_session, user, test_lesson_quiz, count=4)
-        # Even a resolve today shouldn't matter: not enough unresolved.
+        # 3 unresolved + 1 resolved today = start-of-day 4, below threshold.
+        self._seed_unresolved(db_session, user, test_lesson_quiz, count=3)
         db_session.add(
             QuizErrorLog(
                 user_id=user.id,
@@ -327,18 +359,37 @@ class TestErrorReviewCompletionRate:
         metrics = get_linear_plan_metrics(session=db_session)
         assert metrics['error_review_completion_rate'] == 0.0
 
+    def test_resolved_user_stays_in_denominator(self, app, db_session, test_lesson_quiz):
+        """User who started day at 5 unresolved, resolved one, must remain qualified.
+
+        Otherwise the metric drops them from both numerator and denominator
+        and underreports the completions it tries to measure.
+        """
+        user = _make_user(db_session)
+        self._seed_unresolved(db_session, user, test_lesson_quiz, count=5)
+        # Resolve one of the backlog rows today.
+        backlog_row = (
+            db_session.query(QuizErrorLog)
+            .filter(QuizErrorLog.user_id == user.id)
+            .first()
+        )
+        backlog_row.resolved_at = datetime.now(timezone.utc)
+        db_session.commit()
+        today = datetime.now(timezone.utc).date()
+        metrics = get_linear_plan_metrics(session=db_session, today=today)
+        assert metrics['error_review_completion_rate'] == 100.0
+
     def test_all_qualified_resolved_today(self, app, db_session, test_lesson_quiz):
         user = _make_user(db_session)
         self._seed_unresolved(db_session, user, test_lesson_quiz, count=5)
         today = datetime.now(timezone.utc).date()
-        db_session.add(
-            QuizErrorLog(
-                user_id=user.id,
-                lesson_id=test_lesson_quiz.id,
-                question_payload={'q': 'r'},
-                resolved_at=datetime.now(timezone.utc),
-            )
+        # Resolve one of the backlog rows today.
+        row = (
+            db_session.query(QuizErrorLog)
+            .filter(QuizErrorLog.user_id == user.id)
+            .first()
         )
+        row.resolved_at = datetime.now(timezone.utc)
         db_session.commit()
         metrics = get_linear_plan_metrics(session=db_session, today=today)
         assert metrics['error_review_completion_rate'] == 100.0
@@ -349,15 +400,13 @@ class TestErrorReviewCompletionRate:
         self._seed_unresolved(db_session, u1, test_lesson_quiz, count=5)
         self._seed_unresolved(db_session, u2, test_lesson_quiz, count=5)
         today = datetime.now(timezone.utc).date()
-        # Only u1 resolves today.
-        db_session.add(
-            QuizErrorLog(
-                user_id=u1.id,
-                lesson_id=test_lesson_quiz.id,
-                question_payload={'q': 'r'},
-                resolved_at=datetime.now(timezone.utc),
-            )
+        # Only u1 resolves a backlog row today.
+        u1_row = (
+            db_session.query(QuizErrorLog)
+            .filter(QuizErrorLog.user_id == u1.id)
+            .first()
         )
+        u1_row.resolved_at = datetime.now(timezone.utc)
         db_session.commit()
         metrics = get_linear_plan_metrics(session=db_session, today=today)
         assert metrics['error_review_completion_rate'] == 50.0

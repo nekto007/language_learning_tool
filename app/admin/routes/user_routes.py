@@ -152,6 +152,10 @@ def linear_plan_user_inspector(user_id):
         except Exception as exc:  # noqa: BLE001
             logger.exception('Failed to assemble linear plan for user %s', user_id)
             plan_error = str(exc)
+            # Plan assembly may have left the SQLAlchemy session in a
+            # pending-rollback state; reset it so the follow-up StreakEvent /
+            # QuizErrorLog queries below don't 500 with InvalidRequestError.
+            db.session.rollback()
 
     recent_xp_events = (
         StreakEvent.query

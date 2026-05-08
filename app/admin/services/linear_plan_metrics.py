@@ -43,7 +43,10 @@ from sqlalchemy import case, func
 from app.auth.models import User
 from app.books.models import UserChapterProgress
 from app.curriculum.models import LessonProgress
-from app.daily_plan.linear.errors import REVIEW_TRIGGER_COOLDOWN, REVIEW_TRIGGER_MIN_UNRESOLVED
+from app.daily_plan.linear.errors import (
+    REVIEW_TRIGGER_MIN_UNRESOLVED,
+    get_review_cooldown,
+)
 from app.daily_plan.linear.models import QuizErrorLog, UserReadingPreference
 from app.daily_plan.models import DailyPlanLog
 from app.study.models import StudySession
@@ -227,11 +230,15 @@ def _focus_distribution_and_avg_slots(
 
 
 def _triggered_user_ids(user_ids: list[int], session: Any) -> set[int]:
-    """Replicate the trigger SQL-side: ≥5 unresolved AND cooldown elapsed."""
+    """Replicate the trigger SQL-side: ≥5 unresolved AND cooldown elapsed.
+
+    Cooldown matches ``should_show_error_review`` — dynamic tiers via
+    ``get_review_cooldown`` (3d default, 1d at ≥15 unresolved, 12h at ≥25).
+    """
     if not user_ids:
         return set()
 
-    cooldown_cutoff = datetime.now(timezone.utc) - REVIEW_TRIGGER_COOLDOWN
+    now = datetime.now(timezone.utc)
 
     unresolved_expr = func.sum(
         case((QuizErrorLog.resolved_at.is_(None), 1), else_=0)
@@ -261,7 +268,7 @@ def _triggered_user_ids(user_ids: list[int], session: Any) -> set[int]:
             continue
         if last_resolved.tzinfo is None:
             last_resolved = last_resolved.replace(tzinfo=timezone.utc)
-        if last_resolved <= cooldown_cutoff:
+        if (now - last_resolved) >= get_review_cooldown(unresolved):
             triggered.add(int(row.uid))
 
     return triggered
@@ -274,8 +281,19 @@ def _error_review_trigger_rate(user_ids: list[int], session: Any) -> float:
     return round(len(triggered) / len(user_ids) * 100, 1)
 
 
-def _error_review_qualified_user_ids(user_ids: list[int], session: Any) -> set[int]:
-    """Cohort users with ≥REVIEW_TRIGGER_MIN_UNRESOLVED unresolved errors."""
+def _error_review_qualified_user_ids(
+    user_ids: list[int],
+    today: date,
+    session: Any,
+) -> set[int]:
+    """Cohort users qualified for the error-review slot today.
+
+    Counts users who had ≥ ``MIN_UNRESOLVED`` rows in their backlog at the
+    *start of today*: rows that existed before today (``created_at < today``)
+    and were either still unresolved or resolved during today. Rows created
+    today are excluded — they were not part of the start-of-day backlog,
+    even if they were resolved on the same day.
+    """
     if not user_ids:
         return set()
     qualified: set[int] = set()
@@ -283,18 +301,22 @@ def _error_review_qualified_user_ids(user_ids: list[int], session: Any) -> set[i
         rows = (
             session.query(
                 QuizErrorLog.user_id,
-                func.count(QuizErrorLog.id).label('unresolved'),
+                func.count().label('start_of_day'),
             )
             .filter(
                 QuizErrorLog.user_id.in_(chunk),
-                QuizErrorLog.resolved_at.is_(None),
+                func.date(QuizErrorLog.created_at) < today,
+                case(
+                    (QuizErrorLog.resolved_at.is_(None), True),
+                    else_=func.date(QuizErrorLog.resolved_at) >= today,
+                ),
             )
             .group_by(QuizErrorLog.user_id)
-            .having(func.count(QuizErrorLog.id) >= REVIEW_TRIGGER_MIN_UNRESOLVED)
             .all()
         )
-        for row in rows:
-            qualified.add(int(row[0]))
+        for uid, start_of_day in rows:
+            if int(start_of_day or 0) >= REVIEW_TRIGGER_MIN_UNRESOLVED:
+                qualified.add(int(uid))
     return qualified
 
 
@@ -306,7 +328,7 @@ def _error_review_completion_rate(
     """Fraction of qualified users who resolved at least one error today."""
     if not user_ids:
         return 0.0
-    qualified = _error_review_qualified_user_ids(user_ids, session)
+    qualified = _error_review_qualified_user_ids(user_ids, today, session)
     if not qualified:
         return 0.0
 
@@ -318,6 +340,7 @@ def _error_review_completion_rate(
                 QuizErrorLog.user_id.in_(chunk),
                 QuizErrorLog.resolved_at.isnot(None),
                 func.date(QuizErrorLog.resolved_at) == today,
+                func.date(QuizErrorLog.created_at) < today,
             )
             .distinct()
             .all()
