@@ -227,6 +227,18 @@
                                 Сегодня всё повторено
                             {% endif %}
                         </div>
+                        {% set _limit_reason = _data.get('srs_limit_reason') %}
+                        {% if _limit_reason and _limit_reason != 'normal' %}
+                        <div class="linear-slot__limit-hint"
+                             data-srs-limit-reason="{{ _limit_reason }}"
+                             role="note">
+                            {% if _limit_reason == 'accuracy_low' %}
+                                Лимит новых слов снижен — точность ответов ниже 85%. Сосредоточьтесь на повторении.
+                            {% elif _limit_reason == 'backlog_reduction' %}
+                                Лимит новых слов снижен — много просроченных карточек. Сначала разберём очередь.
+                            {% endif %}
+                        </div>
+                        {% endif %}
                         {% elif _kind == 'reading' %}
                         <div class="linear-slot__meta">
                             {% if _needs_selection %}

@@ -570,6 +570,51 @@ class TestCurriculumCardActivationGate:
         ).count() == 1
 
 
+class TestSrsLimitReasonInSlotData:
+    def test_normal_reason_present_in_slot_data(self, db_session):
+        user = _make_user(db_session)
+        _set_new_words_per_day(db_session, user, 5)
+
+        slot = build_srs_slot(user.id, real_db)
+
+        assert slot.data.get('srs_limit_reason') == 'normal'
+
+    def test_accuracy_low_reason_surfaced(self, db_session, monkeypatch):
+        from app.study.services import SRSService
+
+        user = _make_user(db_session)
+        _set_new_words_per_day(db_session, user, 5)
+        monkeypatch.setattr(
+            SRSService, 'get_adaptive_limit_reason', staticmethod(lambda uid: 'accuracy_low'),
+        )
+
+        slot = build_srs_slot(user.id, real_db)
+
+        assert slot.data.get('srs_limit_reason') == 'accuracy_low'
+
+    def test_backlog_reduction_reason_surfaced(self, db_session, monkeypatch):
+        from app.study.services import SRSService
+
+        user = _make_user(db_session)
+        _set_new_words_per_day(db_session, user, 5)
+        monkeypatch.setattr(
+            SRSService, 'get_adaptive_limit_reason', staticmethod(lambda uid: 'backlog_reduction'),
+        )
+
+        slot = build_srs_slot(user.id, real_db)
+
+        assert slot.data.get('srs_limit_reason') == 'backlog_reduction'
+
+    def test_deck_quiz_variant_omits_limit_reason(self, db_session):
+        user = _make_user(db_session)
+        _make_quiz_deck_with_words(db_session, user, 10)
+
+        lesson = type('LessonStub', (), {'type': 'card'})()
+        slot = build_srs_slot(user.id, real_db, curriculum_lesson=lesson)
+
+        assert 'srs_limit_reason' not in slot.data
+
+
 class TestLinearPlanIncludesSrsSlot:
     def test_get_linear_plan_exposes_srs_slot(self, db_session):
         from app.curriculum.models import CEFRLevel, Lessons, Module
