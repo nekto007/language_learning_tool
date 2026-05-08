@@ -20,17 +20,25 @@
     </div>
 
     {% for group in topic_groups %}
-    {% if group.topic_title %}
+    {% if group.topic_title or group.lesson_titles %}
     <div class="er-theory-card">
       <div class="er-theory-card__top">
         <div>
-          <h2 class="er-theory-card__title">{{ group.topic_title }}</h2>
+          <h2 class="er-theory-card__title">{{ group.topic_title or 'Словарные упражнения' }}</h2>
           <span class="er-theory-card__count">{{ group.errors|length }} вопрос{{ 'а' if group.errors|length in [2,3,4] else ('ов' if group.errors|length > 4 else '') }}</span>
         </div>
         {% if group.grammar_url %}
         <a class="er-theory-card__link" href="{{ group.grammar_url }}" target="_blank" rel="noopener">Полная теория →</a>
         {% endif %}
       </div>
+
+      {% if not group.topic_title and group.lesson_titles %}
+      {# Vocabulary errors — no grammar topic; show lesson context #}
+      <div class="er-theory-intro">Повторите слова и переводы. Теория недоступна — это лексические упражнения.</div>
+      <ul class="er-theory-lesson-list">
+        {% for name in group.lesson_titles %}<li>📚 {{ name }}</li>{% endfor %}
+      </ul>
+      {% endif %}
 
       {% set tc = group.topic_content %}
 
@@ -196,6 +204,16 @@
 .er-theory-examples { list-style: disc; padding-left: 1.25rem; margin: .375rem 0; font-size: .875rem; line-height: 1.6; }
 .er-theory-examples li { margin-bottom: .2rem; }
 
+.er-theory-lesson-list {
+  list-style: none; padding: 0; margin: .5rem 0 0;
+  display: flex; flex-wrap: wrap; gap: .375rem;
+}
+.er-theory-lesson-list li {
+  font-size: .85rem; color: var(--color-text-secondary, #6b7280);
+  background: var(--color-surface-raised, #f3f4f6);
+  padding: .25rem .625rem; border-radius: 6px;
+}
+
 .er-theory-notes {
   background: #fffbeb;
   border-left: 3px solid #f59e0b;
@@ -350,13 +368,6 @@
   'use strict';
 
   var ALL_ERROR_IDS = {{ all_error_ids | tojson }};
-
-  // Auto-skip theory screen when there is no theory to show
-  document.addEventListener('DOMContentLoaded', function () {
-    if (!document.querySelector('.er-theory-card')) {
-      erStartQuiz();
-    }
-  });
 
   var QUESTIONS = [
     {% for group in topic_groups %}{% for e in group.errors %}

@@ -151,6 +151,17 @@ def error_review_session():
             if raw_mistakes:
                 common_mistakes = raw_mistakes[:2]
 
+        # Collect unique lesson titles for the theory card (needed when topic is None)
+        lesson_titles: list[str] = []
+        seen_lesson_ids: set[int] = set()
+        for e in group['errors']:
+            lesson_obj = getattr(e, 'lesson', None)
+            if lesson_obj and lesson_obj.id not in seen_lesson_ids:
+                seen_lesson_ids.add(lesson_obj.id)
+                if lesson_obj.title:
+                    lesson_titles.append(lesson_obj.title)
+        lesson_titles = list(dict.fromkeys(lesson_titles))[:3]
+
         errors_display = []
         for e in group['errors']:
             p = e.question_payload or {}
@@ -182,6 +193,7 @@ def error_review_session():
             'theory_text': theory_text,
             'common_mistakes': common_mistakes,
             'topic_content': content,
+            'lesson_titles': lesson_titles,
             'errors': errors_display,
             'error_ids': group['error_ids'],
         })
