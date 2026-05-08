@@ -318,6 +318,8 @@ def require_lesson_access(f):
 
         lesson = Lessons.query.get(lesson_id)
         if not lesson:
+            if _is_api_request():
+                return jsonify({'success': False, 'error': 'Lesson not found'}), 404
             abort(404)
 
         if check_lesson_access(lesson_id):

@@ -897,7 +897,11 @@ class TestCompleteQuiz:
             data = json.loads(response.data)
             assert data['success'] is True
             mock_calc.assert_called_once()
-            mock_award.assert_called_once()
+            # award_xp may also fire for achievement bonus XP; verify the quiz call was made
+            assert any(
+                c.args[1] == 75 and c.args[2] == 'study_quiz_game'
+                for c in mock_award.call_args_list
+            ), f"Expected award_xp(user, 75, 'study_quiz_game'); got {mock_award.call_args_list}"
 
     def test_checks_achievements(self, authenticated_client, quiz_deck_with_words, user_xp, achievements):
         """Test that achievements are checked on quiz completion"""

@@ -192,7 +192,7 @@ class TestImportExercisesJson:
         old_exercise = GrammarExercise(
             topic_id=topic.id,
             exercise_type='fill_blank',
-            content={'source': 'json_import', 'question': 'Old'},
+            content={'source': 'json_import', 'question': 'Old', 'correct_answer': 'test'},
             difficulty=1,
             order=1,
         )

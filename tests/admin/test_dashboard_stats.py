@@ -597,7 +597,7 @@ class TestSRSHealthMetrics:
         exercise = GrammarExercise(
             topic_id=topic.id,
             exercise_type='fill_blank',
-            content={'question': 'test', 'answer': 'test'},
+            content={'question': 'test', 'answer': 'test', 'correct_answer': 'test'},
         )
         db_session.add(exercise)
         db_session.flush()

@@ -370,47 +370,44 @@ class TestStatsServiceGetUserAchievements:
 class TestStatsServiceCheckAndAwardAchievements:
     """Tests for StatsService.check_and_award_achievements"""
 
+    @patch('app.achievements.services.grant_achievement')
     @patch('app.study.services.stats_service.db')
     @patch('app.study.services.stats_service.UserWord')
     @patch('app.study.services.stats_service.Achievement')
-    @patch('app.study.services.stats_service.UserAchievement')
-    def test_award_first_word_achievement(self, mock_user_ach, mock_ach, mock_user_word, mock_db):
+    def test_award_first_word_achievement(self, mock_ach, mock_user_word, mock_db, mock_grant):
         """Test awarding first word achievement"""
         from app.study.services.stats_service import StatsService
 
-        # User has 1 word
         mock_user_word.query.filter_by.return_value.count.return_value = 1
 
-        # Achievement exists
         mock_achievement = MagicMock()
         mock_achievement.id = 1
         mock_ach.query.filter_by.return_value.first.return_value = mock_achievement
 
-        # Not already earned
-        mock_user_ach.query.filter_by.return_value.first.return_value = None
+        mock_grant.return_value = (MagicMock(), True)  # (ua, is_new=True)
 
         result = StatsService.check_and_award_achievements(1)
 
         assert len(result) == 1
         assert result[0] == mock_achievement
-        mock_db.session.add.assert_called()
+        mock_grant.assert_called_once_with(1, 1)
         mock_db.session.commit.assert_called()
 
+    @patch('app.achievements.services.grant_achievement')
     @patch('app.study.services.stats_service.db')
     @patch('app.study.services.stats_service.UserWord')
     @patch('app.study.services.stats_service.Achievement')
-    @patch('app.study.services.stats_service.UserAchievement')
-    def test_no_achievement_if_already_earned(self, mock_user_ach, mock_ach, mock_user_word, mock_db):
+    def test_no_achievement_if_already_earned(self, mock_ach, mock_user_word, mock_db, mock_grant):
         """Test no duplicate achievement if already earned"""
         from app.study.services.stats_service import StatsService
 
         mock_user_word.query.filter_by.return_value.count.return_value = 1
 
         mock_achievement = MagicMock()
+        mock_achievement.id = 1
         mock_ach.query.filter_by.return_value.first.return_value = mock_achievement
 
-        # Already earned
-        mock_user_ach.query.filter_by.return_value.first.return_value = MagicMock()
+        mock_grant.return_value = (MagicMock(), False)  # already earned, is_new=False
 
         result = StatsService.check_and_award_achievements(1)
 

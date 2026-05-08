@@ -791,7 +791,7 @@ class TestUserGrammarExerciseModel:
         db_session.add(progress)
         db_session.commit()
         assert progress.state == 'new'
-        assert progress.ease_factor == 2.5
+        assert progress.ease_factor == 2.75  # difficulty=1 (easy) normalizes to 0 → 2.5 * 1.1
         assert progress.interval == 0
 
     def test_is_due(self, db_session, test_user, grammar_exercises):

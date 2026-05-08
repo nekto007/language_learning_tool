@@ -293,9 +293,10 @@ def test_rival_events_persisted_to_db(authenticated_client, db_session, test_use
     """Rival strip events are written to the database with correct fields."""
     from app.daily_plan.models import DailyPlanEvent
 
+    today = date.today().isoformat()
     authenticated_client.post(
         '/api/daily-plan/events',
-        json={'event_type': 'rival_strip_shown', 'plan_date': '2026-04-18'},
+        json={'event_type': 'rival_strip_shown', 'plan_date': today},
     )
 
     ev = DailyPlanEvent.query.filter_by(
@@ -303,7 +304,7 @@ def test_rival_events_persisted_to_db(authenticated_client, db_session, test_use
         event_type='rival_strip_shown',
     ).first()
     assert ev is not None
-    assert str(ev.plan_date) == '2026-04-18'
+    assert str(ev.plan_date) == today
 
 
 def test_rival_strip_shown_not_server_only(authenticated_client):

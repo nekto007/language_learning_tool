@@ -200,7 +200,7 @@ class TestDashboardBadgePopupRender:
 
         assert response.status_code == 200
         html = response.data.decode('utf-8')
-        assert 'dash-badge-popup' in html
+        assert 'id="dash-badge-popup"' in html
         assert 'Первая миссия' in html
         assert 'Завершил первую миссию' in html
         assert '+60 XP' in html
@@ -212,7 +212,7 @@ class TestDashboardBadgePopupRender:
 
         assert response.status_code == 200
         html = response.data.decode('utf-8')
-        assert 'dash-badge-popup' not in html
+        assert 'id="dash-badge-popup"' not in html
 
     def test_popup_absent_for_already_seen_badges(
         self, client, app, db_session, test_user, words_module_access,
@@ -226,7 +226,7 @@ class TestDashboardBadgePopupRender:
         response = self._get_dashboard(client, test_user)
 
         html = response.data.decode('utf-8')
-        assert 'dash-badge-popup' not in html
+        assert 'id="dash-badge-popup"' not in html
 
     def test_dashboard_visit_marks_badges_seen(
         self, client, app, db_session, test_user, words_module_access,
@@ -237,11 +237,11 @@ class TestDashboardBadgePopupRender:
 
         first = self._get_dashboard(client, test_user)
         assert first.status_code == 200
-        assert 'dash-badge-popup' in first.data.decode('utf-8')
+        assert 'id="dash-badge-popup"' in first.data.decode('utf-8')
 
         db_session.expire_all()
         refreshed = UserAchievement.query.get(ua.id)
         assert refreshed.seen_at is not None
 
         second = self._get_dashboard(client, test_user)
-        assert 'dash-badge-popup' not in second.data.decode('utf-8')
+        assert 'id="dash-badge-popup"' not in second.data.decode('utf-8')
