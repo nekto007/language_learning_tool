@@ -438,6 +438,31 @@ class TestGetLinearPlanAssembly:
         assert 'linear_plan_deck_quiz' in srs['url']
 
 
+# ── continuation.srs_budget_exhausted ────────────────────────────────
+
+
+class TestContinuationSrsBudgetExhausted:
+    def test_fresh_budget_flag_false(self, db_session, curriculum_setup):
+        level = curriculum_setup['level']
+        user = _make_user(db_session, onboarding_level=level.code)
+        settings = StudySettings.get_settings(user.id)
+        settings.new_words_per_day = 10
+        db_session.commit()
+
+        payload = get_linear_plan(user.id, real_db)
+        assert payload['continuation']['srs_budget_exhausted'] is False
+
+    def test_zero_budget_flag_true(self, db_session, curriculum_setup):
+        level = curriculum_setup['level']
+        user = _make_user(db_session, onboarding_level=level.code)
+        settings = StudySettings.get_settings(user.id)
+        settings.new_words_per_day = 0
+        db_session.commit()
+
+        payload = get_linear_plan(user.id, real_db)
+        assert payload['continuation']['srs_budget_exhausted'] is True
+
+
 # ── compute_plan_steps for linear payload ────────────────────────────
 
 
