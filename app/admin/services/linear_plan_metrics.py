@@ -13,6 +13,9 @@ user base. Four aggregate ratios over the cohort of users with
   error-review trigger fires (≥5 unresolved quiz errors, cooldown elapsed).
 - ``book_select_rate`` — fraction of cohort users with a
   ``UserReadingPreference`` row.
+- ``reading_gate_completion_rate`` — fraction of cohort users who earned
+  ``linear_book_reading`` XP today (i.e. cleared the ≥5% delta + ≥60s
+  reading-time gate at least once).
 
 All metrics return floats in [0, 100] or absolute averages. When the
 cohort is empty the helpers short-circuit to 0 — callers can rely on a
@@ -180,6 +183,37 @@ def _error_review_trigger_rate(user_ids: list[int], session: Any) -> float:
     return round(triggered / len(user_ids) * 100, 1)
 
 
+def _reading_gate_completion_rate(
+    user_ids: list[int], today: date, session: Any
+) -> float:
+    """Fraction of cohort that earned ``linear_book_reading`` XP today.
+
+    The XP idempotency record is the canonical signal that the reading
+    gate (≥5% chapter delta AND ≥60s reading time) was satisfied at least
+    once today.
+    """
+    if not user_ids:
+        return 0.0
+
+    from app.achievements.models import StreakEvent
+
+    completed = 0
+    for chunk in chunk_ids(user_ids):
+        rows = (
+            session.query(StreakEvent.user_id)
+            .filter(
+                StreakEvent.user_id.in_(chunk),
+                StreakEvent.event_type == 'xp_linear',
+                StreakEvent.event_date == today,
+                StreakEvent.details['source'].astext == 'linear_book_reading',
+            )
+            .distinct()
+            .all()
+        )
+        completed += len(rows)
+    return round(completed / len(user_ids) * 100, 1)
+
+
 def _book_select_rate(user_ids: list[int], session: Any) -> float:
     if not user_ids:
         return 0.0
@@ -211,4 +245,5 @@ def get_linear_plan_metrics(session: Any = None, today: Optional[date] = None) -
         'average_slots_completed': _average_slots_completed(user_ids, eval_date, s),
         'error_review_trigger_rate': _error_review_trigger_rate(user_ids, s),
         'book_select_rate': _book_select_rate(user_ids, s),
+        'reading_gate_completion_rate': _reading_gate_completion_rate(user_ids, eval_date, s),
     }

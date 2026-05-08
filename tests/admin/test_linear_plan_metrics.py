@@ -226,6 +226,74 @@ class TestAverageSlotsCompleted:
         assert metrics['average_slots_completed'] == 0.0
 
 
+class TestReadingGateCompletionRate:
+    def _add_reading_xp_event(self, db_session, user_id, when):
+        from app.achievements.models import StreakEvent
+
+        db_session.add(
+            StreakEvent(
+                user_id=user_id,
+                event_type='xp_linear',
+                event_date=when,
+                coins_delta=0,
+                details={'source': 'linear_book_reading', 'xp': 15},
+            )
+        )
+
+    def test_empty_cohort_is_zero(self, app, db_session):
+        metrics = get_linear_plan_metrics(session=db_session)
+        assert metrics['reading_gate_completion_rate'] == 0.0
+
+    def test_no_xp_event_today_is_zero(self, app, db_session):
+        _make_user(db_session)
+        metrics = get_linear_plan_metrics(session=db_session)
+        assert metrics['reading_gate_completion_rate'] == 0.0
+
+    def test_single_user_with_event_fills_rate(self, app, db_session):
+        user = _make_user(db_session)
+        today = datetime.now(timezone.utc).date()
+        self._add_reading_xp_event(db_session, user.id, today)
+        db_session.commit()
+        metrics = get_linear_plan_metrics(session=db_session, today=today)
+        assert metrics['reading_gate_completion_rate'] == 100.0
+
+    def test_partial_completion_rate(self, app, db_session):
+        u1 = _make_user(db_session)
+        _make_user(db_session)
+        today = datetime.now(timezone.utc).date()
+        self._add_reading_xp_event(db_session, u1.id, today)
+        db_session.commit()
+        metrics = get_linear_plan_metrics(session=db_session, today=today)
+        assert metrics['reading_gate_completion_rate'] == 50.0
+
+    def test_yesterday_event_does_not_count(self, app, db_session):
+        user = _make_user(db_session)
+        today = datetime.now(timezone.utc).date()
+        yesterday = today - timedelta(days=1)
+        self._add_reading_xp_event(db_session, user.id, yesterday)
+        db_session.commit()
+        metrics = get_linear_plan_metrics(session=db_session, today=today)
+        assert metrics['reading_gate_completion_rate'] == 0.0
+
+    def test_other_xp_source_does_not_count(self, app, db_session):
+        from app.achievements.models import StreakEvent
+
+        user = _make_user(db_session)
+        today = datetime.now(timezone.utc).date()
+        db_session.add(
+            StreakEvent(
+                user_id=user.id,
+                event_type='xp_linear',
+                event_date=today,
+                coins_delta=0,
+                details={'source': 'linear_srs_global', 'xp': 8},
+            )
+        )
+        db_session.commit()
+        metrics = get_linear_plan_metrics(session=db_session, today=today)
+        assert metrics['reading_gate_completion_rate'] == 0.0
+
+
 class TestReturnShape:
     def test_returns_all_expected_keys(self, app, db_session):
         _make_user(db_session)
@@ -236,5 +304,6 @@ class TestReturnShape:
             'average_slots_completed',
             'error_review_trigger_rate',
             'book_select_rate',
+            'reading_gate_completion_rate',
         }
         assert expected.issubset(metrics.keys())
