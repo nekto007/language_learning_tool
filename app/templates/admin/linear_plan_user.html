@@ -1,0 +1,121 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}Linear Plan: {{ user.username }}{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Панель управления', url_for('admin.dashboard')),
+    ('Пользователи', url_for('user_admin.users')),
+    (user.username, url_for('user_admin.user_detail', user_id=user.id)),
+    ('Linear Plan', '')
+]) }}
+{% endblock %}
+
+{% block content %}
+{{ page_header('Linear Plan Inspector: ' + user.username, 'use_linear_plan = ' + (user.use_linear_plan|string)) }}
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Today's Plan</h5>
+    </div>
+    <div class="card-body">
+        {% if not user.use_linear_plan %}
+            <div class="alert alert-warning mb-0" data-testid="linear-disabled-notice">
+                Linear plan is <strong>disabled</strong> for this user.
+            </div>
+        {% elif plan_error %}
+            <div class="alert alert-danger mb-0">
+                Plan assembly failed: <code>{{ plan_error }}</code>
+            </div>
+        {% elif plan_payload %}
+            <div class="mb-3">
+                <strong>day_secured:</strong> {{ plan_payload.day_secured }}
+                | <strong>mode:</strong> {{ plan_payload.mode }}
+            </div>
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Slot kind</th>
+                        <th>Title</th>
+                        <th>Completed</th>
+                    </tr>
+                </thead>
+                <tbody data-testid="linear-slots-table">
+                    {% for slot in plan_payload.baseline_slots %}
+                        <tr>
+                            <td><code>{{ slot.kind }}</code></td>
+                            <td>{{ slot.title or '-' }}</td>
+                            <td>{{ slot.completed }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <em>No plan payload available.</em>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Recent Linear XP Events</h5>
+    </div>
+    <div class="card-body">
+        {% if recent_xp_events %}
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Created</th>
+                        <th>Event type</th>
+                        <th>Source</th>
+                        <th>XP</th>
+                    </tr>
+                </thead>
+                <tbody data-testid="linear-xp-events">
+                    {% for event in recent_xp_events %}
+                        <tr>
+                            <td>{{ event.created_at.strftime('%Y-%m-%d %H:%M') if event.created_at else '-' }}</td>
+                            <td><code>{{ event.event_type }}</code></td>
+                            <td>{{ (event.details or {}).get('source', '-') }}</td>
+                            <td>{{ (event.details or {}).get('xp', '-') }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <em data-testid="no-xp-events">No linear XP events recorded.</em>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Last 10 Quiz Errors</h5>
+    </div>
+    <div class="card-body">
+        {% if recent_errors %}
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Created</th>
+                        <th>Lesson ID</th>
+                        <th>Resolved</th>
+                    </tr>
+                </thead>
+                <tbody data-testid="quiz-error-rows">
+                    {% for err in recent_errors %}
+                        <tr>
+                            <td>{{ err.created_at.strftime('%Y-%m-%d %H:%M') if err.created_at else '-' }}</td>
+                            <td>{{ err.lesson_id }}</td>
+                            <td>{{ 'Да' if err.resolved_at else 'Нет' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <em data-testid="no-quiz-errors">No quiz errors logged.</em>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
