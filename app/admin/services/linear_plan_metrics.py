@@ -174,17 +174,25 @@ def _per_user_slot_counts(user_ids: list[int], today: date, session: Any) -> dic
     return counts
 
 
-def _average_slots_completed(user_ids: list[int], today: date, session: Any) -> float:
+def _average_slots_completed(
+    user_ids: list[int],
+    today: date,
+    session: Any,
+    slot_counts: Optional[dict[int, int]] = None,
+) -> float:
     """Proxy: count activity-completed baseline slots per user, average."""
     if not user_ids:
         return 0.0
-    counts = _per_user_slot_counts(user_ids, today, session)
+    counts = slot_counts if slot_counts is not None else _per_user_slot_counts(user_ids, today, session)
     total = sum(counts.values())
     return round(total / len(user_ids), 2)
 
 
 def _focus_distribution_and_avg_slots(
-    user_ids: list[int], today: date, session: Any
+    user_ids: list[int],
+    today: date,
+    session: Any,
+    slot_counts: Optional[dict[int, int]] = None,
 ) -> tuple[dict[str, int], dict[str, float]]:
     """Return (counts_per_focus, avg_slots_per_focus) over the cohort."""
     counts: dict[str, int] = {bucket: 0 for bucket in FOCUS_BUCKETS}
@@ -204,7 +212,8 @@ def _focus_distribution_and_avg_slots(
         for uid, raw in rows:
             user_focus[int(uid)] = _classify_focus(raw)
 
-    slot_counts = _per_user_slot_counts(user_ids, today, session)
+    if slot_counts is None:
+        slot_counts = _per_user_slot_counts(user_ids, today, session)
 
     for uid in user_ids:
         bucket = user_focus.get(uid, 'none')
@@ -374,12 +383,17 @@ def get_linear_plan_metrics(session: Any = None, today: Optional[date] = None) -
     s = session if session is not None else db.session
     eval_date = today if today is not None else _today_utc()
     user_ids = _cohort_user_ids(s)
-    focus_counts, focus_avg_slots = _focus_distribution_and_avg_slots(user_ids, eval_date, s)
+    slot_counts = _per_user_slot_counts(user_ids, eval_date, s)
+    focus_counts, focus_avg_slots = _focus_distribution_and_avg_slots(
+        user_ids, eval_date, s, slot_counts=slot_counts
+    )
 
     return {
         'cohort_size': len(user_ids),
         'day_secured_rate': _day_secured_rate(user_ids, eval_date, s),
-        'average_slots_completed': _average_slots_completed(user_ids, eval_date, s),
+        'average_slots_completed': _average_slots_completed(
+            user_ids, eval_date, s, slot_counts=slot_counts
+        ),
         'error_review_trigger_rate': _error_review_trigger_rate(user_ids, s),
         'error_review_completion_rate': _error_review_completion_rate(user_ids, eval_date, s),
         'book_select_rate': _book_select_rate(user_ids, s),

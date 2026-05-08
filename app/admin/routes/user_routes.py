@@ -142,6 +142,7 @@ def linear_plan_user_inspector(user_id):
         target_type='user',
         target_id=user_id,
     )
+    db.session.commit()
 
     plan_payload = None
     plan_error = None
