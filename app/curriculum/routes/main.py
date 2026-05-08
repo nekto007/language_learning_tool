@@ -136,6 +136,7 @@ def error_review_session():
         grammar_url = None
         theory_text = None
         common_mistakes = None
+        content: dict = {}
 
         if topic is not None:
             topic_title = topic.title_ru or topic.title
@@ -180,6 +181,7 @@ def error_review_session():
             'grammar_url': grammar_url,
             'theory_text': theory_text,
             'common_mistakes': common_mistakes,
+            'topic_content': content,
             'errors': errors_display,
             'error_ids': group['error_ids'],
         })

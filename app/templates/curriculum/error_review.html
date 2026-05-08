@@ -4,311 +4,344 @@
 {% block content %}
 <div class="er-page">
 
-  <div class="er-header">
-    <h1 class="er-title">Разбор ошибок</h1>
-    {% if total_errors %}
-    <div class="er-progress-wrap">
-      <div class="er-progress">
-        <div class="er-progress__fill" id="er-progress-fill" style="width:0%"></div>
-      </div>
-      <span class="er-progress__label" id="er-progress-label">0&thinsp;/&thinsp;…</span>
-    </div>
-    {% endif %}
-  </div>
-
   {% if not topic_groups %}
-    <div class="er-empty">
-      <p>Ошибок нет — возвращайтесь к урокам.</p>
-      <a href="/dashboard" class="btn btn--primary">На дашборд</a>
-    </div>
+  <div class="er-empty">
+    <p class="er-empty__text">Ошибок нет — возвращайтесь к урокам.</p>
+    <a href="/dashboard" class="btn btn--primary">На дашборд</a>
+  </div>
 
   {% else %}
-  <div id="error-review-container" data-completion-mode="standalone">
 
-    {% for group in topic_groups %}
-      {% for e in group.errors %}
-      {% set p = e.payload %}
-      {% set fill_target = p.fill_word or (p.correct_answer if p.correct_answer is string else '') %}
-      {% set is_mc    = p.question_type == 'multiple_choice' and p.options %}
-      {% set is_fill  = '___' in (p.question_text or '') and fill_target %}
-      {% set is_pairs = p.correct_answer is iterable and p.correct_answer is not string %}
-
-      <div class="er-card"
-           data-error-id="{{ e.id }}"
-           data-correct="{{ fill_target if not is_pairs else '' }}"
-           data-type="{{ p.question_type or '' }}">
-
-        {% if group.topic_title %}
-        <div class="er-card__topic">
-          {{ group.topic_title }}
-          {% if group.grammar_url %}
-          &middot; <a class="er-card__topic-link"
-                     href="{{ group.grammar_url }}"
-                     target="_blank" rel="noopener">теория</a>
-          {% endif %}
-        </div>
-        {% endif %}
-
-        {% if p.question_text %}
-        <p class="er-card__question">{{ p.question_text }}</p>
-        {% endif %}
-
-        {# ── Interactive input ── #}
-        {% if is_mc %}
-          <div class="er-options" role="group" aria-label="Варианты ответа">
-            {% for opt in p.options %}
-            <button class="er-opt" data-value="{{ opt }}" type="button">{{ opt }}</button>
-            {% endfor %}
-          </div>
-
-        {% elif is_fill %}
-          <div class="er-fill">
-            <input class="er-fill__input" type="text"
-                   placeholder="Вставьте пропущенное…"
-                   autocomplete="off" autocorrect="off"
-                   autocapitalize="off" spellcheck="false">
-            <button class="er-fill__btn btn btn--sm btn--outline" type="button">
-              Проверить
-            </button>
-          </div>
-
-        {% elif is_pairs %}
-          <ul class="er-pairs">
-            {% for pair in p.correct_answer %}
-            <li class="er-pair">{{ pair }}</li>
-            {% endfor %}
-          </ul>
-          <button class="er-self-ok btn btn--sm btn--outline" type="button">
-            Запомнил →
-          </button>
-
-        {% else %}
-          <div class="er-card__reveal">{{ p.correct_answer }}</div>
-          <button class="er-self-ok btn btn--sm btn--outline" type="button">
-            Понятно →
-          </button>
-        {% endif %}
-
-        {# ── Feedback block (hidden until answered) ── #}
-        <div class="er-card__fb" hidden>
-          <div class="er-card__fb-msg"></div>
-          {% if group.theory_text %}
-          <div class="er-card__hint" hidden>
-            <div class="er-card__hint-icon">📖</div>
-            <div class="er-card__hint-body">
-              <div class="er-card__hint-label">Правило</div>
-              <div class="er-card__hint-text">{{ group.theory_text }}</div>
-              {% if group.grammar_url %}
-              <a class="er-card__hint-link"
-                 href="{{ group.grammar_url }}"
-                 target="_blank" rel="noopener">Читать подробнее →</a>
-              {% endif %}
-            </div>
-          </div>
-          {% endif %}
-        </div>
-
-      </div>
-      {% endfor %}
-    {% endfor %}
-
-    <div class="er-footer">
-      <button type="button"
-              id="error-review-complete-btn"
-              class="btn btn--primary btn--lg">
-        Завершить разбор
-      </button>
-      <p id="error-review-status" class="er-footer__status"></p>
+  {# ── SCREEN 1: THEORY ── #}
+  <div id="er-screen-theory">
+    <div class="er-theory-header">
+      <h1 class="er-theory-header__title">Разбор ошибок</h1>
+      <p class="er-theory-header__sub">{{ total_errors }} вопрос{{ 'а' if total_errors in [2,3,4] else ('ов' if total_errors > 4 else '') }} · Изучите теорию и пройдите квиз</p>
     </div>
 
+    {% for group in topic_groups %}
+    {% if group.topic_title %}
+    <div class="er-theory-card">
+      <div class="er-theory-card__top">
+        <div>
+          <h2 class="er-theory-card__title">{{ group.topic_title }}</h2>
+          <span class="er-theory-card__count">{{ group.errors|length }} вопрос{{ 'а' if group.errors|length in [2,3,4] else ('ов' if group.errors|length > 4 else '') }}</span>
+        </div>
+        {% if group.grammar_url %}
+        <a class="er-theory-card__link" href="{{ group.grammar_url }}" target="_blank" rel="noopener">Полная теория →</a>
+        {% endif %}
+      </div>
+
+      {% set tc = group.topic_content %}
+
+      {# Introduction (prefer full content, fall back to telegram_summary) #}
+      {% if tc and tc.get('introduction') %}
+      <div class="er-theory-intro">{{ tc.get('introduction') }}</div>
+      {% elif group.theory_text %}
+      <div class="er-theory-intro">{{ group.theory_text }}</div>
+      {% endif %}
+
+      {# Sections #}
+      {% if tc %}
+      {% for section in tc.get('sections', []) %}
+      <div class="er-theory-section">
+        {% if section.get('title') %}
+        <h3 class="er-theory-section__title">{{ section.get('title') }}</h3>
+        {% endif %}
+        {% if section.get('content') %}
+        <p class="er-theory-section__text">{{ section.get('content') }}</p>
+        {% endif %}
+        {% if section.get('table') %}
+        <div class="er-theory-table-wrap">
+          <table class="er-theory-table">
+            {% for row in section.get('table') %}
+            <tr{% if loop.first %} class="er-theory-table__hrow"{% endif %}>
+              {% for cell in row %}<td>{{ cell }}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+        {% endif %}
+        {% if section.get('examples') %}
+        <ul class="er-theory-examples">
+          {% for ex in section.get('examples') %}<li>{{ ex }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {# Important notes #}
+      {% if tc and tc.get('important_notes') %}
+      <div class="er-theory-notes">
+        <strong>Важно знать:</strong>
+        <ul>
+          {% for note in tc.get('important_notes') %}<li>{{ note }}</li>{% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {# Common mistakes #}
+      {% if group.common_mistakes %}
+      <div class="er-theory-mistakes">
+        <div class="er-theory-mistakes__label">Типичные ошибки:</div>
+        {% for m in group.common_mistakes %}
+        <div class="er-mistake-row">
+          <span class="er-mk-wrong">✗ {{ m.get('wrong', '') }}</span>
+          <span class="er-mk-correct">✓ {{ m.get('correct', '') }}</span>
+          {% if m.get('explanation') %}<span class="er-mk-hint">{{ m.get('explanation') }}</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+
+    <div class="er-theory-cta">
+      <button class="btn btn--primary btn--lg" onclick="erStartQuiz()">Начать квиз →</button>
+    </div>
   </div>
+
+  {# ── SCREEN 2: QUIZ ── #}
+  <div id="er-screen-quiz" hidden>
+    <div class="er-quiz-header">
+      <div class="er-qprogress">
+        <div class="er-qprogress__bar">
+          <div class="er-qprogress__fill" id="erQFill" style="width:0%"></div>
+        </div>
+        <span class="er-qprogress__label" id="erQLabel">1 / …</span>
+      </div>
+    </div>
+
+    <div id="erQCard" class="er-qcard"></div>
+
+    <div id="erQFeedback" class="er-qfeedback" hidden>
+      <div id="erQFBMsg" class="er-qfb-msg"></div>
+      <div id="erQHint" class="er-qhint" hidden>
+        <div class="er-qhint__icon">📖</div>
+        <div class="er-qhint__body">
+          <div class="er-qhint__label">Правило</div>
+          <div id="erQHintText" class="er-qhint__text"></div>
+          <a id="erQHintLink" class="er-qhint__link" href="#" target="_blank" rel="noopener" hidden>Читать подробнее →</a>
+        </div>
+      </div>
+      <button class="btn btn--primary btn--sm" onclick="erNextQ()">Далее →</button>
+    </div>
+  </div>
+
+  {# ── SCREEN 3: RESULTS ── #}
+  <div id="er-screen-results" hidden>
+    <div class="er-results-page" id="error-review-container" data-completion-mode="standalone">
+      <div class="er-results-icon" id="erResIcon">🎉</div>
+      <h2 class="er-results-title" id="erResTitle">Квиз завершён!</h2>
+      <div class="er-results-score">
+        <span class="er-results-pct" id="erResPct">0%</span>
+        <span class="er-results-detail" id="erResDetail"></span>
+      </div>
+      <button id="error-review-complete-btn" class="btn btn--primary btn--lg">Завершить разбор</button>
+      <p id="error-review-status" class="er-results-status"></p>
+    </div>
+  </div>
+
   {% endif %}
 </div>
 
 <style>
-/* ── Layout ── */
-.er-page { max-width: 640px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
-.er-header { margin-bottom: 1.5rem; }
-.er-title  { font-size: 1.5rem; font-weight: 700; margin: 0 0 .875rem; }
-
-/* Progress bar */
-.er-progress-wrap { display: flex; align-items: center; gap: .75rem; }
-.er-progress {
-  flex: 1; height: 8px;
-  background: var(--color-border, #e0e0e0);
-  border-radius: 999px; overflow: hidden;
-}
-.er-progress__fill {
-  height: 100%;
-  background: var(--color-primary, #1a56db);
-  border-radius: 999px;
-  transition: width .35s ease;
-}
-.er-progress__label {
-  font-size: .8rem;
-  font-weight: 600;
-  color: var(--color-text-secondary, #666);
-  white-space: nowrap;
-}
-
-/* Empty state */
+/* ── Page ── */
+.er-page { max-width: 700px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
 .er-empty { text-align: center; padding: 3rem 1rem; }
-.er-empty p { margin-bottom: 1rem; color: var(--color-text-secondary, #666); }
+.er-empty__text { margin-bottom: 1rem; color: var(--color-text-secondary, #666); }
 
-/* ── Card ── */
-.er-card {
+/* ── THEORY ── */
+.er-theory-header { margin-bottom: 1.5rem; }
+.er-theory-header__title { font-size: 1.5rem; font-weight: 700; margin: 0 0 .375rem; }
+.er-theory-header__sub { font-size: .95rem; color: var(--color-text-secondary, #6b7280); margin: 0; }
+
+.er-theory-card {
   background: #fff;
   border: 1.5px solid var(--color-border, #e0e0e0);
   border-radius: 14px;
-  padding: 1.125rem 1.25rem;
-  margin-bottom: 1rem;
-  transition: border-color .2s, background .2s;
+  padding: 1.25rem 1.375rem;
+  margin-bottom: 1.25rem;
 }
-.er-card.is-done {
-  border-color: transparent;
-  background: var(--color-surface-raised, #f9f9f9);
+.er-theory-card__top {
+  display: flex; justify-content: space-between;
+  align-items: flex-start; gap: 1rem;
+  margin-bottom: .875rem;
+}
+.er-theory-card__title { font-size: 1.1rem; font-weight: 700; margin: 0 0 .2rem; }
+.er-theory-card__count { font-size: .8rem; color: var(--color-text-secondary, #6b7280); }
+.er-theory-card__link {
+  font-size: .85rem; font-weight: 600; white-space: nowrap; flex-shrink: 0;
+  color: var(--color-primary, #1a56db); text-decoration: none;
+}
+.er-theory-card__link:hover { text-decoration: underline; }
+
+.er-theory-intro {
+  font-size: .925rem; line-height: 1.65;
+  color: var(--color-text, #333);
+  margin-bottom: .875rem; white-space: pre-wrap;
 }
 
-.er-card__topic {
-  font-size: .73rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  color: var(--color-text-secondary, #999);
-  margin-bottom: .5rem;
-}
-.er-card__topic-link {
-  color: var(--color-primary, #1a56db);
-  text-decoration: none;
-  font-weight: 600;
-}
-.er-card__topic-link:hover { text-decoration: underline; }
+.er-theory-section { margin-bottom: .875rem; }
+.er-theory-section__title { font-size: .95rem; font-weight: 700; margin: 0 0 .375rem; }
+.er-theory-section__text { font-size: .9rem; line-height: 1.55; margin: 0 0 .5rem; }
 
-.er-card__question {
-  font-size: 1.05rem;
-  font-weight: 600;
-  line-height: 1.4;
-  margin: 0 0 .875rem;
-}
+.er-theory-table-wrap { overflow-x: auto; margin: .5rem 0 .75rem; }
+.er-theory-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.er-theory-table td { padding: .45rem .75rem; border: 1px solid var(--color-border, #e0e0e0); line-height: 1.4; }
+.er-theory-table__hrow td { background: var(--color-surface-raised, #f3f4f6); font-weight: 700; }
 
-/* ── MC options ── */
-.er-options { display: flex; flex-wrap: wrap; gap: .5rem; }
-.er-opt {
-  padding: .45rem 1.05rem;
-  border-radius: 8px;
-  border: 1.5px solid var(--color-border, #d0d0d0);
-  background: #fff;
-  cursor: pointer;
-  font-size: .9rem;
-  line-height: 1.3;
-  transition: border-color .12s, background .12s, color .12s;
-}
-.er-opt:hover:not(:disabled) {
-  border-color: var(--color-primary, #1a56db);
-  background: var(--color-primary-light, #e8f0fe);
-}
-.er-opt:disabled { cursor: default; }
-.er-opt.is-correct {
-  border-color: var(--color-success, #27ae60) !important;
-  background: #eafaf1 !important;
-  color: #1e8449;
-  font-weight: 700;
-}
-.er-opt.is-wrong {
-  border-color: var(--color-danger, #c0392b) !important;
-  background: #fdf0ef !important;
-  color: var(--color-danger, #c0392b);
-}
+.er-theory-examples { list-style: disc; padding-left: 1.25rem; margin: .375rem 0; font-size: .875rem; line-height: 1.6; }
+.er-theory-examples li { margin-bottom: .2rem; }
 
-/* ── Fill blank ── */
-.er-fill { display: flex; gap: .5rem; flex-wrap: wrap; }
-.er-fill__input {
-  flex: 1; min-width: 140px;
-  padding: .45rem .75rem;
-  border: 1.5px solid var(--color-border, #d0d0d0);
-  border-radius: 8px;
-  font-size: .95rem;
-  transition: border-color .15s;
-}
-.er-fill__input:focus { outline: none; border-color: var(--color-primary, #1a56db); }
-.er-fill__input.is-correct { border-color: var(--color-success, #27ae60); background: #eafaf1; }
-.er-fill__input.is-wrong   { border-color: var(--color-danger, #c0392b);  background: #fdf0ef; }
-.er-fill__input:disabled { opacity: .7; }
-
-/* ── Pairs ── */
-.er-pairs {
-  list-style: none; padding: 0; margin: 0 0 .75rem;
-  border: 1px solid var(--color-border, #e8e8e8);
-  border-radius: 8px; overflow: hidden;
-}
-.er-pair {
-  padding: .45rem .75rem;
-  font-size: .9rem;
-  border-bottom: 1px solid var(--color-border, #f0f0f0);
-}
-.er-pair:last-child { border-bottom: none; }
-
-/* ── Reveal ── */
-.er-card__reveal {
-  font-size: .95rem;
-  font-weight: 600;
-  color: var(--color-success, #27ae60);
-  margin-bottom: .625rem;
-}
-
-/* ── Feedback ── */
-.er-card__fb { margin-top: .875rem; }
-
-.er-card__fb-msg {
-  font-size: .9rem;
-  font-weight: 600;
-  padding: .35rem .7rem;
-  border-radius: 7px;
-  margin-bottom: .5rem;
-}
-.er-card__fb-msg.ok  { color: #1e8449; background: #eafaf1; }
-.er-card__fb-msg.err { color: var(--color-danger, #c0392b); background: #fdf0ef; }
-
-/* Grammar hint (shown only on wrong answer) */
-.er-card__hint {
-  display: flex;
-  gap: .625rem;
-  background: var(--color-info-bg, #f0f4ff);
-  border-left: 3px solid var(--color-primary, #1a56db);
+.er-theory-notes {
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
   border-radius: 0 8px 8px 0;
   padding: .625rem .875rem;
+  font-size: .875rem; margin-top: .5rem;
 }
-.er-card__hint-icon { font-size: 1rem; flex-shrink: 0; line-height: 1.5; }
-.er-card__hint-body { flex: 1; min-width: 0; }
-.er-card__hint-label {
-  font-size: .72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  color: var(--color-primary, #1a56db);
-  margin-bottom: .2rem;
-}
-.er-card__hint-text {
-  font-size: .875rem;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  color: var(--color-text, #333);
-}
-.er-card__hint-link {
-  display: inline-block;
-  margin-top: .35rem;
-  font-size: .8rem;
-  color: var(--color-primary, #1a56db);
-  text-decoration: none;
-}
-.er-card__hint-link:hover { text-decoration: underline; }
+.er-theory-notes ul { list-style: none; padding: 0; margin: .375rem 0 0; }
+.er-theory-notes li { margin-bottom: .25rem; }
 
-/* ── Footer ── */
-.er-footer {
-  padding: 1.25rem 0 0;
-  display: flex; flex-direction: column; gap: .5rem;
+.er-theory-mistakes { margin-top: .75rem; font-size: .875rem; }
+.er-theory-mistakes__label { font-weight: 700; margin-bottom: .375rem; }
+.er-mistake-row {
+  display: flex; flex-wrap: wrap; gap: .5rem;
+  padding: .35rem 0; border-top: 1px solid var(--color-border, #f0f0f0);
+  align-items: baseline;
 }
-.er-footer__status { font-size: .875rem; color: var(--color-text-secondary, #666); margin: 0; }
+.er-mk-wrong { color: var(--color-danger, #dc2626); }
+.er-mk-correct { color: var(--color-success, #16a34a); font-weight: 600; }
+.er-mk-hint { font-size: .8rem; color: var(--color-text-secondary, #6b7280); width: 100%; }
+
+.er-theory-cta { text-align: center; padding: 1.5rem 0 0; }
+
+/* ── QUIZ ── */
+.er-quiz-header { margin-bottom: 1.25rem; }
+.er-qprogress { display: flex; align-items: center; gap: .75rem; }
+.er-qprogress__bar {
+  flex: 1; height: 10px;
+  background: var(--color-border, #e5e7eb);
+  border-radius: 999px; overflow: hidden;
+}
+.er-qprogress__fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  border-radius: 999px; transition: width .4s ease;
+}
+.er-qprogress__label { font-size: .85rem; font-weight: 600; color: var(--color-text-secondary, #6b7280); white-space: nowrap; }
+
+.er-qcard {
+  background: #fff;
+  border: 1.5px solid var(--color-border, #e5e7eb);
+  border-radius: 16px;
+  padding: 1.75rem 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,.06);
+}
+.er-qcard__topic {
+  font-size: .73rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--color-text-secondary, #9ca3af);
+  margin-bottom: .625rem;
+}
+.er-qcard__question {
+  font-size: 1.2rem; font-weight: 600; line-height: 1.4;
+  color: #1f2937; margin: 0 0 1.25rem;
+}
+
+/* MC options */
+.er-qcard__options { display: flex; flex-direction: column; gap: .625rem; }
+.er-qopt {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .875rem 1rem;
+  background: #fff; border: 2px solid #e5e7eb; border-radius: 10px;
+  cursor: pointer; text-align: left; font-size: .95rem; width: 100%;
+  transition: border-color .15s, background .15s, transform .1s;
+}
+.er-qopt:hover:not(:disabled) { border-color: #10b981; background: #f0fdf4; transform: translateX(3px); }
+.er-qopt:disabled { cursor: default; }
+.er-qopt.is-correct { border-color: #10b981 !important; background: #d1fae5 !important; }
+.er-qopt.is-wrong   { border-color: #ef4444 !important; background: #fee2e2 !important; }
+.er-qopt__letter {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  background: #10b981; color: #fff; border-radius: 50%;
+  font-weight: 700; font-size: .85rem; flex-shrink: 0;
+  transition: background .15s;
+}
+.er-qopt.is-wrong .er-qopt__letter { background: #ef4444; }
+.er-qopt__text { flex: 1; color: #1f2937; line-height: 1.35; }
+
+/* Fill blank */
+.er-qcard__fill { display: flex; gap: .5rem; flex-wrap: wrap; }
+.er-qcard__input {
+  flex: 1; min-width: 160px;
+  padding: .6rem .875rem;
+  border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1rem;
+  transition: border-color .15s;
+}
+.er-qcard__input:focus { outline: none; border-color: #10b981; }
+.er-qcard__input.is-correct { border-color: #10b981; background: #f0fdf4; }
+.er-qcard__input.is-wrong   { border-color: #ef4444;  background: #fef2f2; }
+.er-qcard__input:disabled { opacity: .7; }
+
+/* Pairs */
+.er-qcard__pairs {
+  list-style: none; padding: 0; margin: 0 0 .875rem;
+  border: 1px solid var(--color-border, #e8e8e8);
+  border-radius: 10px; overflow: hidden;
+}
+.er-qcard__pair {
+  padding: .5rem .875rem; font-size: .9rem;
+  border-bottom: 1px solid var(--color-border, #f0f0f0);
+}
+.er-qcard__pair:last-child { border-bottom: none; }
+
+/* Reveal */
+.er-qcard__reveal { font-size: 1rem; font-weight: 600; color: #10b981; margin-bottom: .875rem; }
+
+/* Feedback */
+.er-qfeedback { display: flex; flex-direction: column; gap: .75rem; animation: erFadeIn .25s ease; }
+@keyframes erFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.er-qfb-msg { padding: .5rem .875rem; border-radius: 8px; font-size: .95rem; font-weight: 600; }
+.er-qfb-msg--ok  { background: #d1fae5; color: #065f46; }
+.er-qfb-msg--err { background: #fee2e2; color: #991b1b; }
+
+.er-qhint {
+  display: flex; gap: .625rem;
+  background: #eff6ff;
+  border-left: 3px solid #3b82f6;
+  border-radius: 0 10px 10px 0;
+  padding: .75rem 1rem;
+}
+.er-qhint__icon { font-size: 1rem; flex-shrink: 0; line-height: 1.5; }
+.er-qhint__body { flex: 1; min-width: 0; }
+.er-qhint__label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #3b82f6; margin-bottom: .25rem; }
+.er-qhint__text { font-size: .875rem; line-height: 1.55; white-space: pre-wrap; color: var(--color-text, #333); }
+.er-qhint__link { display: inline-block; margin-top: .35rem; font-size: .8rem; color: #3b82f6; text-decoration: none; }
+.er-qhint__link:hover { text-decoration: underline; }
+
+/* ── RESULTS ── */
+.er-results-page {
+  text-align: center; padding: 2.5rem 1rem;
+  display: flex; flex-direction: column; align-items: center; gap: 1rem;
+}
+.er-results-icon { font-size: 4rem; line-height: 1; }
+.er-results-title { font-size: 1.75rem; font-weight: 700; margin: 0; }
+.er-results-score { display: flex; flex-direction: column; align-items: center; gap: .25rem; margin-bottom: .5rem; }
+.er-results-pct { font-size: 4rem; font-weight: 800; color: #10b981; line-height: 1; }
+.er-results-detail { font-size: 1rem; color: var(--color-text-secondary, #6b7280); font-weight: 500; }
+.er-results-status { font-size: .875rem; color: var(--color-text-secondary, #666); margin: 0; }
+
+@media (max-width: 480px) {
+  .er-qcard { padding: 1.25rem 1rem; }
+  .er-theory-card { padding: 1rem; }
+  .er-qcard__question { font-size: 1.05rem; }
+}
 </style>
 
 <script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
@@ -317,142 +350,258 @@
   'use strict';
 
   var ALL_ERROR_IDS = {{ all_error_ids | tojson }};
-  var total         = document.querySelectorAll('.er-card').length;
-  var answered      = 0;
 
-  var progressFill  = document.getElementById('er-progress-fill');
-  var progressLabel = document.getElementById('er-progress-label');
-  if (progressLabel) progressLabel.textContent = '0\u202f/\u202f' + total;
+  var QUESTIONS = [
+    {% for group in topic_groups %}{% for e in group.errors %}
+    {% set p = e.payload %}
+    {% set fill_target = p.fill_word or (p.correct_answer if p.correct_answer is string else '') %}
+    {% set is_mc    = p.question_type == 'multiple_choice' and p.options %}
+    {% set is_fill  = '___' in (p.question_text or '') and fill_target %}
+    {% set is_pairs = p.correct_answer is iterable and p.correct_answer is not string %}
+    {% if is_mc %}{% set kind = 'mc' %}{% elif is_fill %}{% set kind = 'fill' %}{% elif is_pairs %}{% set kind = 'pairs' %}{% else %}{% set kind = 'reveal' %}{% endif %}
+    {
+      id: {{ e.id }},
+      kind: {{ kind | tojson }},
+      text: {{ (p.question_text or '') | tojson }},
+      options: {{ (p.options or []) | tojson }},
+      correct: {{ fill_target | tojson }},
+      pairs: {{ (p.correct_answer if is_pairs else []) | tojson }},
+      topicTitle: {{ (group.topic_title or '') | tojson }},
+      theoryText: {{ (group.theory_text or '') | tojson }},
+      grammarUrl: {{ (group.grammar_url or '') | tojson }},
+    },
+    {% endfor %}{% endfor %}
+  ];
 
-  function _tick() {
-    answered++;
-    if (progressFill)
-      progressFill.style.width = (total > 0 ? Math.round(answered / total * 100) : 0) + '%';
-    if (progressLabel)
-      progressLabel.textContent = answered + '\u202f/\u202f' + total;
+  var currentQ    = 0;
+  var correctCount = 0;
+  var total       = QUESTIONS.length;
+
+  /* ── Screen switching ── */
+  function show(id) {
+    ['er-screen-theory', 'er-screen-quiz', 'er-screen-results'].forEach(function (sid) {
+      var el = document.getElementById(sid);
+      if (el) el.hidden = (sid !== id);
+    });
   }
 
-  function _norm(s) {
-    return String(s || '').trim().toLowerCase().replace(/[.,!?;:'"()\-]/g, '').replace(/\s+/g, ' ');
-  }
+  /* ── Start button ── */
+  window.erStartQuiz = function () {
+    if (total === 0) { show('er-screen-results'); erShowResults(); return; }
+    show('er-screen-quiz');
+    erRenderQ(0);
+  };
 
-  function _showFeedback(card, ok, correctStr) {
-    var fb   = card.querySelector('.er-card__fb');
-    var msg  = card.querySelector('.er-card__fb-msg');
-    var hint = card.querySelector('.er-card__hint');
-    if (!msg) return;
+  /* ── Render one question ── */
+  function erRenderQ(idx) {
+    currentQ = idx;
+    var q    = QUESTIONS[idx];
 
-    if (ok) {
-      msg.textContent = '✅ Верно!';
-      msg.className   = 'er-card__fb-msg ok';
-    } else {
-      var shown = correctStr || card.dataset.correct || '';
-      msg.textContent = '❌ Правильно: ' + shown;
-      msg.className   = 'er-card__fb-msg err';
-      if (hint) hint.hidden = false;
+    var fb = document.getElementById('erQFeedback');
+    if (fb) fb.hidden = true;
+
+    var pct = total > 0 ? Math.round(idx / total * 100) : 0;
+    var fillEl  = document.getElementById('erQFill');
+    var labelEl = document.getElementById('erQLabel');
+    if (fillEl)  fillEl.style.width = pct + '%';
+    if (labelEl) labelEl.textContent = (idx + 1) + '\u202f/\u202f' + total;
+
+    var html = '';
+    if (q.topicTitle) {
+      html += '<div class="er-qcard__topic">' + esc(q.topicTitle) + '</div>';
     }
-    if (fb) fb.hidden = false;
-    card.classList.add('is-done');
-    _tick();
+    html += '<p class="er-qcard__question">' + esc(q.text) + '</p>';
+
+    var letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    if (q.kind === 'mc') {
+      html += '<div class="er-qcard__options">';
+      q.options.forEach(function (opt, i) {
+        html += '<button class="er-qopt" data-value="' + ea(opt) + '" onclick="erPickMC(this)">' +
+          '<span class="er-qopt__letter">' + (letters[i] || String(i + 1)) + '</span>' +
+          '<span class="er-qopt__text">' + esc(opt) + '</span></button>';
+      });
+      html += '</div>';
+    } else if (q.kind === 'fill') {
+      html += '<div class="er-qcard__fill">' +
+        '<input class="er-qcard__input" type="text" placeholder="Вставьте пропущенное…"' +
+        ' autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">' +
+        '<button class="btn btn--outline btn--sm" onclick="erCheckFill()">Проверить</button>' +
+        '</div>';
+    } else if (q.kind === 'pairs') {
+      html += '<ul class="er-qcard__pairs">';
+      q.pairs.forEach(function (pair) { html += '<li class="er-qcard__pair">' + esc(pair) + '</li>'; });
+      html += '</ul>';
+      html += '<button class="btn btn--outline btn--sm" onclick="erSelfOk()">Запомнил →</button>';
+    } else {
+      html += '<div class="er-qcard__reveal">' + esc(q.correct) + '</div>';
+      html += '<button class="btn btn--outline btn--sm" onclick="erSelfOk()">Понятно →</button>';
+    }
+
+    var card = document.getElementById('erQCard');
+    card.innerHTML = html;
+
+    if (q.kind === 'fill') {
+      var inp = card.querySelector('.er-qcard__input');
+      if (inp) {
+        inp.focus();
+        inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') erCheckFill(); });
+      }
+    }
   }
 
   /* ── Multiple choice ── */
-  document.querySelectorAll('.er-options').forEach(function (group) {
-    group.querySelectorAll('.er-opt').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var card    = btn.closest('.er-card');
-        var correct = card.dataset.correct;
-        var ok      = _norm(btn.dataset.value) === _norm(correct);
-
-        group.querySelectorAll('.er-opt').forEach(function (b) {
-          b.disabled = true;
-          if (_norm(b.dataset.value) === _norm(correct)) b.classList.add('is-correct');
-          else if (b === btn && !ok)                     b.classList.add('is-wrong');
-        });
-
-        _showFeedback(card, ok);
-      });
+  window.erPickMC = function (btn) {
+    var q    = QUESTIONS[currentQ];
+    var opts = btn.closest('.er-qcard__options').querySelectorAll('.er-qopt');
+    var ok   = norm(btn.dataset.value) === norm(q.correct);
+    opts.forEach(function (b) {
+      b.disabled = true;
+      b.onclick  = null;
+      if (norm(b.dataset.value) === norm(q.correct)) b.classList.add('is-correct');
+      else if (b === btn && !ok)                      b.classList.add('is-wrong');
     });
-  });
+    if (ok) correctCount++;
+    erShowFB(ok);
+  };
 
   /* ── Fill blank ── */
-  document.querySelectorAll('.er-fill').forEach(function (fill) {
-    var input = fill.querySelector('.er-fill__input');
-    var btn   = fill.querySelector('.er-fill__btn');
-    if (!input || !btn) return;
-
-    function check() {
-      var card    = fill.closest('.er-card');
-      var correct = card.dataset.correct;
-      var ok      = _norm(input.value) === _norm(correct);
-      input.disabled = btn.disabled = true;
-      input.classList.add(ok ? 'is-correct' : 'is-wrong');
-      _showFeedback(card, ok, correct);
-    }
-
-    btn.addEventListener('click', check);
-    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') check(); });
-  });
+  window.erCheckFill = function () {
+    var q   = QUESTIONS[currentQ];
+    var inp = document.querySelector('.er-qcard__input');
+    if (!inp || inp.disabled) return;
+    var checkBtn = inp.nextElementSibling;
+    inp.disabled = true;
+    if (checkBtn) checkBtn.disabled = true;
+    var ok = norm(inp.value) === norm(q.correct);
+    inp.classList.add(ok ? 'is-correct' : 'is-wrong');
+    if (ok) correctCount++;
+    erShowFB(ok, q.correct);
+  };
 
   /* ── Self-check (pairs / reveal) ── */
-  document.querySelectorAll('.er-self-ok').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      btn.disabled = true;
-      _showFeedback(btn.closest('.er-card'), true);
-    });
-  });
+  window.erSelfOk = function () {
+    correctCount++;
+    erShowFB(true);
+  };
 
-  /* ── Complete button ── */
-  var container   = document.getElementById('error-review-container');
-  var completeBtn = document.getElementById('error-review-complete-btn');
-  var statusEl    = document.getElementById('error-review-status');
-  if (!completeBtn) return;
+  /* ── Feedback ── */
+  function erShowFB(ok, correctStr) {
+    var q        = QUESTIONS[currentQ];
+    var fb       = document.getElementById('erQFeedback');
+    var msg      = document.getElementById('erQFBMsg');
+    var hint     = document.getElementById('erQHint');
+    var hintText = document.getElementById('erQHintText');
+    var hintLink = document.getElementById('erQHintLink');
 
-  function _isPlanAware() {
-    try {
-      return !!(window.linearPlanContext &&
-                window.linearPlanContext.isActive() &&
-                window.linearPlanContext.getSlotKind() === 'error_review');
-    } catch (e) { return false; }
+    if (ok) {
+      msg.textContent = '✅ Верно!';
+      msg.className   = 'er-qfb-msg er-qfb-msg--ok';
+      if (hint) hint.hidden = true;
+    } else {
+      var shown = correctStr || q.correct || '';
+      msg.textContent = '❌ Правильно: ' + shown;
+      msg.className   = 'er-qfb-msg er-qfb-msg--err';
+      if (hint && hintText && q.theoryText) {
+        hintText.textContent = q.theoryText;
+        if (hintLink) {
+          hintLink.href   = q.grammarUrl || '#';
+          hintLink.hidden = !q.grammarUrl;
+        }
+        hint.hidden = false;
+      } else if (hint) {
+        hint.hidden = true;
+      }
+    }
+    if (fb) fb.hidden = false;
   }
 
-  completeBtn.addEventListener('click', function () {
-    completeBtn.disabled = true;
-    completeBtn.classList.add('btn--loading');
+  /* ── Next question ── */
+  window.erNextQ = function () {
+    var next = currentQ + 1;
+    if (next >= total) {
+      erShowResults();
+    } else {
+      erRenderQ(next);
+    }
+  };
 
-    var tok = document.querySelector('meta[name="csrf-token"]');
-    var headers = { 'Content-Type': 'application/json' };
-    if (tok) headers['X-CSRFToken'] = tok.getAttribute('content');
+  /* ── Results ── */
+  function erShowResults() {
+    show('er-screen-results');
+    var pct = total > 0 ? Math.round(correctCount / total * 100) : 100;
+    var resEl = document.getElementById('erResPct');
+    var detEl = document.getElementById('erResDetail');
+    var icoEl = document.getElementById('erResIcon');
+    var ttlEl = document.getElementById('erResTitle');
+    if (resEl) resEl.textContent = pct + '%';
+    if (detEl) detEl.textContent = correctCount + ' из ' + total + ' верно';
+    if (icoEl) icoEl.textContent = pct >= 80 ? '🎉' : pct >= 50 ? '👍' : '📚';
+    if (ttlEl) ttlEl.textContent = pct >= 80 ? 'Отлично!' : pct >= 50 ? 'Хороший результат!' : 'Продолжайте практиковаться!';
+  }
 
-    fetch('/api/daily-plan/error-review/complete', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: headers,
-      body: JSON.stringify({ error_ids: ALL_ERROR_IDS }),
-    })
-      .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
-      .then(function () {
-        function _done() {
-          try {
-            if (window.linearPlanContext && typeof window.linearPlanContext.clear === 'function')
-              window.linearPlanContext.clear();
-          } catch (e) {}
-          if (statusEl) statusEl.textContent = 'Готово. Возвращаемся на дашборд.';
-          window.location.href = '/dashboard';
-        }
-        if (_isPlanAware() && window.linearPlanContext.applyErrorReviewPlanAwareCompletion) {
-          return window.linearPlanContext
-            .applyErrorReviewPlanAwareCompletion(container)
-            .then(function (mode) { if (mode !== 'plan') _done(); });
-        }
-        _done();
+  /* ── Helpers ── */
+  function norm(s) {
+    return String(s || '').trim().toLowerCase().replace(/[.,!?;:'"()\-]/g, '').replace(/\s+/g, ' ');
+  }
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function ea(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  }
+
+  /* ── Complete button ── */
+  var completeBtn = document.getElementById('error-review-complete-btn');
+  var statusEl    = document.getElementById('error-review-status');
+  var container   = document.getElementById('error-review-container');
+
+  if (completeBtn) {
+    completeBtn.addEventListener('click', function () {
+      completeBtn.disabled = true;
+      completeBtn.classList.add('btn--loading');
+
+      var tok = document.querySelector('meta[name="csrf-token"]');
+      var headers = { 'Content-Type': 'application/json' };
+      if (tok) headers['X-CSRFToken'] = tok.getAttribute('content');
+
+      fetch('/api/daily-plan/error-review/complete', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: headers,
+        body: JSON.stringify({ error_ids: ALL_ERROR_IDS }),
       })
-      .catch(function () {
-        if (statusEl) statusEl.textContent = 'Не удалось сохранить. Попробуйте ещё раз.';
-        completeBtn.disabled = false;
-        completeBtn.classList.remove('btn--loading');
-      });
-  });
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+        .then(function () {
+          function _done() {
+            try {
+              if (window.linearPlanContext && typeof window.linearPlanContext.clear === 'function')
+                window.linearPlanContext.clear();
+            } catch (e) {}
+            if (statusEl) statusEl.textContent = 'Готово. Возвращаемся на дашборд.';
+            window.location.href = '/dashboard';
+          }
+          function _isPlanAware() {
+            try {
+              return !!(window.linearPlanContext &&
+                        window.linearPlanContext.isActive() &&
+                        window.linearPlanContext.getSlotKind() === 'error_review');
+            } catch (e) { return false; }
+          }
+          if (_isPlanAware() && window.linearPlanContext.applyErrorReviewPlanAwareCompletion) {
+            return window.linearPlanContext
+              .applyErrorReviewPlanAwareCompletion(container)
+              .then(function (mode) { if (mode !== 'plan') _done(); });
+          }
+          _done();
+        })
+        .catch(function () {
+          if (statusEl) statusEl.textContent = 'Не удалось сохранить. Попробуйте ещё раз.';
+          completeBtn.disabled = false;
+          completeBtn.classList.remove('btn--loading');
+        });
+    });
+  }
 })();
 </script>
 {% endblock %}
