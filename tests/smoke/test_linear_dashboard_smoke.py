@@ -337,7 +337,14 @@ def test_scenario_3_first_entry_shows_select_book_and_modal(
     _seed_user_activity(db_session, test_user)
     _login(client, test_user)
 
-    plan = _linear_plan(reading_needs_selection=True)
+    # Reading is the 3rd slot; in the sequential chain it stays locked until
+    # earlier slots complete. Mark them done so the reading slot is current
+    # and the select-book CTA is actually rendered (instead of a lock badge).
+    plan = _linear_plan(
+        curriculum_done=True,
+        srs_done=True,
+        reading_needs_selection=True,
+    )
     with patch(
         'app.daily_plan.service.get_daily_plan_unified', return_value=plan,
     ):

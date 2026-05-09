@@ -160,11 +160,52 @@
         return !!anchor;
     }
 
+    /* Locked-slot click guard.
+     *
+     * In the infinite chain only the first incomplete slot is current; every
+     * later slot renders with `data-slot-state="locked"` and shows a lock
+     * badge instead of an action link. If a user manages to click anywhere
+     * inside a locked slot, swallow the click and surface a small toast so
+     * they understand why nothing happened.
+     */
+    var TOAST_ID = 'linear-locked-toast';
+    var _toastTimer = null;
+
+    function _showLockedToast(message) {
+        var toast = document.getElementById(TOAST_ID);
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = TOAST_ID;
+            toast.className = 'linear-locked-toast';
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
+            document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        toast.classList.add('linear-locked-toast--visible');
+        if (_toastTimer) clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(function () {
+            toast.classList.remove('linear-locked-toast--visible');
+        }, 2400);
+    }
+
+    function _findLockedSlot(target) {
+        if (!target || !target.closest) return null;
+        return target.closest('[data-slot-state="locked"]');
+    }
+
     document.addEventListener('click', function (event) {
         var closeTarget = event.target.closest && event.target.closest('[data-linear-close="' + MODAL_ID + '"]');
         if (closeTarget) {
             event.preventDefault();
             closeModal();
+            return;
+        }
+        var lockedSlot = _findLockedSlot(event.target);
+        if (lockedSlot) {
+            event.preventDefault();
+            event.stopPropagation();
+            _showLockedToast('Сначала завершите предыдущее задание');
             return;
         }
         if (isLinearReadingTrigger(event.target)) {

@@ -77,12 +77,12 @@
 - Modify: `app/static/js/linear-daily-plan.js`
 - Create: `tests/templates/test_linear_plan_partial.py` (или smoke-test через dashboard)
 
-- [ ] в Jinja-цикле слотов: первый незавершённый = current (как сейчас), все последующие = locked (новое состояние) вместо pending
-- [ ] для locked: убрать ссылку/кнопку "Начать", показать иконку замка + текст "Откроется после завершения предыдущего"
-- [ ] добавить класс `linear-slot--locked` в design-system.css (приглушённый стиль, cursor not-allowed, без hover)
-- [ ] JS: при клике на locked слот — preventDefault + ненавязчивый toast "Сначала завершите предыдущее задание"
-- [ ] тест на рендер: после завершения первого слота — второй становится current, третий locked
-- [ ] pytest зелёный
+- [x] в Jinja-цикле слотов: первый незавершённый = current (как сейчас), все последующие = locked (новое состояние) вместо pending
+- [x] для locked: убрать ссылку/кнопку "Начать", показать иконку замка + текст "Откроется после завершения предыдущего"
+- [x] добавить класс `linear-slot--locked` в design-system.css (приглушённый стиль, cursor not-allowed, без hover)
+- [x] JS: при клике на locked слот — preventDefault + ненавязчивый toast "Сначала завершите предыдущее задание"
+- [x] тест на рендер: после завершения первого слота — второй становится current, третий locked
+- [x] pytest зелёный
 
 ### Task 5: Chain-extension UX cues
 

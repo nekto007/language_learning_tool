@@ -142,8 +142,9 @@ class TestLinearPlanSlots:
         assert 'linear-slot--done' in html
         # Second slot: current (first incomplete)
         assert 'linear-slot--current' in html
-        # Third slot: pending (not current, not done)
-        assert 'linear-slot--pending' in html
+        # Third slot: locked (not current, not done) — sequential chain
+        assert 'linear-slot--locked' in html
+        assert 'data-linear-locked="true"' in html
 
     def test_slot_order_preserved(self, app):
         plan = _plan(slots=[
@@ -158,9 +159,11 @@ class TestLinearPlanSlots:
         assert i_curr < i_srs < i_read
 
     def test_reading_slot_select_book_triggers_modal(self, app):
+        # Reading slot needs to be current (or at least not locked) for the
+        # select-book CTA to render — earlier chain slots are completed here.
         plan = _plan(slots=[
-            _slot('curriculum', url='/c'),
-            _slot('srs', url='/s', data={'due_count': 1}),
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, url='/s', data={'due_count': 1}),
             _slot('reading', url='#book-select-modal', title='Выбрать книгу',
                   data={'needs_selection': True}),
         ])
@@ -223,6 +226,45 @@ class TestLinearPlanSlots:
         html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
         assert 'linear-slot__btn--primary' in html
         assert 'Начать' in html
+
+    def test_locked_slots_appear_after_current(self, app):
+        plan = _plan(slots=[
+            _slot('curriculum', url='/c'),
+            _slot('srs', url='/s', data={'due_count': 3}),
+            _slot('reading', url='/r'),
+        ])
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        # Only the first incomplete slot is current; the rest are locked.
+        assert html.count('linear-slot--current') == 1
+        assert html.count('linear-slot--locked') == 2
+        # Locked slots show the lock badge text instead of an action link.
+        assert 'Откроется после завершения предыдущего' in html
+        # Locked slots do NOT render Start/Open buttons.
+        srs_slot = html.split('data-slot-kind="srs"')[1].split('data-slot-kind="reading"')[0]
+        assert 'linear-slot__btn' not in srs_slot
+        assert 'data-linear-locked="true"' in srs_slot
+
+    def test_completing_first_slot_shifts_current_and_locked(self, app):
+        """When the first slot completes, the second becomes current and the
+        third becomes locked — sequential chain progression."""
+        plan = _plan(slots=[
+            _slot('curriculum', url='/c'),
+            _slot('srs', url='/s', data={'due_count': 3}),
+            _slot('reading', url='/r'),
+        ])
+        # Promote curriculum via plan_completion to simulate finishing it.
+        html = _render(app, {
+            'linear_plan': plan,
+            'plan_completion': {'curriculum': True},
+        })
+        # First → done, second → current, third → locked.
+        first_current_pos = html.index('linear-slot--current')
+        first_done_pos = html.index('linear-slot--done')
+        first_locked_pos = html.index('linear-slot--locked')
+        assert first_done_pos < first_current_pos < first_locked_pos
+        # The locked slot is the reading slot (last in the chain).
+        reading_segment = html.split('data-slot-kind="reading"')[1]
+        assert 'data-slot-state="locked"' in reading_segment
 
     def test_plan_completion_promotes_slot_to_done(self, app):
         """When plan_completion flags a kind done, the slot renders as done

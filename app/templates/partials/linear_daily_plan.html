@@ -207,7 +207,7 @@
                 {% set _state = 'current' %}
                 {% set lns.current_found = true %}
             {% else %}
-                {% set _state = 'pending' %}
+                {% set _state = 'locked' %}
             {% endif %}
 
             {% set _kind = slot.kind %}
@@ -334,6 +334,13 @@
                         <span class="linear-slot__badge linear-slot__badge--muted">Нет слов</span>
                         {% elif _completed %}
                         <span class="linear-slot__badge linear-slot__badge--done">Готово &#10003;</span>
+                        {% elif _state == 'locked' %}
+                        <span class="linear-slot__badge linear-slot__badge--locked"
+                              data-linear-locked="true"
+                              aria-label="Заблокировано — завершите предыдущее задание">
+                            <span class="linear-slot__lock-icon" aria-hidden="true">&#128274;</span>
+                            <span class="linear-slot__lock-text">Откроется после завершения предыдущего</span>
+                        </span>
                         {% elif _needs_selection %}
                         <a href="#book-select-modal"
                            class="linear-slot__btn"
