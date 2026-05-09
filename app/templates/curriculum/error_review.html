@@ -88,9 +88,13 @@
         <div class="er-theory-table-wrap">
           <table class="er-theory-table">
             {% for row in section.get('table') %}
+            {% if row is mapping %}
             <tr{% if loop.first %} class="er-theory-table__hrow"{% endif %}>
-              {% for cell in row %}<td>{{ cell }}</td>{% endfor %}
+              {% for key, val in row.items() if key != 'audio' %}
+              <td>{% if loop.first %}<strong>{{ val }}</strong>{% else %}{{ val }}{% endif %}</td>
+              {% endfor %}
             </tr>
+            {% endif %}
             {% endfor %}
           </table>
         </div>
