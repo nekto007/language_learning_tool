@@ -30,11 +30,17 @@ from app.utils.db import db as real_db
 def _record_reading_xp_event(
     db_session, user: User, *, when: datetime | None = None
 ) -> StreakEvent:
-    ts = when or datetime.now(timezone.utc)
+    from app.daily_plan.linear.xp import get_linear_event_local_date
+    from app.utils.db import db as real_db
+
+    if when is None:
+        event_date = get_linear_event_local_date(user.id, real_db)
+    else:
+        event_date = when.date()
     event = StreakEvent(
         user_id=user.id,
         event_type=LINEAR_XP_EVENT_TYPE,
-        event_date=ts.date(),
+        event_date=event_date,
         coins_delta=0,
         details={'source': 'linear_book_reading', 'xp': 15},
     )
@@ -247,6 +253,144 @@ class TestCompletedToday:
 
         slot = build_reading_slot(user.id, real_db)
         assert slot.completed is False
+
+
+class TestReadingTimeGate:
+    def test_no_preference_has_no_gate_fields(self, db_session):
+        user = _make_user(db_session)
+        slot = build_reading_slot(user.id, real_db)
+        assert 'time_spent_seconds' not in slot.data
+        assert 'gate_seconds' not in slot.data
+        assert 'gate_reached' not in slot.data
+
+    def test_zero_seconds_when_no_sessions(self, db_session):
+        user = _make_user(db_session)
+        book = _make_book(db_session)
+        _set_preference(db_session, user, book)
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert slot.data['time_spent_seconds'] == 0
+        assert slot.data['gate_seconds'] == 60
+        assert slot.data['gate_reached'] is False
+
+    def test_partial_seconds_below_gate(self, db_session):
+        from app.books.reading_session import UserReadingSession
+
+        user = _make_user(db_session)
+        book = _make_book(db_session)
+        _set_preference(db_session, user, book)
+        chapter = book.chapters[0]
+        now = datetime.now(timezone.utc)
+        db_session.add(UserReadingSession(
+            user_id=user.id,
+            chapter_id=chapter.id,
+            started_at=now - timedelta(seconds=30),
+            ended_at=now,
+            start_offset_pct=0.0,
+            offset_delta=0.0,
+        ))
+        db_session.commit()
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert 28 <= slot.data['time_spent_seconds'] <= 32
+        assert slot.data['gate_reached'] is False
+
+    def test_gate_reached_with_sufficient_time(self, db_session):
+        from app.books.reading_session import UserReadingSession
+
+        user = _make_user(db_session)
+        book = _make_book(db_session)
+        _set_preference(db_session, user, book)
+        chapter = book.chapters[0]
+        now = datetime.now(timezone.utc)
+        db_session.add(UserReadingSession(
+            user_id=user.id,
+            chapter_id=chapter.id,
+            started_at=now - timedelta(seconds=120),
+            ended_at=now,
+            start_offset_pct=0.0,
+            offset_delta=0.0,
+        ))
+        db_session.commit()
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert slot.data['time_spent_seconds'] >= 60
+        assert slot.data['gate_reached'] is True
+
+
+class TestLevelMismatch:
+    @staticmethod
+    def _seed_levels(db_session):
+        from app.curriculum.models import CEFRLevel
+
+        existing = {
+            row.code for row in db_session.query(CEFRLevel.code).all()
+        }
+        codes_orders = [
+            ('A0', 0), ('A1', 1), ('A2', 2),
+            ('B1', 3), ('B2', 4), ('C1', 5), ('C2', 6),
+        ]
+        for code, order in codes_orders:
+            if code not in existing:
+                db_session.add(
+                    CEFRLevel(code=code, name=f'Level {code}', description='x', order=order)
+                )
+        db_session.commit()
+
+    def test_in_range_no_flags(self, db_session):
+        self._seed_levels(db_session)
+        user = _make_user(db_session)
+        user.onboarding_level = 'A2'
+        db_session.commit()
+        book = _make_book(db_session, level='A2')
+        _set_preference(db_session, user, book)
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert slot.data['level_too_hard'] is False
+        assert slot.data['level_too_easy'] is False
+
+    def test_book_too_hard(self, db_session):
+        self._seed_levels(db_session)
+        user = _make_user(db_session)
+        user.onboarding_level = 'A1'
+        db_session.commit()
+        book = _make_book(db_session, level='B1')  # gap = 2
+        _set_preference(db_session, user, book)
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert slot.data['level_too_hard'] is True
+        assert slot.data['level_too_easy'] is False
+
+    def test_book_too_easy(self, db_session):
+        self._seed_levels(db_session)
+        user = _make_user(db_session)
+        user.onboarding_level = 'C1'
+        db_session.commit()
+        book = _make_book(db_session, level='A2')  # gap = -3
+        _set_preference(db_session, user, book)
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert slot.data['level_too_hard'] is False
+        assert slot.data['level_too_easy'] is True
+
+    def test_one_level_gap_no_warning(self, db_session):
+        self._seed_levels(db_session)
+        user = _make_user(db_session)
+        user.onboarding_level = 'A2'
+        db_session.commit()
+        book = _make_book(db_session, level='B1')  # gap = 1
+        _set_preference(db_session, user, book)
+
+        slot = build_reading_slot(user.id, real_db)
+
+        assert slot.data['level_too_hard'] is False
+        assert slot.data['level_too_easy'] is False
 
 
 class TestPlanIntegration:

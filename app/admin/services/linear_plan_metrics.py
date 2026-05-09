@@ -13,6 +13,21 @@ user base. Four aggregate ratios over the cohort of users with
   error-review trigger fires (≥5 unresolved quiz errors, cooldown elapsed).
 - ``book_select_rate`` — fraction of cohort users with a
   ``UserReadingPreference`` row.
+- ``reading_gate_completion_rate`` — fraction of cohort users who earned
+  ``linear_book_reading`` XP today (i.e. cleared the ≥5% delta + ≥60s
+  reading-time gate at least once).
+- ``error_review_completion_rate`` — among cohort users with enough
+  unresolved errors to qualify for the slot today (≥5 unresolved), the
+  fraction who resolved at least one ``QuizErrorLog`` row today.
+  Cooldown is intentionally ignored in the denominator so that users
+  who *did* resolve work today are counted in both numerator and
+  denominator. 0 when nobody qualifies.
+
+- ``focus_distribution`` — count of cohort users in each
+  ``onboarding_focus`` bucket (``grammar``/``vocabulary``/``reading``/
+  ``all``/``none``).
+- ``focus_average_slots`` — average ``slot_count`` per focus bucket
+  (0.0 when the bucket is empty).
 
 All metrics return floats in [0, 100] or absolute averages. When the
 cohort is empty the helpers short-circuit to 0 — callers can rely on a
@@ -28,7 +43,10 @@ from sqlalchemy import case, func
 from app.auth.models import User
 from app.books.models import UserChapterProgress
 from app.curriculum.models import LessonProgress
-from app.daily_plan.linear.errors import REVIEW_TRIGGER_COOLDOWN, REVIEW_TRIGGER_MIN_UNRESOLVED
+from app.daily_plan.linear.errors import (
+    REVIEW_TRIGGER_MIN_UNRESOLVED,
+    get_review_cooldown,
+)
 from app.daily_plan.linear.models import QuizErrorLog, UserReadingPreference
 from app.daily_plan.models import DailyPlanLog
 from app.study.models import StudySession
@@ -65,10 +83,30 @@ def _day_secured_rate(user_ids: list[int], today: date, session: Any) -> float:
     return round(secured / len(user_ids) * 100, 1)
 
 
-def _average_slots_completed(user_ids: list[int], today: date, session: Any) -> float:
-    """Proxy: count activity-completed baseline slots per user, average."""
+FOCUS_BUCKETS = ('grammar', 'vocabulary', 'reading', 'all', 'none')
+
+
+def _classify_focus(raw: Optional[str]) -> str:
+    """Bucket ``User.onboarding_focus`` into one of FOCUS_BUCKETS."""
+    if not raw:
+        return 'none'
+    parts = [p.strip() for p in raw.split(',') if p.strip()]
+    if not parts:
+        return 'none'
+    primary = parts[0]
+    if primary in FOCUS_BUCKETS and primary != 'none':
+        return primary
+    return 'none'
+
+
+def _per_user_slot_counts(user_ids: list[int], today: date, session: Any) -> dict[int, int]:
+    """Return ``{user_id: slot_count}`` for activity-completed slots today.
+
+    Uses the same proxy signals as ``_average_slots_completed`` (curriculum
+    completion, study session, reading-progress update, error resolved).
+    """
     if not user_ids:
-        return 0.0
+        return {}
 
     curriculum_users: set[int] = set()
     srs_users: set[int] = set()
@@ -124,7 +162,7 @@ def _average_slots_completed(user_ids: list[int], today: date, session: Any) -> 
         ):
             error_users.add(row[0])
 
-    total = 0
+    counts: dict[int, int] = {}
     for uid in user_ids:
         slots = 0
         if uid in curriculum_users:
@@ -135,16 +173,72 @@ def _average_slots_completed(user_ids: list[int], today: date, session: Any) -> 
             slots += 1
         if uid in error_users:
             slots += 1
-        total += slots
+        counts[uid] = slots
+    return counts
+
+
+def _average_slots_completed(
+    user_ids: list[int],
+    today: date,
+    session: Any,
+    slot_counts: Optional[dict[int, int]] = None,
+) -> float:
+    """Proxy: count activity-completed baseline slots per user, average."""
+    if not user_ids:
+        return 0.0
+    counts = slot_counts if slot_counts is not None else _per_user_slot_counts(user_ids, today, session)
+    total = sum(counts.values())
     return round(total / len(user_ids), 2)
 
 
-def _error_review_trigger_rate(user_ids: list[int], session: Any) -> float:
-    """Replicate the trigger SQL-side: ≥5 unresolved AND cooldown elapsed."""
-    if not user_ids:
-        return 0.0
+def _focus_distribution_and_avg_slots(
+    user_ids: list[int],
+    today: date,
+    session: Any,
+    slot_counts: Optional[dict[int, int]] = None,
+) -> tuple[dict[str, int], dict[str, float]]:
+    """Return (counts_per_focus, avg_slots_per_focus) over the cohort."""
+    counts: dict[str, int] = {bucket: 0 for bucket in FOCUS_BUCKETS}
+    sums: dict[str, int] = {bucket: 0 for bucket in FOCUS_BUCKETS}
+    averages: dict[str, float] = {bucket: 0.0 for bucket in FOCUS_BUCKETS}
 
-    cooldown_cutoff = datetime.now(timezone.utc) - REVIEW_TRIGGER_COOLDOWN
+    if not user_ids:
+        return counts, averages
+
+    user_focus: dict[int, str] = {}
+    for chunk in chunk_ids(user_ids):
+        rows = (
+            session.query(User.id, User.onboarding_focus)
+            .filter(User.id.in_(chunk))
+            .all()
+        )
+        for uid, raw in rows:
+            user_focus[int(uid)] = _classify_focus(raw)
+
+    if slot_counts is None:
+        slot_counts = _per_user_slot_counts(user_ids, today, session)
+
+    for uid in user_ids:
+        bucket = user_focus.get(uid, 'none')
+        counts[bucket] += 1
+        sums[bucket] += slot_counts.get(uid, 0)
+
+    for bucket, n in counts.items():
+        if n > 0:
+            averages[bucket] = round(sums[bucket] / n, 2)
+    return counts, averages
+
+
+def _triggered_user_ids(user_ids: list[int], session: Any) -> set[int]:
+    """Replicate the trigger SQL-side: ≥5 unresolved AND cooldown elapsed.
+
+    Cooldown matches ``should_show_error_review`` — dynamic tiers via
+    ``get_review_cooldown`` (3d default, 1d at ≥15 unresolved, 12h at ≥25).
+    """
+    if not user_ids:
+        return set()
+
+    now = datetime.now(timezone.utc)
 
     unresolved_expr = func.sum(
         case((QuizErrorLog.resolved_at.is_(None), 1), else_=0)
@@ -163,21 +257,129 @@ def _error_review_trigger_rate(user_ids: list[int], session: Any) -> float:
             .all()
         )
 
-    triggered = 0
+    triggered: set[int] = set()
     for row in per_user:
         unresolved = int(row.unresolved or 0)
         if unresolved < REVIEW_TRIGGER_MIN_UNRESOLVED:
             continue
         last_resolved = row.last_resolved
         if last_resolved is None:
-            triggered += 1
+            triggered.add(int(row.uid))
             continue
         if last_resolved.tzinfo is None:
             last_resolved = last_resolved.replace(tzinfo=timezone.utc)
-        if last_resolved <= cooldown_cutoff:
-            triggered += 1
+        if (now - last_resolved) >= get_review_cooldown(unresolved):
+            triggered.add(int(row.uid))
 
-    return round(triggered / len(user_ids) * 100, 1)
+    return triggered
+
+
+def _error_review_trigger_rate(user_ids: list[int], session: Any) -> float:
+    if not user_ids:
+        return 0.0
+    triggered = _triggered_user_ids(user_ids, session)
+    return round(len(triggered) / len(user_ids) * 100, 1)
+
+
+def _error_review_qualified_user_ids(
+    user_ids: list[int],
+    today: date,
+    session: Any,
+) -> set[int]:
+    """Cohort users qualified for the error-review slot today.
+
+    Counts users who had ≥ ``MIN_UNRESOLVED`` rows in their backlog at the
+    *start of today*: rows that existed before today (``created_at < today``)
+    and were either still unresolved or resolved during today. Rows created
+    today are excluded — they were not part of the start-of-day backlog,
+    even if they were resolved on the same day.
+    """
+    if not user_ids:
+        return set()
+    qualified: set[int] = set()
+    for chunk in chunk_ids(user_ids):
+        rows = (
+            session.query(
+                QuizErrorLog.user_id,
+                func.count().label('start_of_day'),
+            )
+            .filter(
+                QuizErrorLog.user_id.in_(chunk),
+                func.date(QuizErrorLog.created_at) < today,
+                case(
+                    (QuizErrorLog.resolved_at.is_(None), True),
+                    else_=func.date(QuizErrorLog.resolved_at) >= today,
+                ),
+            )
+            .group_by(QuizErrorLog.user_id)
+            .all()
+        )
+        for uid, start_of_day in rows:
+            if int(start_of_day or 0) >= REVIEW_TRIGGER_MIN_UNRESOLVED:
+                qualified.add(int(uid))
+    return qualified
+
+
+def _error_review_completion_rate(
+    user_ids: list[int],
+    today: date,
+    session: Any,
+) -> float:
+    """Fraction of qualified users who resolved at least one error today."""
+    if not user_ids:
+        return 0.0
+    qualified = _error_review_qualified_user_ids(user_ids, today, session)
+    if not qualified:
+        return 0.0
+
+    resolved_users: set[int] = set()
+    for chunk in chunk_ids(list(qualified)):
+        rows = (
+            session.query(QuizErrorLog.user_id)
+            .filter(
+                QuizErrorLog.user_id.in_(chunk),
+                QuizErrorLog.resolved_at.isnot(None),
+                func.date(QuizErrorLog.resolved_at) == today,
+                func.date(QuizErrorLog.created_at) < today,
+            )
+            .distinct()
+            .all()
+        )
+        for row in rows:
+            resolved_users.add(int(row[0]))
+
+    return round(len(resolved_users) / len(qualified) * 100, 1)
+
+
+def _reading_gate_completion_rate(
+    user_ids: list[int], today: date, session: Any
+) -> float:
+    """Fraction of cohort that earned ``linear_book_reading`` XP today.
+
+    The XP idempotency record is the canonical signal that the reading
+    gate (≥5% chapter delta AND ≥60s reading time) was satisfied at least
+    once today.
+    """
+    if not user_ids:
+        return 0.0
+
+    from app.achievements.models import StreakEvent
+
+    completed = 0
+    for chunk in chunk_ids(user_ids):
+        rows = (
+            session.query(StreakEvent.user_id)
+            .filter(
+                StreakEvent.user_id.in_(chunk),
+                StreakEvent.event_type == 'xp_linear',
+                StreakEvent.event_date == today,
+                StreakEvent.details['source'].astext == 'linear_book_reading',
+            )
+            .distinct()
+            .all()
+        )
+        completed += len(rows)
+    return round(completed / len(user_ids) * 100, 1)
 
 
 def _book_select_rate(user_ids: list[int], session: Any) -> float:
@@ -204,11 +406,21 @@ def get_linear_plan_metrics(session: Any = None, today: Optional[date] = None) -
     s = session if session is not None else db.session
     eval_date = today if today is not None else _today_utc()
     user_ids = _cohort_user_ids(s)
+    slot_counts = _per_user_slot_counts(user_ids, eval_date, s)
+    focus_counts, focus_avg_slots = _focus_distribution_and_avg_slots(
+        user_ids, eval_date, s, slot_counts=slot_counts
+    )
 
     return {
         'cohort_size': len(user_ids),
         'day_secured_rate': _day_secured_rate(user_ids, eval_date, s),
-        'average_slots_completed': _average_slots_completed(user_ids, eval_date, s),
+        'average_slots_completed': _average_slots_completed(
+            user_ids, eval_date, s, slot_counts=slot_counts
+        ),
         'error_review_trigger_rate': _error_review_trigger_rate(user_ids, s),
+        'error_review_completion_rate': _error_review_completion_rate(user_ids, eval_date, s),
         'book_select_rate': _book_select_rate(user_ids, s),
+        'reading_gate_completion_rate': _reading_gate_completion_rate(user_ids, eval_date, s),
+        'focus_distribution': focus_counts,
+        'focus_average_slots': focus_avg_slots,
     }

@@ -339,6 +339,47 @@ class TestLinearPlanEmptyState:
         assert 'ещё формируется' in html
 
 
+class TestWeakGrammarPill:
+    def test_pill_renders_when_hint_present(self, app):
+        plan = _plan(slots=[
+            _slot('curriculum', lesson_type='grammar', url='/learn/1/?from=linear_plan',
+                  data={
+                      'lesson_id': 1,
+                      'weak_topic_hint': True,
+                      'weak_topic_id': 42,
+                      'weak_topic_name': 'Present Perfect',
+                      'weak_topic_accuracy': 0.4,
+                  }),
+            _slot('srs', data={'due_count': 1}),
+            _slot('reading', url='/r'),
+        ])
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'linear-slot__pill--weak-grammar' in html
+        assert 'Слабая тема: Present Perfect' in html
+        assert 'data-weak-grammar-topic-id="42"' in html
+
+    def test_pill_hidden_when_hint_absent(self, app):
+        plan = _plan(slots=[
+            _slot('curriculum', lesson_type='grammar', url='/learn/1/?from=linear_plan',
+                  data={'lesson_id': 1}),
+            _slot('srs', data={'due_count': 1}),
+            _slot('reading', url='/r'),
+        ])
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'linear-slot__pill--weak-grammar' not in html
+        assert 'Слабая тема' not in html
+
+    def test_pill_hidden_when_only_flag_without_name(self, app):
+        plan = _plan(slots=[
+            _slot('curriculum', lesson_type='grammar', url='/learn/1/?from=linear_plan',
+                  data={'weak_topic_hint': True}),
+            _slot('srs', data={'due_count': 1}),
+            _slot('reading', url='/r'),
+        ])
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'linear-slot__pill--weak-grammar' not in html
+
+
 class TestBookSelectModalPresent:
     """The modal lives in dashboard.html itself (rendered for everyone) so
     the linear partial can trigger it via href="#book-select-modal"."""

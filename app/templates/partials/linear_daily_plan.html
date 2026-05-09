@@ -89,6 +89,23 @@
                 <span class="linear-plan__day-secured-banner-stat-label">слотов</span>
             </li>
         </ul>
+        {% if day_secured_banner.next_step %}
+        {% set _ns = day_secured_banner.next_step %}
+        <div class="linear-plan__day-secured-banner-next" data-linear-day-secured-next-step="true">
+            <span class="linear-plan__day-secured-banner-next-label">Следующий шаг</span>
+            {% if _ns.url %}
+            <a href="{{ _ns.url }}"
+               class="linear-plan__day-secured-banner-next-link"
+               data-linear-event="day_secured_next_step_clicked"
+               data-linear-step-kind="{{ _ns.kind }}">{{ _ns.reason }}</a>
+            {% else %}
+            <span class="linear-plan__day-secured-banner-next-text">{{ _ns.reason }}</span>
+            {% endif %}
+            {% if _ns.estimated_minutes %}
+            <span class="linear-plan__day-secured-banner-next-eta">~{{ _ns.estimated_minutes | int }} мин</span>
+            {% endif %}
+        </div>
+        {% endif %}
         <div class="linear-plan__day-secured-banner-actions">
             <a href="#linear-plan-continuation"
                class="linear-plan__day-secured-banner-cta linear-plan__day-secured-banner-cta--primary"
@@ -161,6 +178,17 @@
     </div>
     {% endif %}
 
+    {# ── Late-day hint: shown when slots remain and user-local hour ≥ 20:00 ── #}
+    {% set _pending = l_total - l_done %}
+    {% if l_total > 0 and _pending > 0 and (local_hour is defined) and (local_hour is not none) and (local_hour | int) >= 20 %}
+    <div class="linear-plan__late-hint"
+         data-linear-late-hint="true"
+         data-local-hour="{{ local_hour | int }}"
+         role="note">
+        До конца дня осталось мало времени
+    </div>
+    {% endif %}
+
     {% if l_day_secured %}
     <div class="linear-plan__secured" data-linear-secured="true">
         <span class="linear-plan__secured-icon">&#127881;</span>
@@ -209,6 +237,13 @@
                             {{ l_lesson_type_labels.get(slot.lesson_type, slot.lesson_type) }}
                             {% if _eta > 0 %}· ~{{ _eta }} мин{% endif %}
                         </div>
+                        {% if _data.get('weak_topic_hint') and _data.get('weak_topic_name') %}
+                        <div class="linear-slot__pill linear-slot__pill--weak-grammar"
+                             data-weak-grammar-topic-id="{{ _data.get('weak_topic_id', '') }}"
+                             role="note">
+                            Слабая тема: {{ _data.weak_topic_name }}
+                        </div>
+                        {% endif %}
                         {% elif _kind == 'srs' and _data.get('mode') == 'deck_quiz' %}
                         <div class="linear-slot__meta">
                             {% set _deck_count = _data.get('deck_word_count', 0) | int %}
@@ -221,12 +256,28 @@
                         {% elif _kind == 'srs' and _data.get('due_count') is not none %}
                         <div class="linear-slot__meta">
                             {% set _due = _data.get('due_count', 0) | int %}
-                            {% if _due > 0 %}
+                            {% set _new_budget = _data.get('new_budget', 0) | int %}
+                            {% set _new_count = _data.get('new_count', 0) | int %}
+                            {% if _due > 0 and _new_budget > 0 %}
+                                {{ _due }} на повтор · {{ _new_count }} новых (бюджет {{ _new_budget }}){% if _eta > 0 %} · ~{{ _eta }} мин{% endif %}
+                            {% elif _due > 0 %}
                                 Карточек на повтор: {{ _due }}{% if _eta > 0 %} · ~{{ _eta }} мин{% endif %}
                             {% else %}
                                 Сегодня всё повторено
                             {% endif %}
                         </div>
+                        {% set _limit_reason = _data.get('srs_limit_reason') %}
+                        {% if _limit_reason and _limit_reason != 'normal' %}
+                        <div class="linear-slot__limit-hint"
+                             data-srs-limit-reason="{{ _limit_reason }}"
+                             role="note">
+                            {% if _limit_reason == 'accuracy_low' %}
+                                Лимит новых слов снижен — точность ответов ниже 85%. Сосредоточьтесь на повторении.
+                            {% elif _limit_reason == 'backlog_reduction' %}
+                                Лимит новых слов снижен — много просроченных карточек. Сначала разберём очередь.
+                            {% endif %}
+                        </div>
+                        {% endif %}
                         {% elif _kind == 'reading' %}
                         <div class="linear-slot__meta">
                             {% if _needs_selection %}
@@ -236,11 +287,44 @@
                                 {% if _eta > 0 %}{% if _data.get('current_chapter_num') %} · {% endif %}~{{ _eta }} мин{% endif %}
                             {% endif %}
                         </div>
+                        {% if not _needs_selection and (_data.get('level_too_hard') or _data.get('level_too_easy')) %}
+                        <div class="linear-slot__meta linear-slot__meta--level-mismatch"
+                             data-reading-level-mismatch="{% if _data.get('level_too_hard') %}too_hard{% else %}too_easy{% endif %}"
+                             role="note">
+                            {% if _data.get('level_too_hard') %}
+                                Книга может быть сложной для вашего уровня.
+                            {% else %}
+                                Книга может быть слишком простой для вашего уровня.
+                            {% endif %}
+                            <a href="#book-select-modal"
+                               class="linear-slot__level-mismatch-link"
+                               data-linear-action="select-book"
+                               data-linear-event="reading_slot_level_mismatch_change">Сменить книгу</a>
+                        </div>
+                        {% endif %}
+                        {% if not _needs_selection and not _completed and _data.get('gate_seconds') %}
+                            {% set _time_spent = _data.get('time_spent_seconds', 0) | int %}
+                            {% set _gate = _data.get('gate_seconds', 60) | int %}
+                            {% if not _data.get('gate_reached') %}
+                            <div class="linear-slot__meta linear-slot__meta--reading-gate"
+                                 data-reading-gate="pending"
+                                 role="note">
+                                Прочитано {{ _time_spent }} сек / {{ _gate }} сек
+                            </div>
+                            {% endif %}
+                        {% endif %}
                         {% elif _kind == 'error_review' %}
                         <div class="linear-slot__meta">
                             Неразобранных ошибок: {{ _data.get('unresolved_count', 0) }}
                             {% if _eta > 0 %}· ~{{ _eta }} мин{% endif %}
                         </div>
+                        {% set _hours_since = _data.get('hours_since_resolved') %}
+                        {% if _hours_since is not none %}
+                        <div class="linear-slot__meta linear-slot__meta--review-cooldown"
+                             data-review-cooldown="last-resolved">
+                            Последний разбор: {{ _hours_since }} ч назад
+                        </div>
+                        {% endif %}
                         {% elif _eta > 0 %}
                         <div class="linear-slot__meta">~{{ _eta }} мин</div>
                         {% endif %}
@@ -280,9 +364,18 @@
 
     {# ── Continuation CTA + preview (shown when day_secured=True) ───── #}
     {% if l_day_secured and l_next_lessons %}
+    {% set _budget_exhausted = l_continuation.get('srs_budget_exhausted', False) %}
     <div class="linear-plan__continuation"
          id="linear-plan-continuation"
-         data-linear-continuation="true">
+         data-linear-continuation="true"
+         data-srs-budget-exhausted="{{ 'true' if _budget_exhausted else 'false' }}">
+        {% if _budget_exhausted %}
+        <div class="linear-plan__continuation-budget-note"
+             data-linear-budget-exhausted="true"
+             role="note">
+            Лимит новых слов исчерпан — сегодня только повторение
+        </div>
+        {% else %}
         {% set _next = l_next_lessons[0] %}
         {% if _next and _next.get('lesson_id') %}
         <a href="/learn/{{ _next.lesson_id }}/?from=linear_plan_continuation"
@@ -298,6 +391,7 @@
                 {{ l_lesson_type_labels.get(_next.get('lesson_type'), _next.get('lesson_type', '')) }}
             </span>
         </a>
+        {% endif %}
         {% endif %}
 
         <details class="linear-plan__preview" data-linear-preview="true">

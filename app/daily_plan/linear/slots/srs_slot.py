@@ -218,6 +218,8 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
     if getattr(curriculum_lesson, 'type', None) in _CARD_LESSON_TYPES:
         return _build_deck_quiz_slot(user_id, db)
 
+    from app.study.services import SRSService
+
     settings = StudySettings.get_settings(user_id)
     reviews_limit = max(int(settings.reviews_per_day or 0), 0)
     reviews_today = count_srs_reviews_today(user_id, db)
@@ -226,6 +228,11 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
     due_count = count_linear_plan_srs_due_cards(user_id, db)
     studied_today = count_srs_cards_studied_today(user_id, db)
     budget_remaining = get_srs_budget_remaining(user_id, db)
+    limit_reason = SRSService.get_adaptive_limit_reason(user_id)
+
+    from app.srs.counting import count_new_cards_today
+
+    new_count = count_new_cards_today(user_id, db)
 
     data = {
         'due_count': due_count,
@@ -235,6 +242,9 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
         'reviews_limit': reviews_limit,
         'reviews_remaining': reviews_remaining,
         'budget_remaining': budget_remaining,
+        'new_count': new_count,
+        'new_budget': budget_remaining,
+        'srs_limit_reason': limit_reason,
     }
 
     if due_count > 0:

@@ -19,6 +19,31 @@
       <p class="er-theory-header__sub">{{ total_errors }} вопрос{{ 'а' if total_errors in [2,3,4] else ('ов' if total_errors > 4 else '') }} · Изучите теорию и пройдите квиз</p>
     </div>
 
+    {% if top_lessons or top_topics %}
+    <div class="error-review__chips" data-testid="er-breakdown-chips">
+      {% if top_lessons %}
+      <div class="error-review__chips-row">
+        <span class="error-review__chips-label">Уроки:</span>
+        {% for item in top_lessons %}
+        <span class="error-review__chip" data-chip-kind="lesson">
+          {{ item.title }}<span class="error-review__chip-count">{{ item.count }}</span>
+        </span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if top_topics %}
+      <div class="error-review__chips-row">
+        <span class="error-review__chips-label">Темы:</span>
+        {% for item in top_topics %}
+        <span class="error-review__chip" data-chip-kind="topic">
+          {{ item.title }}<span class="error-review__chip-count">{{ item.count }}</span>
+        </span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {% for group in topic_groups %}
     {% if group.topic_title or group.lesson_titles %}
     <div class="er-theory-card">

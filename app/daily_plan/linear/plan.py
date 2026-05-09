@@ -181,6 +181,11 @@ def get_linear_plan(
         user_id, len(baseline_slots), day_secured, slot_summary,
     )
 
+    from app.srs.counting import get_new_card_budget
+
+    remaining_new, _remaining_reviews = get_new_card_budget(user_id, session_provider)
+    srs_budget_exhausted = remaining_new <= 0
+
     return {
         'mode': 'linear',
         'position': _position_from_lesson(next_lesson),
@@ -189,6 +194,7 @@ def get_linear_plan(
         'continuation': {
             'available': day_secured,
             'next_lessons': [_position_from_lesson(lesson) for lesson in upcoming],
+            'srs_budget_exhausted': srs_budget_exhausted,
         },
         'day_secured': day_secured,
     }

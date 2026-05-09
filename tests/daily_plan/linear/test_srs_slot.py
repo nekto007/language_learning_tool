@@ -570,6 +570,137 @@ class TestCurriculumCardActivationGate:
         ).count() == 1
 
 
+class TestSrsLimitReasonInSlotData:
+    def test_normal_reason_present_in_slot_data(self, db_session):
+        user = _make_user(db_session)
+        _set_new_words_per_day(db_session, user, 5)
+
+        slot = build_srs_slot(user.id, real_db)
+
+        assert slot.data.get('srs_limit_reason') == 'normal'
+
+    def test_accuracy_low_reason_surfaced(self, db_session, monkeypatch):
+        from app.study.services import SRSService
+
+        user = _make_user(db_session)
+        _set_new_words_per_day(db_session, user, 5)
+        monkeypatch.setattr(
+            SRSService, 'get_adaptive_limit_reason', staticmethod(lambda uid: 'accuracy_low'),
+        )
+
+        slot = build_srs_slot(user.id, real_db)
+
+        assert slot.data.get('srs_limit_reason') == 'accuracy_low'
+
+    def test_backlog_reduction_reason_surfaced(self, db_session, monkeypatch):
+        from app.study.services import SRSService
+
+        user = _make_user(db_session)
+        _set_new_words_per_day(db_session, user, 5)
+        monkeypatch.setattr(
+            SRSService, 'get_adaptive_limit_reason', staticmethod(lambda uid: 'backlog_reduction'),
+        )
+
+        slot = build_srs_slot(user.id, real_db)
+
+        assert slot.data.get('srs_limit_reason') == 'backlog_reduction'
+
+    def test_deck_quiz_variant_omits_limit_reason(self, db_session):
+        user = _make_user(db_session)
+        _make_quiz_deck_with_words(db_session, user, 10)
+
+        lesson = type('LessonStub', (), {'type': 'card'})()
+        slot = build_srs_slot(user.id, real_db, curriculum_lesson=lesson)
+
+        assert 'srs_limit_reason' not in slot.data
+
+
+class TestSrsSlotNewVsReviewBreakdown:
+    def test_normal_state_has_new_count_and_budget(self, db_session):
+        user = _make_user(db_session)
+        _set_new_words_per_day(db_session, user, 5)
+        now = datetime.now(timezone.utc)
+        for _ in range(2):
+            word = _make_word(db_session)
+            uw = _make_user_word(db_session, user, word)
+            _make_direction(
+                db_session, uw,
+                state=CardState.REVIEW.value,
+                next_review=now - timedelta(hours=1),
+                last_reviewed=now - timedelta(days=2),
+                first_reviewed=now - timedelta(days=5),
+                repetitions=3,
+            )
+
+        slot = build_srs_slot(user.id, real_db)
+
+        assert slot.data['due_count'] == 2
+        assert slot.data['new_count'] == 0
+        assert slot.data['new_budget'] == 5
+
+    def test_new_count_reflects_first_reviewed_today(self, db_session):
+        user = _make_user(db_session)
+        _set_new_words_per_day(db_session, user, 5)
+        now = datetime.now(timezone.utc)
+        for _ in range(3):
+            word = _make_word(db_session)
+            uw = _make_user_word(db_session, user, word)
+            _make_direction(
+                db_session, uw,
+                state=CardState.LEARNING.value,
+                first_reviewed=now,
+                last_reviewed=now,
+                next_review=now + timedelta(days=1),
+                repetitions=1,
+            )
+
+        slot = build_srs_slot(user.id, real_db)
+
+        assert slot.data['new_count'] == 3
+        assert slot.data['new_budget'] == 2
+
+    def test_budget_exhausted_zero_budget(self, db_session):
+        user = _make_user(db_session)
+        _set_new_words_per_day(db_session, user, 2)
+        now = datetime.now(timezone.utc)
+        for _ in range(2):
+            word = _make_word(db_session)
+            uw = _make_user_word(db_session, user, word)
+            _make_direction(
+                db_session, uw,
+                state=CardState.LEARNING.value,
+                first_reviewed=now,
+                last_reviewed=now,
+                next_review=now + timedelta(days=1),
+                repetitions=1,
+            )
+
+        slot = build_srs_slot(user.id, real_db)
+
+        assert slot.data['new_budget'] == 0
+        assert slot.data['new_count'] == 2
+
+    def test_no_due_state_still_has_breakdown_fields(self, db_session):
+        user = _make_user(db_session)
+        _set_new_words_per_day(db_session, user, 5)
+
+        slot = build_srs_slot(user.id, real_db)
+
+        assert slot.data['due_count'] == 0
+        assert 'new_count' in slot.data
+        assert 'new_budget' in slot.data
+
+    def test_deck_quiz_variant_omits_breakdown(self, db_session):
+        user = _make_user(db_session)
+        _make_quiz_deck_with_words(db_session, user, 10)
+
+        lesson = type('LessonStub', (), {'type': 'card'})()
+        slot = build_srs_slot(user.id, real_db, curriculum_lesson=lesson)
+
+        assert 'new_count' not in slot.data
+        assert 'new_budget' not in slot.data
+
+
 class TestLinearPlanIncludesSrsSlot:
     def test_get_linear_plan_exposes_srs_slot(self, db_session):
         from app.curriculum.models import CEFRLevel, Lessons, Module

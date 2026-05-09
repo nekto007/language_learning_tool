@@ -526,6 +526,105 @@ def get_review_pool_grouped(
     return result
 
 
+def get_unresolved_breakdown(user_id: int, db: Any) -> dict:
+    """Group unresolved quiz errors by lesson and by inferred grammar topic.
+
+    Returns ``{'by_lesson': [...], 'by_topic': [...]}`` where each entry has
+    ``id``, ``title``, and ``count``. Lessons without a ``grammar_topic_id``
+    fall back to the module's grammar/language_focus lesson topic when one
+    exists (mirroring the inference in the error-review session view).
+    Errors whose topic cannot be inferred are bucketed under ``id=None``
+    with an empty title.
+    """
+    from app.curriculum.models import Lessons
+    from app.utils.db_utils import chunk_ids
+
+    rows = (
+        db.session.query(QuizErrorLog.id, QuizErrorLog.lesson_id)
+        .filter(
+            QuizErrorLog.user_id == user_id,
+            QuizErrorLog.resolved_at.is_(None),
+        )
+        .all()
+    )
+    if not rows:
+        return {'by_lesson': [], 'by_topic': []}
+
+    lesson_counts: dict[int, int] = {}
+    for _err_id, lesson_id in rows:
+        if lesson_id is None:
+            continue
+        lesson_counts[lesson_id] = lesson_counts.get(lesson_id, 0) + 1
+
+    lesson_ids = list(lesson_counts.keys())
+    lessons_by_id: dict[int, Lessons] = {}
+    for chunk in chunk_ids(lesson_ids, chunk_size=1000):
+        for lesson in db.session.query(Lessons).filter(Lessons.id.in_(chunk)).all():
+            lessons_by_id[lesson.id] = lesson
+
+    # Build by_lesson list
+    by_lesson: list[dict] = []
+    for lid, count in lesson_counts.items():
+        lesson = lessons_by_id.get(lid)
+        title = lesson.title if lesson is not None else ''
+        by_lesson.append({'id': lid, 'title': title, 'count': count})
+    by_lesson.sort(key=lambda x: (-x['count'], x['id'] or 0))
+
+    # Module → fallback topic id (cached so we look up each module once)
+    module_topic_cache: dict[int, Optional[int]] = {}
+
+    def _resolve_topic_id(lesson: Optional[Lessons]) -> Optional[int]:
+        if lesson is None:
+            return None
+        if lesson.grammar_topic_id is not None:
+            return lesson.grammar_topic_id
+        module_id = lesson.module_id
+        if module_id is None:
+            return None
+        if module_id in module_topic_cache:
+            return module_topic_cache[module_id]
+        fallback_lesson = (
+            db.session.query(Lessons)
+            .filter(
+                Lessons.module_id == module_id,
+                Lessons.type.in_(['grammar', 'language_focus']),
+                Lessons.grammar_topic_id.isnot(None),
+            )
+            .first()
+        )
+        topic_id = fallback_lesson.grammar_topic_id if fallback_lesson is not None else None
+        module_topic_cache[module_id] = topic_id
+        return topic_id
+
+    topic_counts: dict[Optional[int], int] = {}
+    for lid, count in lesson_counts.items():
+        topic_id = _resolve_topic_id(lessons_by_id.get(lid))
+        topic_counts[topic_id] = topic_counts.get(topic_id, 0) + count
+
+    topic_ids = [tid for tid in topic_counts.keys() if tid is not None]
+    topics_by_id: dict[int, Any] = {}
+    if topic_ids:
+        from app.grammar_lab.models import GrammarTopic
+
+        for chunk in chunk_ids(topic_ids, chunk_size=1000):
+            for topic in db.session.query(GrammarTopic).filter(GrammarTopic.id.in_(chunk)).all():
+                topics_by_id[topic.id] = topic
+
+    by_topic: list[dict] = []
+    for tid, count in topic_counts.items():
+        if tid is None:
+            by_topic.append({'id': None, 'title': '', 'count': count})
+            continue
+        topic = topics_by_id.get(tid)
+        title = ''
+        if topic is not None:
+            title = getattr(topic, 'title_ru', None) or getattr(topic, 'title', '') or ''
+        by_topic.append({'id': tid, 'title': title, 'count': count})
+    by_topic.sort(key=lambda x: (-x['count'], (x['id'] or 0)))
+
+    return {'by_lesson': by_lesson, 'by_topic': by_topic}
+
+
 def should_show_error_review(
     user_id: int,
     db: Any,

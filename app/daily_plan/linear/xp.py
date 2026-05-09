@@ -150,6 +150,18 @@ def award_linear_slot_xp_idempotent(
         coins_delta=0,
         details={'source': source, 'xp': result.xp_awarded},
     ))
+    from app.daily_plan.models import DailyPlanEvent
+
+    # step_kind is VARCHAR(40); strip the redundant "linear_" prefix so
+    # long sources (e.g. linear_curriculum_dialogue_completion_quiz, 43)
+    # still fit.
+    step_kind = source[len('linear_'):] if source.startswith('linear_') else source
+    db_obj.session.add(DailyPlanEvent(
+        user_id=user_id,
+        event_type='linear_slot_completed',
+        plan_date=when,
+        step_kind=step_kind,
+    ))
     db_obj.session.flush()
     return result
 

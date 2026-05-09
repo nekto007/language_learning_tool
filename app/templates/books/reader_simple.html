@@ -1267,20 +1267,32 @@ setTimeout(updateProgress, 100);
                 currentOffsetPct = Math.min(readerBody.scrollTop / scrollHeight, 1);
             }
         } catch (e) { /* readerBody may be detached on pagehide */ }
-        // fetch+keepalive is used instead of sendBeacon because the books_api
-        // blueprint is CSRF-protected and sendBeacon cannot send custom headers.
-        fetch('/api/books/reading-session/end', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken,
-            },
-            body: JSON.stringify({
-                session_id: sessionId,
-                current_offset_pct: currentOffsetPct,
-            }),
-            keepalive: true,
-        }).catch(() => {});
+        const payload = JSON.stringify({
+            session_id: sessionId,
+            current_offset_pct: currentOffsetPct,
+        });
+        // Prefer navigator.sendBeacon on pagehide — it survives tab close
+        // even when the browser has already started tearing down the page,
+        // where fetch+keepalive can be aborted. The endpoint is csrf-exempt
+        // and accepts text/plain bodies parsed as JSON.
+        let beaconSent = false;
+        try {
+            if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+                const blob = new Blob([payload], { type: 'text/plain' });
+                beaconSent = navigator.sendBeacon('/api/books/reading-session/end', blob);
+            }
+        } catch (e) { beaconSent = false; }
+        if (!beaconSent) {
+            fetch('/api/books/reading-session/end', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: payload,
+                keepalive: true,
+            }).catch(() => {});
+        }
     }
 
     startReadingSession();
