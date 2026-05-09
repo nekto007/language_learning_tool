@@ -107,5 +107,5 @@
 
 ### Task 7: Update documentation
 
-- [ ] обновить CLAUDE.md секцию "Daily plan (linear, curriculum spine)" — описать `build_chain`, locked state, baseline vs extension semantics
-- [ ] переместить план в `docs/plans/completed/`
+- [x] обновить CLAUDE.md секцию "Daily plan (linear, curriculum spine)" — описать `build_chain`, locked state, baseline vs extension semantics
+- [x] переместить план в `docs/plans/completed/`
