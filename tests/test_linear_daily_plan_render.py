@@ -540,6 +540,38 @@ class TestLinearPlanChainExtension:
         html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
         assert 'data-linear-chain-exhausted' not in html
 
+    def test_extension_slot_not_completed_by_plan_completion_kind(self, app):
+        """plan_completion is keyed by kind and only describes baseline activity.
+
+        Once baseline curriculum is done, plan_completion['curriculum']=True.
+        That signal must not cascade to a freshly-appended pending curriculum
+        extension slot — otherwise the bonus task appears already-done.
+        """
+        slots = [
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, data={'due_count': 0}),
+            _slot('reading', completed=True, url='/r'),
+            _slot('curriculum', url='/c2', title='Bonus lesson'),
+        ]
+        plan = _plan(slots=slots[:3], day_secured=True)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': True,
+            'exhausted_sources': [],
+        }
+        html = _render(app, {
+            'linear_plan': plan,
+            'plan_completion': {'curriculum': True, 'srs': True, 'reading': True},
+        })
+        # The extension slot must render as current (not completed).
+        bonus_pos = html.index('Bonus lesson')
+        # Find the slot wrapper that contains "Bonus lesson" — extension must
+        # not carry the completed CSS class.
+        snippet = html[max(0, bonus_pos - 800):bonus_pos]
+        assert 'linear-slot--current' in snippet or 'data-slot-state="current"' in snippet
+        assert 'linear-slot--completed' not in snippet
+
     def test_summary_counts_only_baseline_when_chain_extends(self, app):
         slots = [
             _slot('curriculum', completed=True, url='/c'),

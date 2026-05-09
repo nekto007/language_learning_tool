@@ -15,11 +15,15 @@
 {% set l_next_lessons = l_continuation.get('next_lessons') or [] %}
 
 {# Merge per-slot completion from plan_completion (server-side activity signals) so
-   the timeline reflects what the user actually did today, not just assembly state. #}
+   the timeline reflects what the user actually did today, not just assembly state.
+   plan_completion is keyed by kind and only reflects the baseline portion — applying
+   it to extension slots (same kind, later in chain) would falsely mark them completed
+   the moment baseline is done. Trust slot.completed for extension positions. #}
 {% set l_slots = [] %}
 {% for slot in l_slots_raw %}
     {% set _kind = slot.get('kind', '') %}
-    {% set _completed = slot.get('completed', False) or plan_completion.get(_kind, False) %}
+    {% set _is_baseline_pos = loop.index0 < l_baseline_count %}
+    {% set _completed = slot.get('completed', False) or (_is_baseline_pos and plan_completion.get(_kind, False)) %}
     {% set _merged = {
         'kind': _kind,
         'title': slot.get('title', ''),

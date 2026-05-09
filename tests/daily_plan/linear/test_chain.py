@@ -262,6 +262,10 @@ class TestBuildChainExtensions:
         assert last['data'].get('extension') is True
         # has_more_available stays True since the new slot still has work.
         assert result['has_more_available'] is True
+        # The curriculum source has a pending extension in the chain — it
+        # must NOT be reported as exhausted (regression for the bug where
+        # the post-loop builder re-invocation mislabeled pending sources).
+        assert 'curriculum' not in result['exhausted_sources']
 
     def test_max_extra_caps_chain_growth(self, two_lessons_setup, db_session):
         """``max_extra=0`` disables extensions even with completed baseline."""

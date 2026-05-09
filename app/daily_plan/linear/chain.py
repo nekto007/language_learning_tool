@@ -269,11 +269,16 @@ def build_chain(
         chain.append(next_slot)
         extras_added += 1
 
-    exhausted_sources = [
-        source
-        for source in EXTENSION_PRIORITY
-        if _EXTENSION_BUILDERS[source](user_id, db, chain) is None
-    ]
+    # Report a source as "exhausted" only when it has nothing to offer today.
+    # Skip sources whose pending slot is already represented in the chain —
+    # those builders return None due to the _has_pending_kind guard, which
+    # would mislabel them as exhausted.
+    exhausted_sources = []
+    for source in EXTENSION_PRIORITY:
+        if _has_pending_kind(chain, source):
+            continue
+        if _EXTENSION_BUILDERS[source](user_id, db, chain) is None:
+            exhausted_sources.append(source)
 
     logger.info(
         "chain user=%s baseline=%d extras=%d total=%d has_more=%s exhausted=%s",
