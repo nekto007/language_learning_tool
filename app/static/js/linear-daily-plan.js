@@ -279,4 +279,68 @@
     } else {
         _initDaySecuredBanner();
     }
+
+    /* Chain-growth toast.
+     *
+     * The slot chain only grows between page loads (the linear partial is
+     * rerendered server-side). On each render we read the current chain
+     * length from the slots container and compare it with the value we
+     * stored in sessionStorage on the previous render. If the chain grew,
+     * surface a short toast so the user notices the new task that was
+     * appended after they finished the previous one.
+     */
+    var CHAIN_LENGTH_STORAGE_KEY = 'linearPlanChainLength';
+
+    function _getChainLength() {
+        var el = document.querySelector('[data-linear-slots="true"]');
+        if (!el) return null;
+        var raw = el.getAttribute('data-linear-chain-length');
+        var n = parseInt(raw, 10);
+        return isNaN(n) ? null : n;
+    }
+
+    function _showChainGrowthToast(delta) {
+        var toast = document.getElementById('linear-chain-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'linear-chain-toast';
+            toast.className = 'linear-plan__chain-toast';
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
+            document.body.appendChild(toast);
+        }
+        var prefix = delta === 1 ? '+1 задание добавлено' : '+' + delta + ' заданий добавлено';
+        toast.textContent = prefix;
+        toast.classList.add('linear-plan__chain-toast--visible');
+        setTimeout(function () {
+            toast.classList.remove('linear-plan__chain-toast--visible');
+        }, 2400);
+    }
+
+    function _initChainGrowthDetector() {
+        var current = _getChainLength();
+        if (current === null) return;
+        var stored = null;
+        try {
+            var raw = sessionStorage.getItem(CHAIN_LENGTH_STORAGE_KEY);
+            stored = raw === null ? null : parseInt(raw, 10);
+            if (isNaN(stored)) stored = null;
+        } catch (e) {
+            stored = null;
+        }
+        if (stored !== null && current > stored) {
+            _showChainGrowthToast(current - stored);
+        }
+        try {
+            sessionStorage.setItem(CHAIN_LENGTH_STORAGE_KEY, String(current));
+        } catch (e) {
+            /* ignore */
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _initChainGrowthDetector);
+    } else {
+        _initChainGrowthDetector();
+    }
 })();

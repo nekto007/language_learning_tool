@@ -422,6 +422,143 @@ class TestWeakGrammarPill:
         assert 'linear-slot__pill--weak-grammar' not in html
 
 
+class TestLinearPlanChainExtension:
+    def test_baseline_header_renders_when_slots_present(self, app):
+        plan = _plan(slots=[
+            _slot('curriculum', url='/c'),
+            _slot('srs', data={'due_count': 1}),
+            _slot('reading', url='/r'),
+        ])
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-header="baseline"' in html
+        assert 'Минимум на день' in html
+
+    def test_chain_length_attribute_reflects_total(self, app):
+        slots = [
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, data={'due_count': 0}),
+            _slot('reading', completed=True, url='/r'),
+            _slot('curriculum', url='/c2', title='Extra lesson'),
+        ]
+        plan = _plan(slots=slots, day_secured=True)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': True,
+            'exhausted_sources': [],
+        }
+        plan['baseline_slots'] = slots[:3]
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-length="4"' in html
+        assert 'data-linear-baseline-count="3"' in html
+
+    def test_divider_renders_between_baseline_and_extension(self, app):
+        slots = [
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, data={'due_count': 0}),
+            _slot('reading', completed=True, url='/r'),
+            _slot('curriculum', url='/c2', title='Bonus lesson'),
+        ]
+        plan = _plan(slots=slots[:3], day_secured=True)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': True,
+            'exhausted_sources': [],
+        }
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-divider="extension"' in html
+        assert 'Дальше необязательно' in html
+        # Divider sits before the extension slot, after the baseline ones.
+        divider_pos = html.index('data-linear-chain-divider="extension"')
+        bonus_pos = html.index('Bonus lesson')
+        first_slot_pos = html.index('data-slot-kind="curriculum"')
+        assert first_slot_pos < divider_pos < bonus_pos
+
+    def test_divider_hidden_when_chain_equals_baseline(self, app):
+        slots = [
+            _slot('curriculum', url='/c'),
+            _slot('srs', data={'due_count': 1}),
+            _slot('reading', url='/r'),
+        ]
+        plan = _plan(slots=slots)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': True,
+            'exhausted_sources': [],
+        }
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-divider' not in html
+
+    def test_exhausted_block_renders_when_secured_and_no_more(self, app):
+        slots = [
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, data={'due_count': 0}),
+            _slot('reading', completed=True, url='/r'),
+        ]
+        plan = _plan(slots=slots, day_secured=True)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': False,
+            'exhausted_sources': ['curriculum', 'srs', 'reading', 'error_review'],
+        }
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-exhausted="true"' in html
+        assert 'На сегодня источники исчерпаны' in html
+
+    def test_exhausted_block_hidden_when_not_secured(self, app):
+        slots = [
+            _slot('curriculum', url='/c'),
+            _slot('srs', data={'due_count': 1}),
+            _slot('reading', url='/r'),
+        ]
+        plan = _plan(slots=slots)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': False,
+            'exhausted_sources': [],
+        }
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-exhausted' not in html
+
+    def test_exhausted_block_hidden_when_more_available(self, app):
+        slots = [
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, data={'due_count': 0}),
+            _slot('reading', completed=True, url='/r'),
+        ]
+        plan = _plan(slots=slots, day_secured=True)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': True,
+            'exhausted_sources': [],
+        }
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-exhausted' not in html
+
+    def test_summary_counts_only_baseline_when_chain_extends(self, app):
+        slots = [
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, data={'due_count': 0}),
+            _slot('reading', completed=True, url='/r'),
+            _slot('curriculum', url='/c2', title='Bonus'),
+        ]
+        plan = _plan(slots=slots[:3], day_secured=True)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': True,
+            'exhausted_sources': [],
+        }
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        # Summary stays on the minimum (baseline) count, not the chain length.
+        assert '>3/3<' in html
+
+
 class TestBookSelectModalPresent:
     """The modal lives in dashboard.html itself (rendered for everyone) so
     the linear partial can trigger it via href="#book-select-modal"."""

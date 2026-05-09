@@ -4,7 +4,13 @@
    when the user has activity today that satisfies the kind. #}
 {% set l_position = linear_plan.get('position') %}
 {% set l_progress = linear_plan.get('progress') or {} %}
-{% set l_slots_raw = linear_plan.get('baseline_slots') or [] %}
+{% set l_baseline_raw = linear_plan.get('baseline_slots') or [] %}
+{# When the assembler returns the full chain, prefer it; otherwise fall back to
+   baseline_slots so legacy callers keep working. #}
+{% set l_slots_raw = linear_plan.get('slots') or l_baseline_raw %}
+{% set l_chain_meta = linear_plan.get('chain_meta') or {} %}
+{% set l_baseline_count = l_chain_meta.get('baseline_count', l_baseline_raw | length or l_slots_raw | length) %}
+{% set l_has_more_available = l_chain_meta.get('has_more_available', True) %}
 {% set l_continuation = linear_plan.get('continuation') or {} %}
 {% set l_next_lessons = l_continuation.get('next_lessons') or [] %}
 
@@ -28,7 +34,13 @@
 
 {% set l_total = l_slots | length %}
 {% set l_done = l_slots | selectattr('completed') | list | length %}
-{% set l_day_secured = (l_total > 0 and l_done == l_total) %}
+{# Day-secured math is keyed on the baseline portion (first N slots) — extras
+   beyond the minimum are bonus and don't affect securing the day. #}
+{% set l_baseline = l_slots[:l_baseline_count] %}
+{% set l_baseline_total = l_baseline | length %}
+{% set l_baseline_done = l_baseline | selectattr('completed') | list | length %}
+{% set l_day_secured = (l_baseline_total > 0 and l_baseline_done == l_baseline_total) %}
+{% set l_has_extension = l_total > l_baseline_count %}
 
 {% set l_slot_icons = {
     'curriculum': '&#127919;',
@@ -166,21 +178,21 @@
         {% endif %}
     </div>
 
-    {# ── Compact progress summary ────────────────────────────────────── #}
-    {% if l_total > 0 %}
+    {# ── Compact progress summary (keyed to baseline minimum) ────────── #}
+    {% if l_baseline_total > 0 %}
     <div class="linear-plan__summary" data-linear-summary="true">
         <div class="linear-plan__summary-bar">
-            {% set _pct = ((l_done / l_total) * 100) | int if l_total else 0 %}
+            {% set _pct = ((l_baseline_done / l_baseline_total) * 100) | int if l_baseline_total else 0 %}
             <div class="linear-plan__summary-fill{% if l_day_secured %} linear-plan__summary-fill--done{% endif %}"
                  style="width: {{ _pct }}%"></div>
         </div>
-        <span class="linear-plan__summary-count" data-linear-count="true">{{ l_done }}/{{ l_total }}</span>
+        <span class="linear-plan__summary-count" data-linear-count="true">{{ l_baseline_done }}/{{ l_baseline_total }}</span>
     </div>
     {% endif %}
 
     {# ── Late-day hint: shown when slots remain and user-local hour ≥ 20:00 ── #}
-    {% set _pending = l_total - l_done %}
-    {% if l_total > 0 and _pending > 0 and (local_hour is defined) and (local_hour is not none) and (local_hour | int) >= 20 %}
+    {% set _pending = l_baseline_total - l_baseline_done %}
+    {% if l_baseline_total > 0 and _pending > 0 and (local_hour is defined) and (local_hour is not none) and (local_hour | int) >= 20 %}
     <div class="linear-plan__late-hint"
          data-linear-late-hint="true"
          data-local-hour="{{ local_hour | int }}"
@@ -196,10 +208,23 @@
     </div>
     {% endif %}
 
-    {# ── Baseline slots (1–4) ────────────────────────────────────────── #}
+    {# ── Slot chain: baseline (minimum) + optional extensions ───────── #}
     {% set lns = namespace(current_found=false) %}
-    <div class="linear-plan__slots" data-linear-slots="true">
+    <div class="linear-plan__slots"
+         data-linear-slots="true"
+         data-linear-chain-length="{{ l_total }}"
+         data-linear-baseline-count="{{ l_baseline_count }}">
+        {% if l_baseline_total > 0 %}
+        <div class="linear-plan__chain-header"
+             data-linear-chain-header="baseline"
+             role="note">Минимум на день</div>
+        {% endif %}
         {% for slot in l_slots %}
+            {% if loop.index0 == l_baseline_count and l_has_extension %}
+            <div class="linear-plan__chain-divider"
+                 data-linear-chain-divider="extension"
+                 role="note">Дальше необязательно, но засчитывается</div>
+            {% endif %}
             {% set _completed = slot.completed %}
             {% if _completed %}
                 {% set _state = 'done' %}
@@ -365,6 +390,15 @@
         <div class="linear-plan__empty">
             <div class="linear-plan__empty-icon">&#128221;</div>
             <div class="linear-plan__empty-text">План на день ещё формируется. Проверьте чуть позже.</div>
+        </div>
+        {% endif %}
+
+        {% if l_day_secured and not l_has_more_available and l_total > 0 %}
+        <div class="linear-plan__chain-exhausted"
+             data-linear-chain-exhausted="true"
+             role="status">
+            <span class="linear-plan__chain-exhausted-icon" aria-hidden="true">&#127937;</span>
+            <span class="linear-plan__chain-exhausted-text">На сегодня источники исчерпаны</span>
         </div>
         {% endif %}
     </div>
