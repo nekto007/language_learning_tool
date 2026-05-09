@@ -22,10 +22,6 @@ from app.daily_plan.linear.progression import (
     get_spine_upcoming,
     get_user_level_progress,
 )
-from app.daily_plan.linear.slots.curriculum_slot import build_curriculum_slot
-from app.daily_plan.linear.slots.error_review_slot import build_error_review_slot
-from app.daily_plan.linear.slots.reading_slot import build_reading_slot
-from app.daily_plan.linear.slots.srs_slot import build_srs_slot
 from app.utils.db import db
 
 VALID_FOCUSES = {'grammar', 'vocabulary', 'reading', 'all'}
@@ -142,33 +138,12 @@ def get_linear_plan(
         level_progress.lessons_remaining_in_level,
     )
 
-    curriculum_slot = build_curriculum_slot(user_id, session_provider, next_lesson=next_lesson)
-    curriculum_dict = curriculum_slot.to_dict()
+    from app.daily_plan.linear.chain import build_chain
 
-    # The second slot is paired with the day's curriculum task. Once that
-    # task is completed, ``next_lesson`` advances; using it here would mutate
-    # the SRS slot from deck quiz to normal cards mid-day.
-    srs_anchor_lesson = next_lesson
-    if curriculum_dict.get('completed'):
-        srs_anchor_lesson = _lesson_from_slot_data(curriculum_dict, session_provider) or next_lesson
-    srs_slot = build_srs_slot(user_id, session_provider, curriculum_lesson=srs_anchor_lesson)
-    reading_slot = build_reading_slot(user_id, session_provider, focus=focus)
-    error_review_slot = build_error_review_slot(user_id, session_provider)
-
-    srs_dict = srs_slot.to_dict()
-    reading_dict = reading_slot.to_dict()
-
-    if focus == 'grammar':
-        curriculum_dict['data']['prioritize_grammar'] = True
-
-    if focus == 'reading':
-        # Reading-focused users see the reading slot promoted to position 2
-        # (curriculum stays first as the spine anchor).
-        baseline_slots = [curriculum_dict, reading_dict, srs_dict]
-    else:
-        baseline_slots = [curriculum_dict, srs_dict, reading_dict]
-    if error_review_slot is not None:
-        baseline_slots.append(error_review_slot.to_dict())
+    chain_result = build_chain(user_id, session_provider)
+    all_slots = chain_result['slots']
+    baseline_count = chain_result['baseline_count']
+    baseline_slots = all_slots[:baseline_count]
 
     day_secured = compute_linear_day_secured(baseline_slots)
 
@@ -191,6 +166,12 @@ def get_linear_plan(
         'position': _position_from_lesson(next_lesson),
         'progress': _level_progress_to_dict(level_progress),
         'baseline_slots': baseline_slots,
+        'slots': all_slots,
+        'chain_meta': {
+            'baseline_count': baseline_count,
+            'has_more_available': chain_result['has_more_available'],
+            'exhausted_sources': chain_result['exhausted_sources'],
+        },
         'continuation': {
             'available': day_secured,
             'next_lessons': [_position_from_lesson(lesson) for lesson in upcoming],

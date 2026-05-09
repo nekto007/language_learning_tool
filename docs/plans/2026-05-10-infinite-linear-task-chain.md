@@ -50,12 +50,12 @@
 - Modify: `app/daily_plan/linear/plan.py`
 - Modify: `tests/daily_plan/linear/test_plan.py` (или соответствующий)
 
-- [ ] заменить статическое формирование `baseline_slots` на `build_chain`; baseline сохранить как первые N слотов для day_secured math
-- [ ] payload: добавить `chain_meta {baseline_count, has_more_available, exhausted_sources: [...]}`; `baseline_slots` остаётся для backward compat (равен `chain[:baseline_count]`)
-- [ ] `continuation` остаётся, но сужается до preview lessons (не перекрывает inline-цепочку)
-- [ ] обновить `compute_linear_day_secured`: считать только по first N (baseline)
-- [ ] обновить тесты на assemble: проверка состава цепочки до/после активности, корректность `baseline_count`
-- [ ] pytest зелёный
+- [x] заменить статическое формирование `baseline_slots` на `build_chain`; baseline сохранить как первые N слотов для day_secured math
+- [x] payload: добавить `chain_meta {baseline_count, has_more_available, exhausted_sources: [...]}`; `baseline_slots` остаётся для backward compat (равен `chain[:baseline_count]`)
+- [x] `continuation` остаётся, но сужается до preview lessons (не перекрывает inline-цепочку)
+- [x] обновить `compute_linear_day_secured`: считать только по first N (baseline)
+- [x] обновить тесты на assemble: проверка состава цепочки до/после активности, корректность `baseline_count`
+- [x] pytest зелёный
 
 ### Task 3: Activity-driven chain refresh in API
 
