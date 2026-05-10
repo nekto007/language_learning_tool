@@ -744,6 +744,93 @@ def plan_calendar():
     )
 
 
+@study.route('/weekly')
+@login_required
+def weekly_plan():
+    """Weekly plan overview: current week Mon-Sun with today's actual plan and projections."""
+    from datetime import date, timedelta
+    from app.daily_plan.models import DailyPlanLog
+    from app.daily_plan.linear.plan import SLOT_ESTIMATED_MINUTES
+
+    today = date.today()
+    # Always show 3 past days + today + 3 future days (7 days total)
+    start_day = today - timedelta(days=3)
+    week_days = [start_day + timedelta(days=i) for i in range(7)]
+
+    logs = db.session.query(DailyPlanLog).filter(
+        DailyPlanLog.user_id == current_user.id,
+        DailyPlanLog.plan_date >= week_days[0],
+        DailyPlanLog.plan_date <= week_days[-1],
+    ).all()
+    by_date = {row.plan_date: row for row in logs}
+
+    today_plan = None
+    if getattr(current_user, 'use_linear_plan', False):
+        try:
+            from app.daily_plan.linear.plan import get_linear_plan
+            today_plan = get_linear_plan(current_user.id, db.session)
+        except Exception:
+            pass
+
+    slot_priority = ['curriculum', 'srs', 'reading', 'listening', 'writing', 'error_review']
+    default_slot_kinds = ['curriculum', 'srs', 'reading']
+    default_estimated = sum(SLOT_ESTIMATED_MINUTES.get(k, 10) for k in default_slot_kinds)
+
+    days = []
+    for d in week_days:
+        is_today = d == today
+        is_past = d < today
+        log = by_date.get(d)
+        day_secured = log.secured_at is not None if log else False
+
+        if is_today:
+            if today_plan and today_plan.get('slots'):
+                seen = set()
+                slot_kinds = []
+                for s in today_plan['slots']:
+                    k = s['kind']
+                    if k not in seen:
+                        seen.add(k)
+                        slot_kinds.append(k)
+                slot_kinds.sort(key=lambda k: slot_priority.index(k) if k in slot_priority else 99)
+                estimated_minutes = today_plan.get('total_estimated_minutes', 0)
+                completed_count = sum(1 for s in today_plan['slots'] if s.get('completed'))
+                total_slots = len(today_plan['slots'])
+            else:
+                slot_kinds = list(default_slot_kinds)
+                estimated_minutes = default_estimated
+                completed_count = 0
+                total_slots = len(default_slot_kinds)
+            status = 'current'
+        elif is_past:
+            slot_kinds = list(default_slot_kinds) if log is not None else []
+            estimated_minutes = 0
+            completed_count = 0
+            total_slots = 0
+            status = 'past'
+        else:
+            slot_kinds = list(default_slot_kinds)
+            estimated_minutes = default_estimated
+            completed_count = 0
+            total_slots = len(default_slot_kinds)
+            status = 'future'
+
+        days.append({
+            'date': d,
+            'date_str': d.strftime('%Y-%m-%d'),
+            'label': d.strftime('%-d %b'),
+            'weekday_name': d.strftime('%a'),
+            'status': status,
+            'slot_kinds': slot_kinds,
+            'estimated_minutes': estimated_minutes,
+            'completed_count': completed_count,
+            'total_slots': total_slots,
+            'day_secured': day_secured,
+        })
+
+    return render_template('study/weekly_plan.html', days=days, today=today)
+
+
 # Import sub-modules to register their routes on the blueprint
 from app.study import api_routes  # noqa: E402, F401
 from app.study import game_routes  # noqa: E402, F401

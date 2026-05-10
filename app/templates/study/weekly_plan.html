@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+
+{% block title %}План на неделю{% endblock %}
+
+{% block content %}
+{% macro _slot_icon(kind) %}
+    {% if kind == 'curriculum' %}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+    {% elif kind == 'srs' %}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+    {% elif kind == 'reading' %}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    {% elif kind == 'listening' %}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0118 0v6"/><path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z"/></svg>
+    {% elif kind == 'writing' %}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    {% elif kind == 'error_review' %}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    {% else %}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
+    {% endif %}
+{% endmacro %}
+<div class="weekly-plan-page">
+
+    <div class="weekly-plan__header">
+        <a href="{{ url_for('study.index') }}" class="weekly-plan__back">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </a>
+        <div>
+            <h1 class="weekly-plan__title">План на неделю</h1>
+            <p class="weekly-plan__subtitle">Текущая неделя · {{ days[0].label }} — {{ days[6].label }}</p>
+        </div>
+    </div>
+
+    <div class="weekly-plan__grid">
+        {% for day in days %}
+        <div class="weekly-plan__day weekly-plan__day--{{ day.status }}{% if day.day_secured %} weekly-plan__day--secured{% endif %}"
+             data-date="{{ day.date_str }}"
+             data-status="{{ day.status }}"
+             data-secured="{{ 'true' if day.day_secured else 'false' }}">
+
+            <div class="weekly-plan__day-header">
+                <span class="weekly-plan__weekday">{{ day.weekday_name }}</span>
+                <span class="weekly-plan__date-label">{{ day.label }}</span>
+                {% if day.day_secured %}
+                <span class="weekly-plan__secured-badge" title="День выполнен">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+                {% endif %}
+            </div>
+
+            {% if day.status == 'past' %}
+                {% if day.slot_kinds %}
+                <div class="weekly-plan__slots">
+                    {% for kind in day.slot_kinds %}
+                    <span class="weekly-plan__slot-icon weekly-plan__slot-icon--{{ kind }}" title="{{ kind }}">
+                        {{ _slot_icon(kind) }}
+                    </span>
+                    {% endfor %}
+                </div>
+                <p class="weekly-plan__past-label">{% if day.day_secured %}Выполнен{% else %}Начат{% endif %}</p>
+                {% else %}
+                <p class="weekly-plan__empty-label">Нет данных</p>
+                {% endif %}
+
+            {% elif day.status == 'current' %}
+                <div class="weekly-plan__slots">
+                    {% for kind in day.slot_kinds %}
+                    <span class="weekly-plan__slot-icon weekly-plan__slot-icon--{{ kind }}" title="{{ kind }}">
+                        {{ _slot_icon(kind) }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% if day.estimated_minutes > 0 %}
+                <p class="weekly-plan__time">≈ {{ day.estimated_minutes }} мин</p>
+                {% endif %}
+                {% if day.total_slots > 0 %}
+                <p class="weekly-plan__progress">{{ day.completed_count }} / {{ day.total_slots }} выполнено</p>
+                {% endif %}
+                <a href="{{ url_for('study.index') }}" class="weekly-plan__cta">Начать</a>
+
+            {% else %}
+                <div class="weekly-plan__slots weekly-plan__slots--projected">
+                    {% for kind in day.slot_kinds %}
+                    <span class="weekly-plan__slot-icon weekly-plan__slot-icon--{{ kind }}" title="{{ kind }}">
+                        {{ _slot_icon(kind) }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% if day.estimated_minutes > 0 %}
+                <p class="weekly-plan__time weekly-plan__time--projected">≈ {{ day.estimated_minutes }} мин</p>
+                {% endif %}
+                <p class="weekly-plan__projected-label">Прогноз</p>
+            {% endif %}
+
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<style>
+.weekly-plan-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: var(--space-6);
+}
+
+.weekly-plan__header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+}
+
+.weekly-plan__back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+.weekly-plan__back:hover { background: var(--color-surface-secondary); }
+
+.weekly-plan__title {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-1) 0;
+}
+.weekly-plan__subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.weekly-plan__grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: var(--space-3);
+}
+
+@media (max-width: 700px) {
+    .weekly-plan__grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.weekly-plan__day {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    background: var(--color-surface);
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.weekly-plan__day--current {
+    border-color: var(--color-primary);
+    background: var(--color-primary-light, #f0f4ff);
+    box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.weekly-plan__day--past {
+    opacity: 0.75;
+}
+
+.weekly-plan__day--future {
+    background: var(--color-surface-secondary);
+}
+
+.weekly-plan__day--secured {
+    border-color: var(--color-success);
+}
+
+.weekly-plan__day-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+}
+
+.weekly-plan__weekday {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.weekly-plan__date-label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-left: auto;
+}
+
+.weekly-plan__secured-badge {
+    color: var(--color-success);
+    display: flex;
+    align-items: center;
+}
+
+.weekly-plan__slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.weekly-plan__slots--projected {
+    opacity: 0.5;
+}
+
+.weekly-plan__slot-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-secondary);
+    color: var(--color-text-secondary);
+}
+
+.weekly-plan__slot-icon--curriculum { color: var(--color-primary); }
+.weekly-plan__slot-icon--srs { color: var(--color-warning); }
+.weekly-plan__slot-icon--reading { color: var(--color-success); }
+.weekly-plan__slot-icon--listening { color: var(--color-info, #3b82f6); }
+.weekly-plan__slot-icon--writing { color: var(--color-accent, #8b5cf6); }
+.weekly-plan__slot-icon--error_review { color: var(--color-danger); }
+
+.weekly-plan__time {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.weekly-plan__time--projected {
+    opacity: 0.6;
+}
+
+.weekly-plan__progress {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.weekly-plan__past-label,
+.weekly-plan__projected-label,
+.weekly-plan__empty-label {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-tertiary, var(--color-text-secondary));
+    margin: 0;
+    margin-top: auto;
+}
+
+.weekly-plan__cta {
+    display: inline-block;
+    padding: var(--space-1) var(--space-2);
+    background: var(--color-primary);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-align: center;
+    margin-top: auto;
+}
+.weekly-plan__cta:hover { background: var(--color-primary-dark, var(--color-primary)); opacity: 0.9; }
+</style>
+
+{% endblock %}

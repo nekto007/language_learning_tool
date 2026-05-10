@@ -700,11 +700,11 @@
 - Create: `app/templates/study/weekly_plan.html`
 - Tests: `tests/study/test_weekly_plan.py`
 
-- [ ] Route: `GET /study/weekly` — build today + next 6 days plan previews (simplified, just slot types and status)
-- [ ] Show each day: estimated time, slot types as icons, completion status for past days
-- [ ] Uses `get_linear_plan()` for today, basic projection for future days (same slots, adjusted for SRS budget)
-- [ ] Tests: today shown as current; past days show DailyPlanLog data; future days show projected slots
-- [ ] Run pytest tests/study/
+- [x] Route: `GET /study/weekly` — build today + next 6 days plan previews (simplified, just slot types and status)
+- [x] Show each day: estimated time, slot types as icons, completion status for past days
+- [x] Uses `get_linear_plan()` for today, basic projection for future days (same slots, adjusted for SRS budget)
+- [x] Tests: today shown as current; past days show DailyPlanLog data; future days show projected slots
+- [x] Run pytest tests/study/
 
 ---
 ### Task 45: Tomorrow's plan preview in day-secured banner
