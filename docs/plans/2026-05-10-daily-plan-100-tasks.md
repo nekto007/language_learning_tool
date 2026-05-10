@@ -361,12 +361,12 @@
 - Modify: `app/templates/partials/linear_daily_plan.html`
 - Tests: `tests/daily_plan/linear/test_writing_slot.py`
 
-- [ ] `build_writing_slot(user_id, db)` — find next incomplete writing_prompt or translation lesson in user's module
-- [ ] Slot data: `{lesson_id, lesson_title, lesson_type, estimated_minutes: 8}`
-- [ ] Add to EXTENSION_PRIORITY after listening
-- [ ] Template: writing slot with pen icon, type badge, brief prompt preview
-- [ ] Tests: slot builds; no writing lesson → None; template renders writing slot correctly
-- [ ] Run pytest tests/daily_plan/linear/
+- [x] `build_writing_slot(user_id, db)` — find next incomplete writing_prompt or translation lesson in user's module
+- [x] Slot data: `{lesson_id, lesson_title, lesson_type, estimated_minutes: 8}`
+- [x] Add to EXTENSION_PRIORITY after listening
+- [x] Template: writing slot with pen icon, type badge, brief prompt preview
+- [x] Tests: slot builds; no writing lesson → None; template renders writing slot correctly
+- [x] Run pytest tests/daily_plan/linear/
 
 ---
 ### Task 23: Writing streak and achievements
