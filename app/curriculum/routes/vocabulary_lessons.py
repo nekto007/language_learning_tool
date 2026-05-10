@@ -6,13 +6,14 @@ from flask import abort, flash, jsonify, redirect, render_template, request, url
 from flask_login import current_user, login_required
 from marshmallow import ValidationError
 
-from app.curriculum.models import LessonProgress, Lessons
+from app.curriculum.models import LessonProgress, Lessons, WordCollocation, get_collocations_for_word
 from app.curriculum.routes.lessons import lessons_bp
 from app.curriculum.security import require_lesson_access, sanitize_html
 from app.curriculum.service import get_next_lesson
 from app.curriculum.services.progress_service import ProgressService
 from app.curriculum.validators import LessonContentValidator
 from app.study.models import UserWord
+from app.utils.db import db
 from app.words.models import CollectionWords
 
 logger = logging.getLogger(__name__)
@@ -84,6 +85,7 @@ def render_vocabulary_lesson(lesson):
             if word:
                 user_word = user_words_dict.get(word.id)
                 audio_url = word.listening if hasattr(word, 'listening') and word.listening else word_data.get('audio', '')
+                collocations = get_collocations_for_word(word.id, db)
                 word_dict = {
                     'id': word.id,
                     'english': sanitize_html(word.english_word),
@@ -94,7 +96,11 @@ def render_vocabulary_lesson(lesson):
                     'hint': sanitize_html(word_data.get('hint', '')),
                     'status': user_word.status if user_word else 'new',
                     'audio_url': audio_url or None,
-                    'get_download': 1 if word.get_download == 1 else 0
+                    'get_download': 1 if word.get_download == 1 else 0,
+                    'collocations': [
+                        {'phrase': c.collocation_phrase, 'translation': c.translation}
+                        for c in collocations
+                    ],
                 }
                 words.append(word_dict)
             else:
@@ -110,7 +116,8 @@ def render_vocabulary_lesson(lesson):
                     'hint': sanitize_html(word_data.get('hint', '')),
                     'status': word_data.get('status', 'new'),
                     'audio_url': audio_from_json or None,
-                    'get_download': 0
+                    'get_download': 0,
+                    'collocations': [],
                 }
                 words.append(word_dict)
 
@@ -359,7 +366,7 @@ def vocabulary_lesson(lesson_id):
 
             if word:
                 user_word = user_words_dict.get(word.id)
-
+                collocations = get_collocations_for_word(word.id, db)
                 word_dict = {
                     'id': word.id,
                     'english': sanitize_html(word.english_word),
@@ -370,7 +377,11 @@ def vocabulary_lesson(lesson_id):
                     'hint': sanitize_html(word_data.get('hint', '')),
                     'status': user_word.status if user_word else 'new',
                     'audio_url': word.listening if hasattr(word, 'listening') else None,
-                    'get_download': 1 if word.get_download == 1 else 0
+                    'get_download': 1 if word.get_download == 1 else 0,
+                    'collocations': [
+                        {'phrase': c.collocation_phrase, 'translation': c.translation}
+                        for c in collocations
+                    ],
                 }
                 words.append(word_dict)
             else:
@@ -387,7 +398,8 @@ def vocabulary_lesson(lesson_id):
                     'status': word_data.get('status', 'new'),
                     'audio': word_data.get('audio', ''),
                     'audio_url': None,
-                    'get_download': 0
+                    'get_download': 0,
+                    'collocations': [],
                 }
                 words.append(word_dict)
 

@@ -116,6 +116,13 @@
               {% endif %}
             </div>
             {% endif %}
+            {% if word.collocations %}
+            <div class="word-collocations">
+              {% for col in word.collocations %}
+              <span class="collocation-pill" title="{{ col.translation }}">{{ col.phrase }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
           </div>
           <div class="card-flip-hint">
             <i class="fas fa-sync-alt"></i>

@@ -482,12 +482,12 @@
 - Modify: `app/static/css/design-system.css`
 - Tests: `tests/curriculum/test_vocabulary_lessons.py`
 
-- [ ] In vocabulary lesson route: load collocations for each word in the lesson
-- [ ] Template: below each word entry, show collocations as compact pills if any exist
-- [ ] CSS: `.collocation-pill` with subtle background, consistent with design-system tokens
-- [ ] If no collocations for word: section hidden (don't show empty state per word)
-- [ ] Tests: word with collocations → pills rendered; word without → no pill section
-- [ ] Run pytest tests/curriculum/
+- [x] In vocabulary lesson route: load collocations for each word in the lesson
+- [x] Template: below each word entry, show collocations as compact pills if any exist
+- [x] CSS: `.collocation-pill` with subtle background, consistent with design-system tokens
+- [x] If no collocations for word: section hidden (don't show empty state per word)
+- [x] Tests: word with collocations → pills rendered; word without → no pill section
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 31: Collocation matching exercise type
