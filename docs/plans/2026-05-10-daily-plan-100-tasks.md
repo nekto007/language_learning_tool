@@ -376,12 +376,12 @@
 - Modify: `app/achievements/services.py`
 - Tests: `tests/achievements/test_writing_achievements.py`
 
-- [ ] Seed: `writing_first` (first writing attempt), `writing_streak_3` (3 consecutive days), `writing_fluent` (100 words submitted in one attempt)
-- [ ] `get_writing_streak(user_id, db)` — consecutive days with UserWritingAttempt rows
-- [ ] `check_writing_achievements(user_id, db)` — called after writing attempt saved
-- [ ] Expose `writing_streak_days` in `/api/daily-status`
-- [ ] Tests: 3 consecutive days → writing_streak_3 granted; 100 words → writing_fluent
-- [ ] Run pytest tests/achievements/
+- [x] Seed: `writing_first` (first writing attempt), `writing_streak_3` (3 consecutive days), `writing_fluent` (100 words submitted in one attempt)
+- [x] `get_writing_streak(user_id, db)` — consecutive days with UserWritingAttempt rows
+- [x] `check_writing_achievements(user_id, db)` — called after writing attempt saved
+- [x] Expose `writing_streak_days` in `/api/daily-status`
+- [x] Tests: 3 consecutive days → writing_streak_3 granted; 100 words → writing_fluent
+- [x] Run pytest tests/achievements/
 
 ---
 ### Task 24: Writing XP integration and plan day_secured

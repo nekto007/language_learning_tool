@@ -628,6 +628,43 @@ def check_listening_achievements(user_id: int, db_session=None) -> List[Achievem
     return AchievementService._award_badges(user_id, codes_to_award)
 
 
+def check_writing_achievements(user_id: int, db_session=None) -> List[Achievement]:
+    """Award writing-related achievements after a UserWritingAttempt is saved.
+
+    Checks:
+    - writing_first: user has at least 1 UserWritingAttempt
+    - writing_streak_3: 3 consecutive days with writing attempts
+    - writing_fluent: any attempt with word_count >= 100
+    """
+    from app.curriculum.models import UserWritingAttempt
+    from app.achievements.streak_service import get_writing_streak
+    from sqlalchemy import func
+
+    session = db_session if db_session is not None else db.session
+
+    codes_to_award: set[str] = set()
+
+    total = session.query(func.count(UserWritingAttempt.id)).filter(
+        UserWritingAttempt.user_id == user_id,
+    ).scalar() or 0
+
+    if total >= 1:
+        codes_to_award.add('writing_first')
+
+    streak = get_writing_streak(user_id, db_session=session)
+    if streak >= 3:
+        codes_to_award.add('writing_streak_3')
+
+    fluent = session.query(UserWritingAttempt).filter(
+        UserWritingAttempt.user_id == user_id,
+        UserWritingAttempt.word_count >= 100,
+    ).first()
+    if fluent is not None:
+        codes_to_award.add('writing_fluent')
+
+    return AchievementService._award_badges(user_id, codes_to_award)
+
+
 def process_lesson_completion(user_id: int, lesson_id: int, score: float) -> Dict:
     """
     Complete workflow for lesson completion: assign grade, update stats, check achievements

@@ -1082,6 +1082,55 @@ def get_listening_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
     return streak
 
 
+def get_writing_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZONE) -> int:
+    """Return consecutive days (ending today or yesterday) with a UserWritingAttempt.
+
+    Same walk-backward logic as get_listening_streak.
+    """
+    import pytz
+    from sqlalchemy import cast, Date, func
+    from app.curriculum.models import UserWritingAttempt
+
+    session = db_session if db_session is not None else db.session
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
+
+    local_today = datetime.now(tz_obj).date()
+    cutoff = local_today - timedelta(days=365)
+
+    def _local_date(col):
+        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+
+    try:
+        rows = (
+            session.query(_local_date(UserWritingAttempt.created_at).label('d'))
+            .filter(
+                UserWritingAttempt.user_id == user_id,
+                UserWritingAttempt.created_at >= cutoff,
+            )
+            .distinct()
+            .all()
+        )
+        active_dates = {row[0] for row in rows if row[0] is not None}
+    except Exception:
+        return 0
+
+    streak = 0
+    for offset in range(365):
+        check_date = local_today - timedelta(days=offset)
+        if check_date in active_dates:
+            streak += 1
+        elif offset == 0:
+            continue
+        else:
+            break
+
+    return streak
+
+
 def get_streak_status(user_id: int, tz: str = DEFAULT_TIMEZONE,
                       steps_total: int = 4) -> dict:
     """Get full streak status for dashboard display."""

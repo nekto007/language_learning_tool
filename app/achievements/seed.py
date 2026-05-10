@@ -364,6 +364,32 @@ INITIAL_ACHIEVEMENTS = [
         'category': 'listening'
     },
 
+    # Writing achievements
+    {
+        'code': 'writing_first',
+        'name': 'Первая запись',
+        'description': 'Завершите первое упражнение на письмо',
+        'icon': '✍️',
+        'xp_reward': 25,
+        'category': 'writing'
+    },
+    {
+        'code': 'writing_streak_3',
+        'name': 'Серия письма',
+        'description': 'Пишите 3 дня подряд',
+        'icon': '📝',
+        'xp_reward': 75,
+        'category': 'writing'
+    },
+    {
+        'code': 'writing_fluent',
+        'name': 'Свободное письмо',
+        'description': 'Напишите 100 слов в одной попытке',
+        'icon': '🖊️',
+        'xp_reward': 100,
+        'category': 'writing'
+    },
+
     # Daily plan mission badges
     {
         'code': 'mission_first',
