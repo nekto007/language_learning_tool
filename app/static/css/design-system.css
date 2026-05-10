@@ -13760,6 +13760,15 @@ footer .col-md-4 {
     color: var(--color-text-secondary, #64748b);
 }
 
+/* IPA transcription in vocabulary cards */
+.word-ipa {
+    font-style: italic;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary, #64748b);
+    margin-top: 0.125rem;
+    letter-spacing: 0.02em;
+}
+
 /* Collocation pills in vocabulary cards */
 .word-collocations {
     display: flex;

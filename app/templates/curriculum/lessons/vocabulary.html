@@ -88,6 +88,9 @@
         <div class="card-face card-front">
           <div class="card-content-wrapper">
             <div class="word-english">{{ word.english }}</div>
+            {% if word.ipa_transcription %}
+            <div class="word-ipa">/{{ word.ipa_transcription }}/</div>
+            {% endif %}
             {% if word.pronunciation %}
             <div class="word-pronunciation">{{ word.pronunciation }}</div>
             {% endif %}

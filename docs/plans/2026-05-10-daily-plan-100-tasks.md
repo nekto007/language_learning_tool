@@ -515,12 +515,12 @@
 - Modify: `app/static/css/design-system.css`
 - Tests: `tests/curriculum/test_vocabulary_lessons.py`
 
-- [ ] Check Word model: if `pronunciation` field exists, check whether it stores IPA or just audio URL
-- [ ] If pronunciation is audio URL: add separate `ipa_transcription` field (nullable TEXT) — add migration
-- [ ] Template: display `/ipa_text/` in light gray below the English word if ipa_transcription is not null
-- [ ] CSS: `.word-ipa` font-style italic, smaller size, color var(--color-text-secondary)
-- [ ] Tests: word with ipa → transcription shown; word without → no IPA element
-- [ ] Run pytest tests/curriculum/
+- [x] Check Word model: if `pronunciation` field exists, check whether it stores IPA or just audio URL
+- [x] If pronunciation is audio URL: add separate `ipa_transcription` field (nullable TEXT) — add migration
+- [x] Template: display `/ipa_text/` in light gray below the English word if ipa_transcription is not null
+- [x] CSS: `.word-ipa` font-style italic, smaller size, color var(--color-text-secondary)
+- [x] Tests: word with ipa → transcription shown; word without → no IPA element
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 33: Synonym and antonym display in vocabulary

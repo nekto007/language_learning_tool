@@ -27,6 +27,8 @@ class CollectionWords(db.Model):
     base_word_id = Column(Integer, ForeignKey('collection_words.id', ondelete='SET NULL'), nullable=True)
     usage_context = Column(Text, nullable=True)  # "using" field from PhrasalVerb
 
+    ipa_transcription = Column(Text, nullable=True)  # IPA phonetic transcription, e.g. /wɜːrd/
+
     books = relationship("Book", secondary="word_book_link", back_populates="words")
     # Self-referential relationship for phrasal verbs -> base word
     base_word = relationship(

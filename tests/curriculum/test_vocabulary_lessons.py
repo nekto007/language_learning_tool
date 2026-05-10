@@ -201,3 +201,61 @@ class TestVocabularyLessonRoute:
         lesson = _make_vocab_lesson(db_session, module, "word_" + _unique())
         resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
         assert resp.status_code in (302, 401, 403)
+
+    def test_word_with_ipa_shows_transcription(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "ipaword_" + _unique()
+        word = _make_collection_word(db_session, english, "слово с ипа")
+        word.ipa_transcription = "wɜːrd"
+        db_session.commit()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "word-ipa" in html
+        assert "wɜːrd" in html
+
+    def test_word_without_ipa_no_ipa_element(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "noipaword_" + _unique()
+        _make_collection_word(db_session, english, "без ипа")
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "word-ipa" not in html
+
+
+class TestIPATemplate:
+    def test_ipa_element_in_template(self):
+        tpl = _read_vocabulary_template()
+        assert "word-ipa" in tpl
+
+    def test_ipa_conditionally_rendered(self):
+        tpl = _read_vocabulary_template()
+        assert "word.ipa_transcription" in tpl
+
+    def test_ipa_wrapped_in_slashes(self):
+        tpl = _read_vocabulary_template()
+        assert "/{{ word.ipa_transcription }}/" in tpl
+
+
+class TestIPACSS:
+    def test_word_ipa_class_defined(self):
+        css = _read_design_system_css()
+        assert ".word-ipa" in css
+
+    def test_word_ipa_uses_secondary_color(self):
+        css = _read_design_system_css()
+        assert "word-ipa" in css and "color-text-secondary" in css
+
+    def test_word_ipa_is_italic(self):
+        css = _read_design_system_css()
+        ipa_idx = css.find(".word-ipa")
+        block_end = css.find("}", ipa_idx)
+        block = css[ipa_idx:block_end]
+        assert "italic" in block
