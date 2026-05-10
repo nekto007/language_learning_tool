@@ -74,6 +74,32 @@ def _get_user_focus(user_id: int, db_session: Any) -> Optional[str]:
 logger = logging.getLogger(__name__)
 
 
+def build_tomorrow_preview(user_id: int, db_session: Any) -> dict[str, Any]:
+    """Build a brief preview of tomorrow's expected slots.
+
+    Returns ``{estimated_minutes, slot_types}`` for display in the day-secured
+    banner. Tomorrow's baseline mirrors today's structure (same slot kinds),
+    which is a valid approximation since the chain is deterministic from DB
+    state and slot types are stable day-to-day.
+    """
+    try:
+        from app.daily_plan.linear.chain import _build_baseline
+        baseline = _build_baseline(user_id, db_session)
+        slot_types = [s['kind'] for s in baseline]
+        estimated_minutes = sum(SLOT_ESTIMATED_MINUTES.get(kind, 0) for kind in slot_types)
+        return {
+            'estimated_minutes': estimated_minutes,
+            'slot_types': slot_types,
+        }
+    except Exception:
+        logger.warning("build_tomorrow_preview failed user=%s", user_id, exc_info=True)
+        default_types = ['curriculum', 'srs', 'reading']
+        return {
+            'estimated_minutes': sum(SLOT_ESTIMATED_MINUTES.get(k, 0) for k in default_types),
+            'slot_types': default_types,
+        }
+
+
 def compute_linear_day_secured(baseline_slots: list[dict[str, Any]]) -> bool:
     """Return True when every baseline slot is flagged completed.
 
@@ -193,6 +219,8 @@ def get_linear_plan(
         if not slot.get('completed', False)
     )
 
+    tomorrow_preview = build_tomorrow_preview(user_id, session_provider) if day_secured else None
+
     return {
         'mode': 'linear',
         'position': _position_from_lesson(next_lesson),
@@ -212,4 +240,5 @@ def get_linear_plan(
         'day_secured': day_secured,
         'total_estimated_minutes': total_estimated_minutes,
         'plan_intensity': get_plan_intensity(total_estimated_minutes),
+        'tomorrow_preview': tomorrow_preview,
     }

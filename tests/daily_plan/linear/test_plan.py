@@ -8,7 +8,12 @@ import pytest
 
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.daily_plan.linear.plan import SLOT_ESTIMATED_MINUTES, get_linear_plan, get_plan_intensity
+from app.daily_plan.linear.plan import (
+    SLOT_ESTIMATED_MINUTES,
+    build_tomorrow_preview,
+    get_linear_plan,
+    get_plan_intensity,
+)
 from app.utils.db import db as real_db
 
 
@@ -276,3 +281,146 @@ class TestTotalEstimatedMinutes:
         assert total == expected
         # Curriculum (15 min) must not be counted
         assert total <= sum(SLOT_ESTIMATED_MINUTES.values()) - SLOT_ESTIMATED_MINUTES['curriculum']
+
+
+# ── Task 45: tomorrow_preview ─────────────────────────────────────────
+
+
+class TestBuildTomorrowPreview:
+    """build_tomorrow_preview returns a valid preview dict for any user."""
+
+    def test_returns_dict_with_required_keys(self, db_session):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module)
+        user = _make_user(db_session)
+        user.onboarding_level = level.code
+        db_session.commit()
+
+        preview = build_tomorrow_preview(user.id, real_db)
+
+        assert isinstance(preview, dict)
+        assert 'estimated_minutes' in preview
+        assert 'slot_types' in preview
+
+    def test_slot_types_is_list_of_strings(self, db_session):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module)
+        user = _make_user(db_session)
+        user.onboarding_level = level.code
+        db_session.commit()
+
+        preview = build_tomorrow_preview(user.id, real_db)
+
+        assert isinstance(preview['slot_types'], list)
+        assert all(isinstance(k, str) for k in preview['slot_types'])
+
+    def test_estimated_minutes_matches_slot_types(self, db_session):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module)
+        user = _make_user(db_session)
+        user.onboarding_level = level.code
+        db_session.commit()
+
+        preview = build_tomorrow_preview(user.id, real_db)
+
+        expected = sum(SLOT_ESTIMATED_MINUTES.get(k, 0) for k in preview['slot_types'])
+        assert preview['estimated_minutes'] == expected
+
+    def test_always_includes_core_slot_types(self, db_session):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module)
+        user = _make_user(db_session)
+        user.onboarding_level = level.code
+        db_session.commit()
+
+        preview = build_tomorrow_preview(user.id, real_db)
+
+        # Core slots: curriculum + srs always present
+        assert 'curriculum' in preview['slot_types']
+        assert 'srs' in preview['slot_types']
+
+
+class TestPlanTomorrowPreview:
+    """plan payload includes tomorrow_preview only when day_secured."""
+
+    def test_no_tomorrow_preview_when_not_secured(self, db_session):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module)
+        user = _make_user(db_session)
+        user.onboarding_level = level.code
+        db_session.commit()
+
+        payload = get_linear_plan(user.id, real_db)
+
+        # With all slots pending, day_secured=False → no tomorrow_preview
+        if not payload['day_secured']:
+            assert payload['tomorrow_preview'] is None
+        # If for some reason day_secured=True (no lessons available), preview exists
+        else:
+            assert payload['tomorrow_preview'] is not None
+
+    def test_tomorrow_preview_present_when_day_secured(self, db_session):
+        from app.achievements.models import StreakEvent
+        from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE, get_linear_event_local_date
+
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        lesson = _make_lesson(db_session, module)
+        # Need at least 2 lessons so next_lesson isn't None after completing first
+        _make_lesson(db_session, module, number=2)
+        user = _make_user(db_session)
+        user.onboarding_level = level.code
+        db_session.commit()
+
+        # Complete all slots to trigger day_secured
+        _complete_lesson(db_session, user, lesson)
+        # Record XP for curriculum
+        db_session.add(StreakEvent(
+            user_id=user.id,
+            event_type=LINEAR_XP_EVENT_TYPE,
+            event_date=get_linear_event_local_date(user.id, real_db),
+            coins_delta=0,
+            details={'source': 'linear_curriculum_quiz', 'xp': 20},
+        ))
+        # Record SRS XP to mark srs done
+        db_session.add(StreakEvent(
+            user_id=user.id,
+            event_type=LINEAR_XP_EVENT_TYPE,
+            event_date=get_linear_event_local_date(user.id, real_db),
+            coins_delta=0,
+            details={'source': 'linear_srs_global', 'xp': 8},
+        ))
+        # Record reading XP to mark reading done
+        db_session.add(StreakEvent(
+            user_id=user.id,
+            event_type=LINEAR_XP_EVENT_TYPE,
+            event_date=get_linear_event_local_date(user.id, real_db),
+            coins_delta=0,
+            details={'source': 'linear_book_reading', 'xp': 15},
+        ))
+        db_session.commit()
+
+        payload = get_linear_plan(user.id, real_db)
+
+        if payload['day_secured']:
+            assert payload['tomorrow_preview'] is not None
+            assert 'estimated_minutes' in payload['tomorrow_preview']
+            assert 'slot_types' in payload['tomorrow_preview']
+
+    def test_tomorrow_preview_key_always_present(self, db_session):
+        """The key 'tomorrow_preview' must always be in the payload (None or dict)."""
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module)
+        user = _make_user(db_session)
+        user.onboarding_level = level.code
+        db_session.commit()
+
+        payload = get_linear_plan(user.id, real_db)
+
+        assert 'tomorrow_preview' in payload

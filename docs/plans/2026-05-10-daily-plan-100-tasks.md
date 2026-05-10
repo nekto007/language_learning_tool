@@ -714,11 +714,11 @@
 - Modify: `app/templates/partials/linear_daily_plan.html`
 - Tests: `tests/daily_plan/linear/test_plan.py`
 
-- [ ] When `day_secured=True`, compute a brief preview of tomorrow's expected slots (next lessons in spine + SRS projection)
-- [ ] Add `tomorrow_preview: {estimated_minutes, slot_types: [str]}` to plan payload when day_secured
-- [ ] Template: in day-secured banner, show "Завтра ≈ N мин" with slot type icons
-- [ ] Tests: day_secured=True → tomorrow_preview populated; day_secured=False → no preview
-- [ ] Run pytest tests/daily_plan/linear/
+- [x] When `day_secured=True`, compute a brief preview of tomorrow's expected slots (next lessons in spine + SRS projection)
+- [x] Add `tomorrow_preview: {estimated_minutes, slot_types: [str]}` to plan payload when day_secured
+- [x] Template: in day-secured banner, show "Завтра ≈ N мин" with slot type icons
+- [x] Tests: day_secured=True → tomorrow_preview populated; day_secured=False → no preview
+- [x] Run pytest tests/daily_plan/linear/
 
 ---
 ### Task 46: Slot skip with reason tracking

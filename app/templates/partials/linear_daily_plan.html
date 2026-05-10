@@ -129,6 +129,21 @@
             {% endif %}
         </div>
         {% endif %}
+        {% if day_secured_banner.tomorrow_preview %}
+        {% set _tp = day_secured_banner.tomorrow_preview %}
+        <div class="linear-plan__day-secured-banner-tomorrow"
+             data-linear-tomorrow-preview="true">
+            <span class="linear-plan__day-secured-banner-tomorrow-label">Завтра</span>
+            <span class="linear-plan__day-secured-banner-tomorrow-time">≈ {{ _tp.estimated_minutes | int }} мин</span>
+            <span class="linear-plan__day-secured-banner-tomorrow-slots">
+                {% for _sk in _tp.slot_types %}
+                <span class="linear-plan__day-secured-banner-tomorrow-icon"
+                      title="{{ l_slot_labels.get(_sk, _sk) }}"
+                      aria-label="{{ l_slot_labels.get(_sk, _sk) }}">{{ l_slot_icons.get(_sk, '&#128204;')|safe }}</span>
+                {% endfor %}
+            </span>
+        </div>
+        {% endif %}
         <div class="linear-plan__day-secured-banner-actions">
             <a href="#linear-plan-continuation"
                class="linear-plan__day-secured-banner-cta linear-plan__day-secured-banner-cta--primary"
@@ -228,9 +243,19 @@
     {% endif %}
 
     {% if l_day_secured %}
+    {% set _lp_tomorrow = linear_plan.get('tomorrow_preview') %}
     <div class="linear-plan__secured" data-linear-secured="true">
         <span class="linear-plan__secured-icon">&#127881;</span>
         <span class="linear-plan__secured-text">Сегодняшний план закрыт. Отличная работа!</span>
+        {% if _lp_tomorrow %}
+        <span class="linear-plan__secured-tomorrow"
+              data-linear-tomorrow-preview="true">
+            Завтра ≈ {{ _lp_tomorrow.estimated_minutes | int }} мин
+            {% for _sk in _lp_tomorrow.slot_types %}
+            <span aria-label="{{ l_slot_labels.get(_sk, _sk) }}">{{ l_slot_icons.get(_sk, '&#128204;')|safe }}</span>
+            {% endfor %}
+        </span>
+        {% endif %}
     </div>
     {% endif %}
 

@@ -1122,6 +1122,8 @@ def dashboard():
                 )
                 if next_best:
                     day_secured_banner['next_step'] = next_best
+
+                day_secured_banner['tomorrow_preview'] = linear_plan.get('tomorrow_preview')
         except Exception:
             logger.warning("day_secured_banner build failed", exc_info=True)
             day_secured_banner = None
