@@ -424,11 +424,11 @@
 - Modify: `app/templates/study/index.html`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] `get_writing_stats(user_id, db)` — total attempts, avg word_count per attempt, consecutive writing days
-- [ ] Render compact dashboard widget: "Письмо: N попыток · avg M слов"
-- [ ] Widget wrapped in `_safe_widget_call()`
-- [ ] Tests: correct aggregates; zero writing → zeros in widget
-- [ ] Run pytest -m smoke
+- [x] `get_writing_stats(user_id, db)` — total attempts, avg word_count per attempt, consecutive writing days
+- [x] Render compact dashboard widget: "Письмо: N попыток · avg M слов"
+- [x] Widget wrapped in `_safe_widget_call()`
+- [x] Tests: correct aggregates; zero writing → zeros in widget
+- [x] Run pytest -m smoke
 
 ---
 ### Task 27: Writing plan auto-suggest when writing streak broken

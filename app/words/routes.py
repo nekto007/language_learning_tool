@@ -877,12 +877,16 @@ def dashboard():
     )
 
     # === WEEKLY ANALYTICS (via insights_service — week-to-date, not lifetime) ===
-    from app.study.insights_service import get_weekly_summary, get_listening_stats
+    from app.study.insights_service import get_weekly_summary, get_listening_stats, get_writing_stats
     weekly_analytics = get_weekly_summary(current_user.id)
 
     # === LISTENING STATS (last 7 days dictation/audio_fill_blank) ===
     listening_stats = _safe_widget_call(
         'listening_stats', get_listening_stats, current_user.id, default=None)
+
+    # === WRITING STATS (all-time attempts, avg word count) ===
+    writing_stats = _safe_widget_call(
+        'writing_stats', get_writing_stats, current_user.id, default=None)
 
     # === WEEKLY CHALLENGE ===
     from app.achievements.weekly_challenge import get_weekly_challenge, get_weekly_digest
@@ -1212,6 +1216,8 @@ def dashboard():
         weekly_digest=weekly_digest,
         # Listening stats widget (task 9)
         listening_stats=listening_stats,
+        # Writing stats widget (task 26)
+        writing_stats=writing_stats,
         # Route board metadata (task 33)
         route_metadata=route_metadata,
         # Route progress state for task 14 route board UI

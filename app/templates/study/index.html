@@ -407,11 +407,24 @@
                 </div>
                 <div class="decks-mode__text">
                     <div class="decks-mode__name">Письмо</div>
-                    <div class="decks-mode__desc">История заданий</div>
+                    <div class="decks-mode__desc">{% if writing_stats and writing_stats.total_attempts > 0 %}{{ writing_stats.total_attempts }} попыток · avg {{ writing_stats.avg_word_count | int }} сл.{% else %}История заданий{% endif %}</div>
                 </div>
             </a>
         </div>
     </div>
+
+    <!-- Writing stats compact widget (task 26) -->
+    {% if writing_stats and writing_stats.total_attempts > 0 %}
+    <div class="dash-writing-stats" style="margin-top: 1rem;">
+        <span class="dash-writing-stats__icon">&#9997;</span>
+        <span class="dash-writing-stats__label">Письмо:</span>
+        <span class="dash-writing-stats__value">{{ writing_stats.total_attempts }} {% if writing_stats.total_attempts == 1 %}попытка{% elif writing_stats.total_attempts < 5 %}попытки{% else %}попыток{% endif %}</span>
+        {% if writing_stats.avg_word_count > 0 %}
+        <span class="dash-writing-stats__sep">·</span>
+        <span class="dash-writing-stats__avg">avg {{ writing_stats.avg_word_count | int }} сл.</span>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <!-- Quiz Modal -->
     <div class="modal fade" id="quizLimitModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="quizLimitModalTitle">

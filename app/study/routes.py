@@ -212,6 +212,12 @@ def index():
         if best_due <= 0:
             most_urgent_deck = None
 
+    from app.study.insights_service import get_writing_stats as _get_writing_stats
+    try:
+        writing_stats = _get_writing_stats(current_user.id)
+    except Exception:
+        writing_stats = None
+
     return render_template(
         'study/index.html',
         due_items_count=due_items_count,
@@ -224,6 +230,7 @@ def index():
         public_decks=public_decks,
         telegram_linked=telegram_linked,
         most_urgent_deck=most_urgent_deck,
+        writing_stats=writing_stats,
     )
 
 
