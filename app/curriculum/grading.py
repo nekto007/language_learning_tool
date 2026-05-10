@@ -279,6 +279,23 @@ def grade_audio_fill_blank(user_answers: list, items: list) -> dict:
     }
 
 
+def grade_translation(user_answer: str, correct_answer: str) -> dict:
+    """Grade a standalone translation exercise (Russian → English).
+
+    Delegates to ``_strict_text_match``: exact match after normalization with
+    Levenshtein ≤1 tolerance for single-word answers; multi-word requires exact.
+
+    Returns:
+        dict with keys: is_correct (bool), user_answer (str), correct_answer (str).
+    """
+    is_correct = _strict_text_match(user_answer, [correct_answer])
+    return {
+        'is_correct': is_correct,
+        'user_answer': user_answer,
+        'correct_answer': correct_answer,
+    }
+
+
 def process_grammar_submission(exercises, answers):
     """
     Обрабатывает ответы на грамматические упражнения

@@ -265,12 +265,12 @@
 - Modify: `app/daily_plan/linear/xp.py`, `app/achievements/xp_service.py`
 - Tests: `tests/curriculum/test_grading.py`
 
-- [ ] Already exists as `translation_quiz` — confirm validator schema and grader work correctly
-- [ ] Add standalone `translation` lesson type (single sentence, Russian→English, not a quiz): `{russian, english, hint_words?: [str]}`
-- [ ] Grader: `grade_translation(user_answer, correct_answer)` — exact match after normalize + Levenshtein ≤1 for single-word answers; multi-word: exact only (reuse existing fill_blank grader logic)
-- [ ] Register `translation → linear_curriculum_quiz` in LESSON_TYPE_TO_SOURCE
-- [ ] Tests: exact match → correct; typo-1 in single word → correct; wrong word order → incorrect; punctuation ignored
-- [ ] Run pytest tests/curriculum/
+- [x] Already exists as `translation_quiz` — confirm validator schema and grader work correctly
+- [x] Add standalone `translation` lesson type (single sentence, Russian→English, not a quiz): `{russian, english, hint_words?: [str]}`
+- [x] Grader: `grade_translation(user_answer, correct_answer)` — exact match after normalize + Levenshtein ≤1 for single-word answers; multi-word: exact only (reuse existing fill_blank grader logic)
+- [x] Register `translation → linear_curriculum_quiz` in LESSON_TYPE_TO_SOURCE
+- [x] Tests: exact match → correct; typo-1 in single word → correct; wrong word order → incorrect; punctuation ignored
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 17: Translation lesson template

@@ -17,6 +17,7 @@ from app.curriculum.grading import (
     _normalize_answer,
     _strict_text_match,
     grade_dictation,
+    grade_translation,
     process_quiz_submission,
 )
 
@@ -217,3 +218,87 @@ def test_quiz_submission_matching_with_pairs():
     ]
     result = process_quiz_submission(questions, {0: bad_pairs})
     assert result["correct_answers"] == 0
+
+
+class TestGradeTranslation:
+    def test_exact_match_correct(self):
+        result = grade_translation("I like apples", "I like apples")
+        assert result["is_correct"] is True
+
+    def test_exact_match_case_and_punctuation_ignored(self):
+        result = grade_translation("i like apples.", "I like apples")
+        assert result["is_correct"] is True
+
+    def test_single_word_typo_1_accepted(self):
+        result = grade_translation("aple", "apple")
+        assert result["is_correct"] is True
+
+    def test_single_word_typo_2_rejected(self):
+        result = grade_translation("apl", "apple")
+        assert result["is_correct"] is False
+
+    def test_multiword_wrong_word_order_rejected(self):
+        result = grade_translation("apples like I", "I like apples")
+        assert result["is_correct"] is False
+
+    def test_multiword_missing_word_rejected(self):
+        result = grade_translation("I like", "I like apples")
+        assert result["is_correct"] is False
+
+    def test_multiword_exact_match_accepted(self):
+        result = grade_translation("She goes to school every day", "She goes to school every day")
+        assert result["is_correct"] is True
+
+    def test_empty_user_answer_rejected(self):
+        result = grade_translation("", "I like apples")
+        assert result["is_correct"] is False
+
+    def test_punctuation_in_correct_answer_ignored(self):
+        result = grade_translation("hello world", "Hello, world!")
+        assert result["is_correct"] is True
+
+    def test_result_contains_expected_keys(self):
+        result = grade_translation("test", "test")
+        assert "is_correct" in result
+        assert "user_answer" in result
+        assert "correct_answer" in result
+
+
+class TestTranslationValidator:
+    def test_valid_translation_schema(self):
+        from app.curriculum.validators import LessonContentValidator
+
+        is_valid, err, _ = LessonContentValidator.validate(
+            'translation', {'russian': 'Я люблю яблоки', 'english': 'I like apples'}
+        )
+        assert is_valid is True
+        assert err is None
+
+    def test_translation_with_hint_words(self):
+        from app.curriculum.validators import LessonContentValidator
+
+        is_valid, err, data = LessonContentValidator.validate(
+            'translation',
+            {'russian': 'Она идёт в школу', 'english': 'She goes to school', 'hint_words': ['She', 'goes']},
+        )
+        assert is_valid is True
+
+    def test_missing_russian_fails(self):
+        from marshmallow import ValidationError
+        from app.curriculum.validators import LessonContentValidator
+
+        try:
+            LessonContentValidator.validate('translation', {'english': 'I like apples'})
+            assert False, "Should have raised"
+        except ValidationError:
+            pass
+
+    def test_missing_english_fails(self):
+        from marshmallow import ValidationError
+        from app.curriculum.validators import LessonContentValidator
+
+        try:
+            LessonContentValidator.validate('translation', {'russian': 'Я люблю яблоки'})
+            assert False, "Should have raised"
+        except ValidationError:
+            pass

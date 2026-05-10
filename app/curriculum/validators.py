@@ -291,6 +291,16 @@ class AudioFillBlankContentSchema(Schema):
     )
 
 
+class TranslationContentSchema(Schema):
+    """Schema for standalone translation lesson content (Russian → English)."""
+    class Meta:
+        unknown = INCLUDE
+
+    russian = fields.Str(required=True, validate=validate.Length(min=1))
+    english = fields.Str(required=True, validate=validate.Length(min=1))
+    hint_words = fields.List(fields.Str(), required=False, load_default=None)
+
+
 class CardContentSchema(Schema):
     """Schema for card/SRS lesson content"""
     class Meta:
@@ -351,6 +361,7 @@ class LessonContentValidator:
         'card': CardContentSchema,
         'dictation': DictationContentSchema,
         'audio_fill_blank': AudioFillBlankContentSchema,
+        'translation': TranslationContentSchema,
         'final_test': FinalTestContentSchema,
     }
 
