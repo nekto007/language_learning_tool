@@ -9174,6 +9174,56 @@ textarea:focus-visible,
     transition: width 0.3s;
 }
 
+/* Sentence Replay (per-sentence playback icons in listening lessons) */
+.sentence-replay-list {
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--color-border, #e5e7eb);
+    padding-top: 1rem;
+}
+
+.sentence-replay-header {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-secondary, #6b7280);
+    margin-bottom: 0.75rem;
+}
+
+.sentence-replay-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--color-border-light, #f3f4f6);
+}
+
+.sentence-replay-btn {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-50, #eff6ff);
+    color: var(--primary-600, #2563eb);
+    border: 1px solid var(--primary-200, #bfdbfe);
+    border-radius: var(--radius-full, 9999px);
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: background 0.15s, color 0.15s;
+}
+
+.sentence-replay-btn:hover {
+    background: var(--primary-100, #dbeafe);
+    color: var(--primary-700, #1d4ed8);
+}
+
+.sentence-replay-text {
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--color-text, #1f2937);
+}
+
 /* Reading Line */
 .reading-line {
     margin-bottom: 1.5rem;

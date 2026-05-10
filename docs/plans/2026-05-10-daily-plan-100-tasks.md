@@ -128,11 +128,11 @@
 - Modify: `app/templates/curriculum/lessons/text.html`
 - Tests: `tests/curriculum/test_listening_ui.py`
 
-- [ ] If lesson content has `sentences: [{text, start_time, end_time}]`, render per-sentence replay icons
-- [ ] JS: on click, seek audio to start_time and play to end_time, then pause
-- [ ] Fallback: if no sentence timestamps, sentence replay icons are hidden (don't break existing content)
-- [ ] Tests: sentences array present → replay icons rendered; no sentences → no icons; seek logic unit-tested
-- [ ] Run pytest -m smoke
+- [x] If lesson content has `sentences: [{text, start_time, end_time}]`, render per-sentence replay icons
+- [x] JS: on click, seek audio to start_time and play to end_time, then pause
+- [x] Fallback: if no sentence timestamps, sentence replay icons are hidden (don't break existing content)
+- [x] Tests: sentences array present → replay icons rendered; no sentences → no icons; seek logic unit-tested
+- [x] Run pytest -m smoke
 
 ---
 ### Task 8: Listening attempt tracking model

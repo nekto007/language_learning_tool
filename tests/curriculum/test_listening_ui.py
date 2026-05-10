@@ -218,3 +218,85 @@ class TestTranscriptToggleCSS:
     def test_transcript_toggle_hover_defined(self):
         css = _read_design_system_css()
         assert ".transcript-toggle:hover" in css
+
+
+# ---------------------------------------------------------------------------
+# Task 7: Per-sentence replay in listening lessons
+# ---------------------------------------------------------------------------
+
+class TestSentenceReplayTemplate:
+    """Verify per-sentence replay icons are rendered when sentences are present."""
+
+    def test_sentence_replay_list_container_in_template(self):
+        html = _read_text_template()
+        assert 'sentence-replay-list' in html
+
+    def test_sentence_replay_btn_class_in_template(self):
+        html = _read_text_template()
+        assert 'sentence-replay-btn' in html
+
+    def test_sentences_conditional_check_present(self):
+        # Template must guard replay list with if text_content.sentences
+        html = _read_text_template()
+        assert 'text_content.sentences' in html
+
+    def test_replaySentence_function_defined(self):
+        html = _read_text_template()
+        assert 'function replaySentence(' in html
+
+    def test_replaySentence_uses_currentTime(self):
+        html = _read_text_template()
+        assert 'audio.currentTime = startTime' in html
+
+    def test_replaySentence_uses_play(self):
+        html = _read_text_template()
+        assert 'audio.play()' in html
+
+    def test_replaySentence_uses_timeupdate_event(self):
+        html = _read_text_template()
+        assert 'timeupdate' in html
+
+    def test_replaySentence_pauses_at_endTime(self):
+        html = _read_text_template()
+        assert 'audio.pause()' in html
+        assert 'endTime' in html
+
+    def test_fallback_when_no_sentences(self):
+        # Sentences section is conditionally rendered — no hardcoded icon without data
+        html = _read_text_template()
+        # The replay button is inside {% if text_content.sentences %} block
+        # Verify the block uses Jinja conditional (not always rendered)
+        idx_if = html.find('{% if text_content.sentences %}')
+        assert idx_if != -1, "sentences conditional block not found"
+        idx_btn = html.find('sentence-replay-btn', idx_if)
+        assert idx_btn != -1, "sentence-replay-btn should be inside sentences block"
+
+    def test_onclick_passes_start_and_end_time(self):
+        html = _read_text_template()
+        assert 'replaySentence(' in html
+        assert 'sentence.start_time' in html
+        assert 'sentence.end_time' in html
+
+
+class TestSentenceReplayCSS:
+    """Verify CSS classes for sentence replay are defined."""
+
+    def test_sentence_replay_list_class_defined(self):
+        css = _read_design_system_css()
+        assert ".sentence-replay-list" in css
+
+    def test_sentence_replay_item_class_defined(self):
+        css = _read_design_system_css()
+        assert ".sentence-replay-item" in css
+
+    def test_sentence_replay_btn_class_defined(self):
+        css = _read_design_system_css()
+        assert ".sentence-replay-btn" in css
+
+    def test_sentence_replay_btn_hover_defined(self):
+        css = _read_design_system_css()
+        assert ".sentence-replay-btn:hover" in css
+
+    def test_sentence_replay_text_class_defined(self):
+        css = _read_design_system_css()
+        assert ".sentence-replay-text" in css

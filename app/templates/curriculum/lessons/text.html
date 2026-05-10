@@ -299,6 +299,25 @@
               </p>
             </div>
           {% endif %}
+
+          <!-- Per-sentence replay icons (shown only when timestamps are provided) -->
+          {% if text_content.sentences %}
+            <div class="sentence-replay-list" id="sentence-replay-list">
+              <h5 class="sentence-replay-header">
+                <i class="fas fa-list-ul"></i> {{ _('Фразы') }}
+              </h5>
+              {% for sentence in text_content.sentences %}
+                <div class="sentence-replay-item">
+                  <button class="sentence-replay-btn"
+                          onclick="replaySentence({{ sentence.start_time }}, {{ sentence.end_time }})"
+                          title="{{ _('Воспроизвести фразу') }}">
+                    <i class="fas fa-redo-alt"></i>
+                  </button>
+                  <span class="sentence-replay-text">{{ sentence.text }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
         </div>
       {% else %}
         <!-- Обычный текст -->
@@ -1426,6 +1445,28 @@ function toggleTranscript() {
   try {
     localStorage.setItem('transcript_visible', nowHidden ? 'false' : 'true');
   } catch (_) {}
+}
+
+// Replay a single sentence segment in the listening audio
+function replaySentence(startTime, endTime) {
+  const audio = document.getElementById('listening-audio');
+  if (!audio) return;
+  // Remove any previously attached timeupdate listener
+  if (audio._replayStop) {
+    audio.removeEventListener('timeupdate', audio._replayStop);
+    audio._replayStop = null;
+  }
+  audio.currentTime = startTime;
+  audio.play().catch(function() {});
+  function stopAtEnd() {
+    if (audio.currentTime >= endTime) {
+      audio.pause();
+      audio.removeEventListener('timeupdate', stopAtEnd);
+      audio._replayStop = null;
+    }
+  }
+  audio._replayStop = stopAtEnd;
+  audio.addEventListener('timeupdate', stopAtEnd);
 }
 
 function initTranscriptToggle() {
