@@ -326,6 +326,12 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
     except Exception as log_err:
         logger.warning(f"Listening attempt log failed for lesson {lesson.id}: {log_err}")
 
+    try:
+        from app.achievements.services import check_listening_achievements
+        check_listening_achievements(user_id, db_session=db.session)
+    except Exception as ach_err:
+        logger.warning(f"Listening achievement check failed for user {user_id}: {ach_err}")
+
     if grade.get('passed'):
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp
@@ -413,6 +419,12 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
         db.session.flush()
     except Exception as log_err:
         logger.warning(f"Listening attempt log failed for lesson {lesson.id}: {log_err}")
+
+    try:
+        from app.achievements.services import check_listening_achievements
+        check_listening_achievements(user_id, db_session=db.session)
+    except Exception as ach_err:
+        logger.warning(f"Listening achievement check failed for user {user_id}: {ach_err}")
 
     if grade.get('passed'):
         try:

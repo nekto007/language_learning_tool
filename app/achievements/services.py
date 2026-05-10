@@ -585,6 +585,49 @@ class AchievementService:
         }
 
 
+def check_listening_achievements(user_id: int, db_session=None) -> List[Achievement]:
+    """Award listening-related achievements after a ListeningAttempt is created.
+
+    Checks:
+    - listening_first: user has at least 1 ListeningAttempt
+    - listening_week: 7-day consecutive listening streak
+    - listening_master: avg score >= 90 over last 10 ListeningAttempt rows
+    """
+    from app.curriculum.models import ListeningAttempt
+    from app.achievements.streak_service import get_listening_streak
+    from sqlalchemy import func
+
+    session = db_session if db_session is not None else db.session
+
+    codes_to_award: set[str] = set()
+
+    total = session.query(func.count(ListeningAttempt.id)).filter(
+        ListeningAttempt.user_id == user_id,
+    ).scalar() or 0
+
+    if total >= 1:
+        codes_to_award.add('listening_first')
+
+    streak = get_listening_streak(user_id, db_session=session)
+    if streak >= 7:
+        codes_to_award.add('listening_week')
+
+    if total >= 10:
+        from sqlalchemy import select, literal_column
+        subq = (
+            select([ListeningAttempt.score])
+            .where(ListeningAttempt.user_id == user_id)
+            .order_by(ListeningAttempt.created_at.desc())
+            .limit(10)
+            .alias('last10')
+        )
+        last_10_avg = session.query(func.avg(literal_column('score'))).select_entity_from(subq).scalar() or 0.0
+        if last_10_avg >= 90.0:
+            codes_to_award.add('listening_master')
+
+    return AchievementService._award_badges(user_id, codes_to_award)
+
+
 def process_lesson_completion(user_id: int, lesson_id: int, score: float) -> Dict:
     """
     Complete workflow for lesson completion: assign grade, update stats, check achievements

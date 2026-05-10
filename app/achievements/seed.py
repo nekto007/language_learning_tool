@@ -338,6 +338,32 @@ INITIAL_ACHIEVEMENTS = [
         'category': 'special'
     },
 
+    # Listening achievements
+    {
+        'code': 'listening_first',
+        'name': 'Первый диктант',
+        'description': 'Завершите первый диктант или аудио-упражнение',
+        'icon': '🎧',
+        'xp_reward': 25,
+        'category': 'listening'
+    },
+    {
+        'code': 'listening_week',
+        'name': 'Неделя на слух',
+        'description': 'Практикуйте слушание 7 дней подряд',
+        'icon': '🎵',
+        'xp_reward': 150,
+        'category': 'listening'
+    },
+    {
+        'code': 'listening_master',
+        'name': 'Мастер диктанта',
+        'description': 'Средний балл ≥ 90% за последние 10 диктантов',
+        'icon': '🏅',
+        'xp_reward': 200,
+        'category': 'listening'
+    },
+
     # Daily plan mission badges
     {
         'code': 'mission_first',

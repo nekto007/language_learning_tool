@@ -218,11 +218,11 @@
 - Modify: `app/achievements/services.py`
 - Tests: `tests/achievements/test_listening_achievements.py`
 
-- [ ] Seed 3 new achievements: `listening_first` (first dictation), `listening_week` (7-day listening streak), `listening_master` (avg score ≥ 90% over 10 dictations)
-- [ ] Add `check_listening_achievements(user_id, db)` in services.py — called after ListeningAttempt creation
-- [ ] Use `grant_achievement(user_id, achievement_id)` (race-safe upsert)
-- [ ] Tests: first dictation → listening_first granted; 7-day streak → listening_week; high avg → listening_master
-- [ ] Run pytest tests/achievements/
+- [x] Seed 3 new achievements: `listening_first` (first dictation), `listening_week` (7-day listening streak), `listening_master` (avg score ≥ 90% over 10 dictations)
+- [x] Add `check_listening_achievements(user_id, db)` in services.py — called after ListeningAttempt creation
+- [x] Use `grant_achievement(user_id, achievement_id)` (race-safe upsert)
+- [x] Tests: first dictation → listening_first granted; 7-day streak → listening_week; high avg → listening_master
+- [x] Run pytest tests/achievements/
 
 ---
 ### Task 14: Listening mission type in mission-based plan
