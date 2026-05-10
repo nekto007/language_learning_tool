@@ -366,6 +366,72 @@ def grade_sentence_completion(user_answers: list, items: list) -> dict:
     }
 
 
+def grade_collocation_matching(user_pairs: list, correct_pairs: list) -> dict:
+    """Grade a collocation matching exercise with partial scoring.
+
+    Args:
+        user_pairs: List of {phrase, translation} dicts submitted by the user.
+        correct_pairs: List of {phrase, translation} dicts from lesson content.
+
+    Returns:
+        dict with score (0-100), passed (bool), correct_items (int),
+        total_items (int), pair_results (list of {phrase, translation, correct}).
+    """
+    total = len(correct_pairs)
+    if total == 0:
+        return {
+            'score': 0,
+            'passed': False,
+            'correct_items': 0,
+            'total_items': 0,
+            'pair_results': [],
+        }
+
+    # Build lookup: normalized_phrase → normalized_translation from user submission
+    user_lookup: dict[str, str] = {}
+    for p in (user_pairs or []):
+        if isinstance(p, dict):
+            phrase_key = _normalize_answer(p.get('phrase', ''))
+            translation_val = _normalize_answer(p.get('translation', ''))
+            if phrase_key:
+                user_lookup[phrase_key] = translation_val
+
+    correct = 0
+    pair_results = []
+    for item in correct_pairs:
+        phrase = item.get('phrase', '')
+        translation = item.get('translation', '')
+        phrase_key = _normalize_answer(phrase)
+        correct_val = _normalize_answer(translation)
+        user_val = user_lookup.get(phrase_key, '')
+        is_correct = bool(user_val and user_val == correct_val)
+        if is_correct:
+            correct += 1
+        pair_results.append({
+            'phrase': phrase,
+            'translation': translation,
+            'user_translation': item.get('translation', '') if is_correct else (
+                next(
+                    (p.get('translation', '') for p in (user_pairs or [])
+                     if isinstance(p, dict) and _normalize_answer(p.get('phrase', '')) == phrase_key),
+                    ''
+                )
+            ),
+            'correct': is_correct,
+        })
+
+    score = round(correct / total * 100)
+    passed = score >= 70
+
+    return {
+        'score': score,
+        'passed': passed,
+        'correct_items': correct,
+        'total_items': total,
+        'pair_results': pair_results,
+    }
+
+
 def process_grammar_submission(exercises, answers):
     """
     Обрабатывает ответы на грамматические упражнения

@@ -57,6 +57,7 @@ LESSON_TYPE_TO_SOURCE: dict[str, str] = {
     'sentence_correction': 'linear_curriculum_quiz',
     'writing_prompt': 'linear_curriculum_use',
     'sentence_completion': 'linear_curriculum_quiz',
+    'collocation_matching': 'linear_curriculum_quiz',
 }
 
 LINEAR_XP_EVENT_TYPE = 'xp_linear'

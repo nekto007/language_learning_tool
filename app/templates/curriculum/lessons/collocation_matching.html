@@ -1,0 +1,260 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Коллокации — сопоставление') %}
+{% set instruction_text = _('Сопоставьте английские фразы с их русскими значениями.') %}
+{% set block_description = _('Практика устойчивых словосочетаний') %}
+
+{% block lesson_content %}
+<div class="collocation-matching-lesson">
+
+  <div class="collocation-matching-instructions">
+    <i class="fas fa-link"></i>
+    {{ _('Перетащите карточки или нажмите на фразу, затем на её перевод, чтобы создать пару.') }}
+  </div>
+
+  <div class="collocation-matching-board" id="collocation-board">
+    <div class="collocation-column collocation-phrases-col">
+      <div class="collocation-column-header">{{ _('Фраза') }}</div>
+      {% for pair in pairs %}
+      <div
+        class="collocation-card collocation-phrase-card"
+        id="phrase-{{ loop.index0 }}"
+        data-index="{{ loop.index0 }}"
+        data-phrase="{{ pair.phrase | e }}"
+        onclick="selectPhrase({{ loop.index0 }})"
+        role="button"
+        tabindex="0"
+      >
+        {{ pair.phrase }}
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="collocation-column collocation-translations-col">
+      <div class="collocation-column-header">{{ _('Перевод') }}</div>
+      {% for pair in shuffled_pairs %}
+      <div
+        class="collocation-card collocation-translation-card"
+        id="trans-{{ loop.index0 }}"
+        data-index="{{ loop.index0 }}"
+        data-translation="{{ pair.translation | e }}"
+        onclick="selectTranslation({{ loop.index0 }})"
+        role="button"
+        tabindex="0"
+      >
+        {{ pair.translation }}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="collocation-matching-submit-row">
+    <button
+      class="btn btn-primary btn-lg"
+      id="submit-btn"
+      onclick="submitMatching()"
+      type="button"
+      disabled
+    >
+      <i class="fas fa-check"></i>
+      {{ _('Проверить') }}
+    </button>
+    <button
+      class="btn btn-outline-secondary"
+      id="reset-btn"
+      onclick="resetMatching()"
+      type="button"
+    >
+      <i class="fas fa-undo"></i>
+      {{ _('Сбросить') }}
+    </button>
+  </div>
+
+  <div class="collocation-matching-result" id="matching-result" style="display: none;">
+    <div id="result-summary"></div>
+    <div id="pair-results-list"></div>
+    <div id="matching-next-area" style="margin-top: 1rem;"></div>
+  </div>
+
+</div>
+
+<script>
+const lessonId = {{ lesson.id }};
+const totalPairs = {{ pairs | length }};
+
+// Pairs data keyed by phrase index (original order)
+const phraseData = [
+  {% for pair in pairs %}
+  { phrase: {{ pair.phrase | tojson }}, translation: {{ pair.translation | tojson }} }{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
+
+// Shuffled translations with their original phrase index
+const translationData = [
+  {% for pair in shuffled_pairs %}
+  { phrase: {{ pair.phrase | tojson }}, translation: {{ pair.translation | tojson }} }{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
+
+let selectedPhrase = null;   // index into phraseData
+let selectedTrans = null;    // index into translationData
+// Map: phraseIndex → translationIndex
+const matches = {};
+
+function selectPhrase(idx) {
+  if (document.getElementById('submit-btn').disabled === false &&
+      document.getElementById('matching-result').style.display !== 'none') return;
+  // Deselect if already matched
+  if (matches[idx] !== undefined) return;
+
+  if (selectedPhrase === idx) {
+    // Deselect
+    document.getElementById('phrase-' + idx).classList.remove('collocation-card--selected');
+    selectedPhrase = null;
+  } else {
+    if (selectedPhrase !== null) {
+      document.getElementById('phrase-' + selectedPhrase).classList.remove('collocation-card--selected');
+    }
+    selectedPhrase = idx;
+    document.getElementById('phrase-' + idx).classList.add('collocation-card--selected');
+    if (selectedTrans !== null) tryPair();
+  }
+}
+
+function selectTranslation(idx) {
+  if (document.getElementById('matching-result').style.display !== 'none') return;
+  // Deselect if already matched
+  const alreadyMatched = Object.values(matches).includes(idx);
+  if (alreadyMatched) return;
+
+  if (selectedTrans === idx) {
+    document.getElementById('trans-' + idx).classList.remove('collocation-card--selected');
+    selectedTrans = null;
+  } else {
+    if (selectedTrans !== null) {
+      document.getElementById('trans-' + selectedTrans).classList.remove('collocation-card--selected');
+    }
+    selectedTrans = idx;
+    document.getElementById('trans-' + idx).classList.add('collocation-card--selected');
+    if (selectedPhrase !== null) tryPair();
+  }
+}
+
+function tryPair() {
+  const pi = selectedPhrase;
+  const ti = selectedTrans;
+
+  matches[pi] = ti;
+
+  document.getElementById('phrase-' + pi).classList.remove('collocation-card--selected');
+  document.getElementById('phrase-' + pi).classList.add('collocation-card--paired');
+  document.getElementById('trans-' + ti).classList.remove('collocation-card--selected');
+  document.getElementById('trans-' + ti).classList.add('collocation-card--paired');
+
+  selectedPhrase = null;
+  selectedTrans = null;
+
+  if (Object.keys(matches).length === totalPairs) {
+    document.getElementById('submit-btn').disabled = false;
+  }
+}
+
+function resetMatching() {
+  Object.keys(matches).forEach(k => delete matches[k]);
+  selectedPhrase = null;
+  selectedTrans = null;
+  for (let i = 0; i < totalPairs; i++) {
+    const pc = document.getElementById('phrase-' + i);
+    const tc = document.getElementById('trans-' + i);
+    if (pc) pc.className = 'collocation-card collocation-phrase-card';
+    if (tc) tc.className = 'collocation-card collocation-translation-card';
+  }
+  document.getElementById('submit-btn').disabled = true;
+  document.getElementById('matching-result').style.display = 'none';
+}
+
+async function submitMatching() {
+  const userPairs = Object.entries(matches).map(([pi, ti]) => ({
+    phrase: phraseData[pi].phrase,
+    translation: translationData[ti].translation,
+  }));
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.classList.add('btn--loading');
+
+  try {
+    const resp = await fetch('/curriculum/api/lesson/' + lessonId + '/submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}',
+      },
+      body: JSON.stringify({ user_pairs: userPairs }),
+    });
+
+    const data = await resp.json();
+    showResults(data, userPairs);
+  } catch (err) {
+    btn.disabled = false;
+    btn.classList.remove('btn--loading');
+    console.error('Submit error:', err);
+  }
+}
+
+function showResults(data, userPairs) {
+  const resultDiv = document.getElementById('matching-result');
+  const summaryDiv = document.getElementById('result-summary');
+  const listDiv = document.getElementById('pair-results-list');
+
+  // Score summary
+  const passed = data.passed || false;
+  const score = data.score || 0;
+  const icon = passed ? '<i class="fas fa-check-circle" style="color:var(--color-success)"></i>' :
+                         '<i class="fas fa-times-circle" style="color:var(--color-danger)"></i>';
+  summaryDiv.innerHTML = `<div class="collocation-score-badge">
+    ${icon} <strong>${score}%</strong> &mdash;
+    ${ passed ? '{{ _("Отлично! Продолжай.") }}' : '{{ _("Попробуй ещё раз.") }}' }
+    (${data.correct_items}/${ data.total_items })
+  </div>`;
+
+  // Per-pair results
+  let html = '<div class="collocation-pair-results">';
+  (data.pair_results || []).forEach(pr => {
+    const cls = pr.correct ? 'collocation-pair--correct' : 'collocation-pair--wrong';
+    const icon2 = pr.correct ? '<i class="fas fa-check"></i>' : '<i class="fas fa-times"></i>';
+    html += `<div class="collocation-pair-result ${cls}">
+      ${icon2}
+      <span class="collocation-pair-phrase">${escHtml(pr.phrase)}</span>
+      <span class="collocation-pair-arrow">→</span>
+      <span class="collocation-pair-translation">${escHtml(pr.translation)}</span>
+    </div>`;
+  });
+  html += '</div>';
+  listDiv.innerHTML = html;
+
+  // Next lesson
+  const nextArea = document.getElementById('matching-next-area');
+  if (passed && data.next_lesson_url) {
+    nextArea.innerHTML = `<a href="${data.next_lesson_url}" class="btn btn-success">
+      {{ _('Следующий урок') }} <i class="fas fa-arrow-right"></i>
+    </a>`;
+  }
+
+  resultDiv.style.display = 'block';
+  resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  if (typeof showLessonCompletion === 'function' && passed) {
+    showLessonCompletion({ score });
+  }
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+</script>
+{% endblock %}

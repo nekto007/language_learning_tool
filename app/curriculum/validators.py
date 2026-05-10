@@ -346,6 +346,27 @@ class SentenceCompletionContentSchema(Schema):
     )
 
 
+class CollocationPairSchema(Schema):
+    """Schema for a single collocation matching pair."""
+    class Meta:
+        unknown = INCLUDE
+
+    phrase = fields.Str(required=True, validate=validate.Length(min=1))
+    translation = fields.Str(required=True, validate=validate.Length(min=1))
+
+
+class CollocationMatchingContentSchema(Schema):
+    """Schema for collocation matching lesson — match English phrases to Russian translations."""
+    class Meta:
+        unknown = INCLUDE
+
+    pairs = fields.List(
+        fields.Nested(CollocationPairSchema),
+        required=True,
+        validate=validate.Length(min=1),
+    )
+
+
 class CardContentSchema(Schema):
     """Schema for card/SRS lesson content"""
     class Meta:
@@ -410,6 +431,7 @@ class LessonContentValidator:
         'sentence_correction': SentenceCorrectionContentSchema,
         'writing_prompt': WritingPromptContentSchema,
         'sentence_completion': SentenceCompletionContentSchema,
+        'collocation_matching': CollocationMatchingContentSchema,
         'final_test': FinalTestContentSchema,
     }
 

@@ -499,12 +499,12 @@
 - Modify: `app/curriculum/routes/lessons.py`
 - Tests: `tests/curriculum/test_collocation_matching.py`
 
-- [ ] Validator: `{pairs: [{phrase: str, translation: str}]}` — match English phrase to Russian translation
-- [ ] Grader: reuse server-side matching grader `_grade_matching_pairs`
-- [ ] Template: drag-and-drop cards matching English collocations to Russian meanings; mobile-friendly
-- [ ] Register `collocation_matching → linear_curriculum_quiz` in LESSON_TYPE_TO_SOURCE
-- [ ] Tests: all correct pairs → 100%; mixed → partial; wrong answer includes correct answer in response
-- [ ] Run pytest tests/curriculum/
+- [x] Validator: `{pairs: [{phrase: str, translation: str}]}` — match English phrase to Russian translation
+- [x] Grader: reuse server-side matching grader `_grade_matching_pairs`
+- [x] Template: drag-and-drop cards matching English collocations to Russian meanings; mobile-friendly
+- [x] Register `collocation_matching → linear_curriculum_quiz` in LESSON_TYPE_TO_SOURCE
+- [x] Tests: all correct pairs → 100%; mixed → partial; wrong answer includes correct answer in response
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 32: IPA transcription display in vocabulary

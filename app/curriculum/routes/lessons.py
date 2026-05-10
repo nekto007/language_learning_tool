@@ -75,6 +75,7 @@ def lesson_detail(lesson_id):
         'sentence_correction': 'curriculum_lessons.sentence_correction_lesson',
         'writing_prompt': 'curriculum_lessons.writing_prompt_lesson',
         'sentence_completion': 'curriculum_lessons.sentence_completion_lesson',
+        'collocation_matching': 'curriculum_lessons.collocation_matching_lesson',
     }
 
     route_name = route_map.get(lesson.type)
@@ -240,6 +241,8 @@ def submit_lesson(lesson_id):
             result = _process_writing_prompt_submission(lesson, current_user.id, data)
         elif lesson.type == 'sentence_completion':
             result = _process_sentence_completion_submission(lesson, current_user.id, data)
+        elif lesson.type == 'collocation_matching':
+            result = _process_collocation_matching_submission(lesson, current_user.id, data)
         else:
             return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
 
@@ -836,6 +839,89 @@ def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, dat
             db.session.commit()
         except Exception as xp_err:
             logger.warning(f"Sentence completion XP award failed for lesson {lesson.id}: {xp_err}")
+
+    result = {**grade}
+    next_lesson = get_next_lesson(lesson.id)
+    if grade.get('passed') and next_lesson:
+        result['next_lesson_url'] = url_for(
+            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
+        )
+
+    return result
+
+
+import random
+
+
+@lessons_bp.route('/lesson/<int:lesson_id>/collocation-matching')
+@login_required
+@require_lesson_access
+def collocation_matching_lesson(lesson_id: int):
+    """Display a collocation matching lesson."""
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'collocation_matching':
+        flash('Неверный тип урока', 'error')
+        return redirect('/learn/')
+
+    content = lesson.content or {}
+    pairs = content.get('pairs', [])
+    shuffled_pairs = pairs[:]
+    random.shuffle(shuffled_pairs)
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id,
+    ).first()
+    if not progress:
+        try:
+            progress = LessonProgress(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+                status='in_progress',
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error creating collocation_matching progress: {e}")
+            db.session.rollback()
+
+    return render_template(
+        'curriculum/lessons/collocation_matching.html',
+        lesson=lesson,
+        progress=progress,
+        pairs=pairs,
+        shuffled_pairs=shuffled_pairs,
+    )
+
+
+def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
+    """Grade a collocation matching submission, update progress, award XP, return result."""
+    from app.curriculum.grading import grade_collocation_matching
+    from app.curriculum.service import get_next_lesson
+    from app.curriculum.services.progress_service import ProgressService
+
+    content = lesson.content or {}
+    correct_pairs = content.get('pairs', [])
+    user_pairs = data.get('user_pairs', [])
+
+    grade = grade_collocation_matching(user_pairs, correct_pairs)
+
+    ProgressService.update_progress_with_grading(
+        user_id=user_id,
+        lesson=lesson,
+        result=grade,
+        passing_score=70,
+    )
+
+    if grade.get('passed'):
+        try:
+            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
+            db.session.commit()
+        except Exception as xp_err:
+            logger.warning(f"Collocation matching XP award failed for lesson {lesson.id}: {xp_err}")
 
     result = {**grade}
     next_lesson = get_next_lesson(lesson.id)
