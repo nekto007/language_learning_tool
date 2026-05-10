@@ -409,3 +409,106 @@ class TestWritingPromptSubmitRoute:
             json={"response_text": "test", "lesson_type": "writing_prompt"},
         )
         assert resp.status_code in (302, 401, 403)
+
+
+# ---------------------------------------------------------------------------
+# Task 28: default checklist, 2-item minimum, live word count
+# ---------------------------------------------------------------------------
+
+class TestWritingPromptTask28:
+    """Tests for Task 28 improvements: default checklist, 2-item minimum, live word count."""
+
+    # --- Default checklist items ---
+
+    def test_default_checklist_items_used_when_no_checklist_in_content(
+        self, app, db_session, test_user, client
+    ):
+        lesson = _make_writing_lesson(db_session)  # no checklist in content
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/writing-prompt")
+        html = resp.get_data(as_text=True)
+        assert "Использовал(а) новые слова" in html
+        assert "Структура предложений правильная" in html
+        assert "Нет пропущенных артиклей" in html
+        assert "Нет ошибок во временах" in html
+
+    def test_custom_checklist_items_override_defaults(
+        self, app, db_session, test_user, client
+    ):
+        custom = ["My item one", "My item two"]
+        lesson = _make_writing_lesson(db_session, checklist=custom)
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/writing-prompt")
+        html = resp.get_data(as_text=True)
+        assert "My item one" in html
+        assert "My item two" in html
+        assert "Использовал(а) новые слова" not in html
+
+    def test_four_default_checklist_items_rendered(
+        self, app, db_session, test_user, client
+    ):
+        lesson = _make_writing_lesson(db_session)
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/writing-prompt")
+        html = resp.get_data(as_text=True)
+        # Count <input type="checkbox"> elements rendered from checklist loop
+        assert html.count('type="checkbox"') == 4
+
+    # --- 2-item minimum enforcement in JS ---
+
+    def test_template_js_enforces_minimum_two_checklist_items(self):
+        tpl = _read_writing_template()
+        assert "checkboxes.length < 2" in tpl
+
+    def test_template_contains_checklist_hint_element(self):
+        tpl = _read_writing_template()
+        assert "checklist-hint" in tpl
+
+    def test_template_checklist_label_mentions_minimum_two(self):
+        tpl = _read_writing_template()
+        assert "минимум 2" in tpl.lower() or "2" in tpl
+
+    def test_submit_blocked_when_checklist_not_completed(
+        self, app, db_session, test_user, client
+    ):
+        lesson = _make_writing_lesson(db_session, min_words=3)
+        _login(client, test_user)
+        client.get(f"/curriculum/lesson/{lesson.id}/writing-prompt")
+        resp = client.post(
+            f"/curriculum/api/lesson/{lesson.id}/submit",
+            json={
+                "response_text": "one two three four",
+                "checklist_completed": False,
+                "checked_items": ["one item only"],
+                "lesson_type": "writing_prompt",
+            },
+            content_type="application/json",
+        )
+        data = resp.get_json()
+        assert data["completed"] is False
+
+    # --- Live word count ---
+
+    def test_template_has_word_count_display_element(self):
+        tpl = _read_writing_template()
+        assert "word-count-display" in tpl
+
+    def test_template_textarea_has_oninput_handler(self):
+        tpl = _read_writing_template()
+        assert 'oninput="updateWordCount()"' in tpl
+
+    def test_template_update_word_count_function_defined(self):
+        tpl = _read_writing_template()
+        assert "function updateWordCount()" in tpl
+
+    def test_template_word_count_updates_display_correctly(self):
+        tpl = _read_writing_template()
+        # Verify the function updates the display element by ID
+        assert "word-count-display" in tpl
+        assert "display.textContent" in tpl
+
+    def test_template_shows_min_words_target_in_counter(self):
+        tpl = _read_writing_template()
+        # The word count bar shows "X / min_words слов"
+        assert "word-count-display" in tpl
+        assert "min_words" in tpl

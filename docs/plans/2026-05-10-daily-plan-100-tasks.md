@@ -450,11 +450,11 @@
 - Modify: `app/curriculum/validators.py`
 - Tests: `tests/curriculum/test_writing_prompt.py`
 
-- [ ] Default checklist items if none in content: ["Использовал(а) новые слова", "Структура предложений правильная", "Нет пропущенных артиклей", "Нет ошибок во временах"]
-- [ ] Require at least 2 checklist items checked to submit (prevent trivial completion)
-- [ ] Show word count live as user types
-- [ ] Tests: less than 2 items checked → submit blocked; word count updates dynamically
-- [ ] Run pytest tests/curriculum/
+- [x] Default checklist items if none in content: ["Использовал(а) новые слова", "Структура предложений правильная", "Нет пропущенных артиклей", "Нет ошибок во временах"]
+- [x] Require at least 2 checklist items checked to submit (prevent trivial completion)
+- [x] Show word count live as user types
+- [x] Tests: less than 2 items checked → submit blocked; word count updates dynamically
+- [x] Run pytest tests/curriculum/
 
 ---
 ### BLOCK C: Vocabulary Depth (Tasks 29–40)
