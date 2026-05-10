@@ -331,11 +331,11 @@
 - Create: `migrations/versions/20260512_user_writing_attempt.py`
 - Tests: `tests/curriculum/test_writing_attempt.py`
 
-- [ ] Model: `UserWritingAttempt(id, user_id FK, lesson_id FK, response_text TEXT, word_count INT, checklist_completed BOOLEAN, created_at)`
-- [ ] Migration: table + indexes on (user_id, created_at), (user_id, lesson_id)
-- [ ] Helper: `save_writing_attempt(user_id, lesson_id, text, checklist_completed, db)` — compute word_count, create row
-- [ ] Tests: model saves correctly; word_count computed; multiple attempts per lesson allowed
-- [ ] Run pytest tests/curriculum/
+- [x] Model: `UserWritingAttempt(id, user_id FK, lesson_id FK, response_text TEXT, word_count INT, checklist_completed BOOLEAN, created_at)`
+- [x] Migration: table + indexes on (user_id, created_at), (user_id, lesson_id)
+- [x] Helper: `save_writing_attempt(user_id, lesson_id, text, checklist_completed, db)` — compute word_count, create row
+- [x] Tests: model saves correctly; word_count computed; multiple attempts per lesson allowed
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 21: Writing history page
