@@ -184,7 +184,8 @@ def get_study_items():
                 'step_index': direction.step_index or 0,
                 'lapses': direction.lapses or 0,
                 'is_leech': is_leech,
-                'leech_hint': leech_hint
+                'leech_hint': leech_hint,
+                'frequency_band': word.frequency_band,
             }
         else:
             return {
@@ -200,7 +201,8 @@ def get_study_items():
                 'step_index': direction.step_index or 0,
                 'lapses': direction.lapses or 0,
                 'is_leech': is_leech,
-                'leech_hint': leech_hint
+                'leech_hint': leech_hint,
+                'frequency_band': word.frequency_band,
             }
 
     learning_grace_period = timedelta(minutes=15)

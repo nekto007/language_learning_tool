@@ -358,3 +358,111 @@ class TestSynonymAntonymRoute:
         from app.words.models import CollectionWords
         assert hasattr(CollectionWords, 'synonyms')
         assert hasattr(CollectionWords, 'antonyms')
+
+
+# ---------------------------------------------------------------------------
+# Task 34: Word frequency band tests
+# ---------------------------------------------------------------------------
+
+class TestFrequencyBandTemplate:
+    def test_freq_badge_in_template(self):
+        tpl = _read_vocabulary_template()
+        assert "freq-badge" in tpl
+
+    def test_freq_badge_conditionally_rendered(self):
+        tpl = _read_vocabulary_template()
+        assert "word.frequency_band" in tpl
+
+    def test_freq_badge_band1_label(self):
+        tpl = _read_vocabulary_template()
+        assert "freq-badge--1" in tpl
+
+    def test_freq_badge_band2_label(self):
+        tpl = _read_vocabulary_template()
+        assert "freq-badge--2" in tpl
+
+    def test_freq_badge_band3_label(self):
+        tpl = _read_vocabulary_template()
+        assert "freq-badge--3" in tpl
+
+
+class TestFrequencyBandCSS:
+    def test_freq_badge_base_class_defined(self):
+        css = _read_design_system_css()
+        assert ".freq-badge" in css
+
+    def test_freq_badge_1_green(self):
+        css = _read_design_system_css()
+        assert ".freq-badge--1" in css
+
+    def test_freq_badge_2_blue(self):
+        css = _read_design_system_css()
+        assert ".freq-badge--2" in css
+
+    def test_freq_badge_3_gray(self):
+        css = _read_design_system_css()
+        assert ".freq-badge--3" in css
+
+
+class TestFrequencyBandRoute:
+    def test_word_band1_shows_badge(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "freqword1_" + _unique()
+        word = _make_collection_word(db_session, english, "частое слово")
+        word.frequency_band = 1
+        db_session.commit()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "freq-badge--1" in html
+
+    def test_word_band2_shows_badge(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "freqword2_" + _unique()
+        word = _make_collection_word(db_session, english, "среднее слово")
+        word.frequency_band = 2
+        db_session.commit()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "freq-badge--2" in html
+
+    def test_word_band3_shows_badge(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "freqword3_" + _unique()
+        word = _make_collection_word(db_session, english, "редкое слово")
+        word.frequency_band = 3
+        db_session.commit()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "freq-badge--3" in html
+
+    def test_word_null_band_no_badge(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "freqnull_" + _unique()
+        word = _make_collection_word(db_session, english, "неизвестно")
+        word.frequency_band = None
+        db_session.commit()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "freq-badge--1" not in html
+        assert "freq-badge--2" not in html
+        assert "freq-badge--3" not in html
+
+    def test_frequency_band_in_model(self):
+        from app.words.models import CollectionWords
+        assert hasattr(CollectionWords, 'frequency_band')

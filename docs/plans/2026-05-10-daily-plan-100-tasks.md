@@ -548,12 +548,12 @@
 - Modify: `app/static/css/design-system.css`
 - Tests: `tests/curriculum/test_vocabulary_lessons.py`
 
-- [ ] Add `frequency_band SMALLINT` (1=top 1000, 2=top 3000, 3=top 10000, NULL=unknown) to Word
-- [ ] Template: badge "Топ 1000" / "Топ 3000" / "Редкое" with different color per band
-- [ ] CSS: `.freq-badge--1` (green), `.freq-badge--2` (blue), `.freq-badge--3` (gray)
-- [ ] SRS card: also show frequency badge on the card front face
-- [ ] Tests: band 1 → green badge rendered; null band → no badge
-- [ ] Run pytest tests/curriculum/
+- [x] Add `frequency_band SMALLINT` (1=top 1000, 2=top 3000, 3=top 10000, NULL=unknown) to Word
+- [x] Template: badge "Топ 1000" / "Топ 3000" / "Редкое" with different color per band
+- [x] CSS: `.freq-badge--1` (green), `.freq-badge--2` (blue), `.freq-badge--3` (gray)
+- [x] SRS card: also show frequency badge on the card front face
+- [x] Tests: band 1 → green badge rendered; null band → no badge
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 35: Example sentence carousel in vocabulary lessons

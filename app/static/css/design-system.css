@@ -13809,3 +13809,33 @@ footer .col-md-4 {
     font-weight: 600;
     margin-right: 0.25rem;
 }
+
+/* Word frequency band badges */
+.freq-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    margin-top: 0.25rem;
+    margin-bottom: 0.1rem;
+}
+
+.freq-badge--1 {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.freq-badge--2 {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+.freq-badge--3 {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}

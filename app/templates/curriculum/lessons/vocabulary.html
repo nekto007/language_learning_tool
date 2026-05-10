@@ -88,6 +88,13 @@
         <div class="card-face card-front">
           <div class="card-content-wrapper">
             <div class="word-english">{{ word.english }}</div>
+            {% if word.frequency_band == 1 %}
+            <span class="freq-badge freq-badge--1">{{ _('Топ 1000') }}</span>
+            {% elif word.frequency_band == 2 %}
+            <span class="freq-badge freq-badge--2">{{ _('Топ 3000') }}</span>
+            {% elif word.frequency_band == 3 %}
+            <span class="freq-badge freq-badge--3">{{ _('Редкое') }}</span>
+            {% endif %}
             {% if word.ipa_transcription %}
             <div class="word-ipa">/{{ word.ipa_transcription }}/</div>
             {% endif %}

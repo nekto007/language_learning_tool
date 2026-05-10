@@ -179,6 +179,7 @@ class FlashcardSession {
             bookContext: document.getElementById('book-context'),
             bookContextText: document.getElementById('book-context-text'),
             unitTypeBadge: document.getElementById('unit-type-badge'),
+            freqBandBadge: document.getElementById('freq-band-badge'),
             cardNote: document.getElementById('card-note'),
             cardNoteText: document.getElementById('card-note-text'),
         };
@@ -591,6 +592,19 @@ class FlashcardSession {
                 this.els.unitTypeBadge.style.display = '';
             } else {
                 this.els.unitTypeBadge.style.display = 'none';
+            }
+        }
+
+        // Frequency band badge
+        if (this.els.freqBandBadge) {
+            const freqLabels = { 1: 'Топ 1000', 2: 'Топ 3000', 3: 'Редкое' };
+            const band = card.frequency_band;
+            if (band && freqLabels[band]) {
+                this.els.freqBandBadge.textContent = freqLabels[band];
+                this.els.freqBandBadge.className = 'freq-badge freq-badge--' + band;
+                this.els.freqBandBadge.style.display = '';
+            } else {
+                this.els.freqBandBadge.style.display = 'none';
             }
         }
 
