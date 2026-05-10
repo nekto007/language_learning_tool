@@ -51,6 +51,7 @@ LESSON_TYPE_TO_SOURCE: dict[str, str] = {
     'listening_immersion': 'linear_curriculum_listening_immersion',
     'listening_immersion_quiz': 'linear_curriculum_listening_immersion',
     'matching': 'linear_curriculum_quiz',
+    'dictation': 'linear_curriculum_dictation',
 }
 
 LINEAR_XP_EVENT_TYPE = 'xp_linear'

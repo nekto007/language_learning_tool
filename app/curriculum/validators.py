@@ -257,6 +257,16 @@ class TextContentSchema(Schema):
             raise ValidationError('Either "content" or "text" field is required')
 
 
+class DictationContentSchema(Schema):
+    """Schema for dictation lesson content"""
+    class Meta:
+        unknown = INCLUDE
+
+    audio_url = fields.Str(required=True, validate=validate.Length(min=1))
+    transcript = fields.Str(required=True, validate=validate.Length(min=1))
+    hint_chars = fields.Int(required=False, load_default=0, validate=validate.Range(min=0))
+
+
 class CardContentSchema(Schema):
     """Schema for card/SRS lesson content"""
     class Meta:
@@ -315,6 +325,7 @@ class LessonContentValidator:
         'reading': TextContentSchema,  # alias
         'listening_immersion': TextContentSchema,  # alias
         'card': CardContentSchema,
+        'dictation': DictationContentSchema,
         'final_test': FinalTestContentSchema,
     }
 
