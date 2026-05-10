@@ -324,6 +324,28 @@ class WritingPromptContentSchema(Schema):
     checklist = fields.List(fields.Str(), required=False, load_default=None)
 
 
+class SentenceCompletionItemSchema(Schema):
+    """Schema for a single sentence completion item."""
+    class Meta:
+        unknown = INCLUDE
+
+    prompt = fields.Str(required=True, validate=validate.Length(min=1))
+    answer = fields.Str(required=True, validate=validate.Length(min=1))
+    context = fields.Str(required=False, load_default=None, allow_none=True)
+
+
+class SentenceCompletionContentSchema(Schema):
+    """Schema for sentence completion lesson content — user fills in the second half."""
+    class Meta:
+        unknown = INCLUDE
+
+    items = fields.List(
+        fields.Nested(SentenceCompletionItemSchema),
+        required=True,
+        validate=validate.Length(min=1),
+    )
+
+
 class CardContentSchema(Schema):
     """Schema for card/SRS lesson content"""
     class Meta:
@@ -387,6 +409,7 @@ class LessonContentValidator:
         'translation': TranslationContentSchema,
         'sentence_correction': SentenceCorrectionContentSchema,
         'writing_prompt': WritingPromptContentSchema,
+        'sentence_completion': SentenceCompletionContentSchema,
         'final_test': FinalTestContentSchema,
     }
 

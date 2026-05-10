@@ -408,12 +408,12 @@
 - Modify: `app/curriculum/routes/lessons.py`
 - Tests: `tests/curriculum/test_sentence_completion.py`
 
-- [ ] Validator: `{items: [{prompt: str, answer: str, context?: str}]}` — user fills in second half of sentence
-- [ ] Grader: per item, exact + Levenshtein ≤1 grading; final score = correct/total * 100
-- [ ] Template: show prompt + input field; animate correct/wrong per item; show model answer on completion
-- [ ] Register `sentence_completion → linear_curriculum_quiz` in LESSON_TYPE_TO_SOURCE
-- [ ] Tests: exact match passes; partial score calculated; all-wrong → score=0
-- [ ] Run pytest tests/curriculum/
+- [x] Validator: `{items: [{prompt: str, answer: str, context?: str}]}` — user fills in second half of sentence
+- [x] Grader: per item, exact + Levenshtein ≤1 grading; final score = correct/total * 100
+- [x] Template: show prompt + input field; animate correct/wrong per item; show model answer on completion
+- [x] Register `sentence_completion → linear_curriculum_quiz` in LESSON_TYPE_TO_SOURCE
+- [x] Tests: exact match passes; partial score calculated; all-wrong → score=0
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 26: Writing accuracy analytics widget

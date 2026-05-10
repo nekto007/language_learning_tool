@@ -74,6 +74,7 @@ def lesson_detail(lesson_id):
         'translation': 'curriculum_lessons.translation_lesson',
         'sentence_correction': 'curriculum_lessons.sentence_correction_lesson',
         'writing_prompt': 'curriculum_lessons.writing_prompt_lesson',
+        'sentence_completion': 'curriculum_lessons.sentence_completion_lesson',
     }
 
     route_name = route_map.get(lesson.type)
@@ -237,6 +238,8 @@ def submit_lesson(lesson_id):
             result = _process_sentence_correction_submission(lesson, current_user.id, data)
         elif lesson.type == 'writing_prompt':
             result = _process_writing_prompt_submission(lesson, current_user.id, data)
+        elif lesson.type == 'sentence_completion':
+            result = _process_sentence_completion_submission(lesson, current_user.id, data)
         else:
             return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
 
@@ -760,6 +763,83 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
 
     next_lesson = get_next_lesson(lesson.id)
     if completed and next_lesson:
+        result['next_lesson_url'] = url_for(
+            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
+        )
+
+    return result
+
+
+@lessons_bp.route('/lesson/<int:lesson_id>/sentence-completion')
+@login_required
+@require_lesson_access
+def sentence_completion_lesson(lesson_id: int):
+    """Display a sentence completion lesson."""
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'sentence_completion':
+        flash('Неверный тип урока', 'error')
+        return redirect('/learn/')
+
+    content = lesson.content or {}
+    items = content.get('items', [])
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id
+    ).first()
+    if not progress:
+        try:
+            progress = LessonProgress(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+                status='in_progress',
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error creating sentence_completion progress: {e}")
+            db.session.rollback()
+
+    return render_template(
+        'curriculum/lessons/sentence_completion.html',
+        lesson=lesson,
+        progress=progress,
+        items=items,
+    )
+
+
+def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
+    """Grade a sentence completion submission, update progress, award XP, return result."""
+    from app.curriculum.grading import grade_sentence_completion
+    from app.curriculum.service import get_next_lesson
+    from app.curriculum.services.progress_service import ProgressService
+
+    content = lesson.content or {}
+    items = content.get('items', [])
+    user_answers = data.get('answers', [])
+
+    grade = grade_sentence_completion(user_answers, items)
+
+    ProgressService.update_progress_with_grading(
+        user_id=user_id,
+        lesson=lesson,
+        result=grade,
+        passing_score=70,
+    )
+
+    if grade.get('passed'):
+        try:
+            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
+            db.session.commit()
+        except Exception as xp_err:
+            logger.warning(f"Sentence completion XP award failed for lesson {lesson.id}: {xp_err}")
+
+    result = {**grade}
+    next_lesson = get_next_lesson(lesson.id)
+    if grade.get('passed') and next_lesson:
         result['next_lesson_url'] = url_for(
             'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
         )

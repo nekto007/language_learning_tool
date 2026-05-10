@@ -13593,3 +13593,126 @@ footer .col-md-4 {
     color: #1e40af;
     line-height: 1.6;
 }
+
+/* ============================================================
+   Sentence Completion Lesson
+   ============================================================ */
+.sentence-completion-lesson {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+.sentence-completion-item {
+    background: var(--color-surface-secondary, #f8fafc);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: 0.75rem;
+    padding: 1rem 1.25rem;
+    transition: border-color 0.2s;
+}
+.sentence-completion-context {
+    font-size: 0.82rem;
+    color: var(--color-text-secondary, #64748b);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.sentence-completion-prompt-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+.sentence-completion-prompt {
+    font-size: 1rem;
+    color: var(--color-text-primary, #1e293b);
+    font-weight: 500;
+}
+.sentence-completion-input {
+    flex: 1;
+    min-width: 180px;
+    padding: 0.5rem 0.875rem;
+    border: 2px solid var(--color-border, #e2e8f0);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    color: var(--color-text, #1f2937);
+    background: #fff;
+    transition: border-color 0.2s;
+}
+.sentence-completion-input:focus {
+    outline: none;
+    border-color: var(--color-primary, #dc2626);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
+.sentence-completion-input--correct {
+    border-color: #16a34a;
+    background: #f0fdf4;
+}
+.sentence-completion-input--incorrect {
+    border-color: #dc2626;
+    background: #fff1f2;
+}
+.sentence-completion-item-feedback {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.625rem;
+}
+.sentence-completion-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 2rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.sentence-completion-badge--correct {
+    background: #d1fae5;
+    color: #065f46;
+}
+.sentence-completion-badge--incorrect {
+    background: #fee2e2;
+    color: #7f1d1d;
+}
+.sentence-completion-model-answer {
+    font-size: 0.88rem;
+    color: var(--color-text-secondary, #64748b);
+}
+.sentence-completion-submit-row {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 1rem;
+}
+.sentence-completion-result {
+    margin-top: 0.5rem;
+    padding: 1rem 1.25rem;
+    border-radius: 0.75rem;
+    background: var(--color-surface-raised, #f9fafb);
+    border: 1px solid var(--color-border, #e5e7eb);
+}
+.sentence-completion-score-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 2rem;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+}
+.sentence-completion-score-card--pass {
+    background: #d1fae5;
+    color: #065f46;
+}
+.sentence-completion-score-card--fail {
+    background: #fee2e2;
+    color: #7f1d1d;
+}
+@media (prefers-reduced-motion: reduce) {
+    .sentence-completion-input,
+    .sentence-completion-item {
+        transition: none;
+    }
+}
