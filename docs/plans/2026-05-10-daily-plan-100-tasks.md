@@ -173,13 +173,13 @@
 - Modify: `app/templates/partials/linear_daily_plan.html`
 - Tests: `tests/daily_plan/linear/test_listening_slot.py`
 
-- [ ] `build_listening_slot(user_id, db)` — find next incomplete listening_immersion or dictation lesson in user's current module
-- [ ] Slot data: `{lesson_id, lesson_title, lesson_type, estimated_minutes: 10}`
-- [ ] Add to EXTENSION_PRIORITY after reading (curriculum → srs → reading → listening → error_review)
-- [ ] Template: render listening slot with headphone icon, type badge, estimated time
-- [ ] XP: reuse `maybe_award_curriculum_xp` — already handles listening_immersion type
-- [ ] Tests: slot builds correctly; no listening lesson → slot is None; completed lesson skipped; template renders
-- [ ] Run pytest tests/daily_plan/linear/
+- [x] `build_listening_slot(user_id, db)` — find next incomplete listening_immersion or dictation lesson in user's current module
+- [x] Slot data: `{lesson_id, lesson_title, lesson_type, estimated_minutes: 10}`
+- [x] Add to EXTENSION_PRIORITY after reading (curriculum → srs → reading → listening → error_review)
+- [x] Template: render listening slot with headphone icon, type badge, estimated time
+- [x] XP: reuse `maybe_award_curriculum_xp` — already handles listening_immersion type
+- [x] Tests: slot builds correctly; no listening lesson → slot is None; completed lesson skipped; template renders
+- [x] Run pytest tests/daily_plan/linear/
 
 ---
 ### Task 11: Daily listening goal (minutes per day)

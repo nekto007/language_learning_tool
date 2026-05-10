@@ -232,7 +232,7 @@ class TestMaybeAwardCurriculumXp:
         # single XP source key, so covering one covers the other for
         # idempotency purposes. The three legacy aliases have dedicated
         # coverage in ``test_legacy_aliases_map_to_canonical_sources``.
-        aliased_types = {'flashcards', 'text', 'matching', 'listening_immersion_quiz'}
+        aliased_types = {'flashcards', 'text', 'matching', 'listening_immersion_quiz', 'audio_fill_blank'}
         for lesson_type, expected_source in LESSON_TYPE_TO_SOURCE.items():
             if lesson_type in aliased_types:
                 continue

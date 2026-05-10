@@ -50,12 +50,14 @@
     'curriculum': '&#127919;',
     'srs': '&#128170;',
     'reading': '&#128214;',
+    'listening': '&#127911;',
     'error_review': '&#128269;',
 } %}
 {% set l_slot_labels = {
     'curriculum': 'Урок курса',
     'srs': 'Повторение слов',
     'reading': 'Чтение книги',
+    'listening': 'Аудирование',
     'error_review': 'Разбор ошибок',
 } %}
 {% set l_lesson_type_labels = {
@@ -344,6 +346,13 @@
                             </div>
                             {% endif %}
                         {% endif %}
+                        {% elif _kind == 'listening' %}
+                        <div class="linear-slot__meta">
+                            {% if slot.lesson_type %}
+                            <span class="linear-slot__type-badge">{{ l_lesson_type_labels.get(slot.lesson_type, slot.lesson_type) }}</span>
+                            {% endif %}
+                            {% if _eta > 0 %}~{{ _eta }} мин{% endif %}
+                        </div>
                         {% elif _kind == 'error_review' %}
                         <div class="linear-slot__meta">
                             Неразобранных ошибок: {{ _data.get('unresolved_count', 0) }}
