@@ -297,13 +297,13 @@
 - Modify: `app/curriculum/routes/lessons.py`
 - Tests: `tests/curriculum/test_sentence_correction.py`
 
-- [ ] Validator schema: `{incorrect_sentence: str, correct_sentence: str, error_type: str, explanation: str}`
-- [ ] Grader: `grade_sentence_correction(user_answer, correct_sentence)` — normalized exact match
-- [ ] Template: show incorrect sentence with editable inline text area; user types corrected version
-- [ ] Alternatively: multiple-choice between 4 versions (if `options` field present in content)
-- [ ] Register `sentence_correction → linear_curriculum_quiz` in LESSON_TYPE_TO_SOURCE
-- [ ] Tests: correct answer → pass; wrong answer → fail; explanation shown after submit
-- [ ] Run pytest tests/curriculum/
+- [x] Validator schema: `{incorrect_sentence: str, correct_sentence: str, error_type: str, explanation: str}`
+- [x] Grader: `grade_sentence_correction(user_answer, correct_sentence)` — normalized exact match
+- [x] Template: show incorrect sentence with editable inline text area; user types corrected version
+- [x] Alternatively: multiple-choice between 4 versions (if `options` field present in content)
+- [x] Register `sentence_correction → linear_curriculum_quiz` in LESSON_TYPE_TO_SOURCE
+- [x] Tests: correct answer → pass; wrong answer → fail; explanation shown after submit
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 19: Writing prompt exercise type

@@ -301,6 +301,18 @@ class TranslationContentSchema(Schema):
     hint_words = fields.List(fields.Str(), required=False, load_default=None)
 
 
+class SentenceCorrectionContentSchema(Schema):
+    """Schema for sentence correction lesson content."""
+    class Meta:
+        unknown = INCLUDE
+
+    incorrect_sentence = fields.Str(required=True, validate=validate.Length(min=1))
+    correct_sentence = fields.Str(required=True, validate=validate.Length(min=1))
+    error_type = fields.Str(required=True, validate=validate.Length(min=1))
+    explanation = fields.Str(required=True, validate=validate.Length(min=1))
+    options = fields.List(fields.Str(), required=False, validate=validate.Length(min=2, max=6))
+
+
 class CardContentSchema(Schema):
     """Schema for card/SRS lesson content"""
     class Meta:
@@ -362,6 +374,7 @@ class LessonContentValidator:
         'dictation': DictationContentSchema,
         'audio_fill_blank': AudioFillBlankContentSchema,
         'translation': TranslationContentSchema,
+        'sentence_correction': SentenceCorrectionContentSchema,
         'final_test': FinalTestContentSchema,
     }
 

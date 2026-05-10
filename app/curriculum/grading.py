@@ -296,6 +296,24 @@ def grade_translation(user_answer: str, correct_answer: str) -> dict:
     }
 
 
+def grade_sentence_correction(user_answer: str, correct_sentence: str) -> dict:
+    """Grade a sentence correction exercise.
+
+    Compares the user's corrected sentence to the correct version using
+    normalized exact match. No Levenshtein tolerance — the user must
+    supply the exact corrected sentence (modulo punctuation/case).
+
+    Returns:
+        dict with keys: is_correct (bool), user_answer (str), correct_sentence (str).
+    """
+    is_correct = _normalize_answer(user_answer) == _normalize_answer(correct_sentence)
+    return {
+        'is_correct': is_correct,
+        'user_answer': user_answer,
+        'correct_sentence': correct_sentence,
+    }
+
+
 def process_grammar_submission(exercises, answers):
     """
     Обрабатывает ответы на грамматические упражнения
