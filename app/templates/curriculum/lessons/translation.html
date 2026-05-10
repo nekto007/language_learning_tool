@@ -1,0 +1,184 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Перевод') %}
+{% set instruction_text = _('Переведите предложение с русского на английский.') %}
+{% set block_description = _('Практика письменного перевода') %}
+
+{% block lesson_content %}
+<div class="translation-lesson">
+
+  <div class="translation-source-card">
+    <div class="translation-source-label">
+      <i class="fas fa-language"></i>
+      {{ _('Переведите на английский:') }}
+    </div>
+    <div class="translation-source-text" id="source-text">
+      {{ russian }}
+    </div>
+  </div>
+
+  {% if hint_words %}
+  <div class="translation-chips-section">
+    <div class="translation-chips-label">
+      <i class="fas fa-lightbulb"></i>
+      {{ _('Слова-подсказки:') }}
+    </div>
+    <div class="translation-chips" id="hint-chips">
+      {% for word in hint_words %}
+      <button
+        class="translation-chip"
+        type="button"
+        onclick="insertChip({{ loop.index0 }}, '{{ word | e }}')"
+        id="chip-{{ loop.index0 }}"
+      >
+        {{ word }}
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="translation-input-section">
+    <label class="translation-input-label" for="translation-answer">
+      <i class="fas fa-pen"></i>
+      {{ _('Ваш перевод:') }}
+    </label>
+    <input
+      class="translation-input"
+      id="translation-answer"
+      type="text"
+      placeholder="{{ _('Введите перевод...') }}"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+    >
+    <div class="translation-submit-row">
+      <button
+        class="btn btn-primary btn-lg"
+        id="submit-btn"
+        onclick="submitTranslation()"
+        type="button"
+      >
+        <i class="fas fa-check"></i>
+        {{ _('Проверить') }}
+      </button>
+    </div>
+  </div>
+
+  <div class="translation-result" id="translation-result" style="display: none;">
+    <div id="result-badge"></div>
+    <div class="translation-correct-answer" id="correct-answer-reveal" style="display: none;">
+      <span class="translation-correct-label">
+        <i class="fas fa-spell-check"></i>
+        {{ _('Правильный перевод:') }}
+      </span>
+      <span id="correct-answer-text" class="translation-correct-text"></span>
+    </div>
+    <div id="translation-next-area" style="margin-top: 1rem;"></div>
+  </div>
+</div>
+
+<script>
+const lessonId = {{ lesson.id }};
+const correctAnswer = {{ correct_answer | tojson }};
+
+function insertChip(idx, word) {
+  const inp = document.getElementById('translation-answer');
+  const chip = document.getElementById('chip-' + idx);
+  const current = inp.value;
+  inp.value = current ? current.trimEnd() + ' ' + word : word;
+  inp.focus();
+  if (chip) chip.classList.add('translation-chip--used');
+}
+
+async function submitTranslation() {
+  const answer = document.getElementById('translation-answer').value.trim();
+  if (!answer) {
+    alert('{{ _("Пожалуйста, введите перевод.") }}');
+    return;
+  }
+
+  const submitBtn = document.getElementById('submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Проверка...") }}';
+
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const resp = await fetch(`/learn/api/lesson/${lessonId}/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      body: JSON.stringify({ user_answer: answer, lesson_type: 'translation' }),
+    });
+
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    showResult(data);
+
+    if (data.is_correct) {
+      submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено") }}';
+      if (typeof showSaveToast === 'function') showSaveToast();
+    } else {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-redo"></i> {{ _("Попробовать снова") }}';
+    }
+  } catch (err) {
+    console.error('Translation submit error:', err);
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Проверить") }}';
+    alert('{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+  }
+}
+
+function showResult(data) {
+  const inp = document.getElementById('translation-answer');
+  const badge = document.getElementById('result-badge');
+  const correctReveal = document.getElementById('correct-answer-reveal');
+  const correctText = document.getElementById('correct-answer-text');
+  const nextArea = document.getElementById('translation-next-area');
+
+  inp.classList.remove('translation-input--correct', 'translation-input--incorrect');
+
+  if (data.is_correct) {
+    inp.classList.add('translation-input--correct');
+    badge.innerHTML = `
+      <div class="translation-badge translation-badge--correct">
+        <i class="fas fa-check-circle"></i>
+        {{ _('Правильно!') }}
+      </div>`;
+    correctReveal.style.display = 'none';
+  } else {
+    inp.classList.add('translation-input--incorrect');
+    badge.innerHTML = `
+      <div class="translation-badge translation-badge--incorrect">
+        <i class="fas fa-times-circle"></i>
+        {{ _('Неправильно') }}
+      </div>`;
+    correctReveal.style.display = 'flex';
+    const d = document.createElement('span');
+    d.textContent = data.correct_answer || correctAnswer;
+    correctText.innerHTML = '';
+    correctText.appendChild(d);
+  }
+
+  if (data.is_correct && data.next_lesson_url) {
+    nextArea.innerHTML = `
+      <a href="${data.next_lesson_url}" class="btn btn-success">
+        <i class="fas fa-arrow-right"></i> {{ _('Следующий урок') }}
+      </a>`;
+  }
+
+  document.getElementById('translation-result').style.display = 'block';
+  document.getElementById('translation-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+document.getElementById('translation-answer').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    submitTranslation();
+  }
+});
+</script>
+{% endblock %}

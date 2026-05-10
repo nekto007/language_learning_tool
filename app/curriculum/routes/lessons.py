@@ -71,6 +71,7 @@ def lesson_detail(lesson_id):
         'quiz': 'curriculum_lessons.quiz_lesson',
         'dictation': 'curriculum_lessons.dictation_lesson',
         'audio_fill_blank': 'curriculum_lessons.audio_fill_blank_lesson',
+        'translation': 'curriculum_lessons.translation_lesson',
     }
 
     route_name = route_map.get(lesson.type)
@@ -228,6 +229,8 @@ def submit_lesson(lesson_id):
             result = _process_dictation_submission(lesson, current_user.id, data)
         elif lesson.type == 'audio_fill_blank':
             result = _process_audio_fill_blank_submission(lesson, current_user.id, data)
+        elif lesson.type == 'translation':
+            result = _process_translation_submission(lesson, current_user.id, data)
         else:
             return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
 
@@ -453,6 +456,94 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
         {'answer': it.get('answer', ''), 'text_with_gap': it.get('text_with_gap', '')}
         for it in items
     ]
+
+    return result
+
+
+@lessons_bp.route('/lesson/<int:lesson_id>/translation')
+@login_required
+@require_lesson_access
+def translation_lesson(lesson_id: int):
+    """Display a standalone translation lesson."""
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'translation':
+        flash('Неверный тип урока', 'error')
+        return redirect('/learn/')
+
+    content = lesson.content or {}
+    russian = content.get('russian', '')
+    correct_answer = content.get('english', '')
+    hint_words = content.get('hint_words') or []
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id
+    ).first()
+    if not progress:
+        try:
+            progress = LessonProgress(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+                status='in_progress',
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error creating translation progress: {e}")
+            db.session.rollback()
+
+    return render_template(
+        'curriculum/lessons/translation.html',
+        lesson=lesson,
+        progress=progress,
+        russian=russian,
+        correct_answer=correct_answer,
+        hint_words=hint_words,
+    )
+
+
+def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
+    """Grade a translation submission, update progress, award XP, return result."""
+    from app.curriculum.grading import grade_translation
+    from app.curriculum.service import get_next_lesson
+    from app.curriculum.services.progress_service import ProgressService
+
+    content = lesson.content or {}
+    correct_answer = content.get('english', '')
+    user_answer = data.get('user_answer', '')
+
+    grade = grade_translation(user_answer, correct_answer)
+    passed = grade['is_correct']
+
+    # Build a progress-compatible result dict
+    progress_result = {
+        'passed': passed,
+        'score': 100.0 if passed else 0.0,
+    }
+
+    ProgressService.update_progress_with_grading(
+        user_id=user_id,
+        lesson=lesson,
+        result=progress_result,
+        passing_score=100,
+    )
+
+    if passed:
+        try:
+            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=100)
+            db.session.commit()
+        except Exception as xp_err:
+            logger.warning(f"Translation XP award failed for lesson {lesson.id}: {xp_err}")
+
+    result = {**grade}
+    next_lesson = get_next_lesson(lesson.id)
+    if passed and next_lesson:
+        result['next_lesson_url'] = url_for(
+            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
+        )
 
     return result
 

@@ -13249,3 +13249,161 @@ footer .col-md-4 {
         transition: none;
     }
 }
+
+/* ── Translation lesson ── */
+.translation-lesson {
+    max-width: 680px;
+    margin: 0 auto;
+}
+.translation-source-card {
+    background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    color: #fff;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 6px 20px rgba(29, 78, 216, 0.2);
+}
+.translation-source-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.85;
+    margin-bottom: 0.625rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.translation-source-text {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+.translation-chips-section {
+    margin-bottom: 1.25rem;
+}
+.translation-chips-label {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary, #6b7280);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.translation-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.translation-chip {
+    padding: 0.35rem 0.875rem;
+    border: 1.5px solid var(--color-primary, #dc2626);
+    border-radius: 2rem;
+    background: #fff;
+    color: var(--color-primary, #dc2626);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.translation-chip:hover {
+    background: var(--color-primary, #dc2626);
+    color: #fff;
+}
+.translation-chip--used {
+    opacity: 0.45;
+    pointer-events: none;
+}
+.translation-input-section {
+    background: #fff;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    border: 1px solid var(--color-border, #e5e7eb);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 1.5rem;
+}
+.translation-input-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.625rem;
+    color: var(--color-text, #1f2937);
+}
+.translation-input {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    border: 2px solid var(--color-border, #e5e7eb);
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    color: var(--color-text, #1f2937);
+    background: var(--color-surface, #fff);
+    transition: border-color 0.2s;
+}
+.translation-input:focus {
+    outline: none;
+    border-color: var(--color-primary, #dc2626);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
+.translation-input--correct {
+    border-color: #16a34a;
+    background: #f0fdf4;
+}
+.translation-input--incorrect {
+    border-color: #dc2626;
+    background: #fff1f2;
+}
+.translation-submit-row {
+    margin-top: 1rem;
+    display: flex;
+    gap: 1rem;
+}
+.translation-result {
+    margin-top: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: 0.75rem;
+    background: var(--color-surface-raised, #f9fafb);
+    border: 1px solid var(--color-border, #e5e7eb);
+}
+.translation-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    border-radius: 2rem;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.875rem;
+}
+.translation-badge--correct {
+    background: #d1fae5;
+    color: #065f46;
+}
+.translation-badge--incorrect {
+    background: #fee2e2;
+    color: #7f1d1d;
+}
+.translation-correct-answer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.625rem;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+}
+.translation-correct-label {
+    font-weight: 600;
+    color: #14532d;
+    white-space: nowrap;
+}
+.translation-correct-text {
+    color: #065f46;
+}
+@media (prefers-reduced-motion: reduce) {
+    .translation-input,
+    .translation-chip {
+        transition: none;
+    }
+}

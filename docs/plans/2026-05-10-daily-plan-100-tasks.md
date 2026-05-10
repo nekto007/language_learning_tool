@@ -280,12 +280,12 @@
 - Modify: `app/curriculum/routes/lessons.py`
 - Tests: `tests/curriculum/test_translation_lesson.py`
 
-- [ ] Template: show Russian sentence, text input for English answer, optional hint_words as draggable chips
-- [ ] On submit: grade server-side, show correct answer + explanation
-- [ ] CSS: `.translation-chips` for hint words, `.translation-input--correct/incorrect` feedback states
-- [ ] Route: handle translation type dispatch
-- [ ] Tests: template renders; route returns grade; hint_words shown when present
-- [ ] Run pytest tests/curriculum/
+- [x] Template: show Russian sentence, text input for English answer, optional hint_words as draggable chips
+- [x] On submit: grade server-side, show correct answer + explanation
+- [x] CSS: `.translation-chips` for hint words, `.translation-input--correct/incorrect` feedback states
+- [x] Route: handle translation type dispatch
+- [x] Tests: template renders; route returns grade; hint_words shown when present
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 18: Sentence correction exercise type
