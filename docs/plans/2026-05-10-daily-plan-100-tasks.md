@@ -626,11 +626,11 @@
 - Modify: `app/templates/study/index.html`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] `get_vocabulary_growth(user_id, db, days=30)` — count UserCardDirection rows created per day over last N days
-- [ ] Return `{dates: [...], counts: [...], total_active: N}` for Chart.js sparkline
-- [ ] Dashboard widget: small line chart "Словарный запас растёт: +N слов за неделю"
-- [ ] Tests: correct date-bucketing; total_active matches active card count
-- [ ] Run pytest tests/study/
+- [x] `get_vocabulary_growth(user_id, db, days=30)` — count UserCardDirection rows created per day over last N days
+- [x] Return `{dates: [...], counts: [...], total_active: N}` for Chart.js sparkline
+- [x] Dashboard widget: small line chart "Словарный запас растёт: +N слов за неделю"
+- [x] Tests: correct date-bucketing; total_active matches active card count
+- [x] Run pytest tests/study/
 
 ---
 ### Task 40: Word origin notes in vocabulary

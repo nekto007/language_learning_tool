@@ -13760,6 +13760,48 @@ footer .col-md-4 {
     color: var(--color-text-secondary, #64748b);
 }
 
+/* Vocabulary growth widget */
+.dash-vocab-growth {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--color-text-secondary, #64748b);
+    padding: 0.5rem 0.75rem;
+    background: var(--color-surface, #f8fafc);
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid var(--color-border, #e2e8f0);
+    margin-bottom: 0.5rem;
+}
+
+.dash-vocab-growth__icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.dash-vocab-growth__label {
+    font-weight: var(--font-semibold, 600);
+    color: var(--color-text-primary, #0f172a);
+}
+
+.dash-vocab-growth__value {
+    color: var(--color-text-primary, #0f172a);
+}
+
+.dash-vocab-growth__sep {
+    color: var(--color-text-secondary, #64748b);
+    padding: 0 0.125rem;
+}
+
+.dash-vocab-growth__total {
+    color: var(--color-text-secondary, #64748b);
+}
+
+.dash-vocab-growth__sparkline {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
 /* IPA transcription in vocabulary cards */
 .word-ipa {
     font-style: italic;

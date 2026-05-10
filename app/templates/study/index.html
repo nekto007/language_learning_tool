@@ -434,6 +434,20 @@
     </div>
     {% endif %}
 
+    <!-- Vocabulary growth widget (task 39) -->
+    {% if vocab_growth and vocab_growth.total_active > 0 %}
+    <div class="dash-vocab-growth" style="margin-top: 1rem;">
+        <span class="dash-vocab-growth__icon">&#128218;</span>
+        <span class="dash-vocab-growth__label">Словарный запас растёт:</span>
+        <span class="dash-vocab-growth__value">+{{ vocab_growth.words_this_week }} слов за неделю</span>
+        <span class="dash-vocab-growth__sep">·</span>
+        <span class="dash-vocab-growth__total">{{ vocab_growth.total_active }} активных</span>
+        {% if vocab_growth.counts and vocab_growth.counts | sum > 0 %}
+        <canvas class="dash-vocab-growth__sparkline" id="vocabGrowthChart" width="80" height="28" aria-label="График роста словаря" role="img"></canvas>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Quiz Modal -->
     <div class="modal fade" id="quizLimitModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="quizLimitModalTitle">
         <div class="modal-dialog">
@@ -1988,5 +2002,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 });
+
+// Vocabulary growth sparkline (task 39)
+(function () {
+    var canvas = document.getElementById('vocabGrowthChart');
+    if (!canvas) return;
+    var counts = {{ vocab_growth.counts | tojson if vocab_growth else '[]' }};
+    if (!counts.length) return;
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    var w = canvas.width, h = canvas.height;
+    var max = Math.max.apply(null, counts) || 1;
+    var step = w / (counts.length - 1 || 1);
+    ctx.clearRect(0, 0, w, h);
+    ctx.beginPath();
+    counts.forEach(function (v, i) {
+        var x = i * step;
+        var y = h - (v / max) * (h - 2) - 1;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-primary') || '#6366f1';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+}());
 </script>
 {% endblock %}

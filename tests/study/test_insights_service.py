@@ -1,6 +1,7 @@
-"""Tests for get_writing_stats in insights_service.py.
+"""Tests for insights_service.py.
 
 Task 26: Writing accuracy analytics widget.
+Task 39: Vocabulary growth chart on dashboard.
 """
 from __future__ import annotations
 
@@ -10,7 +11,9 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.curriculum.models import CEFRLevel, Lessons, Module, UserWritingAttempt
-from app.study.insights_service import get_writing_stats
+from app.study.insights_service import get_writing_stats, get_vocabulary_growth
+from app.study.models import UserCardDirection, UserWord
+from app.words.models import CollectionWords
 from app.utils.db import db
 
 
@@ -132,3 +135,104 @@ class TestGetWritingStats:
         _make_attempt(db_session, other.id, lesson.id, 'other user text')
         result = get_writing_stats(test_user.id)
         assert result['total_attempts'] == 0
+
+
+# ---------------------------------------------------------------------------
+# Helpers for vocabulary growth tests
+# ---------------------------------------------------------------------------
+
+def _make_collection_word(db_session) -> CollectionWords:
+    word = CollectionWords(
+        english_word=f'testword_{uuid.uuid4().hex[:8]}',
+        russian_word='тест',
+        level='A1',
+    )
+    db_session.add(word)
+    db_session.flush()
+    return word
+
+
+def _make_user_word(db_session, user_id: int, days_ago: int = 0) -> UserWord:
+    word = _make_collection_word(db_session)
+    uw = UserWord(user_id=user_id, word_id=word.id)
+    uw.created_at = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    db_session.add(uw)
+    db_session.flush()
+    return uw
+
+
+def _make_card_direction(db_session, user_word_id: int, state: str = 'new') -> UserCardDirection:
+    card = UserCardDirection(user_word_id=user_word_id, direction='eng-rus')
+    card.state = state
+    db_session.add(card)
+    db_session.flush()
+    return card
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+class TestGetVocabularyGrowth:
+    def test_empty_user_returns_zeros(self, app, db_session, test_user):
+        result = get_vocabulary_growth(test_user.id, days=7)
+        assert result['total_active'] == 0
+        assert result['words_this_week'] == 0
+        assert len(result['dates']) == 7
+        assert len(result['counts']) == 7
+        assert all(c == 0 for c in result['counts'])
+
+    def test_dates_length_matches_days(self, app, db_session, test_user):
+        result = get_vocabulary_growth(test_user.id, days=14)
+        assert len(result['dates']) == 14
+        assert len(result['counts']) == 14
+
+    def test_word_added_today_counted(self, app, db_session, test_user):
+        _make_user_word(db_session, test_user.id, days_ago=0)
+        result = get_vocabulary_growth(test_user.id, days=7)
+        # Today is the last element
+        assert result['counts'][-1] == 1
+        assert result['words_this_week'] == 1
+
+    def test_word_added_three_days_ago_counted(self, app, db_session, test_user):
+        _make_user_word(db_session, test_user.id, days_ago=3)
+        result = get_vocabulary_growth(test_user.id, days=7)
+        assert result['counts'][-4] == 1
+
+    def test_total_active_counts_reviewed_cards(self, app, db_session, test_user):
+        uw1 = _make_user_word(db_session, test_user.id, days_ago=0)
+        uw2 = _make_user_word(db_session, test_user.id, days_ago=0)
+        _make_card_direction(db_session, uw1.id, state='review')
+        _make_card_direction(db_session, uw2.id, state='new')
+        result = get_vocabulary_growth(test_user.id, days=7)
+        assert result['total_active'] == 1
+
+    def test_total_active_excludes_new_state(self, app, db_session, test_user):
+        uw = _make_user_word(db_session, test_user.id, days_ago=0)
+        _make_card_direction(db_session, uw.id, state='new')
+        result = get_vocabulary_growth(test_user.id, days=7)
+        assert result['total_active'] == 0
+
+    def test_words_this_week_sums_last_7(self, app, db_session, test_user):
+        for d in range(3):
+            _make_user_word(db_session, test_user.id, days_ago=d)
+        # 1 word added 35 days ago — outside the 7-day window
+        _make_user_word(db_session, test_user.id, days_ago=35)
+        result = get_vocabulary_growth(test_user.id, days=30)
+        # words_this_week = sum of last 7 counts: 3 words in last 7 days
+        assert result['words_this_week'] == 3
+
+    def test_other_users_words_excluded(self, app, db_session, test_user):
+        from app.auth.models import User
+        other = User(
+            email=f'other_{uuid.uuid4().hex[:8]}@test.com',
+            username=f'other_{uuid.uuid4().hex[:8]}',
+            onboarding_completed=True,
+        )
+        other.set_password('pass')
+        db_session.add(other)
+        db_session.flush()
+        _make_user_word(db_session, other.id, days_ago=0)
+        result = get_vocabulary_growth(test_user.id, days=7)
+        assert result['words_this_week'] == 0
+        assert result['total_active'] == 0

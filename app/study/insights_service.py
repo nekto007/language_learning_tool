@@ -617,6 +617,68 @@ def get_writing_stats(user_id: int) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Vocabulary growth (new cards added per day)
+# ---------------------------------------------------------------------------
+
+def get_vocabulary_growth(user_id: int, days: int = 30) -> dict[str, Any]:
+    """Count new UserWord rows added per day over the last *days* days.
+
+    Returns:
+      - dates: list of ISO date strings (oldest first, length == days)
+      - counts: list of int counts aligned with dates
+      - total_active: total UserCardDirection rows with state != 'new'
+      - words_this_week: sum of counts over the last 7 entries
+    """
+    from app.study.models import UserWord, UserCardDirection
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Count new UserWord rows per UTC calendar day.
+    rows = (
+        db.session.query(
+            cast(UserWord.created_at, Date).label('d'),
+            func.count(UserWord.id).label('cnt'),
+        )
+        .filter(
+            UserWord.user_id == user_id,
+            UserWord.created_at >= cutoff,
+        )
+        .group_by(cast(UserWord.created_at, Date))
+        .all()
+    )
+
+    counts_by_date: dict[date, int] = {row.d: int(row.cnt) for row in rows}
+
+    today = date.today()
+    dates: list[str] = []
+    counts: list[int] = []
+    for offset in range(days):
+        d = today - timedelta(days=days - 1 - offset)
+        dates.append(d.isoformat())
+        counts.append(counts_by_date.get(d, 0))
+
+    # Active cards: state is not 'new' (has been reviewed at least once).
+    total_active = (
+        db.session.query(func.count(UserCardDirection.id))
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(
+            UserWord.user_id == user_id,
+            UserCardDirection.state != 'new',
+        )
+        .scalar()
+    ) or 0
+
+    words_this_week = sum(counts[-7:])
+
+    return {
+        'dates': dates,
+        'counts': counts,
+        'total_active': int(total_active),
+        'words_this_week': words_this_week,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Weekly summary (week-to-date, NOT lifetime)
 # ---------------------------------------------------------------------------
 
