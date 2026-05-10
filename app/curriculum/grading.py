@@ -162,6 +162,68 @@ def _grade_matching_pairs(user_pairs, correct_pairs):
     return sorted(user_keys) == sorted(correct_keys)
 
 
+def _normalize_for_dictation(text: str) -> str:
+    """Normalize dictation text: strip, lower, collapse whitespace, remove punctuation except apostrophes."""
+    if not text:
+        return ""
+    s = str(text).lower().strip()
+    # Remove all punctuation except apostrophes (to preserve contractions like don't, it's)
+    s = re.sub(r"[^\w\s']", "", s)
+    # Collapse multiple spaces
+    s = re.sub(r'\s+', ' ', s).strip()
+    return s
+
+
+def grade_dictation(user_text: str, transcript: str, hint_chars: int = 0) -> dict:
+    """Grade a dictation exercise by comparing user text to the transcript word by word.
+
+    Args:
+        user_text: The text submitted by the user.
+        transcript: The correct transcript text.
+        hint_chars: Number of characters pre-filled per word on the client (server-side
+            grading is unchanged — full word comparison is used regardless).
+
+    Returns:
+        dict with keys: score (0-100), passed (bool), correct_words (int),
+        total_words (int), word_results (list of {word, user_word, correct}).
+    """
+    user_normalized = _normalize_for_dictation(user_text)
+    transcript_normalized = _normalize_for_dictation(transcript)
+
+    transcript_words = transcript_normalized.split() if transcript_normalized else []
+    user_words = user_normalized.split() if user_normalized else []
+
+    total_words = len(transcript_words)
+    if total_words == 0:
+        return {
+            "score": 0,
+            "passed": False,
+            "correct_words": 0,
+            "total_words": 0,
+            "word_results": [],
+        }
+
+    correct_words = 0
+    word_results = []
+    for i, correct_word in enumerate(transcript_words):
+        user_word = user_words[i] if i < len(user_words) else ""
+        is_correct = user_word == correct_word
+        if is_correct:
+            correct_words += 1
+        word_results.append({"word": correct_word, "user_word": user_word, "correct": is_correct})
+
+    score = round(correct_words / total_words * 100)
+    passed = score >= 80
+
+    return {
+        "score": score,
+        "passed": passed,
+        "correct_words": correct_words,
+        "total_words": total_words,
+        "word_results": word_results,
+    }
+
+
 def process_grammar_submission(exercises, answers):
     """
     Обрабатывает ответы на грамматические упражнения
