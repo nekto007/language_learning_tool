@@ -74,10 +74,11 @@ class DailyPlanEvent(db.Model):
 
 
 class MissionType(enum.Enum):
-    """progress = advance in primary course, repair = fix weak spots (SRS/grammar), reading = book-first session."""
+    """progress = advance in primary course, repair = fix weak spots (SRS/grammar), reading = book-first session, listening = dictation/listening_immersion focus."""
     progress = "progress"
     repair = "repair"
     reading = "reading"
+    listening = "listening"
 
 
 class PhaseKind(enum.Enum):
@@ -121,6 +122,8 @@ MODE_CATEGORY_MAP: dict[str, str] = {
     'fun_fact_quiz': 'bonus',
     'speed_review': 'bonus',
     'word_scramble': 'bonus',
+    'dictation_lesson': 'listening',
+    'listening_lesson': 'listening',
 }
 
 
@@ -198,6 +201,7 @@ class MissionPlan:
             frozenset({'curriculum_lesson', 'lesson_practice'}),
             frozenset({'book_course_lesson', 'book_course_practice'}),
             frozenset({'srs_review', 'micro_check'}),
+            frozenset({'dictation_lesson', 'listening_lesson'}),
         }
         seen_categories: dict[str, int] = {}
         for i, phase in enumerate(self.phases):

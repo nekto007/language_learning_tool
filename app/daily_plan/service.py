@@ -7,6 +7,7 @@ from typing import Any, Optional
 from app.daily_plan.models import DailyPlanLog, MissionPlan, MissionType, SourceKind
 from app.daily_plan.mission_selector import select_mission, detect_primary_track, save_mission_type
 from app.daily_plan.assembler import (
+    assemble_listening_mission,
     assemble_progress_mission,
     assemble_reading_mission,
     assemble_repair_mission,
@@ -219,6 +220,14 @@ def get_mission_plan(user_id: int, tz: Optional[str] = None) -> Optional[dict[st
 
         elif mission_type == MissionType.reading:
             plan = assemble_reading_mission(
+                user_id,
+                reason_code=reason_code,
+                reason_text=reason_text,
+                tz=tz,
+            )
+
+        elif mission_type == MissionType.listening:
+            plan = assemble_listening_mission(
                 user_id,
                 reason_code=reason_code,
                 reason_text=reason_text,
