@@ -128,3 +128,93 @@ class TestAudioSpeedLogic:
     def test_localStorage_getItem_call_present(self):
         html = _read_text_template()
         assert "localStorage.getItem('listening_speed')" in html
+
+
+# ---------------------------------------------------------------------------
+# Task 2: Transcript toggle
+# ---------------------------------------------------------------------------
+
+class TestTranscriptToggleTemplate:
+    """Verify the transcript toggle button and content wrapper are present."""
+
+    def test_toggle_button_present(self):
+        html = _read_text_template()
+        assert 'id="transcript-toggle-btn"' in html
+
+    def test_toggle_calls_toggleTranscript(self):
+        html = _read_text_template()
+        assert 'onclick="toggleTranscript()"' in html
+
+    def test_transcript_content_div_present(self):
+        html = _read_text_template()
+        assert 'id="transcript-content"' in html
+
+    def test_toggle_label_element_present(self):
+        html = _read_text_template()
+        assert 'id="transcript-toggle-label"' in html
+
+    def test_b1plus_default_hidden_via_jinja(self):
+        html = _read_text_template()
+        # The Jinja template must conditionally add transcript--hidden for advanced users
+        assert 'transcript--hidden' in html
+        # The condition is driven by is_advanced
+        assert 'is_advanced' in html
+
+    def test_data_default_visible_attribute_present(self):
+        html = _read_text_template()
+        assert 'data-default-visible=' in html
+
+    def test_b1plus_shows_show_text_label(self):
+        html = _read_text_template()
+        assert 'Показать текст' in html
+
+    def test_a1a2_shows_hide_text_label(self):
+        html = _read_text_template()
+        assert 'Скрыть текст' in html
+
+    def test_toggleTranscript_function_present(self):
+        html = _read_text_template()
+        assert 'function toggleTranscript(' in html
+
+    def test_initTranscriptToggle_function_present(self):
+        html = _read_text_template()
+        assert 'function initTranscriptToggle(' in html
+
+    def test_initTranscriptToggle_called_on_domcontentloaded(self):
+        html = _read_text_template()
+        assert 'initTranscriptToggle()' in html
+
+    def test_localStorage_transcript_visible_key(self):
+        html = _read_text_template()
+        assert 'transcript_visible' in html
+
+    def test_localStorage_setItem_transcript(self):
+        html = _read_text_template()
+        assert "localStorage.setItem('transcript_visible'" in html
+
+    def test_localStorage_getItem_transcript(self):
+        html = _read_text_template()
+        assert "localStorage.getItem('transcript_visible')" in html
+
+
+class TestTranscriptToggleCSS:
+    """Verify CSS classes for the transcript toggle are defined."""
+
+    def test_transcript_toggle_class_defined(self):
+        css = _read_design_system_css()
+        assert ".transcript-toggle {" in css or ".transcript-toggle{" in css
+
+    def test_transcript_hidden_class_defined(self):
+        css = _read_design_system_css()
+        assert ".transcript--hidden {" in css or ".transcript--hidden{" in css
+
+    def test_transcript_hidden_uses_display_none(self):
+        css = _read_design_system_css()
+        idx = css.find(".transcript--hidden")
+        assert idx != -1
+        snippet = css[idx:idx + 100]
+        assert "display: none" in snippet or "display:none" in snippet
+
+    def test_transcript_toggle_hover_defined(self):
+        css = _read_design_system_css()
+        assert ".transcript-toggle:hover" in css

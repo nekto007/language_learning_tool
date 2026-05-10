@@ -198,7 +198,13 @@
         </script>
       {% elif text_content.is_listening_immersion %}
         <!-- Listening Immersion: прогрессивное отображение текста -->
-        <div class="listening-immersion-content mx-auto">
+        <button class="transcript-toggle" id="transcript-toggle-btn"
+                onclick="toggleTranscript()"
+                data-default-visible="{{ 'false' if is_advanced else 'true' }}">
+          <i class="fas fa-eye{% if not is_advanced %}-slash{% endif %}"></i>
+          <span id="transcript-toggle-label">{{ _('Скрыть текст') if not is_advanced else _('Показать текст') }}</span>
+        </button>
+        <div class="listening-immersion-content mx-auto{% if is_advanced %} transcript--hidden{% endif %}" id="transcript-content">
           {% set text_str = text_content.text if text_content.text is string else '' %}
           {% set has_dialogue_format = ':' in text_str and '\n' in text_str %}
 
@@ -1407,6 +1413,44 @@ function initAudioSpeed() {
   setAudioSpeed(speed);
 }
 
+// Transcript toggle
+function toggleTranscript() {
+  const content = document.getElementById('transcript-content');
+  const label = document.getElementById('transcript-toggle-label');
+  const btn = document.getElementById('transcript-toggle-btn');
+  if (!content) return;
+  const nowHidden = content.classList.toggle('transcript--hidden');
+  if (label) label.textContent = nowHidden ? 'Показать текст' : 'Скрыть текст';
+  const icon = btn ? btn.querySelector('i') : null;
+  if (icon) icon.className = nowHidden ? 'fas fa-eye' : 'fas fa-eye-slash';
+  try {
+    localStorage.setItem('transcript_visible', nowHidden ? 'false' : 'true');
+  } catch (_) {}
+}
+
+function initTranscriptToggle() {
+  const btn = document.getElementById('transcript-toggle-btn');
+  const content = document.getElementById('transcript-content');
+  if (!btn || !content) return;
+  const defaultVisible = btn.dataset.defaultVisible === 'true';
+  let visible = defaultVisible;
+  try {
+    const saved = localStorage.getItem('transcript_visible');
+    if (saved !== null) visible = saved === 'true';
+  } catch (_) {}
+  const label = document.getElementById('transcript-toggle-label');
+  const icon = btn.querySelector('i');
+  if (visible) {
+    content.classList.remove('transcript--hidden');
+    if (label) label.textContent = 'Скрыть текст';
+    if (icon) icon.className = 'fas fa-eye-slash';
+  } else {
+    content.classList.add('transcript--hidden');
+    if (label) label.textContent = 'Показать текст';
+    if (icon) icon.className = 'fas fa-eye';
+  }
+}
+
 // Вызываем при загрузке
 document.addEventListener('DOMContentLoaded', function() {
   // Даём время на загрузку DOM
@@ -1420,6 +1464,11 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize audio speed control
   if (document.getElementById('audio-speed-controls')) {
     initAudioSpeed();
+  }
+
+  // Initialize transcript toggle
+  if (document.getElementById('transcript-toggle-btn')) {
+    initTranscriptToggle();
   }
 
   // Mobile responsive adjustments
