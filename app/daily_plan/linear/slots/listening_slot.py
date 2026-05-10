@@ -32,6 +32,7 @@ _LISTENING_LESSON_TYPES: frozenset[str] = frozenset({
 _LISTENING_XP_SOURCES: frozenset[str] = frozenset({
     'linear_curriculum_listening_immersion',
     'linear_curriculum_dictation',
+    'linear_listening',
 })
 
 _LISTENING_SLOT_ETA_MINUTES = 10

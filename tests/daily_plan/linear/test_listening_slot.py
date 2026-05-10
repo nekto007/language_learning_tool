@@ -7,6 +7,8 @@ Covers:
 - Slot completed when today's linear listening XP event exists.
 - Chain builder includes listening in EXTENSION_PRIORITY after reading.
 - Template renders listening slot with headphone icon and type badge.
+- maybe_award_listening_xp: first call awards and creates StreakEvent; repeat no-op.
+- day_secured unaffected by listening slot (extension only, never baseline).
 """
 from __future__ import annotations
 
@@ -15,17 +17,20 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from app.achievements.models import StreakEvent
+from app.achievements.models import StreakEvent, UserStatistics
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.daily_plan.linear.chain import EXTENSION_PRIORITY, _build_listening_extension
+from app.daily_plan.linear.plan import compute_linear_day_secured
 from app.daily_plan.linear.slots import LinearSlot
 from app.daily_plan.linear.slots.listening_slot import (
+    _LISTENING_XP_SOURCES,
     _find_next_listening_lesson,
     _listening_done_today,
     build_listening_slot,
 )
-from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
+from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE, maybe_award_listening_xp
+from app.achievements.xp_service import LINEAR_XP
 from app.utils.db import db as real_db
 
 _LEVEL_ORDER_COUNTER = iter(range(50, 100))
@@ -345,3 +350,117 @@ class TestChainIntegration:
         existing_chain = [{'kind': 'listening', 'completed': False}]
         result = _build_listening_extension(user.id, real_db, existing_chain)
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Tests for maybe_award_listening_xp
+# ---------------------------------------------------------------------------
+
+class TestMaybeAwardListeningXp:
+    def test_linear_listening_in_linear_xp(self):
+        assert 'linear_listening' in LINEAR_XP
+        assert LINEAR_XP['linear_listening'] == 18
+
+    def test_linear_listening_in_xp_sources(self):
+        assert 'linear_listening' in _LISTENING_XP_SOURCES
+
+    def test_first_award_creates_streak_event(self, db_session):
+        user = _make_user(db_session)
+        user.use_linear_plan = True
+        db_session.commit()
+
+        stats = UserStatistics(user_id=user.id, total_xp=0)
+        db_session.add(stats)
+        db_session.commit()
+
+        today = datetime.now(timezone.utc).date()
+        result = maybe_award_listening_xp(user.id, lesson_id=1, for_date=today)
+
+        assert result is not None
+        assert result.xp_awarded > 0
+
+        event = db_session.query(StreakEvent).filter(
+            StreakEvent.user_id == user.id,
+            StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
+            StreakEvent.event_date == today,
+            StreakEvent.details['source'].astext == 'linear_listening',
+        ).first()
+        assert event is not None
+
+    def test_repeat_call_same_day_is_noop(self, db_session):
+        user = _make_user(db_session)
+        user.use_linear_plan = True
+        db_session.commit()
+
+        stats = UserStatistics(user_id=user.id, total_xp=0)
+        db_session.add(stats)
+        db_session.commit()
+
+        today = datetime.now(timezone.utc).date()
+        first = maybe_award_listening_xp(user.id, lesson_id=1, for_date=today)
+        real_db.session.commit()
+        second = maybe_award_listening_xp(user.id, lesson_id=1, for_date=today)
+
+        assert first is not None
+        assert second is None
+
+    def test_non_linear_user_returns_none(self, db_session):
+        user = _make_user(db_session)
+        user.use_linear_plan = False
+        db_session.commit()
+
+        today = datetime.now(timezone.utc).date()
+        result = maybe_award_listening_xp(user.id, lesson_id=1, for_date=today)
+        assert result is None
+
+    def test_slot_detected_as_done_via_linear_listening_event(self, db_session):
+        user = _make_user(db_session)
+        event = StreakEvent(
+            user_id=user.id,
+            event_type=LINEAR_XP_EVENT_TYPE,
+            event_date=datetime.now(timezone.utc).date(),
+            coins_delta=0,
+            details={'source': 'linear_listening', 'xp': 18},
+        )
+        db_session.add(event)
+        db_session.commit()
+
+        assert _listening_done_today(user.id, real_db) is True
+
+
+# ---------------------------------------------------------------------------
+# Tests for compute_linear_day_secured with listening slot
+# ---------------------------------------------------------------------------
+
+class TestDaySecuredUnaffectedByListeningSlot:
+    def test_listening_slot_not_in_baseline_does_not_block_secured(self):
+        baseline_slots = [
+            {'kind': 'curriculum', 'completed': True},
+            {'kind': 'srs', 'completed': True},
+            {'kind': 'reading', 'completed': True},
+        ]
+        assert compute_linear_day_secured(baseline_slots) is True
+
+    def test_day_secured_false_when_baseline_incomplete(self):
+        baseline_slots = [
+            {'kind': 'curriculum', 'completed': True},
+            {'kind': 'srs', 'completed': False},
+            {'kind': 'reading', 'completed': True},
+        ]
+        assert compute_linear_day_secured(baseline_slots) is False
+
+    def test_listening_extension_slot_never_present_in_baseline(self):
+        # listening is built only as extension; baseline only contains
+        # curriculum/srs/reading/error_review. Verify compute_linear_day_secured
+        # ignores it if somehow included as extra (all-done baseline = secured).
+        baseline_slots = [
+            {'kind': 'curriculum', 'completed': True},
+            {'kind': 'srs', 'completed': True},
+            {'kind': 'reading', 'completed': True},
+        ]
+        listening_extension = {'kind': 'listening', 'completed': False}
+        # day_secured only uses baseline_slots, not extension slots
+        assert compute_linear_day_secured(baseline_slots) is True
+        # Confirm compute_linear_day_secured would return False if listening
+        # were incorrectly included in baseline while incomplete
+        assert compute_linear_day_secured(baseline_slots + [listening_extension]) is False

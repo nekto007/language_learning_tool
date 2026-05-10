@@ -247,12 +247,12 @@
 - Modify: `app/daily_plan/linear/plan.py` (`compute_linear_day_secured`)
 - Tests: `tests/daily_plan/linear/test_listening_slot.py`
 
-- [ ] Add `maybe_award_listening_xp(user_id, lesson_id, score, for_date, db)` — idempotent via StreakEvent `xp_linear_listening`
-- [ ] Add `linear_listening = 18` to LINEAR_XP (between curriculum card and SRS)
-- [ ] `compute_linear_day_secured`: listening slot is NOT a baseline slot — doesn't block day_secured
-- [ ] Extension slot completion calls maybe_award_listening_xp from the route
-- [ ] Tests: first award → StreakEvent created; repeat → no-op; day_secured unaffected by listening slot
-- [ ] Run pytest tests/daily_plan/linear/
+- [x] Add `maybe_award_listening_xp(user_id, lesson_id, score, for_date, db)` — idempotent via StreakEvent `xp_linear_listening`
+- [x] Add `linear_listening = 18` to LINEAR_XP (between curriculum card and SRS)
+- [x] `compute_linear_day_secured`: listening slot is NOT a baseline slot — doesn't block day_secured
+- [x] Extension slot completion calls maybe_award_listening_xp from the route
+- [x] Tests: first award → StreakEvent created; repeat → no-op; day_secured unaffected by listening slot
+- [x] Run pytest tests/daily_plan/linear/
 
 ---
 ### BLOCK B: Writing Practice System (Tasks 16–28)

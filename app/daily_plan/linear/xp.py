@@ -238,6 +238,28 @@ def maybe_award_error_review_xp(
     )
 
 
+def maybe_award_listening_xp(
+    user_id: int,
+    lesson_id: Optional[int] = None,
+    score: Optional[float] = None,
+    for_date: Optional[date_cls] = None,
+    db_session: Any = None,
+) -> Optional[XPAward]:
+    """Award linear XP for completing a listening extension slot.
+
+    Idempotent per (user, date) via StreakEvent source='linear_listening'.
+    Complements the lesson-level ``maybe_award_curriculum_xp`` award —
+    this slot-level award is once per day regardless of which listening
+    lesson the user completed. Returns None for non-linear users or if
+    already awarded today. Caller owns the commit.
+    """
+    if not is_linear_user(user_id):
+        return None
+    return award_linear_slot_xp_idempotent(
+        user_id, 'linear_listening', for_date, db_session, score=score,
+    )
+
+
 def maybe_record_linear_plan_completion(
     user_id: int,
     plan: dict,

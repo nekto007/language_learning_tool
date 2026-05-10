@@ -154,7 +154,7 @@ def update_lesson_progress(lesson_id):
 
         if progress.status == 'completed':
             try:
-                from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+                from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_listening_xp
                 lesson_for_xp = Lessons.query.get(lesson_id)
                 if lesson_for_xp:
                     maybe_award_curriculum_xp(
@@ -162,6 +162,12 @@ def update_lesson_progress(lesson_id):
                         db_session=db,
                         score=progress.score,
                     )
+                    if lesson_for_xp.type in ('listening_immersion', 'listening_immersion_quiz'):
+                        maybe_award_listening_xp(
+                            current_user.id, lesson_for_xp.id,
+                            score=progress.score,
+                            db_session=db,
+                        )
                     db.session.commit()
             except Exception as xp_err:
                 logger.warning(f"Linear XP award failed for lesson {lesson_id}: {xp_err}")
@@ -334,8 +340,9 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
 
     if grade.get('passed'):
         try:
-            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+            from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_listening_xp
             maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
+            maybe_award_listening_xp(user_id, lesson.id, score=grade['score'], db_session=db)
             db.session.commit()
         except Exception as xp_err:
             logger.warning(f"Dictation XP award failed for lesson {lesson.id}: {xp_err}")
@@ -428,8 +435,9 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
 
     if grade.get('passed'):
         try:
-            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+            from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_listening_xp
             maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
+            maybe_award_listening_xp(user_id, lesson.id, score=grade['score'], db_session=db)
             db.session.commit()
         except Exception as xp_err:
             logger.warning(f"Audio fill blank XP award failed for lesson {lesson.id}: {xp_err}")
