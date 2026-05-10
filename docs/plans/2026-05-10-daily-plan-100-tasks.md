@@ -580,12 +580,12 @@
 - Modify: `app/curriculum/routes/lessons.py` (or new API endpoint)
 - Tests: `tests/curriculum/test_reading_vocabulary.py`
 
-- [ ] In reading/text lessons: wrap words that appear in the course vocabulary in `<span class="vocab-word" data-word-id="X">` during server-side render
-- [ ] JS: on click, show tooltip with Russian translation + pronunciation audio (fetched from lesson content data)
-- [ ] Track clicks as reading engagement events (POST to `/api/daily-plan/events` with event_type=vocab_lookup)
-- [ ] CSS: `.vocab-word` underline dotted; `.vocab-tooltip` popup card
-- [ ] Tests: vocab words wrapped in spans; click event tracked; tooltip contains translation
-- [ ] Run pytest tests/curriculum/
+- [x] In reading/text lessons: wrap words that appear in the course vocabulary in `<span class="vocab-word" data-word-id="X">` during server-side render
+- [x] JS: on click, show tooltip with Russian translation + pronunciation audio (fetched from lesson content data)
+- [x] Track clicks as reading engagement events (POST to `/api/daily-plan/events` with event_type=vocab_lookup)
+- [x] CSS: `.vocab-word` underline dotted; `.vocab-tooltip` popup card
+- [x] Tests: vocab words wrapped in spans; click event tracked; tooltip contains translation
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 37: Vocabulary journal (user word annotations)
