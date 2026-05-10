@@ -12992,3 +12992,115 @@ footer .col-md-4 {
     font-size: 0.7rem;
     font-weight: 700;
 }
+
+/* ── Dictation lesson ── */
+.dictation-input {
+    width: 100%;
+    min-height: 100px;
+    padding: 0.875rem 1rem;
+    border: 2px solid var(--color-border, #e5e7eb);
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--color-text, #1f2937);
+    background: var(--color-surface, #fff);
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+.dictation-input:focus {
+    outline: none;
+    border-color: var(--color-primary, #dc2626);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
+.dictation-results {
+    margin-top: 1.25rem;
+    padding: 1rem 1.25rem;
+    border-radius: 0.75rem;
+    background: var(--color-surface-raised, #f9fafb);
+    border: 1px solid var(--color-border, #e5e7eb);
+}
+.dictation-word-results {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0.75rem 0;
+}
+.dictation-word-result {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.4;
+}
+.dictation-word-result--correct {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+}
+.dictation-word-result--wrong {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+    text-decoration: line-through;
+}
+.dictation-replay-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border: 2px solid var(--color-primary, #dc2626);
+    border-radius: 0.625rem;
+    background: transparent;
+    color: var(--color-primary, #dc2626);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.dictation-replay-btn:hover:not(:disabled) {
+    background: var(--color-primary, #dc2626);
+    color: #fff;
+}
+.dictation-replay-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.dictation-replay-count {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--color-text-secondary, #6b7280);
+}
+.dictation-score-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.875rem;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+.dictation-score-badge--pass {
+    background: #d1fae5;
+    color: #065f46;
+}
+.dictation-score-badge--fail {
+    background: #fee2e2;
+    color: #991b1b;
+}
+.dictation-transcript-reveal {
+    margin-top: 1rem;
+    padding: 0.875rem 1rem;
+    border-radius: 0.625rem;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    font-size: 0.95rem;
+    color: #14532d;
+    line-height: 1.6;
+}
+@media (prefers-reduced-motion: reduce) {
+    .dictation-input,
+    .dictation-replay-btn {
+        transition: none;
+    }
+}

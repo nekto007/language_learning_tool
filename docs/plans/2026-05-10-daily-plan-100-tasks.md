@@ -96,13 +96,13 @@
 - Modify: `app/static/css/design-system.css`
 - Tests: `tests/curriculum/test_dictation_lesson.py`
 
-- [ ] Template: audio player (with replay) + text input area + submit button; hint_chars pre-fill first N chars of each word
-- [ ] "Воспроизвести ещё раз" button with play count tracking (max 3 replays by default)
-- [ ] On submit: POST to existing `/api/curriculum/grade` with lesson_type=dictation
-- [ ] Route: recognize dictation type, call grade_dictation, return result including correct_transcript on completion
-- [ ] CSS: `.dictation-input`, `.dictation-word-result` (correct/wrong highlight) in design-system.css
-- [ ] Tests: route returns 200 with grade; replay_count tracked; correct transcript shown on completion
-- [ ] Run pytest tests/curriculum/
+- [x] Template: audio player (with replay) + text input area + submit button; hint_chars pre-fill first N chars of each word
+- [x] "Воспроизвести ещё раз" button with play count tracking (max 3 replays by default)
+- [x] On submit: POST to existing `/api/curriculum/grade` with lesson_type=dictation
+- [x] Route: recognize dictation type, call grade_dictation, return result including correct_transcript on completion
+- [x] CSS: `.dictation-input`, `.dictation-word-result` (correct/wrong highlight) in design-system.css
+- [x] Tests: route returns 200 with grade; replay_count tracked; correct transcript shown on completion
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 6: Audio fill-in-blank exercise type

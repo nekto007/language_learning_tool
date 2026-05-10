@@ -3,7 +3,7 @@
 import logging
 from datetime import UTC, datetime
 
-from flask import Blueprint, flash, jsonify, redirect, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -69,6 +69,7 @@ def lesson_detail(lesson_id):
         'dialogue_completion_quiz': 'curriculum_lessons.quiz_lesson',
         'listening_immersion_quiz': 'curriculum_lessons.text_lesson',
         'quiz': 'curriculum_lessons.quiz_lesson',
+        'dictation': 'curriculum_lessons.dictation_lesson',
     }
 
     route_name = route_map.get(lesson.type)
@@ -216,6 +217,8 @@ def submit_lesson(lesson_id):
             result = process_matching_submission(lesson, current_user.id, data)
         elif lesson.type == 'final_test':
             result = process_final_test_submission(lesson, current_user.id, data)
+        elif lesson.type == 'dictation':
+            result = _process_dictation_submission(lesson, current_user.id, data)
         else:
             return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
 
@@ -225,6 +228,110 @@ def submit_lesson(lesson_id):
         logger.error(f"Error submitting lesson: {str(e)}")
         db.session.rollback()
         return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+_DICTATION_MAX_REPLAYS = 3
+
+
+def _build_hint_text(transcript: str, hint_chars: int) -> str:
+    """Return transcript with each word truncated to hint_chars visible chars, rest blanked."""
+    if not hint_chars or not transcript:
+        return ""
+    words = transcript.split()
+    result = []
+    for word in words:
+        visible = word[:hint_chars]
+        blanks = "_" * max(0, len(word) - hint_chars)
+        result.append(visible + blanks)
+    return " ".join(result)
+
+
+@lessons_bp.route('/lesson/<int:lesson_id>/dictation')
+@login_required
+@require_lesson_access
+def dictation_lesson(lesson_id: int):
+    """Display a dictation lesson."""
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'dictation':
+        flash('Неверный тип урока', 'error')
+        return redirect('/learn/')
+
+    content = lesson.content or {}
+    audio_url = content.get('audio_url', '')
+    transcript = content.get('transcript', '')
+    hint_chars = int(content.get('hint_chars', 0))
+
+    # Build pre-filled hint text shown in the textarea
+    hint_text = _build_hint_text(transcript, hint_chars) if hint_chars > 0 else ""
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id
+    ).first()
+    if not progress:
+        try:
+            progress = LessonProgress(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+                status='in_progress',
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error creating dictation progress: {e}")
+            db.session.rollback()
+
+    return render_template(
+        'curriculum/lessons/dictation.html',
+        lesson=lesson,
+        progress=progress,
+        audio_url=audio_url,
+        transcript=transcript,
+        hint_chars=hint_chars,
+        hint_text=hint_text,
+        max_replays=_DICTATION_MAX_REPLAYS,
+    )
+
+
+def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
+    """Grade a dictation submission, update progress, award XP, and return result."""
+    from app.curriculum.grading import grade_dictation
+    from app.curriculum.service import get_next_lesson
+    from app.curriculum.services.progress_service import ProgressService
+
+    content = lesson.content or {}
+    transcript = content.get('transcript', '')
+    hint_chars = int(data.get('hint_chars', content.get('hint_chars', 0)))
+    user_text = data.get('user_text', '')
+
+    grade = grade_dictation(user_text, transcript, hint_chars)
+
+    progress, _ = ProgressService.update_progress_with_grading(
+        user_id=user_id,
+        lesson=lesson,
+        result=grade,
+        passing_score=80,
+    )
+
+    if grade.get('passed'):
+        try:
+            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
+            db.session.commit()
+        except Exception as xp_err:
+            logger.warning(f"Dictation XP award failed for lesson {lesson.id}: {xp_err}")
+
+    result = {**grade, 'transcript': transcript if not grade.get('passed') else None}
+
+    next_lesson = get_next_lesson(lesson.id)
+    if grade.get('passed') and next_lesson:
+        result['next_lesson_url'] = url_for(
+            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
+        )
+
+    return result
 
 
 # Import route modules to register their routes on lessons_bp
