@@ -28,6 +28,64 @@ def _validate_timezone(tz_name: str) -> str:
         return DEFAULT_TZ
 
 
+def _compute_listening_goal(user, tz: str) -> dict:
+    """Compute listening goal progress for today.
+
+    Returns dict with listening_goal_minutes, listening_minutes_today,
+    listening_goal_reached.
+    """
+    import pytz
+    from datetime import datetime
+    from app.curriculum.models import ListeningAttempt, Lessons
+
+    goal = (user.listening_goal_minutes or 0) if user.listening_goal_minutes is not None else 10
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TZ)
+
+    now_local = datetime.now(tz_obj)
+    today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start_utc = today_start_local.astimezone(pytz.utc).replace(tzinfo=None)
+
+    attempts = (
+        ListeningAttempt.query
+        .filter(
+            ListeningAttempt.user_id == user.id,
+            ListeningAttempt.created_at >= today_start_utc,
+        )
+        .all()
+    )
+
+    total_seconds = 0.0
+    if attempts:
+        lesson_ids = list({a.lesson_id for a in attempts})
+        lessons_map = {
+            lesson.id: lesson
+            for lesson in Lessons.query.filter(Lessons.id.in_(lesson_ids)).all()
+        }
+        for attempt in attempts:
+            lesson = lessons_map.get(attempt.lesson_id)
+            duration = 300
+            if lesson and lesson.content and isinstance(lesson.content, dict):
+                duration = lesson.content.get('duration_seconds', 300)
+            total_seconds += duration
+
+    listening_minutes_today = round(total_seconds / 60, 1)
+
+    if goal == 0:
+        reached = True
+    else:
+        reached = listening_minutes_today >= goal
+
+    return {
+        'listening_goal_minutes': goal,
+        'listening_minutes_today': listening_minutes_today,
+        'listening_goal_reached': reached,
+    }
+
+
 @api_daily_plan.route('/daily-status')
 @api_auth_required
 def daily_status():
@@ -123,6 +181,8 @@ def daily_status():
     from app.study.services import SRSService
     srs_limit_reason = SRSService.get_adaptive_limit_reason(user_id)
 
+    listening_goal_data = _compute_listening_goal(current_user, tz)
+
     payload = {
         'success': True,
         'plan': plan,
@@ -135,6 +195,7 @@ def daily_status():
         'required_steps': streak_result['required_steps'],
         'streak_repaired': streak_result['streak_repaired'],
         'day_secured': day_secured,
+        **listening_goal_data,
     }
     if srs_limit_reason != 'normal':
         payload['srs_limit_reason'] = srs_limit_reason

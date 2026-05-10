@@ -45,6 +45,7 @@ class User(db.Model, UserMixin):
     # Profile settings
     timezone = Column(String(50), nullable=True, default='Europe/Moscow')
     daily_goal_minutes = Column(Integer, nullable=True, default=15)
+    listening_goal_minutes = Column(Integer, nullable=True, default=10)
 
     # Notification preferences
     notify_email_reminders = Column(Boolean, default=True, nullable=False, server_default='true')

@@ -190,11 +190,11 @@
 - Modify: `app/api/daily_status.py`
 - Tests: `tests/api/test_daily_status.py`
 
-- [ ] Add `listening_goal_minutes` field to User model (default 10)
-- [ ] Compute `listening_minutes_today` in daily-status from ListeningAttempt created_at + estimated duration (lesson.content.get('duration_seconds', 300) / 60)
-- [ ] Include `{listening_goal_minutes, listening_minutes_today, listening_goal_reached}` in `/api/daily-status` payload
-- [ ] Tests: goal reached → True; partial → False; goal=0 → always True; no attempts → 0 minutes
-- [ ] Run pytest tests/api/
+- [x] Add `listening_goal_minutes` field to User model (default 10)
+- [x] Compute `listening_minutes_today` in daily-status from ListeningAttempt created_at + estimated duration (lesson.content.get('duration_seconds', 300) / 60)
+- [x] Include `{listening_goal_minutes, listening_minutes_today, listening_goal_reached}` in `/api/daily-status` payload
+- [x] Tests: goal reached → True; partial → False; goal=0 → always True; no attempts → 0 minutes
+- [x] Run pytest tests/api/
 
 ---
 ### Task 12: Listening streak tracking
