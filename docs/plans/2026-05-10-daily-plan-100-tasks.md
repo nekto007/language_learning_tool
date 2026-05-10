@@ -657,11 +657,11 @@
 - Modify: `app/api/daily_plan.py`
 - Tests: `tests/daily_plan/linear/test_plan.py`
 
-- [ ] Define `SLOT_ESTIMATED_MINUTES = {curriculum: 15, srs: 10, reading: 15, listening: 10, writing: 8, error_review: 12}` in plan.py
-- [ ] In `get_linear_plan()`: compute `total_estimated_minutes` = sum of estimated_minutes for all incomplete slots
-- [ ] Include in plan payload and `/api/daily-plan` response
-- [ ] Tests: all slots incomplete → correct sum; completed slots excluded from total
-- [ ] Run pytest tests/daily_plan/linear/
+- [x] Define `SLOT_ESTIMATED_MINUTES = {curriculum: 15, srs: 10, reading: 15, listening: 10, writing: 8, error_review: 12}` in plan.py
+- [x] In `get_linear_plan()`: compute `total_estimated_minutes` = sum of estimated_minutes for all incomplete slots
+- [x] Include in plan payload and `/api/daily-plan` response
+- [x] Tests: all slots incomplete → correct sum; completed slots excluded from total
+- [x] Run pytest tests/daily_plan/linear/
 
 ---
 ### Task 42: Plan time display in template

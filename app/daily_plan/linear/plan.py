@@ -26,6 +26,15 @@ from app.utils.db import db
 
 VALID_FOCUSES = {'grammar', 'vocabulary', 'reading', 'all'}
 
+SLOT_ESTIMATED_MINUTES: dict[str, int] = {
+    'curriculum': 15,
+    'srs': 10,
+    'reading': 15,
+    'listening': 10,
+    'writing': 8,
+    'error_review': 12,
+}
+
 
 def _get_user_focus(user_id: int, db_session: Any) -> Optional[str]:
     """Return the first onboarding-focus tag for the user, or None.
@@ -166,6 +175,12 @@ def get_linear_plan(
     remaining_new, _remaining_reviews = get_new_card_budget(user_id, session_provider)
     srs_budget_exhausted = remaining_new <= 0
 
+    total_estimated_minutes = sum(
+        SLOT_ESTIMATED_MINUTES.get(slot.get('kind', ''), 0)
+        for slot in all_slots
+        if not slot.get('completed', False)
+    )
+
     return {
         'mode': 'linear',
         'position': _position_from_lesson(next_lesson),
@@ -183,4 +198,5 @@ def get_linear_plan(
             'srs_budget_exhausted': srs_budget_exhausted,
         },
         'day_secured': day_secured,
+        'total_estimated_minutes': total_estimated_minutes,
     }
