@@ -315,13 +315,13 @@
 - Modify: `app/daily_plan/linear/xp.py`, `app/achievements/xp_service.py`
 - Tests: `tests/curriculum/test_writing_prompt.py`
 
-- [ ] Validator schema: `{prompt: str, min_words: int, example_response?: str, checklist?: [str]}`
-- [ ] No automatic grading — user self-assesses with checklist checkboxes
-- [ ] Submit endpoint: save response to UserWritingAttempt, mark as completed after checklist items checked
-- [ ] Register `writing_prompt → linear_curriculum_use` in LESSON_TYPE_TO_SOURCE; `linear_curriculum_use = 25` in LINEAR_XP
-- [ ] Template: prompt text, textarea, checklist, example response shown after submit
-- [ ] Tests: submit saves attempt; checklist completion marks lesson done; example shown after
-- [ ] Run pytest tests/curriculum/
+- [x] Validator schema: `{prompt: str, min_words: int, example_response?: str, checklist?: [str]}`
+- [x] No automatic grading — user self-assesses with checklist checkboxes
+- [x] Submit endpoint: save response to UserWritingAttempt, mark as completed after checklist items checked
+- [x] Register `writing_prompt → linear_curriculum_use` in LESSON_TYPE_TO_SOURCE; `linear_curriculum_use = 25` in LINEAR_XP
+- [x] Template: prompt text, textarea, checklist, example response shown after submit
+- [x] Tests: submit saves attempt; checklist completion marks lesson done; example shown after
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 20: UserWritingAttempt model

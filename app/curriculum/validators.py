@@ -313,6 +313,17 @@ class SentenceCorrectionContentSchema(Schema):
     options = fields.List(fields.Str(), required=False, validate=validate.Length(min=2, max=6))
 
 
+class WritingPromptContentSchema(Schema):
+    """Schema for writing prompt lesson content — user writes free-form response."""
+    class Meta:
+        unknown = INCLUDE
+
+    prompt = fields.Str(required=True, validate=validate.Length(min=1))
+    min_words = fields.Int(required=True, validate=validate.Range(min=1))
+    example_response = fields.Str(required=False, load_default=None, allow_none=True)
+    checklist = fields.List(fields.Str(), required=False, load_default=None)
+
+
 class CardContentSchema(Schema):
     """Schema for card/SRS lesson content"""
     class Meta:
@@ -375,6 +386,7 @@ class LessonContentValidator:
         'audio_fill_blank': AudioFillBlankContentSchema,
         'translation': TranslationContentSchema,
         'sentence_correction': SentenceCorrectionContentSchema,
+        'writing_prompt': WritingPromptContentSchema,
         'final_test': FinalTestContentSchema,
     }
 

@@ -73,6 +73,7 @@ def lesson_detail(lesson_id):
         'audio_fill_blank': 'curriculum_lessons.audio_fill_blank_lesson',
         'translation': 'curriculum_lessons.translation_lesson',
         'sentence_correction': 'curriculum_lessons.sentence_correction_lesson',
+        'writing_prompt': 'curriculum_lessons.writing_prompt_lesson',
     }
 
     route_name = route_map.get(lesson.type)
@@ -234,6 +235,8 @@ def submit_lesson(lesson_id):
             result = _process_translation_submission(lesson, current_user.id, data)
         elif lesson.type == 'sentence_correction':
             result = _process_sentence_correction_submission(lesson, current_user.id, data)
+        elif lesson.type == 'writing_prompt':
+            result = _process_writing_prompt_submission(lesson, current_user.id, data)
         else:
             return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
 
@@ -636,6 +639,123 @@ def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, dat
     result = {**grade, 'explanation': explanation}
     next_lesson = get_next_lesson(lesson.id)
     if passed and next_lesson:
+        result['next_lesson_url'] = url_for(
+            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
+        )
+
+    return result
+
+
+_DEFAULT_WRITING_CHECKLIST = [
+    'Использовал(а) новые слова',
+    'Структура предложений правильная',
+    'Нет пропущенных артиклей',
+    'Нет ошибок во временах',
+]
+
+
+@lessons_bp.route('/lesson/<int:lesson_id>/writing-prompt')
+@login_required
+@require_lesson_access
+def writing_prompt_lesson(lesson_id: int):
+    """Display a writing prompt lesson."""
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'writing_prompt':
+        flash('Неверный тип урока', 'error')
+        return redirect('/learn/')
+
+    content = lesson.content or {}
+    prompt = content.get('prompt', '')
+    min_words = int(content.get('min_words', 50))
+    example_response = content.get('example_response') or None
+    checklist = content.get('checklist') or _DEFAULT_WRITING_CHECKLIST
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id
+    ).first()
+    if not progress:
+        try:
+            progress = LessonProgress(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+                status='in_progress',
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error creating writing_prompt progress: {e}")
+            db.session.rollback()
+
+    return render_template(
+        'curriculum/lessons/writing_prompt.html',
+        lesson=lesson,
+        progress=progress,
+        prompt=prompt,
+        min_words=min_words,
+        example_response=example_response,
+        checklist=checklist,
+    )
+
+
+def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
+    """Save a writing prompt attempt, mark lesson complete, award XP, return result."""
+    from app.curriculum.models import save_writing_attempt
+    from app.curriculum.service import get_next_lesson
+
+    content = lesson.content or {}
+    example_response = content.get('example_response') or None
+    response_text = (data.get('response_text') or '').strip()
+    checklist_completed = bool(data.get('checklist_completed', False))
+    checked_items = data.get('checked_items') or []
+    min_words = int(content.get('min_words', 50))
+
+    word_count = len(response_text.split()) if response_text else 0
+    meets_min = word_count >= min_words
+
+    try:
+        save_writing_attempt(user_id, lesson.id, response_text, checklist_completed, db)
+        db.session.flush()
+    except Exception as save_err:
+        logger.warning(f"Writing attempt save failed for lesson {lesson.id}: {save_err}")
+
+    completed = meets_min and checklist_completed
+
+    if completed:
+        progress = LessonProgress.query.filter_by(
+            user_id=user_id, lesson_id=lesson.id
+        ).first()
+        if progress:
+            progress.status = 'completed'
+            if not progress.completed_at:
+                progress.completed_at = datetime.now(UTC)
+            progress.last_activity = datetime.now(UTC)
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        try:
+            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
+            db.session.commit()
+        except Exception as xp_err:
+            logger.warning(f"Writing prompt XP award failed for lesson {lesson.id}: {xp_err}")
+
+    result: dict = {
+        'success': True,
+        'completed': completed,
+        'word_count': word_count,
+        'meets_min_words': meets_min,
+        'checklist_completed': checklist_completed,
+    }
+    if completed and example_response:
+        result['example_response'] = example_response
+
+    next_lesson = get_next_lesson(lesson.id)
+    if completed and next_lesson:
         result['next_lesson_url'] = url_for(
             'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
         )

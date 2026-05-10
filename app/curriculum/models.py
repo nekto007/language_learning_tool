@@ -390,6 +390,56 @@ class ListeningAttempt(db.Model):
         return f'<ListeningAttempt id={self.id} user={self.user_id} lesson={self.lesson_id} score={self.score}>'
 
 
+class UserWritingAttempt(db.Model):
+    """Tracks each writing_prompt submission for analytics and history."""
+    __tablename__ = 'user_writing_attempts'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='CASCADE'), nullable=False)
+    response_text = Column(db.Text, nullable=False)
+    word_count = Column(Integer, nullable=False, default=0)
+    checklist_completed = Column(db.Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_writing_attempts_user_created', 'user_id', 'created_at'),
+        Index('idx_writing_attempts_user_lesson', 'user_id', 'lesson_id'),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f'<UserWritingAttempt id={self.id} user={self.user_id} '
+            f'lesson={self.lesson_id} words={self.word_count}>'
+        )
+
+
+def save_writing_attempt(
+    user_id: int,
+    lesson_id: int,
+    text: str,
+    checklist_completed: bool,
+    db_session,
+) -> 'UserWritingAttempt':
+    """Persist a writing attempt and return the new row.
+
+    Word count is computed from the submitted text. Multiple attempts per
+    lesson are allowed — each submission creates a new row.
+    Caller owns the commit.
+    """
+    word_count = len(text.split()) if text.strip() else 0
+    attempt = UserWritingAttempt(
+        user_id=user_id,
+        lesson_id=lesson_id,
+        response_text=text,
+        word_count=word_count,
+        checklist_completed=checklist_completed,
+    )
+    db_session.session.add(attempt)
+    db_session.session.flush()
+    return attempt
+
+
 # Import LessonGrade to register it with SQLAlchemy
 # This needs to be at the end of the file to avoid circular imports
 from app.achievements.models import LessonGrade  # noqa: F401, E402
