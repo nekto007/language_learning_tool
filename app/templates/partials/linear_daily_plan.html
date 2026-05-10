@@ -201,6 +201,21 @@
     </div>
     {% endif %}
 
+    {# ── Plan time indicator ─────────────────────────────────────────── #}
+    {% set _total_minutes = linear_plan.get('total_estimated_minutes', 0) %}
+    {% set _plan_intensity = linear_plan.get('plan_intensity', 'normal') %}
+    {% if _total_minutes > 0 and not l_day_secured %}
+    <div class="plan-time-indicator plan-intensity--{{ _plan_intensity }}"
+         data-plan-time-indicator="true"
+         data-intensity="{{ _plan_intensity }}"
+         data-total-minutes="{{ _total_minutes }}">
+        <span class="plan-time-indicator__dot" aria-hidden="true"></span>
+        <span class="plan-time-indicator__text">≈ {{ _total_minutes }} мин на сегодня ·
+            {% if _plan_intensity == 'light' %}Лёгкий день{% elif _plan_intensity == 'normal' %}Стандартный день{% else %}Насыщенный день{% endif %}
+        </span>
+    </div>
+    {% endif %}
+
     {# ── Late-day hint: shown when slots remain and user-local hour ≥ 20:00 ── #}
     {% set _pending = l_baseline_total - l_baseline_done %}
     {% if l_baseline_total > 0 and _pending > 0 and (local_hour is defined) and (local_hour is not none) and (local_hour | int) >= 20 %}

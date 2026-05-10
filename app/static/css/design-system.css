@@ -12566,6 +12566,29 @@ footer .col-md-4 {
     color: #475569;
     font-weight: 600;
 }
+.plan-time-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary, #475569);
+    padding: 0.2rem 0;
+}
+.plan-time-indicator__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.plan-intensity--light .plan-time-indicator__dot {
+    background: #16a34a;
+}
+.plan-intensity--normal .plan-time-indicator__dot {
+    background: #2563eb;
+}
+.plan-intensity--intensive .plan-time-indicator__dot {
+    background: #dc2626;
+}
 .linear-plan__secured {
     display: flex;
     align-items: center;

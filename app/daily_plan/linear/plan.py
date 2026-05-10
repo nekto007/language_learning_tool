@@ -36,6 +36,18 @@ SLOT_ESTIMATED_MINUTES: dict[str, int] = {
 }
 
 
+def get_plan_intensity(minutes: int) -> str:
+    """Return intensity label based on total estimated minutes.
+
+    < 15 min → 'light'; 15-30 → 'normal'; > 30 → 'intensive'.
+    """
+    if minutes < 15:
+        return 'light'
+    if minutes <= 30:
+        return 'normal'
+    return 'intensive'
+
+
 def _get_user_focus(user_id: int, db_session: Any) -> Optional[str]:
     """Return the first onboarding-focus tag for the user, or None.
 
@@ -199,4 +211,5 @@ def get_linear_plan(
         },
         'day_secured': day_secured,
         'total_estimated_minutes': total_estimated_minutes,
+        'plan_intensity': get_plan_intensity(total_estimated_minutes),
     }

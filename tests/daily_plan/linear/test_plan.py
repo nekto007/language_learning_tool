@@ -8,7 +8,7 @@ import pytest
 
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.daily_plan.linear.plan import SLOT_ESTIMATED_MINUTES, get_linear_plan
+from app.daily_plan.linear.plan import SLOT_ESTIMATED_MINUTES, get_linear_plan, get_plan_intensity
 from app.utils.db import db as real_db
 
 
@@ -71,6 +71,70 @@ def _complete_lesson(db_session, user: User, lesson: Lessons) -> None:
         completed_at=datetime.now(timezone.utc).replace(tzinfo=None),
     ))
     db_session.commit()
+
+
+# ── get_plan_intensity ────────────────────────────────────────────────
+
+
+class TestGetPlanIntensity:
+    """Task 42: intensity label from total estimated minutes."""
+
+    def test_light_below_15(self):
+        assert get_plan_intensity(10) == 'light'
+
+    def test_light_boundary_zero(self):
+        assert get_plan_intensity(0) == 'light'
+
+    def test_light_boundary_14(self):
+        assert get_plan_intensity(14) == 'light'
+
+    def test_normal_at_15(self):
+        assert get_plan_intensity(15) == 'normal'
+
+    def test_normal_at_25(self):
+        assert get_plan_intensity(25) == 'normal'
+
+    def test_normal_at_30(self):
+        assert get_plan_intensity(30) == 'normal'
+
+    def test_intensive_at_31(self):
+        assert get_plan_intensity(31) == 'intensive'
+
+    def test_intensive_at_35(self):
+        assert get_plan_intensity(35) == 'intensive'
+
+    def test_intensive_large(self):
+        assert get_plan_intensity(100) == 'intensive'
+
+
+# ── plan payload includes intensity ───────────────────────────────────
+
+
+class TestPlanPayloadIntensity:
+    def test_plan_intensity_in_payload(self, db_session):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module)
+        user = _make_user(db_session)
+        user.onboarding_level = level.code
+        db_session.commit()
+
+        payload = get_linear_plan(user.id, real_db)
+
+        assert 'plan_intensity' in payload
+        assert payload['plan_intensity'] in ('light', 'normal', 'intensive')
+
+    def test_plan_intensity_matches_total_minutes(self, db_session):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module)
+        user = _make_user(db_session)
+        user.onboarding_level = level.code
+        db_session.commit()
+
+        payload = get_linear_plan(user.id, real_db)
+
+        assert payload['plan_intensity'] == get_plan_intensity(payload['total_estimated_minutes'])
 
 
 # ── SLOT_ESTIMATED_MINUTES constant ──────────────────────────────────

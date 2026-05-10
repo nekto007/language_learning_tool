@@ -671,11 +671,11 @@
 - Modify: `app/static/css/design-system.css`
 - Tests: `tests/daily_plan/linear/test_plan.py`
 
-- [ ] Show "≈ N мин на сегодня" below the plan header
-- [ ] Show "light" (<15 min), "normal" (15-30), "intensive" (>30) label with colored dot
-- [ ] CSS: `.plan-time-indicator`, `.plan-intensity--light/normal/intensive`
-- [ ] Tests: 25 minutes → normal label; 35 → intensive; 10 → light
-- [ ] Run pytest -m smoke
+- [x] Show "≈ N мин на сегодня" below the plan header
+- [x] Show "light" (<15 min), "normal" (15-30), "intensive" (>30) label with colored dot
+- [x] CSS: `.plan-time-indicator`, `.plan-intensity--light/normal/intensive`
+- [x] Tests: 25 minutes → normal label; 35 → intensive; 10 → light
+- [x] Run pytest -m smoke
 
 ---
 ### Task 43: Plan completion heatmap calendar
