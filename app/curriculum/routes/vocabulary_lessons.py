@@ -621,6 +621,8 @@ def text_lesson(lesson_id):
     if progress and progress.data:
         saved_comprehension = progress.data.get('comprehension')
 
+    vocab_js_data = _build_vocab_js_data(cleaned_content.get('vocabulary') or [])
+
     return render_template(
         'curriculum/lessons/text.html',
         lesson=lesson,
@@ -628,5 +630,32 @@ def text_lesson(lesson_id):
         book=book,
         progress=progress,
         next_lesson=next_lesson,
-        saved_comprehension=saved_comprehension
+        saved_comprehension=saved_comprehension,
+        vocab_js_data=vocab_js_data,
     )
+
+
+def _build_vocab_js_data(vocabulary: list) -> list:
+    """Build vocab map with word IDs for click-to-define feature."""
+    if not vocabulary:
+        return []
+    from app.words.models import CollectionWords
+    word_texts = [item.get('word', '').lower() for item in vocabulary if item.get('word')]
+    word_id_map: dict[str, int] = {}
+    if word_texts:
+        word_records = (
+            CollectionWords.query
+            .filter(db.func.lower(CollectionWords.english_word).in_(word_texts))
+            .all()
+        )
+        word_id_map = {w.english_word.lower(): w.id for w in word_records}
+    result = []
+    for item in vocabulary:
+        word_text = item.get('word', '')
+        result.append({
+            'word': word_text,
+            'word_id': word_id_map.get(word_text.lower()) if word_text else None,
+            'translation': item.get('translation', ''),
+            'audio': item.get('audio', ''),
+        })
+    return result

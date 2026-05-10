@@ -586,6 +586,7 @@ _CLIENT_EVENTS = {
     'rival_strip_shown',
     'rival_strip_dismissed',
     'steps_taken_while_rival_visible',
+    'vocab_lookup',
 }
 
 

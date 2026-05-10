@@ -489,6 +489,21 @@
 <!-- Аудио элемент для словаря -->
 <audio id="vocab-audio" class="audio-hidden"></audio>
 
+<!-- Click-to-define tooltip for inline vocab words -->
+<div class="vocab-tooltip" id="vocabTooltip" role="tooltip" aria-live="polite">
+  <div class="vocab-tooltip__inner">
+    <div class="vocab-tooltip__header">
+      <span class="vocab-tooltip__word" id="vocabTooltipWord"></span>
+      <button class="vocab-tooltip__close" id="vocabTooltipClose" aria-label="{{ _('Закрыть') }}">&times;</button>
+    </div>
+    <div class="vocab-tooltip__translation" id="vocabTooltipTranslation"></div>
+  </div>
+</div>
+
+{% if vocab_js_data %}
+<script type="application/json" id="lessonVocabData">{{ vocab_js_data | tojson }}</script>
+{% endif %}
+
 <script>
 let startTime = Date.now();
 let readingTime = 0;
@@ -1719,5 +1734,165 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+
+<script>
+(function() {
+  var vocabDataEl = document.getElementById('lessonVocabData');
+  if (!vocabDataEl) return;
+
+  var vocabItems;
+  try { vocabItems = JSON.parse(vocabDataEl.textContent); } catch(e) { return; }
+  if (!vocabItems || !vocabItems.length) return;
+
+  // Build lookup: lowercase word → {word_id, translation}
+  var vocabMap = {};
+  vocabItems.forEach(function(item) {
+    if (item.word) {
+      vocabMap[item.word.toLowerCase()] = {
+        word_id: item.word_id,
+        translation: item.translation || '',
+        original: item.word
+      };
+    }
+  });
+
+  var escapedRe = Object.keys(vocabMap).map(function(w) {
+    return w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  });
+  if (!escapedRe.length) return;
+  // Match whole words only, case-insensitive
+  var pattern = new RegExp('\\b(' + escapedRe.join('|') + ')\\b', 'gi');
+
+  // Process text nodes in prose containers (avoid scripts/styles/already-processed)
+  var containers = document.querySelectorAll(
+    '.prose-container, .listening-content-text, .reading-line-text'
+  );
+
+  containers.forEach(function(container) {
+    if (container.getAttribute('data-vocab-processed')) return;
+    container.setAttribute('data-vocab-processed', 'true');
+    _wrapVocabInNode(container, pattern, vocabMap);
+  });
+
+  function _wrapVocabInNode(node, re, map) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      var text = node.textContent;
+      if (!re.test(text)) return;
+      re.lastIndex = 0;
+      var frag = document.createDocumentFragment();
+      var last = 0;
+      var m;
+      re.lastIndex = 0;
+      while ((m = re.exec(text)) !== null) {
+        if (m.index > last) {
+          frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        }
+        var key = m[0].toLowerCase();
+        var info = map[key];
+        var span = document.createElement('span');
+        span.className = 'vocab-word';
+        if (info && info.word_id) span.setAttribute('data-word-id', String(info.word_id));
+        span.setAttribute('data-vocab-key', key);
+        span.textContent = m[0];
+        frag.appendChild(span);
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) {
+        frag.appendChild(document.createTextNode(text.slice(last)));
+      }
+      node.parentNode.replaceChild(frag, node);
+    } else if (
+      node.nodeType === Node.ELEMENT_NODE &&
+      node.nodeName !== 'SCRIPT' &&
+      node.nodeName !== 'STYLE' &&
+      !node.classList.contains('vocab-word')
+    ) {
+      Array.from(node.childNodes).forEach(function(child) {
+        _wrapVocabInNode(child, re, map);
+        re.lastIndex = 0;
+      });
+    }
+  }
+
+  // Tooltip logic
+  var tooltip = document.getElementById('vocabTooltip');
+  var tooltipWord = document.getElementById('vocabTooltipWord');
+  var tooltipTranslation = document.getElementById('vocabTooltipTranslation');
+  var tooltipClose = document.getElementById('vocabTooltipClose');
+  if (!tooltip) return;
+
+  document.addEventListener('click', function(e) {
+    var span = e.target.closest ? e.target.closest('span.vocab-word') : null;
+    if (span) {
+      e.preventDefault();
+      var key = span.getAttribute('data-vocab-key') || span.textContent.toLowerCase();
+      var info = vocabMap[key];
+      if (!info) return;
+
+      // Highlight
+      document.querySelectorAll('span.vocab-word.vocab-word--active').forEach(function(s) {
+        s.classList.remove('vocab-word--active');
+      });
+      span.classList.add('vocab-word--active');
+
+      tooltipWord.textContent = info.original || span.textContent;
+      tooltipTranslation.textContent = info.translation || '';
+      _positionTooltip(span);
+      tooltip.classList.add('vocab-tooltip--visible');
+
+      // Track event
+      _trackVocabLookup(info.word_id);
+    } else if (!tooltip.contains(e.target)) {
+      _hideTooltip();
+    }
+  });
+
+  if (tooltipClose) {
+    tooltipClose.addEventListener('click', function() { _hideTooltip(); });
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') _hideTooltip();
+  });
+
+  function _hideTooltip() {
+    tooltip.classList.remove('vocab-tooltip--visible');
+    document.querySelectorAll('span.vocab-word.vocab-word--active').forEach(function(s) {
+      s.classList.remove('vocab-word--active');
+    });
+  }
+
+  function _positionTooltip(el) {
+    if (window.innerWidth <= 768) return;
+    var rect = el.getBoundingClientRect();
+    var w = 320, h = 150;
+    var top = rect.bottom + 6;
+    var left = rect.left;
+    if (left + w > window.innerWidth) left = window.innerWidth - w - 10;
+    if (left < 10) left = 10;
+    if (top + h > window.innerHeight) top = rect.top - h - 6;
+    if (top < 10) top = 10;
+    tooltip.style.top = top + 'px';
+    tooltip.style.left = left + 'px';
+  }
+
+  function _trackVocabLookup(wordId) {
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    var csrf = csrfMeta ? csrfMeta.getAttribute('content') : '';
+    var body = { event_type: 'vocab_lookup' };
+    if (wordId) body.step_kind = String(wordId);
+    fetch('/api/daily-plan/events', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf,
+        'Accept': 'application/json'
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(body)
+    }).catch(function() {});
+  }
+})();
+</script>
 {% endblock %}
 
