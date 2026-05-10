@@ -1,0 +1,304 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Аудио: заполните пропуски') %}
+{% set instruction_text = _('Прослушайте аудио и заполните пропуски в каждом предложении.') %}
+{% set block_description = _('Тренировка восприятия речи и лексики') %}
+
+{% block extra_css %}
+<style>
+.afb-lesson {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.afb-main-audio-section {
+  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  color: #fff;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.2);
+}
+.afb-main-audio-section h3 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.afb-main-audio-section audio {
+  width: 100%;
+  border-radius: 0.5rem;
+}
+.afb-items-section {
+  margin-bottom: 1.5rem;
+}
+.afb-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 0.5rem;
+}
+.afb-item-number {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--color-primary, #dc2626);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.afb-clip-btn {
+  background: none;
+  border: 1.5px solid var(--color-border, #e5e7eb);
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-text-secondary, #6b7280);
+  transition: color 0.15s, border-color 0.15s;
+}
+.afb-clip-btn:hover {
+  color: var(--color-primary, #dc2626);
+  border-color: var(--color-primary, #dc2626);
+}
+.afb-submit-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.afb-score-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 2rem;
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+.afb-score-badge--pass {
+  background: #dcfce7;
+  color: #14532d;
+}
+.afb-score-badge--fail {
+  background: #fee2e2;
+  color: #7f1d1d;
+}
+@media (max-width: 480px) {
+  .afb-submit-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+</style>
+{% endblock %}
+
+{% block lesson_content %}
+<div class="afb-lesson">
+  {% if audio_url %}
+  <div class="afb-main-audio-section">
+    <h3><i class="fas fa-volume-up"></i> {{ _('Основное аудио') }}</h3>
+    <audio id="afb-main-audio" controls>
+      <source src="{{ audio_url }}" type="audio/mpeg">
+      <source src="{{ audio_url }}" type="audio/ogg">
+      {{ _('Ваш браузер не поддерживает аудио.') }}
+    </audio>
+  </div>
+  {% endif %}
+
+  <div class="afb-items-section">
+    {% for item in items %}
+    <div class="afb-item" id="afb-item-{{ loop.index0 }}" data-index="{{ loop.index0 }}">
+      <div class="afb-item-header">
+        <span class="afb-item-number">{{ loop.index }}</span>
+        {% if item.audio_clip_url %}
+        <button class="afb-clip-btn" type="button"
+          onclick="playClip({{ loop.index0 }})"
+          title="{{ _('Прослушать фрагмент') }}">
+          <i class="fas fa-play" id="clip-icon-{{ loop.index0 }}"></i>
+          <audio id="clip-audio-{{ loop.index0 }}" preload="none">
+            <source src="{{ item.audio_clip_url }}" type="audio/mpeg">
+          </audio>
+        </button>
+        {% endif %}
+        <span class="afb-gap-text">{{ item.text_with_gap }}</span>
+      </div>
+
+      {% if item.options %}
+      <div class="afb-options" id="afb-options-{{ loop.index0 }}">
+        {% for opt in item.options %}
+        <button class="afb-option-btn"
+          type="button"
+          data-index="{{ loop.index0 }}"
+          data-option="{{ opt }}"
+          onclick="selectOption({{ loop.index0 }}, '{{ opt | e }}')">
+          {{ opt }}
+        </button>
+        {% endfor %}
+      </div>
+      <input type="hidden" id="afb-answer-{{ loop.index0 }}" value="">
+      {% else %}
+      <input
+        class="afb-input"
+        id="afb-answer-{{ loop.index0 }}"
+        type="text"
+        placeholder="{{ _('Введите ответ...') }}"
+        autocomplete="off"
+      >
+      {% endif %}
+
+      <div class="afb-answer-reveal" id="afb-reveal-{{ loop.index0 }}"></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="afb-submit-row">
+    <button class="btn btn-primary btn-lg" id="afb-submit-btn"
+      onclick="submitAnswers()" type="button">
+      <i class="fas fa-check"></i> {{ _('Проверить') }}
+    </button>
+  </div>
+
+  <div id="afb-results" style="display: none; margin-top: 1.5rem;">
+    <div id="afb-score-area"></div>
+    <div id="afb-next-area"></div>
+  </div>
+</div>
+
+<script>
+const lessonId = {{ lesson.id }};
+const totalItems = {{ items | length }};
+
+function playClip(idx) {
+  const audio = document.getElementById('clip-audio-' + idx);
+  if (!audio) return;
+  audio.currentTime = 0;
+  audio.play().catch(() => {});
+}
+
+function selectOption(itemIdx, option) {
+  document.getElementById('afb-answer-' + itemIdx).value = option;
+  const container = document.getElementById('afb-options-' + itemIdx);
+  if (!container) return;
+  container.querySelectorAll('.afb-option-btn').forEach(btn => {
+    btn.classList.remove('afb-option-btn--selected');
+    if (btn.dataset.option === option) {
+      btn.classList.add('afb-option-btn--selected');
+    }
+  });
+}
+
+async function submitAnswers() {
+  const answers = [];
+  for (let i = 0; i < totalItems; i++) {
+    const inp = document.getElementById('afb-answer-' + i);
+    answers.push(inp ? inp.value.trim() : '');
+  }
+
+  const submitBtn = document.getElementById('afb-submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Проверка...") }}';
+
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const resp = await fetch(`/learn/api/lesson/${lessonId}/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      body: JSON.stringify({ answers, lesson_type: 'audio_fill_blank' }),
+    });
+
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    showResults(data);
+
+    if (data.passed) {
+      submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено") }}';
+      if (typeof showSaveToast === 'function') showSaveToast();
+    } else {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-redo"></i> {{ _("Попробовать снова") }}';
+    }
+  } catch (err) {
+    console.error('AFB submit error:', err);
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Проверить") }}';
+    alert('{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+  }
+}
+
+function showResults(data) {
+  const itemResults = data.item_results || [];
+  itemResults.forEach((res, idx) => {
+    const itemEl = document.getElementById('afb-item-' + idx);
+    if (!itemEl) return;
+    itemEl.classList.remove('afb-item--correct', 'afb-item--wrong');
+    itemEl.classList.add(res.correct ? 'afb-item--correct' : 'afb-item--wrong');
+
+    const inp = document.getElementById('afb-answer-' + idx);
+    if (inp && inp.type === 'text') {
+      inp.classList.remove('afb-input--correct', 'afb-input--wrong');
+      inp.classList.add(res.correct ? 'afb-input--correct' : 'afb-input--wrong');
+      inp.readOnly = true;
+    }
+
+    // Options mode: mark correct/wrong buttons
+    const optContainer = document.getElementById('afb-options-' + idx);
+    if (optContainer) {
+      optContainer.querySelectorAll('.afb-option-btn').forEach(btn => {
+        if (btn.dataset.option === res.answer) {
+          btn.classList.add('afb-option-btn--correct');
+        } else if (btn.classList.contains('afb-option-btn--selected') && !res.correct) {
+          btn.classList.add('afb-option-btn--wrong');
+        }
+        btn.disabled = true;
+      });
+    }
+
+    if (!res.correct) {
+      const reveal = document.getElementById('afb-reveal-' + idx);
+      if (reveal) {
+        const d = document.createElement('div');
+        d.textContent = '{{ _("Правильно:") }} ' + res.answer;
+        reveal.appendChild(d);
+        reveal.classList.add('visible');
+      }
+    }
+  });
+
+  const score = data.score || 0;
+  const passed = data.passed || false;
+  const badgeClass = passed ? 'afb-score-badge--pass' : 'afb-score-badge--fail';
+  const icon = passed ? 'fa-check-circle' : 'fa-times-circle';
+  const label = passed ? '{{ _("Отлично!") }}' : '{{ _("Попробуйте ещё") }}';
+  const scoreArea = document.getElementById('afb-score-area');
+  scoreArea.innerHTML = `
+    <div class="afb-score-badge ${badgeClass}">
+      <i class="fas ${icon}"></i>
+      ${score}% &mdash; ${label}
+      (${data.correct_items || 0} / ${data.total_items || 0} {{ _("верно") }})
+    </div>`;
+
+  if (passed && data.next_lesson_url) {
+    document.getElementById('afb-next-area').innerHTML = `
+      <a href="${data.next_lesson_url}" class="btn btn-success">
+        <i class="fas fa-arrow-right"></i> {{ _("Следующий урок") }}
+      </a>`;
+  }
+
+  document.getElementById('afb-results').style.display = 'block';
+  document.getElementById('afb-results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+</script>
+{% endblock %}

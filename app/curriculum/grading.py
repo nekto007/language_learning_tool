@@ -224,6 +224,61 @@ def grade_dictation(user_text: str, transcript: str, hint_chars: int = 0) -> dic
     }
 
 
+def grade_audio_fill_blank(user_answers: list, items: list) -> dict:
+    """Grade an audio fill-in-blank exercise.
+
+    Args:
+        user_answers: List of strings, one per item (same order as items).
+        items: List of item dicts with 'answer' (and optional 'options') fields.
+
+    Returns:
+        dict with score (0-100), passed (bool), correct_items (int),
+        total_items (int), item_results (list of {answer, user_answer, correct}).
+    """
+    total = len(items)
+    if total == 0:
+        return {
+            'score': 0,
+            'passed': False,
+            'correct_items': 0,
+            'total_items': 0,
+            'item_results': [],
+        }
+
+    correct = 0
+    item_results = []
+    for i, item in enumerate(items):
+        user_answer = user_answers[i] if i < len(user_answers) else ''
+        correct_answer = item.get('answer', '')
+        options = item.get('options')
+
+        if options:
+            # Multiple-choice mode: exact match after normalization
+            is_correct = _normalize_answer(user_answer) == _normalize_answer(correct_answer)
+        else:
+            # Free-text mode: Levenshtein ≤1 for single-word, exact for multi-word
+            is_correct = _strict_text_match(user_answer, [correct_answer])
+
+        if is_correct:
+            correct += 1
+        item_results.append({
+            'answer': correct_answer,
+            'user_answer': user_answer,
+            'correct': is_correct,
+        })
+
+    score = round(correct / total * 100)
+    passed = score >= 70
+
+    return {
+        'score': score,
+        'passed': passed,
+        'correct_items': correct,
+        'total_items': total,
+        'item_results': item_results,
+    }
+
+
 def process_grammar_submission(exercises, answers):
     """
     Обрабатывает ответы на грамматические упражнения

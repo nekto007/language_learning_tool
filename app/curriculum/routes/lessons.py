@@ -70,6 +70,7 @@ def lesson_detail(lesson_id):
         'listening_immersion_quiz': 'curriculum_lessons.text_lesson',
         'quiz': 'curriculum_lessons.quiz_lesson',
         'dictation': 'curriculum_lessons.dictation_lesson',
+        'audio_fill_blank': 'curriculum_lessons.audio_fill_blank_lesson',
     }
 
     route_name = route_map.get(lesson.type)
@@ -219,6 +220,8 @@ def submit_lesson(lesson_id):
             result = process_final_test_submission(lesson, current_user.id, data)
         elif lesson.type == 'dictation':
             result = _process_dictation_submission(lesson, current_user.id, data)
+        elif lesson.type == 'audio_fill_blank':
+            result = _process_audio_fill_blank_submission(lesson, current_user.id, data)
         else:
             return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
 
@@ -330,6 +333,90 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
         result['next_lesson_url'] = url_for(
             'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
         )
+
+    return result
+
+
+@lessons_bp.route('/lesson/<int:lesson_id>/audio-fill-blank')
+@login_required
+@require_lesson_access
+def audio_fill_blank_lesson(lesson_id: int):
+    """Display an audio fill-in-blank lesson."""
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'audio_fill_blank':
+        flash('Неверный тип урока', 'error')
+        return redirect('/learn/')
+
+    content = lesson.content or {}
+    audio_url = content.get('audio_url', '')
+    items = content.get('items', [])
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id
+    ).first()
+    if not progress:
+        try:
+            progress = LessonProgress(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+                status='in_progress',
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error creating audio_fill_blank progress: {e}")
+            db.session.rollback()
+
+    return render_template(
+        'curriculum/lessons/audio_fill_blank.html',
+        lesson=lesson,
+        progress=progress,
+        audio_url=audio_url,
+        items=items,
+    )
+
+
+def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
+    """Grade an audio fill-in-blank submission, update progress, award XP, return result."""
+    from app.curriculum.grading import grade_audio_fill_blank
+    from app.curriculum.service import get_next_lesson
+    from app.curriculum.services.progress_service import ProgressService
+
+    content = lesson.content or {}
+    items = content.get('items', [])
+    user_answers = data.get('answers', [])
+
+    grade = grade_audio_fill_blank(user_answers, items)
+
+    progress, _ = ProgressService.update_progress_with_grading(
+        user_id=user_id,
+        lesson=lesson,
+        result=grade,
+        passing_score=70,
+    )
+
+    if grade.get('passed'):
+        try:
+            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
+            db.session.commit()
+        except Exception as xp_err:
+            logger.warning(f"Audio fill blank XP award failed for lesson {lesson.id}: {xp_err}")
+
+    result = {**grade}
+    next_lesson = get_next_lesson(lesson.id)
+    if grade.get('passed') and next_lesson:
+        result['next_lesson_url'] = url_for(
+            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
+        )
+    # Always include correct answers for client-side reveal on completion
+    result['items'] = [
+        {'answer': it.get('answer', ''), 'text_with_gap': it.get('text_with_gap', '')}
+        for it in items
+    ]
 
     return result
 

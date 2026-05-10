@@ -114,12 +114,12 @@
 - Modify: `app/daily_plan/linear/xp.py`, `app/achievements/xp_service.py`
 - Tests: `tests/curriculum/test_audio_fill_blank.py`
 
-- [ ] Validator schema: `{audio_url, items: [{audio_clip_url?, text_with_gap: str, answer: str, options?: [str]}]}`
-- [ ] Grader: `grade_audio_fill_blank(user_answers, items)` — per-item Levenshtein ≤1 (same as fill_blank)
-- [ ] Template: audio clip per item plays automatically; input or multiple choice; show answer on completion
-- [ ] Register `audio_fill_blank → linear_curriculum_quiz` in LESSON_TYPE_TO_SOURCE (reuse quiz XP = 12)
-- [ ] Tests: correct answer passes; typo-1 passes; multi-item scoring; options mode vs free-text mode
-- [ ] Run pytest tests/curriculum/
+- [x] Validator schema: `{audio_url, items: [{audio_clip_url?, text_with_gap: str, answer: str, options?: [str]}]}`
+- [x] Grader: `grade_audio_fill_blank(user_answers, items)` — per-item Levenshtein ≤1 (same as fill_blank)
+- [x] Template: audio clip per item plays automatically; input or multiple choice; show answer on completion
+- [x] Register `audio_fill_blank → linear_curriculum_quiz` in LESSON_TYPE_TO_SOURCE (reuse quiz XP = 12)
+- [x] Tests: correct answer passes; typo-1 passes; multi-item scoring; options mode vs free-text mode
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 7: Replay single sentence in listening lessons

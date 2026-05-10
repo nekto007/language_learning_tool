@@ -267,6 +267,30 @@ class DictationContentSchema(Schema):
     hint_chars = fields.Int(required=False, load_default=0, validate=validate.Range(min=0))
 
 
+class AudioFillBlankItemSchema(Schema):
+    """Schema for a single audio fill-in-blank item"""
+    class Meta:
+        unknown = INCLUDE
+
+    audio_clip_url = fields.Str(required=False, allow_none=True)
+    text_with_gap = fields.Str(required=True, validate=validate.Length(min=1))
+    answer = fields.Str(required=True, validate=validate.Length(min=1))
+    options = fields.List(fields.Str(), required=False, validate=validate.Length(min=2, max=6))
+
+
+class AudioFillBlankContentSchema(Schema):
+    """Schema for audio fill-in-blank lesson content"""
+    class Meta:
+        unknown = INCLUDE
+
+    audio_url = fields.Str(required=True, validate=validate.Length(min=1))
+    items = fields.List(
+        fields.Nested(AudioFillBlankItemSchema),
+        required=True,
+        validate=validate.Length(min=1),
+    )
+
+
 class CardContentSchema(Schema):
     """Schema for card/SRS lesson content"""
     class Meta:
@@ -326,6 +350,7 @@ class LessonContentValidator:
         'listening_immersion': TextContentSchema,  # alias
         'card': CardContentSchema,
         'dictation': DictationContentSchema,
+        'audio_fill_blank': AudioFillBlankContentSchema,
         'final_test': FinalTestContentSchema,
     }
 

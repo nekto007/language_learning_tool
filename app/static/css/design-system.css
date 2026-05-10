@@ -13104,3 +13104,98 @@ footer .col-md-4 {
         transition: none;
     }
 }
+
+/* ── Audio fill-in-blank lesson ── */
+.afb-item {
+    background: #fff;
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+.afb-item--correct {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+}
+.afb-item--wrong {
+    border-color: #fecaca;
+    background: #fff1f2;
+}
+.afb-gap-text {
+    font-size: 1rem;
+    color: var(--color-text, #1f2937);
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+}
+.afb-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1.5px solid var(--color-border, #e5e7eb);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+.afb-input:focus {
+    outline: none;
+    border-color: var(--color-primary, #dc2626);
+}
+.afb-input--correct {
+    border-color: #16a34a;
+    background: #f0fdf4;
+    color: #14532d;
+}
+.afb-input--wrong {
+    border-color: #dc2626;
+    background: #fff1f2;
+    color: #7f1d1d;
+}
+.afb-answer-reveal {
+    font-size: 0.9rem;
+    color: #16a34a;
+    margin-top: 0.375rem;
+    display: none;
+}
+.afb-answer-reveal.visible {
+    display: block;
+}
+.afb-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+.afb-option-btn {
+    padding: 0.375rem 0.875rem;
+    border: 1.5px solid var(--color-border, #e5e7eb);
+    border-radius: 2rem;
+    background: #fff;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.afb-option-btn:hover {
+    background: var(--color-bg-subtle, #f9fafb);
+    border-color: var(--color-primary, #dc2626);
+}
+.afb-option-btn--selected {
+    background: var(--color-primary, #dc2626);
+    color: #fff;
+    border-color: var(--color-primary, #dc2626);
+}
+.afb-option-btn--correct {
+    background: #16a34a;
+    color: #fff;
+    border-color: #16a34a;
+}
+.afb-option-btn--wrong {
+    background: #dc2626;
+    color: #fff;
+    border-color: #dc2626;
+}
+@media (prefers-reduced-motion: reduce) {
+    .afb-input,
+    .afb-option-btn {
+        transition: none;
+    }
+}
