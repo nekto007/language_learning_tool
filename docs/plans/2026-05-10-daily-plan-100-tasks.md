@@ -611,11 +611,11 @@
 - Modify: `app/templates/study/index.html`
 - Tests: `tests/study/test_vocab_map.py`
 
-- [ ] Route: `GET /study/vocab-map` — aggregate user's vocabulary by CEFR level, module, and SRS state
-- [ ] Display a grid of modules, each showing: total words, SRS mastered, in-learning, not-started counts
-- [ ] Color-coded: green (>80% mastered), yellow (>50%), red (<50%), gray (not started)
-- [ ] Tests: route returns 200; correct counts per module; empty user → all gray
-- [ ] Run pytest tests/study/
+- [x] Route: `GET /study/vocab-map` — aggregate user's vocabulary by CEFR level, module, and SRS state
+- [x] Display a grid of modules, each showing: total words, SRS mastered, in-learning, not-started counts
+- [x] Color-coded: green (>80% mastered), yellow (>50%), red (<50%), gray (not started)
+- [x] Tests: route returns 200; correct counts per module; empty user → all gray
+- [x] Run pytest tests/study/
 
 ---
 ### Task 39: Vocabulary growth chart on dashboard

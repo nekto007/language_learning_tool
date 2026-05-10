@@ -234,6 +234,109 @@ def index():
     )
 
 
+@study.route('/vocab-map')
+@login_required
+@module_required('study')
+def vocab_map():
+    """Vocabulary mastery map: grid of modules with SRS state breakdown."""
+    from app.curriculum.models import CEFRLevel, Lessons, Module
+    from app.words.models import CollectionWordLink
+
+    # 1. Total words per module (from vocabulary lessons)
+    total_rows = db.session.query(
+        Lessons.module_id,
+        func.count(func.distinct(CollectionWordLink.word_id)).label('total'),
+    ).join(
+        CollectionWordLink, CollectionWordLink.collection_id == Lessons.collection_id,
+    ).filter(
+        Lessons.type == 'vocabulary',
+        Lessons.collection_id.isnot(None),
+    ).group_by(Lessons.module_id).all()
+
+    total_by_module = {row.module_id: row.total for row in total_rows}
+
+    # 2. Mastered words per module: user_word status='review' AND min(interval) >= threshold
+    mastered_subq = db.session.query(
+        UserWord.word_id,
+    ).join(
+        UserCardDirection, UserCardDirection.user_word_id == UserWord.id,
+    ).filter(
+        UserWord.user_id == current_user.id,
+        UserWord.status == 'review',
+    ).group_by(
+        UserWord.id, UserWord.word_id,
+    ).having(
+        func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS,
+    ).subquery()
+
+    mastered_rows = db.session.query(
+        Lessons.module_id,
+        func.count(func.distinct(CollectionWordLink.word_id)).label('mastered'),
+    ).join(
+        CollectionWordLink, CollectionWordLink.collection_id == Lessons.collection_id,
+    ).filter(
+        Lessons.type == 'vocabulary',
+        Lessons.collection_id.isnot(None),
+        CollectionWordLink.word_id.in_(mastered_subq),
+    ).group_by(Lessons.module_id).all()
+
+    mastered_by_module = {row.module_id: row.mastered for row in mastered_rows}
+
+    # 3. Started words per module: user has a UserWord entry (any state)
+    started_rows = db.session.query(
+        Lessons.module_id,
+        func.count(func.distinct(UserWord.word_id)).label('started'),
+    ).join(
+        CollectionWordLink, CollectionWordLink.collection_id == Lessons.collection_id,
+    ).join(
+        UserWord, and_(
+            UserWord.word_id == CollectionWordLink.word_id,
+            UserWord.user_id == current_user.id,
+        ),
+    ).filter(
+        Lessons.type == 'vocabulary',
+        Lessons.collection_id.isnot(None),
+    ).group_by(Lessons.module_id).all()
+
+    started_by_module = {row.module_id: row.started for row in started_rows}
+
+    # 4. Assemble stats per module ordered by level then module number
+    modules = Module.query.join(CEFRLevel).order_by(CEFRLevel.order, Module.number).all()
+
+    module_stats = []
+    for module in modules:
+        total = total_by_module.get(module.id, 0)
+        if total == 0:
+            continue  # Skip modules with no vocabulary words
+        started = started_by_module.get(module.id, 0)
+        mastered = mastered_by_module.get(module.id, 0)
+        in_learning = max(0, started - mastered)
+        not_started = max(0, total - started)
+        mastery_pct = round(mastered / total * 100) if total > 0 else 0
+
+        if started == 0:
+            color_class = 'vocab-map__module--gray'
+        elif mastery_pct >= 80:
+            color_class = 'vocab-map__module--green'
+        elif mastery_pct >= 50:
+            color_class = 'vocab-map__module--yellow'
+        else:
+            color_class = 'vocab-map__module--red'
+
+        module_stats.append({
+            'module': module,
+            'level_code': module.level.code if module.level else '',
+            'total': total,
+            'mastered': mastered,
+            'in_learning': in_learning,
+            'not_started': not_started,
+            'mastery_pct': mastery_pct,
+            'color_class': color_class,
+        })
+
+    return render_template('study/vocab_map.html', module_stats=module_stats)
+
+
 @study.route('/settings', methods=['GET', 'POST'])
 @login_required
 @module_required('study')
