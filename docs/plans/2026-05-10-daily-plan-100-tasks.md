@@ -346,11 +346,11 @@
 - Modify: `app/templates/study/index.html` (add link)
 - Tests: `tests/study/test_writing_history.py`
 
-- [ ] Route: `GET /study/writing` — list UserWritingAttempt rows for current user, paginated (20 per page)
-- [ ] Template: chronological list, show prompt, response preview (first 100 chars), date, word_count
-- [ ] Filter by lesson type (writing_prompt, translation, sentence_correction)
-- [ ] Tests: route returns 200; empty state shows "Пока нет записей"; pagination works
-- [ ] Run pytest tests/study/
+- [x] Route: `GET /study/writing` — list UserWritingAttempt rows for current user, paginated (20 per page)
+- [x] Template: chronological list, show prompt, response preview (first 100 chars), date, word_count
+- [x] Filter by lesson type (writing_prompt, translation, sentence_correction)
+- [x] Tests: route returns 200; empty state shows "Пока нет записей"; pagination works
+- [x] Run pytest tests/study/
 
 ---
 ### Task 22: Writing slot in linear plan

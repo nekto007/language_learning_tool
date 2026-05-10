@@ -502,6 +502,65 @@ def insights():
     )
 
 
+_WRITING_TYPES = ['writing_prompt', 'translation', 'sentence_correction']
+
+
+@study.route('/writing')
+@login_required
+def writing_history():
+    from app.curriculum.models import Lessons, UserWritingAttempt
+
+    page = request.args.get('page', 1, type=int)
+    type_filter = request.args.get('type', '')
+    per_page = 20
+
+    query = (
+        db.session.query(UserWritingAttempt, Lessons)
+        .join(Lessons, UserWritingAttempt.lesson_id == Lessons.id)
+        .filter(
+            UserWritingAttempt.user_id == current_user.id,
+            Lessons.type.in_(_WRITING_TYPES),
+        )
+    )
+
+    if type_filter in _WRITING_TYPES:
+        query = query.filter(Lessons.type == type_filter)
+
+    query = query.order_by(UserWritingAttempt.created_at.desc())
+
+    total = query.count()
+    rows = query.offset((page - 1) * per_page).limit(per_page).all()
+
+    items = []
+    for attempt, lesson in rows:
+        content = lesson.content or {}
+        if lesson.type == 'writing_prompt':
+            prompt = content.get('prompt', '')
+        elif lesson.type == 'translation':
+            prompt = content.get('russian', '')
+        elif lesson.type == 'sentence_correction':
+            prompt = content.get('incorrect_sentence', '')
+        else:
+            prompt = ''
+        items.append({
+            'attempt': attempt,
+            'lesson': lesson,
+            'prompt': prompt,
+        })
+
+    total_pages = max(1, (total + per_page - 1) // per_page)
+
+    return render_template(
+        'study/writing_history.html',
+        items=items,
+        page=page,
+        total_pages=total_pages,
+        total=total,
+        type_filter=type_filter,
+        writing_types=_WRITING_TYPES,
+    )
+
+
 # Import sub-modules to register their routes on the blueprint
 from app.study import api_routes  # noqa: E402, F401
 from app.study import game_routes  # noqa: E402, F401
