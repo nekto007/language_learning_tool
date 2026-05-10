@@ -517,6 +517,52 @@ def _compute_current_streak(user_id: int) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Listening stats (last 7 days)
+# ---------------------------------------------------------------------------
+
+def get_listening_stats(user_id: int) -> dict[str, Any]:
+    """Return listening analytics for the last 7 days.
+
+    Keys:
+      - total_lessons: distinct lesson_ids with at least one attempt (all time)
+      - avg_score: average score across all attempts in the last 7 days (0 if none)
+      - total_replays: sum of replay_count in the last 7 days
+    """
+    from app.curriculum.models import ListeningAttempt
+
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+
+    # All-time distinct lesson count for this user.
+    total_lessons = (
+        db.session.query(func.count(func.distinct(ListeningAttempt.lesson_id)))
+        .filter(ListeningAttempt.user_id == user_id)
+        .scalar()
+    ) or 0
+
+    # Last-7-days aggregates.
+    row = (
+        db.session.query(
+            func.avg(ListeningAttempt.score).label('avg_score'),
+            func.coalesce(func.sum(ListeningAttempt.replay_count), 0).label('total_replays'),
+        )
+        .filter(
+            ListeningAttempt.user_id == user_id,
+            ListeningAttempt.created_at >= seven_days_ago,
+        )
+        .one()
+    )
+
+    avg_score = round(float(row.avg_score), 1) if row.avg_score is not None else 0.0
+    total_replays = int(row.total_replays)
+
+    return {
+        'total_lessons': int(total_lessons),
+        'avg_score': avg_score,
+        'total_replays': total_replays,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Weekly summary (week-to-date, NOT lifetime)
 # ---------------------------------------------------------------------------
 

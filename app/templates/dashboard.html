@@ -1062,6 +1062,19 @@
     {% endif %}
     {% endif %}
 
+    <!-- Listening stats compact widget (task 9) -->
+    {% if listening_stats and listening_stats.total_lessons > 0 %}
+    <div class="dash-listening-stats">
+        <span class="dash-listening-stats__icon">&#127911;</span>
+        <span class="dash-listening-stats__label">Диктанты:</span>
+        <span class="dash-listening-stats__value">{{ listening_stats.total_lessons }} {% if listening_stats.total_lessons == 1 %}урок{% elif listening_stats.total_lessons < 5 %}урока{% else %}уроков{% endif %}</span>
+        {% if listening_stats.avg_score > 0 %}
+        <span class="dash-listening-stats__sep">·</span>
+        <span class="dash-listening-stats__score">ср. {{ listening_stats.avg_score | int }}%</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Telegram Banner -->
     {% include 'partials/telegram_banner.html' %}
 
@@ -4259,6 +4272,24 @@ a.dash-hero__cta:focus {
 .dash-weekly__challenge-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
 .dash-weekly__challenge-fill { height: 100%; background: linear-gradient(90deg, #5046e5, #7c3aed); border-radius: 3px; transition: width 0.5s; }
 .dash-weekly__challenge-fill--done { background: linear-gradient(90deg, #22c55e, #16a34a); }
+
+/* ── Task 9: Listening stats compact widget ── */
+.dash-listening-stats {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--dash-card-bg);
+    border-radius: 10px;
+    border: 1px solid var(--dash-card-border, #e5e7eb);
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+}
+.dash-listening-stats__icon { font-size: 1rem; }
+.dash-listening-stats__label { color: var(--color-text-secondary, #6b7280); }
+.dash-listening-stats__value { font-weight: 600; color: var(--color-text-primary, #0f172a); }
+.dash-listening-stats__sep { color: var(--color-text-secondary, #6b7280); }
+.dash-listening-stats__score { color: var(--color-primary, #5046e5); font-weight: 600; }
 
 /* ── Task 7 (compact redesign): Mission XP widget wrapper — lives inside .dash-plan ── */
 .dash-mission__xp {

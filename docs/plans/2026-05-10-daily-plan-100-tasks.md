@@ -158,11 +158,11 @@
 - Modify: `app/templates/study/index.html`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] Add `get_listening_stats(user_id, db) -> dict` in insights_service.py: total dictation lessons, avg score, total replay_count last 7 days
-- [ ] Wire into dashboard via `_safe_widget_call` in words/routes.py
-- [ ] Render compact widget card on study index: "Диктанты: N урок, ср. X%"
-- [ ] Tests: widget returns correct aggregates; empty state returns zeros
-- [ ] Run pytest -m smoke
+- [x] Add `get_listening_stats(user_id, db) -> dict` in insights_service.py: total dictation lessons, avg score, total replay_count last 7 days
+- [x] Wire into dashboard via `_safe_widget_call` in words/routes.py
+- [x] Render compact widget card on study index: "Диктанты: N урок, ср. X%"
+- [x] Tests: widget returns correct aggregates; empty state returns zeros
+- [x] Run pytest -m smoke
 
 ---
 ### Task 10: Listening immersion slot in linear plan
