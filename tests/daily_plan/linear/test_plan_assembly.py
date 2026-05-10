@@ -388,7 +388,11 @@ class TestGetLinearPlanAssembly:
         module_1 = _make_module(db_session, level, number=1)
         module_2 = _make_module(db_session, level, number=2)
         lesson_1 = _make_lesson(db_session, module_1, number=1, lesson_type='quiz')
-        lesson_2 = _make_lesson(db_session, module_2, number=1, lesson_type='grammar')
+        # lesson_2 is the next pending lesson after lesson_1 — it is already
+        # rendered inline (baseline curriculum slot / chain extension). The
+        # continuation preview lists lessons that come after it on the spine.
+        _make_lesson(db_session, module_2, number=1, lesson_type='grammar')
+        lesson_3 = _make_lesson(db_session, module_2, number=2, lesson_type='quiz')
         user = _make_user(db_session, onboarding_level=level.code)
 
         _complete_lesson(db_session, user, lesson_1)
@@ -403,7 +407,7 @@ class TestGetLinearPlanAssembly:
         payload = get_linear_plan(user.id, real_db)
 
         assert payload['continuation']['next_lessons']
-        assert payload['continuation']['next_lessons'][0]['lesson_id'] == lesson_2.id
+        assert payload['continuation']['next_lessons'][0]['lesson_id'] == lesson_3.id
         assert payload['continuation']['next_lessons'][0]['module_number'] == 2
 
     def test_card_day_keeps_deck_quiz_after_curriculum_completion(self, db_session):
@@ -436,6 +440,65 @@ class TestGetLinearPlanAssembly:
         assert srs['lesson_type'] == 'quiz'
         assert srs['completed'] is False
         assert 'linear_plan_deck_quiz' in srs['url']
+
+
+# ── chain integration in payload ─────────────────────────────────────
+
+
+class TestChainPayloadIntegration:
+    def test_payload_exposes_slots_and_chain_meta(self, db_session, curriculum_setup):
+        level = curriculum_setup['level']
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        payload = get_linear_plan(user.id, real_db)
+
+        assert 'slots' in payload
+        assert 'chain_meta' in payload
+        meta = payload['chain_meta']
+        assert meta['baseline_count'] == len(payload['baseline_slots'])
+        assert payload['slots'][:meta['baseline_count']] == payload['baseline_slots']
+        assert isinstance(meta['exhausted_sources'], list)
+        assert isinstance(meta['has_more_available'], bool)
+
+    def test_baseline_only_when_baseline_incomplete(self, db_session, curriculum_setup):
+        level = curriculum_setup['level']
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        payload = get_linear_plan(user.id, real_db)
+
+        # Baseline incomplete → chain stays at baseline length.
+        assert len(payload['slots']) == payload['chain_meta']['baseline_count']
+
+    def test_chain_extends_after_baseline_complete(self, db_session):
+        """When baseline is complete and another curriculum lesson is
+        available, the chain grows beyond baseline_count."""
+        level = _make_level(db_session, _unique_code(), order=1)
+        module_1 = _make_module(db_session, level, number=1)
+        module_2 = _make_module(db_session, level, number=2)
+        lesson_1 = _make_lesson(db_session, module_1, number=1, lesson_type='quiz')
+        lesson_2 = _make_lesson(db_session, module_2, number=1, lesson_type='grammar')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        _complete_lesson(db_session, user, lesson_1)
+        _record_curriculum_xp_event(db_session, user, 'linear_curriculum_quiz')
+        _setup_srs_cards(db_session, user, due=0, studied_today=0)
+        book = _make_book(db_session)
+        _set_reading_preference(db_session, user, book)
+        _record_chapter_progress(
+            db_session, user, book.chapters[0], offset_pct=0.25,
+        )
+        _record_reading_xp_event(db_session, user)
+
+        payload = get_linear_plan(user.id, real_db)
+
+        baseline_count = payload['chain_meta']['baseline_count']
+        # Day is secured → chain should extend with the next curriculum lesson.
+        assert payload['day_secured'] is True
+        assert len(payload['slots']) > baseline_count
+        extension = payload['slots'][baseline_count]
+        assert extension['kind'] == 'curriculum'
+        assert extension['data']['lesson_id'] == lesson_2.id
+        assert extension['data'].get('extension') is True
 
 
 # ── continuation.srs_budget_exhausted ────────────────────────────────

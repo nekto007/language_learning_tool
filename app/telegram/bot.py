@@ -533,19 +533,37 @@ def _handle_plan(chat_id: int, telegram_id: int) -> None:
         return
 
     if plan.get('mode') == 'linear':
-        from app.achievements.streak_service import _compute_linear_slot_completion
+        from app.achievements.streak_service import (
+            _compute_linear_slot_completion,
+            compute_plan_steps,
+        )
+        from app.daily_plan.linear.chain import extend_chain_after_activity
+        from app.daily_plan.linear.plan import compute_linear_day_secured
         from app.telegram.notifications import format_linear_plan_text
+        from app.utils.db import db as _db
 
-        completion = _compute_linear_slot_completion(plan.get('baseline_slots') or [], summary)
+        plan_completion, _, _, _ = compute_plan_steps(plan, summary)
+        extend_chain_after_activity(plan, plan_completion, user_id, _db)
+
+        baseline_completion = _compute_linear_slot_completion(
+            plan.get('baseline_slots') or [], summary
+        )
         for slot in plan.get('baseline_slots') or []:
             kind = slot.get('kind', '')
-            slot['completed'] = completion.get(kind, False)
+            slot['completed'] = baseline_completion.get(kind, slot.get('completed', False))
+
+        # extend_chain_after_activity may have flipped baseline slots to
+        # completed; recompute day_secured so format_linear_plan_text doesn't
+        # render the now-stale "После минимума" hint while the CTA already
+        # points at the chain extension's next lesson.
+        plan['day_secured'] = compute_linear_day_secured(plan.get('baseline_slots') or [])
 
         text = format_linear_plan_text(plan)
         text += f'\n\n\U0001f525 {streak} дней подряд  \U0001f4b0 {coins.balance}'
         buttons: list[list[dict]] = []
+        chain_slots = plan.get('slots') or plan.get('baseline_slots') or []
         next_slot = next(
-            (slot for slot in plan.get('baseline_slots') or [] if not slot.get('completed') and slot.get('url')),
+            (slot for slot in chain_slots if not slot.get('completed') and slot.get('url')),
             None,
         )
         if site_url and next_slot:

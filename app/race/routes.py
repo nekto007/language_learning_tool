@@ -26,8 +26,17 @@ def today() -> str:
         _build_daily_race_widget,
         _get_next_plan_action,
     )
-    from app.daily_plan.service import get_daily_plan_unified
+    from app.achievements.streak_service import compute_plan_steps
+    from app.daily_plan.linear.chain import (
+        extend_chain_after_activity,
+        recompute_continuation_available,
+    )
+    from app.daily_plan.service import (
+        compute_day_secured_from_activity,
+        get_daily_plan_unified,
+    )
     from app.telegram.queries import get_daily_summary
+    from app.utils.db import db
     from config.settings import DEFAULT_TIMEZONE
 
     tz = current_user.timezone or DEFAULT_TIMEZONE
@@ -44,6 +53,15 @@ def today() -> str:
         try:
             daily_plan = get_daily_plan_unified(current_user.id, tz=tz)
             daily_summary = get_daily_summary(current_user.id, tz=tz)
+            plan_completion, _, _, _ = compute_plan_steps(daily_plan, daily_summary)
+            if daily_plan.get('_plan_meta', {}).get('effective_mode') == 'linear':
+                extend_chain_after_activity(
+                    daily_plan, plan_completion, current_user.id, db
+                )
+                daily_plan['day_secured'] = compute_day_secured_from_activity(
+                    daily_plan, plan_completion
+                )
+                recompute_continuation_available(daily_plan)
             next_plan_title, next_plan_url = _get_next_plan_action(
                 daily_plan, daily_summary
             )

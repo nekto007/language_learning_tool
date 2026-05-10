@@ -160,11 +160,52 @@
         return !!anchor;
     }
 
+    /* Locked-slot click guard.
+     *
+     * In the infinite chain only the first incomplete slot is current; every
+     * later slot renders with `data-slot-state="locked"` and shows a lock
+     * badge instead of an action link. If a user manages to click anywhere
+     * inside a locked slot, swallow the click and surface a small toast so
+     * they understand why nothing happened.
+     */
+    var TOAST_ID = 'linear-locked-toast';
+    var _toastTimer = null;
+
+    function _showLockedToast(message) {
+        var toast = document.getElementById(TOAST_ID);
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = TOAST_ID;
+            toast.className = 'linear-locked-toast';
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
+            document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        toast.classList.add('linear-locked-toast--visible');
+        if (_toastTimer) clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(function () {
+            toast.classList.remove('linear-locked-toast--visible');
+        }, 2400);
+    }
+
+    function _findLockedSlot(target) {
+        if (!target || !target.closest) return null;
+        return target.closest('[data-slot-state="locked"]');
+    }
+
     document.addEventListener('click', function (event) {
         var closeTarget = event.target.closest && event.target.closest('[data-linear-close="' + MODAL_ID + '"]');
         if (closeTarget) {
             event.preventDefault();
             closeModal();
+            return;
+        }
+        var lockedSlot = _findLockedSlot(event.target);
+        if (lockedSlot) {
+            event.preventDefault();
+            event.stopPropagation();
+            _showLockedToast('Сначала завершите предыдущее задание');
             return;
         }
         if (isLinearReadingTrigger(event.target)) {
@@ -237,5 +278,86 @@
         document.addEventListener('DOMContentLoaded', _initDaySecuredBanner);
     } else {
         _initDaySecuredBanner();
+    }
+
+    /* Chain-growth toast.
+     *
+     * The slot chain only grows between page loads (the linear partial is
+     * rerendered server-side). On each render we read the current chain
+     * length from the slots container and compare it with the value we
+     * stored in sessionStorage on the previous render. If the chain grew,
+     * surface a short toast so the user notices the new task that was
+     * appended after they finished the previous one.
+     */
+    var CHAIN_LENGTH_STORAGE_KEY_PREFIX = 'linearPlanChainLength:';
+
+    function _getChainStorageKey() {
+        var el = document.querySelector('[data-linear-slots="true"]');
+        var userId = (el && el.getAttribute('data-linear-user-id')) || 'anon';
+        // Scope by the user's profile-timezone date computed server-side.
+        // Falling back to the browser clock would re-introduce cross-day
+        // toast misfires when the browser's tz differs from the profile tz.
+        var dateKey = (el && el.getAttribute('data-linear-plan-date')) || '';
+        if (!dateKey) {
+            var d = new Date();
+            dateKey = d.getFullYear() + '-' +
+                String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                String(d.getDate()).padStart(2, '0');
+        }
+        return CHAIN_LENGTH_STORAGE_KEY_PREFIX + userId + ':' + dateKey;
+    }
+
+    function _getChainLength() {
+        var el = document.querySelector('[data-linear-slots="true"]');
+        if (!el) return null;
+        var raw = el.getAttribute('data-linear-chain-length');
+        var n = parseInt(raw, 10);
+        return isNaN(n) ? null : n;
+    }
+
+    function _showChainGrowthToast(delta) {
+        var toast = document.getElementById('linear-chain-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'linear-chain-toast';
+            toast.className = 'linear-plan__chain-toast';
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
+            document.body.appendChild(toast);
+        }
+        var prefix = delta === 1 ? '+1 задание добавлено' : '+' + delta + ' заданий добавлено';
+        toast.textContent = prefix;
+        toast.classList.add('linear-plan__chain-toast--visible');
+        setTimeout(function () {
+            toast.classList.remove('linear-plan__chain-toast--visible');
+        }, 2400);
+    }
+
+    function _initChainGrowthDetector() {
+        var current = _getChainLength();
+        if (current === null) return;
+        var key = _getChainStorageKey();
+        var stored = null;
+        try {
+            var raw = sessionStorage.getItem(key);
+            stored = raw === null ? null : parseInt(raw, 10);
+            if (isNaN(stored)) stored = null;
+        } catch (e) {
+            stored = null;
+        }
+        if (stored !== null && current > stored) {
+            _showChainGrowthToast(current - stored);
+        }
+        try {
+            sessionStorage.setItem(key, String(current));
+        } catch (e) {
+            /* ignore */
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _initChainGrowthDetector);
+    } else {
+        _initChainGrowthDetector();
     }
 })();

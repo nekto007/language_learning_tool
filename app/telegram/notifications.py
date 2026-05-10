@@ -23,7 +23,7 @@ def _words_minutes(count: int) -> int:
 
 def format_linear_plan_text(plan: dict[str, Any]) -> str:
     """Format linear daily plan for Telegram display."""
-    slots = plan.get('baseline_slots') or []
+    slots = plan.get('slots') or plan.get('baseline_slots') or []
     progress = plan.get('progress') or {}
     continuation = plan.get('continuation') or {}
     next_lessons = continuation.get('next_lessons') or []
@@ -64,10 +64,16 @@ def format_linear_plan_text(plan: dict[str, Any]) -> str:
             f"{status} {index}. {slot_icons.get(kind, '\U0001f539')} {slot.get('title', 'Слот')}"
         )
 
-    if next_lessons:
-        next_lesson = next_lessons[0] or {}
-        module_number = next_lesson.get('module_number')
-        lesson_number = next_lesson.get('lesson_number')
+    # Suppress the "После минимума" hint once the baseline is secured: the
+    # chain extension already exposes upcoming curriculum lessons as actionable
+    # slots, so announcing it would duplicate the CTA target. Use ``position``
+    # (the spine's next lesson) rather than ``next_lessons[0]`` — the latter
+    # is a *preview* that intentionally skips ``next_lesson`` to avoid
+    # duplicating the inline chain on the dashboard.
+    position = plan.get('position') or {}
+    if position and not plan.get('day_secured'):
+        module_number = position.get('module_number')
+        lesson_number = position.get('lesson_number')
         if module_number and lesson_number:
             lines.append('')
             lines.append(
@@ -94,8 +100,8 @@ def format_morning_reminder(user_name: str, streak: int,
         lines.append(format_linear_plan_text(plan))
         buttons: list[list[dict]] = []
         next_url = None
-        baseline_slots = plan.get('baseline_slots') or []
-        next_slot = next((slot for slot in baseline_slots if not slot.get('completed')), None)
+        chain_slots = plan.get('slots') or plan.get('baseline_slots') or []
+        next_slot = next((slot for slot in chain_slots if not slot.get('completed')), None)
         if next_slot and next_slot.get('url') and site_url:
             next_url = site_url.rstrip('/') + next_slot['url']
         elif site_url:

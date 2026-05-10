@@ -265,11 +265,27 @@ def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, 
         if next_phase:
             return next_phase.get('title'), _phase_url(next_phase, plan)
 
-    baseline_slots = plan.get('baseline_slots') or []
-    if plan.get('mode') == 'linear' and baseline_slots:
+    if plan.get('mode') == 'linear':
+        # Iterate the full chain (baseline + extensions) so that, after the
+        # baseline is closed, the next chain extension's slot URL is used as
+        # the canonical "next step" rather than continuation.next_lessons[0]
+        # (which is a *preview* of lessons after the current chain extension).
+        # Baseline slots may be marked done via summary activity even when
+        # ``slot.completed`` is False (the SRS slot only flips on the
+        # ``linear_srs_global`` XP event), so merge plan_completion for the
+        # baseline portion. Extension slots are kind-deduped per chain build,
+        # so trust ``slot.completed`` directly there.
+        baseline_slots = plan.get('baseline_slots') or []
+        chain_slots = plan.get('slots') or baseline_slots
+        chain_meta = plan.get('chain_meta') or {}
+        baseline_count = int(chain_meta.get('baseline_count') or len(baseline_slots))
         completion = _compute_linear_slot_completion(baseline_slots, daily_summary)
         next_slot = next(
-            (slot for slot in baseline_slots if not completion.get(slot.get('kind', ''), False)),
+            (
+                slot for idx, slot in enumerate(chain_slots)
+                if not slot.get('completed', False)
+                and not (idx < baseline_count and completion.get(slot.get('kind', ''), False))
+            ),
             None,
         )
         if next_slot and next_slot.get('url'):
@@ -941,14 +957,14 @@ def dashboard():
             plan_completion.get(p.get('id', ''), False) for p in _required
         )
     elif _effective_mode == 'linear':
+        from app.daily_plan.linear.chain import extend_chain_after_activity
+        extend_chain_after_activity(daily_plan, plan_completion, current_user.id, db)
         _slots = daily_plan.get('baseline_slots', [])
         daily_plan['day_secured'] = bool(_slots) and all(
             plan_completion.get(s.get('kind', ''), False) for s in _slots
         )
-        if isinstance(daily_plan.get('continuation'), dict):
-            daily_plan['continuation']['available'] = bool(
-                daily_plan['day_secured'] and (daily_plan['continuation'].get('next_lessons') or [])
-            )
+        from app.daily_plan.linear.chain import recompute_continuation_available
+        recompute_continuation_available(daily_plan)
 
     if daily_plan.get('day_secured') and _effective_mode in ('mission', 'linear'):
         try:
@@ -1563,9 +1579,26 @@ def _next_step_from_mission(plan: dict, daily_summary: dict) -> tuple:
 def _next_step_from_linear(plan: dict, daily_summary: dict) -> tuple:
     """Return next incomplete step from linear plan."""
     from app.achievements.streak_service import compute_plan_steps
+    from app.daily_plan.linear.chain import extend_chain_after_activity
 
     plan_completion, _, steps_done, steps_total = compute_plan_steps(plan, daily_summary)
+    # Mirror /api/daily-status & /api/daily-plan: re-grow the chain so the
+    # next slot reflects activity recorded outside the linear-plan slot
+    # endpoints (e.g. /study path for SRS) before picking the CTA target.
+    extend_chain_after_activity(plan, plan_completion, current_user.id, db)
+    plan_completion, _, steps_done, steps_total = compute_plan_steps(plan, daily_summary)
+    # Iterate the full chain (baseline + extensions). Baseline slots can be
+    # marked done via summary activity (e.g. SRS reviews recorded by the
+    # /study path that doesn't fire ``linear_srs_global`` XP) even when
+    # ``slot.completed`` is False — merge plan_completion for the baseline
+    # portion so the dashboard CTA does not bounce the user back to a slot
+    # the rest of the linear-plan flow already treats as complete. Extension
+    # slots are kind-deduped per chain build, so ``slot.completed`` is
+    # authoritative there.
     baseline_slots = plan.get('baseline_slots') or []
+    chain_slots = plan.get('slots') or baseline_slots
+    chain_meta = plan.get('chain_meta') or {}
+    baseline_count = int(chain_meta.get('baseline_count') or len(baseline_slots))
     slot_icons = {
         'curriculum': '\U0001f3af',
         'srs': '\U0001f4d6',
@@ -1573,7 +1606,11 @@ def _next_step_from_linear(plan: dict, daily_summary: dict) -> tuple:
         'error_review': '\U0001f50d',
     }
     next_slot = next(
-        (slot for slot in baseline_slots if not plan_completion.get(slot.get('kind', ''), False)),
+        (
+            slot for idx, slot in enumerate(chain_slots)
+            if not slot.get('completed', False)
+            and not (idx < baseline_count and plan_completion.get(slot.get('kind', ''), False))
+        ),
         None,
     )
     if next_slot and next_slot.get('url'):

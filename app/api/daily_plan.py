@@ -45,6 +45,9 @@ def daily_status():
     yesterday = get_yesterday_summary(user_id, tz=tz)
 
     plan_completion, steps_available, steps_done, steps_total = compute_plan_steps(plan, summary)
+    if plan.get('_plan_meta', {}).get('effective_mode') == 'linear':
+        from app.daily_plan.linear.chain import extend_chain_after_activity
+        extend_chain_after_activity(plan, plan_completion, user_id, db)
     streak_result = process_streak_on_activity(
         user_id, steps_done, steps_total, tz=tz,
         daily_plan=plan, plan_completion=plan_completion,
@@ -54,11 +57,10 @@ def daily_status():
     phases = plan.get('phases', [])
     effective_mode = plan.get('_plan_meta', {}).get('effective_mode')
     day_secured = compute_day_secured_from_activity(plan, plan_completion)
-    if effective_mode == 'linear' and isinstance(plan.get('continuation'), dict):
-        plan['continuation']['available'] = bool(
-            day_secured and (plan['continuation'].get('next_lessons') or [])
-        )
     plan['day_secured'] = day_secured
+    if effective_mode == 'linear':
+        from app.daily_plan.linear.chain import recompute_continuation_available
+        recompute_continuation_available(plan)
 
     # Sync route progress for completed phases so steps are recorded even if
     # the user never reloads /api/daily-plan after finishing their mission.
@@ -175,6 +177,9 @@ def daily_plan():
     summary = get_daily_summary(user_id, tz=tz)
 
     plan_completion, _, _, _ = compute_plan_steps(plan, summary)
+    if plan.get('_plan_meta', {}).get('effective_mode') == 'linear':
+        from app.daily_plan.linear.chain import extend_chain_after_activity
+        extend_chain_after_activity(plan, plan_completion, user_id, db)
 
     phases = plan.get('phases') or []
     steps_today = sum(
@@ -209,10 +214,9 @@ def daily_plan():
     from app.daily_plan.service import compute_day_secured_from_activity
     effective_mode = plan.get('_plan_meta', {}).get('effective_mode')
     plan['day_secured'] = compute_day_secured_from_activity(plan, plan_completion)
-    if effective_mode == 'linear' and isinstance(plan.get('continuation'), dict):
-        plan['continuation']['available'] = bool(
-            plan['day_secured'] and (plan['continuation'].get('next_lessons') or [])
-        )
+    if effective_mode == 'linear':
+        from app.daily_plan.linear.chain import recompute_continuation_available
+        recompute_continuation_available(plan)
 
     from app.study.services import SRSService
     srs_limit_reason = SRSService.get_adaptive_limit_reason(user_id)

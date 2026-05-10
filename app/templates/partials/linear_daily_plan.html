@@ -4,16 +4,26 @@
    when the user has activity today that satisfies the kind. #}
 {% set l_position = linear_plan.get('position') %}
 {% set l_progress = linear_plan.get('progress') or {} %}
-{% set l_slots_raw = linear_plan.get('baseline_slots') or [] %}
+{% set l_baseline_raw = linear_plan.get('baseline_slots') or [] %}
+{# When the assembler returns the full chain, prefer it; otherwise fall back to
+   baseline_slots so legacy callers keep working. #}
+{% set l_slots_raw = linear_plan.get('slots') or l_baseline_raw %}
+{% set l_chain_meta = linear_plan.get('chain_meta') or {} %}
+{% set l_baseline_count = l_chain_meta.get('baseline_count', l_baseline_raw | length or l_slots_raw | length) %}
+{% set l_has_more_available = l_chain_meta.get('has_more_available', True) %}
 {% set l_continuation = linear_plan.get('continuation') or {} %}
 {% set l_next_lessons = l_continuation.get('next_lessons') or [] %}
 
 {# Merge per-slot completion from plan_completion (server-side activity signals) so
-   the timeline reflects what the user actually did today, not just assembly state. #}
+   the timeline reflects what the user actually did today, not just assembly state.
+   plan_completion is keyed by kind and only reflects the baseline portion — applying
+   it to extension slots (same kind, later in chain) would falsely mark them completed
+   the moment baseline is done. Trust slot.completed for extension positions. #}
 {% set l_slots = [] %}
 {% for slot in l_slots_raw %}
     {% set _kind = slot.get('kind', '') %}
-    {% set _completed = slot.get('completed', False) or plan_completion.get(_kind, False) %}
+    {% set _is_baseline_pos = loop.index0 < l_baseline_count %}
+    {% set _completed = slot.get('completed', False) or (_is_baseline_pos and plan_completion.get(_kind, False)) %}
     {% set _merged = {
         'kind': _kind,
         'title': slot.get('title', ''),
@@ -28,7 +38,13 @@
 
 {% set l_total = l_slots | length %}
 {% set l_done = l_slots | selectattr('completed') | list | length %}
-{% set l_day_secured = (l_total > 0 and l_done == l_total) %}
+{# Day-secured math is keyed on the baseline portion (first N slots) — extras
+   beyond the minimum are bonus and don't affect securing the day. #}
+{% set l_baseline = l_slots[:l_baseline_count] %}
+{% set l_baseline_total = l_baseline | length %}
+{% set l_baseline_done = l_baseline | selectattr('completed') | list | length %}
+{% set l_day_secured = (l_baseline_total > 0 and l_baseline_done == l_baseline_total) %}
+{% set l_has_extension = l_total > l_baseline_count %}
 
 {% set l_slot_icons = {
     'curriculum': '&#127919;',
@@ -166,21 +182,21 @@
         {% endif %}
     </div>
 
-    {# ── Compact progress summary ────────────────────────────────────── #}
-    {% if l_total > 0 %}
+    {# ── Compact progress summary (keyed to baseline minimum) ────────── #}
+    {% if l_baseline_total > 0 %}
     <div class="linear-plan__summary" data-linear-summary="true">
         <div class="linear-plan__summary-bar">
-            {% set _pct = ((l_done / l_total) * 100) | int if l_total else 0 %}
+            {% set _pct = ((l_baseline_done / l_baseline_total) * 100) | int if l_baseline_total else 0 %}
             <div class="linear-plan__summary-fill{% if l_day_secured %} linear-plan__summary-fill--done{% endif %}"
                  style="width: {{ _pct }}%"></div>
         </div>
-        <span class="linear-plan__summary-count" data-linear-count="true">{{ l_done }}/{{ l_total }}</span>
+        <span class="linear-plan__summary-count" data-linear-count="true">{{ l_baseline_done }}/{{ l_baseline_total }}</span>
     </div>
     {% endif %}
 
     {# ── Late-day hint: shown when slots remain and user-local hour ≥ 20:00 ── #}
-    {% set _pending = l_total - l_done %}
-    {% if l_total > 0 and _pending > 0 and (local_hour is defined) and (local_hour is not none) and (local_hour | int) >= 20 %}
+    {% set _pending = l_baseline_total - l_baseline_done %}
+    {% if l_baseline_total > 0 and _pending > 0 and (local_hour is defined) and (local_hour is not none) and (local_hour | int) >= 20 %}
     <div class="linear-plan__late-hint"
          data-linear-late-hint="true"
          data-local-hour="{{ local_hour | int }}"
@@ -196,10 +212,25 @@
     </div>
     {% endif %}
 
-    {# ── Baseline slots (1–4) ────────────────────────────────────────── #}
+    {# ── Slot chain: baseline (minimum) + optional extensions ───────── #}
     {% set lns = namespace(current_found=false) %}
-    <div class="linear-plan__slots" data-linear-slots="true">
+    <div class="linear-plan__slots"
+         data-linear-slots="true"
+         data-linear-chain-length="{{ l_total }}"
+         data-linear-baseline-count="{{ l_baseline_count }}"
+         data-linear-user-id="{{ current_user.id if current_user is defined and current_user.is_authenticated else 'anon' }}"
+         data-linear-plan-date="{{ plan_today if plan_today is defined else '' }}">
+        {% if l_baseline_total > 0 %}
+        <div class="linear-plan__chain-header"
+             data-linear-chain-header="baseline"
+             role="note">Минимум на день</div>
+        {% endif %}
         {% for slot in l_slots %}
+            {% if loop.index0 == l_baseline_count and l_has_extension %}
+            <div class="linear-plan__chain-divider"
+                 data-linear-chain-divider="extension"
+                 role="note">Дальше необязательно, но засчитывается</div>
+            {% endif %}
             {% set _completed = slot.completed %}
             {% if _completed %}
                 {% set _state = 'done' %}
@@ -207,7 +238,7 @@
                 {% set _state = 'current' %}
                 {% set lns.current_found = true %}
             {% else %}
-                {% set _state = 'pending' %}
+                {% set _state = 'locked' %}
             {% endif %}
 
             {% set _kind = slot.kind %}
@@ -334,6 +365,13 @@
                         <span class="linear-slot__badge linear-slot__badge--muted">Нет слов</span>
                         {% elif _completed %}
                         <span class="linear-slot__badge linear-slot__badge--done">Готово &#10003;</span>
+                        {% elif _state == 'locked' %}
+                        <span class="linear-slot__badge linear-slot__badge--locked"
+                              data-linear-locked="true"
+                              aria-label="Заблокировано — завершите предыдущее задание">
+                            <span class="linear-slot__lock-icon" aria-hidden="true">&#128274;</span>
+                            <span class="linear-slot__lock-text">Откроется после завершения предыдущего</span>
+                        </span>
                         {% elif _needs_selection %}
                         <a href="#book-select-modal"
                            class="linear-slot__btn"
@@ -360,10 +398,30 @@
             <div class="linear-plan__empty-text">План на день ещё формируется. Проверьте чуть позже.</div>
         </div>
         {% endif %}
+
+        {% if l_day_secured and not l_has_more_available and l_total > 0 %}
+        <div class="linear-plan__chain-exhausted"
+             data-linear-chain-exhausted="true"
+             role="status">
+            <span class="linear-plan__chain-exhausted-icon" aria-hidden="true">&#127937;</span>
+            <span class="linear-plan__chain-exhausted-text">На сегодня источники исчерпаны</span>
+        </div>
+        {% endif %}
     </div>
 
-    {# ── Continuation CTA + preview (shown when day_secured=True) ───── #}
-    {% if l_day_secured and l_next_lessons %}
+    {# ── Continuation CTA + preview (shown when day_secured=True) ─────
+         The CTA points at the first incomplete chain slot (typically the
+         curriculum extension that targets next_lesson). next_lessons is the
+         spine *preview* — lessons that come after the inline chain — and is
+         rendered below in the details list. #}
+    {% set _cns = namespace(slot=none) %}
+    {% for slot in l_slots %}
+        {% if _cns.slot is none and not slot.completed and slot.url %}
+            {% set _cns.slot = slot %}
+        {% endif %}
+    {% endfor %}
+    {% set _continuation_next_slot = _cns.slot %}
+    {% if l_day_secured and (l_next_lessons or _continuation_next_slot) %}
     {% set _budget_exhausted = l_continuation.get('srs_budget_exhausted', False) %}
     <div class="linear-plan__continuation"
          id="linear-plan-continuation"
@@ -375,25 +433,37 @@
              role="note">
             Лимит новых слов исчерпан — сегодня только повторение
         </div>
-        {% else %}
-        {% set _next = l_next_lessons[0] %}
-        {% if _next and _next.get('lesson_id') %}
-        <a href="/learn/{{ _next.lesson_id }}/?from=linear_plan_continuation"
+        {% endif %}
+        {% if _continuation_next_slot %}
+        {% set _slot_data = _continuation_next_slot.data %}
+        {% set _slot_kind = _continuation_next_slot.kind %}
+        {% set _continuation_label = 'Следующий урок' if _slot_kind == 'curriculum' else l_slot_labels.get(_slot_kind, 'Следующее задание') %}
+        <a href="{{ _continuation_next_slot.url }}"
            class="linear-plan__continuation-cta"
-           data-linear-event="continuation_next_clicked">
-            <span class="linear-plan__continuation-label">Следующий урок</span>
+           data-linear-event="continuation_next_clicked"
+           data-continuation-slot-kind="{{ _slot_kind }}">
+            <span class="linear-plan__continuation-label">{{ _continuation_label }}</span>
+            {% if _slot_kind == 'curriculum' %}
             <span class="linear-plan__continuation-position">
-                {{ _next.get('level_code', '') }}
-                {% if _next.get('module_number') %} · M{{ _next.module_number }}{% endif %}
-                {% if _next.get('lesson_number') %} · L{{ _next.lesson_number }}{% endif %}
+                {{ _slot_data.get('level_code', '') }}
+                {% if _slot_data.get('module_number') %} · M{{ _slot_data.module_number }}{% endif %}
+                {% if _slot_data.get('lesson_number') %} · L{{ _slot_data.lesson_number }}{% endif %}
             </span>
             <span class="linear-plan__continuation-type">
-                {{ l_lesson_type_labels.get(_next.get('lesson_type'), _next.get('lesson_type', '')) }}
+                {{ l_lesson_type_labels.get(_continuation_next_slot.lesson_type, _continuation_next_slot.lesson_type or '') }}
             </span>
+            {% else %}
+            <span class="linear-plan__continuation-position">
+                {{ _continuation_next_slot.title }}
+            </span>
+            {% if _continuation_next_slot.eta_minutes and _continuation_next_slot.eta_minutes > 0 %}
+            <span class="linear-plan__continuation-type">~{{ _continuation_next_slot.eta_minutes }} мин</span>
+            {% endif %}
+            {% endif %}
         </a>
         {% endif %}
-        {% endif %}
 
+        {% if l_next_lessons %}
         <details class="linear-plan__preview" data-linear-preview="true">
             <summary class="linear-plan__preview-summary">Показать следующие уроки</summary>
             <ol class="linear-plan__preview-list">
@@ -416,6 +486,7 @@
                 {% endfor %}
             </ol>
         </details>
+        {% endif %}
     </div>
     {% endif %}
 

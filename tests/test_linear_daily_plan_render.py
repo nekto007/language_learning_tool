@@ -61,12 +61,21 @@ _UNSET = object()
 
 def _plan(*, slots: list[dict], position=_UNSET,
           progress=_UNSET, next_lessons: list[dict] | None = None,
-          day_secured: bool = False) -> dict:
+          day_secured: bool = False,
+          chain_extensions: list[dict] | None = None) -> dict:
+    extensions = list(chain_extensions or [])
+    all_slots = list(slots) + extensions
     return {
         'mode': 'linear',
         'position': _base_position() if position is _UNSET else position,
         'progress': _base_progress() if progress is _UNSET else progress,
         'baseline_slots': slots,
+        'slots': all_slots,
+        'chain_meta': {
+            'baseline_count': len(slots),
+            'has_more_available': bool(extensions),
+            'exhausted_sources': [],
+        },
         'continuation': {
             'available': day_secured,
             'next_lessons': next_lessons or [],
@@ -142,8 +151,9 @@ class TestLinearPlanSlots:
         assert 'linear-slot--done' in html
         # Second slot: current (first incomplete)
         assert 'linear-slot--current' in html
-        # Third slot: pending (not current, not done)
-        assert 'linear-slot--pending' in html
+        # Third slot: locked (not current, not done) — sequential chain
+        assert 'linear-slot--locked' in html
+        assert 'data-linear-locked="true"' in html
 
     def test_slot_order_preserved(self, app):
         plan = _plan(slots=[
@@ -158,9 +168,11 @@ class TestLinearPlanSlots:
         assert i_curr < i_srs < i_read
 
     def test_reading_slot_select_book_triggers_modal(self, app):
+        # Reading slot needs to be current (or at least not locked) for the
+        # select-book CTA to render — earlier chain slots are completed here.
         plan = _plan(slots=[
-            _slot('curriculum', url='/c'),
-            _slot('srs', url='/s', data={'due_count': 1}),
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, url='/s', data={'due_count': 1}),
             _slot('reading', url='#book-select-modal', title='Выбрать книгу',
                   data={'needs_selection': True}),
         ])
@@ -223,6 +235,45 @@ class TestLinearPlanSlots:
         html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
         assert 'linear-slot__btn--primary' in html
         assert 'Начать' in html
+
+    def test_locked_slots_appear_after_current(self, app):
+        plan = _plan(slots=[
+            _slot('curriculum', url='/c'),
+            _slot('srs', url='/s', data={'due_count': 3}),
+            _slot('reading', url='/r'),
+        ])
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        # Only the first incomplete slot is current; the rest are locked.
+        assert html.count('linear-slot--current') == 1
+        assert html.count('linear-slot--locked') == 2
+        # Locked slots show the lock badge text instead of an action link.
+        assert 'Откроется после завершения предыдущего' in html
+        # Locked slots do NOT render Start/Open buttons.
+        srs_slot = html.split('data-slot-kind="srs"')[1].split('data-slot-kind="reading"')[0]
+        assert 'linear-slot__btn' not in srs_slot
+        assert 'data-linear-locked="true"' in srs_slot
+
+    def test_completing_first_slot_shifts_current_and_locked(self, app):
+        """When the first slot completes, the second becomes current and the
+        third becomes locked — sequential chain progression."""
+        plan = _plan(slots=[
+            _slot('curriculum', url='/c'),
+            _slot('srs', url='/s', data={'due_count': 3}),
+            _slot('reading', url='/r'),
+        ])
+        # Promote curriculum via plan_completion to simulate finishing it.
+        html = _render(app, {
+            'linear_plan': plan,
+            'plan_completion': {'curriculum': True},
+        })
+        # First → done, second → current, third → locked.
+        first_current_pos = html.index('linear-slot--current')
+        first_done_pos = html.index('linear-slot--done')
+        first_locked_pos = html.index('linear-slot--locked')
+        assert first_done_pos < first_current_pos < first_locked_pos
+        # The locked slot is the reading slot (last in the chain).
+        reading_segment = html.split('data-slot-kind="reading"')[1]
+        assert 'data-slot-state="locked"' in reading_segment
 
     def test_plan_completion_promotes_slot_to_done(self, app):
         """When plan_completion flags a kind done, the slot renders as done
@@ -287,29 +338,43 @@ class TestLinearPlanContinuation:
         assert 'data-linear-continuation="true"' not in html
 
     def test_continuation_cta_and_preview_when_secured(self, app):
+        # When baseline is closed, the chain extension targeting the next
+        # spine lesson is the inline next-action. continuation.next_lessons
+        # is a *preview* of lessons that come after that extension.
         next_lessons = [
-            {'lesson_id': 102, 'lesson_type': 'grammar',
-             'lesson_number': 4, 'module_number': 5, 'level_code': 'A2'},
             {'lesson_id': 103, 'lesson_type': 'quiz',
              'lesson_number': 5, 'module_number': 5, 'level_code': 'A2'},
             {'lesson_id': 104, 'lesson_type': 'reading',
              'lesson_number': 6, 'module_number': 5, 'level_code': 'A2'},
         ]
+        extension = _slot(
+            'curriculum',
+            url='/learn/102/?from=linear_plan_continuation',
+            lesson_type='grammar',
+            data={
+                'lesson_id': 102,
+                'lesson_number': 4,
+                'module_number': 5,
+                'level_code': 'A2',
+                'extension': True,
+            },
+        )
         plan = _plan(
             slots=[
                 _slot('curriculum', completed=True, url='/c'),
                 _slot('srs', completed=True),
                 _slot('reading', completed=True, url='/r'),
             ],
+            chain_extensions=[extension],
             day_secured=True,
             next_lessons=next_lessons,
         )
         html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
         assert 'data-linear-continuation="true"' in html
-        # Primary CTA points at the first upcoming lesson.
+        # Primary CTA points at the chain extension URL (first incomplete
+        # chain slot pointing at the next curriculum lesson).
         assert '/learn/102/?from=linear_plan_continuation' in html
-        # Preview list contains all three next lessons.
-        assert '/learn/102/?from=linear_plan_preview' in html
+        # Preview list contains the lessons after the inline chain extension.
         assert '/learn/103/?from=linear_plan_preview' in html
         assert '/learn/104/?from=linear_plan_preview' in html
         # CTA label and lesson types are humanised.
@@ -378,6 +443,175 @@ class TestWeakGrammarPill:
         ])
         html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
         assert 'linear-slot__pill--weak-grammar' not in html
+
+
+class TestLinearPlanChainExtension:
+    def test_baseline_header_renders_when_slots_present(self, app):
+        plan = _plan(slots=[
+            _slot('curriculum', url='/c'),
+            _slot('srs', data={'due_count': 1}),
+            _slot('reading', url='/r'),
+        ])
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-header="baseline"' in html
+        assert 'Минимум на день' in html
+
+    def test_chain_length_attribute_reflects_total(self, app):
+        slots = [
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, data={'due_count': 0}),
+            _slot('reading', completed=True, url='/r'),
+            _slot('curriculum', url='/c2', title='Extra lesson'),
+        ]
+        plan = _plan(slots=slots, day_secured=True)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': True,
+            'exhausted_sources': [],
+        }
+        plan['baseline_slots'] = slots[:3]
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-length="4"' in html
+        assert 'data-linear-baseline-count="3"' in html
+
+    def test_divider_renders_between_baseline_and_extension(self, app):
+        slots = [
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, data={'due_count': 0}),
+            _slot('reading', completed=True, url='/r'),
+            _slot('curriculum', url='/c2', title='Bonus lesson'),
+        ]
+        plan = _plan(slots=slots[:3], day_secured=True)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': True,
+            'exhausted_sources': [],
+        }
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-divider="extension"' in html
+        assert 'Дальше необязательно' in html
+        # Divider sits before the extension slot, after the baseline ones.
+        divider_pos = html.index('data-linear-chain-divider="extension"')
+        bonus_pos = html.index('Bonus lesson')
+        first_slot_pos = html.index('data-slot-kind="curriculum"')
+        assert first_slot_pos < divider_pos < bonus_pos
+
+    def test_divider_hidden_when_chain_equals_baseline(self, app):
+        slots = [
+            _slot('curriculum', url='/c'),
+            _slot('srs', data={'due_count': 1}),
+            _slot('reading', url='/r'),
+        ]
+        plan = _plan(slots=slots)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': True,
+            'exhausted_sources': [],
+        }
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-divider' not in html
+
+    def test_exhausted_block_renders_when_secured_and_no_more(self, app):
+        slots = [
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, data={'due_count': 0}),
+            _slot('reading', completed=True, url='/r'),
+        ]
+        plan = _plan(slots=slots, day_secured=True)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': False,
+            'exhausted_sources': ['curriculum', 'srs', 'reading', 'error_review'],
+        }
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-exhausted="true"' in html
+        assert 'На сегодня источники исчерпаны' in html
+
+    def test_exhausted_block_hidden_when_not_secured(self, app):
+        slots = [
+            _slot('curriculum', url='/c'),
+            _slot('srs', data={'due_count': 1}),
+            _slot('reading', url='/r'),
+        ]
+        plan = _plan(slots=slots)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': False,
+            'exhausted_sources': [],
+        }
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-exhausted' not in html
+
+    def test_exhausted_block_hidden_when_more_available(self, app):
+        slots = [
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, data={'due_count': 0}),
+            _slot('reading', completed=True, url='/r'),
+        ]
+        plan = _plan(slots=slots, day_secured=True)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': True,
+            'exhausted_sources': [],
+        }
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        assert 'data-linear-chain-exhausted' not in html
+
+    def test_extension_slot_not_completed_by_plan_completion_kind(self, app):
+        """plan_completion is keyed by kind and only describes baseline activity.
+
+        Once baseline curriculum is done, plan_completion['curriculum']=True.
+        That signal must not cascade to a freshly-appended pending curriculum
+        extension slot — otherwise the bonus task appears already-done.
+        """
+        slots = [
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, data={'due_count': 0}),
+            _slot('reading', completed=True, url='/r'),
+            _slot('curriculum', url='/c2', title='Bonus lesson'),
+        ]
+        plan = _plan(slots=slots[:3], day_secured=True)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': True,
+            'exhausted_sources': [],
+        }
+        html = _render(app, {
+            'linear_plan': plan,
+            'plan_completion': {'curriculum': True, 'srs': True, 'reading': True},
+        })
+        # The extension slot must render as current (not completed).
+        bonus_pos = html.index('Bonus lesson')
+        # Find the slot wrapper that contains "Bonus lesson" — extension must
+        # not carry the completed CSS class.
+        snippet = html[max(0, bonus_pos - 800):bonus_pos]
+        assert 'linear-slot--current' in snippet or 'data-slot-state="current"' in snippet
+        assert 'linear-slot--completed' not in snippet
+
+    def test_summary_counts_only_baseline_when_chain_extends(self, app):
+        slots = [
+            _slot('curriculum', completed=True, url='/c'),
+            _slot('srs', completed=True, data={'due_count': 0}),
+            _slot('reading', completed=True, url='/r'),
+            _slot('curriculum', url='/c2', title='Bonus'),
+        ]
+        plan = _plan(slots=slots[:3], day_secured=True)
+        plan['slots'] = slots
+        plan['chain_meta'] = {
+            'baseline_count': 3,
+            'has_more_available': True,
+            'exhausted_sources': [],
+        }
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+        # Summary stays on the minimum (baseline) count, not the chain length.
+        assert '>3/3<' in html
 
 
 class TestBookSelectModalPresent:
