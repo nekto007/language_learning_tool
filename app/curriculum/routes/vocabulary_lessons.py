@@ -102,6 +102,8 @@ def render_vocabulary_lesson(lesson):
                         {'phrase': c.collocation_phrase, 'translation': c.translation}
                         for c in collocations
                     ],
+                    'synonyms': word.synonyms or [],
+                    'antonyms': word.antonyms or [],
                 }
                 words.append(word_dict)
             else:
@@ -120,6 +122,8 @@ def render_vocabulary_lesson(lesson):
                     'audio_url': audio_from_json or None,
                     'get_download': 0,
                     'collocations': [],
+                    'synonyms': [],
+                    'antonyms': [],
                 }
                 words.append(word_dict)
 
@@ -385,6 +389,8 @@ def vocabulary_lesson(lesson_id):
                         {'phrase': c.collocation_phrase, 'translation': c.translation}
                         for c in collocations
                     ],
+                    'synonyms': word.synonyms or [],
+                    'antonyms': word.antonyms or [],
                 }
                 words.append(word_dict)
             else:
@@ -404,6 +410,8 @@ def vocabulary_lesson(lesson_id):
                     'audio_url': None,
                     'get_download': 0,
                     'collocations': [],
+                    'synonyms': [],
+                    'antonyms': [],
                 }
                 words.append(word_dict)
 

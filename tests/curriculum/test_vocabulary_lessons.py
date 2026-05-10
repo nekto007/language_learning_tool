@@ -259,3 +259,102 @@ class TestIPACSS:
         block_end = css.find("}", ipa_idx)
         block = css[ipa_idx:block_end]
         assert "italic" in block
+
+
+# ---------------------------------------------------------------------------
+# Task 33: Synonym and antonym tests
+# ---------------------------------------------------------------------------
+
+class TestSynonymAntonymTemplate:
+    def test_synonyms_section_in_template(self):
+        tpl = _read_vocabulary_template()
+        assert "word-synonyms" in tpl
+
+    def test_antonyms_section_in_template(self):
+        tpl = _read_vocabulary_template()
+        assert "word-antonyms" in tpl
+
+    def test_synonyms_conditionally_rendered(self):
+        tpl = _read_vocabulary_template()
+        assert "word.synonyms" in tpl
+
+    def test_antonyms_conditionally_rendered(self):
+        tpl = _read_vocabulary_template()
+        assert "word.antonyms" in tpl
+
+
+class TestSynonymAntonymCSS:
+    def test_word_synonyms_class_defined(self):
+        css = _read_design_system_css()
+        assert ".word-synonyms" in css
+
+    def test_word_antonyms_class_defined(self):
+        css = _read_design_system_css()
+        assert ".word-antonyms" in css
+
+
+class TestSynonymAntonymRoute:
+    def test_word_with_synonyms_shows_them(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "synword_" + _unique()
+        word = _make_collection_word(db_session, english, "синоним-слово")
+        word.synonyms = ["big", "large"]
+        db_session.commit()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "word-synonyms" in html
+        assert "big" in html
+        assert "large" in html
+
+    def test_word_with_antonyms_shows_them(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "antword_" + _unique()
+        word = _make_collection_word(db_session, english, "антоним-слово")
+        word.antonyms = ["small", "tiny"]
+        db_session.commit()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "word-antonyms" in html
+        assert "small" in html
+        assert "tiny" in html
+
+    def test_word_without_synonyms_no_synonyms_section(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "nosynword_" + _unique()
+        word = _make_collection_word(db_session, english, "без синонимов")
+        word.synonyms = None
+        db_session.commit()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "word-synonyms" not in html
+
+    def test_word_without_antonyms_no_antonyms_section(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "noantword_" + _unique()
+        word = _make_collection_word(db_session, english, "без антонимов")
+        word.antonyms = None
+        db_session.commit()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "word-antonyms" not in html
+
+    def test_migration_columns_exist_in_model(self):
+        from app.words.models import CollectionWords
+        assert hasattr(CollectionWords, 'synonyms')
+        assert hasattr(CollectionWords, 'antonyms')

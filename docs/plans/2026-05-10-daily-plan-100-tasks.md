@@ -531,12 +531,12 @@
 - Modify: `app/templates/curriculum/lessons/vocabulary.html`
 - Tests: `tests/curriculum/test_vocabulary_lessons.py`
 
-- [ ] Add `synonyms JSON` and `antonyms JSON` nullable columns to Word model (store as list of strings)
-- [ ] Template: show "Синонимы: word1, word2" and "Антонимы: word1" sections if data exists
-- [ ] CSS: `.word-synonyms`, `.word-antonyms` compact display
-- [ ] No bulk data population — scaffold for future content import
-- [ ] Tests: word with synonyms → rendered; without → hidden; migration runs cleanly
-- [ ] Run pytest tests/curriculum/
+- [x] Add `synonyms JSON` and `antonyms JSON` nullable columns to Word model (store as list of strings)
+- [x] Template: show "Синонимы: word1, word2" and "Антонимы: word1" sections if data exists
+- [x] CSS: `.word-synonyms`, `.word-antonyms` compact display
+- [x] No bulk data population — scaffold for future content import
+- [x] Tests: word with synonyms → rendered; without → hidden; migration runs cleanly
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 34: Word usage frequency indicator

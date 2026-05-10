@@ -126,6 +126,18 @@
               {% endfor %}
             </div>
             {% endif %}
+            {% if word.synonyms %}
+            <div class="word-synonyms">
+              <span class="word-synonyms__label">{{ _('Синонимы') }}:</span>
+              {{ word.synonyms | join(', ') }}
+            </div>
+            {% endif %}
+            {% if word.antonyms %}
+            <div class="word-antonyms">
+              <span class="word-antonyms__label">{{ _('Антонимы') }}:</span>
+              {{ word.antonyms | join(', ') }}
+            </div>
+            {% endif %}
           </div>
           <div class="card-flip-hint">
             <i class="fas fa-sync-alt"></i>

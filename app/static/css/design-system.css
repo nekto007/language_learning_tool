@@ -13794,3 +13794,18 @@ footer .col-md-4 {
     background: var(--color-surface-hover, #e2e8f0);
     color: var(--color-text-primary, #0f172a);
 }
+
+/* Synonyms and antonyms in vocabulary cards */
+.word-synonyms,
+.word-antonyms {
+    font-size: 0.78rem;
+    color: var(--color-text-secondary, #64748b);
+    margin-top: 0.5rem;
+    line-height: 1.5;
+}
+
+.word-synonyms__label,
+.word-antonyms__label {
+    font-weight: 600;
+    margin-right: 0.25rem;
+}
