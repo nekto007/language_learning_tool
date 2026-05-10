@@ -437,10 +437,10 @@
 - Modify: `app/daily_plan/next_step.py`
 - Tests: `tests/daily_plan/test_next_step.py`
 
-- [ ] In `get_next_best_step()`: add writing priority after SRS due — if last UserWritingAttempt > 2 days ago and writing lesson available → suggest writing slot
-- [ ] NextStep kind='writing', reason='Давно не писал — попробуй продолжить', estimated_minutes=8
-- [ ] Tests: 3 days without writing → writing step suggested; wrote today → no writing step
-- [ ] Run pytest tests/daily_plan/
+- [x] In `get_next_best_step()`: add writing priority after SRS due — if last UserWritingAttempt > 2 days ago and writing lesson available → suggest writing slot
+- [x] NextStep kind='writing', reason='Давно не писал — попробуй продолжить', estimated_minutes=8
+- [x] Tests: 3 days without writing → writing step suggested; wrote today → no writing step
+- [x] Run pytest tests/daily_plan/
 
 ---
 ### Task 28: Writing self-review checklist improvements
