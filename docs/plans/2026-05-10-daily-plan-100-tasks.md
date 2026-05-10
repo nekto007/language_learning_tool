@@ -232,12 +232,12 @@
 - Modify: `app/daily_plan/models.py`
 - Tests: `tests/daily_plan/test_mission_selector.py`
 
-- [ ] Add `MissionType.LISTENING` to the mission types enum
-- [ ] `assemble_listening_mission(user_id, db)` — phases: 1 recall (SRS warmup), 1 dictation lesson, 1 listening_immersion, 1 check (comprehension quiz)
-- [ ] `select_mission()` can now return LISTENING when user has unfinished dictation lessons and listening streak < 3
-- [ ] Mission rotation logic includes LISTENING in rotation cycle
-- [ ] Tests: LISTENING mission assembles correctly; phases have correct kinds; rotation avoids yesterday's type
-- [ ] Run pytest tests/daily_plan/
+- [x] Add `MissionType.LISTENING` to the mission types enum
+- [x] `assemble_listening_mission(user_id, db)` — phases: 1 recall (SRS warmup), 1 dictation lesson, 1 listening_immersion, 1 check (comprehension quiz)
+- [x] `select_mission()` can now return LISTENING when user has unfinished dictation lessons and listening streak < 3
+- [x] Mission rotation logic includes LISTENING in rotation cycle
+- [x] Tests: LISTENING mission assembles correctly; phases have correct kinds; rotation avoids yesterday's type
+- [x] Run pytest tests/daily_plan/
 
 ---
 ### Task 15: Listening slot in linear plan — XP and day_secured integration
