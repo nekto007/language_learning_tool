@@ -6,7 +6,10 @@ from flask import abort, flash, jsonify, redirect, render_template, request, url
 from flask_login import current_user, login_required
 from marshmallow import ValidationError
 
-from app.curriculum.models import LessonProgress, Lessons, WordCollocation, get_collocations_for_word
+from app.curriculum.models import (
+    LessonProgress, Lessons, WordCollocation,
+    get_collocations_for_word, VocabAnnotation, save_annotation,
+)
 from app.curriculum.routes.lessons import lessons_bp
 from app.curriculum.security import require_lesson_access, sanitize_html
 from app.curriculum.service import get_next_lesson
@@ -17,6 +20,21 @@ from app.utils.db import db
 from app.words.models import CollectionWords
 
 logger = logging.getLogger(__name__)
+
+
+def _load_annotations(user_id: int, word_ids: list[int]) -> dict[int, str]:
+    """Return {word_id: note} for all annotated words in word_ids for user."""
+    if not word_ids:
+        return {}
+    rows = (
+        db.session.query(VocabAnnotation)
+        .filter(
+            VocabAnnotation.user_id == user_id,
+            VocabAnnotation.word_id.in_(word_ids),
+        )
+        .all()
+    )
+    return {row.word_id: row.note for row in rows}
 
 
 # =============================================================================
@@ -69,13 +87,15 @@ def render_vocabulary_lesson(lesson):
         db_words = {w.english_word: w for w in collection_words}
 
     user_words_dict = {}
+    db_word_ids = [w.id for w in db_words.values()]
     if current_user.is_authenticated and db_words:
-        word_ids = [w.id for w in db_words.values()]
         user_words = UserWord.query.filter(
             UserWord.user_id == current_user.id,
-            UserWord.word_id.in_(word_ids)
+            UserWord.word_id.in_(db_word_ids)
         ).all()
         user_words_dict = {uw.word_id: uw for uw in user_words}
+
+    annotations = _load_annotations(current_user.id, db_word_ids)
 
     for idx, word_data in enumerate(word_list):
         english_word = word_data.get('english', word_data.get('word', word_data.get('front', '')))
@@ -105,6 +125,7 @@ def render_vocabulary_lesson(lesson):
                     'synonyms': word.synonyms or [],
                     'antonyms': word.antonyms or [],
                     'frequency_band': word.frequency_band,
+                    'annotation': annotations.get(word.id, ''),
                     'examples': [
                         {
                             'english': sanitize_html(ex.get('english', '')),
@@ -134,6 +155,7 @@ def render_vocabulary_lesson(lesson):
                     'synonyms': [],
                     'antonyms': [],
                     'frequency_band': None,
+                    'annotation': '',
                     'examples': [
                         {
                             'english': sanitize_html(ex.get('english', '')),
@@ -374,14 +396,16 @@ def vocabulary_lesson(lesson_id):
         ).all()
         db_words = {w.english_word: w for w in collection_words}
 
+    db_word_ids_route = [w.id for w in db_words.values()]
     user_words_dict = {}
     if current_user.is_authenticated and db_words:
-        word_ids = [w.id for w in db_words.values()]
         user_words = UserWord.query.filter(
             UserWord.user_id == current_user.id,
-            UserWord.word_id.in_(word_ids)
+            UserWord.word_id.in_(db_word_ids_route)
         ).all()
         user_words_dict = {uw.word_id: uw for uw in user_words}
+
+    annotations = _load_annotations(current_user.id, db_word_ids_route)
 
     for idx, word_data in enumerate(word_list):
         english_word = word_data.get('english', word_data.get('word', word_data.get('front', '')))
@@ -410,6 +434,7 @@ def vocabulary_lesson(lesson_id):
                     'synonyms': word.synonyms or [],
                     'antonyms': word.antonyms or [],
                     'frequency_band': word.frequency_band,
+                    'annotation': annotations.get(word.id, ''),
                     'examples': [
                         {
                             'english': sanitize_html(ex.get('english', '')),
@@ -440,6 +465,7 @@ def vocabulary_lesson(lesson_id):
                     'synonyms': [],
                     'antonyms': [],
                     'frequency_band': None,
+                    'annotation': '',
                     'examples': [
                         {
                             'english': sanitize_html(ex.get('english', '')),
@@ -633,6 +659,21 @@ def text_lesson(lesson_id):
         saved_comprehension=saved_comprehension,
         vocab_js_data=vocab_js_data,
     )
+
+
+@lessons_bp.route('/api/words/<int:word_id>/annotation', methods=['POST'])
+@login_required
+def save_word_annotation(word_id: int):
+    """Upsert a personal note on a vocabulary word for the current user."""
+    data = request.get_json(silent=True) or {}
+    note = data.get('note', '').strip()
+    if not note:
+        return jsonify({'error': 'note is required'}), 400
+    if len(note) > 2000:
+        return jsonify({'error': 'note too long'}), 400
+    annotation = save_annotation(current_user.id, word_id, note, db)
+    db.session.commit()
+    return jsonify({'ok': True, 'word_id': word_id, 'note': annotation.note})
 
 
 def _build_vocab_js_data(vocabulary: list) -> list:

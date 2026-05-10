@@ -39,6 +39,56 @@
     border-radius: 1rem;
   }
 }
+
+/* Annotation widget */
+.word-annotation {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  text-align: left;
+}
+.word-annotation__text {
+  background: var(--color-bg-secondary, #f8f9fa);
+  border-left: 3px solid var(--color-primary, #dc2626);
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.25rem;
+  margin-bottom: 0.25rem;
+  color: var(--color-text-secondary, #555);
+  white-space: pre-wrap;
+}
+.word-annotation__toggle {
+  background: none;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary, #888);
+  font-size: 0.7rem;
+  transition: background 0.15s;
+}
+.word-annotation__toggle:hover {
+  background: var(--color-bg-hover, #f0f0f0);
+}
+.word-annotation__form {
+  margin-top: 0.3rem;
+}
+.word-annotation__input {
+  width: 100%;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 0.375rem;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.8rem;
+  resize: vertical;
+  font-family: inherit;
+}
+.word-annotation__save {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+}
 </style>
 {% endblock %}
 
@@ -174,6 +224,23 @@
               {{ word.antonyms | join(', ') }}
             </div>
             {% endif %}
+            <div class="word-annotation" data-word-id="{{ word.id }}">
+              {% if word.annotation %}
+              <div class="word-annotation__text">{{ word.annotation }}</div>
+              {% endif %}
+              <button class="word-annotation__toggle" type="button"
+                      aria-label="{{ _('Добавить заметку') }}"
+                      data-word-id="{{ word.id }}">
+                <i class="fas fa-plus"></i>
+              </button>
+              <div class="word-annotation__form" style="display:none;">
+                <textarea class="word-annotation__input" rows="2"
+                          placeholder="{{ _('Твоя заметка...') }}"
+                >{{ word.annotation }}</textarea>
+                <button class="word-annotation__save btn btn--sm" type="button"
+                        data-word-id="{{ word.id }}">{{ _('Сохранить') }}</button>
+              </div>
+            </div>
           </div>
           <div class="card-flip-hint">
             <i class="fas fa-sync-alt"></i>
@@ -465,6 +532,58 @@ async function completeLesson() {
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', init);
+
+// Annotation widget
+(function initAnnotations() {
+  document.querySelectorAll('.word-annotation__toggle').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const widget = btn.closest('.word-annotation');
+      const form = widget.querySelector('.word-annotation__form');
+      const isVisible = form.style.display !== 'none';
+      form.style.display = isVisible ? 'none' : 'block';
+      if (!isVisible) {
+        widget.querySelector('.word-annotation__input').focus();
+      }
+    });
+  });
+
+  document.querySelectorAll('.word-annotation__save').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const wordId = btn.getAttribute('data-word-id');
+      const widget = btn.closest('.word-annotation');
+      const input = widget.querySelector('.word-annotation__input');
+      const note = input.value.trim();
+      if (!note) return;
+
+      btn.disabled = true;
+      fetch('/curriculum/api/words/' + wordId + '/annotation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': lessonConfig.csrfToken
+        },
+        body: JSON.stringify({ note: note })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          let textEl = widget.querySelector('.word-annotation__text');
+          if (!textEl) {
+            textEl = document.createElement('div');
+            textEl.className = 'word-annotation__text';
+            widget.insertBefore(textEl, widget.querySelector('.word-annotation__toggle'));
+          }
+          textEl.textContent = data.note;
+          widget.querySelector('.word-annotation__form').style.display = 'none';
+        }
+      })
+      .catch(function() {})
+      .finally(function() { btn.disabled = false; });
+    });
+  });
+})();
 
 // Example sentence carousel
 (function initCarousels() {

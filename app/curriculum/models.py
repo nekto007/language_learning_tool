@@ -469,6 +469,51 @@ def get_collocations_for_word(word_id: int, db_session) -> list['WordCollocation
     )
 
 
+class VocabAnnotation(db.Model):
+    """User personal notes on vocabulary words."""
+    __tablename__ = 'vocab_annotations'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    word_id = Column(Integer, ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False)
+    note = Column(Text, nullable=False)
+    added_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_vocab_annotations_user_word', 'user_id', 'word_id', unique=True),
+        Index('idx_vocab_annotations_user_id', 'user_id'),
+    )
+
+    def __repr__(self) -> str:
+        return f'<VocabAnnotation id={self.id} user={self.user_id} word={self.word_id}>'
+
+
+def get_annotation_for_word(user_id: int, word_id: int, db_session) -> 'VocabAnnotation | None':
+    """Return the user's annotation for a word, or None."""
+    return (
+        db_session.session.query(VocabAnnotation)
+        .filter(VocabAnnotation.user_id == user_id, VocabAnnotation.word_id == word_id)
+        .first()
+    )
+
+
+def save_annotation(user_id: int, word_id: int, note: str, db_session) -> 'VocabAnnotation':
+    """Upsert a user annotation for a word. Caller owns the commit."""
+    annotation = (
+        db_session.session.query(VocabAnnotation)
+        .filter(VocabAnnotation.user_id == user_id, VocabAnnotation.word_id == word_id)
+        .first()
+    )
+    if annotation is None:
+        annotation = VocabAnnotation(user_id=user_id, word_id=word_id, note=note)
+        db_session.session.add(annotation)
+    else:
+        annotation.note = note
+        annotation.added_at = datetime.now(timezone.utc)
+    db_session.session.flush()
+    return annotation
+
+
 # Import LessonGrade to register it with SQLAlchemy
 # This needs to be at the end of the file to avoid circular imports
 from app.achievements.models import LessonGrade  # noqa: F401, E402

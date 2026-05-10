@@ -596,11 +596,11 @@
 - Modify: `app/templates/curriculum/lessons/vocabulary.html`
 - Tests: `tests/curriculum/test_vocab_annotation.py`
 
-- [ ] Model: `VocabAnnotation(id, user_id FK, word_id FK, note TEXT, added_at)` — user personal notes on words
-- [ ] UI: small "+" button on each vocabulary word card → inline text input → save annotation via AJAX
-- [ ] Show existing annotation below word if exists
-- [ ] Tests: annotation saves; update replaces old annotation; fetch returns user's annotation only
-- [ ] Run pytest tests/curriculum/
+- [x] Model: `VocabAnnotation(id, user_id FK, word_id FK, note TEXT, added_at)` — user personal notes on words
+- [x] UI: small "+" button on each vocabulary word card → inline text input → save annotation via AJAX
+- [x] Show existing annotation below word if exists
+- [x] Tests: annotation saves; update replaces old annotation; fetch returns user's annotation only
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 38: Vocabulary mastery map page
