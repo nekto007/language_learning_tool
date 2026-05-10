@@ -671,6 +671,79 @@ def writing_history():
     )
 
 
+@study.route('/calendar')
+@login_required
+def plan_calendar():
+    """Plan completion heatmap: last 90 days from DailyPlanLog."""
+    from datetime import date, timedelta
+    from app.daily_plan.models import DailyPlanLog
+
+    today = date.today()
+    start_date = today - timedelta(days=89)
+
+    rows = db.session.query(DailyPlanLog).filter(
+        DailyPlanLog.user_id == current_user.id,
+        DailyPlanLog.plan_date >= start_date,
+        DailyPlanLog.plan_date <= today,
+    ).all()
+
+    by_date = {row.plan_date: row for row in rows}
+
+    # Build list of 90 days: each cell has date, level (0/1/2), day_secured
+    days = []
+    current = start_date
+    while current <= today:
+        row = by_date.get(current)
+        if row is None:
+            level = 0
+            day_secured = False
+        elif row.secured_at is not None:
+            level = 2
+            day_secured = True
+        else:
+            level = 1
+            day_secured = False
+        days.append({
+            'date': current,
+            'date_str': current.strftime('%Y-%m-%d'),
+            'label': current.strftime('%-d %b'),
+            'level': level,
+            'day_secured': day_secured,
+        })
+        current += timedelta(days=1)
+
+    # Group into weeks (columns) for 13-week grid
+    # Pad to start on Monday
+    weeks = []
+    week = []
+    first_day = days[0]['date']
+    # ISO weekday: Monday=1, Sunday=7. Pad start with None
+    padding = (first_day.isoweekday() - 1) % 7
+    week = [None] * padding
+    for d in days:
+        week.append(d)
+        if len(week) == 7:
+            weeks.append(week)
+            week = []
+    if week:
+        while len(week) < 7:
+            week.append(None)
+        weeks.append(week)
+
+    total_secured = sum(1 for d in days if d['day_secured'])
+    total_active = sum(1 for d in days if d['level'] > 0)
+
+    return render_template(
+        'study/plan_calendar.html',
+        weeks=weeks,
+        days=days,
+        total_secured=total_secured,
+        total_active=total_active,
+        start_date=start_date,
+        today=today,
+    )
+
+
 # Import sub-modules to register their routes on the blueprint
 from app.study import api_routes  # noqa: E402, F401
 from app.study import game_routes  # noqa: E402, F401

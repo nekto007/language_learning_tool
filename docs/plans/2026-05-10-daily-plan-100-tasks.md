@@ -686,11 +686,11 @@
 - Modify: `app/templates/study/index.html`
 - Tests: `tests/study/test_plan_calendar.py`
 
-- [ ] Route: `GET /study/calendar` — query DailyPlanLog last 90 days, return completion data per day
-- [ ] Render GitHub-style heatmap: 13 weeks × 7 days, colored by completion level (0/partial/full)
-- [ ] Tooltip on hover: date, slots completed, day_secured status
-- [ ] Tests: correct day-bucket data; empty days → gray; secured days → full color
-- [ ] Run pytest tests/study/
+- [x] Route: `GET /study/calendar` — query DailyPlanLog last 90 days, return completion data per day
+- [x] Render GitHub-style heatmap: 13 weeks × 7 days, colored by completion level (0/partial/full)
+- [x] Tooltip on hover: date, slots completed, day_secured status
+- [x] Tests: correct day-bucket data; empty days → gray; secured days → full color
+- [x] Run pytest tests/study/
 
 ---
 ### Task 44: Weekly plan overview page
