@@ -109,6 +109,7 @@ def _linear_plan(
     srs_done: bool = False,
     reading_done: bool = False,
     next_lessons: list[dict] | None = None,
+    chain_extensions: list[dict] | None = None,
 ) -> dict:
     curriculum_slot = {
         'kind': 'curriculum',
@@ -157,6 +158,9 @@ def _linear_plan(
             },
         }
 
+    baseline_slots = [curriculum_slot, srs_slot, reading_slot]
+    extensions = list(chain_extensions or [])
+    all_slots = baseline_slots + extensions
     return {
         'mode': 'linear',
         'position': {
@@ -172,7 +176,13 @@ def _linear_plan(
             'percent': 0,
             'lessons_remaining_in_level': 60,
         },
-        'baseline_slots': [curriculum_slot, srs_slot, reading_slot],
+        'baseline_slots': baseline_slots,
+        'slots': all_slots,
+        'chain_meta': {
+            'baseline_count': len(baseline_slots),
+            'has_more_available': bool(extensions),
+            'exhausted_sources': [],
+        },
         'continuation': {
             'available': curriculum_done and srs_done and reading_done,
             'next_lessons': next_lessons or [],
@@ -391,11 +401,31 @@ def test_scenario_4_all_slots_done_shows_continuation_and_secured(
             'level_code': 'B1',
         },
     ]
+    # When baseline is closed the assembler appends a curriculum extension
+    # targeting the next lesson on the spine. continuation.next_lessons is a
+    # *preview* of what comes after that extension. The continuation CTA on
+    # the dashboard now points at the chain extension, not at the preview.
+    extension_slot = {
+        'kind': 'curriculum',
+        'title': 'B1 · M1 · L2 (grammar)',
+        'lesson_type': 'grammar',
+        'eta_minutes': 8,
+        'url': '/curriculum_lessons/102?from=linear_plan_continuation',
+        'completed': False,
+        'data': {
+            'lesson_id': 102,
+            'lesson_number': 2,
+            'module_number': 1,
+            'level_code': 'B1',
+            'extension': True,
+        },
+    }
     plan = _linear_plan(
         curriculum_done=True,
         srs_done=True,
         reading_done=True,
         next_lessons=next_lessons,
+        chain_extensions=[extension_slot],
     )
     # Summary is empty — slot.completed=True in the mock alone drives
     # the template's day_secured computation.
@@ -412,8 +442,9 @@ def test_scenario_4_all_slots_done_shows_continuation_and_secured(
     # Day-secured banner + continuation CTA are rendered.
     assert 'data-linear-secured="true"' in html
     assert 'data-linear-continuation="true"' in html
-    # Continuation CTA points at the first upcoming lesson.
-    assert '/learn/102/?from=linear_plan_continuation' in html
+    # Continuation CTA points at the first upcoming lesson via the chain
+    # extension slot's URL (continuation.next_lessons remains as a preview).
+    assert '/curriculum_lessons/102?from=linear_plan_continuation' in html
 
     assert api_response.status_code == 200
     data = api_response.get_json()

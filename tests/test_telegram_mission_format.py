@@ -114,16 +114,17 @@ class TestLinearTelegramFormatting:
         plan = {
             'mode': 'linear',
             'progress': {'level': 'A2', 'percent': 40},
+            'position': {
+                'lesson_id': 77,
+                'module_number': 3,
+                'lesson_number': 2,
+            },
             'baseline_slots': [
                 {'kind': 'curriculum', 'title': 'Present Simple', 'completed': True},
                 {'kind': 'srs', 'title': 'Повторение слов', 'completed': False},
             ],
             'continuation': {
-                'next_lessons': [{
-                    'lesson_id': 77,
-                    'module_number': 3,
-                    'lesson_number': 2,
-                }],
+                'next_lessons': [],
             },
         }
 

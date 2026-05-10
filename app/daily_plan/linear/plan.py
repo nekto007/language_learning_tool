@@ -122,11 +122,16 @@ def get_linear_plan(
 
     next_lesson = find_next_lesson_linear(user_id, session_provider)
     level_progress = get_user_level_progress(user_id, session_provider, next_lesson=next_lesson)
+    # The continuation preview must not duplicate what the inline chain
+    # already shows: when day_secured is true the chain has a curriculum
+    # extension pointing at next_lesson, and even before that the baseline
+    # curriculum slot already represents next_lesson. Skip next_lesson and
+    # fetch the lessons that come after it on the spine. Bot/dashboard
+    # callers that need the next spine lesson directly read ``position``.
     upcoming = []
     if next_lesson is not None:
-        upcoming = [next_lesson]
-        upcoming.extend(
-            get_spine_upcoming(user_id, next_lesson, session_provider, limit=2)
+        upcoming = list(
+            get_spine_upcoming(user_id, next_lesson, session_provider, limit=3)
         )
 
     focus = _get_user_focus(user_id, session_provider)

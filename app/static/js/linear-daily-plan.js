@@ -289,7 +289,23 @@
      * surface a short toast so the user notices the new task that was
      * appended after they finished the previous one.
      */
-    var CHAIN_LENGTH_STORAGE_KEY = 'linearPlanChainLength';
+    var CHAIN_LENGTH_STORAGE_KEY_PREFIX = 'linearPlanChainLength:';
+
+    function _getChainStorageKey() {
+        var el = document.querySelector('[data-linear-slots="true"]');
+        var userId = (el && el.getAttribute('data-linear-user-id')) || 'anon';
+        // Scope by the user's profile-timezone date computed server-side.
+        // Falling back to the browser clock would re-introduce cross-day
+        // toast misfires when the browser's tz differs from the profile tz.
+        var dateKey = (el && el.getAttribute('data-linear-plan-date')) || '';
+        if (!dateKey) {
+            var d = new Date();
+            dateKey = d.getFullYear() + '-' +
+                String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                String(d.getDate()).padStart(2, '0');
+        }
+        return CHAIN_LENGTH_STORAGE_KEY_PREFIX + userId + ':' + dateKey;
+    }
 
     function _getChainLength() {
         var el = document.querySelector('[data-linear-slots="true"]');
@@ -320,9 +336,10 @@
     function _initChainGrowthDetector() {
         var current = _getChainLength();
         if (current === null) return;
+        var key = _getChainStorageKey();
         var stored = null;
         try {
-            var raw = sessionStorage.getItem(CHAIN_LENGTH_STORAGE_KEY);
+            var raw = sessionStorage.getItem(key);
             stored = raw === null ? null : parseInt(raw, 10);
             if (isNaN(stored)) stored = null;
         } catch (e) {
@@ -332,7 +349,7 @@
             _showChainGrowthToast(current - stored);
         }
         try {
-            sessionStorage.setItem(CHAIN_LENGTH_STORAGE_KEY, String(current));
+            sessionStorage.setItem(key, String(current));
         } catch (e) {
             /* ignore */
         }

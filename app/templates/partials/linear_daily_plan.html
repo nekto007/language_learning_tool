@@ -217,7 +217,9 @@
     <div class="linear-plan__slots"
          data-linear-slots="true"
          data-linear-chain-length="{{ l_total }}"
-         data-linear-baseline-count="{{ l_baseline_count }}">
+         data-linear-baseline-count="{{ l_baseline_count }}"
+         data-linear-user-id="{{ current_user.id if current_user is defined and current_user.is_authenticated else 'anon' }}"
+         data-linear-plan-date="{{ plan_today if plan_today is defined else '' }}">
         {% if l_baseline_total > 0 %}
         <div class="linear-plan__chain-header"
              data-linear-chain-header="baseline"
@@ -407,8 +409,19 @@
         {% endif %}
     </div>
 
-    {# ── Continuation CTA + preview (shown when day_secured=True) ───── #}
-    {% if l_day_secured and l_next_lessons %}
+    {# ── Continuation CTA + preview (shown when day_secured=True) ─────
+         The CTA points at the first incomplete chain slot (typically the
+         curriculum extension that targets next_lesson). next_lessons is the
+         spine *preview* — lessons that come after the inline chain — and is
+         rendered below in the details list. #}
+    {% set _cns = namespace(slot=none) %}
+    {% for slot in l_slots %}
+        {% if _cns.slot is none and not slot.completed and slot.url %}
+            {% set _cns.slot = slot %}
+        {% endif %}
+    {% endfor %}
+    {% set _continuation_next_slot = _cns.slot %}
+    {% if l_day_secured and (l_next_lessons or _continuation_next_slot) %}
     {% set _budget_exhausted = l_continuation.get('srs_budget_exhausted', False) %}
     <div class="linear-plan__continuation"
          id="linear-plan-continuation"
@@ -420,25 +433,37 @@
              role="note">
             Лимит новых слов исчерпан — сегодня только повторение
         </div>
-        {% else %}
-        {% set _next = l_next_lessons[0] %}
-        {% if _next and _next.get('lesson_id') %}
-        <a href="/learn/{{ _next.lesson_id }}/?from=linear_plan_continuation"
+        {% endif %}
+        {% if _continuation_next_slot %}
+        {% set _slot_data = _continuation_next_slot.data %}
+        {% set _slot_kind = _continuation_next_slot.kind %}
+        {% set _continuation_label = 'Следующий урок' if _slot_kind == 'curriculum' else l_slot_labels.get(_slot_kind, 'Следующее задание') %}
+        <a href="{{ _continuation_next_slot.url }}"
            class="linear-plan__continuation-cta"
-           data-linear-event="continuation_next_clicked">
-            <span class="linear-plan__continuation-label">Следующий урок</span>
+           data-linear-event="continuation_next_clicked"
+           data-continuation-slot-kind="{{ _slot_kind }}">
+            <span class="linear-plan__continuation-label">{{ _continuation_label }}</span>
+            {% if _slot_kind == 'curriculum' %}
             <span class="linear-plan__continuation-position">
-                {{ _next.get('level_code', '') }}
-                {% if _next.get('module_number') %} · M{{ _next.module_number }}{% endif %}
-                {% if _next.get('lesson_number') %} · L{{ _next.lesson_number }}{% endif %}
+                {{ _slot_data.get('level_code', '') }}
+                {% if _slot_data.get('module_number') %} · M{{ _slot_data.module_number }}{% endif %}
+                {% if _slot_data.get('lesson_number') %} · L{{ _slot_data.lesson_number }}{% endif %}
             </span>
             <span class="linear-plan__continuation-type">
-                {{ l_lesson_type_labels.get(_next.get('lesson_type'), _next.get('lesson_type', '')) }}
+                {{ l_lesson_type_labels.get(_continuation_next_slot.lesson_type, _continuation_next_slot.lesson_type or '') }}
             </span>
+            {% else %}
+            <span class="linear-plan__continuation-position">
+                {{ _continuation_next_slot.title }}
+            </span>
+            {% if _continuation_next_slot.eta_minutes and _continuation_next_slot.eta_minutes > 0 %}
+            <span class="linear-plan__continuation-type">~{{ _continuation_next_slot.eta_minutes }} мин</span>
+            {% endif %}
+            {% endif %}
         </a>
         {% endif %}
-        {% endif %}
 
+        {% if l_next_lessons %}
         <details class="linear-plan__preview" data-linear-preview="true">
             <summary class="linear-plan__preview-summary">Показать следующие уроки</summary>
             <ol class="linear-plan__preview-list">
@@ -461,6 +486,7 @@
                 {% endfor %}
             </ol>
         </details>
+        {% endif %}
     </div>
     {% endif %}
 

@@ -184,6 +184,102 @@ def build_next_slot(
     return None
 
 
+def recompute_continuation_available(plan: dict[str, Any]) -> None:
+    """Recompute ``continuation.available`` to match the template's gating.
+
+    The dashboard partial renders the continuation block when
+    ``day_secured`` is True AND either a preview lesson or an incomplete
+    extension slot exists. Aligning the payload field with that gating
+    avoids the inconsistency where ``available=False`` is returned while
+    the UI still shows a usable continuation CTA.
+    """
+    if plan.get('mode') != 'linear':
+        return
+    continuation = plan.get('continuation')
+    if not isinstance(continuation, dict):
+        return
+    chain = plan.get('slots') or []
+    chain_meta = plan.get('chain_meta') or {}
+    baseline_count = int(
+        chain_meta.get('baseline_count') or len(plan.get('baseline_slots') or [])
+    )
+    extension_slots = chain[baseline_count:]
+    has_incomplete_extension = any(
+        not slot.get('completed', False) and slot.get('url')
+        for slot in extension_slots
+    )
+    has_next_lessons = bool(continuation.get('next_lessons'))
+    continuation['available'] = bool(
+        plan.get('day_secured') and (has_next_lessons or has_incomplete_extension)
+    )
+
+
+def extend_chain_after_activity(
+    plan: dict[str, Any],
+    plan_completion: dict[str, bool],
+    user_id: int,
+    db: Any,
+    *,
+    max_extra: int = DEFAULT_MAX_EXTRA,
+) -> None:
+    """Re-grow the linear chain when activity has effectively closed the baseline.
+
+    ``build_chain`` keys its extension loop on each slot's ``completed`` flag
+    (DB-derived at assembly time). The SRS slot stays ``completed=False``
+    while *any* card is still due, even after the user reviewed enough
+    through ``/study`` for ``plan_completion['srs']`` to flip True. Without
+    this helper, the inline chain and the day-secured continuation block
+    would never see the next curriculum lesson in that state. Mutates
+    ``plan`` in place to flip baseline slot completion to match
+    ``plan_completion`` and append further extension slots while the chain
+    tail is complete.
+    """
+    if plan.get('mode') != 'linear':
+        return
+    chain = plan.get('slots')
+    if not chain:
+        return
+    chain_meta = plan.get('chain_meta') or {}
+    baseline_count = int(chain_meta.get('baseline_count') or 0)
+    if baseline_count <= 0 or baseline_count > len(chain):
+        return
+
+    for idx in range(baseline_count):
+        slot = chain[idx]
+        kind = slot.get('kind', '')
+        if not slot.get('completed', False) and plan_completion.get(kind, False):
+            slot['completed'] = True
+
+    if any(not slot.get('completed', False) for slot in chain[:baseline_count]):
+        return
+
+    extras_added = len(chain) - baseline_count
+    has_more_available = bool(chain_meta.get('has_more_available', True))
+    while extras_added < max_extra:
+        if not chain[-1].get('completed', False):
+            break
+        next_slot = build_next_slot(user_id, db, chain)
+        if next_slot is None:
+            has_more_available = False
+            break
+        chain.append(next_slot)
+        extras_added += 1
+
+    exhausted_sources: list[str] = []
+    for source in EXTENSION_PRIORITY:
+        if _has_pending_kind(chain, source):
+            continue
+        if _EXTENSION_BUILDERS[source](user_id, db, chain) is None:
+            exhausted_sources.append(source)
+
+    chain_meta['baseline_count'] = baseline_count
+    chain_meta['has_more_available'] = has_more_available
+    chain_meta['exhausted_sources'] = exhausted_sources
+    plan['chain_meta'] = chain_meta
+    plan['slots'] = chain
+    plan['baseline_slots'] = chain[:baseline_count]
+
+
 def _build_baseline(user_id: int, db: Any) -> list[dict[str, Any]]:
     """Build the baseline slots (mirrors the legacy linear-plan assembler)."""
     # Imported lazily to avoid a circular import: plan.py imports chain.py

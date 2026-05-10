@@ -388,7 +388,11 @@ class TestGetLinearPlanAssembly:
         module_1 = _make_module(db_session, level, number=1)
         module_2 = _make_module(db_session, level, number=2)
         lesson_1 = _make_lesson(db_session, module_1, number=1, lesson_type='quiz')
-        lesson_2 = _make_lesson(db_session, module_2, number=1, lesson_type='grammar')
+        # lesson_2 is the next pending lesson after lesson_1 — it is already
+        # rendered inline (baseline curriculum slot / chain extension). The
+        # continuation preview lists lessons that come after it on the spine.
+        _make_lesson(db_session, module_2, number=1, lesson_type='grammar')
+        lesson_3 = _make_lesson(db_session, module_2, number=2, lesson_type='quiz')
         user = _make_user(db_session, onboarding_level=level.code)
 
         _complete_lesson(db_session, user, lesson_1)
@@ -403,7 +407,7 @@ class TestGetLinearPlanAssembly:
         payload = get_linear_plan(user.id, real_db)
 
         assert payload['continuation']['next_lessons']
-        assert payload['continuation']['next_lessons'][0]['lesson_id'] == lesson_2.id
+        assert payload['continuation']['next_lessons'][0]['lesson_id'] == lesson_3.id
         assert payload['continuation']['next_lessons'][0]['module_number'] == 2
 
     def test_card_day_keeps_deck_quiz_after_curriculum_completion(self, db_session):

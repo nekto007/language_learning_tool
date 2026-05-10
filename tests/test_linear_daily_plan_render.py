@@ -61,12 +61,21 @@ _UNSET = object()
 
 def _plan(*, slots: list[dict], position=_UNSET,
           progress=_UNSET, next_lessons: list[dict] | None = None,
-          day_secured: bool = False) -> dict:
+          day_secured: bool = False,
+          chain_extensions: list[dict] | None = None) -> dict:
+    extensions = list(chain_extensions or [])
+    all_slots = list(slots) + extensions
     return {
         'mode': 'linear',
         'position': _base_position() if position is _UNSET else position,
         'progress': _base_progress() if progress is _UNSET else progress,
         'baseline_slots': slots,
+        'slots': all_slots,
+        'chain_meta': {
+            'baseline_count': len(slots),
+            'has_more_available': bool(extensions),
+            'exhausted_sources': [],
+        },
         'continuation': {
             'available': day_secured,
             'next_lessons': next_lessons or [],
@@ -329,29 +338,43 @@ class TestLinearPlanContinuation:
         assert 'data-linear-continuation="true"' not in html
 
     def test_continuation_cta_and_preview_when_secured(self, app):
+        # When baseline is closed, the chain extension targeting the next
+        # spine lesson is the inline next-action. continuation.next_lessons
+        # is a *preview* of lessons that come after that extension.
         next_lessons = [
-            {'lesson_id': 102, 'lesson_type': 'grammar',
-             'lesson_number': 4, 'module_number': 5, 'level_code': 'A2'},
             {'lesson_id': 103, 'lesson_type': 'quiz',
              'lesson_number': 5, 'module_number': 5, 'level_code': 'A2'},
             {'lesson_id': 104, 'lesson_type': 'reading',
              'lesson_number': 6, 'module_number': 5, 'level_code': 'A2'},
         ]
+        extension = _slot(
+            'curriculum',
+            url='/learn/102/?from=linear_plan_continuation',
+            lesson_type='grammar',
+            data={
+                'lesson_id': 102,
+                'lesson_number': 4,
+                'module_number': 5,
+                'level_code': 'A2',
+                'extension': True,
+            },
+        )
         plan = _plan(
             slots=[
                 _slot('curriculum', completed=True, url='/c'),
                 _slot('srs', completed=True),
                 _slot('reading', completed=True, url='/r'),
             ],
+            chain_extensions=[extension],
             day_secured=True,
             next_lessons=next_lessons,
         )
         html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
         assert 'data-linear-continuation="true"' in html
-        # Primary CTA points at the first upcoming lesson.
+        # Primary CTA points at the chain extension URL (first incomplete
+        # chain slot pointing at the next curriculum lesson).
         assert '/learn/102/?from=linear_plan_continuation' in html
-        # Preview list contains all three next lessons.
-        assert '/learn/102/?from=linear_plan_preview' in html
+        # Preview list contains the lessons after the inline chain extension.
         assert '/learn/103/?from=linear_plan_preview' in html
         assert '/learn/104/?from=linear_plan_preview' in html
         # CTA label and lesson types are humanised.
