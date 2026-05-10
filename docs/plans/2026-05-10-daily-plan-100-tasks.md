@@ -142,12 +142,12 @@
 - Modify: `app/curriculum/models.py`
 - Tests: `tests/curriculum/test_listening_attempts.py`
 
-- [ ] New model `ListeningAttempt(id, user_id FK, lesson_id FK, score FLOAT, replay_count INT, created_at)` — tracks each dictation/audio_fill_blank submission
-- [ ] Migration: table creation, FK constraints, index on (user_id, created_at)
-- [ ] Add `log_listening_attempt(user_id, lesson_id, score, replay_count, db)` helper in a new `app/curriculum/listening_service.py`
-- [ ] Call from dictation and audio_fill_blank grade routes
-- [ ] Tests: model persists correctly; duplicate lesson attempts are allowed (each submission = new row)
-- [ ] Run pytest tests/curriculum/
+- [x] New model `ListeningAttempt(id, user_id FK, lesson_id FK, score FLOAT, replay_count INT, created_at)` — tracks each dictation/audio_fill_blank submission
+- [x] Migration: table creation, FK constraints, index on (user_id, created_at)
+- [x] Add `log_listening_attempt(user_id, lesson_id, score, replay_count, db)` helper in a new `app/curriculum/listening_service.py`
+- [x] Call from dictation and audio_fill_blank grade routes
+- [x] Tests: model persists correctly; duplicate lesson attempts are allowed (each submission = new row)
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 9: Listening analytics widget on dashboard

@@ -370,6 +370,26 @@ class LessonAttempt(db.Model):
             self.time_spent_seconds = int(delta.total_seconds())
 
 
+class ListeningAttempt(db.Model):
+    """Tracks each dictation/audio_fill_blank submission for analytics."""
+    __tablename__ = 'listening_attempts'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='CASCADE'), nullable=False)
+    score = Column(Float, nullable=False)
+    replay_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_listening_attempts_user_created', 'user_id', 'created_at'),
+        Index('idx_listening_attempts_lesson', 'lesson_id'),
+    )
+
+    def __repr__(self) -> str:
+        return f'<ListeningAttempt id={self.id} user={self.user_id} lesson={self.lesson_id} score={self.score}>'
+
+
 # Import LessonGrade to register it with SQLAlchemy
 # This needs to be at the end of the file to avoid circular imports
 from app.achievements.models import LessonGrade  # noqa: F401, E402

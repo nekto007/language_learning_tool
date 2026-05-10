@@ -303,11 +303,13 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
     from app.curriculum.grading import grade_dictation
     from app.curriculum.service import get_next_lesson
     from app.curriculum.services.progress_service import ProgressService
+    from app.curriculum.listening_service import log_listening_attempt
 
     content = lesson.content or {}
     transcript = content.get('transcript', '')
     hint_chars = int(data.get('hint_chars', content.get('hint_chars', 0)))
     user_text = data.get('user_text', '')
+    replay_count = int(data.get('replay_count', 0))
 
     grade = grade_dictation(user_text, transcript, hint_chars)
 
@@ -317,6 +319,12 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
         result=grade,
         passing_score=80,
     )
+
+    try:
+        log_listening_attempt(user_id, lesson.id, grade['score'], replay_count, db)
+        db.session.flush()
+    except Exception as log_err:
+        logger.warning(f"Listening attempt log failed for lesson {lesson.id}: {log_err}")
 
     if grade.get('passed'):
         try:
@@ -384,10 +392,12 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
     from app.curriculum.grading import grade_audio_fill_blank
     from app.curriculum.service import get_next_lesson
     from app.curriculum.services.progress_service import ProgressService
+    from app.curriculum.listening_service import log_listening_attempt
 
     content = lesson.content or {}
     items = content.get('items', [])
     user_answers = data.get('answers', [])
+    replay_count = int(data.get('replay_count', 0))
 
     grade = grade_audio_fill_blank(user_answers, items)
 
@@ -397,6 +407,12 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
         result=grade,
         passing_score=70,
     )
+
+    try:
+        log_listening_attempt(user_id, lesson.id, grade['score'], replay_count, db)
+        db.session.flush()
+    except Exception as log_err:
+        logger.warning(f"Listening attempt log failed for lesson {lesson.id}: {log_err}")
 
     if grade.get('passed'):
         try:
