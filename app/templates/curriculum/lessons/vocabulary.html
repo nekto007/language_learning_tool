@@ -224,6 +224,12 @@
               {{ word.antonyms | join(', ') }}
             </div>
             {% endif %}
+            {% if word.etymology %}
+            <details class="word-etymology">
+              <summary class="word-etymology__summary">{{ _('Происхождение слова') }}</summary>
+              <p class="word-etymology__text">{{ word.etymology }}</p>
+            </details>
+            {% endif %}
             <div class="word-annotation" data-word-id="{{ word.id }}">
               {% if word.annotation %}
               <div class="word-annotation__text">{{ word.annotation }}</div>

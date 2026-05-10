@@ -31,6 +31,7 @@ class CollectionWords(db.Model):
     synonyms = Column(JSON, nullable=True)   # list of synonym strings
     antonyms = Column(JSON, nullable=True)   # list of antonym strings
     frequency_band = Column(SmallInteger, nullable=True)  # 1=top 1000, 2=top 3000, 3=top 10000, NULL=unknown
+    etymology = Column(Text, nullable=True)  # word origin note, e.g. "From Latin 'verbum'"
 
     books = relationship("Book", secondary="word_book_link", back_populates="words")
     # Self-referential relationship for phrasal verbs -> base word

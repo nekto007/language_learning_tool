@@ -624,3 +624,73 @@ class TestExampleCarouselRoute:
         html = resp.get_data(as_text=True)
         assert "She is happy." in html
         assert 'class="example-carousel' not in html
+
+
+# ---------------------------------------------------------------------------
+# Task 40: Word etymology tests
+# ---------------------------------------------------------------------------
+
+class TestEtymologyTemplate:
+    def test_etymology_section_in_template(self):
+        tpl = _read_vocabulary_template()
+        assert "word-etymology" in tpl
+
+    def test_etymology_conditionally_rendered(self):
+        tpl = _read_vocabulary_template()
+        assert "word.etymology" in tpl
+
+    def test_etymology_collapsible_details_element(self):
+        tpl = _read_vocabulary_template()
+        assert "<details" in tpl
+        assert "Происхождение слова" in tpl
+
+
+class TestEtymologyCSS:
+    def test_word_etymology_class_defined(self):
+        css = _read_design_system_css()
+        assert ".word-etymology" in css
+
+    def test_word_etymology_summary_class_defined(self):
+        css = _read_design_system_css()
+        assert ".word-etymology__summary" in css
+
+    def test_word_etymology_text_class_defined(self):
+        css = _read_design_system_css()
+        assert ".word-etymology__text" in css
+
+
+class TestEtymologyRoute:
+    def test_word_with_etymology_shows_section(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "etymword_" + _unique()
+        word = _make_collection_word(db_session, english, "этимология-слово")
+        word.etymology = "From Latin 'verbum', meaning 'word'."
+        db_session.commit()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "word-etymology" in html
+        assert "From Latin" in html
+        assert "Происхождение слова" in html
+
+    def test_word_without_etymology_no_section(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "noetymword_" + _unique()
+        word = _make_collection_word(db_session, english, "без этимологии")
+        word.etymology = None
+        db_session.commit()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "word-etymology" not in html
+        assert "Происхождение слова" not in html
+
+    def test_etymology_field_in_model(self):
+        from app.words.models import CollectionWords
+        assert hasattr(CollectionWords, 'etymology')

@@ -641,11 +641,11 @@
 - Modify: `app/templates/curriculum/lessons/vocabulary.html`
 - Tests: `tests/curriculum/test_vocabulary_lessons.py`
 
-- [ ] Add `etymology TEXT` nullable field to Word
-- [ ] Template: show etymology note as collapsible "Происхождение слова" section
-- [ ] No data population — scaffold for future content; shows only if field is non-null
-- [ ] Tests: word with etymology → section renders; null → section absent
-- [ ] Run pytest tests/curriculum/
+- [x] Add `etymology TEXT` nullable field to Word
+- [x] Template: show etymology note as collapsible "Происхождение слова" section
+- [x] No data population — scaffold for future content; shows only if field is non-null
+- [x] Tests: word with etymology → section renders; null → section absent
+- [x] Run pytest tests/curriculum/
 
 ---
 ### BLOCK D: Daily Plan Intelligence (Tasks 41–52)

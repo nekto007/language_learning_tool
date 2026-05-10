@@ -13852,6 +13852,40 @@ footer .col-md-4 {
     margin-right: 0.25rem;
 }
 
+/* Word etymology collapsible */
+.word-etymology {
+    margin-top: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--color-text-secondary, #64748b);
+}
+
+.word-etymology__summary {
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+    color: var(--color-text-secondary, #64748b);
+    user-select: none;
+}
+
+.word-etymology__summary::-webkit-details-marker {
+    display: none;
+}
+
+.word-etymology__summary::before {
+    content: '\25B8 ';
+    font-size: 0.7rem;
+}
+
+details.word-etymology[open] .word-etymology__summary::before {
+    content: '\25BE ';
+}
+
+.word-etymology__text {
+    margin: 0.25rem 0 0;
+    line-height: 1.5;
+    font-style: italic;
+}
+
 /* Word frequency band badges */
 .freq-badge {
     display: inline-block;

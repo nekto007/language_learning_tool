@@ -125,6 +125,7 @@ def render_vocabulary_lesson(lesson):
                     'synonyms': word.synonyms or [],
                     'antonyms': word.antonyms or [],
                     'frequency_band': word.frequency_band,
+                    'etymology': word.etymology or '',
                     'annotation': annotations.get(word.id, ''),
                     'examples': [
                         {
@@ -155,6 +156,7 @@ def render_vocabulary_lesson(lesson):
                     'synonyms': [],
                     'antonyms': [],
                     'frequency_band': None,
+                    'etymology': '',
                     'annotation': '',
                     'examples': [
                         {
@@ -434,6 +436,7 @@ def vocabulary_lesson(lesson_id):
                     'synonyms': word.synonyms or [],
                     'antonyms': word.antonyms or [],
                     'frequency_band': word.frequency_band,
+                    'etymology': word.etymology or '',
                     'annotation': annotations.get(word.id, ''),
                     'examples': [
                         {
@@ -465,6 +468,7 @@ def vocabulary_lesson(lesson_id):
                     'synonyms': [],
                     'antonyms': [],
                     'frequency_band': None,
+                    'etymology': '',
                     'annotation': '',
                     'examples': [
                         {
