@@ -466,12 +466,12 @@
 - Create: `migrations/versions/20260513_word_collocations.py`
 - Tests: `tests/curriculum/test_collocations.py`
 
-- [ ] Model: `WordCollocation(id, word_id FK → Word, collocation_phrase TEXT, translation TEXT, example TEXT, created_at)` — one word can have many collocations
-- [ ] Migration: table + index on word_id
-- [ ] No bulk data import yet — model scaffolding only; manual admin entry or fixture data
-- [ ] Helper: `get_collocations_for_word(word_id, db) -> list[WordCollocation]`
-- [ ] Tests: model creates correctly; get_collocations returns empty list for word with no collocations
-- [ ] Run pytest tests/curriculum/
+- [x] Model: `WordCollocation(id, word_id FK → Word, collocation_phrase TEXT, translation TEXT, example TEXT, created_at)` — one word can have many collocations
+- [x] Migration: table + index on word_id
+- [x] No bulk data import yet — model scaffolding only; manual admin entry or fixture data
+- [x] Helper: `get_collocations_for_word(word_id, db) -> list[WordCollocation]`
+- [x] Tests: model creates correctly; get_collocations returns empty list for word with no collocations
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 30: Collocation display in vocabulary lessons

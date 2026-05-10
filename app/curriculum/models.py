@@ -440,6 +440,35 @@ def save_writing_attempt(
     return attempt
 
 
+class WordCollocation(db.Model):
+    """Collocation phrases associated with a vocabulary word."""
+    __tablename__ = 'word_collocations'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    word_id = Column(Integer, ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False)
+    collocation_phrase = Column(Text, nullable=False)
+    translation = Column(Text, nullable=False)
+    example = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_word_collocations_word_id', 'word_id'),
+    )
+
+    def __repr__(self) -> str:
+        return f'<WordCollocation id={self.id} word_id={self.word_id} phrase="{self.collocation_phrase}">'
+
+
+def get_collocations_for_word(word_id: int, db_session) -> list['WordCollocation']:
+    """Return all collocations for a given word, ordered by id."""
+    return (
+        db_session.session.query(WordCollocation)
+        .filter(WordCollocation.word_id == word_id)
+        .order_by(WordCollocation.id)
+        .all()
+    )
+
+
 # Import LessonGrade to register it with SQLAlchemy
 # This needs to be at the end of the file to avoid circular imports
 from app.achievements.models import LessonGrade  # noqa: F401, E402
