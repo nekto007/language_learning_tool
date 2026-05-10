@@ -9044,6 +9044,46 @@ textarea:focus-visible,
     font-size: 0.9rem;
 }
 
+/* Audio Speed Controls */
+.audio-speed-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+.audio-speed-label {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.85rem;
+    margin-right: 0.25rem;
+}
+
+.audio-speed-btn {
+    padding: 0.3rem 0.7rem;
+    background: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.audio-speed-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.audio-speed-btn--active {
+    background: white;
+    color: var(--primary-600);
+    border-color: white;
+    font-weight: 700;
+}
+
 /* Audio Controller Bar */
 .audio-controller-bar {
     background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-700) 100%);

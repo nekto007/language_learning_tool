@@ -110,6 +110,13 @@
         <source src="{{ url_for('static', filename='audio/' + audio_file) }}" type="audio/mpeg">
         Ваш браузер не поддерживает аудио элемент.
       </audio>
+      <div class="audio-speed-controls" id="audio-speed-controls">
+        <span class="audio-speed-label">{{ _('Скорость:') }}</span>
+        <button class="audio-speed-btn" data-speed="0.75" onclick="setAudioSpeed(0.75)">0.75×</button>
+        <button class="audio-speed-btn audio-speed-btn--active" data-speed="1" onclick="setAudioSpeed(1)">1×</button>
+        <button class="audio-speed-btn" data-speed="1.25" onclick="setAudioSpeed(1.25)">1.25×</button>
+        <button class="audio-speed-btn" data-speed="1.5" onclick="setAudioSpeed(1.5)">1.5×</button>
+      </div>
       <p>
         <i class="fas fa-info-circle"></i> Прослушайте несколько раз для лучшего запоминания
       </p>
@@ -1376,6 +1383,30 @@ function playNextAudio() {
   });
 }
 
+// Audio speed control
+function setAudioSpeed(speed) {
+  const audio = document.getElementById('listening-audio');
+  if (audio) {
+    audio.playbackRate = speed;
+  }
+  document.querySelectorAll('.audio-speed-btn').forEach(btn => {
+    btn.classList.toggle('audio-speed-btn--active', parseFloat(btn.dataset.speed) === speed);
+  });
+  try {
+    localStorage.setItem('listening_speed', String(speed));
+  } catch (_) {}
+}
+
+function initAudioSpeed() {
+  let speed = 1;
+  try {
+    const saved = localStorage.getItem('listening_speed');
+    if (saved) speed = parseFloat(saved);
+  } catch (_) {}
+  if (![0.75, 1, 1.25, 1.5].includes(speed)) speed = 1;
+  setAudioSpeed(speed);
+}
+
 // Вызываем при загрузке
 document.addEventListener('DOMContentLoaded', function() {
   // Даём время на загрузку DOM
@@ -1384,6 +1415,11 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize auto-play if controller exists
   if (document.getElementById('play-all-btn')) {
     initAutoPlay();
+  }
+
+  // Initialize audio speed control
+  if (document.getElementById('audio-speed-controls')) {
+    initAudioSpeed();
   }
 
   // Mobile responsive adjustments
