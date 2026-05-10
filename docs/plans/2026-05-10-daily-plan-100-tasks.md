@@ -391,12 +391,12 @@
 - Modify: `app/curriculum/routes/lessons.py` (writing_prompt completion)
 - Tests: `tests/daily_plan/linear/test_xp.py`
 
-- [ ] Add `maybe_award_writing_xp(user_id, lesson_id, for_date, db)` — idempotent via StreakEvent `xp_linear_writing`
-- [ ] Call from writing_prompt submit route after successful attempt save
-- [ ] XP amount: 25 (same as `use` category, fitting for production practice)
-- [ ] Writing slot is NOT a baseline slot — extension only, doesn't block day_secured
-- [ ] Tests: award fires on first submit; repeat same day → no-op; day_secured unaffected
-- [ ] Run pytest tests/daily_plan/linear/
+- [x] Add `maybe_award_writing_xp(user_id, lesson_id, for_date, db)` — idempotent via StreakEvent `xp_linear_writing`
+- [x] Call from writing_prompt submit route after successful attempt save
+- [x] XP amount: 25 (same as `use` category, fitting for production practice)
+- [x] Writing slot is NOT a baseline slot — extension only, doesn't block day_secured
+- [x] Tests: award fires on first submit; repeat same day → no-op; day_secured unaffected
+- [x] Run pytest tests/daily_plan/linear/
 
 ---
 ### Task 25: Sentence completion exercise type

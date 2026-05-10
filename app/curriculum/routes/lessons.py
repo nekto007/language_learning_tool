@@ -738,8 +738,12 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
             db.session.rollback()
 
         try:
-            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+            from app.daily_plan.linear.xp import (
+                maybe_award_curriculum_xp,
+                maybe_award_writing_xp,
+            )
             maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
+            maybe_award_writing_xp(user_id, lesson.id, db_session=db)
             db.session.commit()
         except Exception as xp_err:
             logger.warning(f"Writing prompt XP award failed for lesson {lesson.id}: {xp_err}")
