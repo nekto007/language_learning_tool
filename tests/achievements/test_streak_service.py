@@ -4,8 +4,9 @@ Covers:
 - Streak calculation with timezone edge cases
 - Streak recovery purchase flow (paid repair)
 - Streak freeze / double-repair protection handling
+- Listening streak (get_listening_streak)
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
 import uuid
 
@@ -17,6 +18,7 @@ from app.achievements.streak_service import (
     apply_free_repair,
     apply_paid_repair,
     earn_daily_coin,
+    get_listening_streak,
     get_or_create_coins,
     get_repair_cost,
     get_required_steps,
@@ -282,3 +284,120 @@ class TestStreakFreezeProtection:
         assert event.details['steps_done'] == 3
         assert event.details['steps_total'] == 4
         assert event.details['reason'] == 'progressive_plan_complete'
+
+
+# ---------------------------------------------------------------------------
+# 5. Listening streak
+# ---------------------------------------------------------------------------
+
+
+def _make_listening_lesson_for_streak(db_session):
+    """Create minimal CEFRLevel → Module → Lessons chain for FK in ListeningAttempt."""
+    from app.curriculum.models import CEFRLevel, Module, Lessons
+
+    code = uuid.uuid4().hex[:2].upper()
+    level = CEFRLevel(code=code, name='Level', description='d', order=1)
+    db_session.add(level)
+    db_session.flush()
+    module = Module(
+        level_id=level.id,
+        number=1,
+        title='M',
+        description='d',
+        raw_content={'module': {'id': 1}},
+    )
+    db_session.add(module)
+    db_session.flush()
+    lesson = Lessons(
+        module_id=module.id,
+        number=1,
+        title='Listening',
+        type='dictation',
+        content={'audio_url': '/a.mp3', 'transcript': 'test'},
+    )
+    db_session.add(lesson)
+    db_session.flush()
+    return lesson
+
+
+class TestGetListeningStreak:
+    """get_listening_streak() counts consecutive days with ListeningAttempt rows."""
+
+    def test_no_attempts_returns_zero(self, db_session, streak_user):
+        result = get_listening_streak(streak_user.id, tz='UTC')
+        assert result == 0
+
+    def test_three_consecutive_days_returns_3(self, db_session, streak_user):
+        from app.curriculum.models import ListeningAttempt
+
+        lesson = _make_listening_lesson_for_streak(db_session)
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        for offset in range(3):  # today, yesterday, day before
+            db_session.add(ListeningAttempt(
+                user_id=streak_user.id,
+                lesson_id=lesson.id,
+                score=80.0,
+                replay_count=0,
+                created_at=now_naive - timedelta(days=offset),
+            ))
+        db_session.flush()
+
+        result = get_listening_streak(streak_user.id, tz='UTC')
+        assert result == 3
+
+    def test_gap_resets_streak_to_1(self, db_session, streak_user):
+        from app.curriculum.models import ListeningAttempt
+
+        lesson = _make_listening_lesson_for_streak(db_session)
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        # Today and 3 days ago — gap on yesterday and 2 days ago
+        for offset in (0, 3):
+            db_session.add(ListeningAttempt(
+                user_id=streak_user.id,
+                lesson_id=lesson.id,
+                score=80.0,
+                replay_count=0,
+                created_at=now_naive - timedelta(days=offset),
+            ))
+        db_session.flush()
+
+        result = get_listening_streak(streak_user.id, tz='UTC')
+        assert result == 1
+
+    def test_only_yesterday_and_before_no_today(self, db_session, streak_user):
+        from app.curriculum.models import ListeningAttempt
+
+        lesson = _make_listening_lesson_for_streak(db_session)
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        # Yesterday and 2 days ago — no today
+        for offset in (1, 2):
+            db_session.add(ListeningAttempt(
+                user_id=streak_user.id,
+                lesson_id=lesson.id,
+                score=80.0,
+                replay_count=0,
+                created_at=now_naive - timedelta(days=offset),
+            ))
+        db_session.flush()
+
+        result = get_listening_streak(streak_user.id, tz='UTC')
+        assert result == 2
+
+    def test_multiple_attempts_same_day_count_as_one(self, db_session, streak_user):
+        from app.curriculum.models import ListeningAttempt
+
+        lesson = _make_listening_lesson_for_streak(db_session)
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        # 5 attempts today — should still count as 1 day
+        for _ in range(5):
+            db_session.add(ListeningAttempt(
+                user_id=streak_user.id,
+                lesson_id=lesson.id,
+                score=90.0,
+                replay_count=1,
+                created_at=now_naive,
+            ))
+        db_session.flush()
+
+        result = get_listening_streak(streak_user.id, tz='UTC')
+        assert result == 1

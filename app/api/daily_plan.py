@@ -183,6 +183,9 @@ def daily_status():
 
     listening_goal_data = _compute_listening_goal(current_user, tz)
 
+    from app.achievements.streak_service import get_listening_streak
+    listening_streak_days = get_listening_streak(user_id, tz=tz)
+
     payload = {
         'success': True,
         'plan': plan,
@@ -195,6 +198,7 @@ def daily_status():
         'required_steps': streak_result['required_steps'],
         'streak_repaired': streak_result['streak_repaired'],
         'day_secured': day_secured,
+        'listening_streak_days': listening_streak_days,
         **listening_goal_data,
     }
     if srs_limit_reason != 'normal':

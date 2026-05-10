@@ -229,3 +229,47 @@ class TestComputeListeningGoalUnit:
             result = _compute_listening_goal(user, 'UTC')
 
         assert result['listening_minutes_today'] == 2.0
+
+
+class TestListeningStreakDaysInDailyStatus:
+    """listening_streak_days is included in /api/daily-status payload."""
+
+    def _base_patches(self):
+        plan = _linear_plan()
+        return [
+            patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan),
+            patch('app.telegram.queries.get_daily_summary', return_value=_empty_summary()),
+            patch('app.telegram.queries.get_yesterday_summary', return_value=_empty_summary()),
+            patch('app.study.services.SRSService.get_adaptive_limit_reason', return_value='normal'),
+        ]
+
+    def test_listening_streak_days_present_in_payload(self, authenticated_client):
+        """listening_streak_days key is always present in /api/daily-status."""
+        patches = self._base_patches()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with patch('app.api.daily_plan._compute_listening_goal', return_value={
+                'listening_goal_minutes': 10,
+                'listening_minutes_today': 0.0,
+                'listening_goal_reached': False,
+            }), patch('app.achievements.streak_service.get_listening_streak', return_value=0):
+                response = authenticated_client.get('/api/daily-status')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'listening_streak_days' in data
+        assert data['listening_streak_days'] == 0
+
+    def test_listening_streak_days_reflects_streak(self, authenticated_client):
+        """listening_streak_days reflects the computed streak value."""
+        patches = self._base_patches()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with patch('app.api.daily_plan._compute_listening_goal', return_value={
+                'listening_goal_minutes': 10,
+                'listening_minutes_today': 5.0,
+                'listening_goal_reached': False,
+            }), patch('app.achievements.streak_service.get_listening_streak', return_value=5):
+                response = authenticated_client.get('/api/daily-status')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['listening_streak_days'] == 5

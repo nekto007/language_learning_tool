@@ -204,11 +204,11 @@
 - Modify: `app/achievements/streak_service.py`
 - Tests: `tests/achievements/test_streak_service.py`
 
-- [ ] Add `ListeningAttempt` as 8th activity source in `has_learning_activity(user_id, start_utc, end_utc, db)` — only for listening streak, not DAU/WAU/MAU (same pattern as StreakEvent xp_linear for main streak)
-- [ ] Add `get_listening_streak(user_id, db) -> int` helper in streak_service.py using ListeningAttempt rows
-- [ ] Expose `listening_streak_days` in `/api/daily-status`
-- [ ] Tests: 3 consecutive days of ListeningAttempt rows → streak=3; gap → streak resets; no attempts → streak=0
-- [ ] Run pytest tests/achievements/
+- [x] Add `ListeningAttempt` as 8th activity source in `has_learning_activity(user_id, start_utc, end_utc, db)` — only for listening streak, not DAU/WAU/MAU (same pattern as StreakEvent xp_linear for main streak)
+- [x] Add `get_listening_streak(user_id, db) -> int` helper in streak_service.py using ListeningAttempt rows
+- [x] Expose `listening_streak_days` in `/api/daily-status`
+- [x] Tests: 3 consecutive days of ListeningAttempt rows → streak=3; gap → streak resets; no attempts → streak=0
+- [x] Run pytest tests/achievements/
 
 ---
 ### Task 13: Listening achievement badges
