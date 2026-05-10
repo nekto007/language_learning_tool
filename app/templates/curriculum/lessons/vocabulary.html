@@ -118,7 +118,36 @@
         <div class="card-face card-back">
           <div class="card-content-wrapper">
             <div class="word-russian">{{ word.russian }}</div>
-            {% if word.example %}
+            {% if word.examples and word.examples|length > 2 %}
+            <div class="example-carousel" data-word-index="{{ loop.index0 }}">
+              <div class="example-carousel__slides">
+                {% for ex in word.examples %}
+                <div class="example-slide{% if loop.first %} example-slide--active{% endif %}">
+                  <div class="example-text">{{ ex.english }}</div>
+                  {% if ex.russian %}<div class="example-translation">{{ ex.russian }}</div>{% endif %}
+                </div>
+                {% endfor %}
+              </div>
+              <div class="example-carousel__controls">
+                <button class="example-carousel__btn example-carousel__btn--prev" aria-label="{{ _('Предыдущий пример') }}">&#8249;</button>
+                <div class="example-carousel__dots">
+                  {% for ex in word.examples %}
+                  <span class="example-carousel__dot{% if loop.first %} example-carousel__dot--active{% endif %}"></span>
+                  {% endfor %}
+                </div>
+                <button class="example-carousel__btn example-carousel__btn--next" aria-label="{{ _('Следующий пример') }}">&#8250;</button>
+              </div>
+            </div>
+            {% elif word.examples and word.examples|length > 0 %}
+            <div class="word-examples-static">
+              {% for ex in word.examples %}
+              <div class="word-example">
+                <div class="example-text">{{ ex.english }}</div>
+                {% if ex.russian %}<div class="example-translation">{{ ex.russian }}</div>{% endif %}
+              </div>
+              {% endfor %}
+            </div>
+            {% elif word.example %}
             <div class="word-example">
               <div class="example-text">{{ word.example }}</div>
               {% if word.usage or word.example_translation %}
@@ -436,5 +465,61 @@ async function completeLesson() {
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', init);
+
+// Example sentence carousel
+(function initCarousels() {
+  const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  document.querySelectorAll('.example-carousel').forEach(function(carousel) {
+    const slides = carousel.querySelectorAll('.example-slide');
+    const dots = carousel.querySelectorAll('.example-carousel__dot');
+    const btnPrev = carousel.querySelector('.example-carousel__btn--prev');
+    const btnNext = carousel.querySelector('.example-carousel__btn--next');
+    let current = 0;
+    let timer = null;
+
+    function goTo(idx) {
+      slides[current].classList.remove('example-slide--active');
+      dots[current].classList.remove('example-carousel__dot--active');
+      current = (idx + slides.length) % slides.length;
+      slides[current].classList.add('example-slide--active');
+      dots[current].classList.add('example-carousel__dot--active');
+    }
+
+    function startAuto() {
+      if (noMotion) return;
+      timer = setInterval(function() {
+        if (!document.hidden) goTo(current + 1);
+      }, 5000);
+    }
+
+    function resetAuto() {
+      clearInterval(timer);
+      startAuto();
+    }
+
+    btnPrev.addEventListener('click', function(e) {
+      e.stopPropagation();
+      goTo(current - 1);
+      resetAuto();
+    });
+
+    btnNext.addEventListener('click', function(e) {
+      e.stopPropagation();
+      goTo(current + 1);
+      resetAuto();
+    });
+
+    dots.forEach(function(dot, i) {
+      dot.addEventListener('click', function(e) {
+        e.stopPropagation();
+        goTo(i);
+        resetAuto();
+      });
+    });
+
+    startAuto();
+  });
+})();
 </script>
 {% endblock %}

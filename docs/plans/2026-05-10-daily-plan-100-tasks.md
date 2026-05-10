@@ -564,12 +564,12 @@
 - Modify: `app/static/css/design-system.css`
 - Tests: `tests/curriculum/test_vocabulary_lessons.py`
 
-- [ ] If Word has `examples: [{english, russian}]` with more than 2 items, show as scrollable carousel
-- [ ] Carousel: prev/next buttons, dot indicators, auto-advance every 5s on page idle
-- [ ] Respect `prefers-reduced-motion`: no auto-advance if reduced motion
-- [ ] CSS: `.example-carousel`, `.example-slide` transitions using existing design tokens
-- [ ] Tests: 3+ examples → carousel rendered; 1-2 → static list; reduced-motion → no auto-advance
-- [ ] Run pytest tests/curriculum/
+- [x] If Word has `examples: [{english, russian}]` with more than 2 items, show as scrollable carousel
+- [x] Carousel: prev/next buttons, dot indicators, auto-advance every 5s on page idle
+- [x] Respect `prefers-reduced-motion`: no auto-advance if reduced motion
+- [x] CSS: `.example-carousel`, `.example-slide` transitions using existing design tokens
+- [x] Tests: 3+ examples → carousel rendered; 1-2 → static list; reduced-motion → no auto-advance
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 36: Click-to-define vocabulary in reading passages

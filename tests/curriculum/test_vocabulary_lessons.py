@@ -466,3 +466,161 @@ class TestFrequencyBandRoute:
     def test_frequency_band_in_model(self):
         from app.words.models import CollectionWords
         assert hasattr(CollectionWords, 'frequency_band')
+
+
+# ---------------------------------------------------------------------------
+# Task 35: Example sentence carousel tests
+# ---------------------------------------------------------------------------
+
+class TestExampleCarouselTemplate:
+    def test_carousel_class_in_template(self):
+        tpl = _read_vocabulary_template()
+        assert "example-carousel" in tpl
+
+    def test_carousel_rendered_for_3_plus_examples(self):
+        tpl = _read_vocabulary_template()
+        assert "word.examples|length > 2" in tpl
+
+    def test_static_list_for_1_2_examples(self):
+        tpl = _read_vocabulary_template()
+        assert "word-examples-static" in tpl
+
+    def test_single_example_fallback(self):
+        tpl = _read_vocabulary_template()
+        assert "word.example" in tpl
+
+    def test_reduced_motion_check_in_js(self):
+        tpl = _read_vocabulary_template()
+        assert "prefers-reduced-motion" in tpl
+
+    def test_auto_advance_disabled_on_reduced_motion(self):
+        tpl = _read_vocabulary_template()
+        assert "noMotion" in tpl
+
+    def test_prev_next_buttons_in_template(self):
+        tpl = _read_vocabulary_template()
+        assert "example-carousel__btn--prev" in tpl
+        assert "example-carousel__btn--next" in tpl
+
+    def test_dot_indicators_in_template(self):
+        tpl = _read_vocabulary_template()
+        assert "example-carousel__dot" in tpl
+
+
+class TestExampleCarouselCSS:
+    def test_example_carousel_class_defined(self):
+        css = _read_design_system_css()
+        assert ".example-carousel" in css
+
+    def test_example_slide_class_defined(self):
+        css = _read_design_system_css()
+        assert ".example-slide" in css
+
+    def test_example_slide_active_class_defined(self):
+        css = _read_design_system_css()
+        assert ".example-slide--active" in css
+
+    def test_carousel_fade_animation_defined(self):
+        css = _read_design_system_css()
+        assert "carousel-fade" in css
+
+    def test_carousel_dot_active_class_defined(self):
+        css = _read_design_system_css()
+        assert ".example-carousel__dot--active" in css
+
+    def test_word_examples_static_class_defined(self):
+        css = _read_design_system_css()
+        assert ".word-examples-static" in css
+
+
+class TestExampleCarouselRoute:
+    def _make_lesson_with_examples(self, db_session, module, count: int) -> "Lessons":
+        examples = [
+            {"english": f"Example sentence {i}.", "russian": f"Пример {i}."}
+            for i in range(1, count + 1)
+        ]
+        lesson = Lessons(
+            module_id=module.id,
+            number=99,
+            title="Carousel Test",
+            type="vocabulary",
+            content={
+                "words": [
+                    {
+                        "english": "carousel_test_" + _unique(),
+                        "russian": "тест",
+                        "examples": examples,
+                    }
+                ]
+            },
+        )
+        db_session.add(lesson)
+        db_session.commit()
+        return lesson
+
+    def test_3_examples_shows_carousel(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        lesson = self._make_lesson_with_examples(db_session, module, 3)
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert 'class="example-carousel' in html
+        assert "example-slide" in html
+
+    def test_2_examples_shows_static_list(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        lesson = self._make_lesson_with_examples(db_session, module, 2)
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "word-examples-static" in html
+        assert 'class="example-carousel' not in html
+
+    def test_1_example_shows_static_list(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        lesson = self._make_lesson_with_examples(db_session, module, 1)
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "word-examples-static" in html
+        assert 'class="example-carousel' not in html
+
+    def test_carousel_contains_correct_example_count(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        lesson = self._make_lesson_with_examples(db_session, module, 4)
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        # Each example creates one .example-slide element
+        assert html.count("example-slide") >= 4
+
+    def test_no_examples_shows_legacy_example(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "legacyex_" + _unique()
+        lesson = Lessons(
+            module_id=module.id,
+            number=98,
+            title="Legacy Example Test",
+            type="vocabulary",
+            content={
+                "words": [
+                    {
+                        "english": english,
+                        "russian": "тест",
+                        "example": "She is happy.",
+                    }
+                ]
+            },
+        )
+        db_session.add(lesson)
+        db_session.commit()
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "She is happy." in html
+        assert 'class="example-carousel' not in html

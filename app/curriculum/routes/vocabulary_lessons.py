@@ -105,6 +105,14 @@ def render_vocabulary_lesson(lesson):
                     'synonyms': word.synonyms or [],
                     'antonyms': word.antonyms or [],
                     'frequency_band': word.frequency_band,
+                    'examples': [
+                        {
+                            'english': sanitize_html(ex.get('english', '')),
+                            'russian': sanitize_html(ex.get('russian', '')),
+                        }
+                        for ex in word_data.get('examples', [])
+                        if isinstance(ex, dict) and (ex.get('english') or ex.get('russian'))
+                    ],
                 }
                 words.append(word_dict)
             else:
@@ -126,6 +134,14 @@ def render_vocabulary_lesson(lesson):
                     'synonyms': [],
                     'antonyms': [],
                     'frequency_band': None,
+                    'examples': [
+                        {
+                            'english': sanitize_html(ex.get('english', '')),
+                            'russian': sanitize_html(ex.get('russian', '')),
+                        }
+                        for ex in word_data.get('examples', [])
+                        if isinstance(ex, dict) and (ex.get('english') or ex.get('russian'))
+                    ],
                 }
                 words.append(word_dict)
 
@@ -394,6 +410,14 @@ def vocabulary_lesson(lesson_id):
                     'synonyms': word.synonyms or [],
                     'antonyms': word.antonyms or [],
                     'frequency_band': word.frequency_band,
+                    'examples': [
+                        {
+                            'english': sanitize_html(ex.get('english', '')),
+                            'russian': sanitize_html(ex.get('russian', '')),
+                        }
+                        for ex in word_data.get('examples', [])
+                        if isinstance(ex, dict) and (ex.get('english') or ex.get('russian'))
+                    ],
                 }
                 words.append(word_dict)
             else:
@@ -416,6 +440,14 @@ def vocabulary_lesson(lesson_id):
                     'synonyms': [],
                     'antonyms': [],
                     'frequency_band': None,
+                    'examples': [
+                        {
+                            'english': sanitize_html(ex.get('english', '')),
+                            'russian': sanitize_html(ex.get('russian', '')),
+                        }
+                        for ex in word_data.get('examples', [])
+                        if isinstance(ex, dict) and (ex.get('english') or ex.get('russian'))
+                    ],
                 }
                 words.append(word_dict)
 
