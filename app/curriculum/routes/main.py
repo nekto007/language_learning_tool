@@ -24,6 +24,83 @@ def index():
     return redirect('/learn/', code=302)
 
 
+@main_bp.route('/search')
+@login_required
+def search():
+    """Full-text search over lesson titles and vocabulary words.
+
+    GET /curriculum/search?q=<query>
+    Empty query redirects to /learn/.
+    """
+    from app.words.models import CollectionWords
+    from app.grammar_lab.models import GrammarTopic
+
+    q = request.args.get('q', '').strip()
+    if not q:
+        return redirect(url_for('learn.learn_index'))
+
+    pattern = f'%{q}%'
+
+    # Search lessons by title (joined with module and level for context)
+    lesson_results = (
+        Lessons.query
+        .join(Module, Lessons.module_id == Module.id)
+        .join(CEFRLevel, Module.level_id == CEFRLevel.id)
+        .filter(Lessons.title.ilike(pattern))
+        .options(
+            joinedload(Lessons.module).joinedload(Module.level)
+        )
+        .order_by(CEFRLevel.order, Module.number, Lessons.number)
+        .limit(50)
+        .all()
+    )
+
+    # Group lessons by module
+    modules_map: dict = {}
+    for lesson in lesson_results:
+        mod = lesson.module
+        key = mod.id
+        if key not in modules_map:
+            modules_map[key] = {
+                'module': mod,
+                'level_code': mod.level.code,
+                'lessons': [],
+            }
+        modules_map[key]['lessons'].append(lesson)
+    lesson_groups = list(modules_map.values())
+
+    # Search vocabulary words by English term
+    word_results = (
+        CollectionWords.query
+        .filter(CollectionWords.english_word.ilike(pattern))
+        .order_by(CollectionWords.frequency_rank)
+        .limit(30)
+        .all()
+    )
+
+    # Search grammar topics by title or Russian title
+    topic_results = (
+        GrammarTopic.query
+        .filter(
+            GrammarTopic.title.ilike(pattern) | GrammarTopic.title_ru.ilike(pattern)
+        )
+        .order_by(GrammarTopic.level, GrammarTopic.order)
+        .limit(20)
+        .all()
+    )
+
+    total = len(lesson_results) + len(word_results) + len(topic_results)
+
+    return render_template(
+        'curriculum/search.html',
+        query=q,
+        lesson_groups=lesson_groups,
+        word_results=word_results,
+        topic_results=topic_results,
+        total=total,
+    )
+
+
 # =============================================================================
 # НОВЫЕ КРАСИВЫЕ URL МАРШРУТЫ
 # =============================================================================

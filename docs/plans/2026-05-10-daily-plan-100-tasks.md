@@ -1365,11 +1365,11 @@
 - Modify: `app/templates/curriculum/base.html` (add search icon)
 - Tests: `tests/curriculum/test_search.py`
 
-- [ ] Full-text search over lesson titles, vocabulary words, and grammar topics
-- [ ] Route: `GET /curriculum/search?q=` — returns matching lessons grouped by module
-- [ ] Uses PostgreSQL `ILIKE` with `%q%` on `Lesson.title` and `Word.english`
-- [ ] Tests: query returns relevant lessons; empty query → redirect to curriculum home; XSS safe (uses parameterized queries)
-- [ ] Run pytest tests/curriculum/
+- [x] Full-text search over lesson titles, vocabulary words, and grammar topics
+- [x] Route: `GET /curriculum/search?q=` — returns matching lessons grouped by module
+- [x] Uses PostgreSQL `ILIKE` with `%q%` on `Lesson.title` and `Word.english`
+- [x] Tests: query returns relevant lessons; empty query → redirect to curriculum home; XSS safe (uses parameterized queries)
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 90: Lesson user feedback collection
