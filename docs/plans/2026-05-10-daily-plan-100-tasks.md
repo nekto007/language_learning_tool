@@ -1493,11 +1493,11 @@
 - Modify: `app/telegram/handlers/` (find the relevant handler file)
 - Tests: `tests/telegram/test_plan_status.py`
 
-- [ ] Add `/plan` command in Telegram bot: shows today's plan status (slots + completion), streak, and day_secured state
-- [ ] Format: clean text with emoji for each slot type; "✅ Завершено" or "⏳ Осталось N"
-- [ ] Uses existing `get_linear_plan(user_id, db)` — same data as web
-- [ ] Tests: /plan command returns formatted text; user with no plan → "Открой приложение чтобы начать"
-- [ ] Run pytest tests/telegram/
+- [x] Add `/plan` command in Telegram bot: shows today's plan status (slots + completion), streak, and day_secured state
+- [x] Format: clean text with emoji for each slot type; "✅ Завершено" or "⏳ Осталось N"
+- [x] Uses existing `get_linear_plan(user_id, db)` — same data as web
+- [x] Tests: /plan command returns formatted text; user with no plan → "Открой приложение чтобы начать"
+- [x] Run pytest tests/telegram/
 
 ---
 ### Task 99: API rate limiting for pronunciation and writing endpoints
