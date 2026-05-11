@@ -94,6 +94,20 @@ def get_study_items():
             return api_error('deck_not_found', 'Deck not found or access denied', 404)
     elif word_source == 'daily_plan_mix':
         deck_word_ids = get_daily_plan_mix_word_ids(current_user.id)
+    elif word_source == 'custom_list':
+        list_id_param = request.args.get('list_id', type=int)
+        if list_id_param:
+            from app.study.models import CustomWordList
+            custom_list = CustomWordList.query.get(list_id_param)
+            if custom_list and custom_list.user_id == current_user.id:
+                entry_words = [e.word.lower() for e in custom_list.entries.all()]
+                if entry_words:
+                    matched = CollectionWords.query.filter(
+                        func.lower(CollectionWords.english_word).in_(entry_words)
+                    ).all()
+                    deck_word_ids = [w.id for w in matched]
+                else:
+                    deck_word_ids = []
 
     if deck_id and deck:
         new_cards_today, reviews_today = SRSService.get_deck_stats_today(current_user.id, deck_id)

@@ -81,6 +81,12 @@
     </script>
 
     {% if entries %}
+    <div class="custom-list__study-wrap">
+        <a href="{{ url_for('study.custom_list_study', list_id=detail.id) }}" class="custom-list__study-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Учить список
+        </a>
+    </div>
     <div class="custom-list__entries">
         {% for entry in entries %}
         <div class="custom-list__entry">
@@ -452,6 +458,29 @@
 .custom-list__import-submit {
     width: 100%;
     justify-content: center;
+}
+
+.custom-list__study-wrap {
+    margin-bottom: 1.25rem;
+}
+
+.custom-list__study-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: var(--color-primary, #6366f1);
+    color: #fff;
+    border-radius: 10px;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: opacity 0.15s;
+}
+
+.custom-list__study-btn:hover {
+    opacity: 0.9;
+    color: #fff;
 }
 </style>
 {% endblock %}

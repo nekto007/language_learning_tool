@@ -1102,11 +1102,11 @@
 - Modify: `app/templates/study/custom_list.html`
 - Tests: `tests/study/test_custom_list.py`
 
-- [ ] Button "Учить список" on custom list page → launches `/study` session with custom list words
-- [ ] Create UserCardDirection entries for words in list that don't have them yet
-- [ ] Redirect to study session filtered to these cards
-- [ ] Tests: cards created for new words; existing cards not duplicated; redirect correct
-- [ ] Run pytest tests/study/
+- [x] Button "Учить список" on custom list page → launches `/study` session with custom list words
+- [x] Create UserCardDirection entries for words in list that don't have them yet
+- [x] Redirect to study session filtered to these cards
+- [x] Tests: cards created for new words; existing cards not duplicated; redirect correct
+- [x] Run pytest tests/study/
 
 ---
 ### Task 72: Vocabulary source tracking

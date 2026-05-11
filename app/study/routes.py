@@ -435,6 +435,29 @@ def settings_focus():
     return redirect(url_for('study.settings'))
 
 
+def _get_custom_list_word_ids(list_id: int, user_id: int):
+    """Return CollectionWords IDs matching entries in a custom list owned by user_id.
+
+    Returns None if the list is not found or not owned by user_id.
+    Returns an empty list if the list has entries but none match CollectionWords.
+    """
+    from app.study.models import CustomWordList
+    from app.words.models import CollectionWords
+
+    word_list = CustomWordList.query.get(list_id)
+    if not word_list or word_list.user_id != user_id:
+        return None
+
+    entry_words = [e.word.lower() for e in word_list.entries.all()]
+    if not entry_words:
+        return []
+
+    matched = CollectionWords.query.filter(
+        func.lower(CollectionWords.english_word).in_(entry_words)
+    ).all()
+    return [w.id for w in matched]
+
+
 @study.route('/cards')
 @login_required
 @module_required('study')
@@ -442,8 +465,16 @@ def cards():
     settings = StudySettings.get_settings(current_user.id)
     source = request.args.get('source', 'auto')
     from_daily_plan = request.args.get('from') == 'daily_plan'
-    deck_word_ids = get_daily_plan_mix_word_ids(current_user.id) if source == 'daily_plan_mix' else None
+    list_id_arg = request.args.get('list_id', type=int)
+    if source == 'custom_list' and list_id_arg:
+        deck_word_ids = _get_custom_list_word_ids(list_id_arg, current_user.id)
+    elif source == 'daily_plan_mix':
+        deck_word_ids = get_daily_plan_mix_word_ids(current_user.id)
+    else:
+        deck_word_ids = None
     fetch_cards_params = {'source': source}
+    if list_id_arg and source == 'custom_list':
+        fetch_cards_params['list_id'] = str(list_id_arg)
     if request.args.get('from'):
         fetch_cards_params['from'] = request.args['from']
     if request.args.get('slot'):
@@ -476,7 +507,7 @@ def cards():
         limit_reached=counts['limit_reached'],
         daily_limit=counts['new_limit'],
         new_cards_today=counts['new_today'],
-        fc_title='Дневной микс' if source == 'daily_plan_mix' else 'Карточки',
+        fc_title='Дневной микс' if source == 'daily_plan_mix' else ('Мой список' if source == 'custom_list' else 'Карточки'),
         fc_back_url=url_for('words.dashboard') if from_daily_plan else url_for('study.index'),
         fc_cards=[],
         fc_fetch_cards_url='/study/api/get-study-items',
@@ -1103,6 +1134,51 @@ def custom_list_detail(list_id):
         CustomWordList.created_at.desc()
     ).all()
     return render_template('study/custom_list.html', lists=all_lists, detail=word_list, entries=entries)
+
+
+@study.route('/lists/<int:list_id>/study')
+@login_required
+@module_required('study')
+def custom_list_study(list_id):
+    """Activate SRS study session for a custom word list.
+
+    Creates UserWord and UserCardDirection rows for list entries that match
+    CollectionWords, then redirects to the standard cards session filtered
+    to those word IDs.
+    """
+    from app.study.models import CustomWordList
+    from app.words.models import CollectionWords
+    from flask import abort
+
+    word_list = CustomWordList.query.get_or_404(list_id)
+    if word_list.user_id != current_user.id:
+        abort(403)
+
+    entries = word_list.entries.all()
+    if not entries:
+        flash(_('Список пуст — добавьте слова'), 'warning')
+        return redirect(url_for('study.custom_list_detail', list_id=list_id))
+
+    entry_words = [e.word.lower() for e in entries]
+    matched_words = CollectionWords.query.filter(
+        func.lower(CollectionWords.english_word).in_(entry_words)
+    ).all()
+
+    if not matched_words:
+        flash(_('Слова из списка не найдены в базе'), 'info')
+        return redirect(url_for('study.custom_list_detail', list_id=list_id))
+
+    for word in matched_words:
+        user_word = UserWord.get_or_create(current_user.id, word.id)
+        for direction in ('eng-rus', 'rus-eng'):
+            if not UserCardDirection.query.filter_by(
+                user_word_id=user_word.id, direction=direction
+            ).first():
+                db.session.add(UserCardDirection(user_word.id, direction))
+
+    db.session.commit()
+
+    return redirect(url_for('study.cards', source='custom_list', list_id=list_id))
 
 
 # Import sub-modules to register their routes on the blueprint
