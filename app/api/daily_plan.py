@@ -231,6 +231,9 @@ def daily_status():
         payload['srs_limit_reason'] = srs_limit_reason
     if recovery_suggestion is not None:
         payload['recovery_suggestion'] = recovery_suggestion
+    if plan.get('mode') == 'paused':
+        payload['plan_paused'] = True
+        payload['paused_until'] = plan.get('paused_until')
     return jsonify(payload)
 
 
@@ -869,6 +872,94 @@ def dismiss_rival_strip():
     except Exception:
         db.session.rollback()
         return api_error('db_error', 'Failed to dismiss rival strip', 500)
+
+    return jsonify({'status': 'ok'})
+
+
+@api_daily_plan.route('/plan/pause', methods=['POST'])
+@csrf.exempt
+@api_auth_required
+def plan_pause():
+    """Pause daily plan for N days (1–14).
+
+    Body JSON:
+        days (int): number of days to pause (1–14)
+
+    Inserts StreakEvent(event_type='plan_pause') for each paused day so streak
+    calculation treats those days as neutral (not a gap).
+    """
+    from datetime import date, timedelta
+    from app.auth.models import User
+    from app.achievements.models import StreakEvent
+
+    body = request.get_json(silent=True) or {}
+    days = body.get('days')
+    if not isinstance(days, int) or not (1 <= days <= 14):
+        return api_error('invalid_days', 'days must be an integer between 1 and 14', 400)
+
+    user = db.session.get(User, current_user.id)
+    if user is None:
+        return api_error('not_found', 'User not found', 404)
+
+    today = date.today()
+    paused_until = today + timedelta(days=days)
+
+    # Remove any existing plan_pause events (e.g., user extending/changing pause)
+    StreakEvent.query.filter(
+        StreakEvent.user_id == current_user.id,
+        StreakEvent.event_type == 'plan_pause',
+        StreakEvent.event_date >= today,
+    ).delete()
+
+    # Insert one StreakEvent per paused day so streak walks over them neutrally
+    for offset in range(days + 1):
+        pause_date = today + timedelta(days=offset)
+        db.session.add(StreakEvent(
+            user_id=current_user.id,
+            event_type='plan_pause',
+            coins_delta=0,
+            event_date=pause_date,
+        ))
+
+    user.plan_paused_until = paused_until
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return api_error('db_error', 'Failed to pause plan', 500)
+
+    return jsonify({'status': 'ok', 'paused_until': paused_until.isoformat()})
+
+
+@api_daily_plan.route('/plan/resume', methods=['POST'])
+@csrf.exempt
+@api_auth_required
+def plan_resume():
+    """Resume daily plan immediately by clearing plan_paused_until.
+
+    Deletes future plan_pause StreakEvents so streak resumes normally.
+    """
+    from datetime import date
+    from app.auth.models import User
+    from app.achievements.models import StreakEvent
+
+    user = db.session.get(User, current_user.id)
+    if user is None:
+        return api_error('not_found', 'User not found', 404)
+
+    today = date.today()
+    StreakEvent.query.filter(
+        StreakEvent.user_id == current_user.id,
+        StreakEvent.event_type == 'plan_pause',
+        StreakEvent.event_date > today,
+    ).delete()
+
+    user.plan_paused_until = None
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return api_error('db_error', 'Failed to resume plan', 500)
 
     return jsonify({'status': 'ok'})
 

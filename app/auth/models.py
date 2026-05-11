@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text, desc
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, desc
 from sqlalchemy.orm import relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -65,6 +65,9 @@ class User(db.Model, UserMixin):
 
     # Phase 3: permanently dismiss the rival strip per user.
     rival_strip_dismissed = Column(Boolean, default=False, nullable=False, server_default='false')
+
+    # Plan pause / vacation mode: when set and >= today, plan returns paused mode.
+    plan_paused_until = Column(Date, nullable=True)
 
     referred_by = relationship('User', remote_side='User.id', foreign_keys=[referred_by_id])
 

@@ -758,14 +758,14 @@
 - Modify: `app/words/routes.py`
 - Tests: `tests/api/test_plan_pause.py`
 
-- [ ] Add `plan_paused_until DATE nullable` to User model
-- [ ] API: `POST /api/plan/pause {days: 1-14}` — sets plan_paused_until = today + days
-- [ ] `POST /api/plan/resume` — clears plan_paused_until
-- [ ] During pause: `/api/daily-plan` returns `{mode: 'paused', paused_until: date}` (no slots built)
-- [ ] Dashboard shows "Plan paused — resuming {date}" banner instead of slots
-- [ ] Streak not broken during pause (paused days treated as streak-neutral, not as gap)
-- [ ] Tests: pause set → plan returns paused mode; resume → normal plan; streak unaffected during pause
-- [ ] Run pytest tests/api/
+- [x] Add `plan_paused_until DATE nullable` to User model
+- [x] API: `POST /api/plan/pause {days: 1-14}` — sets plan_paused_until = today + days
+- [x] `POST /api/plan/resume` — clears plan_paused_until
+- [x] During pause: `/api/daily-plan` returns `{mode: 'paused', paused_until: date}` (no slots built)
+- [x] Dashboard shows "Plan paused — resuming {date}" banner instead of slots
+- [x] Streak not broken during pause (paused days treated as streak-neutral, not as gap)
+- [x] Tests: pause set → plan returns paused mode; resume → normal plan; streak unaffected during pause
+- [x] Run pytest tests/api/
 
 ---
 ### Task 49: Plan difficulty mode setting

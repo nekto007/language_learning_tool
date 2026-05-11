@@ -183,7 +183,19 @@
         </div>
         {% endif %}
 
-    {% if linear_plan %}
+    {% if plan_paused_until %}
+        <div class="plan-paused-banner" role="status" aria-live="polite">
+            <span class="plan-paused-banner__icon" aria-hidden="true">&#9208;</span>
+            <div class="plan-paused-banner__body">
+                <p class="plan-paused-banner__title">План приостановлен</p>
+                <p class="plan-paused-banner__subtitle">Возобновится {{ plan_paused_until }}</p>
+            </div>
+            <form method="post" action="/api/plan/resume" class="plan-paused-banner__resume-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn--sm plan-paused-banner__resume-btn">Возобновить сейчас</button>
+            </form>
+        </div>
+    {% elif linear_plan %}
         {# ══════════════════════════════════════════
            LINEAR DAILY PLAN (curriculum-spine UI)
            ══════════════════════════════════════════ #}

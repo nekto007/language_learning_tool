@@ -14192,3 +14192,37 @@ span.vocab-word.vocab-word--active {
     }
 }
 
+/* Plan pause banner */
+.plan-paused-banner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--color-surface, #f8fafc);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-left: 4px solid var(--color-text-secondary, #94a3b8);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+}
+.plan-paused-banner__icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+.plan-paused-banner__body {
+    flex: 1;
+}
+.plan-paused-banner__title {
+    font-weight: 600;
+    color: var(--color-text, #1e293b);
+    margin: 0 0 0.2rem;
+}
+.plan-paused-banner__subtitle {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary, #64748b);
+    margin: 0;
+}
+.plan-paused-banner__resume-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+

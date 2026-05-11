@@ -298,13 +298,26 @@ def _get_linear_plan_safe(user_id: int) -> Optional[dict[str, Any]]:
 def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, Any]:
     """Entry point: routes to linear → mission → legacy based on user flags.
 
-    Priority: ``use_linear_plan`` → ``use_mission_plan`` → legacy.
+    Priority: paused → ``use_linear_plan`` → ``use_mission_plan`` → legacy.
     When an enabled branch fails it falls through to the next option with a
     structured warning log.
     """
+    from datetime import date as _date
     from app.auth.models import User
 
     user = User.query.get(user_id)
+
+    if user and user.plan_paused_until and user.plan_paused_until >= _date.today():
+        logger.info("daily_plan_unified user=%s mode=paused until=%s", user_id, user.plan_paused_until)
+        return _with_plan_meta(
+            {
+                'mode': 'paused',
+                'paused_until': user.plan_paused_until.isoformat(),
+                'day_secured': False,
+            },
+            mission_plan_enabled=bool(user.use_mission_plan),
+            effective_mode='paused',
+        )
 
     if user and user.use_linear_plan:
         linear_payload = _get_linear_plan_safe(user_id)
