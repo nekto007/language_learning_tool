@@ -771,7 +771,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     except Exception as save_err:
         logger.warning(f"Writing attempt save failed for lesson {lesson.id}: {save_err}")
 
-    completed = meets_min and checklist_completed
+    completed = meets_min and len(checked_items) >= 2
 
     if completed:
         progress = LessonProgress.query.filter_by(

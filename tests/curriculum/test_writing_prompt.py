@@ -375,7 +375,13 @@ class TestWritingPromptSubmitRoute:
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/writing-prompt")
         text = " ".join(["word"] * 5)
-        resp = self._submit(client, lesson.id, response_text=text, checklist_completed=False)
+        # Server enforces ≥2 checked items regardless of the client flag.
+        resp = self._submit(
+            client, lesson.id,
+            response_text=text,
+            checklist_completed=False,
+            checked_items=["only one item"],
+        )
         data = resp.get_json()
         assert data["completed"] is False
 

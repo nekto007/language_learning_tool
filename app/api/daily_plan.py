@@ -82,13 +82,13 @@ def _compute_listening_goal(user, tz: str) -> dict:
 
     total_seconds = 0.0
     if attempts:
-        lesson_ids = list({a.lesson_id for a in attempts})
+        unique_lesson_ids = list({a.lesson_id for a in attempts})
         lessons_map = {
             lesson.id: lesson
-            for lesson in Lessons.query.filter(Lessons.id.in_(lesson_ids)).all()
+            for lesson in Lessons.query.filter(Lessons.id.in_(unique_lesson_ids)).all()
         }
-        for lesson_id in lesson_ids:
-            lesson = lessons_map.get(lesson_id)
+        for attempt in attempts:
+            lesson = lessons_map.get(attempt.lesson_id)
             duration = 300
             if lesson and lesson.content and isinstance(lesson.content, dict):
                 duration = lesson.content.get('duration_seconds', 300)
@@ -1068,7 +1068,7 @@ def plan_resume():
     StreakEvent.query.filter(
         StreakEvent.user_id == current_user.id,
         StreakEvent.event_type == 'plan_pause',
-        StreakEvent.event_date > today,
+        StreakEvent.event_date >= today,
     ).delete()
 
     user.plan_paused_until = None
@@ -1145,7 +1145,7 @@ def challenge_complete():
         bonus_xp = result.get('bonus_xp', 0)
         if bonus_xp:
             try:
-                award_xp(current_user.id, bonus_xp, 'daily_challenge', db=db)
+                award_xp(current_user.id, bonus_xp, 'daily_challenge')
             except Exception as xp_err:
                 logger.warning("Challenge XP award failed for user %s: %s", current_user.id, xp_err)
 
