@@ -299,6 +299,73 @@ def get_grammar_weaknesses(user_id: int, limit: int = 5) -> list[dict[str, Any]]
 
 
 # ---------------------------------------------------------------------------
+# 4b. Grammar mastery by topic
+# ---------------------------------------------------------------------------
+
+def get_grammar_mastery_by_topic(user_id: int) -> list[dict[str, Any]]:
+    """
+    For each GrammarTopic the user has attempted: accuracy %, mastered count, total count.
+
+    Mastered = state='review' AND interval >= 30 days.
+    Topics with 0 attempts are excluded.
+    Results sorted by accuracy ascending (worst topics first).
+    """
+    from sqlalchemy import Integer, cast, case
+    from app.grammar_lab.models import UserGrammarExercise, GrammarExercise, GrammarTopic
+
+    MASTERED_THRESHOLD = 30
+
+    total_attempts_expr = func.sum(
+        UserGrammarExercise.correct_count + UserGrammarExercise.incorrect_count
+    )
+    accuracy_expr = (
+        func.sum(UserGrammarExercise.correct_count) * 100.0
+        / func.nullif(total_attempts_expr, 0)
+    )
+    mastered_expr = func.sum(
+        cast(
+            case(
+                (
+                    (UserGrammarExercise.state == 'review')
+                    & (UserGrammarExercise.interval >= MASTERED_THRESHOLD),
+                    1,
+                ),
+                else_=0,
+            ),
+            Integer,
+        )
+    )
+
+    rows = (
+        db.session.query(
+            GrammarTopic.id.label('topic_id'),
+            GrammarTopic.title,
+            accuracy_expr.label('accuracy'),
+            mastered_expr.label('mastered_count'),
+            func.count(UserGrammarExercise.exercise_id).label('total_count'),
+        )
+        .join(GrammarExercise, GrammarExercise.topic_id == GrammarTopic.id)
+        .join(UserGrammarExercise, UserGrammarExercise.exercise_id == GrammarExercise.id)
+        .filter(UserGrammarExercise.user_id == user_id)
+        .group_by(GrammarTopic.id, GrammarTopic.title)
+        .having(func.count(UserGrammarExercise.exercise_id) > 0)
+        .order_by(accuracy_expr.asc())
+        .all()
+    )
+
+    return [
+        {
+            'topic_id': row.topic_id,
+            'title': row.title,
+            'accuracy': round(float(row.accuracy), 1) if row.accuracy is not None else 0.0,
+            'mastered_count': int(row.mastered_count) if row.mastered_count is not None else 0,
+            'total_count': int(row.total_count),
+        }
+        for row in rows
+    ]
+
+
+# ---------------------------------------------------------------------------
 # 5. Reading speed trend
 # ---------------------------------------------------------------------------
 

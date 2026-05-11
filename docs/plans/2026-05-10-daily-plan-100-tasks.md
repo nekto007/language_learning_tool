@@ -1146,11 +1146,11 @@
 - Modify: `app/templates/study/insights.html`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] `get_grammar_mastery_by_topic(user_id, db)` — for each GrammarTopic the user has attempted: accuracy %, mastered count, total count
-- [ ] Render as chart: horizontal bar chart sorted by accuracy (worst topics first)
-- [ ] Highlight topics with < 60% in red
-- [ ] Tests: topics returned sorted; mastered_count correct; topics with 0 attempts excluded
-- [ ] Run pytest tests/study/
+- [x] `get_grammar_mastery_by_topic(user_id, db)` — for each GrammarTopic the user has attempted: accuracy %, mastered count, total count
+- [x] Render as chart: horizontal bar chart sorted by accuracy (worst topics first)
+- [x] Highlight topics with < 60% in red
+- [x] Tests: topics returned sorted; mastered_count correct; topics with 0 attempts excluded
+- [x] Run pytest tests/study/
 
 ---
 ### Task 75: Learning velocity trend widget

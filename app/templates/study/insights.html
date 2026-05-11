@@ -251,6 +251,74 @@
     </div>
     {% endif %}
 
+    <!-- Grammar Mastery by Topic -->
+    {% if grammar_mastery %}
+    <div class="insights-section">
+        <div class="insights-section__header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <h2>Освоение грамматики по темам</h2>
+        </div>
+        <div class="grammar-mastery-chart" id="grammarMasteryChart" style="position:relative;height:{{ [grammar_mastery|length * 44, 200]|max }}px;">
+            <canvas id="grammarMasteryCanvas"></canvas>
+        </div>
+        <script>
+        (function() {
+            var ctx = document.getElementById('grammarMasteryCanvas');
+            if (!ctx) return;
+            var labels = [{% for t in grammar_mastery %}"{{ t.title }}"{% if not loop.last %},{% endif %}{% endfor %}];
+            var accuracies = [{% for t in grammar_mastery %}{{ t.accuracy }}{% if not loop.last %},{% endif %}{% endfor %}];
+            var masteredCounts = [{% for t in grammar_mastery %}{{ t.mastered_count }}{% if not loop.last %},{% endif %}{% endfor %}];
+            var totalCounts = [{% for t in grammar_mastery %}{{ t.total_count }}{% if not loop.last %},{% endif %}{% endfor %}];
+            var colors = accuracies.map(function(a) {
+                return a < 60 ? 'rgba(239,68,68,0.75)' : a < 80 ? 'rgba(245,158,11,0.75)' : 'rgba(16,185,129,0.75)';
+            });
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Точность %',
+                        data: accuracies,
+                        backgroundColor: colors,
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(ctx2) {
+                                    var i = ctx2.dataIndex;
+                                    return 'Освоено: ' + masteredCounts[i] + ' / ' + totalCounts[i];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            min: 0,
+                            max: 100,
+                            ticks: { callback: function(v) { return v + '%'; } },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        y: {
+                            ticks: { font: { size: 12 } }
+                        }
+                    }
+                }
+            });
+        })();
+        </script>
+        <p class="insights-subtitle" style="margin-top:0.5rem">Красный — ниже 60%&nbsp;· Жёлтый — 60-79%&nbsp;· Зелёный — 80%+</p>
+    </div>
+    {% endif %}
+
     <!-- Reading Speed Trend -->
     {% if reading_trend %}
     <div class="insights-section">
