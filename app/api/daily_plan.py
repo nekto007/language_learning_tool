@@ -108,6 +108,54 @@ def _compute_listening_goal(user, tz: str) -> dict:
     }
 
 
+def _compute_goal_progress(user, tz: str) -> dict:
+    """Compute daily word and weekly lesson goal progress.
+
+    Returns dict with goal_progress containing daily_words and weekly_lessons
+    sub-dicts, each with goal, actual, and reached fields.
+    """
+    import pytz
+    from datetime import datetime, timedelta
+    from app.srs.counting import count_new_cards_today
+    from app.curriculum.models import LessonProgress
+
+    daily_word_goal = user.daily_word_goal if user.daily_word_goal is not None else 10
+    weekly_lesson_goal = user.weekly_lesson_goal if user.weekly_lesson_goal is not None else 5
+
+    words_today = count_new_cards_today(user.id)
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TZ)
+
+    now_local = datetime.now(tz_obj)
+    days_since_monday = now_local.weekday()  # 0=Monday
+    monday_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
+    monday_utc = monday_local.astimezone(pytz.utc).replace(tzinfo=None)
+
+    lessons_this_week = LessonProgress.query.filter(
+        LessonProgress.user_id == user.id,
+        LessonProgress.status == 'completed',
+        LessonProgress.completed_at >= monday_utc,
+    ).count()
+
+    return {
+        'goal_progress': {
+            'daily_words': {
+                'goal': daily_word_goal,
+                'actual': words_today,
+                'reached': words_today >= daily_word_goal,
+            },
+            'weekly_lessons': {
+                'goal': weekly_lesson_goal,
+                'actual': lessons_this_week,
+                'reached': lessons_this_week >= weekly_lesson_goal,
+            },
+        }
+    }
+
+
 @api_daily_plan.route('/daily-status')
 @api_auth_required
 def daily_status():
@@ -209,6 +257,7 @@ def daily_status():
     srs_limit_reason = SRSService.get_adaptive_limit_reason(user_id)
 
     listening_goal_data = _compute_listening_goal(current_user, tz)
+    goal_progress_data = _compute_goal_progress(current_user, tz)
 
     from app.achievements.streak_service import get_listening_streak, get_writing_streak, get_speaking_streak
     listening_streak_days = get_listening_streak(user_id, tz=tz)
@@ -241,6 +290,7 @@ def daily_status():
         'speaking_streak_days': speaking_streak_days,
         'pronunciation_weak_words': pronunciation_weak_words,
         **listening_goal_data,
+        **goal_progress_data,
     }
     if srs_limit_reason != 'normal':
         payload['srs_limit_reason'] = srs_limit_reason

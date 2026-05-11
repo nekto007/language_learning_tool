@@ -438,3 +438,211 @@ class TestListeningStreakDaysInDailyStatus:
         assert response.status_code == 200
         data = response.get_json()
         assert data['listening_streak_days'] == 5
+
+
+class TestComputeGoalProgressUnit:
+    """Unit tests for _compute_goal_progress helper."""
+
+    def test_no_activity_returns_zeros(self, app, db_session):
+        """No new cards and no completed lessons → actual=0 for both goals."""
+        from app.api.daily_plan import _compute_goal_progress
+        from app.auth.models import User
+
+        with app.app_context():
+            user = db_session.query(User).first()
+            if user is None:
+                return
+            user.daily_word_goal = 10
+            user.weekly_lesson_goal = 5
+
+            result = _compute_goal_progress(user, 'UTC')
+
+        gp = result['goal_progress']
+        assert gp['daily_words']['goal'] == 10
+        assert gp['daily_words']['actual'] == 0
+        assert gp['daily_words']['reached'] is False
+        assert gp['weekly_lessons']['goal'] == 5
+        assert gp['weekly_lessons']['actual'] == 0
+        assert gp['weekly_lessons']['reached'] is False
+
+    def test_daily_words_reached_when_actual_gte_goal(self, app, db_session):
+        """words_today >= daily_word_goal → reached=True."""
+        from app.api.daily_plan import _compute_goal_progress
+        from app.auth.models import User
+        from unittest.mock import patch
+
+        with app.app_context():
+            user = db_session.query(User).first()
+            if user is None:
+                return
+            user.daily_word_goal = 5
+            user.weekly_lesson_goal = 10
+
+            with patch('app.srs.counting.count_new_cards_today', return_value=5):
+                result = _compute_goal_progress(user, 'UTC')
+
+        gp = result['goal_progress']
+        assert gp['daily_words']['actual'] == 5
+        assert gp['daily_words']['reached'] is True
+
+    def test_daily_words_not_reached_when_actual_lt_goal(self, app, db_session):
+        """words_today < daily_word_goal → reached=False."""
+        from app.api.daily_plan import _compute_goal_progress
+        from app.auth.models import User
+        from unittest.mock import patch
+
+        with app.app_context():
+            user = db_session.query(User).first()
+            if user is None:
+                return
+            user.daily_word_goal = 10
+            user.weekly_lesson_goal = 5
+
+            with patch('app.srs.counting.count_new_cards_today', return_value=3):
+                result = _compute_goal_progress(user, 'UTC')
+
+        gp = result['goal_progress']
+        assert gp['daily_words']['actual'] == 3
+        assert gp['daily_words']['reached'] is False
+
+    def test_weekly_lessons_reached_when_actual_gte_goal(self, app, db_session):
+        """lessons_this_week >= weekly_lesson_goal → reached=True."""
+        from datetime import datetime, timezone, timedelta
+        from app.api.daily_plan import _compute_goal_progress
+        from app.auth.models import User
+        from app.curriculum.models import LessonProgress, Lessons
+
+        with app.app_context():
+            user = db_session.query(User).first()
+            if user is None:
+                return
+            lesson = db_session.query(Lessons).first()
+            if lesson is None:
+                return
+
+            user.daily_word_goal = 10
+            user.weekly_lesson_goal = 3
+
+            now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+            for _ in range(3):
+                lp = LessonProgress(
+                    user_id=user.id,
+                    lesson_id=lesson.id,
+                    status='completed',
+                    completed_at=now_utc,
+                )
+                db_session.add(lp)
+            db_session.flush()
+
+            result = _compute_goal_progress(user, 'UTC')
+
+        gp = result['goal_progress']
+        assert gp['weekly_lessons']['actual'] >= 3
+        assert gp['weekly_lessons']['reached'] is True
+
+    def test_week_boundary_excludes_last_week_lessons(self, app, db_session):
+        """LessonProgress completed before Monday this week not counted."""
+        from datetime import datetime, timezone, timedelta
+        from app.api.daily_plan import _compute_goal_progress
+        from app.auth.models import User
+        from app.curriculum.models import LessonProgress, Lessons
+        import pytz
+
+        with app.app_context():
+            user = db_session.query(User).first()
+            if user is None:
+                return
+            lesson = db_session.query(Lessons).first()
+            if lesson is None:
+                return
+
+            user.daily_word_goal = 5
+            user.weekly_lesson_goal = 2
+
+            # Completed 10 days ago (definitely last week)
+            old_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=10)
+            lp = LessonProgress(
+                user_id=user.id,
+                lesson_id=lesson.id,
+                status='completed',
+                completed_at=old_date,
+            )
+            db_session.add(lp)
+            db_session.flush()
+
+            result = _compute_goal_progress(user, 'UTC')
+
+        gp = result['goal_progress']
+        # Old lesson should not count toward this week
+        assert gp['weekly_lessons']['reached'] is False
+
+
+class TestGoalProgressInDailyStatusEndpoint:
+    """goal_progress field present in /api/daily-status response."""
+
+    def _base_patches(self):
+        plan = _linear_plan()
+        return [
+            patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan),
+            patch('app.telegram.queries.get_daily_summary', return_value=_empty_summary()),
+            patch('app.telegram.queries.get_yesterday_summary', return_value=_empty_summary()),
+            patch('app.study.services.SRSService.get_adaptive_limit_reason', return_value='normal'),
+            patch('app.api.daily_plan._compute_listening_goal', return_value={
+                'listening_goal_minutes': 10,
+                'listening_minutes_today': 0.0,
+                'listening_goal_reached': False,
+            }),
+        ]
+
+    def test_goal_progress_present_in_payload(self, authenticated_client):
+        """goal_progress key is always in /api/daily-status response."""
+        patches = self._base_patches()
+        goal_data = {
+            'goal_progress': {
+                'daily_words': {'goal': 10, 'actual': 0, 'reached': False},
+                'weekly_lessons': {'goal': 5, 'actual': 0, 'reached': False},
+            }
+        }
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+            with patch('app.api.daily_plan._compute_goal_progress', return_value=goal_data):
+                response = authenticated_client.get('/api/daily-status')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'goal_progress' in data
+        assert 'daily_words' in data['goal_progress']
+        assert 'weekly_lessons' in data['goal_progress']
+
+    def test_goal_reached_false_when_actual_below_goal(self, authenticated_client):
+        """reached=False when actual < goal."""
+        patches = self._base_patches()
+        goal_data = {
+            'goal_progress': {
+                'daily_words': {'goal': 10, 'actual': 3, 'reached': False},
+                'weekly_lessons': {'goal': 5, 'actual': 2, 'reached': False},
+            }
+        }
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+            with patch('app.api.daily_plan._compute_goal_progress', return_value=goal_data):
+                response = authenticated_client.get('/api/daily-status')
+
+        data = response.get_json()
+        assert data['goal_progress']['daily_words']['reached'] is False
+        assert data['goal_progress']['weekly_lessons']['reached'] is False
+
+    def test_goal_reached_true_when_actual_gte_goal(self, authenticated_client):
+        """reached=True when actual >= goal."""
+        patches = self._base_patches()
+        goal_data = {
+            'goal_progress': {
+                'daily_words': {'goal': 5, 'actual': 5, 'reached': True},
+                'weekly_lessons': {'goal': 3, 'actual': 4, 'reached': True},
+            }
+        }
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+            with patch('app.api.daily_plan._compute_goal_progress', return_value=goal_data):
+                response = authenticated_client.get('/api/daily-status')
+
+        data = response.get_json()
+        assert data['goal_progress']['daily_words']['reached'] is True
+        assert data['goal_progress']['weekly_lessons']['reached'] is True

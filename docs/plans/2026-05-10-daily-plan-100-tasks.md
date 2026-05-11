@@ -1002,10 +1002,10 @@
 - Modify: `app/api/daily_status.py`
 - Tests: `tests/api/test_daily_status.py`
 
-- [ ] In `/api/daily-status`: compute `words_learned_today` (new SRS cards seen today), `lessons_completed_this_week`
-- [ ] Add `goal_progress: {daily_words: {goal, actual, reached}, weekly_lessons: {goal, actual, reached}}` to payload
-- [ ] Tests: actual < goal → reached=False; actual >= goal → True; week boundary correct
-- [ ] Run pytest tests/api/
+- [x] In `/api/daily-status`: compute `words_learned_today` (new SRS cards seen today), `lessons_completed_this_week`
+- [x] Add `goal_progress: {daily_words: {goal, actual, reached}, weekly_lessons: {goal, actual, reached}}` to payload
+- [x] Tests: actual < goal → reached=False; actual >= goal → True; week boundary correct
+- [x] Run pytest tests/api/
 
 ---
 ### Task 65: Focus area override without re-onboarding
