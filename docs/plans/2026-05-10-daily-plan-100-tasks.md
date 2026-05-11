@@ -957,11 +957,11 @@
 - Modify: `app/achievements/services.py`
 - Tests: `tests/achievements/test_immersion_achievement.py`
 
-- [ ] Seed: `immersion_daily` — all 4 skills practiced in one day (listening + writing + speaking + reading)
-- [ ] `check_immersion_achievement(user_id, date, db)` — checks ListeningAttempt, UserWritingAttempt, PronunciationAttempt, UserReadingSession all have rows for date
-- [ ] Called from day-secured path
-- [ ] Tests: all 4 present → granted; only 3 → not granted; granted second time → idempotent
-- [ ] Run pytest tests/achievements/
+- [x] Seed: `immersion_daily` — all 4 skills practiced in one day (listening + writing + speaking + reading)
+- [x] `check_immersion_achievement(user_id, date, db)` — checks ListeningAttempt, UserWritingAttempt, PronunciationAttempt, UserReadingSession all have rows for date
+- [x] Called from day-secured path
+- [x] Tests: all 4 present → granted; only 3 → not granted; granted second time → idempotent
+- [x] Run pytest tests/achievements/
 
 ---
 ### Task 62: Shadowing exercise improvements

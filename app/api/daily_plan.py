@@ -191,6 +191,11 @@ def daily_status():
                 maybe_record_linear_plan_completion(
                     user_id, plan, plan_completion, today, db,
                 )
+            try:
+                from app.achievements.services import check_immersion_achievement
+                check_immersion_achievement(user_id, today, db.session)
+            except Exception:
+                logger.warning("immersion achievement check failed for user %s", user_id, exc_info=True)
             db.session.commit()
             logger.info(
                 "daily_status user=%s day_secured=true mission_type=%s date=%s",
@@ -566,6 +571,11 @@ def daily_plan_next_slot():
             maybe_record_linear_plan_completion(
                 user.id, plan, plan_completion, today, db,
             )
+            try:
+                from app.achievements.services import check_immersion_achievement
+                check_immersion_achievement(user.id, today, db.session)
+            except Exception:
+                logger.warning("immersion achievement check failed for user %s", user.id, exc_info=True)
             db.session.commit()
             secured_just_now = not was_already_secured
             if secured_just_now:

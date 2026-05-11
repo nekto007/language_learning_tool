@@ -702,6 +702,55 @@ def check_speaking_achievements(user_id: int, db_session=None) -> List[Achieveme
     return AchievementService._award_badges(user_id, codes_to_award)
 
 
+def check_immersion_achievement(user_id: int, target_date, db_session=None) -> List[Achievement]:
+    """Award immersion_daily when all 4 skills practiced on target_date.
+
+    Checks for at least one row each in ListeningAttempt, UserWritingAttempt,
+    PronunciationAttempt, and UserReadingSession on the given date (UTC range).
+    Idempotent: re-calling when badge already owned returns [].
+    """
+    from datetime import timedelta
+    from app.curriculum.models import ListeningAttempt, UserWritingAttempt, PronunciationAttempt
+    from app.books.reading_session import UserReadingSession
+    from sqlalchemy import func
+
+    session = db_session if db_session is not None else db.session
+
+    day_start = datetime(target_date.year, target_date.month, target_date.day)
+    day_end = day_start + timedelta(days=1)
+    day_start_tz = day_start.replace(tzinfo=timezone.utc)
+    day_end_tz = day_end.replace(tzinfo=timezone.utc)
+
+    has_listening = (session.query(func.count(ListeningAttempt.id)).filter(
+        ListeningAttempt.user_id == user_id,
+        ListeningAttempt.created_at >= day_start,
+        ListeningAttempt.created_at < day_end,
+    ).scalar() or 0) > 0
+
+    has_writing = (session.query(func.count(UserWritingAttempt.id)).filter(
+        UserWritingAttempt.user_id == user_id,
+        UserWritingAttempt.created_at >= day_start,
+        UserWritingAttempt.created_at < day_end,
+    ).scalar() or 0) > 0
+
+    has_speaking = (session.query(func.count(PronunciationAttempt.id)).filter(
+        PronunciationAttempt.user_id == user_id,
+        PronunciationAttempt.created_at >= day_start,
+        PronunciationAttempt.created_at < day_end,
+    ).scalar() or 0) > 0
+
+    has_reading = (session.query(func.count(UserReadingSession.id)).filter(
+        UserReadingSession.user_id == user_id,
+        UserReadingSession.started_at >= day_start_tz,
+        UserReadingSession.started_at < day_end_tz,
+    ).scalar() or 0) > 0
+
+    if not (has_listening and has_writing and has_speaking and has_reading):
+        return []
+
+    return AchievementService._award_badges(user_id, {'immersion_daily'})
+
+
 def process_lesson_completion(user_id: int, lesson_id: int, score: float) -> Dict:
     """
     Complete workflow for lesson completion: assign grade, update stats, check achievements

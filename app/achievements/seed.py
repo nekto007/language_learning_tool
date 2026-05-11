@@ -416,6 +416,16 @@ INITIAL_ACHIEVEMENTS = [
         'category': 'speaking'
     },
 
+    # Immersion achievement
+    {
+        'code': 'immersion_daily',
+        'name': 'Полное погружение',
+        'description': 'Практикуйте все 4 навыка в один день: слушание, письмо, говорение и чтение',
+        'icon': '🌊',
+        'xp_reward': 150,
+        'category': 'immersion'
+    },
+
     # Daily plan mission badges
     {
         'code': 'mission_first',
