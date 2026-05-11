@@ -1219,10 +1219,10 @@
 - Modify: `app/templates/study/insights.html`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] `get_accuracy_trend(user_id, db, days=30) -> {dates, srs_accuracy, quiz_accuracy}` — weekly averages
-- [ ] Render dual-line Chart.js chart on insights page
-- [ ] Tests: correct weekly averages; missing data weeks → null in series (not 0)
-- [ ] Run pytest tests/study/
+- [x] `get_accuracy_trend(user_id, db, days=30) -> {dates, srs_accuracy, quiz_accuracy}` — weekly averages
+- [x] Render dual-line Chart.js chart on insights page
+- [x] Tests: correct weekly averages; missing data weeks → null in series (not 0)
+- [x] Run pytest tests/study/
 
 ---
 ### Task 80: Comprehension score tracking per lesson type

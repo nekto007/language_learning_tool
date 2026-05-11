@@ -7,6 +7,7 @@ Task 66: Weak area automatic detection.
 Task 74: Grammar mastery radar chart.
 Task 75: Learning velocity trend widget.
 Task 77: Estimated time to next CEFR level.
+Task 79: Accuracy improvement chart.
 """
 from __future__ import annotations
 
@@ -16,8 +17,8 @@ from datetime import datetime, date, timedelta, timezone
 import pytest
 
 from app.curriculum.models import CEFRLevel, Lessons, Module, UserWritingAttempt, PronunciationAttempt, ListeningAttempt, LessonProgress
-from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats, get_weak_areas, get_skills_balance, get_grammar_mastery_by_topic, get_learning_velocity, get_level_eta
-from app.study.models import UserCardDirection, UserWord
+from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats, get_weak_areas, get_skills_balance, get_grammar_mastery_by_topic, get_learning_velocity, get_level_eta, get_accuracy_trend
+from app.study.models import UserCardDirection, UserWord, StudySession
 from app.words.models import CollectionWords
 from app.utils.db import db
 
@@ -1106,3 +1107,140 @@ class TestGetLevelEta:
         result = get_level_eta(test_user.id)
         for key in ('current_level', 'next_level', 'weeks_estimate', 'confidence'):
             assert key in result
+
+
+# ---------------------------------------------------------------------------
+# Task 79: Accuracy improvement chart
+# ---------------------------------------------------------------------------
+
+def _make_quiz_lesson(db_session, lesson_type: str = 'quiz') -> Lessons:
+    code = uuid.uuid4().hex[:2].upper()
+    level = CEFRLevel(code=code, name='LevelQ', description='d', order=99)
+    db_session.add(level)
+    db_session.flush()
+    module = Module(
+        level_id=level.id, number=1, title='M', description='d',
+        raw_content={'module': {'id': 1}},
+    )
+    db_session.add(module)
+    db_session.flush()
+    lesson = Lessons(
+        module_id=module.id, number=1, title='Quiz Lesson', type=lesson_type,
+        content={'items': []},
+    )
+    db_session.add(lesson)
+    db_session.flush()
+    return lesson
+
+
+def _make_lesson_attempt(
+    db_session,
+    user_id: int,
+    lesson_id: int,
+    score: float,
+    days_ago: int = 0,
+) -> None:
+    from app.curriculum.models import LessonAttempt
+    started = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days_ago)
+    attempt = LessonAttempt(
+        user_id=user_id,
+        lesson_id=lesson_id,
+        attempt_number=1,
+        started_at=started,
+        completed_at=started,
+        score=score,
+        passed=score >= 70,
+    )
+    db_session.add(attempt)
+    db_session.flush()
+
+
+def _make_srs_session(
+    db_session,
+    user_id: int,
+    correct: int,
+    incorrect: int,
+    days_ago: int = 0,
+) -> None:
+    start = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    session = StudySession(
+        user_id=user_id,
+        session_type='cards',
+        start_time=start,
+        end_time=start,
+        words_studied=correct + incorrect,
+        correct_answers=correct,
+        incorrect_answers=incorrect,
+    )
+    db_session.add(session)
+    db_session.flush()
+
+
+class TestGetAccuracyTrend:
+    def test_empty_returns_empty_structure(self, app, db_session, test_user):
+        result = get_accuracy_trend(test_user.id)
+        assert result['dates'] == []
+        assert result['srs_accuracy'] == []
+        assert result['quiz_accuracy'] == []
+
+    def test_required_keys_present(self, app, db_session, test_user):
+        result = get_accuracy_trend(test_user.id)
+        assert 'dates' in result
+        assert 'srs_accuracy' in result
+        assert 'quiz_accuracy' in result
+
+    def test_srs_accuracy_computed_correctly(self, app, db_session, test_user):
+        _make_srs_session(db_session, test_user.id, correct=8, incorrect=2, days_ago=3)
+        result = get_accuracy_trend(test_user.id, days=30)
+        assert result['dates']
+        assert any(v is not None for v in result['srs_accuracy'])
+        non_null = [v for v in result['srs_accuracy'] if v is not None]
+        assert len(non_null) >= 1
+        assert non_null[0] == 80.0
+
+    def test_quiz_accuracy_computed_correctly(self, app, db_session, test_user):
+        lesson = _make_quiz_lesson(db_session, 'quiz')
+        _make_lesson_attempt(db_session, test_user.id, lesson.id, score=90.0, days_ago=3)
+        result = get_accuracy_trend(test_user.id, days=30)
+        assert result['dates']
+        non_null = [v for v in result['quiz_accuracy'] if v is not None]
+        assert non_null, "expected at least one quiz accuracy value"
+        assert non_null[0] == 90.0
+
+    def test_missing_week_is_null_not_zero(self, app, db_session, test_user):
+        # SRS session this week only; no quiz data → quiz_accuracy should contain None
+        _make_srs_session(db_session, test_user.id, correct=7, incorrect=3, days_ago=2)
+        result = get_accuracy_trend(test_user.id, days=30)
+        assert None in result['quiz_accuracy']
+
+    def test_dates_sorted_ascending(self, app, db_session, test_user):
+        _make_srs_session(db_session, test_user.id, correct=5, incorrect=5, days_ago=14)
+        _make_srs_session(db_session, test_user.id, correct=8, incorrect=2, days_ago=3)
+        result = get_accuracy_trend(test_user.id, days=30)
+        assert result['dates'] == sorted(result['dates'])
+
+    def test_all_series_same_length(self, app, db_session, test_user):
+        _make_srs_session(db_session, test_user.id, correct=5, incorrect=5, days_ago=3)
+        lesson = _make_quiz_lesson(db_session, 'grammar')
+        _make_lesson_attempt(db_session, test_user.id, lesson.id, score=75.0, days_ago=10)
+        result = get_accuracy_trend(test_user.id, days=30)
+        assert len(result['dates']) == len(result['srs_accuracy']) == len(result['quiz_accuracy'])
+
+    def test_excludes_data_outside_range(self, app, db_session, test_user):
+        _make_srs_session(db_session, test_user.id, correct=9, incorrect=1, days_ago=35)
+        result = get_accuracy_trend(test_user.id, days=30)
+        assert result['dates'] == []
+
+    def test_other_user_excluded(self, app, db_session, test_user):
+        from app.auth.models import User
+        other = User(
+            email=f'acc_{uuid.uuid4().hex[:6]}@test.com',
+            username=f'acc_{uuid.uuid4().hex[:6]}',
+            onboarding_completed=True,
+        )
+        other.set_password('pass')
+        db_session.add(other)
+        db_session.flush()
+        _make_srs_session(db_session, other.id, correct=10, incorrect=0, days_ago=2)
+        result = get_accuracy_trend(test_user.id, days=30)
+        assert result['dates'] == []

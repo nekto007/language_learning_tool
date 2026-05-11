@@ -697,6 +697,7 @@ def insights():
         get_activity_heatmap, get_best_study_time, get_words_at_risk,
         get_grammar_weaknesses, get_reading_speed_trend, get_learning_summary,
         get_skills_balance, get_grammar_mastery_by_topic, get_level_eta,
+        get_accuracy_trend,
     )
     from app.achievements.streak_service import get_milestone_history
 
@@ -726,6 +727,11 @@ def insights():
     except Exception:
         logger.exception("level_eta failed for user %s", current_user.id)
         level_eta = None
+    try:
+        acc_trend = get_accuracy_trend(current_user.id)
+    except Exception:
+        logger.exception("accuracy_trend failed for user %s", current_user.id)
+        acc_trend = {'dates': [], 'srs_accuracy': [], 'quiz_accuracy': []}
 
     return render_template('study/insights.html',
         heatmap=heatmap,
@@ -738,6 +744,7 @@ def insights():
         milestone_history=milestone_history,
         skills_balance=skills_balance,
         level_eta=level_eta,
+        accuracy_trend=acc_trend,
     )
 
 

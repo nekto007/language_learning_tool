@@ -1489,3 +1489,90 @@ def get_pronunciation_weaknesses(user_id: int, min_attempts: int = 3) -> list[st
             weak_words.append(row.word)
 
     return sorted(weak_words)
+
+
+# ---------------------------------------------------------------------------
+# Accuracy improvement trend (SRS + quiz, weekly)
+# ---------------------------------------------------------------------------
+
+def get_accuracy_trend(user_id: int, days: int = 30) -> dict[str, Any]:
+    """Return weekly SRS and quiz accuracy averages over the last *days* days.
+
+    Returns::
+
+        {
+            "dates": ["2026-04-14", "2026-04-21", ...],   # Monday of each ISO week
+            "srs_accuracy": [82.0, null, 78.5, ...],      # null when no data that week
+            "quiz_accuracy": [null, 75.0, 80.0, ...],
+        }
+
+    Missing weeks produce ``null`` entries (not 0) so Chart.js skips the gap.
+    """
+    from app.study.models import StudySession
+    from app.curriculum.models import LessonAttempt, Lessons
+
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    start_dt = now_utc - timedelta(days=days)
+
+    # --- SRS accuracy: from StudySession rows (session_type='cards') ---
+    srs_rows = (
+        db.session.query(
+            func.date_trunc('week', StudySession.start_time).label('week'),
+            func.sum(StudySession.correct_answers).label('correct'),
+            func.sum(StudySession.incorrect_answers).label('incorrect'),
+        )
+        .filter(
+            StudySession.user_id == user_id,
+            StudySession.start_time >= start_dt,
+            StudySession.session_type == 'cards',
+        )
+        .group_by(func.date_trunc('week', StudySession.start_time))
+        .all()
+    )
+    srs_by_week: dict[str, float] = {}
+    for row in srs_rows:
+        total = (row.correct or 0) + (row.incorrect or 0)
+        if total > 0:
+            week_key = row.week.strftime('%Y-%m-%d') if hasattr(row.week, 'strftime') else str(row.week)[:10]
+            srs_by_week[week_key] = round((row.correct or 0) / total * 100, 1)
+
+    # --- Quiz accuracy: from LessonAttempt rows with a score ---
+    GRADED_TYPES = ('quiz', 'grammar', 'dictation', 'final_test', 'audio_fill_blank',
+                    'sentence_correction', 'sentence_completion', 'translation')
+    quiz_rows = (
+        db.session.query(
+            func.date_trunc('week', LessonAttempt.started_at).label('week'),
+            func.avg(LessonAttempt.score).label('avg_score'),
+        )
+        .join(Lessons, LessonAttempt.lesson_id == Lessons.id)
+        .filter(
+            LessonAttempt.user_id == user_id,
+            LessonAttempt.started_at >= start_dt,
+            LessonAttempt.score.isnot(None),
+            Lessons.type.in_(GRADED_TYPES),
+        )
+        .group_by(func.date_trunc('week', LessonAttempt.started_at))
+        .all()
+    )
+    quiz_by_week: dict[str, float] = {}
+    for row in quiz_rows:
+        if row.avg_score is not None:
+            week_key = row.week.strftime('%Y-%m-%d') if hasattr(row.week, 'strftime') else str(row.week)[:10]
+            quiz_by_week[week_key] = round(float(row.avg_score), 1)
+
+    # Build a unified list of weeks covering the range
+    all_weeks: list[str] = sorted(set(srs_by_week) | set(quiz_by_week))
+
+    # If no data at all, return empty structure
+    if not all_weeks:
+        return {'dates': [], 'srs_accuracy': [], 'quiz_accuracy': []}
+
+    dates = all_weeks
+    srs_accuracy = [srs_by_week.get(w) for w in dates]
+    quiz_accuracy = [quiz_by_week.get(w) for w in dates]
+
+    return {
+        'dates': dates,
+        'srs_accuracy': srs_accuracy,
+        'quiz_accuracy': quiz_accuracy,
+    }
