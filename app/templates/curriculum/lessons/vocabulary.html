@@ -289,6 +289,19 @@
               <p class="word-etymology__text">{{ word.etymology }}</p>
             </details>
             {% endif %}
+            {% if word.cultural_notes %}
+            <details class="word-cultural-note">
+              <summary class="word-cultural-note__summary">{{ _('Культурный контекст') }}</summary>
+              {% for cn in word.cultural_notes %}
+              <div class="word-cultural-note__item">
+                {% if cn.context %}
+                <span class="word-cultural-note__context">{{ cn.context }}</span>
+                {% endif %}
+                <p class="word-cultural-note__text">{{ cn.note }}</p>
+              </div>
+              {% endfor %}
+            </details>
+            {% endif %}
             <div class="word-annotation" data-word-id="{{ word.id }}">
               {% if word.annotation %}
               <div class="word-annotation__text">{{ word.annotation }}</div>

@@ -9,6 +9,7 @@ from marshmallow import ValidationError
 from app.curriculum.models import (
     LessonProgress, Lessons, WordCollocation,
     get_collocations_for_word, VocabAnnotation, save_annotation,
+    CulturalNote, get_cultural_notes_for_word,
 )
 from app.curriculum.routes.lessons import lessons_bp
 from app.curriculum.security import require_lesson_access, sanitize_html
@@ -106,6 +107,7 @@ def render_vocabulary_lesson(lesson):
                 user_word = user_words_dict.get(word.id)
                 audio_url = word.listening if hasattr(word, 'listening') and word.listening else word_data.get('audio', '')
                 collocations = get_collocations_for_word(word.id, db)
+                cultural_notes = get_cultural_notes_for_word(word.id, db)
                 word_dict = {
                     'id': word.id,
                     'english': sanitize_html(word.english_word),
@@ -121,6 +123,10 @@ def render_vocabulary_lesson(lesson):
                     'collocations': [
                         {'phrase': c.collocation_phrase, 'translation': c.translation}
                         for c in collocations
+                    ],
+                    'cultural_notes': [
+                        {'note': n.note, 'context': n.context or ''}
+                        for n in cultural_notes
                     ],
                     'synonyms': word.synonyms or [],
                     'antonyms': word.antonyms or [],
@@ -153,6 +159,7 @@ def render_vocabulary_lesson(lesson):
                     'audio_url': audio_from_json or None,
                     'get_download': 0,
                     'collocations': [],
+                    'cultural_notes': [],
                     'synonyms': [],
                     'antonyms': [],
                     'frequency_band': None,

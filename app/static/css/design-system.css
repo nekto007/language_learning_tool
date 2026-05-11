@@ -14184,6 +14184,52 @@ details.word-etymology[open] .word-etymology__summary::before {
     font-style: italic;
 }
 
+/* Word cultural note collapsible */
+.word-cultural-note {
+    margin-top: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--color-text-secondary, #64748b);
+}
+
+.word-cultural-note__summary {
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+    user-select: none;
+}
+
+.word-cultural-note__summary::-webkit-details-marker {
+    display: none;
+}
+
+.word-cultural-note__summary::before {
+    content: '\25B8 ';
+    font-size: 0.7rem;
+}
+
+details.word-cultural-note[open] .word-cultural-note__summary::before {
+    content: '\25BE ';
+}
+
+.word-cultural-note__item {
+    margin-top: 0.25rem;
+}
+
+.word-cultural-note__context {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-primary, #3b82f6);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.15rem;
+}
+
+.word-cultural-note__text {
+    margin: 0;
+    line-height: 1.5;
+}
+
 /* Word frequency band badges */
 .freq-badge {
     display: inline-block;

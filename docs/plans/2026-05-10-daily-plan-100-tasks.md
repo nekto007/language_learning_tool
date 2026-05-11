@@ -1307,11 +1307,11 @@
 - Modify: `app/templates/curriculum/lessons/vocabulary.html`
 - Tests: `tests/curriculum/test_cultural_note.py`
 
-- [ ] Model: `CulturalNote(id, word_id FK, note TEXT, context VARCHAR(100))` — contextual note about word usage
-- [ ] Template: show cultural note as collapsible "Культурный контекст" below word if present
-- [ ] Admin: add CulturalNote CRUD to admin panel (list view + inline edit)
-- [ ] Tests: word with note → section shown; without → hidden; admin can add note
-- [ ] Run pytest tests/curriculum/
+- [x] Model: `CulturalNote(id, word_id FK, note TEXT, context VARCHAR(100))` — contextual note about word usage
+- [x] Template: show cultural note as collapsible "Культурный контекст" below word if present
+- [x] Admin: add CulturalNote CRUD to admin panel (list view + inline edit)
+- [x] Tests: word with note → section shown; without → hidden; admin can add note
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 86: Content quality dashboard (admin)

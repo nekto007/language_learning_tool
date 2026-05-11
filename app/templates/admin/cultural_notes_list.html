@@ -1,0 +1,74 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Культурные заметки{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Культурные заметки</h2>
+    <a href="{{ url_for('admin.cultural_note_add', word_id=word_id) }}" class="btn btn-primary btn-sm">
+      <i class="fas fa-plus"></i> Добавить
+    </a>
+  </div>
+
+  {% if word_id %}
+  <p class="text-muted">Фильтр: word_id={{ word_id }} <a href="{{ url_for('admin.cultural_notes_list') }}">сбросить</a></p>
+  {% endif %}
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+  <div class="alert alert-{{ 'danger' if category == 'error' else category }}">{{ message }}</div>
+  {% endfor %}
+  {% endwith %}
+
+  <table class="table table-sm table-hover">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Word ID</th>
+        <th>Context</th>
+        <th>Note</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for note in notes.items %}
+      <tr>
+        <td>{{ note.id }}</td>
+        <td><a href="{{ url_for('admin.cultural_notes_list', word_id=note.word_id) }}">{{ note.word_id }}</a></td>
+        <td>{{ note.context or '—' }}</td>
+        <td>{{ note.note[:80] }}{% if note.note|length > 80 %}…{% endif %}</td>
+        <td>{{ note.created_at.strftime('%Y-%m-%d') }}</td>
+        <td>
+          <a href="{{ url_for('admin.cultural_note_edit', note_id=note.id) }}" class="btn btn-sm btn-outline-secondary">Изменить</a>
+          <form method="post" action="{{ url_for('admin.cultural_note_delete', note_id=note.id) }}" style="display:inline;"
+                onsubmit="return confirm('Удалить?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-muted text-center">Нет заметок</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if notes.pages > 1 %}
+  <nav>
+    <ul class="pagination pagination-sm">
+      {% for p in notes.iter_pages() %}
+      {% if p %}
+      <li class="page-item {% if p == notes.page %}active{% endif %}">
+        <a class="page-link" href="{{ url_for('admin.cultural_notes_list', page=p, word_id=word_id) }}">{{ p }}</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

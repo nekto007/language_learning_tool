@@ -589,6 +589,34 @@ def get_minutes_today(user_id: int, study_date, db_session) -> int:
     return row.minutes if row else 0
 
 
+class CulturalNote(db.Model):
+    """Contextual cultural notes about word usage."""
+    __tablename__ = 'cultural_notes'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    word_id = Column(Integer, ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False)
+    note = Column(Text, nullable=False)
+    context = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_cultural_notes_word_id', 'word_id'),
+    )
+
+    def __repr__(self) -> str:
+        return f'<CulturalNote id={self.id} word_id={self.word_id} context="{self.context}">'
+
+
+def get_cultural_notes_for_word(word_id: int, db_session) -> list['CulturalNote']:
+    """Return all cultural notes for a given word, ordered by id."""
+    return (
+        db_session.session.query(CulturalNote)
+        .filter(CulturalNote.word_id == word_id)
+        .order_by(CulturalNote.id)
+        .all()
+    )
+
+
 # Import LessonGrade to register it with SQLAlchemy
 # This needs to be at the end of the file to avoid circular imports
 from app.achievements.models import LessonGrade  # noqa: F401, E402
