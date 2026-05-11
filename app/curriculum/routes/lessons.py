@@ -953,6 +953,7 @@ def shadow_reading_lesson(lesson_id: int):
     audio_url = content.get('audio_url', '')
     text = content.get('text', '')
     translation = content.get('translation', '')
+    words = content.get('words', [])
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
@@ -980,6 +981,7 @@ def shadow_reading_lesson(lesson_id: int):
         audio_url=audio_url,
         text=text,
         translation=translation,
+        words=words,
     )
 
 

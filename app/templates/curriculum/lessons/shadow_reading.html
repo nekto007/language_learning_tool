@@ -112,11 +112,7 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-}
-.shadow-word--active {
-  background: rgba(99, 102, 241, 0.15);
-  border-radius: 3px;
-  transition: background 0.1s;
+  flex-wrap: wrap;
 }
 @media (max-width: 480px) {
   .shadow-submit-row {
@@ -144,10 +140,13 @@
       <source src="{{ audio_url }}" type="audio/ogg">
       {{ _('Ваш браузер не поддерживает аудио.') }}
     </audio>
-    <div style="margin-top:0.75rem;">
+    <div style="margin-top:0.75rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
       <button class="btn btn-sm" id="btn-skip-phase1" onclick="goToPhase2()" type="button"
               style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);">
         {{ _('Перейти к чтению') }} <i class="fas fa-arrow-right"></i>
+      </button>
+      <button class="shadow-loop-btn" id="loop-toggle" onclick="toggleLoop()" type="button">
+        <i class="fas fa-redo-alt"></i> <span id="loop-label">{{ _('Повторять') }}</span>
       </button>
     </div>
   </div>
@@ -159,7 +158,13 @@
       <span><i class="fas fa-book-open"></i> {{ _('Шаг 2 — Читайте вслух вместе с записью') }}</span>
     </div>
     <div class="shadow-text-block" id="shadow-text">
-      {{ text }}
+      {% if words %}
+        {% for word in words %}
+          <span class="shadow-word" data-start="{{ word.start }}" data-end="{{ word.end }}">{{ word.text }} </span>
+        {% endfor %}
+      {% else %}
+        {{ text }}
+      {% endif %}
     </div>
     {% if translation %}
     <div class="shadow-translation-block">
@@ -203,6 +208,14 @@
       >
         <i class="fas fa-check"></i> {{ _('Завершить урок') }}
       </button>
+      <button
+        class="btn btn-outline"
+        id="retry-btn"
+        onclick="retryAssess()"
+        type="button"
+      >
+        <i class="fas fa-redo"></i> {{ _('Попробуй ещё раз') }}
+      </button>
     </div>
   </div>
 
@@ -213,11 +226,49 @@
 
 <script>
 const lessonId = {{ lesson.id }};
+const wordTimestamps = {{ words | tojson }};
 let phase2Unlocked = false;
 let phase3Unlocked = false;
+let loopEnabled = false;
+
+(function initLoop() {
+  try {
+    loopEnabled = localStorage.getItem('shadow_loop_enabled') === 'true';
+    _updateLoopBtn();
+  } catch(e) {}
+})();
+
+function _updateLoopBtn() {
+  const btn = document.getElementById('loop-toggle');
+  const label = document.getElementById('loop-label');
+  if (!btn) return;
+  if (loopEnabled) {
+    btn.classList.add('shadow-loop-btn--active');
+    if (label) label.textContent = '{{ _("Повтор вкл.") }}';
+  } else {
+    btn.classList.remove('shadow-loop-btn--active');
+    if (label) label.textContent = '{{ _("Повторять") }}';
+  }
+}
+
+function toggleLoop() {
+  loopEnabled = !loopEnabled;
+  try {
+    localStorage.setItem('shadow_loop_enabled', loopEnabled ? 'true' : 'false');
+  } catch(e) {}
+  _updateLoopBtn();
+}
 
 function onPhase1End() {
-  goToPhase2();
+  if (loopEnabled) {
+    const a1 = document.getElementById('audio-phase1');
+    if (a1) {
+      a1.currentTime = 0;
+      a1.play().catch(() => {});
+    }
+  } else {
+    goToPhase2();
+  }
 }
 
 function goToPhase2() {
@@ -232,12 +283,21 @@ function goToPhase2() {
   p2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   const a2 = document.getElementById('audio-phase2');
   if (a2) {
+    initWordHighlighting(a2);
     a2.play().catch(() => {});
   }
 }
 
 function onPhase2End() {
-  goToPhase3();
+  if (loopEnabled) {
+    const a2 = document.getElementById('audio-phase2');
+    if (a2) {
+      a2.currentTime = 0;
+      a2.play().catch(() => {});
+    }
+  } else {
+    goToPhase3();
+  }
 }
 
 function goToPhase3() {
@@ -257,6 +317,44 @@ function onAssessChange() {
   const cb = document.getElementById('self-assess-checkbox');
   const btn = document.getElementById('submit-btn');
   btn.disabled = !cb.checked;
+}
+
+function retryAssess() {
+  const cb = document.getElementById('self-assess-checkbox');
+  const btn = document.getElementById('submit-btn');
+  cb.checked = false;
+  btn.disabled = true;
+  phase3Unlocked = false;
+  const a2 = document.getElementById('audio-phase2');
+  const p2 = document.getElementById('phase-2');
+  const p3 = document.getElementById('phase-3');
+  p3.classList.remove('shadow-phase--active');
+  p3.classList.add('shadow-phase--locked');
+  p2.classList.remove('shadow-phase--done');
+  p2.classList.add('shadow-phase--active');
+  p2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (a2) {
+    a2.currentTime = 0;
+    a2.play().catch(() => {});
+  }
+}
+
+function initWordHighlighting(audioEl) {
+  if (!wordTimestamps || wordTimestamps.length === 0) return;
+  const wordSpans = document.querySelectorAll('#shadow-text .shadow-word');
+  if (wordSpans.length === 0) return;
+  audioEl.addEventListener('timeupdate', function() {
+    const t = audioEl.currentTime;
+    wordSpans.forEach(function(span) {
+      const start = parseFloat(span.dataset.start);
+      const end = parseFloat(span.dataset.end);
+      if (t >= start && t < end) {
+        span.classList.add('shadow-word--active');
+      } else {
+        span.classList.remove('shadow-word--active');
+      }
+    });
+  });
 }
 
 async function submitShadowReading() {

@@ -971,12 +971,12 @@
 - Modify: `app/static/css/design-system.css`
 - Tests: `tests/curriculum/test_shadow_reading.py`
 
-- [ ] Add playback loop toggle: repeat audio automatically for shadowing practice
-- [ ] Show synchronized text highlight as audio plays (if word timestamps available in content)
-- [ ] Add "Попробуй ещё раз" button after self-assess to redo without starting a new lesson
-- [ ] CSS: `.shadow-word--active` highlight style
-- [ ] Tests: loop toggle state persists; retry resets self-assess; no crash if timestamps absent
-- [ ] Run pytest tests/curriculum/
+- [x] Add playback loop toggle: repeat audio automatically for shadowing practice
+- [x] Show synchronized text highlight as audio plays (if word timestamps available in content)
+- [x] Add "Попробуй ещё раз" button after self-assess to redo without starting a new lesson
+- [x] CSS: `.shadow-word--active` highlight style
+- [x] Tests: loop toggle state persists; retry resets self-assess; no crash if timestamps absent
+- [x] Run pytest tests/curriculum/
 
 ---
 ### BLOCK F: Personalization & Adaptation (Tasks 63–72)

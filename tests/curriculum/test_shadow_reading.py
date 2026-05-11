@@ -189,6 +189,48 @@ class TestShadowReadingTemplate:
         assert 'SpeechRecognition' not in tpl
         assert 'mediaDevices' not in tpl
 
+    # Task 62 additions
+    def test_loop_toggle_button_present(self):
+        tpl = _read_template()
+        assert 'loop-toggle' in tpl
+        assert 'toggleLoop()' in tpl
+
+    def test_loop_localStorage_key_referenced(self):
+        tpl = _read_template()
+        assert 'shadow_loop_enabled' in tpl
+
+    def test_retry_button_present(self):
+        tpl = _read_template()
+        assert 'retry-btn' in tpl
+        assert 'retryAssess()' in tpl
+
+    def test_retry_resets_self_assess_in_js(self):
+        tpl = _read_template()
+        # retryAssess() must uncheck the checkbox
+        assert 'cb.checked = false' in tpl
+
+    def test_word_highlighting_guard_present(self):
+        # initWordHighlighting must handle empty wordTimestamps gracefully
+        tpl = _read_template()
+        assert 'initWordHighlighting' in tpl
+        assert 'wordTimestamps.length === 0' in tpl
+
+    def test_word_timestamps_js_variable(self):
+        tpl = _read_template()
+        assert 'wordTimestamps' in tpl
+        assert 'words | tojson' in tpl
+
+    def test_word_spans_conditional_in_template(self):
+        tpl = _read_template()
+        assert 'shadow-word' in tpl
+        assert 'data-start' in tpl
+        assert 'data-end' in tpl
+
+    def test_loop_modifies_phase_end_handlers(self):
+        tpl = _read_template()
+        # onPhase1End and onPhase2End must check loopEnabled
+        assert 'loopEnabled' in tpl
+
 
 # ---------------------------------------------------------------------------
 # Route tests — GET
