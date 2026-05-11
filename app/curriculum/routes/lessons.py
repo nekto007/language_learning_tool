@@ -1,7 +1,7 @@
 # app/curriculum/routes/lessons.py
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timezone
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -17,6 +17,31 @@ from app.curriculum.validators import ProgressUpdateSchema, validate_request_dat
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
+
+PRONUNCIATION_DAILY_LIMIT = 200
+WRITING_DAILY_LIMIT = 70
+
+
+def _count_pronunciation_attempts_today(user_id: int) -> int:
+    from app.curriculum.models import PronunciationAttempt
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+    )
+    return PronunciationAttempt.query.filter(
+        PronunciationAttempt.user_id == user_id,
+        PronunciationAttempt.created_at >= today_start,
+    ).count()
+
+
+def _count_writing_attempts_today(user_id: int) -> int:
+    from app.curriculum.models import UserWritingAttempt
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+    )
+    return UserWritingAttempt.query.filter(
+        UserWritingAttempt.user_id == user_id,
+        UserWritingAttempt.created_at >= today_start,
+    ).count()
 
 lessons_bp = Blueprint('curriculum_lessons', __name__)
 
@@ -223,6 +248,15 @@ def submit_lesson(lesson_id):
     try:
         lesson = Lessons.query.get_or_404(lesson_id)
         data = request.get_json()
+
+        # Rate limit checks to prevent leaderboard abuse
+        from app.api.errors import api_error as _api_error
+        if lesson.type == 'pronunciation':
+            if _count_pronunciation_attempts_today(current_user.id) >= PRONUNCIATION_DAILY_LIMIT:
+                return _api_error('rate_limit_exceeded', 'Daily pronunciation attempt limit reached.', 429)
+        elif lesson.type == 'writing_prompt':
+            if _count_writing_attempts_today(current_user.id) >= WRITING_DAILY_LIMIT:
+                return _api_error('rate_limit_exceeded', 'Daily writing attempt limit reached.', 429)
 
         if lesson.type == 'quiz':
             result = process_quiz_submission(lesson, current_user.id, data)

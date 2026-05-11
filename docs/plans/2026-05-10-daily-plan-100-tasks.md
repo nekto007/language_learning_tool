@@ -1507,11 +1507,11 @@
 - Modify: `app/curriculum/routes/lessons.py`
 - Tests: `tests/api/test_rate_limiting.py`
 
-- [ ] Add rate limit to pronunciation attempt submit: max 200 attempts per user per day (prevents leaderboard abuse)
-- [ ] Add rate limit to writing attempt submit: max 70 per user per day
-- [ ] Return `api_error('rate_limit_exceeded', 429)` on breach
-- [ ] Tests: 201st pronunciation attempt → 429; 71st writing → 429; different users not affected by each other's limits
-- [ ] Run pytest tests/api/
+- [x] Add rate limit to pronunciation attempt submit: max 200 attempts per user per day (prevents leaderboard abuse)
+- [x] Add rate limit to writing attempt submit: max 70 per user per day
+- [x] Return `api_error('rate_limit_exceeded', 429)` on breach
+- [x] Tests: 201st pronunciation attempt → 429; 71st writing → 429; different users not affected by each other's limits
+- [x] Run pytest tests/api/
 
 ---
 ### Task 100: Final verification + documentation
