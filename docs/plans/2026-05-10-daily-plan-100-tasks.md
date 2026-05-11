@@ -1277,11 +1277,11 @@
 - Create: `app/daily_plan/challenge.py`
 - Tests: `tests/daily_plan/test_challenge.py`
 
-- [ ] `DailyChallenge(id, challenge_date DATE, lesson_id FK, bonus_xp INT, category)` — one challenge per day, seeded daily
-- [ ] `get_today_challenge(user_id, db)` — returns challenge + user completion status
-- [ ] Challenge categories: speed_run (complete lesson in <5 min), accuracy_focus (score ≥ 90%), listening_deep (dictation lesson)
-- [ ] Tests: challenge seeded for today; completion tracked; same challenge for all users on same day
-- [ ] Run pytest tests/daily_plan/
+- [x] `DailyChallenge(id, challenge_date DATE, lesson_id FK, bonus_xp INT, category)` — one challenge per day, seeded daily
+- [x] `get_today_challenge(user_id, db)` — returns challenge + user completion status
+- [x] Challenge categories: speed_run (complete lesson in <5 min), accuracy_focus (score ≥ 90%), listening_deep (dictation lesson)
+- [x] Tests: challenge seeded for today; completion tracked; same challenge for all users on same day
+- [x] Run pytest tests/daily_plan/
 
 ---
 ### Task 84: Daily challenge UI in linear plan

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
@@ -221,3 +221,47 @@ class MissionPlan:
                 )
             elif cat is not None:
                 seen_categories[cat] = i
+
+
+# ── Daily challenge ──────────────────────────────────────────────────────────
+
+CHALLENGE_CATEGORIES = ('speed_run', 'accuracy_focus', 'listening_deep')
+
+
+class DailyChallenge(db.Model):
+    """One challenge per calendar day, shared across all users."""
+    __tablename__ = 'daily_challenges'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    challenge_date = Column(Date, nullable=False)
+    lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='SET NULL'), nullable=True)
+    bonus_xp = Column(Integer, nullable=False, default=50)
+    category = Column(String(30), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    completions = relationship('DailyChallengeCompletion', back_populates='challenge')
+
+    __table_args__ = (
+        UniqueConstraint('challenge_date', name='uq_daily_challenge_date'),
+        Index('idx_daily_challenges_date', 'challenge_date'),
+    )
+
+
+class DailyChallengeCompletion(db.Model):
+    """Per-user completion record for the daily challenge."""
+    __tablename__ = 'daily_challenge_completions'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    challenge_id = Column(Integer, ForeignKey('daily_challenges.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    completed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    score = Column(Float, nullable=True)
+    time_spent_seconds = Column(Integer, nullable=True)
+
+    challenge = relationship('DailyChallenge', back_populates='completions')
+
+    __table_args__ = (
+        UniqueConstraint('challenge_id', 'user_id', name='uq_challenge_completion_user'),
+        Index('idx_challenge_completions_user', 'user_id'),
+        Index('idx_challenge_completions_challenge', 'challenge_id'),
+    )
