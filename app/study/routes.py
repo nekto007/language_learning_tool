@@ -993,6 +993,75 @@ def plan_stats():
     )
 
 
+@study.route('/lists', methods=['GET', 'POST'])
+@login_required
+@module_required('study')
+def custom_lists():
+    """View and create personal vocabulary lists."""
+    from app.study.models import CustomWordList
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        if not name:
+            flash(_('Введите название списка'), 'danger')
+            return redirect(url_for('study.custom_lists'))
+        word_list = CustomWordList(user_id=current_user.id, name=name)
+        db.session.add(word_list)
+        db.session.commit()
+        flash(_('Список создан'), 'success')
+        return redirect(url_for('study.custom_list_detail', list_id=word_list.id))
+
+    lists = CustomWordList.query.filter_by(user_id=current_user.id).order_by(
+        CustomWordList.created_at.desc()
+    ).all()
+    return render_template('study/custom_list.html', lists=lists, detail=None)
+
+
+@study.route('/lists/<int:list_id>', methods=['GET', 'POST'])
+@login_required
+@module_required('study')
+def custom_list_detail(list_id):
+    """View a single custom word list; add or remove words."""
+    from app.study.models import CustomWordList, CustomWordListEntry
+
+    word_list = CustomWordList.query.get_or_404(list_id)
+    if word_list.user_id != current_user.id:
+        from flask import abort
+        abort(403)
+
+    if request.method == 'POST':
+        action = request.form.get('action', 'add')
+        if action == 'add':
+            word = request.form.get('word', '').strip()
+            translation = request.form.get('translation', '').strip()
+            if not word or not translation:
+                flash(_('Укажите слово и перевод'), 'danger')
+                return redirect(url_for('study.custom_list_detail', list_id=list_id))
+            existing = CustomWordListEntry.query.filter_by(list_id=list_id, word=word).first()
+            if existing is None:
+                entry = CustomWordListEntry(list_id=list_id, word=word, translation=translation)
+                db.session.add(entry)
+                db.session.commit()
+                flash(_('Слово добавлено'), 'success')
+            else:
+                flash(_('Слово уже есть в списке'), 'info')
+        elif action == 'remove':
+            entry_id = request.form.get('entry_id', type=int)
+            if entry_id:
+                entry = CustomWordListEntry.query.get(entry_id)
+                if entry and entry.word_list.user_id == current_user.id:
+                    db.session.delete(entry)
+                    db.session.commit()
+                    flash(_('Слово удалено'), 'success')
+        return redirect(url_for('study.custom_list_detail', list_id=list_id))
+
+    entries = word_list.entries.order_by(CustomWordListEntry.added_at.desc()).all()
+    all_lists = CustomWordList.query.filter_by(user_id=current_user.id).order_by(
+        CustomWordList.created_at.desc()
+    ).all()
+    return render_template('study/custom_list.html', lists=all_lists, detail=word_list, entries=entries)
+
+
 # Import sub-modules to register their routes on the blueprint
 from app.study import api_routes  # noqa: E402, F401
 from app.study import game_routes  # noqa: E402, F401

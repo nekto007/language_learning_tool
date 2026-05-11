@@ -993,3 +993,44 @@ class UserAchievement(db.Model):
 
     def __repr__(self):
         return f'<UserAchievement user={self.user_id} achievement={self.achievement_id}>'
+
+
+class CustomWordList(db.Model):
+    """User-created personal vocabulary list."""
+    __tablename__ = 'custom_word_lists'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    name = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship('User', backref=db.backref('custom_word_lists', lazy='dynamic', cascade='all, delete-orphan'))
+    entries = db.relationship('CustomWordListEntry', back_populates='word_list', cascade='all, delete-orphan', lazy='dynamic')
+
+    __table_args__ = (
+        Index('idx_custom_word_list_user_id', 'user_id'),
+    )
+
+    def __repr__(self):
+        return f'<CustomWordList {self.id}: user={self.user_id} name={self.name!r}>'
+
+
+class CustomWordListEntry(db.Model):
+    """A word entry in a user's custom vocabulary list."""
+    __tablename__ = 'custom_word_list_entries'
+
+    id = db.Column(db.Integer, primary_key=True)
+    list_id = db.Column(db.Integer, db.ForeignKey('custom_word_lists.id', ondelete='CASCADE'), nullable=False)
+    word = db.Column(db.Text, nullable=False)
+    translation = db.Column(db.Text, nullable=False)
+    added_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    word_list = db.relationship('CustomWordList', back_populates='entries')
+
+    __table_args__ = (
+        db.UniqueConstraint('list_id', 'word', name='uix_custom_list_word'),
+        Index('idx_custom_word_list_entry_list_id', 'list_id'),
+    )
+
+    def __repr__(self):
+        return f'<CustomWordListEntry {self.id}: list={self.list_id} word={self.word!r}>'

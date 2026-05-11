@@ -1059,11 +1059,11 @@
 - Create: `app/templates/study/custom_list.html`
 - Tests: `tests/study/test_custom_list.py`
 
-- [ ] Model: `CustomWordList(id, user_id FK, name TEXT, created_at)` + `CustomWordListEntry(id, list_id FK, word TEXT, translation TEXT)`
-- [ ] Route: `GET/POST /study/lists` — view and create lists; `GET /study/lists/<id>` — view entries; add/remove words
-- [ ] Template: list management UI with add word form
-- [ ] Tests: create list; add word; remove word; list owned by other user → 403
-- [ ] Run pytest tests/study/
+- [x] Model: `CustomWordList(id, user_id FK, name TEXT, created_at)` + `CustomWordListEntry(id, list_id FK, word TEXT, translation TEXT)`
+- [x] Route: `GET/POST /study/lists` — view and create lists; `GET /study/lists/<id>` — view entries; add/remove words
+- [x] Template: list management UI with add word form
+- [x] Tests: create list; add word; remove word; list owned by other user → 403
+- [x] Run pytest tests/study/
 
 ---
 ### Task 69: Add words from vocabulary lessons to custom list
