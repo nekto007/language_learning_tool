@@ -73,6 +73,10 @@ class User(db.Model, UserMixin):
     # 'light' = 2 slots (curriculum + SRS); 'normal' = standard 3-4; 'intensive' = standard + 2 extra always shown.
     plan_difficulty = Column(String(20), nullable=False, default='normal', server_default='normal')
 
+    # Learning goals displayed as context in plan header.
+    daily_word_goal = Column(Integer, nullable=False, default=10, server_default='10')
+    weekly_lesson_goal = Column(Integer, nullable=False, default=5, server_default='5')
+
     referred_by = relationship('User', remote_side='User.id', foreign_keys=[referred_by_id])
 
     __table_args__ = (

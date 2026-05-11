@@ -379,6 +379,31 @@ def settings_difficulty():
     return redirect(url_for('study.settings'))
 
 
+@study.route('/settings/goals', methods=['POST'])
+@login_required
+@module_required('study')
+def settings_goals():
+    """Update daily_word_goal and weekly_lesson_goal for the current user."""
+    from app.auth.models import User as AuthUser
+    try:
+        daily_word_goal = int(request.form.get('daily_word_goal', 10))
+        weekly_lesson_goal = int(request.form.get('weekly_lesson_goal', 5))
+    except (TypeError, ValueError):
+        flash(_('Неверные значения целей'), 'danger')
+        return redirect(url_for('study.settings'))
+
+    daily_word_goal = max(1, min(50, daily_word_goal))
+    weekly_lesson_goal = max(1, min(30, weekly_lesson_goal))
+
+    user = db.session.get(AuthUser, current_user.id)
+    if user is not None:
+        user.daily_word_goal = daily_word_goal
+        user.weekly_lesson_goal = weekly_lesson_goal
+        db.session.commit()
+    flash(_('Цели обновлены'), 'success')
+    return redirect(url_for('study.settings'))
+
+
 @study.route('/cards')
 @login_required
 @module_required('study')

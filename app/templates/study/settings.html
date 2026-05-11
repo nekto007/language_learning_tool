@@ -1058,6 +1058,67 @@
     </div>
     {% endif %}
 
+    <!-- Learning Goals Card -->
+    {% if current_user.use_linear_plan %}
+    <div class="ss-card slideUp" style="animation-delay: .18s">
+        <div class="ss-card__header">
+            <div class="ss-card__header-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <h2 class="ss-card__title">Цели обучения</h2>
+        </div>
+        <div class="ss-card__body">
+            <p class="ss-card__desc">Контекстные ориентиры, которые отображаются в заголовке плана дня.</p>
+            <form method="POST" action="{{ url_for('study.settings_goals') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="ss-form__row">
+                    <div class="ss-form__group">
+                        <label class="ss-form__label" for="daily_word_goal_input">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="16"/>
+                                <line x1="8" y1="12" x2="16" y2="12"/>
+                            </svg>
+                            Новых слов в день
+                        </label>
+                        <select id="daily_word_goal_input" name="daily_word_goal" class="ss-form__select">
+                            <option value="5" {% if current_user.daily_word_goal == 5 %}selected{% endif %}>5 слов</option>
+                            <option value="10" {% if current_user.daily_word_goal == 10 %}selected{% endif %}>10 слов</option>
+                            <option value="15" {% if current_user.daily_word_goal == 15 %}selected{% endif %}>15 слов</option>
+                            <option value="20" {% if current_user.daily_word_goal == 20 %}selected{% endif %}>20 слов</option>
+                        </select>
+                        <span class="ss-form__hint">Цель отображается в плане: "Цель: 10 слов сегодня"</span>
+                    </div>
+                    <div class="ss-form__group">
+                        <label class="ss-form__label" for="weekly_lesson_goal_input">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                            Уроков в неделю
+                        </label>
+                        <select id="weekly_lesson_goal_input" name="weekly_lesson_goal" class="ss-form__select">
+                            <option value="3" {% if current_user.weekly_lesson_goal == 3 %}selected{% endif %}>3 урока</option>
+                            <option value="5" {% if current_user.weekly_lesson_goal == 5 %}selected{% endif %}>5 уроков</option>
+                            <option value="7" {% if current_user.weekly_lesson_goal == 7 %}selected{% endif %}>7 уроков</option>
+                            <option value="10" {% if current_user.weekly_lesson_goal == 10 %}selected{% endif %}>10 уроков</option>
+                        </select>
+                        <span class="ss-form__hint">Цель отображается в итоговой карточке недели</span>
+                    </div>
+                </div>
+                <div class="ss-form__actions">
+                    <button type="submit" class="ss-btn ss-btn--primary">Сохранить цели</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Telegram Integration -->
     <div class="ss-card slideUp" style="animation-delay: .2s" id="telegram-section">
         <div class="ss-card__header">

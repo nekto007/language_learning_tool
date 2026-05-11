@@ -1161,6 +1161,10 @@ def dashboard():
         linear_plan=linear_plan,
         plan_paused_until=plan_paused_until,
         use_linear_plan=bool(getattr(current_user, 'use_linear_plan', False)),
+        learning_goals={
+            'daily_word_goal': getattr(current_user, 'daily_word_goal', 10) or 10,
+            'weekly_lesson_goal': getattr(current_user, 'weekly_lesson_goal', 5) or 5,
+        },
         day_secured_banner=day_secured_banner,
         local_hour=local_hour,
         plan_meta=plan_meta,

@@ -989,11 +989,11 @@
 - Modify: `app/templates/study/settings.html` (or create `app/templates/study/goals.html`)
 - Tests: `tests/study/test_learning_goals.py`
 
-- [ ] Add `daily_word_goal INT DEFAULT 10` and `weekly_lesson_goal INT DEFAULT 5` to User
-- [ ] Settings form with sliders: daily new words (5/10/15/20), weekly lessons (3/5/7/10)
-- [ ] Goals displayed as context in daily plan header: "Цель: 10 слов сегодня"
-- [ ] Tests: goals save; displayed in plan header; default values correct
-- [ ] Run pytest tests/study/
+- [x] Add `daily_word_goal INT DEFAULT 10` and `weekly_lesson_goal INT DEFAULT 5` to User
+- [x] Settings form with sliders: daily new words (5/10/15/20), weekly lessons (3/5/7/10)
+- [x] Goals displayed as context in daily plan header: "Цель: 10 слов сегодня"
+- [x] Tests: goals save; displayed in plan header; default values correct
+- [x] Run pytest tests/study/
 
 ---
 ### Task 64: Goal progress tracking in daily status

@@ -236,6 +236,18 @@
     </div>
     {% endif %}
 
+    {# ── Learning goal context line ─────────────────────────────────── #}
+    {% set _daily_word_goal = learning_goals.daily_word_goal if learning_goals is defined and learning_goals else 0 %}
+    {% if _daily_word_goal and _daily_word_goal > 0 and not l_day_secured %}
+    <div class="linear-plan__goal-hint" data-linear-goal-hint="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Цель: {{ _daily_word_goal }} слов сегодня
+    </div>
+    {% endif %}
+
     {# ── Late-day hint: shown when slots remain and user-local hour ≥ 20:00 ── #}
     {% set _pending = l_baseline_total - l_baseline_done %}
     {% if l_baseline_total > 0 and _pending > 0 and (local_hour is defined) and (local_hour is not none) and (local_hour | int) >= 20 %}
