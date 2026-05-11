@@ -1119,6 +1119,42 @@
     </div>
     {% endif %}
 
+    <!-- Focus Area Card -->
+    {% if current_user.use_linear_plan %}
+    <div class="ss-card slideUp" style="animation-delay: .21s">
+        <div class="ss-card__header">
+            <div class="ss-card__header-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <circle cx="12" cy="16" r="0.5" fill="currentColor"/>
+                </svg>
+            </div>
+            <h2 class="ss-card__title">Акцент обучения</h2>
+        </div>
+        <div class="ss-card__body">
+            <p class="ss-card__desc">Выберите, на каком навыке сделать акцент в ежедневном плане. Настройка влияет на порядок заданий и приоритетные слоты.</p>
+            <form method="POST" action="{{ url_for('study.settings_focus') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="ss-form__group" style="margin-bottom: 1.25rem;">
+                    <label class="ss-form__label" for="onboarding_focus_select">Акцент обучения</label>
+                    <select id="onboarding_focus_select" name="onboarding_focus" class="ss-form__select">
+                        <option value="all" {% if onboarding_focus == 'all' %}selected{% endif %}>Всё равномерно</option>
+                        <option value="grammar" {% if onboarding_focus == 'grammar' %}selected{% endif %}>Грамматика — больше грамматических упражнений</option>
+                        <option value="vocabulary" {% if onboarding_focus == 'vocabulary' %}selected{% endif %}>Словарный запас — приоритет на слова</option>
+                        <option value="reading" {% if onboarding_focus == 'reading' %}selected{% endif %}>Чтение — чтение идёт раньше в плане</option>
+                        <option value="speaking" {% if onboarding_focus == 'speaking' %}selected{% endif %}>Разговор — приоритет на произношение</option>
+                    </select>
+                    <span class="ss-form__hint">Изменение вступит в силу при следующей загрузке плана.</span>
+                </div>
+                <div class="ss-form__actions">
+                    <button type="submit" class="ss-btn ss-btn--primary">Сохранить акцент</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Telegram Integration -->
     <div class="ss-card slideUp" style="animation-delay: .2s" id="telegram-section">
         <div class="ss-card__header">

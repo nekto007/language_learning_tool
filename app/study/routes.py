@@ -353,9 +353,13 @@ def settings():
 
     bot_username = current_app.config.get('TELEGRAM_BOT_USERNAME', 'llt_englishbot')
     plan_difficulty = getattr(current_user, 'plan_difficulty', 'normal') or 'normal'
+    onboarding_focus = getattr(current_user, 'onboarding_focus', None) or 'all'
+    if onboarding_focus and ',' in onboarding_focus:
+        onboarding_focus = onboarding_focus.split(',')[0].strip() or 'all'
     return render_template('study/settings.html', form=form,
                            telegram_bot_username=bot_username,
-                           plan_difficulty=plan_difficulty)
+                           plan_difficulty=plan_difficulty,
+                           onboarding_focus=onboarding_focus)
 
 
 _VALID_DIFFICULTIES = {'light', 'normal', 'intensive'}
@@ -401,6 +405,27 @@ def settings_goals():
         user.weekly_lesson_goal = weekly_lesson_goal
         db.session.commit()
     flash(_('Цели обновлены'), 'success')
+    return redirect(url_for('study.settings'))
+
+
+_VALID_FOCUSES = {'all', 'grammar', 'vocabulary', 'reading', 'speaking'}
+
+
+@study.route('/settings/focus', methods=['POST'])
+@login_required
+@module_required('study')
+def settings_focus():
+    """Update onboarding_focus for the current user without re-onboarding."""
+    from app.auth.models import User as AuthUser
+    focus = request.form.get('onboarding_focus', 'all')
+    if focus not in _VALID_FOCUSES:
+        flash(_('Неверное значение акцента обучения'), 'danger')
+        return redirect(url_for('study.settings'))
+    user = db.session.get(AuthUser, current_user.id)
+    if user is not None:
+        user.onboarding_focus = focus if focus != 'all' else None
+        db.session.commit()
+    flash(_('Акцент обучения обновлён'), 'success')
     return redirect(url_for('study.settings'))
 
 

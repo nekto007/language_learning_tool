@@ -24,7 +24,7 @@ from app.daily_plan.linear.progression import (
 )
 from app.utils.db import db
 
-VALID_FOCUSES = {'grammar', 'vocabulary', 'reading', 'all'}
+VALID_FOCUSES = {'grammar', 'vocabulary', 'reading', 'speaking', 'all'}
 
 SLOT_ESTIMATED_MINUTES: dict[str, int] = {
     'curriculum': 15,

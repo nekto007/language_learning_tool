@@ -1015,11 +1015,11 @@
 - Modify: `app/templates/study/settings.html`
 - Tests: `tests/study/test_settings.py`
 
-- [ ] Settings page: "Акцент обучения" dropdown — all / grammar / vocabulary / reading / speaking
-- [ ] POST `/study/settings/focus` updates `User.onboarding_focus` in-place
-- [ ] Confirm existing `_get_user_focus()` in plan.py reads this field (it does per CLAUDE.md)
-- [ ] Tests: focus change reflects in next plan assembly; invalid focus value rejected
-- [ ] Run pytest tests/study/
+- [x] Settings page: "Акцент обучения" dropdown — all / grammar / vocabulary / reading / speaking
+- [x] POST `/study/settings/focus` updates `User.onboarding_focus` in-place
+- [x] Confirm existing `_get_user_focus()` in plan.py reads this field (it does per CLAUDE.md)
+- [x] Tests: focus change reflects in next plan assembly; invalid focus value rejected
+- [x] Run pytest tests/study/
 
 ---
 ### Task 66: Weak area automatic detection in dashboard
