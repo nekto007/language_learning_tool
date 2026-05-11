@@ -390,6 +390,32 @@ INITIAL_ACHIEVEMENTS = [
         'category': 'writing'
     },
 
+    # Speaking achievements
+    {
+        'code': 'speaking_first',
+        'name': 'Первое слово',
+        'description': 'Завершите первое упражнение на произношение',
+        'icon': '🎤',
+        'xp_reward': 25,
+        'category': 'speaking'
+    },
+    {
+        'code': 'speaking_streak_3',
+        'name': 'Три дня голоса',
+        'description': 'Практикуйте произношение 3 дня подряд',
+        'icon': '🗣️',
+        'xp_reward': 75,
+        'category': 'speaking'
+    },
+    {
+        'code': 'speaking_clear',
+        'name': 'Чёткое произношение',
+        'description': 'Получите 10 совпадений при произношении слов',
+        'icon': '✅',
+        'xp_reward': 100,
+        'category': 'speaking'
+    },
+
     # Daily plan mission badges
     {
         'code': 'mission_first',

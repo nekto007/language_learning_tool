@@ -665,6 +665,43 @@ def check_writing_achievements(user_id: int, db_session=None) -> List[Achievemen
     return AchievementService._award_badges(user_id, codes_to_award)
 
 
+def check_speaking_achievements(user_id: int, db_session=None) -> List[Achievement]:
+    """Award speaking-related achievements after a PronunciationAttempt is saved.
+
+    Checks:
+    - speaking_first: user has at least 1 PronunciationAttempt
+    - speaking_streak_3: 3 consecutive days with pronunciation attempts
+    - speaking_clear: 10 matched pronunciations total
+    """
+    from app.curriculum.models import PronunciationAttempt
+    from app.achievements.streak_service import get_speaking_streak
+    from sqlalchemy import func
+
+    session = db_session if db_session is not None else db.session
+
+    codes_to_award: set[str] = set()
+
+    total = session.query(func.count(PronunciationAttempt.id)).filter(
+        PronunciationAttempt.user_id == user_id,
+    ).scalar() or 0
+
+    if total >= 1:
+        codes_to_award.add('speaking_first')
+
+    streak = get_speaking_streak(user_id, db_session=session)
+    if streak >= 3:
+        codes_to_award.add('speaking_streak_3')
+
+    matched_count = session.query(func.count(PronunciationAttempt.id)).filter(
+        PronunciationAttempt.user_id == user_id,
+        PronunciationAttempt.matched.is_(True),
+    ).scalar() or 0
+    if matched_count >= 10:
+        codes_to_award.add('speaking_clear')
+
+    return AchievementService._award_badges(user_id, codes_to_award)
+
+
 def process_lesson_completion(user_id: int, lesson_id: int, score: float) -> Dict:
     """
     Complete workflow for lesson completion: assign grade, update stats, check achievements

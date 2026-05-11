@@ -927,12 +927,12 @@
 - Modify: `app/api/daily_status.py`
 - Tests: `tests/achievements/test_speaking_achievements.py`
 
-- [ ] Seed: `speaking_first` (first pronunciation attempt), `speaking_streak_3` (3 consecutive days with pronunciation), `speaking_clear` (10 matched pronunciations)
-- [ ] `get_speaking_streak(user_id, db)` — consecutive days with PronunciationAttempt rows
-- [ ] `check_speaking_achievements(user_id, db)` — after PronunciationAttempt saved
-- [ ] Expose `speaking_streak_days` in `/api/daily-status`
-- [ ] Tests: matched pronunciation → speaking_first; 3-day streak → speaking_streak_3
-- [ ] Run pytest tests/achievements/
+- [x] Seed: `speaking_first` (first pronunciation attempt), `speaking_streak_3` (3 consecutive days with pronunciation), `speaking_clear` (10 matched pronunciations)
+- [x] `get_speaking_streak(user_id, db)` — consecutive days with PronunciationAttempt rows
+- [x] `check_speaking_achievements(user_id, db)` — after PronunciationAttempt saved
+- [x] Expose `speaking_streak_days` in `/api/daily-status`
+- [x] Tests: matched pronunciation → speaking_first; 3-day streak → speaking_streak_3
+- [x] Run pytest tests/achievements/
 
 ---
 ### Task 60: Pronunciation score over time widget
