@@ -1330,3 +1330,84 @@ class TestGetComprehensionByType:
         _make_lesson_attempt(db_session, other.id, lesson.id, score=85.0, days_ago=1)
         result = get_comprehension_by_type(test_user.id)
         assert result == []
+
+
+# ---------------------------------------------------------------------------
+# Task 81: Time-of-day learning patterns
+# ---------------------------------------------------------------------------
+
+def _make_lesson_progress_at_hour(
+    db_session,
+    user_id: int,
+    hour: int,
+    days_ago: int = 1,
+) -> None:
+    """Create a completed LessonProgress (with a fresh lesson) at the given UTC hour."""
+    lesson = _make_quiz_lesson(db_session)
+    base = datetime.now(timezone.utc).replace(
+        hour=hour, minute=0, second=0, microsecond=0
+    ) - timedelta(days=days_ago)
+    lp = LessonProgress(
+        user_id=user_id,
+        lesson_id=lesson.id,
+        status='completed',
+        score=80.0,
+        completed_at=base,
+    )
+    db_session.add(lp)
+    db_session.flush()
+
+
+class TestGetStudyTimeDistribution:
+    """Tests for get_study_time_distribution (Task 81)."""
+
+    def test_no_data_returns_zeros_and_none_peak(self, app, db_session, test_user):
+        from app.study.insights_service import get_study_time_distribution
+        result = get_study_time_distribution(test_user.id, tz='UTC')
+        assert result['hours'] == list(range(24))
+        assert len(result['counts']) == 24
+        assert all(c == 0 for c in result['counts'])
+        assert result['peak_hour'] is None
+
+    def test_correct_hour_bucket_utc(self, app, db_session, test_user):
+        from app.study.insights_service import get_study_time_distribution
+        # Create 3 completions at hour 19 UTC and 1 at hour 9 UTC
+        for _ in range(3):
+            _make_lesson_progress_at_hour(db_session, test_user.id, hour=19, days_ago=2)
+        _make_lesson_progress_at_hour(db_session, test_user.id, hour=9, days_ago=2)
+        result = get_study_time_distribution(test_user.id, tz='UTC')
+        assert result['counts'][19] == 3
+        assert result['counts'][9] == 1
+        assert result['peak_hour'] == 19
+
+    def test_peak_hour_is_argmax(self, app, db_session, test_user):
+        from app.study.insights_service import get_study_time_distribution
+        # 2 at hour 8, 5 at hour 14
+        for _ in range(2):
+            _make_lesson_progress_at_hour(db_session, test_user.id, hour=8, days_ago=3)
+        for _ in range(5):
+            _make_lesson_progress_at_hour(db_session, test_user.id, hour=14, days_ago=3)
+        result = get_study_time_distribution(test_user.id, tz='UTC')
+        assert result['peak_hour'] == 14
+
+    def test_data_outside_30_days_excluded(self, app, db_session, test_user):
+        from app.study.insights_service import get_study_time_distribution
+        _make_lesson_progress_at_hour(db_session, test_user.id, hour=10, days_ago=35)
+        result = get_study_time_distribution(test_user.id, tz='UTC')
+        assert result['peak_hour'] is None
+        assert result['counts'][10] == 0
+
+    def test_other_user_excluded(self, app, db_session, test_user):
+        from app.auth.models import User
+        from app.study.insights_service import get_study_time_distribution
+        other = User(
+            email=f'tsd_{uuid.uuid4().hex[:6]}@test.com',
+            username=f'tsd_{uuid.uuid4().hex[:6]}',
+            onboarding_completed=True,
+        )
+        other.set_password('pass')
+        db_session.add(other)
+        db_session.flush()
+        _make_lesson_progress_at_hour(db_session, other.id, hour=15, days_ago=1)
+        result = get_study_time_distribution(test_user.id, tz='UTC')
+        assert result['peak_hour'] is None

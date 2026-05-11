@@ -697,7 +697,7 @@ def insights():
         get_activity_heatmap, get_best_study_time, get_words_at_risk,
         get_grammar_weaknesses, get_reading_speed_trend, get_learning_summary,
         get_skills_balance, get_grammar_mastery_by_topic, get_level_eta,
-        get_accuracy_trend, get_comprehension_by_type,
+        get_accuracy_trend, get_comprehension_by_type, get_study_time_distribution,
     )
     from app.achievements.streak_service import get_milestone_history
 
@@ -737,6 +737,12 @@ def insights():
     except Exception:
         logger.exception("comprehension_by_type failed for user %s", current_user.id)
         comprehension_by_type = []
+    try:
+        tz = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
+        study_time_dist = get_study_time_distribution(current_user.id, tz=tz)
+    except Exception:
+        logger.exception("study_time_distribution failed for user %s", current_user.id)
+        study_time_dist = {'hours': list(range(24)), 'counts': [0] * 24, 'peak_hour': None}
 
     return render_template('study/insights.html',
         heatmap=heatmap,
@@ -751,6 +757,7 @@ def insights():
         level_eta=level_eta,
         accuracy_trend=acc_trend,
         comprehension_by_type=comprehension_by_type,
+        study_time_dist=study_time_dist,
     )
 
 

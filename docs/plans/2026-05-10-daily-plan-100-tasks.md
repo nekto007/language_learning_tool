@@ -1246,11 +1246,11 @@
 - Modify: `app/templates/study/insights.html`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] `get_study_time_distribution(user_id, db)` — count lesson completions by hour-of-day (user local time) over last 30 days
-- [ ] Return `{hours: [0..23], counts: [...], peak_hour: N}`
-- [ ] Show as bar chart on insights page with peak hour highlight: "Ты обычно учишься в 19:00"
-- [ ] Tests: correct hour bucketing in user timezone; peak_hour is argmax of counts
-- [ ] Run pytest tests/study/
+- [x] `get_study_time_distribution(user_id, db)` — count lesson completions by hour-of-day (user local time) over last 30 days
+- [x] Return `{hours: [0..23], counts: [...], peak_hour: N}`
+- [x] Show as bar chart on insights page with peak hour highlight: "Ты обычно учишься в 19:00"
+- [x] Tests: correct hour bucketing in user timezone; peak_hour is argmax of counts
+- [x] Run pytest tests/study/
 
 ---
 ### Task 82: Longest streak record and personal bests page

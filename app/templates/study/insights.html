@@ -524,6 +524,71 @@
     </div>
     {% endif %}
 
+    <!-- Time-of-day learning patterns -->
+    {% if study_time_dist and study_time_dist.peak_hour is not none %}
+    <div class="insights-section">
+        <div class="insights-section__header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <h2>Время занятий</h2>
+        </div>
+        <p class="insights-highlight">Ты обычно учишься в <strong>{{ study_time_dist.peak_hour }}:00</strong></p>
+        <p class="insights-subtitle">Распределение по часам за последние 30 дней</p>
+        <div style="position:relative;height:150px;">
+            <canvas id="studyTimeDistCanvas"></canvas>
+        </div>
+        <script>
+        (function() {
+            var ctx = document.getElementById('studyTimeDistCanvas');
+            if (!ctx) return;
+            var hours = {{ study_time_dist.hours | tojson }};
+            var counts = {{ study_time_dist.counts | tojson }};
+            var peakHour = {{ study_time_dist.peak_hour }};
+            var labels = hours.map(function(h) { return h + ':00'; });
+            var colors = counts.map(function(c, i) {
+                return hours[i] === peakHour ? 'rgba(124,58,237,0.85)' : 'rgba(124,58,237,0.35)';
+            });
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: counts,
+                        backgroundColor: colors,
+                        borderRadius: 3,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            ticks: {
+                                maxTicksLimit: 12,
+                                font: { size: 10 },
+                                color: '#64748b',
+                            },
+                            grid: { display: false },
+                        },
+                        y: {
+                            ticks: {
+                                stepSize: 1,
+                                font: { size: 10 },
+                                color: '#64748b',
+                            },
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                        }
+                    }
+                }
+            });
+        })();
+        </script>
+    </div>
+    {% endif %}
+
     <!-- Extra summary row -->
     <div class="insights-section insights-extra">
         <div class="insights-extra__grid">

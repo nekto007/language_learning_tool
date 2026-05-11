@@ -1514,6 +1514,58 @@ def get_comprehension_by_type(user_id: int, days: int = 30) -> list[dict[str, An
     ]
 
 
+# ---------------------------------------------------------------------------
+# Time-of-day learning patterns (Task 81)
+# ---------------------------------------------------------------------------
+
+def get_study_time_distribution(user_id: int, tz: str = DEFAULT_TIMEZONE) -> dict[str, Any]:
+    """Count lesson completions by hour-of-day (user local time) over last 30 days.
+
+    Returns::
+
+        {
+            "hours": [0, 1, ..., 23],
+            "counts": [0, 0, ..., 5, 3, ...],   # count per hour, aligned with hours
+            "peak_hour": 19,                       # hour with max count; None if no data
+        }
+    """
+    from app.curriculum.models import LessonProgress
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+
+    # Convert UTC timestamp to local timezone before extracting hour (same pattern as get_best_study_time)
+    local_completed = func.timezone(tz, func.timezone('UTC', LessonProgress.completed_at))
+
+    rows = (
+        db.session.query(
+            extract('hour', local_completed).label('hour'),
+            func.count(LessonProgress.id).label('cnt'),
+        )
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.completed_at.isnot(None),
+            LessonProgress.completed_at >= cutoff,
+        )
+        .group_by(extract('hour', local_completed))
+        .all()
+    )
+
+    counts_by_hour: dict[int, int] = {int(row.hour): int(row.cnt) for row in rows}
+
+    hours = list(range(24))
+    counts = [counts_by_hour.get(h, 0) for h in hours]
+
+    peak_hour: int | None = None
+    if any(c > 0 for c in counts):
+        peak_hour = counts.index(max(counts))
+
+    return {
+        'hours': hours,
+        'counts': counts,
+        'peak_hour': peak_hour,
+    }
+
+
 def get_pronunciation_weaknesses(user_id: int, min_attempts: int = 3) -> list[str]:
     """Return words where match_rate < 50% across all pronunciation attempts.
 
