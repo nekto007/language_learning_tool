@@ -108,6 +108,26 @@ def _compute_listening_goal(user, tz: str) -> dict:
     }
 
 
+def _compute_study_minutes(user, tz: str) -> int:
+    """Return minutes_studied_today from DailyStudyMinutes for the user's local date."""
+    import pytz
+    from datetime import datetime
+    from app.curriculum.models import get_minutes_today
+    from app.utils.db import db
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TZ)
+
+    today = datetime.now(tz_obj).date()
+    try:
+        return get_minutes_today(user.id, today, db)
+    except Exception:
+        logger.warning("get_minutes_today failed for user %s", user.id, exc_info=True)
+        return 0
+
+
 def _compute_goal_progress(user, tz: str) -> dict:
     """Compute daily word and weekly lesson goal progress.
 
@@ -258,6 +278,7 @@ def daily_status():
 
     listening_goal_data = _compute_listening_goal(current_user, tz)
     goal_progress_data = _compute_goal_progress(current_user, tz)
+    minutes_studied_today = _compute_study_minutes(current_user, tz)
 
     from app.achievements.streak_service import get_listening_streak, get_writing_streak, get_speaking_streak
     listening_streak_days = get_listening_streak(user_id, tz=tz)
@@ -289,6 +310,7 @@ def daily_status():
         'writing_streak_days': writing_streak_days,
         'speaking_streak_days': speaking_streak_days,
         'pronunciation_weak_words': pronunciation_weak_words,
+        'minutes_studied_today': minutes_studied_today,
         **listening_goal_data,
         **goal_progress_data,
     }

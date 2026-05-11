@@ -646,3 +646,117 @@ class TestGoalProgressInDailyStatusEndpoint:
         data = response.get_json()
         assert data['goal_progress']['daily_words']['reached'] is True
         assert data['goal_progress']['weekly_lessons']['reached'] is True
+
+
+class TestStudyMinutesInDailyStatus:
+    """Test minutes_studied_today in /api/daily-status response."""
+
+    def _base_patches(self):
+        from tests.api.test_daily_status import _linear_plan, _empty_summary
+        plan = _linear_plan()
+        return [
+            patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan),
+            patch('app.telegram.queries.get_daily_summary', return_value=_empty_summary()),
+            patch('app.telegram.queries.get_yesterday_summary', return_value=_empty_summary()),
+            patch('app.study.services.SRSService.get_adaptive_limit_reason', return_value='normal'),
+        ]
+
+    def test_minutes_studied_in_payload(self, authenticated_client):
+        """minutes_studied_today is present in daily-status payload."""
+        patches = self._base_patches()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with patch('app.api.daily_plan._compute_study_minutes', return_value=25):
+                response = authenticated_client.get('/api/daily-status')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'minutes_studied_today' in data
+        assert data['minutes_studied_today'] == 25
+
+    def test_zero_minutes_when_no_activity(self, authenticated_client):
+        """No study activity → minutes_studied_today=0."""
+        patches = self._base_patches()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with patch('app.api.daily_plan._compute_study_minutes', return_value=0):
+                response = authenticated_client.get('/api/daily-status')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['minutes_studied_today'] == 0
+
+
+class TestComputeStudyMinutesUnit:
+    """Unit tests for _compute_study_minutes and DailyStudyMinutes model."""
+
+    def test_no_rows_returns_zero(self, app, db_session):
+        from app.api.daily_plan import _compute_study_minutes
+        from app.auth.models import User
+
+        with app.app_context():
+            user = db_session.query(User).first()
+            if user is None:
+                return
+            result = _compute_study_minutes(user, 'UTC')
+
+        assert result == 0
+
+    def test_add_study_minutes_creates_row(self, app, db_session):
+        """add_study_minutes creates a row when none exists."""
+        from datetime import date
+        from app.curriculum.models import DailyStudyMinutes, add_study_minutes, get_minutes_today
+        from app.auth.models import User
+        from app.utils.db import db
+
+        with app.app_context():
+            user = db_session.query(User).first()
+            if user is None:
+                return
+
+            today = date(2026, 5, 21)
+            add_study_minutes(user.id, today, 15, db)
+            db_session.flush()
+
+            result = get_minutes_today(user.id, today, db)
+            assert result == 15
+
+    def test_add_study_minutes_accumulates(self, app, db_session):
+        """Multiple add_study_minutes calls accumulate minutes for the same date."""
+        from datetime import date
+        from app.curriculum.models import add_study_minutes, get_minutes_today
+        from app.auth.models import User
+        from app.utils.db import db
+
+        with app.app_context():
+            user = db_session.query(User).first()
+            if user is None:
+                return
+
+            today = date(2026, 5, 22)
+            add_study_minutes(user.id, today, 10, db)
+            db_session.flush()
+            add_study_minutes(user.id, today, 15, db)
+            db_session.flush()
+
+            result = get_minutes_today(user.id, today, db)
+            assert result == 25
+
+    def test_different_dates_independent(self, app, db_session):
+        """Minutes are bucketed per date independently."""
+        from datetime import date
+        from app.curriculum.models import add_study_minutes, get_minutes_today
+        from app.auth.models import User
+        from app.utils.db import db
+
+        with app.app_context():
+            user = db_session.query(User).first()
+            if user is None:
+                return
+
+            d1 = date(2026, 5, 23)
+            d2 = date(2026, 5, 24)
+            add_study_minutes(user.id, d1, 20, db)
+            add_study_minutes(user.id, d2, 8, db)
+            db_session.flush()
+
+            assert get_minutes_today(user.id, d1, db) == 20
+            assert get_minutes_today(user.id, d2, db) == 8

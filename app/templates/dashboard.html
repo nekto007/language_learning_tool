@@ -1100,6 +1100,14 @@
     </div>
     {% endif %}
 
+    <!-- Daily study minutes compact widget (task 76) -->
+    {% if minutes_studied_today and minutes_studied_today > 0 %}
+    <div class="dash-study-minutes">
+        <span class="dash-study-minutes__icon">&#128337;</span>
+        <span class="dash-study-minutes__text">Изучал{% if current_user.gender == 'female' %}а{% endif %} {{ minutes_studied_today }} мин сегодня</span>
+    </div>
+    {% endif %}
+
     <!-- Telegram Banner -->
     {% include 'partials/telegram_banner.html' %}
 

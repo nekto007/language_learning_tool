@@ -64,6 +64,25 @@ LESSON_TYPE_TO_SOURCE: dict[str, str] = {
 
 LINEAR_XP_EVENT_TYPE = 'xp_linear'
 
+# Minutes credited per slot source when XP is first awarded for the day.
+# Any source starting with 'linear_curriculum_' earns curriculum slot minutes (15).
+_SRS_SOURCES = {'linear_srs_global'}
+_READING_SOURCES = {'linear_book_reading'}
+_LISTENING_SOURCES = {'linear_listening', 'linear_curriculum_listening_immersion', 'linear_curriculum_dictation'}
+_WRITING_SOURCES = {'linear_writing', 'linear_curriculum_use'}
+_ERROR_REVIEW_SOURCES = {'linear_error_review'}
+_CURRICULUM_MINUTES = 15
+_SOURCE_MINUTES: dict[str, int] = {
+    'linear_srs_global': 10,
+    'linear_book_reading': 15,
+    'linear_listening': 10,
+    'linear_curriculum_listening_immersion': 10,
+    'linear_curriculum_dictation': 10,
+    'linear_writing': 8,
+    'linear_curriculum_use': 8,
+    'linear_error_review': 12,
+}
+
 
 def _get_user_timezone(user_id: int, db_session: Any = None) -> str:
     from config.settings import DEFAULT_TIMEZONE
@@ -171,6 +190,18 @@ def award_linear_slot_xp_idempotent(
         plan_date=when,
         step_kind=step_kind,
     ))
+
+    # Accumulate study minutes for the day.
+    minutes = _SOURCE_MINUTES.get(source)
+    if minutes is None and source.startswith('linear_curriculum_'):
+        minutes = _CURRICULUM_MINUTES
+    if minutes:
+        try:
+            from app.curriculum.models import add_study_minutes
+            add_study_minutes(user_id, when, minutes, db_obj)
+        except Exception:
+            logger.warning('add_study_minutes failed for user=%s source=%s', user_id, source, exc_info=True)
+
     db_obj.session.flush()
     return result
 

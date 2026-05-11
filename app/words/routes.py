@@ -904,6 +904,20 @@ def dashboard():
     learning_velocity = _safe_widget_call(
         'learning_velocity', get_learning_velocity, current_user.id, default=None)
 
+    # === STUDY MINUTES TODAY (task 76) ===
+    from app.curriculum.models import get_minutes_today
+    _study_tz = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
+    try:
+        import pytz as _pytz_sm
+        _tz_sm = _pytz_sm.timezone(_study_tz)
+    except Exception:
+        from config.settings import DEFAULT_TIMEZONE as _DEF_TZ
+        import pytz as _pytz_sm
+        _tz_sm = _pytz_sm.timezone(_DEF_TZ)
+    _study_today = datetime.now(_tz_sm).date()
+    minutes_studied_today = _safe_widget_call(
+        'study_minutes', get_minutes_today, current_user.id, _study_today, db, default=0)
+
     # === WEEKLY CHALLENGE ===
     from app.achievements.weekly_challenge import get_weekly_challenge, get_weekly_digest
     weekly_challenge = get_weekly_challenge(current_user.id)
@@ -1250,6 +1264,8 @@ def dashboard():
         weak_areas=weak_areas,
         # Learning velocity widget (task 75)
         learning_velocity=learning_velocity,
+        # Daily study minutes (task 76)
+        minutes_studied_today=minutes_studied_today,
         # Route board metadata (task 33)
         route_metadata=route_metadata,
         # Route progress state for task 14 route board UI

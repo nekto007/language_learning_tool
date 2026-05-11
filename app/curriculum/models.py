@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text, func
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer, JSON, SmallInteger, String, Text, func
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
@@ -535,6 +535,58 @@ def save_annotation(user_id: int, word_id: int, note: str, db_session) -> 'Vocab
         annotation.added_at = datetime.now(timezone.utc)
     db_session.session.flush()
     return annotation
+
+
+class DailyStudyMinutes(db.Model):
+    """Accumulates study time per user per day across all slot completions."""
+    __tablename__ = 'daily_study_minutes'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    study_date = Column(Date, nullable=False)
+    minutes = Column(SmallInteger, nullable=False, default=0)
+
+    __table_args__ = (
+        Index('idx_daily_study_minutes_user_date', 'user_id', 'study_date', unique=True),
+    )
+
+    def __repr__(self) -> str:
+        return f'<DailyStudyMinutes user={self.user_id} date={self.study_date} minutes={self.minutes}>'
+
+
+def add_study_minutes(
+    user_id: int,
+    study_date,
+    minutes: int,
+    db_session,
+) -> 'DailyStudyMinutes':
+    """Add minutes to the user's study total for study_date.
+
+    Upserts: increments existing row or creates a new one. Caller owns
+    the commit.
+    """
+    row = (
+        db_session.session.query(DailyStudyMinutes)
+        .filter(DailyStudyMinutes.user_id == user_id, DailyStudyMinutes.study_date == study_date)
+        .first()
+    )
+    if row is None:
+        row = DailyStudyMinutes(user_id=user_id, study_date=study_date, minutes=minutes)
+        db_session.session.add(row)
+    else:
+        row.minutes = (row.minutes or 0) + minutes
+    db_session.session.flush()
+    return row
+
+
+def get_minutes_today(user_id: int, study_date, db_session) -> int:
+    """Return total study minutes recorded for user on study_date."""
+    row = (
+        db_session.session.query(DailyStudyMinutes)
+        .filter(DailyStudyMinutes.user_id == user_id, DailyStudyMinutes.study_date == study_date)
+        .first()
+    )
+    return row.minutes if row else 0
 
 
 # Import LessonGrade to register it with SQLAlchemy

@@ -1176,12 +1176,12 @@
 - Modify: `app/api/daily_status.py`
 - Tests: `tests/api/test_daily_status.py`
 
-- [ ] Model: `DailyStudyMinutes(id, user_id FK, study_date DATE, minutes SMALLINT)` — aggregates time on site
-- [ ] Track: each lesson_complete adds `estimated_minutes` from slot config; each SRS session adds session duration
-- [ ] Add `minutes_studied_today` to `/api/daily-status`
-- [ ] Show "Изучал(а) N минут сегодня" in compact form on dashboard header
-- [ ] Tests: lesson complete → minutes added; multiple completions accumulate; correct date bucket
-- [ ] Run pytest tests/api/
+- [x] Model: `DailyStudyMinutes(id, user_id FK, study_date DATE, minutes SMALLINT)` — aggregates time on site
+- [x] Track: each lesson_complete adds `estimated_minutes` from slot config; each SRS session adds session duration
+- [x] Add `minutes_studied_today` to `/api/daily-status`
+- [x] Show "Изучал(а) N минут сегодня" in compact form on dashboard header
+- [x] Tests: lesson complete → minutes added; multiple completions accumulate; correct date bucket
+- [x] Run pytest tests/api/
 
 ---
 ### Task 77: Estimated time to next CEFR level
