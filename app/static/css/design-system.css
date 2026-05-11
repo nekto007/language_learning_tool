@@ -14055,6 +14055,51 @@ footer .col-md-4 {
     border-color: #e9d5ff;
 }
 
+/* Learning velocity widget (task 75) */
+.dash-learning-velocity {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary, #64748b);
+}
+
+.dash-learning-velocity__icon {
+    font-size: 1rem;
+    color: var(--color-primary, #6c63ff);
+    flex-shrink: 0;
+}
+
+.dash-learning-velocity__label {
+    font-weight: 600;
+    color: var(--color-text, #1e293b);
+}
+
+.dash-learning-velocity__value {
+    color: var(--color-text, #1e293b);
+}
+
+.dash-learning-velocity__sep {
+    opacity: 0.4;
+}
+
+.dash-learning-velocity__trend {
+    font-weight: 600;
+}
+
+.dash-learning-velocity__trend--up {
+    color: var(--color-success, #16a34a);
+}
+
+.dash-learning-velocity__trend--down {
+    color: var(--color-danger, #dc2626);
+}
+
+.dash-learning-velocity__trend--stable {
+    color: var(--color-text-secondary, #64748b);
+}
+
 /* IPA transcription in vocabulary cards */
 .word-ipa {
     font-style: italic;

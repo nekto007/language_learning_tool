@@ -5,6 +5,7 @@ Task 39: Vocabulary growth chart on dashboard.
 Task 57: Pronunciation weakness detection.
 Task 66: Weak area automatic detection.
 Task 74: Grammar mastery radar chart.
+Task 75: Learning velocity trend widget.
 """
 from __future__ import annotations
 
@@ -14,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.curriculum.models import CEFRLevel, Lessons, Module, UserWritingAttempt, PronunciationAttempt, ListeningAttempt
-from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats, get_weak_areas, get_skills_balance, get_grammar_mastery_by_topic
+from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats, get_weak_areas, get_skills_balance, get_grammar_mastery_by_topic, get_learning_velocity
 from app.study.models import UserCardDirection, UserWord
 from app.words.models import CollectionWords
 from app.utils.db import db
@@ -847,3 +848,128 @@ class TestGetGrammarMasteryByTopic:
         _make_grammar_mastery_topic(db_session, other.id, accuracy_pct=50, attempts=10)
         result = get_grammar_mastery_by_topic(test_user.id)
         assert result == []
+
+
+# ---------------------------------------------------------------------------
+# Helpers for learning velocity tests
+# ---------------------------------------------------------------------------
+
+def _make_lesson_progress(
+    db_session,
+    user_id: int,
+    lesson_id: int,
+    days_ago: int = 0,
+) -> 'LessonProgress':
+    from app.curriculum.models import LessonProgress
+    completed_at = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    lp = LessonProgress(
+        user_id=user_id,
+        lesson_id=lesson_id,
+        status='completed',
+        score=80.0,
+        completed_at=completed_at,
+    )
+    db_session.add(lp)
+    db_session.flush()
+    return lp
+
+
+# ---------------------------------------------------------------------------
+# Tests for get_learning_velocity (Task 75)
+# ---------------------------------------------------------------------------
+
+class TestGetLearningVelocity:
+    def test_returns_required_keys(self, app, db_session, test_user):
+        result = get_learning_velocity(test_user.id, weeks=4)
+        for key in ('week_labels', 'word_counts', 'lesson_counts', 'trend',
+                    'words_last_week', 'lessons_last_week',
+                    'words_this_week', 'lessons_this_week'):
+            assert key in result
+
+    def test_empty_user_returns_zeros_and_stable(self, app, db_session, test_user):
+        result = get_learning_velocity(test_user.id, weeks=4)
+        assert all(c == 0 for c in result['word_counts'])
+        assert all(c == 0 for c in result['lesson_counts'])
+        assert result['trend'] == 'stable'
+        assert result['words_last_week'] == 0
+        assert result['lessons_last_week'] == 0
+
+    def test_week_labels_length_matches_weeks(self, app, db_session, test_user):
+        result = get_learning_velocity(test_user.id, weeks=3)
+        assert len(result['week_labels']) == 3
+        assert len(result['word_counts']) == 3
+        assert len(result['lesson_counts']) == 3
+
+    def test_word_added_this_week_counted(self, app, db_session, test_user):
+        _make_user_word(db_session, test_user.id, days_ago=0)
+        result = get_learning_velocity(test_user.id, weeks=2)
+        # Current week is last entry
+        assert result['word_counts'][-1] >= 1
+        assert result['words_this_week'] >= 1
+
+    def test_lesson_completed_this_week_counted(self, app, db_session, test_user):
+        lesson = _make_lesson(db_session)
+        _make_lesson_progress(db_session, test_user.id, lesson.id, days_ago=0)
+        result = get_learning_velocity(test_user.id, weeks=2)
+        assert result['lesson_counts'][-1] >= 1
+        assert result['lessons_this_week'] >= 1
+
+    def test_word_from_last_week_in_correct_bucket(self, app, db_session, test_user):
+        from datetime import date
+        today = date.today()
+        # Compute a days_ago value that reliably falls in the previous week:
+        # days_since_monday=0 (Mon)→7+1=8; days_since_monday=6 (Sun)→6+1=7
+        # Use (today.weekday() + 7) which always picks the same weekday 1 week ago,
+        # then add 1 so we're safely in the prior week even on Mondays.
+        days_since_monday = today.weekday()
+        days_ago = days_since_monday + 7  # always the previous week's Monday
+        _make_user_word(db_session, test_user.id, days_ago=days_ago)
+        result = get_learning_velocity(test_user.id, weeks=3)
+        # Previous week is second-to-last bucket
+        assert result['word_counts'][-2] >= 1
+        assert result['words_last_week'] >= 1
+
+    def test_trend_increasing_when_more_words_this_week(self, app, db_session, test_user):
+        from datetime import date as _date
+        # Use a day that's always in the previous week.
+        prev_week_days_ago = _date.today().weekday() + 7
+        # Last week: 1 word, this week: 5 words (diff > 2 → increasing)
+        for _ in range(5):
+            _make_user_word(db_session, test_user.id, days_ago=0)
+        _make_user_word(db_session, test_user.id, days_ago=prev_week_days_ago)
+        result = get_learning_velocity(test_user.id, weeks=2)
+        assert result['trend'] == 'increasing'
+
+    def test_trend_declining_when_fewer_words_this_week(self, app, db_session, test_user):
+        from datetime import date as _date
+        prev_week_days_ago = _date.today().weekday() + 7
+        # Last week: 5 words, this week: 0 words (diff < -2 → declining)
+        for _ in range(5):
+            _make_user_word(db_session, test_user.id, days_ago=prev_week_days_ago)
+        result = get_learning_velocity(test_user.id, weeks=2)
+        assert result['trend'] == 'declining'
+
+    def test_trend_stable_when_similar_counts(self, app, db_session, test_user):
+        from datetime import date as _date
+        prev_week_days_ago = _date.today().weekday() + 7
+        # Last week: 2 words, this week: 3 words (diff = 1 → stable)
+        for _ in range(2):
+            _make_user_word(db_session, test_user.id, days_ago=prev_week_days_ago)
+        for _ in range(3):
+            _make_user_word(db_session, test_user.id, days_ago=0)
+        result = get_learning_velocity(test_user.id, weeks=2)
+        assert result['trend'] == 'stable'
+
+    def test_other_users_data_excluded(self, app, db_session, test_user):
+        from app.auth.models import User
+        other = User(
+            email=f'other_vel_{uuid.uuid4().hex[:6]}@test.com',
+            username=f'other_vel_{uuid.uuid4().hex[:6]}',
+        )
+        other.set_password('pw')
+        db_session.add(other)
+        db_session.flush()
+        for _ in range(5):
+            _make_user_word(db_session, other.id, days_ago=0)
+        result = get_learning_velocity(test_user.id, weeks=2)
+        assert result['words_this_week'] == 0

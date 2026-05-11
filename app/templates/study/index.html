@@ -514,6 +514,23 @@
     </div>
     {% endif %}
 
+    <!-- Learning velocity widget (task 75) -->
+    {% if learning_velocity and (learning_velocity.words_this_week > 0 or learning_velocity.words_last_week > 0) %}
+    <div class="dash-learning-velocity" style="margin-top: 1rem;">
+        <span class="dash-learning-velocity__icon">&#9889;</span>
+        <span class="dash-learning-velocity__label">Темп:</span>
+        <span class="dash-learning-velocity__value">+{{ learning_velocity.words_this_week }} слов/нед</span>
+        <span class="dash-learning-velocity__sep">·</span>
+        {% if learning_velocity.trend == 'increasing' %}
+        <span class="dash-learning-velocity__trend dash-learning-velocity__trend--up">&#8593; растёт</span>
+        {% elif learning_velocity.trend == 'declining' %}
+        <span class="dash-learning-velocity__trend dash-learning-velocity__trend--down">&#8595; снизился</span>
+        {% else %}
+        <span class="dash-learning-velocity__trend dash-learning-velocity__trend--stable">&#8212; стабильно</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Quiz Modal -->
     <div class="modal fade" id="quizLimitModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="quizLimitModalTitle">
         <div class="modal-dialog">

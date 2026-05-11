@@ -1161,11 +1161,11 @@
 - Modify: `app/templates/study/index.html`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] `get_learning_velocity(user_id, db, weeks=4) -> dict` — weekly word count + lesson count for last 4 weeks
-- [ ] Compute trend: is velocity increasing, stable, or declining
-- [ ] Dashboard widget: "Темп: +8 слов/нед · ↑ растёт" or "↓ снизился"
-- [ ] Tests: correct weekly buckets; trend direction from last 2 weeks comparison
-- [ ] Run pytest -m smoke
+- [x] `get_learning_velocity(user_id, db, weeks=4) -> dict` — weekly word count + lesson count for last 4 weeks
+- [x] Compute trend: is velocity increasing, stable, or declining
+- [x] Dashboard widget: "Темп: +8 слов/нед · ↑ растёт" or "↓ снизился"
+- [x] Tests: correct weekly buckets; trend direction from last 2 weeks comparison
+- [x] Run pytest -m smoke
 
 ---
 ### Task 76: Daily learning minutes tracker

@@ -746,6 +746,110 @@ def get_vocabulary_growth(user_id: int, days: int = 30) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Learning velocity trend (last N weeks)
+# ---------------------------------------------------------------------------
+
+def get_learning_velocity(user_id: int, weeks: int = 4) -> dict[str, Any]:
+    """Weekly word count + lesson count for the last *weeks* weeks.
+
+    Returns:
+      - week_labels: list of ISO date strings for the Monday of each week (oldest first)
+      - word_counts: new UserWord rows per week
+      - lesson_counts: LessonProgress completions per week
+      - trend: 'increasing' | 'stable' | 'declining' based on last 2 weeks
+      - words_last_week: int
+      - lessons_last_week: int
+    """
+    from app.study.models import UserWord
+    from app.curriculum.models import LessonProgress
+
+    today = date.today()
+    # Anchor on Monday of the current week.
+    days_since_monday = today.weekday()
+    current_monday = today - timedelta(days=days_since_monday)
+    start_monday = current_monday - timedelta(weeks=weeks - 1)
+    cutoff = datetime(start_monday.year, start_monday.month, start_monday.day, tzinfo=timezone.utc)
+
+    # Words per week bucket (UTC date).
+    word_rows = (
+        db.session.query(
+            cast(UserWord.created_at, Date).label('d'),
+            func.count(UserWord.id).label('cnt'),
+        )
+        .filter(
+            UserWord.user_id == user_id,
+            UserWord.created_at >= cutoff,
+        )
+        .group_by(cast(UserWord.created_at, Date))
+        .all()
+    )
+
+    # Lessons per week bucket.
+    lesson_rows = (
+        db.session.query(
+            cast(LessonProgress.completed_at, Date).label('d'),
+            func.count(LessonProgress.id).label('cnt'),
+        )
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.completed_at >= cutoff,
+            LessonProgress.completed_at.isnot(None),
+        )
+        .group_by(cast(LessonProgress.completed_at, Date))
+        .all()
+    )
+
+    def _bucket(d: date) -> date:
+        """Monday of the week containing *d*."""
+        return d - timedelta(days=d.weekday())
+
+    words_by_week: dict[date, int] = {}
+    for row in word_rows:
+        w = _bucket(row.d)
+        words_by_week[w] = words_by_week.get(w, 0) + int(row.cnt)
+
+    lessons_by_week: dict[date, int] = {}
+    for row in lesson_rows:
+        w = _bucket(row.d)
+        lessons_by_week[w] = lessons_by_week.get(w, 0) + int(row.cnt)
+
+    week_labels: list[str] = []
+    word_counts: list[int] = []
+    lesson_counts: list[int] = []
+    for i in range(weeks):
+        monday = start_monday + timedelta(weeks=i)
+        week_labels.append(monday.isoformat())
+        word_counts.append(words_by_week.get(monday, 0))
+        lesson_counts.append(lessons_by_week.get(monday, 0))
+
+    # Trend: compare last full week (index -2) vs current partial week (index -1).
+    # Only consider trend reliable when we have at least 2 data points.
+    words_prev = word_counts[-2] if len(word_counts) >= 2 else 0
+    words_curr = word_counts[-1]
+    diff = words_curr - words_prev
+
+    if weeks < 2 or (words_prev == 0 and words_curr == 0):
+        trend = 'stable'
+    elif diff > 2:
+        trend = 'increasing'
+    elif diff < -2:
+        trend = 'declining'
+    else:
+        trend = 'stable'
+
+    return {
+        'week_labels': week_labels,
+        'word_counts': word_counts,
+        'lesson_counts': lesson_counts,
+        'trend': trend,
+        'words_last_week': word_counts[-2] if len(word_counts) >= 2 else 0,
+        'lessons_last_week': lesson_counts[-2] if len(lesson_counts) >= 2 else 0,
+        'words_this_week': word_counts[-1],
+        'lessons_this_week': lesson_counts[-1],
+    }
+
+
+# ---------------------------------------------------------------------------
 # Weekly summary (week-to-date, NOT lifetime)
 # ---------------------------------------------------------------------------
 
