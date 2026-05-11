@@ -37,7 +37,7 @@ _SPEAKING_SLOT_ETA_MINUTES = 7
 def _speaking_done_today(user_id: int, db: Any) -> bool:
     """Return True when the user completed any speaking lesson today."""
     today_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
+        hour=0, minute=0, second=0, microsecond=0, tzinfo=None
     )
     return (
         db.session.query(LessonProgress)

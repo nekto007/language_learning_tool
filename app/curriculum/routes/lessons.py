@@ -1,6 +1,7 @@
 # app/curriculum/routes/lessons.py
 
 import logging
+import random
 from datetime import UTC, datetime, timezone
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
@@ -797,6 +798,12 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
         except Exception as xp_err:
             logger.warning(f"Writing prompt XP award failed for lesson {lesson.id}: {xp_err}")
 
+        try:
+            from app.achievements.services import check_writing_achievements
+            check_writing_achievements(user_id, db_session=db.session)
+        except Exception as ach_err:
+            logger.warning(f"Writing achievements check failed for user {user_id}: {ach_err}")
+
     result: dict = {
         'success': True,
         'completed': completed,
@@ -893,7 +900,6 @@ def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, dat
     return result
 
 
-import random
 
 
 @lessons_bp.route('/lesson/<int:lesson_id>/collocation-matching')
@@ -1132,6 +1138,12 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
             db.session.commit()
         except Exception as xp_err:
             logger.warning(f"Pronunciation XP award failed for lesson {lesson.id}: {xp_err}")
+
+        try:
+            from app.achievements.services import check_speaking_achievements
+            check_speaking_achievements(user_id, db_session=db.session)
+        except Exception as ach_err:
+            logger.warning(f"Speaking achievements check failed for user {user_id}: {ach_err}")
 
         result: dict = {'success': True, 'completed': True}
         next_lesson = get_next_lesson(lesson.id)

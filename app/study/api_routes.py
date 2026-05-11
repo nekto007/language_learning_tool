@@ -788,6 +788,9 @@ def add_word_to_custom_list(list_id: int):
     if not word or not translation:
         return api_error('invalid_input', 'word and translation are required', 400)
 
+    if len(word) > 200 or len(translation) > 500:
+        return api_error('invalid_input', 'word or translation too long', 400)
+
     existing = CustomWordListEntry.query.filter_by(list_id=list_id, word=word).first()
     if existing:
         return jsonify({'ok': True, 'entry_id': existing.id, 'word': word,

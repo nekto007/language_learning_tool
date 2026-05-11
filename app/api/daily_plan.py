@@ -1104,3 +1104,55 @@ def streak_repair():
         db.session.rollback()
 
     return jsonify(result)
+
+
+@api_daily_plan.route('/daily-plan/challenge/complete', methods=['POST'])
+@csrf.exempt
+@api_auth_required
+def challenge_complete():
+    """Mark today's daily challenge as completed for the current user.
+
+    Body JSON:
+        challenge_id (int): ID of the challenge to complete
+        score (float, optional): accuracy score 0-100
+        time_spent_seconds (int, optional): total time in seconds
+
+    Returns completion status. Idempotent — repeated calls return already_completed=True.
+    """
+    from app.daily_plan.challenge import complete_challenge
+    from app.achievements.xp_service import award_xp
+
+    body = request.get_json(silent=True) or {}
+    challenge_id = body.get('challenge_id')
+    if not isinstance(challenge_id, int):
+        return api_error('invalid_input', 'challenge_id is required', 400)
+
+    score = body.get('score')
+    time_spent_seconds = body.get('time_spent_seconds')
+
+    try:
+        result = complete_challenge(
+            user_id=current_user.id,
+            challenge_id=challenge_id,
+            score=score,
+            time_spent_seconds=time_spent_seconds,
+            db=db,
+        )
+    except ValueError as e:
+        return api_error('not_found', str(e), 404)
+
+    if not result.get('already_completed'):
+        bonus_xp = result.get('bonus_xp', 0)
+        if bonus_xp:
+            try:
+                award_xp(current_user.id, bonus_xp, 'daily_challenge', db=db)
+            except Exception as xp_err:
+                logger.warning("Challenge XP award failed for user %s: %s", current_user.id, xp_err)
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return api_error('db_error', 'Failed to record challenge completion', 500)
+
+    return jsonify(result)

@@ -615,8 +615,23 @@ class TestStreakShield:
         db_session.refresh(streak_user)
         assert streak_user.streak_shield_active is False
 
-    def test_second_miss_breaks_streak_without_shield(self, db_session, user_id):
-        """Without an active shield, missed date is not auto-repaired."""
-        missed = date.today() - timedelta(days=1)
-        assert has_repair_for_date(user_id, missed) is False
-        assert has_repair_for_date(user_id, missed) is False
+    def test_second_miss_breaks_streak_without_shield(self, db_session, streak_user):
+        """Without an active shield, missed days have no auto-repair events."""
+        from app.achievements.models import StreakEvent
+
+        assert streak_user.streak_shield_active is False
+
+        yesterday = date.today() - timedelta(days=1)
+        day_before = date.today() - timedelta(days=2)
+
+        assert has_repair_for_date(streak_user.id, yesterday) is False
+        assert has_repair_for_date(streak_user.id, day_before) is False
+
+        event_count = StreakEvent.query.filter(
+            StreakEvent.user_id == streak_user.id,
+            StreakEvent.event_type == 'shield_repair',
+        ).count()
+        assert event_count == 0
+
+        db_session.refresh(streak_user)
+        assert streak_user.streak_shield_active is False

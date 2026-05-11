@@ -104,7 +104,6 @@ def build_listening_slot(user_id: int, db: Any) -> Optional[LinearSlot]:
     module = getattr(listening_lesson, 'module', None)
     level = getattr(module, 'level', None) if module is not None else None
 
-    base_url = f'/learn/{listening_lesson.id}/?from=linear_plan'
     url = build_slot_url(f'/learn/{listening_lesson.id}/', LinearSlotKind.CURRICULUM)
 
     logger.info(

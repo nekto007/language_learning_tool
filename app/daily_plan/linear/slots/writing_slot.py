@@ -40,7 +40,7 @@ def _writing_done_today(user_id: int, lesson_id: int, db: Any) -> bool:
     from app.curriculum.models import UserWritingAttempt
 
     today_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0
+        hour=0, minute=0, second=0, microsecond=0, tzinfo=None
     )
     has_attempt = (
         db.session.query(UserWritingAttempt.id)

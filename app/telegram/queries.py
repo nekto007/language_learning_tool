@@ -80,7 +80,7 @@ def get_current_streak(user_id: int, tz: str = DEFAULT_TZ) -> int:
     repairs_by_date: dict[date, bool] = {}
     for ev in StreakEvent.query.filter(
         StreakEvent.user_id == user_id,
-        StreakEvent.event_type.in_(['free_repair', 'spent_repair', 'plan_pause']),
+        StreakEvent.event_type.in_(['free_repair', 'spent_repair', 'plan_pause', 'shield_repair']),
         StreakEvent.event_date >= earliest_date,
     ):
         repairs_by_date[ev.event_date] = True
