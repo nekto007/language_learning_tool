@@ -1219,6 +1219,35 @@ def _process_idiom_submission(lesson: 'Lessons', user_id: int, data: dict) -> di
     return result
 
 
+@lessons_bp.route('/api/lessons/<int:lesson_id>/feedback', methods=['POST'])
+@login_required
+def lesson_feedback(lesson_id):
+    """Save or update user thumbs-up/down feedback for a completed lesson."""
+    from app.api.errors import api_error
+    from app.curriculum.models import LessonFeedback, save_lesson_feedback
+
+    lesson = Lessons.query.get_or_404(lesson_id)
+    data = request.get_json(silent=True) or {}
+
+    rating = data.get('rating')
+    if rating is None or not isinstance(rating, int) or rating < 1 or rating > 5:
+        return api_error('invalid_rating', 'Rating must be an integer between 1 and 5.', 400)
+
+    comment = data.get('comment')
+    if comment is not None:
+        comment = str(comment)[:500]  # Truncate long comments
+
+    try:
+        save_lesson_feedback(current_user.id, lesson.id, rating, comment, db)
+        db.session.commit()
+    except Exception as exc:
+        logger.exception(f"Error saving lesson feedback for lesson {lesson_id}: {exc}")
+        db.session.rollback()
+        return api_error('server_error', 'Could not save feedback.', 500)
+
+    return jsonify({'success': True, 'lesson_id': lesson_id, 'rating': rating})
+
+
 # Import route modules to register their routes on lessons_bp
 import app.curriculum.routes.vocabulary_lessons  # noqa: E402, F401
 import app.curriculum.routes.grammar_quiz_lessons  # noqa: E402, F401

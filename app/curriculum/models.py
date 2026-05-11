@@ -617,6 +617,43 @@ def get_cultural_notes_for_word(word_id: int, db_session) -> list['CulturalNote'
     )
 
 
+class LessonFeedback(db.Model):
+    """User thumbs up/down feedback for a completed lesson. One row per user per lesson (upsert)."""
+    __tablename__ = 'lesson_feedback'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='CASCADE'), nullable=False)
+    rating = Column(SmallInteger, nullable=False)  # 1-5; thumbs down = 1, thumbs up = 5
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_lesson_feedback_user_lesson', 'user_id', 'lesson_id', unique=True),
+        Index('idx_lesson_feedback_lesson_id', 'lesson_id'),
+    )
+
+    def __repr__(self) -> str:
+        return f'<LessonFeedback id={self.id} user_id={self.user_id} lesson_id={self.lesson_id} rating={self.rating}>'
+
+
+def save_lesson_feedback(user_id: int, lesson_id: int, rating: int, comment: str | None, db_session) -> 'LessonFeedback':
+    """Upsert lesson feedback for a user. Rating must be 1-5."""
+    row = (
+        db_session.session.query(LessonFeedback)
+        .filter(LessonFeedback.user_id == user_id, LessonFeedback.lesson_id == lesson_id)
+        .first()
+    )
+    if row is None:
+        row = LessonFeedback(user_id=user_id, lesson_id=lesson_id, rating=rating, comment=comment)
+        db_session.session.add(row)
+    else:
+        row.rating = rating
+        row.comment = comment
+    db_session.session.flush()
+    return row
+
+
 # Import LessonGrade to register it with SQLAlchemy
 # This needs to be at the end of the file to avoid circular imports
 from app.achievements.models import LessonGrade  # noqa: F401, E402

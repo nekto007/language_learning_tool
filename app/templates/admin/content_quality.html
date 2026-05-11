@@ -63,6 +63,7 @@
               <th class="text-end">IPA</th>
               <th class="text-end">Примеры</th>
               <th class="text-end">Пройдено</th>
+              <th class="text-end">Рейтинг</th>
             </tr>
           </thead>
           <tbody>
@@ -94,9 +95,17 @@
                 </span>
                 <small class="text-muted">({{ row.completion_pct }}%)</small>
               </td>
+              <td class="text-end">
+                {% if row.avg_rating is not none %}
+                <span class="{% if row.avg_rating >= 4 %}text-success{% elif row.avg_rating >= 3 %}text-warning{% else %}text-danger{% endif %}">
+                  {{ row.avg_rating }}
+                </span>
+                <small class="text-muted">({{ row.feedback_count }})</small>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
             </tr>
             {% else %}
-            <tr><td colspan="6" class="text-center text-muted py-3">Уроков нет</td></tr>
+            <tr><td colspan="7" class="text-center text-muted py-3">Уроков нет</td></tr>
             {% endfor %}
           </tbody>
         </table>

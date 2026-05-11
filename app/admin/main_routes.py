@@ -648,12 +648,22 @@ def get_content_quality_detail() -> dict:
     import io
     from app.words.models import CollectionWordLink, CollectionWords
     from app.utils.db_utils import chunk_ids
+    from app.curriculum.models import LessonFeedback
 
     # Lesson types where a top-level audio_url is expected
     AUDIO_EXPECTED = frozenset({'dictation', 'listening_immersion', 'shadow_reading', 'audio_fill_blank'})
 
     all_lessons = Lessons.query.all()
     total_lessons = len(all_lessons)
+
+    # Avg rating per lesson (keyed by lesson_id) from LessonFeedback
+    feedback_rows = db.session.query(
+        LessonFeedback.lesson_id,
+        func.avg(LessonFeedback.rating).label('avg_rating'),
+        func.count(LessonFeedback.id).label('feedback_count'),
+    ).group_by(LessonFeedback.lesson_id).all()
+    avg_rating_by_lesson: dict[int, float] = {r.lesson_id: float(r.avg_rating) for r in feedback_rows}
+    feedback_count_by_lesson: dict[int, int] = {r.lesson_id: r.feedback_count for r in feedback_rows}
 
     completed_ids: set[int] = set(
         row[0] for row in db.session.query(distinct(LessonProgress.lesson_id))
@@ -688,9 +698,12 @@ def get_content_quality_detail() -> dict:
     for lesson in all_lessons:
         lt = lesson.type or 'other'
         if lt not in by_type:
-            by_type[lt] = {'total': 0, 'with_audio': 0, 'with_ipa': 0, 'with_examples': 0, 'completed': 0}
+            by_type[lt] = {'total': 0, 'with_audio': 0, 'with_ipa': 0, 'with_examples': 0, 'completed': 0, 'rating_sum': 0.0, 'rating_count': 0}
         entry = by_type[lt]
         entry['total'] += 1
+        if lesson.id in avg_rating_by_lesson:
+            entry['rating_sum'] += avg_rating_by_lesson[lesson.id]
+            entry['rating_count'] += 1
 
         if lesson.id in completed_ids:
             entry['completed'] += 1
@@ -747,6 +760,7 @@ def get_content_quality_detail() -> dict:
     type_rows = []
     for lt, data in sorted(by_type.items()):
         total = data['total']
+        rc = data['rating_count']
         type_rows.append({
             'type': lt,
             'total': total,
@@ -757,6 +771,8 @@ def get_content_quality_detail() -> dict:
             'audio_pct': round(data['with_audio'] / total * 100) if total else 0,
             'ipa_pct': round(data['with_ipa'] / total * 100) if total else 0,
             'examples_pct': round(data['with_examples'] / total * 100) if total else 0,
+            'avg_rating': round(data['rating_sum'] / rc, 1) if rc else None,
+            'feedback_count': rc,
             'completion_pct': round(data['completed'] / total * 100) if total else 0,
         })
 

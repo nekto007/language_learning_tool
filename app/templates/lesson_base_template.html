@@ -322,6 +322,59 @@
   flex-wrap: wrap;
 }
 
+/* ── Lesson Feedback Widget ── */
+.lsn-feedback {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--lsn-border);
+}
+
+.lsn-feedback__prompt {
+  font-size: 0.875rem;
+  color: var(--lsn-text-muted);
+  margin-bottom: 0.625rem;
+}
+
+.lsn-feedback__buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.lsn-feedback__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  border: 2px solid var(--lsn-border);
+  background: var(--lsn-surface);
+  color: var(--lsn-text-muted);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.lsn-feedback__btn--up:hover,
+.lsn-feedback__btn--up.lsn-feedback__btn--active {
+  border-color: var(--lsn-success);
+  color: var(--lsn-success);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.lsn-feedback__btn--down:hover,
+.lsn-feedback__btn--down.lsn-feedback__btn--active {
+  border-color: var(--lsn-danger);
+  color: var(--lsn-danger);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.lsn-feedback__thanks {
+  font-size: 0.8125rem;
+  color: var(--lsn-text-muted);
+  margin-top: 0.625rem;
+}
+
 /* When the completion helper flips into plan-aware mode, suppress every
    legacy curriculum-next surface so nothing (footer buttons, daily-plan
    widget, inline standalone CTAs) competes with the plan CTAs inside
@@ -459,6 +512,19 @@
       <a href="/learn/" class="lsn-btn lsn-btn--outline" data-standalone-cta="back-to-lessons">
         {{ _('К урокам') }}
       </a>
+    </div>
+    <!-- Lesson feedback widget -->
+    <div class="lsn-feedback" id="lesson-feedback-widget" data-lesson-id="{{ lesson.id }}">
+      <p class="lsn-feedback__prompt">{{ _('Урок понравился?') }}</p>
+      <div class="lsn-feedback__buttons">
+        <button type="button" class="lsn-feedback__btn lsn-feedback__btn--up" id="feedback-thumbs-up" aria-label="{{ _('Понравился') }}">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
+        </button>
+        <button type="button" class="lsn-feedback__btn lsn-feedback__btn--down" id="feedback-thumbs-down" aria-label="{{ _('Не понравился') }}">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0122 4v7a2.31 2.31 0 01-2.33 2H17"/></svg>
+        </button>
+      </div>
+      <p class="lsn-feedback__thanks" id="feedback-thanks" style="display:none;">{{ _('Спасибо за отзыв!') }}</p>
     </div>
   </div>
 
@@ -683,5 +749,51 @@ document.addEventListener('click', function(e) {
     if (url) window.location.href = url;
   }
 });
+
+// Lesson feedback widget
+(function() {
+  var widget = document.getElementById('lesson-feedback-widget');
+  if (!widget) return;
+  var lessonId = widget.getAttribute('data-lesson-id');
+  var upBtn = document.getElementById('feedback-thumbs-up');
+  var downBtn = document.getElementById('feedback-thumbs-down');
+  var thanks = document.getElementById('feedback-thanks');
+
+  function sendFeedback(rating) {
+    var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).getAttribute('content') || '';
+    fetch('/curriculum/api/lessons/' + lessonId + '/feedback', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf,
+        'Accept': 'application/json'
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ rating: rating })
+    }).catch(function() {});
+  }
+
+  if (upBtn) {
+    upBtn.addEventListener('click', function() {
+      upBtn.classList.add('lsn-feedback__btn--active');
+      downBtn && downBtn.classList.remove('lsn-feedback__btn--active');
+      upBtn.disabled = true;
+      downBtn && (downBtn.disabled = true);
+      if (thanks) thanks.style.display = 'block';
+      sendFeedback(5);
+    });
+  }
+
+  if (downBtn) {
+    downBtn.addEventListener('click', function() {
+      downBtn.classList.add('lsn-feedback__btn--active');
+      upBtn && upBtn.classList.remove('lsn-feedback__btn--active');
+      downBtn.disabled = true;
+      upBtn && (upBtn.disabled = true);
+      if (thanks) thanks.style.display = 'block';
+      sendFeedback(1);
+    });
+  }
+})();
 </script>
 {% endblock %}

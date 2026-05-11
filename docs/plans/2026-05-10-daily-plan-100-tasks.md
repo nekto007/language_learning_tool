@@ -1380,12 +1380,12 @@
 - Modify: `app/templates/curriculum/lessons/` (base lesson template if one exists, else each)
 - Tests: `tests/curriculum/test_lesson_feedback.py`
 
-- [ ] Model: `LessonFeedback(id, user_id FK, lesson_id FK, rating SMALLINT 1-5, comment TEXT nullable, created_at)` — one per user per lesson
-- [ ] Thumbs up/down widget at bottom of each completed lesson
-- [ ] Save via `POST /api/curriculum/lessons/<id>/feedback`
-- [ ] Admin: content quality dashboard shows avg rating per lesson
-- [ ] Tests: feedback saves; duplicate → update not create; admin sees aggregated ratings
-- [ ] Run pytest tests/curriculum/
+- [x] Model: `LessonFeedback(id, user_id FK, lesson_id FK, rating SMALLINT 1-5, comment TEXT nullable, created_at)` — one per user per lesson
+- [x] Thumbs up/down widget at bottom of each completed lesson
+- [x] Save via `POST /api/curriculum/lessons/<id>/feedback`
+- [x] Admin: content quality dashboard shows avg rating per lesson
+- [x] Tests: feedback saves; duplicate → update not create; admin sees aggregated ratings
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 91: Immersion streak (all 4 skills in consecutive days)
