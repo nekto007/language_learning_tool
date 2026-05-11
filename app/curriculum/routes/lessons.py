@@ -372,9 +372,15 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
 
     content = lesson.content or {}
     transcript = content.get('transcript', '')
-    hint_chars = int(data.get('hint_chars', content.get('hint_chars', 0)))
+    try:
+        hint_chars = int(data.get('hint_chars') or content.get('hint_chars') or 0)
+    except (TypeError, ValueError):
+        hint_chars = 0
     user_text = data.get('user_text', '')
-    replay_count = int(data.get('replay_count', 0))
+    try:
+        replay_count = int(data.get('replay_count') or 0)
+    except (TypeError, ValueError):
+        replay_count = 0
 
     grade = grade_dictation(user_text, transcript, hint_chars)
 
@@ -468,8 +474,13 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
 
     content = lesson.content or {}
     items = content.get('items', [])
-    user_answers = data.get('answers', [])
-    replay_count = int(data.get('replay_count', 0))
+    user_answers = data.get('answers') or []
+    if not isinstance(user_answers, list):
+        user_answers = []
+    try:
+        replay_count = int(data.get('replay_count') or 0)
+    except (TypeError, ValueError):
+        replay_count = 0
 
     grade = grade_audio_fill_blank(user_answers, items)
 
@@ -757,7 +768,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
 
     content = lesson.content or {}
     example_response = content.get('example_response') or None
-    response_text = (data.get('response_text') or '').strip()
+    response_text = (data.get('response_text') or '')[:20000].strip()
     checklist_completed = bool(data.get('checklist_completed', False))
     checked_items = data.get('checked_items') or []
     min_words = int(content.get('min_words', 50))
@@ -871,7 +882,9 @@ def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, dat
 
     content = lesson.content or {}
     items = content.get('items', [])
-    user_answers = data.get('answers', [])
+    user_answers = data.get('answers') or []
+    if not isinstance(user_answers, list):
+        user_answers = []
 
     grade = grade_sentence_completion(user_answers, items)
 
@@ -1154,8 +1167,8 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
         return result
 
     # Single-item attempt
-    target_word = data.get('target_word', '')
-    recognized_text = data.get('recognized_text') or ''
+    target_word = str(data.get('target_word') or '')[:200]
+    recognized_text = str(data.get('recognized_text') or '')[:500]
     self_assessed = bool(data.get('self_assessed', False))
 
     if self_assessed or not recognized_text:

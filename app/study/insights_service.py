@@ -1600,7 +1600,7 @@ def get_pronunciation_weaknesses(user_id: int, min_attempts: int = 3) -> list[st
         if match_rate < 0.5:
             weak_words.append(row.word)
 
-    return sorted(weak_words)
+    return sorted(weak_words)[:20]
 
 
 # ---------------------------------------------------------------------------

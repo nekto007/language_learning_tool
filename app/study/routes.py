@@ -1108,7 +1108,7 @@ def custom_lists():
     from app.study.models import CustomWordList
 
     if request.method == 'POST':
-        name = request.form.get('name', '').strip()
+        name = request.form.get('name', '').strip()[:200]
         if not name:
             flash(_('Введите название списка'), 'danger')
             return redirect(url_for('study.custom_lists'))
@@ -1139,8 +1139,8 @@ def custom_list_detail(list_id):
     if request.method == 'POST':
         action = request.form.get('action', 'add')
         if action == 'add':
-            word = request.form.get('word', '').strip()
-            translation = request.form.get('translation', '').strip()
+            word = request.form.get('word', '').strip()[:200]
+            translation = request.form.get('translation', '').strip()[:500]
             if not word or not translation:
                 flash(_('Укажите слово и перевод'), 'danger')
                 return redirect(url_for('study.custom_list_detail', list_id=list_id))
@@ -1161,8 +1161,8 @@ def custom_list_detail(list_id):
                     db.session.commit()
                     flash(_('Слово удалено'), 'success')
         elif action == 'import':
-            raw_text = request.form.get('import_text', '')
-            pairs = _parse_bulk_import(raw_text)
+            raw_text = request.form.get('import_text', '')[:50000]
+            pairs = _parse_bulk_import(raw_text)[:500]
             existing_words = {e.word for e in word_list.entries.all()}
             added = 0
             skipped = 0
