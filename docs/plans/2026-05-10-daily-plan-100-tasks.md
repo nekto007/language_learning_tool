@@ -1321,11 +1321,11 @@
 - Create: `app/templates/admin/content_quality.html`
 - Tests: `tests/admin/test_content_quality.py`
 
-- [ ] Route: `GET /admin/content-quality` — aggregate per lesson type: % with audio, % with examples, % with IPA, % completed by users
-- [ ] Highlight missing content: lessons with no audio, no examples, no vocabulary words
-- [ ] Export as CSV (reuse CSV export pattern from CLAUDE.md)
-- [ ] Tests: route 200 for admin; 403 for non-admin; aggregates correct
-- [ ] Run pytest tests/admin/
+- [x] Route: `GET /admin/content-quality` — aggregate per lesson type: % with audio, % with examples, % with IPA, % completed by users
+- [x] Highlight missing content: lessons with no audio, no examples, no vocabulary words
+- [x] Export as CSV (reuse CSV export pattern from CLAUDE.md)
+- [x] Tests: route 200 for admin; 403 for non-admin; aggregates correct
+- [x] Run pytest tests/admin/
 
 ---
 ### Task 87: Missing audio detection and reporting

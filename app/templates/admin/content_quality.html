@@ -1,0 +1,162 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Качество контента{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="fas fa-chart-bar me-2"></i>Качество контента</h2>
+    <a href="{{ url_for('admin.content_quality_export') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-download me-1"></i>Экспорт CSV
+    </a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="card text-center h-100">
+        <div class="card-body">
+          <div class="fs-2 fw-bold text-primary">{{ total_lessons }}</div>
+          <div class="text-muted small">Всего уроков</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card text-center h-100">
+        <div class="card-body">
+          <div class="fs-2 fw-bold text-success">{{ total_lessons - no_completions_count }}</div>
+          <div class="text-muted small">Пройдено хоть раз</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card text-center h-100 {% if missing_audio_count > 0 %}border-warning{% endif %}">
+        <div class="card-body">
+          <div class="fs-2 fw-bold {% if missing_audio_count > 0 %}text-warning{% else %}text-success{% endif %}">
+            {{ missing_audio_count }}
+          </div>
+          <div class="text-muted small">Нет аудио (ожидалось)</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card text-center h-100 {% if no_vocabulary_count > 0 %}border-warning{% endif %}">
+        <div class="card-body">
+          <div class="fs-2 fw-bold {% if no_vocabulary_count > 0 %}text-warning{% else %}text-success{% endif %}">
+            {{ no_vocabulary_count }}
+          </div>
+          <div class="text-muted small">Словарных без слов</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header"><strong>По типу урока</strong></div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Тип</th>
+              <th class="text-end">Всего</th>
+              <th class="text-end">Аудио</th>
+              <th class="text-end">IPA</th>
+              <th class="text-end">Примеры</th>
+              <th class="text-end">Пройдено</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in by_type %}
+            <tr>
+              <td><code>{{ row.type }}</code></td>
+              <td class="text-end">{{ row.total }}</td>
+              <td class="text-end">
+                {% if row.with_audio > 0 %}
+                <span class="text-success">{{ row.with_audio }}</span>
+                {% else %}-{% endif %}
+                <small class="text-muted">({{ row.audio_pct }}%)</small>
+              </td>
+              <td class="text-end">
+                {% if row.with_ipa > 0 %}
+                <span class="text-success">{{ row.with_ipa }}</span>
+                {% else %}-{% endif %}
+                <small class="text-muted">({{ row.ipa_pct }}%)</small>
+              </td>
+              <td class="text-end">
+                {% if row.with_examples > 0 %}
+                <span class="text-success">{{ row.with_examples }}</span>
+                {% else %}-{% endif %}
+                <small class="text-muted">({{ row.examples_pct }}%)</small>
+              </td>
+              <td class="text-end">
+                <span class="{% if row.completion_pct >= 80 %}text-success{% elif row.completion_pct >= 40 %}text-warning{% else %}text-danger{% endif %}">
+                  {{ row.completed }}
+                </span>
+                <small class="text-muted">({{ row.completion_pct }}%)</small>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-3">Уроков нет</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if missing_audio %}
+  <div class="card mb-4">
+    <div class="card-header text-warning">
+      <strong><i class="fas fa-volume-mute me-1"></i>Без аудио (ожидалось) — {{ missing_audio_count }} уроков</strong>
+      {% if missing_audio_count > missing_audio|length %}<small class="text-muted ms-2">(показаны первые {{ missing_audio|length }})</small>{% endif %}
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>ID</th><th>Название</th><th>Тип</th><th>Module ID</th></tr>
+          </thead>
+          <tbody>
+            {% for lesson in missing_audio %}
+            <tr>
+              <td>{{ lesson.lesson_id }}</td>
+              <td>{{ lesson.title }}</td>
+              <td><code>{{ lesson.type }}</code></td>
+              <td>{{ lesson.module_id }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if no_vocabulary %}
+  <div class="card mb-4">
+    <div class="card-header text-warning">
+      <strong><i class="fas fa-book-open me-1"></i>Словарные уроки без слов — {{ no_vocabulary_count }}</strong>
+      {% if no_vocabulary_count > no_vocabulary|length %}<small class="text-muted ms-2">(показаны первые {{ no_vocabulary|length }})</small>{% endif %}
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>ID</th><th>Название</th><th>Module ID</th></tr>
+          </thead>
+          <tbody>
+            {% for lesson in no_vocabulary %}
+            <tr>
+              <td>{{ lesson.lesson_id }}</td>
+              <td>{{ lesson.title }}</td>
+              <td>{{ lesson.module_id }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
