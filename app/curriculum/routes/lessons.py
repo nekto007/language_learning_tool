@@ -77,6 +77,7 @@ def lesson_detail(lesson_id):
         'sentence_completion': 'curriculum_lessons.sentence_completion_lesson',
         'collocation_matching': 'curriculum_lessons.collocation_matching_lesson',
         'shadow_reading': 'curriculum_lessons.shadow_reading_lesson',
+        'pronunciation': 'curriculum_lessons.pronunciation_lesson',
     }
 
     route_name = route_map.get(lesson.type)
@@ -246,6 +247,8 @@ def submit_lesson(lesson_id):
             result = _process_collocation_matching_submission(lesson, current_user.id, data)
         elif lesson.type == 'shadow_reading':
             result = _process_shadow_reading_submission(lesson, current_user.id, data)
+        elif lesson.type == 'pronunciation':
+            result = _process_pronunciation_submission(lesson, current_user.id, data)
         else:
             return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
 
@@ -1016,6 +1019,99 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
             )
 
     return result
+
+
+@lessons_bp.route('/lesson/<int:lesson_id>/pronunciation')
+@login_required
+@require_lesson_access
+def pronunciation_lesson(lesson_id: int):
+    """Display a pronunciation practice lesson."""
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'pronunciation':
+        flash('Неверный тип урока', 'error')
+        return redirect('/learn/')
+
+    content = lesson.content or {}
+    items = content.get('items', [])
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id,
+    ).first()
+    if not progress:
+        try:
+            progress = LessonProgress(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+                status='in_progress',
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error creating pronunciation progress: {e}")
+            db.session.rollback()
+
+    return render_template(
+        'curriculum/lessons/pronunciation.html',
+        lesson=lesson,
+        progress=progress,
+        items=items,
+    )
+
+
+def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
+    """Handle a pronunciation lesson submission.
+
+    Three sub-actions:
+    - item attempt (recognized_text + target_word): grade word match, log attempt
+    - self-assessed item (self_assessed=True): log as matched=False attempt
+    - finish (finish=True): mark lesson completed, award XP
+    """
+    from app.curriculum.grading import grade_pronunciation_match
+    from app.curriculum.service import get_next_lesson
+
+    if data.get('finish'):
+        # Final submission — mark lesson completed and award XP
+        progress = LessonProgress.query.filter_by(
+            user_id=user_id, lesson_id=lesson.id
+        ).first()
+        if progress:
+            progress.status = 'completed'
+            if not progress.completed_at:
+                progress.completed_at = datetime.now(UTC)
+            progress.last_activity = datetime.now(UTC)
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+        try:
+            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
+            db.session.commit()
+        except Exception as xp_err:
+            logger.warning(f"Pronunciation XP award failed for lesson {lesson.id}: {xp_err}")
+
+        result: dict = {'success': True, 'completed': True}
+        next_lesson = get_next_lesson(lesson.id)
+        if next_lesson:
+            result['next_lesson_url'] = url_for(
+                'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
+            )
+        return result
+
+    # Single-item attempt
+    target_word = data.get('target_word', '')
+    recognized_text = data.get('recognized_text') or ''
+    self_assessed = bool(data.get('self_assessed', False))
+
+    if self_assessed or not recognized_text:
+        return {'success': True, 'matched': False, 'self_assessed': True}
+
+    grade = grade_pronunciation_match(recognized_text, target_word)
+    return {'success': True, **grade}
 
 
 # Import route modules to register their routes on lessons_bp

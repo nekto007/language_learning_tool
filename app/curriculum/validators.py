@@ -377,6 +377,28 @@ class ShadowReadingContentSchema(Schema):
     translation = fields.Str(required=True, validate=validate.Length(min=1))
 
 
+class PronunciationItemSchema(Schema):
+    """Schema for a single pronunciation practice item."""
+    class Meta:
+        unknown = INCLUDE
+
+    word = fields.Str(required=True, validate=validate.Length(min=1))
+    pronunciation_hint = fields.Str(required=False, load_default=None, allow_none=True)
+    audio_url = fields.Str(required=False, load_default=None, allow_none=True)
+
+
+class PronunciationContentSchema(Schema):
+    """Schema for pronunciation exercise — user listens then speaks each word."""
+    class Meta:
+        unknown = INCLUDE
+
+    items = fields.List(
+        fields.Nested(PronunciationItemSchema),
+        required=True,
+        validate=validate.Length(min=1),
+    )
+
+
 class CardContentSchema(Schema):
     """Schema for card/SRS lesson content"""
     class Meta:
@@ -443,6 +465,7 @@ class LessonContentValidator:
         'sentence_completion': SentenceCompletionContentSchema,
         'collocation_matching': CollocationMatchingContentSchema,
         'shadow_reading': ShadowReadingContentSchema,
+        'pronunciation': PronunciationContentSchema,
         'final_test': FinalTestContentSchema,
     }
 

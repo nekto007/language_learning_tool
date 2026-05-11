@@ -867,13 +867,13 @@
 - Modify: `app/daily_plan/linear/xp.py`
 - Tests: `tests/curriculum/test_pronunciation_lesson.py`
 
-- [ ] Validator: `{items: [{word: str, pronunciation_hint?: str, audio_url?: str}]}`
-- [ ] Template: show word + pronunciation hint; "Послушать" button; "Произнести" button (triggers Web Speech API if supported, else skip button)
-- [ ] If Web Speech API: record → compare transcript to word using normalized string match → show "Похоже!" or "Попробуй ещё раз"
-- [ ] If not supported: show "Скажи вслух" + self-assess button
-- [ ] Register `pronunciation → linear_curriculum_use` in LESSON_TYPE_TO_SOURCE; XP=20
-- [ ] Tests: no-speech-api path → self-assess shown; word match logic unit-tested
-- [ ] Run pytest tests/curriculum/
+- [x] Validator: `{items: [{word: str, pronunciation_hint?: str, audio_url?: str}]}`
+- [x] Template: show word + pronunciation hint; "Послушать" button; "Произнести" button (triggers Web Speech API if supported, else skip button)
+- [x] If Web Speech API: record → compare transcript to word using normalized string match → show "Похоже!" or "Попробуй ещё раз"
+- [x] If not supported: show "Скажи вслух" + self-assess button
+- [x] Register `pronunciation → linear_curriculum_use` in LESSON_TYPE_TO_SOURCE; XP=20
+- [x] Tests: no-speech-api path → self-assess shown; word match logic unit-tested
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 56: Pronunciation attempt tracking

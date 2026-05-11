@@ -432,6 +432,26 @@ def grade_collocation_matching(user_pairs: list, correct_pairs: list) -> dict:
     }
 
 
+def grade_pronunciation_match(recognized_text: str, target_word: str) -> dict:
+    """Check whether a Web Speech API transcript matches the target pronunciation word.
+
+    Uses the same normalization as fill_blank grading (strip/lower/punct) plus
+    Levenshtein ≤1 tolerance for single-word targets (≥4 chars). Multi-word
+    targets require exact match after normalization.
+
+    Returns:
+        dict with keys: matched (bool), recognized (str), target (str).
+    """
+    recognized_norm = _normalize_answer(recognized_text)
+    target_norm = _normalize_answer(target_word)
+    matched = _strict_text_match(recognized_text, [target_word])
+    return {
+        'matched': matched,
+        'recognized': recognized_text,
+        'target': target_word,
+    }
+
+
 def process_grammar_submission(exercises, answers):
     """
     Обрабатывает ответы на грамматические упражнения
