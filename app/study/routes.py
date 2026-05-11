@@ -854,6 +854,89 @@ def weekly_plan():
     return render_template('study/weekly_plan.html', days=days, today=today)
 
 
+@study.route('/plan-stats')
+@login_required
+def plan_stats():
+    """Plan performance analytics: last 30 days from DailyPlanLog + StreakEvent."""
+    from datetime import date, timedelta
+    from app.daily_plan.models import DailyPlanLog
+    from app.achievements.models import StreakEvent
+
+    today = date.today()
+    start_date = today - timedelta(days=29)
+
+    logs = db.session.query(DailyPlanLog).filter(
+        DailyPlanLog.user_id == current_user.id,
+        DailyPlanLog.plan_date >= start_date,
+        DailyPlanLog.plan_date <= today,
+    ).all()
+    by_date = {row.plan_date: row for row in logs}
+
+    # Count linear XP events per day to approximate slots completed
+    xp_events = db.session.query(StreakEvent).filter(
+        StreakEvent.user_id == current_user.id,
+        StreakEvent.event_type.like('xp_linear%'),
+        StreakEvent.event_date >= start_date,
+        StreakEvent.event_date <= today,
+    ).all()
+    slots_by_date: dict[date, set] = {}
+    for ev in xp_events:
+        slots_by_date.setdefault(ev.event_date, set()).add(ev.event_type)
+
+    # Build per-day data for last 30 days
+    chart_days = []
+    current_d = start_date
+    while current_d <= today:
+        log = by_date.get(current_d)
+        active = log is not None
+        secured = active and log.secured_at is not None
+        slots_done = len(slots_by_date.get(current_d, set()))
+        chart_days.append({
+            'date': current_d,
+            'date_str': current_d.strftime('%Y-%m-%d'),
+            'label': current_d.strftime('%-d %b'),
+            'active': active,
+            'secured': secured,
+            'slots_completed': slots_done,
+        })
+        current_d += timedelta(days=1)
+
+    total_active = sum(1 for d in chart_days if d['active'])
+    total_secured = sum(1 for d in chart_days if d['secured'])
+    total_days = 30
+
+    completion_rate = round(total_active / total_days * 100) if total_days else 0
+    day_secured_rate = round(total_secured / total_active * 100) if total_active else 0
+
+    active_slot_counts = [d['slots_completed'] for d in chart_days if d['active'] and d['slots_completed'] > 0]
+    avg_slots_completed = round(sum(active_slot_counts) / len(active_slot_counts), 1) if active_slot_counts else 0.0
+
+    # Trend: compare first 15 vs last 15 days
+    first_half = sum(1 for d in chart_days[:15] if d['active'])
+    second_half = sum(1 for d in chart_days[15:] if d['active'])
+    if first_half == 0:
+        trend = 'up' if second_half > 0 else 'flat'
+    elif second_half > first_half:
+        trend = 'up'
+    elif second_half < first_half:
+        trend = 'down'
+    else:
+        trend = 'flat'
+
+    return render_template(
+        'study/plan_stats.html',
+        chart_days=chart_days,
+        total_active=total_active,
+        total_secured=total_secured,
+        completion_rate=completion_rate,
+        day_secured_rate=day_secured_rate,
+        avg_slots_completed=avg_slots_completed,
+        trend=trend,
+        start_date=start_date,
+        today=today,
+    )
+
+
 # Import sub-modules to register their routes on the blueprint
 from app.study import api_routes  # noqa: E402, F401
 from app.study import game_routes  # noqa: E402, F401

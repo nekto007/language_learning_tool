@@ -792,10 +792,10 @@
 - Modify: `app/templates/study/index.html`
 - Tests: `tests/study/test_plan_stats.py`
 
-- [ ] Route: `GET /study/plan-stats` — query DailyPlanLog last 30 days; compute completion_rate, avg_slots_completed, day_secured_rate, avg_time_estimate
-- [ ] Page: bar chart (slots completed per day), summary stats cards, trend indicators
-- [ ] Tests: route 200; correct aggregates; empty history → zeros shown
-- [ ] Run pytest tests/study/
+- [x] Route: `GET /study/plan-stats` — query DailyPlanLog last 30 days; compute completion_rate, avg_slots_completed, day_secured_rate, avg_time_estimate
+- [x] Page: bar chart (slots completed per day), summary stats cards, trend indicators
+- [x] Tests: route 200; correct aggregates; empty history → zeros shown
+- [x] Run pytest tests/study/
 
 ---
 ### Task 51: Adaptive slot order by time-of-day
