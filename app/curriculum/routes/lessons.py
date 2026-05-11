@@ -1108,9 +1108,33 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
     self_assessed = bool(data.get('self_assessed', False))
 
     if self_assessed or not recognized_text:
+        try:
+            from app.curriculum.listening_service import log_pronunciation_attempt
+            log_pronunciation_attempt(
+                user_id=user_id,
+                word=target_word,
+                recognized='',
+                matched=False,
+                db=db,
+            )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         return {'success': True, 'matched': False, 'self_assessed': True}
 
     grade = grade_pronunciation_match(recognized_text, target_word)
+    try:
+        from app.curriculum.listening_service import log_pronunciation_attempt
+        log_pronunciation_attempt(
+            user_id=user_id,
+            word=target_word,
+            recognized=recognized_text,
+            matched=grade['matched'],
+            db=db,
+        )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
     return {'success': True, **grade}
 
 

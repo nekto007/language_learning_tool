@@ -883,11 +883,11 @@
 - Create: `migrations/versions/20260517_pronunciation_attempt.py`
 - Tests: `tests/curriculum/test_pronunciation_attempt.py`
 
-- [ ] Model: `PronunciationAttempt(id, user_id FK, word, recognized_text, matched BOOLEAN, created_at)`
-- [ ] Helper: `log_pronunciation_attempt(user_id, word, recognized, matched, db)`
-- [ ] Called from pronunciation lesson submit endpoint
-- [ ] Tests: model saves; matched computed correctly; multiple attempts per word allowed
-- [ ] Run pytest tests/curriculum/
+- [x] Model: `PronunciationAttempt(id, user_id FK, word, recognized_text, matched BOOLEAN, created_at)`
+- [x] Helper: `log_pronunciation_attempt(user_id, word, recognized, matched, db)`
+- [x] Called from pronunciation lesson submit endpoint
+- [x] Tests: model saves; matched computed correctly; multiple attempts per word allowed
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 57: Pronunciation weakness detection

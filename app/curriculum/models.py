@@ -390,6 +390,29 @@ class ListeningAttempt(db.Model):
         return f'<ListeningAttempt id={self.id} user={self.user_id} lesson={self.lesson_id} score={self.score}>'
 
 
+class PronunciationAttempt(db.Model):
+    """Tracks each pronunciation item attempt for analytics and weakness detection."""
+    __tablename__ = 'pronunciation_attempts'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    word = Column(db.String(200), nullable=False)
+    recognized_text = Column(db.String(500), nullable=False, default='')
+    matched = Column(db.Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_pronunciation_attempts_user_created', 'user_id', 'created_at'),
+        Index('idx_pronunciation_attempts_word', 'word'),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f'<PronunciationAttempt id={self.id} user={self.user_id} '
+            f'word="{self.word}" matched={self.matched}>'
+        )
+
+
 class UserWritingAttempt(db.Model):
     """Tracks each writing_prompt submission for analytics and history."""
     __tablename__ = 'user_writing_attempts'
