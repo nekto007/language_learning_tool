@@ -449,6 +449,16 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     milestone_reward = check_streak_milestone(
         user_id, streak_status.get('streak', 0), for_date=user_today)
 
+    # Check weekly milestone achievements (7/28/84-day streaks)
+    try:
+        from app.achievements.services import check_weekly_milestone_achievements
+        check_weekly_milestone_achievements(user_id, streak_status.get('streak', 0))
+    except Exception:
+        logger.warning(
+            "Failed to check weekly milestone achievements for user %s",
+            user_id, exc_info=True,
+        )
+
     db.session.commit()
 
     return {

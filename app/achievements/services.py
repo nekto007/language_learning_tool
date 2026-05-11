@@ -759,6 +759,69 @@ def check_immersion_achievement(user_id: int, target_date, db_session=None) -> L
     return AchievementService._award_badges(user_id, codes_to_award)
 
 
+_WEEKLY_MILESTONE_MAP: dict[int, tuple[str, int]] = {
+    7: ('week_1', 100),
+    28: ('week_4', 500),
+    84: ('week_12', 2000),
+}
+
+
+def _week_label(weeks: int) -> str:
+    """Return Russian plural for week count."""
+    if weeks % 100 in range(11, 20):
+        return 'недель'
+    mod = weeks % 10
+    if mod == 1:
+        return 'неделя'
+    if mod in (2, 3, 4):
+        return 'недели'
+    return 'недель'
+
+
+def check_weekly_milestone_achievements(user_id: int, streak_days: int, db_session=None) -> List[Achievement]:
+    """Grant weekly milestone achievement and bonus XP when streak hits 7/28/84 days.
+
+    Idempotent: re-awarding is handled by grant_achievement's unique constraint.
+    Returns list of newly granted Achievement objects.
+    Caller must commit after this call (does flush only).
+    """
+    from app.achievements.xp_service import award_xp
+
+    if streak_days not in _WEEKLY_MILESTONE_MAP:
+        return []
+
+    code, bonus_xp = _WEEKLY_MILESTONE_MAP[streak_days]
+    weeks = streak_days // 7
+
+    achievement = Achievement.query.filter_by(code=code).first()
+    if achievement is None:
+        return []
+
+    _, is_new = grant_achievement(user_id, achievement.id)
+    if not is_new:
+        return []
+
+    award_xp(user_id, bonus_xp, source=f'milestone_{code}')
+
+    try:
+        from app.notifications.services import create_notification
+        create_notification(
+            user_id, 'achievement',
+            title=f'Серия {weeks} {_week_label(weeks)}! +{bonus_xp} XP',
+            message=f'Вы занимаетесь {streak_days} дней подряд!',
+            icon=achievement.icon,
+            link='/study/stats',
+        )
+    except Exception:
+        logger.exception(
+            "Failed to send weekly milestone notification for user %s (streak=%s)",
+            user_id, streak_days,
+        )
+
+    (db_session if db_session is not None else db.session).flush()
+    return [achievement]
+
+
 def process_lesson_completion(user_id: int, lesson_id: int, score: float) -> Dict:
     """
     Complete workflow for lesson completion: assign grade, update stats, check achievements

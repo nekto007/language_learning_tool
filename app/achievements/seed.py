@@ -434,6 +434,32 @@ INITIAL_ACHIEVEMENTS = [
         'category': 'immersion'
     },
 
+    # Weekly streak milestones (XP bonus achievements)
+    {
+        'code': 'week_1',
+        'name': 'Первая неделя',
+        'description': 'Занимайтесь 7 дней подряд',
+        'icon': '🗓️',
+        'xp_reward': 100,
+        'category': 'streak'
+    },
+    {
+        'code': 'week_4',
+        'name': 'Первый месяц',
+        'description': 'Занимайтесь 28 дней подряд',
+        'icon': '📆',
+        'xp_reward': 500,
+        'category': 'streak'
+    },
+    {
+        'code': 'week_12',
+        'name': 'Три месяца',
+        'description': 'Занимайтесь 84 дня подряд',
+        'icon': '🏆',
+        'xp_reward': 2000,
+        'category': 'streak'
+    },
+
     # Daily plan mission badges
     {
         'code': 'mission_first',

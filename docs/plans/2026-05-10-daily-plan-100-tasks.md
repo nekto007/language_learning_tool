@@ -1426,11 +1426,11 @@
 - Modify: `app/achievements/services.py`
 - Tests: `tests/achievements/test_weekly_milestones.py`
 
-- [ ] Seed milestone achievements: `week_1` (7 consecutive days), `week_4` (28 days), `week_12` (84 days)
-- [ ] Each grants bonus XP on achievement: week_1=100 XP, week_4=500 XP, week_12=2000 XP
-- [ ] Notification created on milestone: "Серия N недель! +M XP"
-- [ ] Tests: correct trigger at milestone day counts; bonus XP awarded via award_xp; notification created
-- [ ] Run pytest tests/achievements/
+- [x] Seed milestone achievements: `week_1` (7 consecutive days), `week_4` (28 days), `week_12` (84 days)
+- [x] Each grants bonus XP on achievement: week_1=100 XP, week_4=500 XP, week_12=2000 XP
+- [x] Notification created on milestone: "Серия N недель! +M XP"
+- [x] Tests: correct trigger at milestone day counts; bonus XP awarded via award_xp; notification created
+- [x] Run pytest tests/achievements/
 
 ---
 ### Task 94: SRS performance by source tag
