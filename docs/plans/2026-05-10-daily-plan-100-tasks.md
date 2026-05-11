@@ -1261,10 +1261,10 @@
 - Modify: `app/auth/models.py` (add longest_streak_days INT DEFAULT 0)
 - Tests: `tests/achievements/test_streak_service.py`
 
-- [ ] Track `longest_streak_days` on UserStatistics or User — update whenever current streak increases
-- [ ] Insights page section: "Рекорды — Лучшая серия: N дней · Слов в один день: M · Лучшая неделя: K уроков"
-- [ ] Tests: streak update → longest_streak updated if beaten; never decreases; personal best in lessons per week computed correctly
-- [ ] Run pytest tests/achievements/
+- [x] Track `longest_streak_days` on UserStatistics or User — update whenever current streak increases
+- [x] Insights page section: "Рекорды — Лучшая серия: N дней · Слов в один день: M · Лучшая неделя: K уроков"
+- [x] Tests: streak update → longest_streak updated if beaten; never decreases; personal best in lessons per week computed correctly
+- [x] Run pytest tests/achievements/
 
 ---
 ### BLOCK H: Content Quality & Gamification (Tasks 83–99)

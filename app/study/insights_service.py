@@ -1688,3 +1688,54 @@ def get_accuracy_trend(user_id: int, days: int = 30) -> dict[str, Any]:
         'srs_accuracy': srs_accuracy,
         'quiz_accuracy': quiz_accuracy,
     }
+
+
+# ---------------------------------------------------------------------------
+# Personal bests
+# ---------------------------------------------------------------------------
+
+def get_personal_bests(user_id: int) -> dict[str, Any]:
+    """Return all-time personal bests for the user.
+
+    Returns::
+
+        {
+            "longest_streak_days": N,    # all-time best streak from UserStatistics
+            "max_words_in_day": M,       # most new vocabulary words added in one day
+            "best_week_lessons": K,      # most lessons completed in one calendar week
+        }
+    """
+    from app.achievements.models import UserStatistics
+    from app.curriculum.models import LessonProgress
+    from app.study.models import UserWord
+
+    stats = UserStatistics.query.filter_by(user_id=user_id).first()
+    longest_streak = stats.longest_streak_days if stats else 0
+
+    word_day_row = (
+        db.session.query(func.count(UserWord.id).label('cnt'))
+        .filter(UserWord.user_id == user_id, UserWord.created_at.isnot(None))
+        .group_by(cast(UserWord.created_at, Date))
+        .order_by(func.count(UserWord.id).desc())
+        .first()
+    )
+    max_words_in_day: int = word_day_row.cnt if word_day_row else 0
+
+    week_row = (
+        db.session.query(func.count(LessonProgress.id).label('cnt'))
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+            LessonProgress.completed_at.isnot(None),
+        )
+        .group_by(func.date_trunc('week', LessonProgress.completed_at))
+        .order_by(func.count(LessonProgress.id).desc())
+        .first()
+    )
+    best_week_lessons: int = week_row.cnt if week_row else 0
+
+    return {
+        'longest_streak_days': longest_streak,
+        'max_words_in_day': max_words_in_day,
+        'best_week_lessons': best_week_lessons,
+    }

@@ -287,7 +287,113 @@ class TestStreakFreezeProtection:
 
 
 # ---------------------------------------------------------------------------
-# 5. Listening streak
+# 5. Longest streak record and personal bests
+# ---------------------------------------------------------------------------
+
+
+class TestLongestStreakTracking:
+    """longest_streak_days is updated when current streak beats it and never decreases."""
+
+    def test_longest_streak_updated_when_beaten(self, db_session, streak_user):
+        from app.achievements.models import UserStatistics
+        from app.achievements.services import StatisticsService
+
+        stats = UserStatistics(
+            user_id=streak_user.id,
+            current_streak_days=4,
+            longest_streak_days=4,
+            last_activity_date=date.today() - timedelta(days=1),
+        )
+        db_session.add(stats)
+        db_session.flush()
+
+        updated = StatisticsService.update_on_lesson_completion(streak_user.id, 80.0, 'B')
+
+        assert updated.current_streak_days == 5
+        assert updated.longest_streak_days == 5
+
+    def test_longest_streak_never_decreases_on_reset(self, db_session, streak_user):
+        from app.achievements.models import UserStatistics
+        from app.achievements.services import StatisticsService
+
+        stats = UserStatistics(
+            user_id=streak_user.id,
+            current_streak_days=10,
+            longest_streak_days=10,
+            last_activity_date=date.today() - timedelta(days=5),
+        )
+        db_session.add(stats)
+        db_session.flush()
+
+        updated = StatisticsService.update_on_lesson_completion(streak_user.id, 80.0, 'B')
+
+        assert updated.current_streak_days == 1
+        assert updated.longest_streak_days == 10
+
+    def test_personal_bests_best_week_lessons(self, db_session, streak_user):
+        """get_personal_bests returns correct best week lessons count."""
+        from app.study.insights_service import get_personal_bests
+        from app.curriculum.models import CEFRLevel, Module, Lessons, LessonProgress
+
+        code = uuid.uuid4().hex[:2].upper()
+        level = CEFRLevel(code=code, name='L', description='d', order=1)
+        db_session.add(level)
+        db_session.flush()
+        mod = Module(
+            level_id=level.id, number=1, title='M', description='d',
+            raw_content={'module': {'id': 1}},
+        )
+        db_session.add(mod)
+        db_session.flush()
+
+        # 3 lessons completed this week, 1 lesson last week
+        this_monday = date.today() - timedelta(days=date.today().weekday())
+        this_week_ts = datetime.combine(this_monday, datetime.min.time()).replace(
+            tzinfo=None
+        ) + timedelta(hours=10)
+        last_week_ts = this_week_ts - timedelta(days=7)
+
+        for i in range(3):
+            lesson = Lessons(
+                module_id=mod.id, number=i + 1, title=f'L{i}',
+                type='text', content={},
+            )
+            db_session.add(lesson)
+            db_session.flush()
+            db_session.add(LessonProgress(
+                user_id=streak_user.id, lesson_id=lesson.id,
+                status='completed', completed_at=this_week_ts,
+            ))
+
+        # 1 lesson last week
+        lesson_old = Lessons(
+            module_id=mod.id, number=10, title='Old', type='text', content={},
+        )
+        db_session.add(lesson_old)
+        db_session.flush()
+        db_session.add(LessonProgress(
+            user_id=streak_user.id, lesson_id=lesson_old.id,
+            status='completed', completed_at=last_week_ts,
+        ))
+        db_session.flush()
+
+        result = get_personal_bests(streak_user.id)
+
+        assert result['best_week_lessons'] == 3
+        assert result['longest_streak_days'] >= 0
+        assert result['max_words_in_day'] >= 0
+
+    def test_personal_bests_empty_user(self, db_session, streak_user):
+        """get_personal_bests returns zeros for a user with no activity."""
+        from app.study.insights_service import get_personal_bests
+
+        result = get_personal_bests(streak_user.id)
+
+        assert result == {'longest_streak_days': 0, 'max_words_in_day': 0, 'best_week_lessons': 0}
+
+
+# ---------------------------------------------------------------------------
+# 6. Listening streak
 # ---------------------------------------------------------------------------
 
 

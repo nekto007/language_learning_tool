@@ -698,6 +698,7 @@ def insights():
         get_grammar_weaknesses, get_reading_speed_trend, get_learning_summary,
         get_skills_balance, get_grammar_mastery_by_topic, get_level_eta,
         get_accuracy_trend, get_comprehension_by_type, get_study_time_distribution,
+        get_personal_bests,
     )
     from app.achievements.streak_service import get_milestone_history
 
@@ -743,6 +744,11 @@ def insights():
     except Exception:
         logger.exception("study_time_distribution failed for user %s", current_user.id)
         study_time_dist = {'hours': list(range(24)), 'counts': [0] * 24, 'peak_hour': None}
+    try:
+        personal_bests = get_personal_bests(current_user.id)
+    except Exception:
+        logger.exception("personal_bests failed for user %s", current_user.id)
+        personal_bests = {'longest_streak_days': 0, 'max_words_in_day': 0, 'best_week_lessons': 0}
 
     return render_template('study/insights.html',
         heatmap=heatmap,
@@ -758,6 +764,7 @@ def insights():
         accuracy_trend=acc_trend,
         comprehension_by_type=comprehension_by_type,
         study_time_dist=study_time_dist,
+        personal_bests=personal_bests,
     )
 
 
