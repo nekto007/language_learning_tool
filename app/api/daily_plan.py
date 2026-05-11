@@ -313,6 +313,7 @@ def daily_status():
         'immersion_streak_days': immersion_streak_days,
         'pronunciation_weak_words': pronunciation_weak_words,
         'minutes_studied_today': minutes_studied_today,
+        'streak_shield_active': bool(getattr(current_user, 'streak_shield_active', False)),
         **listening_goal_data,
         **goal_progress_data,
     }

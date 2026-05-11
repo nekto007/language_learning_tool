@@ -1227,6 +1227,7 @@ def dashboard():
             'weekly_lesson_goal': getattr(current_user, 'weekly_lesson_goal', 5) or 5,
         },
         day_secured_banner=day_secured_banner,
+        streak_shield_active=bool(getattr(current_user, 'streak_shield_active', False)),
         local_hour=local_hour,
         plan_meta=plan_meta,
         phase_urls=phase_urls,

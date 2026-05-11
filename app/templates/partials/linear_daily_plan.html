@@ -236,6 +236,14 @@
     </div>
     {% endif %}
 
+    {# ── Streak shield badge ────────────────────────────────────────── #}
+    {% if streak_shield_active is defined and streak_shield_active %}
+    <div class="streak-shield-badge" data-streak-shield="true" role="status" aria-live="polite">
+        <span class="streak-shield-badge__icon" aria-hidden="true">&#128737;</span>
+        <span class="streak-shield-badge__text">Твоя серия защищена на 1 день</span>
+    </div>
+    {% endif %}
+
     {# ── Learning goal context line ─────────────────────────────────── #}
     {% set _daily_word_goal = learning_goals.daily_word_goal if learning_goals is defined and learning_goals else 0 %}
     {% if _daily_word_goal and _daily_word_goal > 0 and not l_day_secured %}

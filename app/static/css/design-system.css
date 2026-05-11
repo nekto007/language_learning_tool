@@ -12598,6 +12598,24 @@ footer .col-md-4 {
     padding: 0.2rem 0;
     margin-top: 0.1rem;
 }
+
+/* Task 92: Streak shield badge */
+.streak-shield-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.8rem;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: var(--radius-md, 8px);
+    font-size: 0.8rem;
+    color: #92400e;
+    margin-bottom: 0.35rem;
+}
+.streak-shield-badge__icon {
+    font-size: 1rem;
+    line-height: 1;
+}
 .linear-plan__secured {
     display: flex;
     align-items: center;

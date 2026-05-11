@@ -1412,11 +1412,11 @@
 - Modify: `app/templates/study/index.html`
 - Tests: `tests/achievements/test_streak_service.py`
 
-- [ ] User earns a streak shield every 7-day milestone (1 shield max, use-once)
-- [ ] When streak would be broken (missed day): if `streak_shield_active=True`, keep streak, set shield=False
-- [ ] Dashboard: show shield icon when active; "Твоя серия защищена на 1 день"
-- [ ] Tests: shield prevents break; second miss → streak breaks; shield not restored without new milestone
-- [ ] Run pytest tests/achievements/
+- [x] User earns a streak shield every 7-day milestone (1 shield max, use-once)
+- [x] When streak would be broken (missed day): if `streak_shield_active=True`, keep streak, set shield=False
+- [x] Dashboard: show shield icon when active; "Твоя серия защищена на 1 день"
+- [x] Tests: shield prevents break; second miss → streak breaks; shield not restored without new milestone
+- [x] Run pytest tests/achievements/
 
 ---
 ### Task 93: Weekly milestone rewards

@@ -17,6 +17,7 @@ from app.achievements.models import StreakCoins, StreakEvent
 from app.achievements.streak_service import (
     apply_free_repair,
     apply_paid_repair,
+    apply_shield_repair,
     earn_daily_coin,
     get_listening_streak,
     get_or_create_coins,
@@ -507,3 +508,115 @@ class TestGetListeningStreak:
 
         result = get_listening_streak(streak_user.id, tz='UTC')
         assert result == 1
+
+
+# ---------------------------------------------------------------------------
+# 7. Streak shield
+# ---------------------------------------------------------------------------
+
+
+class TestStreakShield:
+    """Shield protects against one missed day and is earned at 7-day milestones."""
+
+    def test_shield_repair_success(self, db_session, user_id):
+        """apply_shield_repair creates a shield_repair event for the missed date."""
+        missed = date.today() - timedelta(days=1)
+        result = apply_shield_repair(user_id, missed)
+        db_session.flush()
+
+        assert result is True
+        event = StreakEvent.query.filter_by(
+            user_id=user_id, event_type='shield_repair', event_date=missed
+        ).first()
+        assert event is not None
+        assert event.coins_delta == 0
+        assert (event.details or {}).get('reason') == 'streak_shield'
+
+    def test_shield_repair_prevents_duplicate(self, db_session, user_id):
+        """Shield repair is idempotent — second call for same date returns False."""
+        missed = date.today() - timedelta(days=1)
+        r1 = apply_shield_repair(user_id, missed)
+        db_session.flush()
+        r2 = apply_shield_repair(user_id, missed)
+        assert r1 is True
+        assert r2 is False
+        events = StreakEvent.query.filter_by(
+            user_id=user_id, event_type='shield_repair', event_date=missed
+        ).all()
+        assert len(events) == 1
+
+    def test_has_repair_for_date_detects_shield_repair(self, db_session, user_id):
+        """has_repair_for_date returns True after a shield_repair event."""
+        missed = date.today() - timedelta(days=1)
+        assert has_repair_for_date(user_id, missed) is False
+        apply_shield_repair(user_id, missed)
+        db_session.flush()
+        assert has_repair_for_date(user_id, missed) is True
+
+    def test_shield_blocks_paid_repair_on_same_date(self, db_session, user_id):
+        """Paid repair is blocked when a shield repair already covers the date."""
+        missed = date.today() - timedelta(days=1)
+        apply_shield_repair(user_id, missed)
+        db_session.flush()
+        coins = get_or_create_coins(user_id)
+        coins.earn(20)
+        db_session.flush()
+        result = apply_paid_repair(user_id, missed)
+        assert result['success'] is False
+        assert result['error'] == 'already_repaired'
+
+    def test_shield_granted_at_7_day_milestone(self, db_session, streak_user):
+        """check_streak_milestone grants a shield when streak hits 7."""
+        from app.achievements.streak_service import check_streak_milestone
+
+        assert streak_user.streak_shield_active is False
+
+        check_streak_milestone(streak_user.id, current_streak=7)
+        db_session.flush()
+
+        db_session.refresh(streak_user)
+        assert streak_user.streak_shield_active is True
+
+    def test_shield_not_granted_when_already_active(self, db_session, streak_user):
+        """A second 7-day milestone does not over-write an already-active shield."""
+        from app.achievements.streak_service import check_streak_milestone
+
+        streak_user.streak_shield_active = True
+        db_session.flush()
+
+        check_streak_milestone(streak_user.id, current_streak=14)
+        db_session.flush()
+
+        db_session.refresh(streak_user)
+        assert streak_user.streak_shield_active is True
+
+    def test_shield_granted_at_non_milestone_multiple_of_7(self, db_session, streak_user):
+        """Shield granted at streak=21 (multiple of 7, not in STREAK_MILESTONES)."""
+        from app.achievements.streak_service import check_streak_milestone
+
+        assert streak_user.streak_shield_active is False
+        result = check_streak_milestone(streak_user.id, current_streak=21)
+        db_session.flush()
+
+        assert result is None  # no coin reward for non-milestone
+        db_session.refresh(streak_user)
+        assert streak_user.streak_shield_active is True
+
+    def test_shield_not_restored_after_use(self, db_session, streak_user):
+        """After shield is consumed, streak_shield_active stays False."""
+        streak_user.streak_shield_active = True
+        db_session.flush()
+
+        missed = date.today() - timedelta(days=1)
+        apply_shield_repair(streak_user.id, missed)
+        streak_user.streak_shield_active = False
+        db_session.flush()
+
+        db_session.refresh(streak_user)
+        assert streak_user.streak_shield_active is False
+
+    def test_second_miss_breaks_streak_without_shield(self, db_session, user_id):
+        """Without an active shield, missed date is not auto-repaired."""
+        missed = date.today() - timedelta(days=1)
+        assert has_repair_for_date(user_id, missed) is False
+        assert has_repair_for_date(user_id, missed) is False

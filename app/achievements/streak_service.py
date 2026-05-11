@@ -393,6 +393,31 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     required_steps = streak_status.get('required_steps', 1)
     streak_repaired = False
 
+    # Shield repair: fires with any real activity regardless of steps_done.
+    # If the user has a shield and missed exactly one day, use the shield to
+    # repair the gap automatically, then deactivate the shield.
+    if real_activity:
+        try:
+            from app.auth.models import User as _User
+            _shield_user = _User.query.get(user_id)
+            if _shield_user and getattr(_shield_user, 'streak_shield_active', False):
+                _shield_missed = find_missed_date(user_id, tz=tz)
+                if _shield_missed:
+                    if apply_shield_repair(user_id, _shield_missed):
+                        _shield_user.streak_shield_active = False
+                        db.session.flush()
+                        from app.telegram.queries import get_current_streak
+                        streak_status = get_streak_status(
+                            user_id, tz=tz, steps_total=max(steps_total, 1)
+                        )
+                        streak_status['streak'] = get_current_streak(user_id, tz=tz)
+                        required_steps = streak_status.get('required_steps', 1)
+                        streak_repaired = True
+        except Exception:
+            logger.warning(
+                "Shield repair failed for user %s", user_id, exc_info=True
+            )
+
     # Attempt free repair if enough steps done AND user has real activity
     if steps_total > 0 and steps_done >= required_steps and real_activity:
         missed = find_missed_date(user_id, tz=tz)
@@ -454,13 +479,32 @@ STREAK_MILESTONES = {
 }
 
 
+def _grant_streak_shield(user_id: int) -> bool:
+    """Grant a streak shield to the user if they don't already have one.
+
+    Returns True if shield was granted, False if already active.
+    """
+    from app.auth.models import User
+    user = User.query.get(user_id)
+    if user is None or getattr(user, 'streak_shield_active', False):
+        return False
+    user.streak_shield_active = True
+    return True
+
+
 def check_streak_milestone(user_id: int, current_streak: int,
                            for_date: date | None = None) -> dict | None:
     """Check if current streak hits a milestone and award bonus coins.
 
+    Also grants a streak shield at every 7-day milestone (7, 14, 21, …)
+    when the user doesn't already hold one.
+
     Returns milestone info dict if awarded, None otherwise.
     """
     if current_streak not in STREAK_MILESTONES:
+        # Grant shield at every multiple of 7 even if not a coin milestone
+        if current_streak > 0 and current_streak % 7 == 0:
+            _grant_streak_shield(user_id)
         return None
 
     reward = STREAK_MILESTONES[current_streak]
@@ -488,6 +532,9 @@ def check_streak_milestone(user_id: int, current_streak: int,
         event_date=today,
         details={'streak': current_streak, 'reward': reward},
     ))
+
+    # Grant shield at every 7-day milestone
+    _grant_streak_shield(user_id)
 
     # Send notification
     try:
@@ -554,7 +601,7 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE
     event_dates: set[date] = set()
     for ev in StreakEvent.query.filter(
         StreakEvent.user_id == user_id,
-        StreakEvent.event_type.in_(['earned_daily', 'free_repair', 'spent_repair']),
+        StreakEvent.event_type.in_(['earned_daily', 'free_repair', 'spent_repair', 'shield_repair']),
         StreakEvent.event_date >= from_date,
     ):
         event_dates.add(ev.event_date)
@@ -739,11 +786,11 @@ def earn_daily_coin(user_id: int, for_date: date | None = None,
 
 
 def has_repair_for_date(user_id: int, target_date: date) -> bool:
-    """Check if a repair (free or paid) exists for a specific date."""
+    """Check if a repair (free, paid, or shield) exists for a specific date."""
     return StreakEvent.query.filter(
         StreakEvent.user_id == user_id,
         StreakEvent.event_date == target_date,
-        StreakEvent.event_type.in_(['free_repair', 'spent_repair']),
+        StreakEvent.event_type.in_(['free_repair', 'spent_repair', 'shield_repair']),
     ).first() is not None
 
 
@@ -778,6 +825,18 @@ def apply_free_repair(user_id: int, missed_date: date,
         user_id=user_id, event_type='free_repair',
         coins_delta=0, event_date=missed_date,
         details=details,
+    ))
+    return True
+
+
+def apply_shield_repair(user_id: int, missed_date: date) -> bool:
+    """Apply a shield repair for a missed date. Returns True on success."""
+    if has_repair_for_date(user_id, missed_date):
+        return False
+    db.session.add(StreakEvent(
+        user_id=user_id, event_type='shield_repair',
+        coins_delta=0, event_date=missed_date,
+        details={'reason': 'streak_shield'},
     ))
     return True
 
@@ -1263,11 +1322,14 @@ def get_streak_status(user_id: int, tz: str = DEFAULT_TIMEZONE,
                       steps_total: int = 4) -> dict:
     """Get full streak status for dashboard display."""
     from app.telegram.queries import get_current_streak, has_activity_today
+    from app.auth.models import User
 
     streak = get_current_streak(user_id, tz=tz)
     coins = get_or_create_coins(user_id)
     missed = find_missed_date(user_id, tz=tz)
     required = get_required_steps(streak, steps_total)
+    user = User.query.get(user_id)
+    shield_active = bool(getattr(user, 'streak_shield_active', False)) if user else False
 
     return {
         'streak': streak,
@@ -1278,4 +1340,5 @@ def get_streak_status(user_id: int, tz: str = DEFAULT_TIMEZONE,
         'repair_cost': get_repair_cost(user_id) if missed else None,
         'required_steps': required,
         'steps_total': steps_total,
+        'streak_shield_active': shield_active,
     }
