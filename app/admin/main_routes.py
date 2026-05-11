@@ -712,6 +712,38 @@ def get_content_quality_detail() -> dict:
             else:
                 no_vocabulary.append({'lesson_id': lesson.id, 'title': lesson.title, 'module_id': lesson.module_id})
 
+    # Enrich missing_audio entries with level/module info and sort by module progression
+    lesson_number_by_id = {lesson.id: lesson.number for lesson in all_lessons}
+    if missing_audio:
+        module_ids = list({m['module_id'] for m in missing_audio if m['module_id']})
+        if module_ids:
+            mod_rows_data = []
+            for chunk in chunk_ids(module_ids):
+                chunk_rows = (
+                    db.session.query(
+                        Module.id,
+                        Module.number,
+                        Module.title,
+                        CEFRLevel.order.label('level_order'),
+                        CEFRLevel.code.label('level_code'),
+                    )
+                    .join(CEFRLevel, CEFRLevel.id == Module.level_id)
+                    .filter(Module.id.in_(chunk))
+                    .all()
+                )
+                mod_rows_data.extend(chunk_rows)
+            mod_info = {r.id: r for r in mod_rows_data}
+            for m in missing_audio:
+                info = mod_info.get(m['module_id'])
+                m['level_code'] = info.level_code if info else ''
+                m['level_order'] = info.level_order if info else 0
+                m['module_number'] = info.number if info else 0
+                m['module_title'] = info.title if info else ''
+                m['lesson_number'] = lesson_number_by_id.get(m['lesson_id'], 0)
+        missing_audio.sort(key=lambda x: (
+            x.get('level_order', 0), x.get('module_number', 0), x.get('lesson_number', 0)
+        ))
+
     type_rows = []
     for lt, data in sorted(by_type.items()):
         total = data['total']

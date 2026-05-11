@@ -423,3 +423,6 @@ def _register_cli_commands(app):
 
     from app.cli.linear_plan_commands import register_linear_plan_commands
     register_linear_plan_commands(app)
+
+    from app.cli.content_commands import register_content_commands
+    register_content_commands(app)

@@ -1335,10 +1335,10 @@
 - Create: `app/cli/content_commands.py`
 - Tests: `tests/admin/test_content_quality.py`
 
-- [ ] CLI: `flask content-audit audio` — list lessons with audio_url that returns 404 or is empty
-- [ ] Admin view: table of lessons with missing/broken audio, sorted by module progression
-- [ ] Tests: CLI identifies missing audio entries; admin route includes same data
-- [ ] Run pytest tests/admin/
+- [x] CLI: `flask content-audit audio` — list lessons with audio_url that returns 404 or is empty
+- [x] Admin view: table of lessons with missing/broken audio, sorted by module progression
+- [x] Tests: CLI identifies missing audio entries; admin route includes same data
+- [x] Run pytest tests/admin/
 
 ---
 ### Task 88: Idiom lesson type

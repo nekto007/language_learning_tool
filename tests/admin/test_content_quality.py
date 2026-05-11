@@ -244,3 +244,149 @@ class TestGetContentQualityDetail:
         response = client.get('/admin/content-quality/export')
         content = response.data.decode('utf-8')
         assert 'translation' in content
+
+
+class TestMissingAudioSorted:
+    """Tests for missing audio sorting by module progression (Task 87)."""
+
+    def test_missing_audio_entries_have_level_and_module_info(self, app, db_session):
+        from app.admin.main_routes import get_content_quality_detail
+
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module, lesson_type='dictation', content={})
+        db_session.commit()
+
+        result = get_content_quality_detail()
+
+        missing = [m for m in result['missing_audio'] if m.get('module_id') == module.id]
+        assert missing, 'Expected at least one missing audio entry for this module'
+        entry = missing[0]
+        assert 'level_code' in entry
+        assert 'module_number' in entry
+        assert 'lesson_number' in entry
+
+    def test_missing_audio_sorted_by_level_order(self, app, db_session):
+        from app.admin.main_routes import get_content_quality_detail
+
+        level1 = _make_level(db_session)
+        level1.order = 5
+        level2 = _make_level(db_session)
+        level2.order = 50
+        db_session.flush()
+
+        module1 = _make_module(db_session, level1)
+        module2 = _make_module(db_session, level2)
+        lesson_low = _make_lesson(db_session, module1, lesson_type='dictation', content={})
+        lesson_high = _make_lesson(db_session, module2, lesson_type='dictation', content={})
+        db_session.commit()
+
+        result = get_content_quality_detail()
+
+        missing_ids = [m['lesson_id'] for m in result['missing_audio']]
+        assert lesson_low.id in missing_ids
+        assert lesson_high.id in missing_ids
+        # lesson in lower-order level should appear before lesson in higher-order level
+        assert missing_ids.index(lesson_low.id) < missing_ids.index(lesson_high.id)
+
+    def test_admin_route_shows_level_column(self, app, client, admin_user, db_session):
+        level = _make_level(db_session)
+        level.order = 1
+        db_session.flush()
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module, lesson_type='dictation', content={})
+        db_session.commit()
+
+        response = client.get('/admin/content-quality')
+        assert response.status_code == 200
+        data = response.data.decode('utf-8')
+        # Template should now show Level and Module columns
+        assert 'Уровень' in data
+        assert 'Модуль' in data
+
+
+class TestContentAuditCLI:
+    """Tests for flask content-audit CLI command (Task 87)."""
+
+    def test_get_missing_audio_lessons_finds_missing(self, app, db_session):
+        from app.cli.content_commands import _get_missing_audio_lessons
+
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        lesson = _make_lesson(db_session, module, lesson_type='dictation', content={})
+        db_session.commit()
+
+        missing = _get_missing_audio_lessons()
+
+        ids = [m['lesson_id'] for m in missing]
+        assert lesson.id in ids
+
+    def test_get_missing_audio_lessons_excludes_lessons_with_audio(self, app, db_session):
+        from app.cli.content_commands import _get_missing_audio_lessons
+
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        lesson = _make_lesson(db_session, module, lesson_type='dictation',
+                               content={'audio_url': 'http://example.com/audio.mp3'})
+        db_session.commit()
+
+        missing = _get_missing_audio_lessons()
+
+        ids = [m['lesson_id'] for m in missing]
+        assert lesson.id not in ids
+
+    def test_get_missing_audio_lessons_detects_empty_string_url(self, app, db_session):
+        from app.cli.content_commands import _get_missing_audio_lessons
+
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        lesson = _make_lesson(db_session, module, lesson_type='text', content={'audio_url': ''})
+        db_session.commit()
+
+        missing = _get_missing_audio_lessons()
+
+        ids = [m['lesson_id'] for m in missing]
+        assert lesson.id in ids
+        entry = next(m for m in missing if m['lesson_id'] == lesson.id)
+        assert entry['status'] == 'empty'
+
+    def test_cli_command_runs_successfully(self, app, db_session):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module, lesson_type='dictation',
+                     content={}, title='Missing Audio Lesson')
+        db_session.commit()
+
+        runner = app.test_cli_runner()
+        result = runner.invoke(args=['content-audit', 'audio'])
+
+        assert result.exit_code == 0
+        assert 'Found' in result.output or 'Missing Audio Lesson' in result.output
+
+    def test_cli_command_no_missing_output(self, app, db_session):
+        # No dictation/listening lessons without audio created in this test
+        runner = app.test_cli_runner()
+        result = runner.invoke(args=['content-audit', 'audio'])
+
+        assert result.exit_code == 0
+        # Either finds existing missing ones or reports none found
+        assert result.output is not None
+
+    def test_missing_audio_lessons_match_admin_detail(self, app, db_session):
+        """CLI data and admin route both detect same missing audio entries."""
+        from app.admin.main_routes import get_content_quality_detail
+        from app.cli.content_commands import _get_missing_audio_lessons
+
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        lesson = _make_lesson(db_session, module, lesson_type='listening_immersion', content={})
+        db_session.commit()
+
+        admin_result = get_content_quality_detail()
+        cli_result = _get_missing_audio_lessons()
+
+        admin_ids = {m['lesson_id'] for m in admin_result['missing_audio']}
+        cli_ids = {m['lesson_id'] for m in cli_result}
+        # Both should include our lesson
+        assert lesson.id in admin_ids
+        assert lesson.id in cli_ids

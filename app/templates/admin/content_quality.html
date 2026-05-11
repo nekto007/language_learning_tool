@@ -114,15 +114,16 @@
       <div class="table-responsive">
         <table class="table table-sm mb-0">
           <thead class="table-light">
-            <tr><th>ID</th><th>Название</th><th>Тип</th><th>Module ID</th></tr>
+            <tr><th>ID</th><th>Уровень</th><th>Модуль</th><th>Название</th><th>Тип</th></tr>
           </thead>
           <tbody>
             {% for lesson in missing_audio %}
             <tr>
               <td>{{ lesson.lesson_id }}</td>
+              <td><span class="badge bg-secondary">{{ lesson.level_code or '—' }}</span></td>
+              <td>{{ lesson.module_number or lesson.module_id }}</td>
               <td>{{ lesson.title }}</td>
               <td><code>{{ lesson.type }}</code></td>
-              <td>{{ lesson.module_id }}</td>
             </tr>
             {% endfor %}
           </tbody>
