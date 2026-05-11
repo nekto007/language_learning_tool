@@ -392,6 +392,12 @@ def _build_baseline(
 
     if focus == 'reading':
         baseline = [curriculum_dict, reading_dict, srs_dict]
+    elif focus == 'speaking':
+        speaking_slot_obj = build_speaking_slot(user_id, db)
+        if speaking_slot_obj is not None:
+            baseline = [curriculum_dict, speaking_slot_obj.to_dict(), srs_dict, reading_dict]
+        else:
+            baseline = [curriculum_dict, srs_dict, reading_dict]
     else:
         baseline = [curriculum_dict, srs_dict, reading_dict]
     if error_review is not None:

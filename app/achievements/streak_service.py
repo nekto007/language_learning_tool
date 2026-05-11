@@ -611,7 +611,7 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE
     event_dates: set[date] = set()
     for ev in StreakEvent.query.filter(
         StreakEvent.user_id == user_id,
-        StreakEvent.event_type.in_(['earned_daily', 'free_repair', 'spent_repair', 'shield_repair']),
+        StreakEvent.event_type.in_(['earned_daily', 'free_repair', 'spent_repair', 'plan_pause', 'shield_repair']),
         StreakEvent.event_date >= from_date,
     ):
         event_dates.add(ev.event_date)
@@ -800,7 +800,7 @@ def has_repair_for_date(user_id: int, target_date: date) -> bool:
     return StreakEvent.query.filter(
         StreakEvent.user_id == user_id,
         StreakEvent.event_date == target_date,
-        StreakEvent.event_type.in_(['free_repair', 'spent_repair', 'shield_repair']),
+        StreakEvent.event_type.in_(['free_repair', 'spent_repair', 'plan_pause', 'shield_repair']),
     ).first() is not None
 
 

@@ -1171,6 +1171,11 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
             db.session.commit()
         except Exception:
             db.session.rollback()
+        try:
+            from app.achievements.services import check_speaking_achievements
+            check_speaking_achievements(user_id, db_session=db.session)
+        except Exception as ach_err:
+            logger.warning(f"Speaking achievements check failed for user {user_id}: {ach_err}")
         return {'success': True, 'matched': False, 'self_assessed': True}
 
     grade = grade_pronunciation_match(recognized_text, target_word)
@@ -1186,6 +1191,11 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
         db.session.commit()
     except Exception:
         db.session.rollback()
+    try:
+        from app.achievements.services import check_speaking_achievements
+        check_speaking_achievements(user_id, db_session=db.session)
+    except Exception as ach_err:
+        logger.warning(f"Speaking achievements check failed for user {user_id}: {ach_err}")
     return {'success': True, **grade}
 
 
