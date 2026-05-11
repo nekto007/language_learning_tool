@@ -1480,11 +1480,11 @@
 - Modify: `app/daily_plan/service.py` (day secured path)
 - Tests: `tests/notifications/test_milestone_notifications.py`
 
-- [ ] When day_secured and streak hits 7/30/100 days: create in-app notification
-- [ ] Notification respects `notify_in_app_achievements` user flag
-- [ ] Dedup: only create one notification per milestone day (check for existing notification of same type today)
-- [ ] Tests: streak=7 → notification created; second day at 7 → no duplicate; flag=False → no notification
-- [ ] Run pytest tests/notifications/
+- [x] When day_secured and streak hits 7/30/100 days: create in-app notification
+- [x] Notification respects `notify_in_app_achievements` user flag
+- [x] Dedup: only create one notification per milestone day (check for existing notification of same type today)
+- [x] Tests: streak=7 → notification created; second day at 7 → no duplicate; flag=False → no notification
+- [x] Run pytest tests/notifications/
 
 ---
 ### Task 98: Telegram bot plan status command
@@ -1507,10 +1507,10 @@
 - Modify: `app/curriculum/routes/lessons.py`
 - Tests: `tests/api/test_rate_limiting.py`
 
-- [ ] Add rate limit to pronunciation attempt submit: max 100 attempts per user per day (prevents leaderboard abuse)
-- [ ] Add rate limit to writing attempt submit: max 50 per user per day
+- [ ] Add rate limit to pronunciation attempt submit: max 200 attempts per user per day (prevents leaderboard abuse)
+- [ ] Add rate limit to writing attempt submit: max 70 per user per day
 - [ ] Return `api_error('rate_limit_exceeded', 429)` on breach
-- [ ] Tests: 101st pronunciation attempt → 429; 51st writing → 429; different users not affected by each other's limits
+- [ ] Tests: 201st pronunciation attempt → 429; 71st writing → 429; different users not affected by each other's limits
 - [ ] Run pytest tests/api/
 
 ---

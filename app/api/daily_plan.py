@@ -264,6 +264,12 @@ def daily_status():
                 check_immersion_achievement(user_id, today, db.session)
             except Exception:
                 logger.warning("immersion achievement check failed for user %s", user_id, exc_info=True)
+            try:
+                from app.notifications.services import check_plan_streak_milestone_notification
+                _streak = streak_result.get('streak_status', {}).get('streak', 0)
+                check_plan_streak_milestone_notification(user_id, _streak, today)
+            except Exception:
+                logger.warning("plan streak milestone notification failed for user %s", user_id, exc_info=True)
             db.session.commit()
             logger.info(
                 "daily_status user=%s day_secured=true mission_type=%s date=%s",
@@ -660,6 +666,13 @@ def daily_plan_next_slot():
                 check_immersion_achievement(user.id, today, db.session)
             except Exception:
                 logger.warning("immersion achievement check failed for user %s", user.id, exc_info=True)
+            try:
+                from app.notifications.services import check_plan_streak_milestone_notification
+                from app.telegram.queries import get_current_streak as _get_streak
+                _streak = _get_streak(user.id, tz=tz)
+                check_plan_streak_milestone_notification(user.id, _streak, today)
+            except Exception:
+                logger.warning("plan streak milestone notification failed for user %s", user.id, exc_info=True)
             db.session.commit()
             secured_just_now = not was_already_secured
             if secured_just_now:
