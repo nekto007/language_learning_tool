@@ -742,11 +742,11 @@
 - Modify: `app/api/daily_status.py`
 - Tests: `tests/daily_plan/test_next_step.py`
 
-- [ ] In `/api/daily-status`: if yesterday's plan was incomplete (check DailyPlanLog), add `recovery_suggestion: {missed_kind, action_url}` to payload
-- [ ] `NextStep` kind='recovery': "Вчера не завершил(а) — продолжи с SRS"
-- [ ] Show recovery hint at top of dashboard when applicable
-- [ ] Tests: yesterday incomplete → recovery shown; completed → no recovery; no yesterday plan → no recovery
-- [ ] Run pytest tests/daily_plan/
+- [x] In `/api/daily-status`: if yesterday's plan was incomplete (check DailyPlanLog), add `recovery_suggestion: {missed_kind, action_url}` to payload
+- [x] `NextStep` kind='recovery': "Вчера не завершил(а) — продолжи с SRS"
+- [x] Show recovery hint at top of dashboard when applicable
+- [x] Tests: yesterday incomplete → recovery shown; completed → no recovery; no yesterday plan → no recovery
+- [x] Run pytest tests/daily_plan/
 
 ---
 ### Task 48: Plan pause / vacation mode

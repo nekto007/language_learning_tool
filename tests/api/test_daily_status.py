@@ -231,6 +231,171 @@ class TestComputeListeningGoalUnit:
         assert result['listening_minutes_today'] == 2.0
 
 
+class TestRecoverySuggestionInDailyStatus:
+    """recovery_suggestion field in /api/daily-status when yesterday incomplete."""
+
+    def _base_patches(self, recovery=None):
+        plan = _linear_plan()
+        patches = [
+            patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan),
+            patch('app.telegram.queries.get_daily_summary', return_value=_empty_summary()),
+            patch('app.telegram.queries.get_yesterday_summary', return_value=_empty_summary()),
+            patch('app.study.services.SRSService.get_adaptive_limit_reason', return_value='normal'),
+            patch('app.api.daily_plan._compute_listening_goal', return_value={
+                'listening_goal_minutes': 10,
+                'listening_minutes_today': 0.0,
+                'listening_goal_reached': False,
+            }),
+            patch('app.api.daily_plan._get_recovery_suggestion', return_value=recovery),
+        ]
+        return patches
+
+    def test_no_recovery_when_yesterday_completed(self, authenticated_client):
+        """No recovery_suggestion field when yesterday's plan was secured."""
+        patches = self._base_patches(recovery=None)
+        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
+            response = authenticated_client.get('/api/daily-status')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'recovery_suggestion' not in data
+
+    def test_recovery_shown_when_yesterday_incomplete(self, authenticated_client):
+        """recovery_suggestion present when yesterday's plan was not secured."""
+        suggestion = {
+            'missed_kind': 'srs',
+            'action_url': '/study?source=linear_plan',
+            'missed_date': '2026-05-10',
+        }
+        patches = self._base_patches(recovery=suggestion)
+        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
+            response = authenticated_client.get('/api/daily-status')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'recovery_suggestion' in data
+        assert data['recovery_suggestion']['missed_kind'] == 'srs'
+        assert data['recovery_suggestion']['action_url'] == '/study?source=linear_plan'
+
+    def test_recovery_contains_missed_date(self, authenticated_client):
+        """recovery_suggestion includes missed_date field."""
+        suggestion = {
+            'missed_kind': 'progress',
+            'action_url': '/study?source=linear_plan',
+            'missed_date': '2026-05-10',
+        }
+        patches = self._base_patches(recovery=suggestion)
+        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
+            response = authenticated_client.get('/api/daily-status')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['recovery_suggestion']['missed_date'] == '2026-05-10'
+
+
+class TestGetRecoverySuggestionUnit:
+    """Unit tests for _get_recovery_suggestion helper."""
+
+    def test_returns_none_when_no_log(self, app, db_session):
+        """No DailyPlanLog for yesterday → returns None."""
+        from app.api.daily_plan import _get_recovery_suggestion
+
+        with app.app_context():
+            result = _get_recovery_suggestion(999999, 'UTC')
+
+        assert result is None
+
+    def test_returns_none_when_yesterday_secured(self, app, db_session):
+        """DailyPlanLog exists with secured_at set → returns None."""
+        from app.api.daily_plan import _get_recovery_suggestion
+        from app.daily_plan.models import DailyPlanLog
+        from app.auth.models import User
+        from datetime import datetime, timedelta, timezone
+        import pytz
+
+        with app.app_context():
+            user = db_session.query(User).first()
+            if user is None:
+                return
+
+            tz_obj = pytz.timezone('UTC')
+            yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
+
+            log = DailyPlanLog(
+                user_id=user.id,
+                plan_date=yesterday,
+                secured_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            )
+            db_session.add(log)
+            db_session.flush()
+
+            result = _get_recovery_suggestion(user.id, 'UTC')
+
+        assert result is None
+
+    def test_returns_suggestion_when_yesterday_unsecured(self, app, db_session):
+        """DailyPlanLog exists with secured_at=None → returns recovery suggestion."""
+        from app.api.daily_plan import _get_recovery_suggestion
+        from app.daily_plan.models import DailyPlanLog
+        from app.auth.models import User
+        from datetime import datetime, timedelta
+        import pytz
+
+        with app.app_context():
+            user = db_session.query(User).first()
+            if user is None:
+                return
+
+            tz_obj = pytz.timezone('UTC')
+            yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
+
+            log = DailyPlanLog(
+                user_id=user.id,
+                plan_date=yesterday,
+                secured_at=None,
+            )
+            db_session.add(log)
+            db_session.flush()
+
+            result = _get_recovery_suggestion(user.id, 'UTC')
+
+        assert result is not None
+        assert 'missed_kind' in result
+        assert 'action_url' in result
+        assert result['missed_date'] == yesterday.isoformat()
+        assert result['missed_kind'] == 'srs'
+
+    def test_mission_type_used_as_missed_kind(self, app, db_session):
+        """mission_type from DailyPlanLog used as missed_kind when set."""
+        from app.api.daily_plan import _get_recovery_suggestion
+        from app.daily_plan.models import DailyPlanLog
+        from app.auth.models import User
+        from datetime import datetime, timedelta
+        import pytz
+
+        with app.app_context():
+            user = db_session.query(User).first()
+            if user is None:
+                return
+
+            tz_obj = pytz.timezone('UTC')
+            yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
+
+            log = DailyPlanLog(
+                user_id=user.id,
+                plan_date=yesterday,
+                mission_type='progress',
+                secured_at=None,
+            )
+            db_session.add(log)
+            db_session.flush()
+
+            result = _get_recovery_suggestion(user.id, 'UTC')
+
+        assert result is not None
+        assert result['missed_kind'] == 'progress'
+
+
 class TestListeningStreakDaysInDailyStatus:
     """listening_streak_days is included in /api/daily-status payload."""
 

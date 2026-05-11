@@ -28,6 +28,28 @@ def _validate_timezone(tz_name: str) -> str:
         return DEFAULT_TZ
 
 
+def _get_recovery_suggestion(user_id: int, tz: str) -> dict | None:
+    """Return recovery suggestion when yesterday's plan was not secured, else None."""
+    import pytz
+    from datetime import datetime, timedelta
+    from app.daily_plan.models import DailyPlanLog
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TZ)
+
+    yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
+    log = DailyPlanLog.query.filter_by(user_id=user_id, plan_date=yesterday).first()
+
+    if log is None or log.secured_at is not None:
+        return None
+
+    missed_kind = log.mission_type or 'srs'
+    action_url = '/study?source=linear_plan'
+    return {'missed_kind': missed_kind, 'action_url': action_url, 'missed_date': yesterday.isoformat()}
+
+
 def _compute_listening_goal(user, tz: str) -> dict:
     """Compute listening goal progress for today.
 
@@ -187,6 +209,8 @@ def daily_status():
     listening_streak_days = get_listening_streak(user_id, tz=tz)
     writing_streak_days = get_writing_streak(user_id, tz=tz)
 
+    recovery_suggestion = _get_recovery_suggestion(user_id, tz)
+
     payload = {
         'success': True,
         'plan': plan,
@@ -205,6 +229,8 @@ def daily_status():
     }
     if srs_limit_reason != 'normal':
         payload['srs_limit_reason'] = srs_limit_reason
+    if recovery_suggestion is not None:
+        payload['recovery_suggestion'] = recovery_suggestion
     return jsonify(payload)
 
 

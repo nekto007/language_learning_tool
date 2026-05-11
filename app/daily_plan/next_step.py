@@ -15,7 +15,7 @@ from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 
-_STEP_KINDS = ('lesson', 'srs', 'writing', 'grammar', 'reading', 'vocab')
+_STEP_KINDS = ('recovery', 'lesson', 'srs', 'writing', 'grammar', 'reading', 'vocab')
 
 _WRITING_LESSON_TYPES = frozenset({'writing_prompt', 'translation', 'sentence_correction'})
 _WRITING_SUGGEST_AFTER_DAYS = 2
@@ -37,6 +37,7 @@ def get_next_best_step(user_id: int, db, max_steps: int = 3) -> list[NextStep]:
     Returns an empty list when all sources are genuinely exhausted.
     """
     candidates = [s for s in [
+        _check_recovery(user_id, db),
         _check_unfinished_lesson(user_id, db),
         _check_srs_due(user_id, db),
         _check_writing_suggestion(user_id, db),
@@ -58,6 +59,38 @@ def _apply_queue_filters(candidates: list[NextStep], max_steps: int) -> list[Nex
             continue
         queue.append(step)
     return queue
+
+
+# ── Priority 0: yesterday's missed plan recovery ───────────────────────────
+
+def _check_recovery(user_id: int, db) -> Optional[NextStep]:
+    """Suggest recovery when yesterday's plan was not secured."""
+    from datetime import date, timedelta
+    from app.auth.models import User
+    from app.daily_plan.models import DailyPlanLog
+    import pytz
+
+    try:
+        user = User.query.get(user_id)
+        tz_name = (user.timezone if user else None) or 'UTC'
+        try:
+            tz_obj = pytz.timezone(tz_name)
+        except pytz.UnknownTimeZoneError:
+            tz_obj = pytz.utc
+        yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
+        log = DailyPlanLog.query.filter_by(user_id=user_id, plan_date=yesterday).first()
+    except Exception:
+        return None
+
+    if log is None or log.secured_at is not None:
+        return None
+
+    return NextStep(
+        kind='recovery',
+        reason='Вчера не завершил(а) — продолжи с SRS',
+        data={'action_url': '/study?source=linear_plan', 'missed_date': yesterday.isoformat()},
+        estimated_minutes=10,
+    )
 
 
 # ── Priority 1: unfinished lesson ──────────────────────────────────────────
