@@ -76,6 +76,7 @@ def lesson_detail(lesson_id):
         'writing_prompt': 'curriculum_lessons.writing_prompt_lesson',
         'sentence_completion': 'curriculum_lessons.sentence_completion_lesson',
         'collocation_matching': 'curriculum_lessons.collocation_matching_lesson',
+        'shadow_reading': 'curriculum_lessons.shadow_reading_lesson',
     }
 
     route_name = route_map.get(lesson.type)
@@ -243,6 +244,8 @@ def submit_lesson(lesson_id):
             result = _process_sentence_completion_submission(lesson, current_user.id, data)
         elif lesson.type == 'collocation_matching':
             result = _process_collocation_matching_submission(lesson, current_user.id, data)
+        elif lesson.type == 'shadow_reading':
+            result = _process_shadow_reading_submission(lesson, current_user.id, data)
         else:
             return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
 
@@ -929,6 +932,88 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
         result['next_lesson_url'] = url_for(
             'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
         )
+
+    return result
+
+
+@lessons_bp.route('/lesson/<int:lesson_id>/shadow-reading')
+@login_required
+@require_lesson_access
+def shadow_reading_lesson(lesson_id: int):
+    """Display a shadow reading lesson — listen then read aloud (honor system)."""
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'shadow_reading':
+        flash('Неверный тип урока', 'error')
+        return redirect('/learn/')
+
+    content = lesson.content or {}
+    audio_url = content.get('audio_url', '')
+    text = content.get('text', '')
+    translation = content.get('translation', '')
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id,
+    ).first()
+    if not progress:
+        try:
+            progress = LessonProgress(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+                status='in_progress',
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error creating shadow_reading progress: {e}")
+            db.session.rollback()
+
+    return render_template(
+        'curriculum/lessons/shadow_reading.html',
+        lesson=lesson,
+        progress=progress,
+        audio_url=audio_url,
+        text=text,
+        translation=translation,
+    )
+
+
+def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
+    """Mark a shadow reading lesson complete on self-assessment, award XP, return result."""
+    from app.curriculum.service import get_next_lesson
+
+    self_assessed = bool(data.get('self_assessed', False))
+
+    if self_assessed:
+        progress = LessonProgress.query.filter_by(
+            user_id=user_id, lesson_id=lesson.id
+        ).first()
+        if progress:
+            progress.status = 'completed'
+            if not progress.completed_at:
+                progress.completed_at = datetime.now(UTC)
+            progress.last_activity = datetime.now(UTC)
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+        try:
+            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
+            db.session.commit()
+        except Exception as xp_err:
+            logger.warning(f"Shadow reading XP award failed for lesson {lesson.id}: {xp_err}")
+
+    result: dict = {'success': True, 'completed': self_assessed}
+    if self_assessed:
+        next_lesson = get_next_lesson(lesson.id)
+        if next_lesson:
+            result['next_lesson_url'] = url_for(
+                'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
+            )
 
     return result
 

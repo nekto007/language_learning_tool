@@ -1,0 +1,314 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Теневое чтение') %}
+{% set instruction_text = _('Прослушайте аудио, затем прочитайте вслух вместе с записью.') %}
+{% set block_description = _('Тренировка произношения и интонации') %}
+
+{% block extra_css %}
+<style>
+.shadow-reading-lesson {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.shadow-phase {
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  border: 2px solid transparent;
+  transition: border-color 0.25s, opacity 0.25s;
+}
+.shadow-phase--locked {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.shadow-phase--active {
+  border-color: var(--color-primary, #6366f1);
+}
+.shadow-phase--done {
+  border-color: var(--color-success, #10b981);
+}
+.shadow-phase-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.shadow-phase-number {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+.shadow-phase--done .shadow-phase-number {
+  background: var(--color-success, #10b981);
+}
+.shadow-phase-1 {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+}
+.shadow-phase-1 .shadow-phase-number {
+  background: rgba(255,255,255,0.25);
+}
+.shadow-phase-1 audio {
+  width: 100%;
+  border-radius: 0.5rem;
+  margin-top: 0.5rem;
+}
+.shadow-phase-2 {
+  background: #fff;
+  border: 2px solid var(--color-border, #e5e7eb);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.shadow-text-block {
+  background: var(--color-bg-secondary, #f9fafb);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: var(--color-text, #1f2937);
+  margin-bottom: 0.75rem;
+}
+.shadow-translation-block {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary, #6b7280);
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+.shadow-phase-2 audio {
+  width: 100%;
+  border-radius: 0.5rem;
+  margin-top: 0.75rem;
+}
+.shadow-phase-3 {
+  background: #fff;
+  border: 2px solid var(--color-border, #e5e7eb);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.shadow-assess-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.shadow-assess-checkbox {
+  margin-top: 0.2rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  accent-color: var(--color-primary, #6366f1);
+}
+.shadow-submit-row {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.shadow-word--active {
+  background: rgba(99, 102, 241, 0.15);
+  border-radius: 3px;
+  transition: background 0.1s;
+}
+@media (max-width: 480px) {
+  .shadow-submit-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+</style>
+{% endblock %}
+
+{% block lesson_content %}
+<div class="shadow-reading-lesson">
+
+  <!-- Phase 1: Listen -->
+  <div class="shadow-phase shadow-phase-1" id="phase-1">
+    <div class="shadow-phase-header">
+      <div class="shadow-phase-number" id="phase-1-num">1</div>
+      <span><i class="fas fa-headphones"></i> {{ _('Шаг 1 — Прослушайте') }}</span>
+    </div>
+    <p style="margin:0 0 0.5rem; opacity:0.9; font-size:0.95rem;">
+      {{ _('Сначала просто слушайте — следите за ритмом и интонацией.') }}
+    </p>
+    <audio id="audio-phase1" controls onended="onPhase1End()">
+      <source src="{{ audio_url }}" type="audio/mpeg">
+      <source src="{{ audio_url }}" type="audio/ogg">
+      {{ _('Ваш браузер не поддерживает аудио.') }}
+    </audio>
+    <div style="margin-top:0.75rem;">
+      <button class="btn btn-sm" id="btn-skip-phase1" onclick="goToPhase2()" type="button"
+              style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);">
+        {{ _('Перейти к чтению') }} <i class="fas fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Phase 2: Read-along -->
+  <div class="shadow-phase shadow-phase-2 shadow-phase--locked" id="phase-2">
+    <div class="shadow-phase-header">
+      <div class="shadow-phase-number" id="phase-2-num">2</div>
+      <span><i class="fas fa-book-open"></i> {{ _('Шаг 2 — Читайте вслух вместе с записью') }}</span>
+    </div>
+    <div class="shadow-text-block" id="shadow-text">
+      {{ text }}
+    </div>
+    {% if translation %}
+    <div class="shadow-translation-block">
+      <i class="fas fa-language"></i> {{ translation }}
+    </div>
+    {% endif %}
+    <audio id="audio-phase2" controls onended="onPhase2End()">
+      <source src="{{ audio_url }}" type="audio/mpeg">
+      <source src="{{ audio_url }}" type="audio/ogg">
+      {{ _('Ваш браузер не поддерживает аудио.') }}
+    </audio>
+    <div style="margin-top:0.75rem;">
+      <button class="btn btn-sm btn-outline" id="btn-skip-phase2" onclick="goToPhase3()" type="button">
+        {{ _('Готов(а) к самооценке') }} <i class="fas fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Phase 3: Self-assess -->
+  <div class="shadow-phase shadow-phase-3 shadow-phase--locked" id="phase-3">
+    <div class="shadow-phase-header">
+      <div class="shadow-phase-number" id="phase-3-num">3</div>
+      <span><i class="fas fa-check-circle"></i> {{ _('Шаг 3 — Самооценка') }}</span>
+    </div>
+    <label class="shadow-assess-label" for="self-assess-checkbox">
+      <input
+        class="shadow-assess-checkbox"
+        id="self-assess-checkbox"
+        type="checkbox"
+        onchange="onAssessChange()"
+      >
+      <span>{{ _('Я прочитал(а) вслух вместе с записью') }}</span>
+    </label>
+    <div class="shadow-submit-row">
+      <button
+        class="btn btn-primary btn-lg"
+        id="submit-btn"
+        disabled
+        onclick="submitShadowReading()"
+        type="button"
+      >
+        <i class="fas fa-check"></i> {{ _('Завершить урок') }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Result area -->
+  <div id="shadow-result" style="display:none; margin-top:1rem;"></div>
+
+</div>
+
+<script>
+const lessonId = {{ lesson.id }};
+let phase2Unlocked = false;
+let phase3Unlocked = false;
+
+function onPhase1End() {
+  goToPhase2();
+}
+
+function goToPhase2() {
+  if (phase2Unlocked) return;
+  phase2Unlocked = true;
+  const p1 = document.getElementById('phase-1');
+  const p2 = document.getElementById('phase-2');
+  p1.classList.add('shadow-phase--done');
+  document.getElementById('phase-1-num').innerHTML = '<i class="fas fa-check"></i>';
+  p2.classList.remove('shadow-phase--locked');
+  p2.classList.add('shadow-phase--active');
+  p2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const a2 = document.getElementById('audio-phase2');
+  if (a2) {
+    a2.play().catch(() => {});
+  }
+}
+
+function onPhase2End() {
+  goToPhase3();
+}
+
+function goToPhase3() {
+  if (phase3Unlocked) return;
+  phase3Unlocked = true;
+  const p2 = document.getElementById('phase-2');
+  const p3 = document.getElementById('phase-3');
+  p2.classList.remove('shadow-phase--active');
+  p2.classList.add('shadow-phase--done');
+  document.getElementById('phase-2-num').innerHTML = '<i class="fas fa-check"></i>';
+  p3.classList.remove('shadow-phase--locked');
+  p3.classList.add('shadow-phase--active');
+  p3.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function onAssessChange() {
+  const cb = document.getElementById('self-assess-checkbox');
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = !cb.checked;
+}
+
+async function submitShadowReading() {
+  const cb = document.getElementById('self-assess-checkbox');
+  if (!cb.checked) return;
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Сохранение...") }}';
+
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const resp = await fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ self_assessed: true, lesson_type: 'shadow_reading' }),
+    });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    const p3 = document.getElementById('phase-3');
+    p3.classList.remove('shadow-phase--active');
+    p3.classList.add('shadow-phase--done');
+    document.getElementById('phase-3-num').innerHTML = '<i class="fas fa-check"></i>';
+
+    btn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено!") }}';
+
+    const resultDiv = document.getElementById('shadow-result');
+    resultDiv.style.display = 'block';
+    let html = `<div class="shadow-phase shadow-phase--done" style="text-align:center;padding:1rem 1.5rem;">
+      <i class="fas fa-star" style="color:#f59e0b;font-size:1.5rem;"></i>
+      <p style="margin:0.5rem 0 0;font-weight:600;">{{ _("Отлично! Урок завершён.") }}</p>
+    </div>`;
+    if (data.next_lesson_url) {
+      html += `<div style="text-align:center;margin-top:0.75rem;">
+        <a href="${data.next_lesson_url}" class="btn btn-success">
+          <i class="fas fa-arrow-right"></i> {{ _("Следующий урок") }}
+        </a>
+      </div>`;
+    }
+    resultDiv.innerHTML = html;
+    resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    if (typeof showSaveToast === 'function') showSaveToast();
+
+  } catch (err) {
+    console.error('Shadow reading submit error:', err);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check"></i> {{ _("Завершить урок") }}';
+    alert('{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+  }
+}
+</script>
+{% endblock %}

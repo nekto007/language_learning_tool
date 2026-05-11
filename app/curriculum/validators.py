@@ -367,6 +367,16 @@ class CollocationMatchingContentSchema(Schema):
     )
 
 
+class ShadowReadingContentSchema(Schema):
+    """Schema for shadow reading lesson — listen then read aloud (honor system)."""
+    class Meta:
+        unknown = INCLUDE
+
+    audio_url = fields.Str(required=True, validate=validate.Length(min=1))
+    text = fields.Str(required=True, validate=validate.Length(min=1))
+    translation = fields.Str(required=True, validate=validate.Length(min=1))
+
+
 class CardContentSchema(Schema):
     """Schema for card/SRS lesson content"""
     class Meta:
@@ -432,6 +442,7 @@ class LessonContentValidator:
         'writing_prompt': WritingPromptContentSchema,
         'sentence_completion': SentenceCompletionContentSchema,
         'collocation_matching': CollocationMatchingContentSchema,
+        'shadow_reading': ShadowReadingContentSchema,
         'final_test': FinalTestContentSchema,
     }
 

@@ -850,12 +850,12 @@
 - Modify: `app/daily_plan/linear/xp.py`, `app/achievements/xp_service.py`
 - Tests: `tests/curriculum/test_shadow_reading.py`
 
-- [ ] Validator: `{audio_url: str, text: str, translation: str}` — user listens then reads aloud
-- [ ] Template: Phase 1 listen (audio plays); Phase 2 read-along (text revealed, audio plays again); Phase 3 self-assess checkbox "Я прочитал(а) вслух"
-- [ ] No actual recording — honor system self-assessment
-- [ ] Register `shadow_reading → linear_curriculum_use` in LESSON_TYPE_TO_SOURCE; XP=25
-- [ ] Tests: template renders phases; self-assess checkbox required before submit
-- [ ] Run pytest tests/curriculum/
+- [x] Validator: `{audio_url: str, text: str, translation: str}` — user listens then reads aloud
+- [x] Template: Phase 1 listen (audio plays); Phase 2 read-along (text revealed, audio plays again); Phase 3 self-assess checkbox "Я прочитал(а) вслух"
+- [x] No actual recording — honor system self-assessment
+- [x] Register `shadow_reading → linear_curriculum_use` in LESSON_TYPE_TO_SOURCE; XP=25
+- [x] Tests: template renders phases; self-assess checkbox required before submit
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 55: Pronunciation exercise type (with Web Speech API)
