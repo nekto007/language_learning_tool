@@ -51,6 +51,8 @@ _MODE_COMPLETION_BUCKET: dict[str, str] = {
     'reading_vocab_extract': 'practice',
     'meaning_prompt': 'practice',
     'vocab_drill': 'practice',
+    'dictation_lesson': 'lesson',
+    'listening_lesson': 'lesson',
 }
 
 
@@ -441,7 +443,7 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
                 streak_status = get_streak_status(user_id, tz=tz, steps_total=max(steps_total, 1))
                 streak_status['streak'] = streak
                 required_steps = streak_status.get('required_steps', 1)
-                streak_repaired = streak_repaired or True
+                streak_repaired = True
         except Exception:
             logger.warning("auto_heal_streak failed for user %s", user_id, exc_info=True)
 

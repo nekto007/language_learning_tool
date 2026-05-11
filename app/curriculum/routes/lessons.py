@@ -290,7 +290,7 @@ def submit_lesson(lesson_id):
         else:
             return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
 
-        if result.get('passed'):
+        if result.get('passed') or result.get('completed'):
             try:
                 from app.daily_plan.challenge import maybe_auto_complete_challenge
                 time_spent = data.get('time_spent_seconds') if isinstance(data, dict) else None
@@ -815,6 +815,16 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
             if not progress.completed_at:
                 progress.completed_at = datetime.now(UTC)
             progress.last_activity = datetime.now(UTC)
+        else:
+            progress = LessonProgress(
+                user_id=user_id,
+                lesson_id=lesson.id,
+                status='completed',
+                started_at=datetime.now(UTC),
+                completed_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
         try:
             db.session.commit()
         except Exception:
@@ -1078,10 +1088,20 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
             if not progress.completed_at:
                 progress.completed_at = datetime.now(UTC)
             progress.last_activity = datetime.now(UTC)
-            try:
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
+        else:
+            progress = LessonProgress(
+                user_id=user_id,
+                lesson_id=lesson.id,
+                status='completed',
+                started_at=datetime.now(UTC),
+                completed_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp
@@ -1162,10 +1182,20 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
             if not progress.completed_at:
                 progress.completed_at = datetime.now(UTC)
             progress.last_activity = datetime.now(UTC)
-            try:
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
+        else:
+            progress = LessonProgress(
+                user_id=user_id,
+                lesson_id=lesson.id,
+                status='completed',
+                started_at=datetime.now(UTC),
+                completed_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp
@@ -1289,10 +1319,20 @@ def _process_idiom_submission(lesson: 'Lessons', user_id: int, data: dict) -> di
         if not progress.completed_at:
             progress.completed_at = datetime.now(UTC)
         progress.last_activity = datetime.now(UTC)
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+    else:
+        progress = LessonProgress(
+            user_id=user_id,
+            lesson_id=lesson.id,
+            status='completed',
+            started_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+            last_activity=datetime.now(UTC),
+        )
+        db.session.add(progress)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
     try:
         from app.daily_plan.linear.xp import maybe_award_curriculum_xp
