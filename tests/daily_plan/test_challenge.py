@@ -229,3 +229,83 @@ class TestCompleteChallenge:
 
         assert user1_data['is_completed'] is True
         assert user2_data['is_completed'] is False
+
+
+# ── challenge card data (Task 84) ─────────────────────────────────────────────
+
+
+class TestChallengeCardData:
+    """Verify the data structure returned by get_today_challenge is
+    sufficient for rendering the daily-challenge-card in the template."""
+
+    def test_card_data_uncompleted_has_gold_badge_fields(self, db_session):
+        from app.utils.db import db
+        user = _make_user(db_session)
+
+        data = get_today_challenge(user.id, db)
+
+        # Card should show when is_completed=False
+        assert data['is_completed'] is False
+        # bonus_xp present and positive — drives "2x XP" badge display
+        assert 'bonus_xp' in data
+        assert data['bonus_xp'] > 0
+        # category present for description lookup
+        assert data['category'] in ('speed_run', 'accuracy_focus', 'listening_deep')
+
+    def test_card_data_completed_shows_done_state(self, db_session):
+        from app.utils.db import db
+        user = _make_user(db_session)
+        data = get_today_challenge(user.id, db)
+        challenge_id = data['id']
+
+        complete_challenge(user.id, challenge_id, score=92.0, time_spent_seconds=200, db=db)
+        db_session.commit()
+
+        refreshed = get_today_challenge(user.id, db)
+        # Card should render in greyed/done state
+        assert refreshed['is_completed'] is True
+        # completion details available for "+ N XP" label
+        assert refreshed['completion'] is not None
+        assert refreshed['completion']['score'] == 92.0
+
+    def test_bonus_xp_values_per_category(self, db_session):
+        from app.utils.db import db
+        from app.daily_plan.challenge import _BONUS_XP
+
+        # Each category must have a positive bonus_xp used for "2x XP" display
+        for cat in ('speed_run', 'accuracy_focus', 'listening_deep'):
+            assert cat in _BONUS_XP
+            assert _BONUS_XP[cat] > 0
+
+    def test_listening_deep_has_lesson_id_for_direct_link(self, db_session):
+        from app.utils.db import db
+        import datetime
+
+        _make_dictation_lesson(db_session)
+
+        # Find a date that maps to listening_deep (index 2)
+        test_date = datetime.date(2026, 7, 1)
+        while test_date.toordinal() % 3 != 2:
+            test_date += datetime.timedelta(days=1)
+
+        challenge = _seed_today_challenge(test_date, db)
+        db_session.commit()
+
+        assert challenge.category == 'listening_deep'
+        # lesson_id populated → template renders direct link to lesson
+        assert challenge.lesson_id is not None
+
+    def test_non_listening_challenge_has_no_lesson_id(self, db_session):
+        from app.utils.db import db
+        import datetime
+
+        # Find a date that maps to speed_run or accuracy_focus
+        test_date = datetime.date(2026, 7, 1)
+        while test_date.toordinal() % 3 == 2:
+            test_date += datetime.timedelta(days=1)
+
+        challenge = _seed_today_challenge(test_date, db)
+        db_session.commit()
+
+        # lesson_id=None → template falls back to first incomplete slot URL
+        assert challenge.lesson_id is None

@@ -949,6 +949,14 @@ def dashboard():
         logger.warning('weekly_report build failed', exc_info=True)
         weekly_report = None
 
+    # === DAILY CHALLENGE (task 84) ===
+    today_challenge = None
+    try:
+        from app.daily_plan.challenge import get_today_challenge
+        today_challenge = get_today_challenge(current_user.id, db)
+    except Exception:
+        logger.warning('today_challenge build failed', exc_info=True)
+
     # === WEEKLY CHALLENGE ===
     from app.achievements.weekly_challenge import get_weekly_challenge, get_weekly_digest
     weekly_challenge = get_weekly_challenge(current_user.id)
@@ -1307,6 +1315,8 @@ def dashboard():
         plan_today=plan_today,
         # Single hero CTA resolved from mission phases + review budget
         hero_cta=hero_cta,
+        # Daily challenge (task 84)
+        today_challenge=today_challenge,
         # Fullscreen zero-state is only for truly empty dashboards: no activity
         # counters, no mission/linear plan, and no meaningful widget content.
         # Keep zero-state off for the linear plan: first-run users must still

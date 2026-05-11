@@ -1292,11 +1292,11 @@
 - Modify: `app/static/css/design-system.css`
 - Tests: `tests/daily_plan/test_challenge.py`
 
-- [ ] Show daily challenge card below slots: gold border, "2x XP", challenge description
-- [ ] Mark as completed when user completes the challenge lesson with qualifying score
-- [ ] CSS: `.daily-challenge-card` with gold border using design tokens
-- [ ] Tests: challenge card shown when uncompleted; hidden/greyed when completed; 2x XP display correct
-- [ ] Run pytest -m smoke
+- [x] Show daily challenge card below slots: gold border, "2x XP", challenge description
+- [x] Mark as completed when user completes the challenge lesson with qualifying score
+- [x] CSS: `.daily-challenge-card` with gold border using design tokens
+- [x] Tests: challenge card shown when uncompleted; hidden/greyed when completed; 2x XP display correct
+- [x] Run pytest -m smoke
 
 ---
 ### Task 85: Cultural notes system

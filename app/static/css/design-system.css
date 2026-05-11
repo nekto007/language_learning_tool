@@ -14586,3 +14586,78 @@ span.vocab-word.vocab-word--active {
     color: var(--color-danger, #ef4444);
 }
 
+/* ── Daily challenge card (Task 84) ─────────────────────────────────── */
+.daily-challenge-card {
+    border: 2px solid var(--color-gold, #ffd700);
+    border-radius: var(--radius-lg, 0.75rem);
+    padding: var(--space-4, 1rem);
+    margin: var(--space-4, 1rem) 0;
+    background: linear-gradient(135deg, #fffbeb 0%, #fff 60%);
+}
+.daily-challenge-card--completed {
+    border-color: var(--color-muted, #9ca3af);
+    background: var(--color-secondary-bg, #f3f4f6);
+    opacity: 0.75;
+}
+.daily-challenge-card__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 0.5rem);
+    margin-bottom: var(--space-2, 0.5rem);
+}
+.daily-challenge-card__icon {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+.daily-challenge-card__title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--color-text, #111827);
+    flex: 1;
+}
+.daily-challenge-card__xp-badge {
+    background: var(--color-gold, #ffd700);
+    color: #7a5c00;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--radius-full, 9999px);
+    white-space: nowrap;
+    letter-spacing: 0.03em;
+}
+.daily-challenge-card__done-badge {
+    background: var(--color-success, #22c55e);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--radius-full, 9999px);
+    white-space: nowrap;
+}
+.daily-challenge-card__desc {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary, #6b7280);
+    margin: 0 0 var(--space-3, 0.75rem) 0;
+    line-height: 1.4;
+}
+.daily-challenge-card__btn {
+    display: inline-block;
+    background: var(--color-gold, #ffd700);
+    color: #7a5c00;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: var(--space-2, 0.5rem) var(--space-4, 1rem);
+    border-radius: var(--radius-md, 0.5rem);
+    text-decoration: none;
+    transition: background 0.15s;
+}
+.daily-challenge-card__btn:hover {
+    background: #f5c800;
+    color: #6b5000;
+}
+.daily-challenge-card__completion-note {
+    font-size: 0.82rem;
+    color: var(--color-text-secondary, #6b7280);
+    margin: 0;
+}
+

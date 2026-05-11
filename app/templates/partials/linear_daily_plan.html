@@ -579,6 +579,60 @@
         {% endif %}
     </div>
 
+    {# ── Daily challenge card (Task 84) ────────────────────────────────
+         Shown below the slots. Gold border when uncompleted, greyed when done.
+         For speed_run / accuracy_focus: links to first incomplete slot.
+         For listening_deep: links to the specific challenge lesson. #}
+    {% if today_challenge is defined and today_challenge %}
+    {% set _ch_completed = today_challenge.get('is_completed', False) %}
+    {% set _ch_category = today_challenge.get('category', '') %}
+    {% set _ch_desc_map = {
+        'speed_run': 'Пройди любой урок менее чем за 5 минут',
+        'accuracy_focus': 'Набери не менее 90% правильных ответов в уроке',
+        'listening_deep': 'Пройди урок по аудированию или диктант',
+    } %}
+    {% set _ch_icon_map = {
+        'speed_run': '&#9889;',
+        'accuracy_focus': '&#127919;',
+        'listening_deep': '&#127911;',
+    } %}
+    {% set _chns = namespace(btn_url=none) %}
+    {% if today_challenge.get('lesson_id') %}
+        {% set _chns.btn_url = '/learn/' ~ today_challenge.lesson_id | int ~ '/?from=daily_challenge' %}
+    {% else %}
+        {% for slot in l_slots %}
+            {% if _chns.btn_url is none and not slot.completed and slot.url %}
+                {% set _chns.btn_url = slot.url %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    <div class="daily-challenge-card{% if _ch_completed %} daily-challenge-card--completed{% endif %}"
+         data-daily-challenge="true"
+         data-challenge-id="{{ today_challenge.get('id', '') }}"
+         data-challenge-category="{{ _ch_category }}"
+         role="complementary"
+         aria-label="Челлендж дня">
+        <div class="daily-challenge-card__header">
+            <span class="daily-challenge-card__icon" aria-hidden="true">{{ _ch_icon_map.get(_ch_category, '&#127942;') | safe }}</span>
+            <span class="daily-challenge-card__title">Челлендж дня</span>
+            {% if _ch_completed %}
+            <span class="daily-challenge-card__done-badge">&#10003; Выполнено</span>
+            {% else %}
+            <span class="daily-challenge-card__xp-badge">2x XP</span>
+            {% endif %}
+        </div>
+        <p class="daily-challenge-card__desc">{{ _ch_desc_map.get(_ch_category, _ch_category) }}</p>
+        {% if _ch_completed %}
+        <p class="daily-challenge-card__completion-note">+{{ today_challenge.get('bonus_xp', 0) | int }} XP начислено</p>
+        {% elif _chns.btn_url %}
+        <a href="{{ _chns.btn_url }}"
+           class="daily-challenge-card__btn"
+           data-linear-event="daily_challenge_clicked"
+           data-challenge-category="{{ _ch_category }}">Приступить</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
     {# ── Continuation CTA + preview (shown when day_secured=True) ─────
          The CTA points at the first incomplete chain slot (typically the
          curriculum extension that targets next_lesson). next_lessons is the
