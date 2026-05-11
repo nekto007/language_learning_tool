@@ -244,19 +244,56 @@
     {% endif %}
 
     {% if l_day_secured %}
-    {% set _lp_tomorrow = linear_plan.get('tomorrow_preview') %}
-    <div class="linear-plan__secured" data-linear-secured="true">
-        <span class="linear-plan__secured-icon">&#127881;</span>
-        <span class="linear-plan__secured-text">Сегодняшний план закрыт. Отличная работа!</span>
-        {% if _lp_tomorrow %}
-        <span class="linear-plan__secured-tomorrow"
-              data-linear-tomorrow-preview="true">
-            Завтра ≈ {{ _lp_tomorrow.estimated_minutes | int }} мин
-            {% for _sk in _lp_tomorrow.slot_types %}
-            <span aria-label="{{ l_slot_labels.get(_sk, _sk) }}">{{ l_slot_icons.get(_sk, '&#128204;')|safe }}</span>
-            {% endfor %}
-        </span>
-        {% endif %}
+    {# Task 52: Full celebration card when all baseline slots complete #}
+    {% set _lp_tomorrow = linear_plan.get('tomorrow_preview') or (day_secured_banner.tomorrow_preview if day_secured_banner else none) %}
+    {% set _cel_xp = day_secured_banner.today_xp if day_secured_banner else 0 %}
+    {% set _cel_streak = day_secured_banner.streak if day_secured_banner else 0 %}
+    {% set _cel_messages = [
+        'Отличная работа! Ты движешься вперёд.',
+        'Каждый день на счету — продолжай!',
+        'Последовательность — ключ к успеху.',
+        'Ещё один день в копилку знаний.',
+        'Так держать! Ты делаешь это.',
+    ] %}
+    {% set _msg_idx = (l_baseline_done + (_cel_streak | int)) % (_cel_messages | length) %}
+    <div class="plan-celebration"
+         data-plan-celebration="true"
+         data-day-secured="true"
+         role="status"
+         aria-live="polite">
+        <div class="plan-celebration__inner">
+            <span class="plan-celebration__icon" aria-hidden="true">&#127942;</span>
+            <p class="plan-celebration__title">День завершён!</p>
+            <div class="plan-celebration__stats">
+                {% if _cel_xp %}
+                <div class="plan-celebration__stat">
+                    <span class="plan-celebration__stat-value" data-celebration-xp="{{ _cel_xp | int }}">+{{ _cel_xp | int }} XP</span>
+                    <span class="plan-celebration__stat-label">за день</span>
+                </div>
+                {% endif %}
+                {% if _cel_streak %}
+                <div class="plan-celebration__stat">
+                    <span class="plan-celebration__stat-value" data-celebration-streak="{{ _cel_streak | int }}">{{ _cel_streak | int }}</span>
+                    <span class="plan-celebration__stat-label">
+                        {% set _cs = _cel_streak | int %}
+                        {% set _csm10 = _cs % 10 %}
+                        {% set _csm100 = _cs % 100 %}
+                        {% if _csm10 == 1 and _csm100 != 11 %}день{% elif 2 <= _csm10 <= 4 and not 12 <= _csm100 <= 14 %}дня{% else %}дней{% endif %}
+                        подряд
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+            <p class="plan-celebration__message">{{ _cel_messages[_msg_idx] }}</p>
+            {% if _lp_tomorrow %}
+            <div class="plan-celebration__tomorrow" data-linear-tomorrow-preview="true">
+                <span>Завтра ≈ {{ _lp_tomorrow.estimated_minutes | int }} мин</span>
+                {% for _sk in _lp_tomorrow.slot_types %}
+                <span aria-label="{{ l_slot_labels.get(_sk, _sk) }}">{{ l_slot_icons.get(_sk, '&#128204;')|safe }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
     </div>
     {% endif %}
 
@@ -587,6 +624,63 @@
 <script>
 (function () {
     'use strict';
+
+    /* Task 52: Confetti animation for plan completion celebration card */
+    function initCelebrationConfetti() {
+        var cel = document.querySelector('[data-plan-celebration]');
+        if (!cel) { return; }
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return; }
+        var canvas = document.getElementById('confetti-canvas');
+        if (!canvas) { return; }
+        var ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        canvas.style.display = 'block';
+        var colors = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#8b5cf6'];
+        var particles = [];
+        for (var i = 0; i < 70; i++) {
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height - canvas.height,
+                w: Math.random() * 9 + 4,
+                h: Math.random() * 5 + 3,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                r: Math.random() * Math.PI * 2,
+                vy: Math.random() * 2.5 + 1,
+                vr: (Math.random() - 0.5) * 0.12,
+            });
+        }
+        var frame = 0;
+        var maxFrames = 140;
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (var j = 0; j < particles.length; j++) {
+                var p = particles[j];
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.r);
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = Math.max(0, 1 - frame / maxFrames);
+                ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                ctx.restore();
+                p.y += p.vy;
+                p.r += p.vr;
+                if (p.y > canvas.height) {
+                    p.y = -p.h;
+                    p.x = Math.random() * canvas.width;
+                }
+            }
+            frame++;
+            if (frame < maxFrames) {
+                requestAnimationFrame(draw);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                canvas.style.display = 'none';
+            }
+        }
+        requestAnimationFrame(draw);
+    }
+
     function initSlotSkip() {
         document.querySelectorAll('.linear-slot__skip-btn').forEach(function (btn) {
             btn.addEventListener('click', function (e) {
@@ -627,9 +721,13 @@
         });
     }
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSlotSkip);
+        document.addEventListener('DOMContentLoaded', function () {
+            initSlotSkip();
+            initCelebrationConfetti();
+        });
     } else {
         initSlotSkip();
+        initCelebrationConfetti();
     }
 }());
 </script>

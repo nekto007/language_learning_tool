@@ -1,4 +1,4 @@
-"""Tests for Task 41: plan estimated time calculation in linear daily plan."""
+"""Tests for linear daily plan: time calculation, intensity, celebration card."""
 from __future__ import annotations
 
 import uuid
@@ -764,3 +764,93 @@ class TestSlotOrderReasonInPayload:
         payload = get_linear_plan(user.id, real_db)
 
         assert payload['slot_order_reason'] == 'default'
+
+
+# ── Task 52: Plan completion celebration card ─────────────────────────
+
+
+def _make_celebration_context(all_done: bool, with_banner: bool = True):
+    """Return Jinja2 template context simulating plan state for testing."""
+    slot = {
+        'kind': 'curriculum',
+        'title': 'Test lesson',
+        'lesson_type': 'quiz',
+        'eta_minutes': 15,
+        'url': '/learn/1/',
+        'completed': all_done,
+        'skipped': False,
+        'data': {},
+    }
+    banner = {
+        'today_xp': 42,
+        'streak': 7,
+        'slots_done': 1,
+        'slots_total': 1,
+        'tomorrow_preview': {'estimated_minutes': 25, 'slot_types': ['curriculum', 'srs']},
+        'next_step': None,
+    } if with_banner else None
+    return {
+        'linear_plan': {
+            'slots': [slot],
+            'baseline_slots': [slot],
+            'chain_meta': {'baseline_count': 1, 'has_more_available': True, 'exhausted_sources': []},
+            'position': None,
+            'progress': {},
+            'continuation': {},
+            'day_secured': all_done,
+            'total_estimated_minutes': 0 if all_done else 15,
+            'plan_intensity': 'normal',
+            'tomorrow_preview': {'estimated_minutes': 25, 'slot_types': ['curriculum', 'srs']} if all_done else None,
+            'slot_order_reason': 'default',
+        },
+        'plan_completion': {'curriculum': all_done},
+        'day_secured_banner': banner,
+        'day_secured': all_done,
+        'plan_today': '2026-05-11',
+        'local_hour': 14,
+    }
+
+
+class TestCelebrationCardTemplate:
+    """Task 52: celebration card appears when day_secured=True."""
+
+    def _render(self, app, context: dict) -> str:
+        with app.app_context():
+            from flask import render_template
+            from flask_login import AnonymousUserMixin
+            context.setdefault('current_user', AnonymousUserMixin())
+            return render_template('partials/linear_daily_plan.html', **context)
+
+    def test_celebration_card_shown_when_day_secured(self, app):
+        ctx = _make_celebration_context(all_done=True)
+        html = self._render(app, ctx)
+        assert 'data-plan-celebration="true"' in html
+
+    def test_celebration_card_absent_when_not_secured(self, app):
+        ctx = _make_celebration_context(all_done=False)
+        html = self._render(app, ctx)
+        assert 'data-plan-celebration="true"' not in html
+
+    def test_celebration_card_contains_xp(self, app):
+        ctx = _make_celebration_context(all_done=True, with_banner=True)
+        html = self._render(app, ctx)
+        assert 'data-celebration-xp' in html
+        assert '+42 XP' in html
+
+    def test_celebration_card_contains_streak(self, app):
+        ctx = _make_celebration_context(all_done=True, with_banner=True)
+        html = self._render(app, ctx)
+        assert 'data-celebration-streak' in html
+        assert '7' in html
+
+    def test_celebration_card_shows_tomorrow_preview(self, app):
+        ctx = _make_celebration_context(all_done=True, with_banner=True)
+        html = self._render(app, ctx)
+        assert 'Завтра' in html
+        assert '25' in html
+
+    def test_celebration_card_without_banner_still_renders(self, app):
+        ctx = _make_celebration_context(all_done=True, with_banner=False)
+        html = self._render(app, ctx)
+        assert 'plan-celebration' in html
+        assert 'День завершён' in html

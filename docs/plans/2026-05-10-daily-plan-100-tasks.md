@@ -818,11 +818,11 @@
 - Modify: `app/static/css/design-system.css`
 - Tests: `tests/daily_plan/linear/test_plan.py`
 
-- [ ] When day_secured=True and all baseline slots complete: show full celebration card (not just banner)
-- [ ] Card: XP earned today, streak count, tomorrow preview, motivational message
-- [ ] CSS: `.plan-celebration` card with gradient border, entrance animation (confetti-like JS, checks prefers-reduced-motion)
-- [ ] Tests: day_secured=True → celebration card rendered; contains XP and streak data
-- [ ] Run pytest -m smoke
+- [x] When day_secured=True and all baseline slots complete: show full celebration card (not just banner)
+- [x] Card: XP earned today, streak count, tomorrow preview, motivational message
+- [x] CSS: `.plan-celebration` card with gradient border, entrance animation (confetti-like JS, checks prefers-reduced-motion)
+- [x] Tests: day_secured=True → celebration card rendered; contains XP and streak data
+- [x] Run pytest -m smoke
 
 ---
 ### BLOCK E: Speaking & Pronunciation (Tasks 53–62)

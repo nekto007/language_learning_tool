@@ -439,8 +439,8 @@ def test_scenario_4_all_slots_done_shows_continuation_and_secured(
 
     assert dashboard_response.status_code == 200
     html = _strip_inline_style(dashboard_response.data.decode('utf-8'))
-    # Day-secured banner + continuation CTA are rendered.
-    assert 'data-linear-secured="true"' in html
+    # Day-secured celebration card + continuation CTA are rendered.
+    assert 'data-plan-celebration="true"' in html
     assert 'data-linear-continuation="true"' in html
     # Continuation CTA points at the first upcoming lesson via the chain
     # extension slot's URL (continuation.next_lessons remains as a preview).

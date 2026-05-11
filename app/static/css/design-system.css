@@ -12602,6 +12602,101 @@ footer .col-md-4 {
 }
 .linear-plan__secured-icon { font-size: 1.15rem; }
 
+/* Task 52: Plan completion celebration card */
+.plan-celebration {
+    position: relative;
+    margin: 1rem 0 1.25rem;
+    border-radius: var(--radius-lg, 14px);
+    animation: plan-celebration-appear 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.plan-celebration::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 2px;
+    background: linear-gradient(135deg, #6366f1 0%, #10b981 50%, #f59e0b 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    animation: plan-celebration-gradient 4s linear infinite;
+    background-size: 200% 200%;
+}
+.plan-celebration__inner {
+    background: var(--color-surface, #fff);
+    border-radius: calc(var(--radius-lg, 14px) - 2px);
+    padding: 1.25rem 1.5rem;
+    text-align: center;
+}
+.plan-celebration__icon {
+    font-size: 2.2rem;
+    display: block;
+    margin-bottom: 0.5rem;
+    animation: plan-celebration-bounce 0.9s ease 0.35s both;
+}
+.plan-celebration__title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--color-text-primary, #0f172a);
+    margin: 0 0 0.9rem;
+}
+.plan-celebration__stats {
+    display: flex;
+    justify-content: center;
+    gap: 1.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+.plan-celebration__stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+}
+.plan-celebration__stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-primary, #4f46e5);
+}
+.plan-celebration__stat-label {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary, #64748b);
+}
+.plan-celebration__message {
+    font-size: 0.82rem;
+    color: var(--color-text-secondary, #64748b);
+    margin: 0;
+    font-style: italic;
+}
+.plan-celebration__tomorrow {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--color-border, #e2e8f0);
+    font-size: 0.8rem;
+    color: var(--color-text-secondary, #64748b);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+@keyframes plan-celebration-appear {
+    from { transform: translateY(10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+@keyframes plan-celebration-bounce {
+    0% { transform: scale(0.7); opacity: 0; }
+    60% { transform: scale(1.15); opacity: 1; }
+    80% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+}
+@keyframes plan-celebration-gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
 .linear-plan__day-secured-banner {
     background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
     border: 1px solid #6ee7b7;

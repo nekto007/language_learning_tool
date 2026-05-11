@@ -322,7 +322,7 @@ class TestLinearPlanProgressSummary:
             }],
         )
         html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
-        assert 'data-linear-secured="true"' in html
+        assert 'data-plan-celebration="true"' in html
         assert '3/3' in html
         assert 'linear-plan__summary-fill--done' in html
 
