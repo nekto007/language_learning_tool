@@ -599,6 +599,11 @@ def stats():
     accuracy_trend = StatsService.get_accuracy_trend(current_user.id)
     mastered_over_time = StatsService.get_mastered_over_time(current_user.id)
     study_heatmap = StatsService.get_study_heatmap(current_user.id)
+    try:
+        srs_by_source = StatsService.get_srs_accuracy_by_source(current_user.id)
+    except Exception:
+        logger.exception("srs_by_source failed for user %s", current_user.id)
+        srs_by_source = []
 
     from app.study.insights_service import get_best_study_time
     from app.study.services.session_service import SessionService
@@ -687,6 +692,7 @@ def stats():
         best_study_time=best_study_time,
         session_stats=session_stats,
         route_progress_state=route_progress_state,
+        srs_by_source=srs_by_source,
     )
 
 

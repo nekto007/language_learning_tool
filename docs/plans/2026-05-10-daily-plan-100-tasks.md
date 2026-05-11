@@ -1440,10 +1440,10 @@
 - Modify: `app/templates/study/stats.html`
 - Tests: `tests/study/test_stats_service.py`
 
-- [ ] Aggregate UserCardDirection accuracy by `source` field added in Task 72: accuracy per source category
-- [ ] Stats page: "Слова из уроков: 78% · Из книг: 65% · Из своих списков: 70%"
-- [ ] Tests: correct per-source aggregation; source=None → grouped under 'other'
-- [ ] Run pytest tests/study/
+- [x] Aggregate UserCardDirection accuracy by `source` field added in Task 72: accuracy per source category
+- [x] Stats page: "Слова из уроков: 78% · Из книг: 65% · Из своих списков: 70%"
+- [x] Tests: correct per-source aggregation; source=None → grouped under 'other'
+- [x] Run pytest tests/study/
 
 ---
 ### Task 95: Challenge streak and leaderboard position

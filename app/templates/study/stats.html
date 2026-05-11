@@ -190,6 +190,31 @@
     </div>
     {% endif %}
 
+    <!-- SRS Accuracy by Source -->
+    {% if srs_by_source %}
+    <div class="stats-source-accuracy slideUp" style="animation-delay: .21s">
+        <h3 class="stats-source-accuracy__heading">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+            </svg>
+            {{ _('Точность по источнику слов') }}
+        </h3>
+        <div class="stats-source-accuracy__list">
+            {% for item in srs_by_source %}
+            <div class="stats-source-accuracy__row">
+                <span class="stats-source-accuracy__label">{{ item.label }}</span>
+                <div class="stats-source-accuracy__bar-wrap">
+                    <div class="stats-source-accuracy__bar-fill{% if item.accuracy_pct >= 80 %} stats-source-accuracy__bar-fill--good{% elif item.accuracy_pct >= 60 %} stats-source-accuracy__bar-fill--ok{% else %} stats-source-accuracy__bar-fill--low{% endif %}"
+                         style="width: {{ item.accuracy_pct }}%"></div>
+                </div>
+                <span class="stats-source-accuracy__pct">{{ item.accuracy_pct }}%</span>
+                <span class="stats-source-accuracy__cards">{{ item.card_count }} {{ _('карт') }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Route Board Checkpoint -->
     {% if route_progress_state %}
     {% set rp = route_progress_state %}
@@ -860,6 +885,75 @@
 
 .stats-info__list-item svg {
     flex-shrink: 0;
+}
+
+/* === SRS Accuracy by Source === */
+.stats-source-accuracy {
+    background: var(--stats-surface);
+    border: 1px solid var(--stats-border);
+    border-radius: var(--stats-radius);
+    padding: 1.5rem;
+}
+
+.stats-source-accuracy__heading {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--stats-text);
+    margin: 0 0 1.25rem;
+}
+
+.stats-source-accuracy__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+}
+
+.stats-source-accuracy__row {
+    display: grid;
+    grid-template-columns: 1fr 2fr auto auto;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.stats-source-accuracy__label {
+    font-size: 0.875rem;
+    color: var(--stats-text);
+    font-weight: 500;
+}
+
+.stats-source-accuracy__bar-wrap {
+    height: 8px;
+    background: var(--stats-surface-alt);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.stats-source-accuracy__bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.stats-source-accuracy__bar-fill--good { background: var(--stats-success); }
+.stats-source-accuracy__bar-fill--ok { background: var(--stats-warning); }
+.stats-source-accuracy__bar-fill--low { background: var(--stats-danger); }
+
+.stats-source-accuracy__pct {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--stats-text);
+    min-width: 36px;
+    text-align: right;
+}
+
+.stats-source-accuracy__cards {
+    font-size: 0.75rem;
+    color: var(--stats-text-muted);
+    min-width: 60px;
+    text-align: right;
 }
 
 /* === Alerts === */
