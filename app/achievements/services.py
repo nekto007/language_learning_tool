@@ -703,10 +703,11 @@ def check_speaking_achievements(user_id: int, db_session=None) -> List[Achieveme
 
 
 def check_immersion_achievement(user_id: int, target_date, db_session=None) -> List[Achievement]:
-    """Award immersion_daily when all 4 skills practiced on target_date.
+    """Award immersion_daily / immersion_week after all 4 skills practiced on target_date.
 
     Checks for at least one row each in ListeningAttempt, UserWritingAttempt,
     PronunciationAttempt, and UserReadingSession on the given date (UTC range).
+    Also checks 7-day immersion streak for the immersion_week badge.
     Idempotent: re-calling when badge already owned returns [].
     """
     from datetime import timedelta
@@ -748,7 +749,14 @@ def check_immersion_achievement(user_id: int, target_date, db_session=None) -> L
     if not (has_listening and has_writing and has_speaking and has_reading):
         return []
 
-    return AchievementService._award_badges(user_id, {'immersion_daily'})
+    codes_to_award: set[str] = {'immersion_daily'}
+
+    from app.achievements.streak_service import get_immersion_streak
+    streak = get_immersion_streak(user_id, db_session=session)
+    if streak >= 7:
+        codes_to_award.add('immersion_week')
+
+    return AchievementService._award_badges(user_id, codes_to_award)
 
 
 def process_lesson_completion(user_id: int, lesson_id: int, score: float) -> Dict:

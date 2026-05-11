@@ -280,10 +280,11 @@ def daily_status():
     goal_progress_data = _compute_goal_progress(current_user, tz)
     minutes_studied_today = _compute_study_minutes(current_user, tz)
 
-    from app.achievements.streak_service import get_listening_streak, get_writing_streak, get_speaking_streak
+    from app.achievements.streak_service import get_listening_streak, get_writing_streak, get_speaking_streak, get_immersion_streak
     listening_streak_days = get_listening_streak(user_id, tz=tz)
     writing_streak_days = get_writing_streak(user_id, tz=tz)
     speaking_streak_days = get_speaking_streak(user_id, tz=tz)
+    immersion_streak_days = get_immersion_streak(user_id, tz=tz)
 
     from app.study.insights_service import get_pronunciation_weaknesses
     try:
@@ -309,6 +310,7 @@ def daily_status():
         'listening_streak_days': listening_streak_days,
         'writing_streak_days': writing_streak_days,
         'speaking_streak_days': speaking_streak_days,
+        'immersion_streak_days': immersion_streak_days,
         'pronunciation_weak_words': pronunciation_weak_words,
         'minutes_studied_today': minutes_studied_today,
         **listening_goal_data,

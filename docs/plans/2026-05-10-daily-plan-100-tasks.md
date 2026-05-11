@@ -1396,11 +1396,11 @@
 - Modify: `app/achievements/seed.py`
 - Tests: `tests/achievements/test_streak_service.py`
 
-- [ ] `get_immersion_streak(user_id, db)` — consecutive days where user had ListeningAttempt + UserWritingAttempt + PronunciationAttempt (or shadow reading) + UserReadingSession
-- [ ] Expose as `immersion_streak_days` in `/api/daily-status`
-- [ ] Seed: `immersion_week` achievement (7-day immersion streak)
-- [ ] Tests: 3 days all 4 skills → streak=3; day missing writing → streak resets; grant achievement at 7
-- [ ] Run pytest tests/achievements/
+- [x] `get_immersion_streak(user_id, db)` — consecutive days where user had ListeningAttempt + UserWritingAttempt + PronunciationAttempt (or shadow reading) + UserReadingSession
+- [x] Expose as `immersion_streak_days` in `/api/daily-status`
+- [x] Seed: `immersion_week` achievement (7-day immersion streak)
+- [x] Tests: 3 days all 4 skills → streak=3; day missing writing → streak resets; grant achievement at 7
+- [x] Run pytest tests/achievements/
 
 ---
 ### Task 92: Streak shield (protection for 1 missed day)

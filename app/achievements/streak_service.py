@@ -1180,6 +1180,85 @@ def get_speaking_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZON
     return streak
 
 
+def get_immersion_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZONE) -> int:
+    """Return consecutive days where user practiced all 4 skills.
+
+    A day counts only when it has at least one row in each of:
+    ListeningAttempt, UserWritingAttempt, PronunciationAttempt, UserReadingSession.
+
+    Walk-backward logic mirrors get_listening_streak: if today has no immersion
+    activity, the chain is checked from yesterday (today isn't over).
+    """
+    import pytz
+    from sqlalchemy import cast, Date, func
+    from app.curriculum.models import ListeningAttempt, UserWritingAttempt, PronunciationAttempt
+    from app.books.reading_session import UserReadingSession
+
+    session = db_session if db_session is not None else db.session
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
+
+    local_today = datetime.now(tz_obj).date()
+    cutoff = local_today - timedelta(days=365)
+
+    def _local_date(col):
+        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+
+    def _local_date_tz(col):
+        # UserReadingSession.started_at is timezone-aware
+        return cast(func.timezone(tz_obj.zone, col), Date)
+
+    try:
+        listening_dates = {
+            row[0]
+            for row in session.query(_local_date(ListeningAttempt.created_at).label('d'))
+            .filter(ListeningAttempt.user_id == user_id, ListeningAttempt.created_at >= cutoff)
+            .distinct().all()
+            if row[0] is not None
+        }
+        writing_dates = {
+            row[0]
+            for row in session.query(_local_date(UserWritingAttempt.created_at).label('d'))
+            .filter(UserWritingAttempt.user_id == user_id, UserWritingAttempt.created_at >= cutoff)
+            .distinct().all()
+            if row[0] is not None
+        }
+        speaking_dates = {
+            row[0]
+            for row in session.query(_local_date(PronunciationAttempt.created_at).label('d'))
+            .filter(PronunciationAttempt.user_id == user_id, PronunciationAttempt.created_at >= cutoff)
+            .distinct().all()
+            if row[0] is not None
+        }
+        reading_dates = {
+            row[0]
+            for row in session.query(_local_date_tz(UserReadingSession.started_at).label('d'))
+            .filter(UserReadingSession.user_id == user_id, UserReadingSession.started_at >= cutoff)
+            .distinct().all()
+            if row[0] is not None
+        }
+    except Exception:
+        return 0
+
+    all_four_dates = listening_dates & writing_dates & speaking_dates & reading_dates
+
+    streak = 0
+    for offset in range(365):
+        check_date = local_today - timedelta(days=offset)
+        if check_date in all_four_dates:
+            streak += 1
+        elif offset == 0:
+            # No immersion today — streak alive if yesterday has activity
+            continue
+        else:
+            break
+
+    return streak
+
+
 def get_streak_status(user_id: int, tz: str = DEFAULT_TIMEZONE,
                       steps_total: int = 4) -> dict:
     """Get full streak status for dashboard display."""

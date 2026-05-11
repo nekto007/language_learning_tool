@@ -263,3 +263,102 @@ class TestImmersionDateBoundary:
 
         awarded = check_immersion_achievement(imm_user.id, TODAY, db_session)
         assert awarded == []
+
+
+def _add_all_four(db_session, user_id, lesson_id, chapter_id, day_offset: int = 0):
+    """Helper: add all 4 skill rows for a given day offset from today (0=today, 1=yesterday…)."""
+    ts_naive = TODAY_START - timedelta(days=day_offset)
+    ts_tz = ts_naive.replace(tzinfo=timezone.utc)
+    _add_listening(db_session, user_id, lesson_id, created_at=ts_naive)
+    _add_writing(db_session, user_id, lesson_id, created_at=ts_naive)
+    _add_speaking(db_session, user_id, created_at=ts_naive)
+    _add_reading(db_session, user_id, chapter_id, started_at=ts_tz)
+
+
+class TestGetImmersionStreak:
+    """get_immersion_streak counts consecutive days where all 4 skills were practiced."""
+
+    def test_no_activity_returns_zero(
+        self, db_session, imm_user, test_lesson_for_imm, test_chapter_for_imm
+    ):
+        from app.achievements.streak_service import get_immersion_streak
+        result = get_immersion_streak(imm_user.id, db_session=db_session, tz='UTC')
+        assert result == 0
+
+    def test_three_consecutive_days_returns_3(
+        self, db_session, imm_user, test_lesson_for_imm, test_chapter_for_imm
+    ):
+        from app.achievements.streak_service import get_immersion_streak
+        for offset in range(3):  # today, yesterday, day before
+            _add_all_four(db_session, imm_user.id, test_lesson_for_imm.id, test_chapter_for_imm.id, offset)
+        result = get_immersion_streak(imm_user.id, db_session=db_session, tz='UTC')
+        assert result == 3
+
+    def test_gap_resets_streak(
+        self, db_session, imm_user, test_lesson_for_imm, test_chapter_for_imm
+    ):
+        from app.achievements.streak_service import get_immersion_streak
+        # today and 3 days ago only — gap on yesterday/day-before
+        for offset in (0, 3):
+            _add_all_four(db_session, imm_user.id, test_lesson_for_imm.id, test_chapter_for_imm.id, offset)
+        result = get_immersion_streak(imm_user.id, db_session=db_session, tz='UTC')
+        assert result == 1
+
+    def test_missing_one_skill_on_day_breaks_streak(
+        self, db_session, imm_user, test_lesson_for_imm, test_chapter_for_imm
+    ):
+        from app.achievements.streak_service import get_immersion_streak
+        # Today: all 4; yesterday: only 3 (no speaking)
+        _add_all_four(db_session, imm_user.id, test_lesson_for_imm.id, test_chapter_for_imm.id, 0)
+        ts = TODAY_START - timedelta(days=1)
+        _add_listening(db_session, imm_user.id, test_lesson_for_imm.id, created_at=ts)
+        _add_writing(db_session, imm_user.id, test_lesson_for_imm.id, created_at=ts)
+        _add_reading(db_session, imm_user.id, test_chapter_for_imm.id, started_at=ts.replace(tzinfo=timezone.utc))
+        # no speaking for yesterday → yesterday not counted
+        result = get_immersion_streak(imm_user.id, db_session=db_session, tz='UTC')
+        assert result == 1
+
+
+class TestImmersionWeekBadge:
+    """immersion_week badge is granted when get_immersion_streak >= 7."""
+
+    def test_seven_day_streak_grants_immersion_week(
+        self, db_session, imm_user, test_lesson_for_imm, test_chapter_for_imm
+    ):
+        seed_achievements()
+        db_session.flush()
+        week_badge = Achievement.query.filter_by(code='immersion_week').first()
+        assert week_badge is not None, "immersion_week badge not seeded"
+
+        for offset in range(7):
+            _add_all_four(db_session, imm_user.id, test_lesson_for_imm.id, test_chapter_for_imm.id, offset)
+
+        awarded = check_immersion_achievement(imm_user.id, TODAY, db_session)
+        codes = {a.code for a in awarded}
+        assert 'immersion_week' in codes
+
+    def test_fewer_than_seven_days_no_immersion_week(
+        self, db_session, imm_user, test_lesson_for_imm, test_chapter_for_imm
+    ):
+        seed_achievements()
+        db_session.flush()
+
+        for offset in range(3):
+            _add_all_four(db_session, imm_user.id, test_lesson_for_imm.id, test_chapter_for_imm.id, offset)
+
+        awarded = check_immersion_achievement(imm_user.id, TODAY, db_session)
+        codes = {a.code for a in awarded}
+        assert 'immersion_week' not in codes
+
+    def test_seven_day_grant_is_idempotent(
+        self, db_session, imm_user, test_lesson_for_imm, test_chapter_for_imm
+    ):
+        seed_achievements()
+        db_session.flush()
+
+        for offset in range(7):
+            _add_all_four(db_session, imm_user.id, test_lesson_for_imm.id, test_chapter_for_imm.id, offset)
+
+        check_immersion_achievement(imm_user.id, TODAY, db_session)
+        awarded2 = check_immersion_achievement(imm_user.id, TODAY, db_session)
+        assert awarded2 == []

@@ -416,13 +416,21 @@ INITIAL_ACHIEVEMENTS = [
         'category': 'speaking'
     },
 
-    # Immersion achievement
+    # Immersion achievements
     {
         'code': 'immersion_daily',
         'name': 'Полное погружение',
         'description': 'Практикуйте все 4 навыка в один день: слушание, письмо, говорение и чтение',
         'icon': '🌊',
         'xp_reward': 150,
+        'category': 'immersion'
+    },
+    {
+        'code': 'immersion_week',
+        'name': 'Неделя погружения',
+        'description': 'Практикуйте все 4 навыка 7 дней подряд',
+        'icon': '🏄',
+        'xp_reward': 500,
         'category': 'immersion'
     },
 
