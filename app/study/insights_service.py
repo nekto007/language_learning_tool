@@ -919,6 +919,143 @@ def get_weekly_summary(user_id: int) -> dict[str, Any]:
     }
 
 
+def get_last_week_summary(user_id: int, tz: str = DEFAULT_TIMEZONE) -> dict[str, Any]:
+    """Return last calendar week (Mon–Sun) stats for the Monday weekly recap card.
+
+    Keys:
+      - words_reviewed: SRS words reviewed last week
+      - lessons_completed: lessons finished last week
+      - days_secured: days where DailyPlanLog.secured_at is set last week
+      - total_minutes: estimated study minutes last week
+      - has_activity: True if any stat > 0
+      - vs_prev_week: {words_diff, lessons_diff, days_diff, minutes_diff}
+        (positive = better than two weeks ago)
+    """
+    import pytz as _pytz
+    from app.study.models import StudySession
+    from app.curriculum.models import LessonProgress, LessonAttempt
+    from app.daily_plan.models import DailyPlanLog
+
+    try:
+        _tz_obj = _pytz.timezone(tz)
+    except Exception:
+        _tz_obj = _pytz.timezone(DEFAULT_TIMEZONE)
+
+    today_local = datetime.now(_tz_obj).date()
+    # Last completed Mon–Sun week
+    days_since_monday = today_local.weekday()  # 0=Mon
+    last_monday = today_local - timedelta(days=days_since_monday + 7)
+    last_sunday = last_monday + timedelta(days=6)
+    prev_monday = last_monday - timedelta(days=7)
+    prev_sunday = last_monday - timedelta(days=1)
+
+    def _utc_start(d):
+        return _tz_obj.localize(datetime(d.year, d.month, d.day, 0, 0, 0)).astimezone(
+            _pytz.utc
+        ).replace(tzinfo=None)
+
+    def _utc_end(d):
+        return _tz_obj.localize(datetime(d.year, d.month, d.day, 23, 59, 59)).astimezone(
+            _pytz.utc
+        ).replace(tzinfo=None)
+
+    def _words_in_range(start_utc, end_utc):
+        row = (
+            db.session.query(func.coalesce(func.sum(StudySession.words_studied), 0))
+            .filter(
+                StudySession.user_id == user_id,
+                StudySession.start_time >= start_utc,
+                StudySession.start_time <= end_utc,
+            )
+            .scalar()
+        )
+        return int(row or 0)
+
+    def _lessons_in_range(start_utc, end_utc):
+        return (
+            LessonProgress.query
+            .filter(
+                LessonProgress.user_id == user_id,
+                LessonProgress.status == 'completed',
+                LessonProgress.completed_at >= start_utc,
+                LessonProgress.completed_at <= end_utc,
+            )
+            .count()
+        )
+
+    def _days_secured_in_range(start_date, end_date):
+        return (
+            DailyPlanLog.query
+            .filter(
+                DailyPlanLog.user_id == user_id,
+                DailyPlanLog.plan_date >= start_date,
+                DailyPlanLog.plan_date <= end_date,
+                DailyPlanLog.secured_at.isnot(None),
+            )
+            .count()
+        )
+
+    def _minutes_in_range(start_utc, end_utc):
+        lesson_time = (
+            db.session.query(func.coalesce(func.sum(LessonAttempt.time_spent_seconds), 0))
+            .filter(
+                LessonAttempt.user_id == user_id,
+                LessonAttempt.started_at >= start_utc,
+                LessonAttempt.started_at <= end_utc,
+            )
+            .scalar()
+        )
+        study_time = (
+            db.session.query(
+                func.coalesce(
+                    func.sum(
+                        func.extract('epoch', StudySession.end_time)
+                        - func.extract('epoch', StudySession.start_time)
+                    ),
+                    0,
+                )
+            )
+            .filter(
+                StudySession.user_id == user_id,
+                StudySession.start_time >= start_utc,
+                StudySession.start_time <= end_utc,
+                StudySession.end_time.isnot(None),
+            )
+            .scalar()
+        )
+        return round((int(lesson_time or 0) + int(study_time or 0)) / 60)
+
+    lw_start = _utc_start(last_monday)
+    lw_end = _utc_end(last_sunday)
+    pw_start = _utc_start(prev_monday)
+    pw_end = _utc_end(prev_sunday)
+
+    words = _words_in_range(lw_start, lw_end)
+    lessons = _lessons_in_range(lw_start, lw_end)
+    days = _days_secured_in_range(last_monday, last_sunday)
+    minutes = _minutes_in_range(lw_start, lw_end)
+
+    prev_words = _words_in_range(pw_start, pw_end)
+    prev_lessons = _lessons_in_range(pw_start, pw_end)
+    prev_days = _days_secured_in_range(prev_monday, prev_sunday)
+    prev_minutes = _minutes_in_range(pw_start, pw_end)
+
+    return {
+        'words_reviewed': words,
+        'lessons_completed': lessons,
+        'days_secured': days,
+        'total_minutes': minutes,
+        'has_activity': (words + lessons + days + minutes) > 0,
+        'week_label': f"{last_monday.strftime('%d.%m')}–{last_sunday.strftime('%d.%m')}",
+        'vs_prev_week': {
+            'words_diff': words - prev_words,
+            'lessons_diff': lessons - prev_lessons,
+            'days_diff': days - prev_days,
+            'minutes_diff': minutes - prev_minutes,
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 # Pronunciation weaknesses
 # ---------------------------------------------------------------------------

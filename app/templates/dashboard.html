@@ -171,6 +171,76 @@
     </a>
     {% endif %}
 
+    <!-- Weekly Learning Report (task 78) — Monday recap of last week -->
+    {% if weekly_report is defined and weekly_report %}
+    {% set wr = weekly_report %}
+    <div class="dash-weekly-report" id="weekly-report-card" role="region" aria-label="Итоги прошлой недели" data-dismiss-key="{{ wr.dismiss_key }}">
+        <div class="dash-weekly-report__header">
+            <div class="dash-weekly-report__title">
+                <span aria-hidden="true">&#128197;</span> Итоги прошлой недели
+                <span class="dash-weekly-report__period">{{ wr.week_label }}</span>
+            </div>
+            <button type="button" class="dash-weekly-report__close" aria-label="Закрыть" data-action="dismiss-weekly-report">&times;</button>
+        </div>
+        <div class="dash-weekly-report__grid">
+            <div class="dash-weekly-report__stat">
+                <div class="dash-weekly-report__stat-value">{{ wr.words_reviewed }}</div>
+                <div class="dash-weekly-report__stat-label">слов повторено</div>
+                {% if wr.vs_prev_week.words_diff > 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--up">+{{ wr.vs_prev_week.words_diff }}</div>
+                {% elif wr.vs_prev_week.words_diff < 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--down">{{ wr.vs_prev_week.words_diff }}</div>
+                {% endif %}
+            </div>
+            <div class="dash-weekly-report__stat">
+                <div class="dash-weekly-report__stat-value">{{ wr.lessons_completed }}</div>
+                <div class="dash-weekly-report__stat-label">уроков</div>
+                {% if wr.vs_prev_week.lessons_diff > 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--up">+{{ wr.vs_prev_week.lessons_diff }}</div>
+                {% elif wr.vs_prev_week.lessons_diff < 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--down">{{ wr.vs_prev_week.lessons_diff }}</div>
+                {% endif %}
+            </div>
+            <div class="dash-weekly-report__stat">
+                <div class="dash-weekly-report__stat-value">{{ wr.days_secured }}</div>
+                <div class="dash-weekly-report__stat-label">дней выполнено</div>
+                {% if wr.vs_prev_week.days_diff > 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--up">+{{ wr.vs_prev_week.days_diff }}</div>
+                {% elif wr.vs_prev_week.days_diff < 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--down">{{ wr.vs_prev_week.days_diff }}</div>
+                {% endif %}
+            </div>
+            <div class="dash-weekly-report__stat">
+                <div class="dash-weekly-report__stat-value">{{ wr.total_minutes }}</div>
+                <div class="dash-weekly-report__stat-label">минут</div>
+                {% if wr.vs_prev_week.minutes_diff > 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--up">+{{ wr.vs_prev_week.minutes_diff }}</div>
+                {% elif wr.vs_prev_week.minutes_diff < 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--down">{{ wr.vs_prev_week.minutes_diff }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <script>
+    (function () {
+        var card = document.getElementById('weekly-report-card');
+        if (!card) return;
+        var btn = card.querySelector('[data-action="dismiss-weekly-report"]');
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            var key = card.getAttribute('data-dismiss-key');
+            fetch('/api/weekly-report/dismiss', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('meta[name=csrf-token]') || {}).content || ''},
+                body: JSON.stringify({dismiss_key: key}),
+                credentials: 'same-origin'
+            });
+            card.style.display = 'none';
+        });
+    })();
+    </script>
+    {% endif %}
+
     <!-- Daily Plan -->
     <div id="dash-plan" class="dash-plan">
         <h2 class="dash-plan__heading">План на сегодня</h2>

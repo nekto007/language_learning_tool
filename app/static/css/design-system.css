@@ -14508,3 +14508,81 @@ span.vocab-word.vocab-word--active {
     }
 }
 
+/* ── Weekly learning report card (task 78) ── */
+.dash-weekly-report {
+    background: var(--color-surface, #f8fafc);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-left: 4px solid var(--color-primary, #6366f1);
+    border-radius: var(--radius-md, 8px);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+}
+.dash-weekly-report__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+.dash-weekly-report__title {
+    font-weight: var(--font-semibold, 600);
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--color-text-primary, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+.dash-weekly-report__period {
+    font-weight: 400;
+    color: var(--color-text-secondary, #64748b);
+    font-size: 0.8rem;
+}
+.dash-weekly-report__close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.25rem;
+    line-height: 1;
+    color: var(--color-text-secondary, #64748b);
+    padding: 0.125rem 0.25rem;
+    border-radius: var(--radius-sm, 4px);
+    transition: color 0.15s;
+}
+.dash-weekly-report__close:hover {
+    color: var(--color-text-primary, #0f172a);
+}
+.dash-weekly-report__grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+}
+@media (max-width: 500px) {
+    .dash-weekly-report__grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+.dash-weekly-report__stat {
+    text-align: center;
+}
+.dash-weekly-report__stat-value {
+    font-size: 1.25rem;
+    font-weight: var(--font-bold, 700);
+    color: var(--color-text-primary, #0f172a);
+    line-height: 1.2;
+}
+.dash-weekly-report__stat-label {
+    font-size: 0.72rem;
+    color: var(--color-text-secondary, #64748b);
+    margin-top: 0.125rem;
+}
+.dash-weekly-report__diff {
+    font-size: 0.72rem;
+    font-weight: 600;
+    margin-top: 0.125rem;
+}
+.dash-weekly-report__diff--up {
+    color: var(--color-success, #22c55e);
+}
+.dash-weekly-report__diff--down {
+    color: var(--color-danger, #ef4444);
+}
+

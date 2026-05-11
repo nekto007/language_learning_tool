@@ -3,7 +3,7 @@ import time
 import threading
 from datetime import datetime
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import case, func, or_
@@ -918,6 +918,37 @@ def dashboard():
     minutes_studied_today = _safe_widget_call(
         'study_minutes', get_minutes_today, current_user.id, _study_today, db, default=0)
 
+    # === WEEKLY REPORT (task 78) — Monday-only recap of last week ===
+    weekly_report = None
+    try:
+        import pytz as _pytz_wr
+        _tz_wr_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
+        try:
+            _tz_wr = _pytz_wr.timezone(_tz_wr_name)
+        except Exception:
+            _tz_wr = _pytz_wr.timezone(DEFAULT_TIMEZONE)
+        _today_wr = datetime.now(_tz_wr).date()
+        _is_monday = _today_wr.weekday() == 0
+        if _is_monday:
+            # ISO week key e.g. "2026-W19" — dismissed once per Monday session
+            _week_key = _today_wr.strftime('%G-W%V')
+            _dismissed_key = f'weekly_report_dismissed_{_week_key}'
+            if not session.get(_dismissed_key):
+                from app.study.insights_service import get_last_week_summary
+                _lw = _safe_widget_call(
+                    'last_week_summary',
+                    get_last_week_summary,
+                    current_user.id,
+                    _tz_wr_name,
+                    default=None,
+                )
+                if _lw and _lw.get('has_activity'):
+                    weekly_report = _lw
+                    weekly_report['dismiss_key'] = _dismissed_key
+    except Exception:
+        logger.warning('weekly_report build failed', exc_info=True)
+        weekly_report = None
+
     # === WEEKLY CHALLENGE ===
     from app.achievements.weekly_challenge import get_weekly_challenge, get_weekly_digest
     weekly_challenge = get_weekly_challenge(current_user.id)
@@ -1266,6 +1297,8 @@ def dashboard():
         learning_velocity=learning_velocity,
         # Daily study minutes (task 76)
         minutes_studied_today=minutes_studied_today,
+        # Weekly learning report (task 78)
+        weekly_report=weekly_report,
         # Route board metadata (task 33)
         route_metadata=route_metadata,
         # Route progress state for task 14 route board UI
@@ -1913,6 +1946,17 @@ def _next_step_from_legacy(daily_plan: dict, daily_summary: dict) -> tuple:
         'steps_done': steps_done,
         'steps_total': steps_total,
     })
+
+
+@words.route('/api/weekly-report/dismiss', methods=['POST'])
+@login_required
+def weekly_report_dismiss():
+    """Mark the current week's Monday report card as dismissed (session-only)."""
+    data = request.get_json(silent=True) or {}
+    dismiss_key = data.get('dismiss_key', '')
+    if dismiss_key and dismiss_key.startswith('weekly_report_dismissed_'):
+        session[dismiss_key] = True
+    return jsonify({'ok': True})
 
 
 @words.route('/api/streak/repair-web', methods=['POST'])

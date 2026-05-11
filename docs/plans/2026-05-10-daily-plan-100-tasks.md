@@ -1205,11 +1205,11 @@
 - Modify: `app/templates/study/index.html`
 - Tests: `tests/study/test_dashboard_weekly.py`
 
-- [ ] On Monday: show "Итоги прошлой недели" card at top of dashboard if user was active last week
-- [ ] Card: words learned, lessons completed, days secured, total minutes, vs. previous week
-- [ ] Dismissed with one click; dismissed state stored in session (not DB)
-- [ ] Tests: Monday → weekly summary shown; already dismissed this week → hidden; no last-week activity → hidden
-- [ ] Run pytest tests/study/
+- [x] On Monday: show "Итоги прошлой недели" card at top of dashboard if user was active last week
+- [x] Card: words learned, lessons completed, days secured, total minutes, vs. previous week
+- [x] Dismissed with one click; dismissed state stored in session (not DB)
+- [x] Tests: Monday → weekly summary shown; already dismissed this week → hidden; no last-week activity → hidden
+- [x] Run pytest tests/study/
 
 ---
 ### Task 79: Accuracy improvement chart
