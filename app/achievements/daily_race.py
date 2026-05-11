@@ -37,6 +37,7 @@ from app.utils.db import db
 # Capacity limits for a single daily race cohort.
 RACE_MIN_PARTICIPANTS = 3
 RACE_MAX_PARTICIPANTS = 5
+CHALLENGE_BONUS_POINTS = 10
 
 # Points awarded per mission phase type. Kept in sync with
 # `_MISSION_PHASE_POINTS` in app/words/routes.py so that the race scoreboard
@@ -377,19 +378,23 @@ def update_race_points_from_plan(
     phases: Iterable[Mapping],
     plan_completion: Mapping[str, bool],
     *,
+    challenge_bonus: int = 0,
     now_utc: datetime | None = None,
 ) -> Optional[DailyRaceParticipant]:
     """Recompute participant points from the current plan+completion view.
 
     Called on every dashboard/API request that rebuilds the plan, so point
     totals stay in sync with whichever phases have been completed today.
+    ``challenge_bonus`` adds a flat bonus (default 0) for completing the daily
+    challenge — callers should pass ``CHALLENGE_BONUS_POINTS`` when the user
+    has completed today's challenge.
     """
     phase_list = list(phases)
     total, all_required_done = _points_from_plan(phase_list, plan_completion)
     return update_race_points(
         user_id,
         race_date,
-        total,
+        total + max(0, challenge_bonus),
         finished=all_required_done,
         now_utc=now_utc,
     )

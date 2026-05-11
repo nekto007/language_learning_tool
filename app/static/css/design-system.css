@@ -14719,6 +14719,11 @@ span.vocab-word.vocab-word--active {
     background: #f5c800;
     color: #6b5000;
 }
+.daily-challenge-card__streak {
+    font-size: 0.82rem;
+    color: var(--color-text-secondary, #6b7280);
+    margin: 0.25rem 0 0;
+}
 .daily-challenge-card__completion-note {
     font-size: 0.82rem;
     color: var(--color-text-secondary, #6b7280);

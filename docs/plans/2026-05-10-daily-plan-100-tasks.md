@@ -1453,11 +1453,11 @@
 - Modify: `app/templates/partials/linear_daily_plan.html`
 - Tests: `tests/daily_plan/test_challenge.py`
 
-- [ ] Track challenge completion streak: consecutive days of completing daily challenge
-- [ ] Show in challenge card: "Серия челленджей: 5 дней"
-- [ ] Add challenge completions to leaderboard points calculation (bonus 10 pts per challenge)
-- [ ] Tests: streak counts; gap resets; leaderboard points include challenge bonus
-- [ ] Run pytest tests/daily_plan/
+- [x] Track challenge completion streak: consecutive days of completing daily challenge
+- [x] Show in challenge card: "Серия челленджей: 5 дней"
+- [x] Add challenge completions to leaderboard points calculation (bonus 10 pts per challenge)
+- [x] Tests: streak counts; gap resets; leaderboard points include challenge bonus
+- [x] Run pytest tests/daily_plan/
 
 ---
 ### Task 96: Challenge completion achievements

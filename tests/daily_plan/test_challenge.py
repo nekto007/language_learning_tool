@@ -1,4 +1,4 @@
-"""Tests for the daily challenge system (Task 83).
+"""Tests for the daily challenge system (Tasks 83, 84, 95).
 
 Covers:
 - challenge seeded deterministically for a given date
@@ -8,6 +8,9 @@ Covers:
 - completion tracked per user
 - complete_challenge is idempotent (second call returns already_completed=True)
 - get_today_challenge reflects completion status after completion
+- Task 95: challenge_streak counts consecutive completion days
+- Task 95: gap in completions resets streak
+- Task 95: leaderboard points include CHALLENGE_BONUS_POINTS when completed
 """
 from __future__ import annotations
 
@@ -25,6 +28,7 @@ from app.daily_plan.challenge import (
     CHALLENGE_CATEGORIES as SERVICE_CATEGORIES,
     _seed_today_challenge,
     complete_challenge,
+    get_challenge_streak,
     get_today_challenge,
 )
 
@@ -309,3 +313,172 @@ class TestChallengeCardData:
 
         # lesson_id=None → template falls back to first incomplete slot URL
         assert challenge.lesson_id is None
+
+
+# ── Task 95: challenge streak ─────────────────────────────────────────────────
+
+
+def _seed_challenge_for_date(d: date, db_session) -> DailyChallenge:
+    """Create a DailyChallenge row for the given date. Skips if one exists."""
+    from app.utils.db import db
+    existing = DailyChallenge.query.filter_by(challenge_date=d).first()
+    if existing:
+        return existing
+    ch = _seed_today_challenge(d, db)
+    db_session.commit()
+    return ch
+
+
+def _complete_for_date(user_id: int, d: date, db_session):
+    """Create a DailyChallengeCompletion for user_id on a given date."""
+    ch = _seed_challenge_for_date(d, db_session)
+    existing = DailyChallengeCompletion.query.filter_by(
+        challenge_id=ch.id, user_id=user_id,
+    ).first()
+    if not existing:
+        comp = DailyChallengeCompletion(
+            challenge_id=ch.id,
+            user_id=user_id,
+            score=90.0,
+            time_spent_seconds=120,
+        )
+        db_session.add(comp)
+        db_session.commit()
+
+
+class TestChallengeStreak:
+    def test_no_completions_returns_zero(self, db_session):
+        from app.utils.db import db
+        user = _make_user(db_session)
+
+        assert get_challenge_streak(user.id, db) == 0
+
+    def test_three_consecutive_days(self, db_session):
+        from app.utils.db import db
+        user = _make_user(db_session)
+        today = date.today()
+
+        for offset in range(3):
+            _complete_for_date(user.id, today - timedelta(days=offset), db_session)
+
+        assert get_challenge_streak(user.id, db) == 3
+
+    def test_gap_resets_streak(self, db_session):
+        from app.utils.db import db
+        user = _make_user(db_session)
+        today = date.today()
+
+        # Complete today and 2 days ago but NOT yesterday
+        _complete_for_date(user.id, today, db_session)
+        _complete_for_date(user.id, today - timedelta(days=2), db_session)
+
+        # Streak = 1 (only today is unbroken; yesterday missing breaks chain)
+        assert get_challenge_streak(user.id, db) == 1
+
+    def test_only_yesterday_counts_as_one(self, db_session):
+        from app.utils.db import db
+        user = _make_user(db_session)
+        yesterday = date.today() - timedelta(days=1)
+
+        _complete_for_date(user.id, yesterday, db_session)
+
+        assert get_challenge_streak(user.id, db) == 1
+
+    def test_streak_included_in_get_today_challenge(self, db_session):
+        from app.utils.db import db
+        user = _make_user(db_session)
+        today = date.today()
+
+        _complete_for_date(user.id, today - timedelta(days=1), db_session)
+        _complete_for_date(user.id, today - timedelta(days=2), db_session)
+
+        data = get_today_challenge(user.id, db)
+        # challenge_streak key present; 2 consecutive days before today → streak=2
+        assert 'challenge_streak' in data
+        assert data['challenge_streak'] == 2
+
+    def test_different_users_have_independent_streaks(self, db_session):
+        from app.utils.db import db
+        user1 = _make_user(db_session)
+        user2 = _make_user(db_session)
+        today = date.today()
+
+        # user1 completes today + yesterday; user2 has no completions
+        _complete_for_date(user1.id, today, db_session)
+        _complete_for_date(user1.id, today - timedelta(days=1), db_session)
+
+        assert get_challenge_streak(user1.id, db) == 2
+        assert get_challenge_streak(user2.id, db) == 0
+
+
+# ── Task 95: leaderboard points bonus ────────────────────────────────────────
+
+
+class TestChallengeLeaderboardBonus:
+    def test_challenge_bonus_constant_is_ten(self):
+        from app.achievements.daily_race import CHALLENGE_BONUS_POINTS
+        assert CHALLENGE_BONUS_POINTS == 10
+
+    def test_update_race_points_from_plan_with_challenge_bonus(self, db_session):
+        """Race points include +10 when challenge_bonus=10 is passed."""
+        from app.utils.db import db
+        from app.achievements.daily_race import (
+            CHALLENGE_BONUS_POINTS,
+            DailyRace,
+            DailyRaceParticipant,
+            get_or_create_race,
+            update_race_points_from_plan,
+        )
+        user = _make_user(db_session)
+        race_date = date.today()
+
+        # Enroll user in a race
+        get_or_create_race(user.id, race_date)
+        db_session.commit()
+
+        # Base points without challenge bonus
+        update_race_points_from_plan(user.id, race_date, [], {}, challenge_bonus=0)
+        db_session.commit()
+        participant_no_bonus = (
+            db_session.query(DailyRaceParticipant)
+            .filter_by(user_id=user.id, race_date=race_date)
+            .first()
+        )
+        assert participant_no_bonus is not None
+        base_points = participant_no_bonus.points
+
+        # Now add challenge bonus
+        update_race_points_from_plan(
+            user.id, race_date, [], {}, challenge_bonus=CHALLENGE_BONUS_POINTS,
+        )
+        db_session.commit()
+        participant_with_bonus = (
+            db_session.query(DailyRaceParticipant)
+            .filter_by(user_id=user.id, race_date=race_date)
+            .first()
+        )
+        assert participant_with_bonus.points == base_points + CHALLENGE_BONUS_POINTS
+
+    def test_no_bonus_when_challenge_not_completed(self, db_session):
+        """Without challenge completion, no bonus points added."""
+        from app.utils.db import db
+        from app.achievements.daily_race import (
+            DailyRaceParticipant,
+            get_or_create_race,
+            update_race_points_from_plan,
+        )
+        user = _make_user(db_session)
+        race_date = date.today()
+
+        get_or_create_race(user.id, race_date)
+        db_session.commit()
+
+        update_race_points_from_plan(user.id, race_date, [], {}, challenge_bonus=0)
+        db_session.commit()
+
+        participant = (
+            db_session.query(DailyRaceParticipant)
+            .filter_by(user_id=user.id, race_date=race_date)
+            .first()
+        )
+        assert participant.points == 0

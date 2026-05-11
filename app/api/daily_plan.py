@@ -486,9 +486,11 @@ def daily_race_status():
     from app.telegram.queries import get_daily_summary
     from app.achievements.streak_service import compute_plan_steps
     from app.achievements.daily_race import (
+        CHALLENGE_BONUS_POINTS,
         get_race_standings,
         update_race_points_from_plan,
     )
+    from app.daily_plan.challenge import get_today_challenge
 
     tz = _validate_timezone(request.args.get('tz', current_user.timezone or DEFAULT_TZ))
     user_id = current_user.id
@@ -507,11 +509,18 @@ def daily_race_status():
     summary = get_daily_summary(user_id, tz=tz)
     plan_completion, _, _, _ = compute_plan_steps(plan, summary)
 
+    try:
+        challenge_data = get_today_challenge(user_id, db)
+        ch_bonus = CHALLENGE_BONUS_POINTS if challenge_data.get('is_completed') else 0
+    except Exception:
+        ch_bonus = 0
+
     phases = plan.get('phases') or []
     if phases:
         try:
             update_race_points_from_plan(
                 user_id, local_today, phases, plan_completion,
+                challenge_bonus=ch_bonus,
             )
             db.session.commit()
         except Exception:

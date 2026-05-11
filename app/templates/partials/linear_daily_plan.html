@@ -630,6 +630,10 @@
             {% endif %}
         </div>
         <p class="daily-challenge-card__desc">{{ _ch_desc_map.get(_ch_category, _ch_category) }}</p>
+        {% set _ch_streak = today_challenge.get('challenge_streak', 0) | int %}
+        {% if _ch_streak > 0 %}
+        <p class="daily-challenge-card__streak">&#128293; Серия челленджей: {{ _ch_streak }} {{ 'день' if _ch_streak == 1 else ('дня' if _ch_streak < 5 else 'дней') }}</p>
+        {% endif %}
         {% if _ch_completed %}
         <p class="daily-challenge-card__completion-note">+{{ today_challenge.get('bonus_xp', 0) | int }} XP начислено</p>
         {% elif _chns.btn_url %}
