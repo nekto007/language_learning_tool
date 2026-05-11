@@ -25,6 +25,7 @@ from app.daily_plan.linear.slots.curriculum_slot import (
 )
 from app.daily_plan.linear.slots.error_review_slot import build_error_review_slot
 from app.daily_plan.linear.slots.listening_slot import build_listening_slot
+from app.daily_plan.linear.slots.speaking_slot import build_speaking_slot
 from app.daily_plan.linear.slots.writing_slot import build_writing_slot
 from app.daily_plan.linear.slots.reading_slot import (
     build_reading_slot,
@@ -38,7 +39,7 @@ from app.daily_plan.linear.slots.srs_slot import (
 
 logger = logging.getLogger(__name__)
 
-EXTENSION_PRIORITY: tuple[str, ...] = ('curriculum', 'srs', 'reading', 'listening', 'writing', 'error_review')
+EXTENSION_PRIORITY: tuple[str, ...] = ('curriculum', 'srs', 'reading', 'listening', 'speaking', 'writing', 'error_review')
 
 # Number of extension slots always pre-built for intensive difficulty mode.
 INTENSIVE_FORCED_EXTRAS = 2
@@ -174,6 +175,24 @@ def _build_listening_extension(
     return slot_dict
 
 
+def _build_speaking_extension(
+    user_id: int, db: Any, chain: list[dict[str, Any]]
+) -> Optional[dict[str, Any]]:
+    """Append a speaking slot when the current module has incomplete speaking lessons."""
+    if _has_pending_kind(chain, 'speaking'):
+        return None
+    slot = build_speaking_slot(user_id, db)
+    if slot is None:
+        return None
+    slot_dict = slot.to_dict()
+    if slot_dict.get('completed'):
+        return None
+    data = dict(slot_dict.get('data') or {})
+    data['extension'] = True
+    slot_dict['data'] = data
+    return slot_dict
+
+
 def _build_writing_extension(
     user_id: int, db: Any, chain: list[dict[str, Any]]
 ) -> Optional[dict[str, Any]]:
@@ -214,6 +233,7 @@ _EXTENSION_BUILDERS = {
     'srs': _build_srs_extension,
     'reading': _build_reading_extension,
     'listening': _build_listening_extension,
+    'speaking': _build_speaking_extension,
     'writing': _build_writing_extension,
     'error_review': _build_error_review_extension,
 }

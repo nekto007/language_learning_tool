@@ -52,6 +52,7 @@
     'srs': '&#128170;',
     'reading': '&#128214;',
     'listening': '&#127911;',
+    'speaking': '&#127908;',
     'writing': '&#9999;',
     'error_review': '&#128269;',
 } %}
@@ -60,6 +61,7 @@
     'srs': 'Повторение слов',
     'reading': 'Чтение книги',
     'listening': 'Аудирование',
+    'speaking': 'Произношение',
     'writing': 'Письмо',
     'error_review': 'Разбор ошибок',
 } %}
@@ -79,6 +81,8 @@
     'writing_prompt': 'Письменное задание',
     'translation': 'Перевод',
     'sentence_correction': 'Исправление ошибок',
+    'pronunciation': 'Произношение',
+    'shadow_reading': 'Теневое чтение',
 } %}
 
 <div class="linear-plan" data-linear-plan="true">
@@ -439,6 +443,19 @@
                             {% endif %}
                             {% if _eta > 0 %}~{{ _eta }} мин{% endif %}
                         </div>
+                        {% elif _kind == 'speaking' %}
+                        <div class="linear-slot__meta">
+                            {% if slot.lesson_type %}
+                            <span class="linear-slot__type-badge">{{ l_lesson_type_labels.get(slot.lesson_type, slot.lesson_type) }}</span>
+                            {% endif %}
+                            {% if _eta > 0 %}~{{ _eta }} мин{% endif %}
+                        </div>
+                        {% if _data.get('speech_api_required') %}
+                        <div class="linear-slot__meta linear-slot__meta--speaking-hint"
+                             data-speaking-chrome-hint="true">
+                            Лучше в Chrome
+                        </div>
+                        {% endif %}
                         {% elif _kind == 'writing' %}
                         <div class="linear-slot__meta">
                             {% if slot.lesson_type %}

@@ -911,12 +911,12 @@
 - Modify: `app/templates/partials/linear_daily_plan.html`
 - Tests: `tests/daily_plan/linear/test_speaking_slot.py`
 
-- [ ] `build_speaking_slot(user_id, db)` — find next pronunciation or shadow_reading lesson in user's module
-- [ ] Slot data: `{lesson_id, lesson_title, lesson_type, estimated_minutes: 7, speech_api_required: bool}`
-- [ ] If no speaking lesson available: None (slot not shown)
-- [ ] Template: speaking slot with microphone icon; if speech_api_required and not Chrome → show "Лучше в Chrome"
-- [ ] Tests: slot builds; no speaking lesson → None; template note on Chrome
-- [ ] Run pytest tests/daily_plan/linear/
+- [x] `build_speaking_slot(user_id, db)` — find next pronunciation or shadow_reading lesson in user's module
+- [x] Slot data: `{lesson_id, lesson_title, lesson_type, estimated_minutes: 7, speech_api_required: bool}`
+- [x] If no speaking lesson available: None (slot not shown)
+- [x] Template: speaking slot with microphone icon; if speech_api_required and not Chrome → show "Лучше в Chrome"
+- [x] Tests: slot builds; no speaking lesson → None; template note on Chrome
+- [x] Run pytest tests/daily_plan/linear/
 
 ---
 ### Task 59: Speaking streak and achievements
