@@ -282,7 +282,8 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
     if not card_direction:
         card_direction = UserCardDirection(
             user_word_id=user_word.id,
-            direction=direction
+            direction=direction,
+            source='lesson_vocab',
         )
         db.session.add(card_direction)
 
@@ -463,7 +464,8 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
             # Создаем противоположное направление
             opposite_card = UserCardDirection(
                 user_word_id=user_word.id,
-                direction=opposite_direction
+                direction=opposite_direction,
+                source='lesson_vocab',
             )
             db.session.add(opposite_card)
 

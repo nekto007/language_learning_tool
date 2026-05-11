@@ -180,6 +180,7 @@ class FlashcardSession {
             bookContextText: document.getElementById('book-context-text'),
             unitTypeBadge: document.getElementById('unit-type-badge'),
             freqBandBadge: document.getElementById('freq-band-badge'),
+            cardSourceBadge: document.getElementById('card-source-badge'),
             cardNote: document.getElementById('card-note'),
             cardNoteText: document.getElementById('card-note-text'),
         };
@@ -605,6 +606,24 @@ class FlashcardSession {
                 this.els.freqBandBadge.style.display = '';
             } else {
                 this.els.freqBandBadge.style.display = 'none';
+            }
+        }
+
+        // Source badge
+        if (this.els.cardSourceBadge) {
+            const sourceLabels = {
+                'lesson_vocab': '📖 Урок',
+                'book_reading': '📚 Книга',
+                'custom_list': '✏️ Список',
+                'manual': '✋ Вручную',
+            };
+            const src = card.source;
+            if (src && sourceLabels[src]) {
+                this.els.cardSourceBadge.textContent = sourceLabels[src];
+                this.els.cardSourceBadge.className = 'card-source-badge card-source-badge--' + src.replace('_', '-');
+                this.els.cardSourceBadge.style.display = '';
+            } else {
+                this.els.cardSourceBadge.style.display = 'none';
             }
         }
 

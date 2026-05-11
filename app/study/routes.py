@@ -1174,7 +1174,7 @@ def custom_list_study(list_id):
             if not UserCardDirection.query.filter_by(
                 user_word_id=user_word.id, direction=direction
             ).first():
-                db.session.add(UserCardDirection(user_word.id, direction))
+                db.session.add(UserCardDirection(user_word.id, direction, source='custom_list'))
 
     db.session.commit()
 

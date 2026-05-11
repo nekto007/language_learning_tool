@@ -1116,11 +1116,11 @@
 - Create: `migrations/versions/20260520_card_source.py`
 - Tests: `tests/curriculum/test_card_source.py`
 
-- [ ] Add `source VARCHAR(50) nullable` to UserCardDirection — e.g., 'lesson_vocab', 'book_reading', 'custom_list', 'manual'
-- [ ] Set source when card is created: lesson vocab → 'lesson_vocab'; book → 'book_reading'; custom list → 'custom_list'
-- [ ] Show source badge in SRS card during review (subtle icon)
-- [ ] Tests: cards get correct source; migration runs cleanly; source badge shown in template
-- [ ] Run pytest tests/curriculum/
+- [x] Add `source VARCHAR(50) nullable` to UserCardDirection — e.g., 'lesson_vocab', 'book_reading', 'custom_list', 'manual'
+- [x] Set source when card is created: lesson vocab → 'lesson_vocab'; book → 'book_reading'; custom list → 'custom_list'
+- [x] Show source badge in SRS card during review (subtle icon)
+- [x] Tests: cards get correct source; migration runs cleanly; source badge shown in template
+- [x] Run pytest tests/curriculum/
 
 ---
 ### BLOCK G: Analytics & Insights (Tasks 73–82)

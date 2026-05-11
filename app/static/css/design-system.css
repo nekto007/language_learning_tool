@@ -14169,6 +14169,44 @@ details.word-etymology[open] .word-etymology__summary::before {
     border: 1px solid #e2e8f0;
 }
 
+/* Card source badge in SRS flashcard review */
+.card-source-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 500;
+    margin-top: 0.25rem;
+    margin-bottom: 0.1rem;
+    background: var(--color-surface-secondary, #f1f5f9);
+    color: var(--color-text-secondary, #64748b);
+    border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.card-source-badge--lesson-vocab {
+    background: #fef9c3;
+    color: #854d0e;
+    border-color: #fde68a;
+}
+
+.card-source-badge--book-reading {
+    background: #ede9fe;
+    color: #5b21b6;
+    border-color: #ddd6fe;
+}
+
+.card-source-badge--custom-list {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #a7f3d0;
+}
+
+.card-source-badge--manual {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #e2e8f0;
+}
+
 /* Example sentence carousel in vocabulary cards */
 .example-carousel {
     position: relative;

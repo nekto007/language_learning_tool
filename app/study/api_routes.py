@@ -200,6 +200,7 @@ def get_study_items():
                 'is_leech': is_leech,
                 'leech_hint': leech_hint,
                 'frequency_band': word.frequency_band,
+                'source': direction.source,
             }
         else:
             return {
@@ -217,6 +218,7 @@ def get_study_items():
                 'is_leech': is_leech,
                 'leech_hint': leech_hint,
                 'frequency_band': word.frequency_band,
+                'source': direction.source,
             }
 
     learning_grace_period = timedelta(minutes=15)

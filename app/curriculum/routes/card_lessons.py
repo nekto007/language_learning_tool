@@ -68,7 +68,7 @@ def _build_cards_for_words(
                 if not uw:
                     uw = UserWord.get_or_create(user_id, word.id)
                     user_word_map[word.id] = uw
-                dir_obj = UserCardDirection(user_word_id=uw.id, direction='eng-rus')
+                dir_obj = UserCardDirection(user_word_id=uw.id, direction='eng-rus', source='lesson_vocab')
                 db.session.add(dir_obj)
                 directions_by_word[word.id] = [dir_obj]
                 needs_flush = True

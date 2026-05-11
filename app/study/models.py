@@ -355,6 +355,9 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
     correct_count = db.Column(db.Integer, default=0)
     incorrect_count = db.Column(db.Integer, default=0)
 
+    # Source of this card: 'lesson_vocab', 'book_reading', 'custom_list', 'manual', or None
+    source = db.Column(db.String(50), nullable=True)
+
     __table_args__ = (
         db.UniqueConstraint('user_word_id', 'direction', name='uix_user_word_direction'),
         Index('idx_card_direction_user_word_id', 'user_word_id'),
@@ -367,9 +370,10 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
     def __repr__(self):
         return f"<UserCardDirection {self.id}: word={self.user_word_id} {self.direction} state={self.state}>"
 
-    def __init__(self, user_word_id, direction):
+    def __init__(self, user_word_id, direction, source=None, **kwargs):
         self.user_word_id = user_word_id
         self.direction = direction
+        self.source = source
         self.state = 'new'
         self.step_index = 0
         self.lapses = 0
@@ -380,6 +384,8 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         self.incorrect_count = 0
         self.next_review = datetime.now(timezone.utc)
         self.buried_until = None
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     def bury(self, hours: int = 24):
         """
