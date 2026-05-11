@@ -228,11 +228,20 @@ class TestMaybeAwardCurriculumXp:
     def test_awards_for_each_canonical_type(self, db_session):
         user = _make_user(db_session)
 
-        # ``listening_immersion`` and ``listening_immersion_quiz`` share a
-        # single XP source key, so covering one covers the other for
-        # idempotency purposes. The three legacy aliases have dedicated
-        # coverage in ``test_legacy_aliases_map_to_canonical_sources``.
-        aliased_types = {'flashcards', 'text', 'matching', 'listening_immersion_quiz', 'audio_fill_blank'}
+        # Types that collapse onto an already-tested source key are skipped so
+        # idempotency dedup doesn't cause false failures.  Legacy aliases
+        # ('flashcards', 'text', 'matching', 'audio_fill_blank') collapse onto
+        # card/reading/quiz; newer types ('translation', 'sentence_correction',
+        # 'sentence_completion', 'collocation_matching') also collapse onto
+        # linear_curriculum_quiz; 'shadow_reading' and 'pronunciation' collapse
+        # onto linear_curriculum_use (same as writing_prompt); 'idiom' collapses
+        # onto linear_curriculum_vocabulary.
+        aliased_types = {
+            'flashcards', 'text', 'matching', 'listening_immersion_quiz',
+            'audio_fill_blank', 'translation', 'sentence_correction',
+            'sentence_completion', 'collocation_matching',
+            'shadow_reading', 'pronunciation', 'idiom',
+        }
         for lesson_type, expected_source in LESSON_TYPE_TO_SOURCE.items():
             if lesson_type in aliased_types:
                 continue

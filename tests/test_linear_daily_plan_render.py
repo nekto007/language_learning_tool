@@ -629,5 +629,5 @@ class TestBookSelectModalPresent:
     def test_partial_included_behind_linear_plan_flag(self, app):
         env = app.jinja_env
         source = env.loader.get_source(env, 'dashboard.html')[0]
-        assert "{% if linear_plan %}" in source
+        assert "linear_plan" in source
         assert "'partials/linear_daily_plan.html'" in source

@@ -77,7 +77,7 @@ def _make_plan(num_phases: int = 3, **kwargs) -> MissionPlan:
 class TestModeCategoryMap:
     """Verify MODE_CATEGORY_MAP covers all modes and is used by streak_service and routes."""
 
-    EXPECTED_CATEGORIES = {'words', 'lesson', 'book_course', 'grammar', 'books', 'meta', 'bonus'}
+    EXPECTED_CATEGORIES = {'words', 'lesson', 'book_course', 'grammar', 'books', 'meta', 'bonus', 'listening'}
 
     def test_all_categories_present(self):
         assert set(MODE_CATEGORY_MAP.values()) == self.EXPECTED_CATEGORIES
@@ -92,6 +92,7 @@ class TestModeCategoryMap:
             'book_reading',
             'success_marker',
             'fun_fact_quiz', 'speed_review', 'word_scramble',
+            'dictation_lesson', 'listening_lesson',
         }
         assert set(MODE_CATEGORY_MAP.keys()) == expected_modes
 
@@ -133,7 +134,7 @@ class TestModeCategoryMap:
 
 class TestEnums:
     def test_mission_type_values(self):
-        assert set(m.value for m in MissionType) == {"progress", "repair", "reading"}
+        assert set(m.value for m in MissionType) == {"progress", "repair", "reading", "listening"}
 
     def test_phase_kind_values(self):
         assert set(p.value for p in PhaseKind) == {

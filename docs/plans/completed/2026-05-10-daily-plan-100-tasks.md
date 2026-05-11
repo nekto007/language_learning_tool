@@ -1520,10 +1520,10 @@
 - Modify: `CLAUDE.md`
 - Modify: various test files
 
-- [ ] Run full test suite: `pytest`
-- [ ] Run `pytest -m smoke`
-- [ ] Fix any regressions introduced by previous tasks
-- [ ] Update CLAUDE.md with new canonical patterns: `UserWritingAttempt`, `ListeningAttempt`, `PronunciationAttempt`, `get_immersion_streak`, `maybe_award_listening/writing/speaking_xp`, `DailyChallenge`
-- [ ] Verify all new endpoints follow `api_error()` pattern
-- [ ] Verify all new XP paths use `award_xp(score=...)` where accuracy signal available
-- [ ] Move this plan to `docs/plans/completed/`
+- [x] Run full test suite: `pytest`
+- [x] Run `pytest -m smoke`
+- [x] Fix any regressions introduced by previous tasks
+- [x] Update CLAUDE.md with new canonical patterns: `UserWritingAttempt`, `ListeningAttempt`, `PronunciationAttempt`, `get_immersion_streak`, `maybe_award_listening/writing/speaking_xp`, `DailyChallenge`
+- [x] Verify all new endpoints follow `api_error()` pattern
+- [x] Verify all new XP paths use `award_xp(score=...)` where accuracy signal available
+- [x] Move this plan to `docs/plans/completed/`
