@@ -897,10 +897,10 @@
 - Modify: `app/api/daily_status.py`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] `get_pronunciation_weaknesses(user_id, db, min_attempts=3) -> list[str]` — words with match_rate < 50% over last 30 attempts
-- [ ] Expose in `/api/daily-status` as `pronunciation_weak_words: [str]`
-- [ ] Tests: words with 1/4 match rate → returned as weak; words with 3/4 → not returned; < min_attempts → excluded
-- [ ] Run pytest tests/study/
+- [x] `get_pronunciation_weaknesses(user_id, db, min_attempts=3) -> list[str]` — words with match_rate < 50% over last 30 attempts
+- [x] Expose in `/api/daily-status` as `pronunciation_weak_words: [str]`
+- [x] Tests: words with 1/4 match rate → returned as weak; words with 3/4 → not returned; < min_attempts → excluded
+- [x] Run pytest tests/study/
 
 ---
 ### Task 58: Speaking slot in linear plan

@@ -746,3 +746,44 @@ def get_weekly_summary(user_id: int) -> dict[str, Any]:
         'time_minutes': time_minutes,
         'accuracy': accuracy,
     }
+
+
+# ---------------------------------------------------------------------------
+# Pronunciation weaknesses
+# ---------------------------------------------------------------------------
+
+def get_pronunciation_weaknesses(user_id: int, min_attempts: int = 3) -> list[str]:
+    """Return words where match_rate < 50% across all pronunciation attempts.
+
+    Only includes words with at least *min_attempts* total attempts.
+    Returns a sorted list of word strings.
+    """
+    from sqlalchemy import Integer, cast, case
+    from app.curriculum.models import PronunciationAttempt
+
+    rows = (
+        db.session.query(
+            PronunciationAttempt.word,
+            func.count(PronunciationAttempt.id).label('total'),
+            func.sum(
+                cast(
+                    case((PronunciationAttempt.matched == True, 1), else_=0),
+                    Integer,
+                )
+            ).label('matched_count'),
+        )
+        .filter(PronunciationAttempt.user_id == user_id)
+        .group_by(PronunciationAttempt.word)
+        .having(func.count(PronunciationAttempt.id) >= min_attempts)
+        .all()
+    )
+
+    weak_words = []
+    for row in rows:
+        total = int(row.total)
+        matched = int(row.matched_count) if row.matched_count is not None else 0
+        match_rate = matched / total if total > 0 else 0.0
+        if match_rate < 0.5:
+            weak_words.append(row.word)
+
+    return sorted(weak_words)

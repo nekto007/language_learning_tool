@@ -2,6 +2,7 @@
 
 Task 26: Writing accuracy analytics widget.
 Task 39: Vocabulary growth chart on dashboard.
+Task 57: Pronunciation weakness detection.
 """
 from __future__ import annotations
 
@@ -10,8 +11,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.curriculum.models import CEFRLevel, Lessons, Module, UserWritingAttempt
-from app.study.insights_service import get_writing_stats, get_vocabulary_growth
+from app.curriculum.models import CEFRLevel, Lessons, Module, UserWritingAttempt, PronunciationAttempt
+from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses
 from app.study.models import UserCardDirection, UserWord
 from app.words.models import CollectionWords
 from app.utils.db import db
@@ -236,3 +237,90 @@ class TestGetVocabularyGrowth:
         result = get_vocabulary_growth(test_user.id, days=7)
         assert result['words_this_week'] == 0
         assert result['total_active'] == 0
+
+
+# ---------------------------------------------------------------------------
+# Helpers for pronunciation weakness tests
+# ---------------------------------------------------------------------------
+
+def _make_pronunciation_attempt(
+    db_session,
+    user_id: int,
+    word: str,
+    matched: bool,
+) -> PronunciationAttempt:
+    attempt = PronunciationAttempt(
+        user_id=user_id,
+        word=word,
+        recognized_text=word if matched else 'wrong',
+        matched=matched,
+    )
+    db_session.add(attempt)
+    db_session.flush()
+    return attempt
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+class TestGetPronunciationWeaknesses:
+    def test_no_attempts_returns_empty(self, app, db_session, test_user):
+        result = get_pronunciation_weaknesses(test_user.id)
+        assert result == []
+
+    def test_word_with_low_match_rate_returned(self, app, db_session, test_user):
+        # 1 matched out of 4 = 25% → weak
+        _make_pronunciation_attempt(db_session, test_user.id, 'hello', matched=True)
+        _make_pronunciation_attempt(db_session, test_user.id, 'hello', matched=False)
+        _make_pronunciation_attempt(db_session, test_user.id, 'hello', matched=False)
+        _make_pronunciation_attempt(db_session, test_user.id, 'hello', matched=False)
+        result = get_pronunciation_weaknesses(test_user.id)
+        assert 'hello' in result
+
+    def test_word_with_high_match_rate_not_returned(self, app, db_session, test_user):
+        # 3 matched out of 4 = 75% → not weak
+        _make_pronunciation_attempt(db_session, test_user.id, 'world', matched=True)
+        _make_pronunciation_attempt(db_session, test_user.id, 'world', matched=True)
+        _make_pronunciation_attempt(db_session, test_user.id, 'world', matched=True)
+        _make_pronunciation_attempt(db_session, test_user.id, 'world', matched=False)
+        result = get_pronunciation_weaknesses(test_user.id)
+        assert 'world' not in result
+
+    def test_fewer_than_min_attempts_excluded(self, app, db_session, test_user):
+        # 2 attempts (< default min_attempts=3), both mismatched → still excluded
+        _make_pronunciation_attempt(db_session, test_user.id, 'rare', matched=False)
+        _make_pronunciation_attempt(db_session, test_user.id, 'rare', matched=False)
+        result = get_pronunciation_weaknesses(test_user.id, min_attempts=3)
+        assert 'rare' not in result
+
+    def test_min_attempts_threshold_respected(self, app, db_session, test_user):
+        # Exactly 3 attempts, all mismatched → included with min_attempts=3
+        _make_pronunciation_attempt(db_session, test_user.id, 'exact', matched=False)
+        _make_pronunciation_attempt(db_session, test_user.id, 'exact', matched=False)
+        _make_pronunciation_attempt(db_session, test_user.id, 'exact', matched=False)
+        result = get_pronunciation_weaknesses(test_user.id, min_attempts=3)
+        assert 'exact' in result
+
+    def test_result_is_sorted(self, app, db_session, test_user):
+        for word in ['zebra', 'apple', 'mango']:
+            for _ in range(3):
+                _make_pronunciation_attempt(db_session, test_user.id, word, matched=False)
+        result = get_pronunciation_weaknesses(test_user.id)
+        assert result == sorted(result)
+
+    def test_other_users_attempts_excluded(self, app, db_session, test_user):
+        from app.auth.models import User
+        other = User(
+            email=f'other_{uuid.uuid4().hex[:8]}@test.com',
+            username=f'other_{uuid.uuid4().hex[:8]}',
+            onboarding_completed=True,
+        )
+        other.set_password('pass')
+        db_session.add(other)
+        db_session.flush()
+
+        for _ in range(4):
+            _make_pronunciation_attempt(db_session, other.id, 'shared', matched=False)
+        result = get_pronunciation_weaknesses(test_user.id)
+        assert result == []

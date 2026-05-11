@@ -209,6 +209,13 @@ def daily_status():
     listening_streak_days = get_listening_streak(user_id, tz=tz)
     writing_streak_days = get_writing_streak(user_id, tz=tz)
 
+    from app.study.insights_service import get_pronunciation_weaknesses
+    try:
+        pronunciation_weak_words = get_pronunciation_weaknesses(user_id)
+    except Exception:
+        logger.warning("get_pronunciation_weaknesses failed", exc_info=True)
+        pronunciation_weak_words = []
+
     recovery_suggestion = _get_recovery_suggestion(user_id, tz)
 
     payload = {
@@ -225,6 +232,7 @@ def daily_status():
         'day_secured': day_secured,
         'listening_streak_days': listening_streak_days,
         'writing_streak_days': writing_streak_days,
+        'pronunciation_weak_words': pronunciation_weak_words,
         **listening_goal_data,
     }
     if srs_limit_reason != 'normal':
