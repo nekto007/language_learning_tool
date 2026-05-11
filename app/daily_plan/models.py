@@ -44,6 +44,8 @@ class DailyPlanEventType(enum.Enum):
     rival_strip_shown = "rival_strip_shown"
     rival_strip_dismissed = "rival_strip_dismissed"
     steps_taken_while_rival_visible = "steps_taken_while_rival_visible"
+    # Client-callable: user explicitly skipped the current active slot.
+    slot_skipped = "slot_skipped"
     # Server-only: idempotency marker for route step additions (one per phase_kind per day).
     route_step_added = "route_step_added"
     # Server-only: emitted when route progress crosses a checkpoint boundary (H5 measurement).

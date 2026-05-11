@@ -587,7 +587,11 @@ _CLIENT_EVENTS = {
     'rival_strip_dismissed',
     'steps_taken_while_rival_visible',
     'vocab_lookup',
+    'slot_skipped',
 }
+
+_SKIP_REASONS = {'no_time', 'too_hard', 'not_today'}
+_SKIP_SLOT_KINDS = {'curriculum', 'srs', 'reading', 'listening', 'writing', 'error_review'}
 
 
 @api_daily_plan.route('/daily-plan/events', methods=['POST'])
@@ -640,12 +644,27 @@ def record_daily_plan_event():
     else:
         plan_date = user_today
 
-    step_kind = body.get('step_kind')
+    meta = body.get('meta') or {}
+    step_kind = body.get('step_kind') or meta.get('kind')
     if step_kind:
         step_kind = str(step_kind)[:40]
-    reason_text = body.get('reason_text')
+    reason_text = body.get('reason_text') or meta.get('reason')
     if reason_text:
         reason_text = str(reason_text)[:500]
+
+    if event_type == 'slot_skipped':
+        if not step_kind or step_kind not in _SKIP_SLOT_KINDS:
+            return api_error(
+                'invalid_slot_kind',
+                f'step_kind must be one of: {", ".join(sorted(_SKIP_SLOT_KINDS))}',
+                400,
+            )
+        if not reason_text or reason_text not in _SKIP_REASONS:
+            return api_error(
+                'invalid_reason',
+                f'reason must be one of: {", ".join(sorted(_SKIP_REASONS))}',
+                400,
+            )
 
     event = DailyPlanEvent(
         user_id=current_user.id,

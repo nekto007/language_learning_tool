@@ -728,11 +728,11 @@
 - Modify: `app/templates/partials/linear_daily_plan.html`
 - Tests: `tests/daily_plan/test_events.py`
 
-- [ ] Add "Пропустить" button on each slot (only when slot is current/active)
-- [ ] POST to `/api/daily-plan/events` with `event_type=slot_skipped, meta={kind, reason}` — reason is one of: no_time / too_hard / not_today
-- [ ] Skip does not mark slot complete; next slot becomes unlocked (relaxed for skipped only)
-- [ ] Tests: skip event saved; skipped slot doesn't count for day_secured; reason field validated
-- [ ] Run pytest tests/daily_plan/
+- [x] Add "Пропустить" button on each slot (only when slot is current/active)
+- [x] POST to `/api/daily-plan/events` with `event_type=slot_skipped, meta={kind, reason}` — reason is one of: no_time / too_hard / not_today
+- [x] Skip does not mark slot complete; next slot becomes unlocked (relaxed for skipped only)
+- [x] Tests: skip event saved; skipped slot doesn't count for day_secured; reason field validated
+- [x] Run pytest tests/daily_plan/
 
 ---
 ### Task 47: Missed plan recovery suggestion

@@ -100,6 +100,21 @@ def build_tomorrow_preview(user_id: int, db_session: Any) -> dict[str, Any]:
         }
 
 
+def _get_skipped_slot_kinds(
+    user_id: int,
+    plan_date: Any,
+    db_session: Any,
+) -> set[str]:
+    """Return slot kinds the user explicitly skipped today."""
+    from app.daily_plan.models import DailyPlanEvent
+    events = db_session.session.query(DailyPlanEvent).filter_by(
+        user_id=user_id,
+        event_type='slot_skipped',
+        plan_date=plan_date,
+    ).all()
+    return {e.step_kind for e in events if e.step_kind}
+
+
 def compute_linear_day_secured(baseline_slots: list[dict[str, Any]]) -> bool:
     """Return True when every baseline slot is flagged completed.
 
@@ -191,11 +206,19 @@ def get_linear_plan(
     )
 
     from app.daily_plan.linear.chain import build_chain
+    from app.utils.time_utils import get_user_local_date
 
     chain_result = build_chain(user_id, session_provider)
     all_slots = chain_result['slots']
     baseline_count = chain_result['baseline_count']
     baseline_slots = all_slots[:baseline_count]
+
+    plan_date = get_user_local_date(user_id, session_provider)
+    skipped_kinds = _get_skipped_slot_kinds(user_id, plan_date, session_provider)
+    if skipped_kinds:
+        for slot in all_slots:
+            if slot.get('kind') in skipped_kinds and not slot.get('completed', False):
+                slot['skipped'] = True
 
     day_secured = compute_linear_day_secured(baseline_slots)
 

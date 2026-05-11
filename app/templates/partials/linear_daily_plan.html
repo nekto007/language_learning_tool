@@ -31,6 +31,7 @@
         'eta_minutes': slot.get('eta_minutes', 0),
         'url': slot.get('url'),
         'completed': _completed,
+        'skipped': slot.get('skipped', False),
         'data': slot.get('data') or {},
     } %}
     {% set _ = l_slots.append(_merged) %}
@@ -279,8 +280,11 @@
                  role="note">Дальше необязательно, но засчитывается</div>
             {% endif %}
             {% set _completed = slot.completed %}
+            {% set _skipped = slot.get('skipped', False) %}
             {% if _completed %}
                 {% set _state = 'done' %}
+            {% elif _skipped %}
+                {% set _state = 'skipped' %}
             {% elif not lns.current_found %}
                 {% set _state = 'current' %}
                 {% set lns.current_found = true %}
@@ -432,6 +436,8 @@
                         <span class="linear-slot__badge linear-slot__badge--muted">Нет слов</span>
                         {% elif _completed %}
                         <span class="linear-slot__badge linear-slot__badge--done">Готово &#10003;</span>
+                        {% elif _state == 'skipped' %}
+                        <span class="linear-slot__badge linear-slot__badge--skipped">Пропущено</span>
                         {% elif _state == 'locked' %}
                         <span class="linear-slot__badge linear-slot__badge--locked"
                               data-linear-locked="true"
@@ -445,12 +451,32 @@
                            data-linear-action="select-book"
                            data-linear-event="reading_slot_select_open">Выбрать книгу</a>
                         {% elif slot.url %}
-                        <a href="{{ slot.url }}"
-                           class="linear-slot__btn{% if _state == 'current' %} linear-slot__btn--primary{% endif %}"
-                           data-linear-event="slot_start"
-                           data-slot-click-kind="{{ _kind }}">
-                            {% if _state == 'current' %}Начать{% else %}Открыть{% endif %}
-                        </a>
+                        <div class="linear-slot__action-group">
+                            <a href="{{ slot.url }}"
+                               class="linear-slot__btn{% if _state == 'current' %} linear-slot__btn--primary{% endif %}"
+                               data-linear-event="slot_start"
+                               data-slot-click-kind="{{ _kind }}">
+                                {% if _state == 'current' %}Начать{% else %}Открыть{% endif %}
+                            </a>
+                            {% if _state == 'current' %}
+                            <button type="button"
+                                    class="linear-slot__skip-btn"
+                                    data-skip-kind="{{ _kind }}"
+                                    aria-label="Пропустить это задание">
+                                Пропустить
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% if _state == 'current' %}
+                        <div class="linear-slot__skip-reasons" hidden data-skip-reasons="{{ _kind }}">
+                            <div class="linear-slot__skip-reasons-label">Почему пропускаешь?</div>
+                            <div class="linear-slot__skip-reasons-btns">
+                                <button type="button" class="linear-slot__skip-reason-btn" data-reason="no_time">Нет времени</button>
+                                <button type="button" class="linear-slot__skip-reason-btn" data-reason="too_hard">Слишком сложно</button>
+                                <button type="button" class="linear-slot__skip-reason-btn" data-reason="not_today">Не сейчас</button>
+                            </div>
+                        </div>
+                        {% endif %}
                         {% else %}
                         <span class="linear-slot__badge linear-slot__badge--muted">Позже</span>
                         {% endif %}
@@ -558,3 +584,52 @@
     {% endif %}
 
 </div>
+<script>
+(function () {
+    'use strict';
+    function initSlotSkip() {
+        document.querySelectorAll('.linear-slot__skip-btn').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var kind = btn.dataset.skipKind;
+                var reasonsDiv = document.querySelector('[data-skip-reasons="' + kind + '"]');
+                if (reasonsDiv) {
+                    reasonsDiv.hidden = !reasonsDiv.hidden;
+                }
+            });
+        });
+        document.querySelectorAll('.linear-slot__skip-reason-btn').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var reason = btn.dataset.reason;
+                var reasonsDiv = btn.closest('[data-skip-reasons]');
+                var kind = reasonsDiv ? reasonsDiv.dataset.skipReasons : '';
+                if (!kind || !reason) { return; }
+                btn.disabled = true;
+                fetch('/api/daily-plan/events', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        event_type: 'slot_skipped',
+                        step_kind: kind,
+                        reason_text: reason
+                    })
+                }).then(function (r) {
+                    if (r.ok) {
+                        window.location.reload();
+                    } else {
+                        btn.disabled = false;
+                    }
+                }).catch(function () {
+                    btn.disabled = false;
+                });
+            });
+        });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSlotSkip);
+    } else {
+        initSlotSkip();
+    }
+}());
+</script>
