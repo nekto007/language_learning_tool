@@ -1087,12 +1087,12 @@
 - Modify: `app/templates/study/custom_list.html`
 - Tests: `tests/study/test_custom_list.py`
 
-- [ ] Import form: paste text in format "word - translation" (one per line) or "word|translation"
-- [ ] Parser: strip whitespace, handle both ` - ` and `|` delimiters, skip malformed lines
-- [ ] Bulk insert with dedup (skip exact duplicates within same list)
-- [ ] Show import summary: "Добавлено N слов, пропущено M дублей"
-- [ ] Tests: correct parse; duplicates skipped; malformed lines ignored; import count correct
-- [ ] Run pytest tests/study/
+- [x] Import form: paste text in format "word - translation" (one per line) or "word|translation"
+- [x] Parser: strip whitespace, handle both ` - ` and `|` delimiters, skip malformed lines
+- [x] Bulk insert with dedup (skip exact duplicates within same list)
+- [x] Show import summary: "Добавлено N слов, пропущено M дублей"
+- [x] Tests: correct parse; duplicates skipped; malformed lines ignored; import count correct
+- [x] Run pytest tests/study/
 
 ---
 ### Task 71: SRS study from custom word lists

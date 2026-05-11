@@ -993,6 +993,30 @@ def plan_stats():
     )
 
 
+def _parse_bulk_import(text: str) -> list[tuple[str, str]]:
+    """Parse bulk import text into (word, translation) pairs.
+
+    Accepts lines in 'word - translation' or 'word|translation' format.
+    Returns only well-formed pairs; skips blank or malformed lines.
+    """
+    pairs: list[tuple[str, str]] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if ' - ' in line:
+            parts = line.split(' - ', 1)
+        elif '|' in line:
+            parts = line.split('|', 1)
+        else:
+            continue
+        word = parts[0].strip()
+        translation = parts[1].strip()
+        if word and translation:
+            pairs.append((word, translation))
+    return pairs
+
+
 @study.route('/lists', methods=['GET', 'POST'])
 @login_required
 @module_required('study')
@@ -1053,6 +1077,25 @@ def custom_list_detail(list_id):
                     db.session.delete(entry)
                     db.session.commit()
                     flash(_('Слово удалено'), 'success')
+        elif action == 'import':
+            raw_text = request.form.get('import_text', '')
+            pairs = _parse_bulk_import(raw_text)
+            existing_words = {e.word for e in word_list.entries.all()}
+            added = 0
+            skipped = 0
+            for word, translation in pairs:
+                if word in existing_words:
+                    skipped += 1
+                else:
+                    db.session.add(CustomWordListEntry(list_id=list_id, word=word, translation=translation))
+                    existing_words.add(word)
+                    added += 1
+            if added:
+                db.session.commit()
+            if pairs:
+                flash(_(f'Добавлено {added} слов, пропущено {skipped} дублей'), 'success' if added else 'info')
+            else:
+                flash(_('Ничего не добавлено — проверьте формат'), 'danger')
         return redirect(url_for('study.custom_list_detail', list_id=list_id))
 
     entries = word_list.entries.order_by(CustomWordListEntry.added_at.desc()).all()

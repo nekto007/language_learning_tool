@@ -292,3 +292,145 @@ class TestCustomListDetailRemoveWord:
         # Entry should still exist (not deleted)
         still_there = CustomWordListEntry.query.get(other_entry.id)
         assert still_there is not None
+
+
+# ---------------------------------------------------------------------------
+# _parse_bulk_import unit tests (Task 70)
+# ---------------------------------------------------------------------------
+
+class TestParseBulkImport:
+    """Unit tests for the _parse_bulk_import helper."""
+
+    def _parse(self, text: str):
+        from app.study.routes import _parse_bulk_import
+        return _parse_bulk_import(text)
+
+    def test_dash_delimiter(self):
+        pairs = self._parse('apple - яблоко')
+        assert pairs == [('apple', 'яблоко')]
+
+    def test_pipe_delimiter(self):
+        pairs = self._parse('book|книга')
+        assert pairs == [('book', 'книга')]
+
+    def test_multiple_lines(self):
+        text = 'apple - яблоко\nbook - книга\nrun|бежать'
+        pairs = self._parse(text)
+        assert len(pairs) == 3
+        assert pairs[0] == ('apple', 'яблоко')
+        assert pairs[2] == ('run', 'бежать')
+
+    def test_blank_lines_skipped(self):
+        text = 'apple - яблоко\n\n\nbook - книга'
+        pairs = self._parse(text)
+        assert len(pairs) == 2
+
+    def test_malformed_lines_skipped(self):
+        text = 'apple\nbook - книга\njust_a_word'
+        pairs = self._parse(text)
+        assert pairs == [('book', 'книга')]
+
+    def test_whitespace_stripped(self):
+        pairs = self._parse('  apple  -  яблоко  ')
+        assert pairs == [('apple', 'яблоко')]
+
+    def test_empty_text_returns_empty(self):
+        assert self._parse('') == []
+
+    def test_only_blank_lines(self):
+        assert self._parse('\n\n\n') == []
+
+
+# ---------------------------------------------------------------------------
+# Route: POST /study/lists/<id> action=import (Task 70)
+# ---------------------------------------------------------------------------
+
+class TestCustomListImport:
+    def test_import_adds_words(self, app, db_session, test_user, client):
+        lst = _make_list(db_session, test_user.id)
+        _login(client, test_user)
+        client.post(
+            f'/study/lists/{lst.id}',
+            data={'action': 'import', 'import_text': 'cat - кошка\ndog - собака'},
+        )
+        entries = CustomWordListEntry.query.filter_by(list_id=lst.id).all()
+        words = {e.word for e in entries}
+        assert 'cat' in words
+        assert 'dog' in words
+
+    def test_import_correct_count(self, app, db_session, test_user, client):
+        lst = _make_list(db_session, test_user.id)
+        _login(client, test_user)
+        resp = client.post(
+            f'/study/lists/{lst.id}',
+            data={'action': 'import', 'import_text': 'cat - кошка\ndog - собака\nbird - птица'},
+            follow_redirects=True,
+        )
+        html = resp.get_data(as_text=True)
+        assert 'Добавлено 3' in html
+        assert 'пропущено 0' in html
+
+    def test_import_duplicates_skipped(self, app, db_session, test_user, client):
+        lst = _make_list(db_session, test_user.id)
+        _make_entry(db_session, lst.id, 'cat', 'кошка')
+        _login(client, test_user)
+        resp = client.post(
+            f'/study/lists/{lst.id}',
+            data={'action': 'import', 'import_text': 'cat - кошка\ndog - собака'},
+            follow_redirects=True,
+        )
+        html = resp.get_data(as_text=True)
+        assert 'Добавлено 1' in html
+        assert 'пропущено 1' in html
+        count = CustomWordListEntry.query.filter_by(list_id=lst.id, word='cat').count()
+        assert count == 1
+
+    def test_import_malformed_lines_ignored(self, app, db_session, test_user, client):
+        lst = _make_list(db_session, test_user.id)
+        _login(client, test_user)
+        resp = client.post(
+            f'/study/lists/{lst.id}',
+            data={'action': 'import', 'import_text': 'cat - кошка\njust_a_word\ndog - собака'},
+            follow_redirects=True,
+        )
+        count = CustomWordListEntry.query.filter_by(list_id=lst.id).count()
+        assert count == 2
+
+    def test_import_empty_text_shows_error(self, app, db_session, test_user, client):
+        lst = _make_list(db_session, test_user.id)
+        _login(client, test_user)
+        resp = client.post(
+            f'/study/lists/{lst.id}',
+            data={'action': 'import', 'import_text': ''},
+            follow_redirects=True,
+        )
+        html = resp.get_data(as_text=True)
+        assert 'Ничего не добавлено' in html
+
+    def test_import_pipe_delimiter(self, app, db_session, test_user, client):
+        lst = _make_list(db_session, test_user.id)
+        _login(client, test_user)
+        client.post(
+            f'/study/lists/{lst.id}',
+            data={'action': 'import', 'import_text': 'run|бежать\nfly|летать'},
+        )
+        count = CustomWordListEntry.query.filter_by(list_id=lst.id).count()
+        assert count == 2
+
+    def test_import_dedup_within_batch(self, app, db_session, test_user, client):
+        lst = _make_list(db_session, test_user.id)
+        _login(client, test_user)
+        resp = client.post(
+            f'/study/lists/{lst.id}',
+            data={'action': 'import', 'import_text': 'cat - кошка\ncat - кот'},
+            follow_redirects=True,
+        )
+        count = CustomWordListEntry.query.filter_by(list_id=lst.id, word='cat').count()
+        assert count == 1
+
+    def test_import_template_shows_import_toggle(self, app, db_session, test_user, client):
+        lst = _make_list(db_session, test_user.id)
+        _login(client, test_user)
+        resp = client.get(f'/study/lists/{lst.id}')
+        html = resp.get_data(as_text=True)
+        assert 'Импортировать список' in html
