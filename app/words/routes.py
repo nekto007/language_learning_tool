@@ -877,7 +877,7 @@ def dashboard():
     )
 
     # === WEEKLY ANALYTICS (via insights_service — week-to-date, not lifetime) ===
-    from app.study.insights_service import get_weekly_summary, get_listening_stats, get_writing_stats, get_vocabulary_growth, get_pronunciation_stats
+    from app.study.insights_service import get_weekly_summary, get_listening_stats, get_writing_stats, get_vocabulary_growth, get_pronunciation_stats, get_weak_areas
     weekly_analytics = get_weekly_summary(current_user.id)
 
     # === LISTENING STATS (last 7 days dictation/audio_fill_blank) ===
@@ -895,6 +895,10 @@ def dashboard():
     # === PRONUNCIATION STATS (total words, match rate last 7 days) ===
     pronunciation_stats = _safe_widget_call(
         'pronunciation_stats', get_pronunciation_stats, current_user.id, default=None)
+
+    # === WEAK AREAS (cross-skill analysis) ===
+    weak_areas = _safe_widget_call(
+        'weak_areas', get_weak_areas, current_user.id, default=[])
 
     # === WEEKLY CHALLENGE ===
     from app.achievements.weekly_challenge import get_weekly_challenge, get_weekly_digest
@@ -1238,6 +1242,8 @@ def dashboard():
         vocab_growth=vocab_growth,
         # Pronunciation stats widget (task 60)
         pronunciation_stats=pronunciation_stats,
+        # Weak areas widget (task 66)
+        weak_areas=weak_areas,
         # Route board metadata (task 33)
         route_metadata=route_metadata,
         # Route progress state for task 14 route board UI

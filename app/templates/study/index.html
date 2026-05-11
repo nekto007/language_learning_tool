@@ -488,6 +488,32 @@
     </div>
     {% endif %}
 
+    <!-- Weak areas widget (task 66) -->
+    {% if weak_areas %}
+    <div class="dash-weak-areas" style="margin-top: 1.25rem;">
+        <span class="dash-weak-areas__label">Слабые места:</span>
+        {% for area in weak_areas %}
+        {% if area.kind == 'grammar' and area.topic_id %}
+        <a href="{{ url_for('grammar_lab.practice', topic_id=area.topic_id) }}" class="dash-weak-areas__chip dash-weak-areas__chip--{{ area.kind }}">
+            {{ area.title }}: {{ area.detail }}
+        </a>
+        {% elif area.kind == 'vocabulary' %}
+        <a href="{{ url_for('study.cards') }}" class="dash-weak-areas__chip dash-weak-areas__chip--{{ area.kind }}">
+            {{ area.title }}: {{ area.detail }}
+        </a>
+        {% elif area.kind == 'listening' %}
+        <a href="{{ url_for('curriculum.index') }}" class="dash-weak-areas__chip dash-weak-areas__chip--{{ area.kind }}">
+            {{ area.title }}: {{ area.detail }}
+        </a>
+        {% elif area.kind == 'writing' %}
+        <a href="{{ url_for('study.writing_history') }}" class="dash-weak-areas__chip dash-weak-areas__chip--{{ area.kind }}">
+            {{ area.title }}: {{ area.detail }}
+        </a>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- Quiz Modal -->
     <div class="modal fade" id="quizLimitModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="quizLimitModalTitle">
         <div class="modal-dialog">

@@ -212,11 +212,16 @@ def index():
         if best_due <= 0:
             most_urgent_deck = None
 
-    from app.study.insights_service import get_writing_stats as _get_writing_stats
+    from app.study.insights_service import get_writing_stats as _get_writing_stats, get_weak_areas as _get_weak_areas
     try:
         writing_stats = _get_writing_stats(current_user.id)
     except Exception:
         writing_stats = None
+
+    try:
+        weak_areas = _get_weak_areas(current_user.id)
+    except Exception:
+        weak_areas = []
 
     return render_template(
         'study/index.html',
@@ -231,6 +236,7 @@ def index():
         telegram_linked=telegram_linked,
         most_urgent_deck=most_urgent_deck,
         writing_stats=writing_stats,
+        weak_areas=weak_areas,
     )
 
 

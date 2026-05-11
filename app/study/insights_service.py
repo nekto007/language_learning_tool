@@ -801,6 +801,136 @@ def get_pronunciation_stats(user_id: int) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Weak area detection (cross-skill)
+# ---------------------------------------------------------------------------
+
+def get_weak_areas(user_id: int, top_n: int = 3) -> list[dict[str, Any]]:
+    """Combine SRS accuracy, grammar weakness, listening score, and writing
+    frequency into the top-N weak areas (worst first).
+
+    Each area dict:
+      kind:     'vocabulary' | 'grammar' | 'listening' | 'writing'
+      title:    display name
+      detail:   subtitle with specific info (e.g. topic name and accuracy)
+      score:    float 0-100 (lower = weaker)
+      topic_id: grammar topic id (only for 'grammar' kind, else None)
+
+    Only areas with score < 70 are returned.  Sorted by score ascending.
+    Requires ≥ 10 SRS reviews for vocabulary, ≥ 3 grammar attempts, ≥ 3
+    listening attempts (all-time) before flagging that skill as weak, so cold-
+    start users don't see spurious alerts.
+    """
+    from app.study.models import UserWord, UserCardDirection
+    from app.grammar_lab.models import UserGrammarExercise, GrammarExercise, GrammarTopic
+    from app.curriculum.models import ListeningAttempt, UserWritingAttempt
+
+    areas: list[dict[str, Any]] = []
+
+    # --- Vocabulary (SRS card accuracy) ---
+    srs_row = (
+        db.session.query(
+            func.coalesce(func.sum(UserCardDirection.correct_count), 0).label('correct'),
+            func.coalesce(
+                func.sum(UserCardDirection.correct_count + UserCardDirection.incorrect_count), 0
+            ).label('total'),
+        )
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(UserWord.user_id == user_id)
+        .one()
+    )
+    srs_total = int(srs_row.total)
+    if srs_total >= 10:
+        srs_accuracy = float(srs_row.correct) / srs_total * 100
+        if srs_accuracy < 70:
+            areas.append({
+                'kind': 'vocabulary',
+                'title': 'Словарный запас',
+                'detail': f'{round(srs_accuracy)}% правильно',
+                'score': round(srs_accuracy, 1),
+                'topic_id': None,
+            })
+
+    # --- Grammar (worst topic accuracy) ---
+    total_expr = func.sum(UserGrammarExercise.correct_count + UserGrammarExercise.incorrect_count)
+    accuracy_expr = func.sum(UserGrammarExercise.correct_count) * 100.0 / total_expr
+
+    worst_grammar = (
+        db.session.query(
+            GrammarTopic.id,
+            GrammarTopic.title,
+            accuracy_expr.label('accuracy'),
+            total_expr.label('attempts'),
+        )
+        .join(GrammarExercise, GrammarExercise.topic_id == GrammarTopic.id)
+        .join(UserGrammarExercise, UserGrammarExercise.exercise_id == GrammarExercise.id)
+        .filter(UserGrammarExercise.user_id == user_id)
+        .group_by(GrammarTopic.id, GrammarTopic.title)
+        .having(total_expr >= 3)
+        .order_by(accuracy_expr.asc())
+        .first()
+    )
+    if worst_grammar is not None and float(worst_grammar.accuracy) < 70:
+        areas.append({
+            'kind': 'grammar',
+            'title': 'Грамматика',
+            'detail': f'{worst_grammar.title} · {round(float(worst_grammar.accuracy))}%',
+            'score': round(float(worst_grammar.accuracy), 1),
+            'topic_id': worst_grammar.id,
+        })
+
+    # --- Listening (avg dictation score, last 30 days) ---
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    listening_row = (
+        db.session.query(
+            func.count(ListeningAttempt.id).label('total'),
+            func.avg(ListeningAttempt.score).label('avg_score'),
+        )
+        .filter(
+            ListeningAttempt.user_id == user_id,
+            ListeningAttempt.created_at >= thirty_days_ago,
+        )
+        .one()
+    )
+    if listening_row.total and int(listening_row.total) >= 3:
+        listening_avg = float(listening_row.avg_score)
+        if listening_avg < 70:
+            areas.append({
+                'kind': 'listening',
+                'title': 'Аудирование',
+                'detail': f'avg {round(listening_avg)}% за 30 дней',
+                'score': round(listening_avg, 1),
+                'topic_id': None,
+            })
+
+    # --- Writing (frequency — flagged if user has past attempts but none in 7 days) ---
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    total_writing = (
+        db.session.query(func.count(UserWritingAttempt.id))
+        .filter(UserWritingAttempt.user_id == user_id)
+        .scalar()
+    ) or 0
+    recent_writing = (
+        db.session.query(func.count(UserWritingAttempt.id))
+        .filter(
+            UserWritingAttempt.user_id == user_id,
+            UserWritingAttempt.created_at >= seven_days_ago,
+        )
+        .scalar()
+    ) or 0
+    if total_writing > 0 and recent_writing == 0:
+        areas.append({
+            'kind': 'writing',
+            'title': 'Письмо',
+            'detail': 'Давно не практиковал(а)',
+            'score': 30.0,
+            'topic_id': None,
+        })
+
+    areas.sort(key=lambda a: a['score'])
+    return areas[:top_n]
+
+
 def get_pronunciation_weaknesses(user_id: int, min_attempts: int = 3) -> list[str]:
     """Return words where match_rate < 50% across all pronunciation attempts.
 

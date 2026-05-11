@@ -13994,6 +13994,62 @@ footer .col-md-4 {
     flex-shrink: 0;
 }
 
+/* Weak areas widget chips */
+.dash-weak-areas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: var(--text-sm, 0.875rem);
+}
+
+.dash-weak-areas__label {
+    font-weight: var(--font-semibold, 600);
+    color: var(--color-text-secondary, #64748b);
+    flex-shrink: 0;
+}
+
+.dash-weak-areas__chip {
+    display: inline-block;
+    padding: 0.25rem 0.625rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+    border: 1px solid transparent;
+}
+
+.dash-weak-areas__chip:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.dash-weak-areas__chip--vocabulary {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+.dash-weak-areas__chip--grammar {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fecaca;
+}
+
+.dash-weak-areas__chip--listening {
+    background: #dbeafe;
+    color: #1e40af;
+    border-color: #bfdbfe;
+}
+
+.dash-weak-areas__chip--writing {
+    background: #f3e8ff;
+    color: #6b21a8;
+    border-color: #e9d5ff;
+}
+
 /* IPA transcription in vocabulary cards */
 .word-ipa {
     font-style: italic;

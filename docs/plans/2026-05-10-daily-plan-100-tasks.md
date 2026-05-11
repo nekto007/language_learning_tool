@@ -1030,11 +1030,11 @@
 - Modify: `app/templates/study/index.html`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] `get_weak_areas(user_id, db) -> list[dict]` — combine SRS accuracy, grammar weakness, listening score into top-3 weak areas with kind ('vocabulary', 'grammar', 'listening', 'writing')
-- [ ] Dashboard widget: "Слабые места: Грамматика (Past Perfect · 45%)" as actionable chips
-- [ ] Each chip links to the relevant exercise or grammar topic page
-- [ ] Tests: low SRS accuracy → vocabulary area returned; low grammar → grammar area; correct sort order
-- [ ] Run pytest -m smoke
+- [x] `get_weak_areas(user_id, db) -> list[dict]` — combine SRS accuracy, grammar weakness, listening score into top-3 weak areas with kind ('vocabulary', 'grammar', 'listening', 'writing')
+- [x] Dashboard widget: "Слабые места: Грамматика (Past Perfect · 45%)" as actionable chips
+- [x] Each chip links to the relevant exercise or grammar topic page
+- [x] Tests: low SRS accuracy → vocabulary area returned; low grammar → grammar area; correct sort order
+- [x] Run pytest -m smoke
 
 ---
 ### Task 67: Adaptive content difficulty trigger

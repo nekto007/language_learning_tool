@@ -3,6 +3,7 @@
 Task 26: Writing accuracy analytics widget.
 Task 39: Vocabulary growth chart on dashboard.
 Task 57: Pronunciation weakness detection.
+Task 66: Weak area automatic detection.
 """
 from __future__ import annotations
 
@@ -11,8 +12,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.curriculum.models import CEFRLevel, Lessons, Module, UserWritingAttempt, PronunciationAttempt
-from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats
+from app.curriculum.models import CEFRLevel, Lessons, Module, UserWritingAttempt, PronunciationAttempt, ListeningAttempt
+from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats, get_weak_areas
 from app.study.models import UserCardDirection, UserWord
 from app.words.models import CollectionWords
 from app.utils.db import db
@@ -401,3 +402,194 @@ class TestGetPronunciationStats:
         result = get_pronunciation_stats(test_user.id)
         assert result['total_attempts'] == 0
         assert result['total_words'] == 0
+
+
+# ---------------------------------------------------------------------------
+# Helpers for weak areas tests
+# ---------------------------------------------------------------------------
+
+def _make_collection_word_for_srs(db_session) -> CollectionWords:
+    word = CollectionWords(
+        english_word=f'srsword_{uuid.uuid4().hex[:8]}',
+        russian_word='тест',
+        level='A1',
+    )
+    db_session.add(word)
+    db_session.flush()
+    return word
+
+
+def _make_srs_card(
+    db_session,
+    user_id: int,
+    correct: int,
+    incorrect: int,
+) -> UserCardDirection:
+    cw = _make_collection_word_for_srs(db_session)
+    uw = UserWord(user_id=user_id, word_id=cw.id)
+    db_session.add(uw)
+    db_session.flush()
+    card = UserCardDirection(user_word_id=uw.id, direction='eng-rus')
+    card.correct_count = correct
+    card.incorrect_count = incorrect
+    db_session.add(card)
+    db_session.flush()
+    return card
+
+
+def _make_grammar_weak_area(db_session, user_id: int, accuracy_pct: float, attempts: int = 5):
+    """Create grammar topic + exercise + user_grammar_exercise row with given accuracy."""
+    from app.grammar_lab.models import GrammarTopic, GrammarExercise, UserGrammarExercise
+
+    code = uuid.uuid4().hex[:6]
+    topic = GrammarTopic(
+        slug=f'topic-{code}',
+        title=f'Topic {code}',
+        title_ru=f'Тема {code}',
+        level='A1',
+        order=1,
+        content={},
+    )
+    db_session.add(topic)
+    db_session.flush()
+
+    exercise = GrammarExercise(
+        topic_id=topic.id,
+        exercise_type='fill_blank',
+        content={'sentence': 'He ___ a student.', 'correct_answer': 'is', 'options': ['is', 'are', 'am']},
+        difficulty=0.5,
+    )
+    db_session.add(exercise)
+    db_session.flush()
+
+    correct_n = int(attempts * accuracy_pct / 100)
+    incorrect_n = attempts - correct_n
+    uge = UserGrammarExercise(user_id=user_id, exercise_id=exercise.id)
+    uge.correct_count = correct_n
+    uge.incorrect_count = incorrect_n
+    db_session.add(uge)
+    db_session.flush()
+    return topic
+
+
+def _make_listening_attempt(
+    db_session,
+    user_id: int,
+    lesson_id: int,
+    score: float,
+    days_ago: int = 0,
+) -> ListeningAttempt:
+    attempt = ListeningAttempt(
+        user_id=user_id,
+        lesson_id=lesson_id,
+        score=score,
+        replay_count=0,
+    )
+    attempt.created_at = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    db_session.add(attempt)
+    db_session.flush()
+    return attempt
+
+
+# ---------------------------------------------------------------------------
+# Tests for get_weak_areas (Task 66)
+# ---------------------------------------------------------------------------
+
+class TestGetWeakAreas:
+    def test_empty_user_returns_empty(self, app, db_session, test_user):
+        result = get_weak_areas(test_user.id)
+        assert result == []
+
+    def test_low_srs_accuracy_returns_vocabulary_area(self, app, db_session, test_user):
+        # Create 10 cards with 30% accuracy → vocabulary weak area
+        for _ in range(10):
+            _make_srs_card(db_session, test_user.id, correct=3, incorrect=7)
+        result = get_weak_areas(test_user.id)
+        kinds = [a['kind'] for a in result]
+        assert 'vocabulary' in kinds
+
+    def test_high_srs_accuracy_no_vocabulary_area(self, app, db_session, test_user):
+        # 10 cards at 80% → not a weak area (threshold is 70)
+        for _ in range(10):
+            _make_srs_card(db_session, test_user.id, correct=8, incorrect=2)
+        result = get_weak_areas(test_user.id)
+        kinds = [a['kind'] for a in result]
+        assert 'vocabulary' not in kinds
+
+    def test_fewer_than_10_srs_reviews_excluded(self, app, db_session, test_user):
+        # Only 3 cards, 1 review each → 3 total reviews < 10-review threshold
+        for _ in range(3):
+            _make_srs_card(db_session, test_user.id, correct=0, incorrect=1)
+        result = get_weak_areas(test_user.id)
+        kinds = [a['kind'] for a in result]
+        assert 'vocabulary' not in kinds
+
+    def test_low_grammar_accuracy_returns_grammar_area(self, app, db_session, test_user):
+        # Grammar topic at 40% accuracy with 5 attempts → weak area
+        _make_grammar_weak_area(db_session, test_user.id, accuracy_pct=40, attempts=5)
+        result = get_weak_areas(test_user.id)
+        kinds = [a['kind'] for a in result]
+        assert 'grammar' in kinds
+
+    def test_grammar_area_includes_topic_id(self, app, db_session, test_user):
+        topic = _make_grammar_weak_area(db_session, test_user.id, accuracy_pct=40, attempts=5)
+        result = get_weak_areas(test_user.id)
+        grammar_area = next((a for a in result if a['kind'] == 'grammar'), None)
+        assert grammar_area is not None
+        assert grammar_area['topic_id'] == topic.id
+
+    def test_high_grammar_accuracy_no_grammar_area(self, app, db_session, test_user):
+        _make_grammar_weak_area(db_session, test_user.id, accuracy_pct=85, attempts=5)
+        result = get_weak_areas(test_user.id)
+        kinds = [a['kind'] for a in result]
+        assert 'grammar' not in kinds
+
+    def test_grammar_fewer_than_3_attempts_excluded(self, app, db_session, test_user):
+        _make_grammar_weak_area(db_session, test_user.id, accuracy_pct=20, attempts=2)
+        result = get_weak_areas(test_user.id)
+        kinds = [a['kind'] for a in result]
+        assert 'grammar' not in kinds
+
+    def test_results_sorted_by_score_ascending(self, app, db_session, test_user):
+        lesson = _make_lesson(db_session)
+        # Grammar weak (40%) and listening weak (50% avg) — grammar should come first
+        _make_grammar_weak_area(db_session, test_user.id, accuracy_pct=40, attempts=5)
+        for _ in range(3):
+            _make_listening_attempt(db_session, test_user.id, lesson.id, score=50.0)
+        result = get_weak_areas(test_user.id)
+        if len(result) >= 2:
+            scores = [a['score'] for a in result]
+            assert scores == sorted(scores)
+
+    def test_top_n_limit_respected(self, app, db_session, test_user):
+        lesson = _make_lesson(db_session)
+        # Create weak areas in all 4 skills
+        for _ in range(10):
+            _make_srs_card(db_session, test_user.id, correct=2, incorrect=8)
+        _make_grammar_weak_area(db_session, test_user.id, accuracy_pct=40, attempts=5)
+        for _ in range(3):
+            _make_listening_attempt(db_session, test_user.id, lesson.id, score=50.0)
+        _make_attempt(db_session, test_user.id, lesson.id, text='wrote something', days_ago=10)
+        result = get_weak_areas(test_user.id, top_n=2)
+        assert len(result) <= 2
+
+    def test_writing_area_flagged_when_inactive(self, app, db_session, test_user):
+        lesson = _make_lesson(db_session)
+        # Has past attempts but none in last 7 days
+        _make_attempt(db_session, test_user.id, lesson.id, text='old attempt', days_ago=10)
+        result = get_weak_areas(test_user.id)
+        kinds = [a['kind'] for a in result]
+        assert 'writing' in kinds
+
+    def test_writing_area_not_flagged_when_recent(self, app, db_session, test_user):
+        lesson = _make_lesson(db_session)
+        _make_attempt(db_session, test_user.id, lesson.id, text='recent attempt', days_ago=1)
+        result = get_weak_areas(test_user.id)
+        kinds = [a['kind'] for a in result]
+        assert 'writing' not in kinds
+
+    def test_writing_area_not_flagged_with_no_history(self, app, db_session, test_user):
+        # Never wrote anything → no writing weak area (can't be inactive if never started)
+        result = get_weak_areas(test_user.id)
+        kinds = [a['kind'] for a in result]
+        assert 'writing' not in kinds
