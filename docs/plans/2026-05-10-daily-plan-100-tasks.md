@@ -1350,11 +1350,11 @@
 - Modify: `app/daily_plan/linear/xp.py`
 - Tests: `tests/curriculum/test_idiom_lesson.py`
 
-- [ ] Validator: `{items: [{phrase: str, meaning: str, example: str, audio_url?: str}]}`
-- [ ] Template: present phrase, animated reveal of meaning, example sentence with audio, self-assess "Запомнил(а)"
-- [ ] Register `idiom → linear_curriculum_vocabulary` in LESSON_TYPE_TO_SOURCE; XP=18
-- [ ] Tests: template renders; self-assess marks complete; multiple items navigate correctly
-- [ ] Run pytest tests/curriculum/
+- [x] Validator: `{items: [{phrase: str, meaning: str, example: str, audio_url?: str}]}`
+- [x] Template: present phrase, animated reveal of meaning, example sentence with audio, self-assess "Запомнил(а)"
+- [x] Register `idiom → linear_curriculum_vocabulary` in LESSON_TYPE_TO_SOURCE; XP=18
+- [x] Tests: template renders; self-assess marks complete; multiple items navigate correctly
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 89: Lesson content search

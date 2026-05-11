@@ -60,6 +60,7 @@ LESSON_TYPE_TO_SOURCE: dict[str, str] = {
     'collocation_matching': 'linear_curriculum_quiz',
     'shadow_reading': 'linear_curriculum_use',
     'pronunciation': 'linear_curriculum_use',
+    'idiom': 'linear_curriculum_vocabulary',
 }
 
 LINEAR_XP_EVENT_TYPE = 'xp_linear'

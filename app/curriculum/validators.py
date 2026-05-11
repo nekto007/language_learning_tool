@@ -399,6 +399,29 @@ class PronunciationContentSchema(Schema):
     )
 
 
+class IdiomItemSchema(Schema):
+    """Schema for a single idiom item."""
+    class Meta:
+        unknown = INCLUDE
+
+    phrase = fields.Str(required=True, validate=validate.Length(min=1))
+    meaning = fields.Str(required=True, validate=validate.Length(min=1))
+    example = fields.Str(required=True, validate=validate.Length(min=1))
+    audio_url = fields.Str(required=False, load_default=None, allow_none=True)
+
+
+class IdiomContentSchema(Schema):
+    """Schema for idiom lesson — present phrase, reveal meaning, example, self-assess."""
+    class Meta:
+        unknown = INCLUDE
+
+    items = fields.List(
+        fields.Nested(IdiomItemSchema),
+        required=True,
+        validate=validate.Length(min=1),
+    )
+
+
 class CardContentSchema(Schema):
     """Schema for card/SRS lesson content"""
     class Meta:
@@ -466,6 +489,7 @@ class LessonContentValidator:
         'collocation_matching': CollocationMatchingContentSchema,
         'shadow_reading': ShadowReadingContentSchema,
         'pronunciation': PronunciationContentSchema,
+        'idiom': IdiomContentSchema,
         'final_test': FinalTestContentSchema,
     }
 

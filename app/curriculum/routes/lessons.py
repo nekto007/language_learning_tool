@@ -78,6 +78,7 @@ def lesson_detail(lesson_id):
         'collocation_matching': 'curriculum_lessons.collocation_matching_lesson',
         'shadow_reading': 'curriculum_lessons.shadow_reading_lesson',
         'pronunciation': 'curriculum_lessons.pronunciation_lesson',
+        'idiom': 'curriculum_lessons.idiom_lesson',
     }
 
     route_name = route_map.get(lesson.type)
@@ -249,6 +250,8 @@ def submit_lesson(lesson_id):
             result = _process_shadow_reading_submission(lesson, current_user.id, data)
         elif lesson.type == 'pronunciation':
             result = _process_pronunciation_submission(lesson, current_user.id, data)
+        elif lesson.type == 'idiom':
+            result = _process_idiom_submission(lesson, current_user.id, data)
         else:
             return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
 
@@ -1138,6 +1141,82 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
     except Exception:
         db.session.rollback()
     return {'success': True, **grade}
+
+
+@lessons_bp.route('/lesson/<int:lesson_id>/idiom')
+@login_required
+@require_lesson_access
+def idiom_lesson(lesson_id: int):
+    """Display an idiom lesson — present phrase, animated meaning reveal, self-assess."""
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'idiom':
+        flash('Неверный тип урока', 'error')
+        return redirect('/learn/')
+
+    content = lesson.content or {}
+    items = content.get('items', [])
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id,
+    ).first()
+    if not progress:
+        try:
+            progress = LessonProgress(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+                status='in_progress',
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error creating idiom progress: {e}")
+            db.session.rollback()
+
+    return render_template(
+        'curriculum/lessons/idiom.html',
+        lesson=lesson,
+        progress=progress,
+        items=items,
+    )
+
+
+def _process_idiom_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
+    """Mark an idiom lesson complete when user finishes all items."""
+    from app.curriculum.service import get_next_lesson
+
+    if not data.get('finish'):
+        return {'success': True, 'completed': False}
+
+    progress = LessonProgress.query.filter_by(
+        user_id=user_id, lesson_id=lesson.id
+    ).first()
+    if progress:
+        progress.status = 'completed'
+        if not progress.completed_at:
+            progress.completed_at = datetime.now(UTC)
+        progress.last_activity = datetime.now(UTC)
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    try:
+        from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+        maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
+        db.session.commit()
+    except Exception as xp_err:
+        logger.warning(f"Idiom XP award failed for lesson {lesson.id}: {xp_err}")
+
+    result: dict = {'success': True, 'completed': True}
+    next_lesson = get_next_lesson(lesson.id)
+    if next_lesson:
+        result['next_lesson_url'] = url_for(
+            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
+        )
+    return result
 
 
 # Import route modules to register their routes on lessons_bp
