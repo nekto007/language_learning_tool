@@ -7,6 +7,48 @@
 {{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Topics', url_for('topic_admin.topic_list')), (topic.name, '')]) }}
 {% endblock %}
 
+{% block extra_css %}
+<style>
+  .admin-topic-words-page .topic-words-scroll {
+    height: 280px;
+    max-height: 280px;
+    overflow-y: scroll;
+    overscroll-behavior: contain;
+  }
+
+  .admin-topic-words-page .available-words-scroll {
+    height: min(52vh, 520px);
+    min-height: 280px;
+    max-height: 520px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .admin-topic-words-page .table-scroll-container .sticky-top {
+    top: 0;
+    z-index: 2;
+  }
+
+  @media (max-width: 767.98px) {
+    .admin-topic-words-page .topic-words-scroll,
+    .admin-topic-words-page .available-words-scroll {
+      height: 45vh;
+      min-height: 220px;
+      max-height: 45vh;
+    }
+
+    .admin-topic-words-page .card-header {
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .admin-topic-words-page .search-input-sm {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 {% set actions %}
 <a href="{{ url_for('topic_admin.edit_topic', topic_id=topic.id) }}" class="btn btn-primary">
@@ -15,7 +57,7 @@
 {% endset %}
 {{ page_header(_('Manage Words in Topic') ~ ': ' ~ topic.name, _('Add and remove words from this topic'), actions=actions) }}
 
-<div class="container-fluid pt-4">
+<div class="container-fluid pt-4 admin-topic-words-page">
 
     <div class="row">
       <div class="col-md-6">
@@ -30,7 +72,7 @@
               </button>
             </div>
           </div>
-          <div class="card-body p-0 table-scroll-container">
+          <div class="card-body p-0 table-scroll-container topic-words-scroll">
             <table class="table table-hover mb-0">
               <thead class="table-light sticky-top">
               <tr>
@@ -85,7 +127,7 @@
               </button>
             </div>
           </div>
-          <div class="card-body p-0 table-scroll-container">
+          <div class="card-body p-0 table-scroll-container available-words-scroll">
             <table class="table table-hover mb-0">
               <thead class="table-light sticky-top">
               <tr>
@@ -194,19 +236,73 @@
           const wordsNotFoundCount = document.getElementById('words-not-found-count');
           const wordsNotFoundList = document.getElementById('words-not-found-list');
 
+          function normalizeWord(value) {
+              return (value || '').trim().toLowerCase();
+          }
+
+          let promotedAvailableRow = null;
+          let promotedAvailableAnchor = null;
+          let availableSearchTimer = null;
+
           // Функция фильтрации слов по поисковому запросу
           function filterWords(container, searchTerm) {
               const rows = container.querySelectorAll('tr[data-word-id]');
-              const normalizedSearchTerm = searchTerm.toLowerCase();
+              const normalizedSearchTerm = normalizeWord(searchTerm);
 
               rows.forEach(row => {
                   const wordEnglish = row.getAttribute('data-word-english');
-                  if (wordEnglish.includes(normalizedSearchTerm)) {
+                  if (!normalizedSearchTerm || wordEnglish.includes(normalizedSearchTerm)) {
                       row.style.display = '';
                   } else {
                       row.style.display = 'none';
                   }
               });
+          }
+
+          function restorePromotedAvailableRow() {
+              if (!promotedAvailableRow) {
+                  return;
+              }
+
+              if (
+                  promotedAvailableAnchor &&
+                  promotedAvailableAnchor.parentNode === availableWordsContainer
+              ) {
+                  availableWordsContainer.insertBefore(
+                      promotedAvailableRow,
+                      promotedAvailableAnchor.nextSibling
+                  );
+              } else {
+                  availableWordsContainer.appendChild(promotedAvailableRow);
+              }
+
+              promotedAvailableRow = null;
+              promotedAvailableAnchor = null;
+          }
+
+          function filterAvailableWords(searchTerm) {
+              restorePromotedAvailableRow();
+
+              const rows = availableWordsContainer.querySelectorAll('tr[data-word-id]');
+              const normalizedSearchTerm = normalizeWord(searchTerm);
+              let exactRow = null;
+
+              rows.forEach(row => {
+                  const wordEnglish = row.getAttribute('data-word-english');
+                  const isVisible = !normalizedSearchTerm || wordEnglish.includes(normalizedSearchTerm);
+
+                  row.style.display = isVisible ? '' : 'none';
+
+                  if (normalizedSearchTerm && wordEnglish === normalizedSearchTerm) {
+                      exactRow = row;
+                  }
+              });
+
+              if (exactRow) {
+                  promotedAvailableRow = exactRow;
+                  promotedAvailableAnchor = exactRow.previousElementSibling;
+                  availableWordsContainer.insertBefore(exactRow, availableWordsContainer.firstElementChild);
+              }
           }
 
           // Поиск по словам в теме
@@ -216,7 +312,11 @@
 
           // Поиск по доступным словам
           searchAvailableWords.addEventListener('input', function () {
-              filterWords(availableWordsContainer, this.value);
+              const searchTerm = this.value;
+              clearTimeout(availableSearchTimer);
+              availableSearchTimer = setTimeout(() => {
+                  filterAvailableWords(searchTerm);
+              }, 120);
           });
 
           // Обработчик добавления слова в тему
@@ -422,8 +522,8 @@
                   return;
               }
 
-              // Разбиваем введенный текст на слова
-              const wordsArray = wordsText.split(/[\s,;]+/)
+              // Разбиваем введенный текст на слова. Пробел внутри phrasal/multi-word entries сохраняем.
+              const wordsArray = wordsText.split(/[\n,;]+/)
                   .map(word => word.trim())
                   .filter(word => word); // Удаляем пустые строки
 
@@ -442,71 +542,34 @@
                   notFound: []
               };
 
-              // Функция для добавления слова в тему через форму
-              function addWordViaFetch(wordId, word) {
-                  const csrf = document
-                      .querySelector('meta[name="csrf-token"]')
-                      .getAttribute('content');
-
-                  return fetch(`/admin/topics/${topicId}/add_word/${wordId}`, {
-                      method: 'POST',
-                      credentials: 'same-origin',
-                      headers: {
-                          'X-Requested-With': 'XMLHttpRequest',
-                          'Content-Type': 'application/json',
-                          'X-CSRFToken': csrf
-                      },
-                      body: JSON.stringify({})
-                  })
-                      .then(async res => {
-                          const isJson = res.headers.get('content-type')?.includes('application/json');
-                          if (!isJson) throw new Error('Non-JSON response');
-                          return res.json();
-                      })
-                      .then(data => {
-                          if (data.success) {
-                              results.added++;
-                          } else if (data.message === 'already_exists') {
-                              results.existing++;
-                          } else {
-                              results.notFound.push(word);
-                          }
-                      })
-                      .catch(err => {
-                          console.error(`Error adding "${word}":`, err);
-                          results.notFound.push(word);
-                      });
-              }
-
               // Функция для последовательной обработки слов
               async function processWords() {
-                  for (let i = 0; i < wordsArray.length; i++) {
-                      const word = wordsArray[i];
-                      console.log(`Processing word: "${word}" (${i + 1}/${wordsArray.length})`);
+                  try {
+                      const csrf = document
+                          .querySelector('meta[name="csrf-token"]')
+                          .getAttribute('content');
+                      const response = await fetch(`/admin/topics/${topicId}/bulk_add_words`, {
+                          method: 'POST',
+                          credentials: 'same-origin',
+                          headers: {
+                              'X-Requested-With': 'XMLHttpRequest',
+                              'Content-Type': 'application/json',
+                              'X-CSRFToken': csrf
+                          },
+                          body: JSON.stringify({words: wordsArray})
+                      });
+                      const data = await response.json();
 
-                      try {
-                          // Поиск слова
-                          const response = await fetch('/api/search?term=' + encodeURIComponent(word));
-                          const data = await response.json();
-
-                          console.log('Search result for word "' + word + '":', data);
-
-                          // Проверяем, найдено ли слово
-                          if (data && data.length > 0) {
-                              const foundWord = data[0];
-                              console.log(`Found word "${word}" with ID: ${foundWord.id}`);
-
-                              // Добавляем слово через форму
-                              await addWordViaFetch(foundWord.id, word);
-                          } else {
-                              // Слово не найдено
-                              console.log(`Word "${word}" not found in database`);
-                              results.notFound.push(word);
-                          }
-                      } catch (error) {
-                          console.error(`Error processing word "${word}":`, error);
-                          results.notFound.push(word);
+                      if (!data.success) {
+                          throw new Error(data.message || 'Bulk add failed');
                       }
+
+                      results.added = data.added || 0;
+                      results.existing = data.existing || 0;
+                      results.notFound = data.details?.not_found || [];
+                  } catch (error) {
+                      console.error('Error processing bulk add:', error);
+                      results.notFound = wordsArray;
                   }
 
                   // Обновляем интерфейс с результатами

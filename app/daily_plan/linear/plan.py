@@ -31,6 +31,7 @@ SLOT_ESTIMATED_MINUTES: dict[str, int] = {
     'srs': 10,
     'reading': 15,
     'listening': 10,
+    'speaking': 8,
     'writing': 8,
     'error_review': 12,
 }

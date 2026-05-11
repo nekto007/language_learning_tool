@@ -25,7 +25,7 @@ from app.study.models import Achievement, UserAchievement
 
 
 BADGE_CODE = 'immersion_daily'
-TODAY = date.today()
+TODAY = datetime.now(timezone.utc).date()
 TODAY_START = datetime(TODAY.year, TODAY.month, TODAY.day)
 TODAY_START_TZ = TODAY_START.replace(tzinfo=timezone.utc)
 

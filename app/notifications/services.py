@@ -113,7 +113,9 @@ def check_plan_streak_milestone_notification(
     """
     if current_streak not in PLAN_STREAK_MILESTONE_DAYS:
         return
-    day_start = datetime.combine(plan_date, datetime.min.time())
+    # Notification.created_at stores naive UTC; dedup against UTC midnight.
+    from datetime import timezone as _tz
+    day_start = datetime.now(_tz.utc).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
     existing = Notification.query.filter(
         Notification.user_id == user_id,
         Notification.type == 'plan_streak_milestone',

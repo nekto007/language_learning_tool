@@ -323,29 +323,249 @@ class TestParseImportFile:
         assert len(missing) == 0
         assert len(errors) == 0
 
-    def test_parse_with_comments(self):
+    @patch('app.admin.services.word_management_service.CollectionWords')
+    def test_parse_with_comments(self, mock_words):
         """Test parsing file with comments"""
         content = "# This is a comment\ntest;тест;Test sentence;Тестовое предложение;A1"
 
-        with patch('app.admin.services.word_management_service.CollectionWords.query') as mock_query:
-            mock_query.filter_by.return_value.first.return_value = Mock()
+        mock_words.query.filter_by.return_value.first.return_value = Mock()
 
-            existing, missing, errors = WordManagementService.parse_import_file(content)
+        existing, missing, errors = WordManagementService.parse_import_file(content)
 
-            assert len(existing) == 1
-            assert len(errors) == 0
+        assert len(existing) == 1
+        assert len(errors) == 0
 
-    def test_parse_with_blank_lines(self):
+    @patch('app.admin.services.word_management_service.CollectionWords')
+    def test_parse_with_blank_lines(self, mock_words):
         """Test parsing file with blank lines"""
         content = "test;тест;Test sentence;Тестовое предложение;A1\n\n\nhello;привет;Hello;Привет;A1"
 
-        with patch('app.admin.services.word_management_service.CollectionWords.query') as mock_query:
-            mock_query.filter_by.return_value.first.return_value = None
+        mock_words.query.filter_by.return_value.first.return_value = None
 
-            existing, missing, errors = WordManagementService.parse_import_file(content)
+        existing, missing, errors = WordManagementService.parse_import_file(content)
 
-            assert len(missing) == 2
-            assert len(errors) == 0
+        assert len(missing) == 2
+        assert len(errors) == 0
+
+    @patch('app.admin.services.word_management_service.CollectionWords')
+    def test_parse_enriched_file(self, mock_words):
+        """Test parsing valid import file with vocabulary enrichment fields."""
+        content = (
+            "pen;ручка, перо;I write with a pen.;Я пишу ручкой.;A1;"
+            "stationery;/pen/;writing tool, ballpoint;eraser;high;"
+            "from Latin penna, feather"
+        )
+        mock_words.query.filter_by.return_value.first.return_value = Mock()
+
+        existing, missing, errors = WordManagementService.parse_import_file(content)
+
+        assert len(existing) == 1
+        assert len(missing) == 0
+        assert len(errors) == 0
+        assert existing[0]['topic'] == 'stationery'
+        assert existing[0]['ipa_transcription'] == 'pen'
+        assert existing[0]['synonyms'] == ['writing tool', 'ballpoint']
+        assert existing[0]['antonyms'] == ['eraser']
+        assert existing[0]['frequency_band'] == 1
+        assert existing[0]['etymology'] == 'from Latin penna, feather'
+        assert existing[0]['has_enrichment'] is True
+
+    @patch('app.admin.services.word_management_service.CollectionWords')
+    def test_parse_bilingual_topic_enriched_file(self, mock_words):
+        """Test parsing 12-column import with topic_ru/topic_en normalization."""
+        content = (
+            "pen;ручка, перо;I wrote the note with a pen.;Я написал записку ручкой.;A1;"
+            "Канцелярия;Stationery;pen;[marker, ballpoint];[pencil];1;"
+            "from Old French penne, from Latin penna meaning feather"
+        )
+        mock_words.query.filter_by.return_value.first.return_value = Mock()
+
+        existing, missing, errors = WordManagementService.parse_import_file(content)
+
+        assert len(existing) == 1
+        assert len(missing) == 0
+        assert errors == []
+        assert existing[0]['topic'] == 'Канцелярия (Stationery)'
+        assert existing[0]['topic_ru'] == 'Канцелярия'
+        assert existing[0]['topic_en'] == 'Stationery'
+        assert existing[0]['ipa_transcription'] == 'pen'
+        assert existing[0]['synonyms'] == ['marker', 'ballpoint']
+        assert existing[0]['antonyms'] == ['pencil']
+        assert existing[0]['frequency_band'] == 1
+        assert existing[0]['has_enrichment'] is True
+
+    def test_parse_invalid_frequency_band(self):
+        """Invalid enrichment frequency band should be reported as parse error."""
+        content = (
+            "pen;ручка;I write with a pen.;Я пишу ручкой.;A1;"
+            "stationery;pen;writing tool;eraser;very-high;origin"
+        )
+
+        existing, missing, errors = WordManagementService.parse_import_file(content)
+
+        assert existing == []
+        assert missing == []
+        assert len(errors) == 1
+        assert 'frequency_band' in errors[0]['error']
+
+
+class TestTopicResolutionPreview:
+    """Tests for topic resolution preview data."""
+
+    @patch('app.admin.services.word_management_service.Topic')
+    def test_prepare_topic_resolution_preview_marks_existing_and_candidates(self, mock_topic):
+        existing_topic = Mock()
+        existing_topic.id = 1
+        existing_topic.name = 'Действия (Actions/Verbs)'
+
+        mock_topic.query.order_by.return_value.all.return_value = [existing_topic]
+
+        existing_words = [
+            {'topic': 'Действия (Actions/Verbs)'},
+            {'topic': 'Действия (Actions)'},
+        ]
+        missing_words = []
+
+        result = WordManagementService.prepare_topic_resolution_preview(
+            existing_words,
+            missing_words,
+        )
+
+        assert existing_words[0]['topic_status'] == 'existing'
+        assert existing_words[0]['topic_existing_id'] == 1
+        assert existing_words[1]['topic_status'] == 'needs_resolution'
+        assert len(result['topic_candidates']) == 1
+        assert result['topic_candidates'][0]['default_action'] == 'map'
+        assert result['topic_candidates'][0]['suggestion']['id'] == 1
+        assert result['existing_topics'] == [
+            {'id': 1, 'name': 'Действия (Actions/Verbs)'}
+        ]
+
+    @patch('app.admin.services.word_management_service.Topic')
+    def test_prepare_topic_resolution_preview_suggests_broader_transport_topic(self, mock_topic):
+        """Short import topic aliases should map to broader existing taxonomy topics."""
+        existing_topic = Mock()
+        existing_topic.id = 2
+        existing_topic.name = 'Транспорт и путешествия (Transportation & Travel)'
+
+        mock_topic.query.order_by.return_value.all.return_value = [existing_topic]
+
+        existing_words = [
+            {'topic': 'транспорт (transport)'},
+            {'topic': 'путешествия (travel)'},
+        ]
+
+        result = WordManagementService.prepare_topic_resolution_preview(
+            existing_words,
+            [],
+        )
+
+        assert len(result['topic_candidates']) == 2
+        assert all(
+            candidate['default_action'] == 'map'
+            for candidate in result['topic_candidates']
+        )
+        assert all(
+            candidate['suggestion']['id'] == 2
+            for candidate in result['topic_candidates']
+        )
+
+    @patch('app.admin.services.word_management_service.Topic')
+    def test_prepare_topic_resolution_preview_suggests_animal_and_health_topics(self, mock_topic):
+        """Mixed RU/EN import labels should map through taxonomy aliases."""
+        animals_topic = Mock()
+        animals_topic.id = 3
+        animals_topic.name = 'Животные (Animals)'
+
+        health_topic = Mock()
+        health_topic.id = 4
+        health_topic.name = 'Тело и здоровье (Body & Health)'
+
+        mock_topic.query.order_by.return_value.all.return_value = [
+            animals_topic,
+            health_topic,
+        ]
+
+        existing_words = [
+            {'topic': 'животные (pet care)'},
+            {'topic': 'здоровье (self-control)'},
+        ]
+
+        result = WordManagementService.prepare_topic_resolution_preview(
+            existing_words,
+            [],
+        )
+
+        candidates_by_topic = {
+            candidate['topic']: candidate
+            for candidate in result['topic_candidates']
+        }
+
+        assert candidates_by_topic['животные (pet care)']['default_action'] == 'map'
+        assert candidates_by_topic['животные (pet care)']['suggestion']['id'] == 3
+        assert candidates_by_topic['здоровье (self-control)']['default_action'] == 'map'
+        assert candidates_by_topic['здоровье (self-control)']['suggestion']['id'] == 4
+
+    @patch('app.admin.services.word_management_service.Topic')
+    def test_prepare_topic_resolution_preview_suggests_work_and_action_topics(self, mock_topic):
+        """Career/work and noisy action labels should map to existing topics."""
+        work_topic = Mock()
+        work_topic.id = 5
+        work_topic.name = 'Работа (Work)'
+
+        actions_topic = Mock()
+        actions_topic.id = 6
+        actions_topic.name = 'Действия (Actions/Verbs)'
+
+        mock_topic.query.order_by.return_value.all.return_value = [
+            work_topic,
+            actions_topic,
+        ]
+
+        existing_words = [
+            {'topic': 'работа (career)'},
+            {'topic': 'действия (effort)'},
+            {'topic': 'действия (permission)'},
+        ]
+
+        result = WordManagementService.prepare_topic_resolution_preview(
+            existing_words,
+            [],
+        )
+
+        candidates_by_topic = {
+            candidate['topic']: candidate
+            for candidate in result['topic_candidates']
+        }
+
+        assert candidates_by_topic['работа (career)']['default_action'] == 'map'
+        assert candidates_by_topic['работа (career)']['suggestion']['id'] == 5
+        assert candidates_by_topic['действия (effort)']['default_action'] == 'map'
+        assert candidates_by_topic['действия (effort)']['suggestion']['id'] == 6
+        assert candidates_by_topic['действия (permission)']['default_action'] == 'map'
+        assert candidates_by_topic['действия (permission)']['suggestion']['id'] == 6
+
+    @patch('app.admin.services.word_management_service.Topic')
+    def test_prepare_topic_resolution_preview_suggests_emotions_topic(self, mock_topic):
+        """Emotional-state labels should map to emotions/personality topic."""
+        emotions_topic = Mock()
+        emotions_topic.id = 7
+        emotions_topic.name = 'Эмоции и личность (Emotions & Personality)'
+
+        mock_topic.query.order_by.return_value.all.return_value = [emotions_topic]
+
+        existing_words = [
+            {'topic': 'эмоции (emotional state)'},
+        ]
+
+        result = WordManagementService.prepare_topic_resolution_preview(
+            existing_words,
+            [],
+        )
+
+        assert len(result['topic_candidates']) == 1
+        assert result['topic_candidates'][0]['default_action'] == 'map'
+        assert result['topic_candidates'][0]['suggestion']['id'] == 7
 
 
 class TestImportTranslations:
@@ -380,6 +600,47 @@ class TestImportTranslations:
         assert added == 0
         assert mock_word.russian_word == 'тест'
         mock_db.session.commit.assert_called_once()
+
+    @patch('app.admin.services.word_management_service.Topic')
+    @patch('app.admin.services.word_management_service.logger')
+    @patch('app.admin.services.word_management_service.db')
+    @patch('app.admin.services.word_management_service.CollectionWords')
+    def test_import_update_existing_with_enrichment(self, mock_words, mock_db, mock_logger, mock_topic):
+        """Test updating existing words with enrichment fields."""
+        existing_words = [
+            {
+                'english_word': 'pen',
+                'russian_translate': 'ручка, перо',
+                'english_sentence': 'I write with a pen.',
+                'russian_sentence': 'Я пишу ручкой.',
+                'level': 'A1',
+                'line_num': 1,
+                'topic': '',
+                'ipa_transcription': 'pen',
+                'synonyms': ['writing tool', 'ballpoint'],
+                'antonyms': ['eraser'],
+                'frequency_band': 1,
+                'etymology': 'from Latin penna, feather',
+                'has_enrichment': True,
+            }
+        ]
+
+        mock_word = Mock()
+        mock_words.query.filter_by.return_value.first.return_value = mock_word
+
+        updated, added = WordManagementService.import_translations(
+            existing_words=existing_words,
+            missing_words=[],
+            words_to_add=[]
+        )
+
+        assert updated == 1
+        assert added == 0
+        assert mock_word.ipa_transcription == 'pen'
+        assert mock_word.synonyms == ['writing tool', 'ballpoint']
+        assert mock_word.antonyms == ['eraser']
+        assert mock_word.frequency_band == 1
+        assert mock_word.etymology == 'from Latin penna, feather'
 
     @patch('app.admin.services.word_management_service.logger')
     @patch('app.admin.services.word_management_service.db')

@@ -917,12 +917,10 @@ class TestGetLearningVelocity:
         assert result['lessons_this_week'] >= 1
 
     def test_word_from_last_week_in_correct_bucket(self, app, db_session, test_user):
-        from datetime import date
-        today = date.today()
-        # Compute a days_ago value that reliably falls in the previous week:
-        # days_since_monday=0 (Mon)→7+1=8; days_since_monday=6 (Sun)→6+1=7
-        # Use (today.weekday() + 7) which always picks the same weekday 1 week ago,
-        # then add 1 so we're safely in the prior week even on Mondays.
+        from datetime import datetime, timezone
+        today = datetime.now(timezone.utc).date()
+        # Compute a days_ago value that reliably falls in the previous week.
+        # Use weekday() of the UTC today to match what get_learning_velocity uses.
         days_since_monday = today.weekday()
         days_ago = days_since_monday + 7  # always the previous week's Monday
         _make_user_word(db_session, test_user.id, days_ago=days_ago)
@@ -932,9 +930,9 @@ class TestGetLearningVelocity:
         assert result['words_last_week'] >= 1
 
     def test_trend_increasing_when_more_words_this_week(self, app, db_session, test_user):
-        from datetime import date as _date
-        # Use a day that's always in the previous week.
-        prev_week_days_ago = _date.today().weekday() + 7
+        from datetime import datetime, timezone
+        # Use a day that's always in the previous week (UTC-based).
+        prev_week_days_ago = datetime.now(timezone.utc).date().weekday() + 7
         # Last week: 1 word, this week: 5 words (diff > 2 → increasing)
         for _ in range(5):
             _make_user_word(db_session, test_user.id, days_ago=0)
@@ -943,8 +941,8 @@ class TestGetLearningVelocity:
         assert result['trend'] == 'increasing'
 
     def test_trend_declining_when_fewer_words_this_week(self, app, db_session, test_user):
-        from datetime import date as _date
-        prev_week_days_ago = _date.today().weekday() + 7
+        from datetime import datetime, timezone
+        prev_week_days_ago = datetime.now(timezone.utc).date().weekday() + 7
         # Last week: 5 words, this week: 0 words (diff < -2 → declining)
         for _ in range(5):
             _make_user_word(db_session, test_user.id, days_ago=prev_week_days_ago)
@@ -952,8 +950,8 @@ class TestGetLearningVelocity:
         assert result['trend'] == 'declining'
 
     def test_trend_stable_when_similar_counts(self, app, db_session, test_user):
-        from datetime import date as _date
-        prev_week_days_ago = _date.today().weekday() + 7
+        from datetime import datetime, timezone
+        prev_week_days_ago = datetime.now(timezone.utc).date().weekday() + 7
         # Last week: 2 words, this week: 3 words (diff = 1 → stable)
         for _ in range(2):
             _make_user_word(db_session, test_user.id, days_ago=prev_week_days_ago)
@@ -1040,7 +1038,8 @@ def _complete_lesson(db_session, user_id: int, lesson: Lessons, days_ago: int = 
 class TestGetLevelEta:
     def test_eta_with_known_rate_and_remaining(self, app, db_session, test_user):
         """user with 4 modules/week (20 lessons/week, 5 per module) and 8 remaining → ETA = 2 weeks."""
-        today = date.today()
+        from datetime import datetime, timezone
+        today = datetime.now(timezone.utc).date()
         days_since_monday = today.weekday()
 
         # Target level with 8 modules × 5 lessons each (all remaining)

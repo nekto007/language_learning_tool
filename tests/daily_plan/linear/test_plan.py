@@ -147,7 +147,7 @@ class TestPlanPayloadIntensity:
 
 class TestSlotEstimatedMinutesConstant:
     def test_all_expected_kinds_present(self):
-        expected = {'curriculum', 'srs', 'reading', 'listening', 'writing', 'error_review'}
+        expected = {'curriculum', 'srs', 'reading', 'listening', 'speaking', 'writing', 'error_review'}
         assert set(SLOT_ESTIMATED_MINUTES.keys()) == expected
 
     def test_values_match_spec(self):

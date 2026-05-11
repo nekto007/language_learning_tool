@@ -4,7 +4,12 @@
 Сервис для управления словами (Word Management Service)
 Обрабатывает импорт, экспорт, массовые обновления и статистику слов
 """
+import csv
 import logging
+import re
+from difflib import SequenceMatcher
+from io import StringIO
+
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
@@ -13,13 +18,355 @@ from app.books.models import Book
 from app.study.models import UserWord
 from app.utils.audio import get_clean_audio_filename
 from app.utils.db import db
-from app.words.models import CollectionWords
+from app.words.models import CollectionWords, Topic
 
 logger = logging.getLogger(__name__)
 
 
+FREQUENCY_BAND_MAP = {
+    'high': 1,
+    'medium': 2,
+    'low': 3,
+    '1': 1,
+    '2': 2,
+    '3': 3,
+}
+
+IMPORT_BASE_COLUMNS = 5
+IMPORT_ENRICHED_COLUMNS = 11
+IMPORT_BILINGUAL_TOPIC_COLUMNS = 12
+IMPORT_HEADER_NAMES = {'english_word', 'word', 'english'}
+TOPIC_SUGGESTION_THRESHOLD = 0.72
+TOPIC_TOKEN_ALIASES = {
+    'action': 'action',
+    'actions': 'action',
+    'verb': 'action',
+    'verbs': 'action',
+    'действие': 'action',
+    'действия': 'action',
+    'food': 'food',
+    'drink': 'drink',
+    'drinks': 'drink',
+    'еда': 'food',
+    'напиток': 'drink',
+    'напитки': 'drink',
+    'animal': 'animal',
+    'animals': 'animal',
+    'pet': 'animal',
+    'pets': 'animal',
+    'животное': 'animal',
+    'животные': 'animal',
+    'питомец': 'animal',
+    'питомцы': 'animal',
+    'body': 'body',
+    'тело': 'body',
+    'health': 'health',
+    'здоровье': 'health',
+    'здоровья': 'health',
+    'career': 'work',
+    'careers': 'work',
+    'employment': 'work',
+    'job': 'work',
+    'jobs': 'work',
+    'profession': 'work',
+    'professions': 'work',
+    'work': 'work',
+    'работа': 'work',
+    'работы': 'work',
+    'карьера': 'work',
+    'карьеры': 'work',
+    'emotion': 'emotion',
+    'emotions': 'emotion',
+    'emotional': 'emotion',
+    'feeling': 'emotion',
+    'feelings': 'emotion',
+    'mood': 'emotion',
+    'state': 'state',
+    'эмоция': 'emotion',
+    'эмоции': 'emotion',
+    'чувство': 'emotion',
+    'чувства': 'emotion',
+    'настроение': 'emotion',
+    'personality': 'personality',
+    'character': 'personality',
+    'личность': 'personality',
+    'характер': 'personality',
+    'transport': 'transport',
+    'transportation': 'transport',
+    'транспорт': 'transport',
+    'travel': 'travel',
+    'travels': 'travel',
+    'tourism': 'travel',
+    'trip': 'travel',
+    'trips': 'travel',
+    'путешествие': 'travel',
+    'путешествия': 'travel',
+    'поездка': 'travel',
+    'поездки': 'travel',
+}
+TOPIC_STOP_WORDS = {'and', 'or', 'of', 'the', 'и', 'или', 'care', 'уход'}
+TOPIC_ANCHOR_TOKEN_SCORES = {
+    'action': 0.86,
+    'animal': 0.86,
+    'body': 0.86,
+    'drink': 0.86,
+    'food': 0.86,
+    'health': 0.86,
+    'emotion': 0.86,
+    'personality': 0.86,
+    'transport': 0.86,
+    'travel': 0.86,
+    'work': 0.86,
+}
+
+
 class WordManagementService:
     """Сервис для управления словами и их статистикой"""
+
+    @staticmethod
+    def _parse_list_field(value):
+        """Parse comma-separated import cell into a JSON-list value."""
+        if not value:
+            return None
+        value = value.strip()
+        if len(value) >= 2 and value.startswith('[') and value.endswith(']'):
+            value = value[1:-1]
+        items = [
+            item.strip().strip('"\'')
+            for item in value.split(',')
+            if item.strip().strip('"\'')
+        ]
+        return items or None
+
+    @staticmethod
+    def _normalize_ipa(value):
+        """Store IPA without wrapping slashes; templates add them on render."""
+        if not value:
+            return None
+        value = value.strip()
+        if len(value) >= 2 and value.startswith('/') and value.endswith('/'):
+            value = value[1:-1].strip()
+        return value or None
+
+    @staticmethod
+    def _parse_frequency_band(value):
+        """Return DB frequency band value: 1=high, 2=medium, 3=low."""
+        if not value:
+            return None
+        normalized = value.strip().lower()
+        return FREQUENCY_BAND_MAP.get(normalized)
+
+    @staticmethod
+    def _build_topic_name(topic_ru, topic_en):
+        """Build canonical user-facing topic name from import columns."""
+        topic_ru = ' '.join((topic_ru or '').strip().split())
+        topic_en = ' '.join((topic_en or '').strip().split())
+        if topic_ru and topic_en:
+            return f"{topic_ru} ({topic_en})"
+        return topic_ru or topic_en or None
+
+    @staticmethod
+    def _normalize_topic_key(value):
+        """Normalize topic names for exact and fuzzy matching."""
+        value = (value or '').strip().lower().replace('ё', 'е')
+        value = re.sub(r'\s+', ' ', value)
+        value = re.sub(r'[^\w\sа-яa-z0-9]+', ' ', value, flags=re.IGNORECASE)
+        return re.sub(r'\s+', ' ', value).strip()
+
+    @staticmethod
+    def _topic_tokens(value):
+        """Return canonical tokens for topic alias matching."""
+        tokens = set()
+        for token in WordManagementService._normalize_topic_key(value).split():
+            if token in TOPIC_STOP_WORDS:
+                continue
+            tokens.add(TOPIC_TOKEN_ALIASES.get(token, token))
+        return tokens
+
+    @staticmethod
+    def _topic_similarity_score(topic_name, existing_topic_name):
+        """Score topic similarity using string ratio plus taxonomy token overlap."""
+        topic_key = WordManagementService._normalize_topic_key(topic_name)
+        existing_key = WordManagementService._normalize_topic_key(existing_topic_name)
+        if not topic_key or not existing_key:
+            return 0.0
+
+        sequence_score = SequenceMatcher(None, topic_key, existing_key).ratio()
+        topic_tokens = WordManagementService._topic_tokens(topic_name)
+        existing_tokens = WordManagementService._topic_tokens(existing_topic_name)
+        if not topic_tokens or not existing_tokens:
+            return sequence_score
+
+        shared_tokens = topic_tokens & existing_tokens
+        if not shared_tokens:
+            return sequence_score
+
+        import_coverage = len(shared_tokens) / len(topic_tokens)
+        dice_score = (2 * len(shared_tokens)) / (len(topic_tokens) + len(existing_tokens))
+        anchor_score = max(
+            TOPIC_ANCHOR_TOKEN_SCORES.get(token, 0.0)
+            for token in shared_tokens
+        )
+        token_score = max(import_coverage, dice_score, anchor_score)
+
+        # Short imported topics often name one part of a broader DB taxonomy
+        # category, e.g. "транспорт (transport)" -> "... Transportation & Travel".
+        if import_coverage == 1:
+            token_score = max(token_score, 0.91)
+
+        return max(sequence_score, token_score)
+
+    @staticmethod
+    def _get_topic_by_name(topic_name):
+        """Return topic by normalized name, or None."""
+        target_key = WordManagementService._normalize_topic_key(topic_name)
+        if not target_key:
+            return None
+        for topic in Topic.query.all():
+            if WordManagementService._normalize_topic_key(topic.name) == target_key:
+                return topic
+        return None
+
+    @staticmethod
+    def _get_or_create_topic(topic_name):
+        """Return existing topic by normalized name or create a new one."""
+        topic = WordManagementService._get_topic_by_name(topic_name)
+        if topic is not None:
+            return topic
+        topic = Topic(name=topic_name)
+        db.session.add(topic)
+        db.session.flush()
+        return topic
+
+    @staticmethod
+    def _find_topic_suggestion(topic_name, existing_topics):
+        """Find the closest existing topic for preview suggestions."""
+        topic_key = WordManagementService._normalize_topic_key(topic_name)
+        if not topic_key:
+            return None
+
+        best_topic = None
+        best_score = 0.0
+        for topic in existing_topics:
+            score = WordManagementService._topic_similarity_score(
+                topic_name,
+                topic.name,
+            )
+            if score > best_score:
+                best_topic = topic
+                best_score = score
+
+        if best_topic is not None and best_score >= TOPIC_SUGGESTION_THRESHOLD:
+            return {
+                'id': best_topic.id,
+                'name': best_topic.name,
+                'score': round(best_score, 2),
+            }
+        return None
+
+    @staticmethod
+    def prepare_topic_resolution_preview(existing_words, missing_words):
+        """Annotate import rows with topic resolution data for preview UI."""
+        all_words = [*existing_words, *missing_words]
+        existing_topics = Topic.query.order_by(Topic.name).all()
+        existing_by_key = {
+            WordManagementService._normalize_topic_key(topic.name): topic
+            for topic in existing_topics
+        }
+
+        candidates_by_topic = {}
+        for word_data in all_words:
+            topic_name = word_data.get('topic')
+            if not topic_name:
+                continue
+
+            topic_key = WordManagementService._normalize_topic_key(topic_name)
+            matched_topic = existing_by_key.get(topic_key)
+            if matched_topic is not None:
+                word_data['topic_status'] = 'existing'
+                word_data['topic_existing_id'] = matched_topic.id
+                word_data['topic_existing_name'] = matched_topic.name
+                continue
+
+            candidate_key = f"topic_{len(candidates_by_topic) + 1}"
+            existing_candidate = candidates_by_topic.get(topic_key)
+            if existing_candidate is None:
+                suggestion = WordManagementService._find_topic_suggestion(
+                    topic_name,
+                    existing_topics,
+                )
+                existing_candidate = {
+                    'key': candidate_key,
+                    'topic': topic_name,
+                    'suggestion': suggestion,
+                    'default_action': 'map' if suggestion else 'create',
+                }
+                candidates_by_topic[topic_key] = existing_candidate
+
+            word_data['topic_status'] = 'needs_resolution'
+            word_data['topic_resolution_key'] = existing_candidate['key']
+
+        return {
+            'topic_candidates': list(candidates_by_topic.values()),
+            'topic_candidate_keys': [
+                candidate['key'] for candidate in candidates_by_topic.values()
+            ],
+            'existing_topics': [
+                {'id': topic.id, 'name': topic.name}
+                for topic in existing_topics
+            ],
+        }
+
+    @staticmethod
+    def _resolve_import_topic(word_data, topic_resolutions=None):
+        """Resolve topic for one word based on preview choices."""
+        topic_name = word_data.get('topic')
+        if not topic_name:
+            return None
+
+        if topic_resolutions is None:
+            return WordManagementService._get_or_create_topic(topic_name)
+
+        if word_data.get('topic_status') == 'existing':
+            return WordManagementService._get_topic_by_name(topic_name)
+
+        resolution_key = word_data.get('topic_resolution_key')
+        resolution = (topic_resolutions or {}).get(resolution_key, {})
+        action = resolution.get('action', 'skip')
+
+        if action == 'skip':
+            return None
+        if action == 'map':
+            topic_id = resolution.get('topic_id')
+            if not topic_id:
+                return None
+            return Topic.query.get(int(topic_id))
+        if action == 'create':
+            return WordManagementService._get_or_create_topic(topic_name)
+        return None
+
+    @staticmethod
+    def _apply_enrichment_fields(word, word_data, topic_resolutions=None):
+        """Apply optional enrichment fields without overwriting with blanks."""
+        if word_data.get('ipa_transcription'):
+            word.ipa_transcription = word_data['ipa_transcription']
+        if word_data.get('synonyms') is not None:
+            word.synonyms = word_data['synonyms']
+        if word_data.get('antonyms') is not None:
+            word.antonyms = word_data['antonyms']
+        if word_data.get('frequency_band') is not None:
+            word.frequency_band = word_data['frequency_band']
+        if word_data.get('etymology'):
+            word.etymology = word_data['etymology']
+
+        topic_name = (word_data.get('topic') or '').strip()
+        if topic_name and hasattr(word, 'topics'):
+            topic = WordManagementService._resolve_import_topic(
+                word_data,
+                topic_resolutions=topic_resolutions,
+            )
+            if topic is not None and topic not in word.topics:
+                word.topics.append(topic)
 
     @staticmethod
     def get_word_statistics():
@@ -224,23 +571,37 @@ class WordManagementService:
         Returns:
             tuple: (existing_words: list, missing_words: list, errors: list)
         """
-        lines = content.strip().split('\n')
         existing_words = []
         missing_words = []
         errors = []
 
-        for line_num, line in enumerate(lines, 1):
-            line = line.strip()
-            if not line or line.startswith('#'):
+        reader = csv.reader(StringIO(content), delimiter=';')
+        for line_num, parts in enumerate(reader, 1):
+            raw_line = ';'.join(parts).strip()
+            if not raw_line or raw_line.startswith('#'):
                 continue
 
-            # Ожидаем формат: english_word;russian_translate;english_sentence;russian_sentence;level
-            parts = line.split(';')
-            if len(parts) != 5:
+            parts = [part.strip() for part in parts]
+            if parts and parts[0].strip().lower() in IMPORT_HEADER_NAMES:
+                continue
+
+            # Supported formats:
+            # 5 columns: english;russian;example_en;example_ru;level
+            # 11 columns: + topic;ipa;synonyms;antonyms;frequency_band;etymology
+            # 12 columns: + topic_ru;topic_en;ipa;synonyms;antonyms;frequency_band;etymology
+            supported_column_counts = (
+                IMPORT_BASE_COLUMNS,
+                IMPORT_ENRICHED_COLUMNS,
+                IMPORT_BILINGUAL_TOPIC_COLUMNS,
+            )
+            if len(parts) not in supported_column_counts:
                 errors.append({
                     'line_num': line_num,
-                    'line': line,
-                    'error': 'неверный формат (ожидается 5 частей через ;)'
+                    'line': raw_line,
+                    'error': (
+                        'неверный формат '
+                        '(ожидается 5, 11 или 12 частей через ;)'
+                    )
                 })
                 continue
 
@@ -259,6 +620,55 @@ class WordManagementService:
                 'level': level
             }
 
+            if len(parts) in (IMPORT_ENRICHED_COLUMNS, IMPORT_BILINGUAL_TOPIC_COLUMNS):
+                if len(parts) == IMPORT_BILINGUAL_TOPIC_COLUMNS:
+                    topic_ru = parts[5].strip()
+                    topic_en = parts[6].strip()
+                    topic = WordManagementService._build_topic_name(topic_ru, topic_en)
+                    ipa_index = 7
+                    synonyms_index = 8
+                    antonyms_index = 9
+                    frequency_band_index = 10
+                    etymology_index = 11
+                else:
+                    topic_ru = None
+                    topic_en = None
+                    topic = parts[5].strip() or None
+                    ipa_index = 6
+                    synonyms_index = 7
+                    antonyms_index = 8
+                    frequency_band_index = 9
+                    etymology_index = 10
+
+                frequency_band_raw = parts[frequency_band_index].strip()
+                frequency_band = WordManagementService._parse_frequency_band(
+                    frequency_band_raw
+                )
+                if frequency_band_raw and frequency_band is None:
+                    errors.append({
+                        'line_num': line_num,
+                        'line': raw_line,
+                        'error': (
+                            'неверный frequency_band '
+                            '(используйте high/medium/low или 1/2/3)'
+                        )
+                    })
+                    continue
+
+                word_data.update({
+                    'topic': topic,
+                    'topic_ru': topic_ru,
+                    'topic_en': topic_en,
+                    'ipa_transcription': WordManagementService._normalize_ipa(parts[ipa_index]),
+                    'synonyms': WordManagementService._parse_list_field(parts[synonyms_index]),
+                    'antonyms': WordManagementService._parse_list_field(parts[antonyms_index]),
+                    'frequency_band': frequency_band,
+                    'etymology': parts[etymology_index].strip() or None,
+                    'has_enrichment': True,
+                })
+            else:
+                word_data['has_enrichment'] = False
+
             # Найти слово в базе
             word = CollectionWords.query.filter_by(english_word=english_word).first()
             if word:
@@ -269,7 +679,12 @@ class WordManagementService:
         return existing_words, missing_words, errors
 
     @staticmethod
-    def import_translations(existing_words, missing_words, words_to_add):
+    def import_translations(
+        existing_words,
+        missing_words,
+        words_to_add,
+        topic_resolutions=None,
+    ):
         """
         Импортирует переводы в базу данных
 
@@ -277,6 +692,7 @@ class WordManagementService:
             existing_words: Список существующих слов для обновления
             missing_words: Список отсутствующих слов
             words_to_add: Список line_num слов для добавления
+            topic_resolutions: Выборы preview для новых/неоднозначных тем
 
         Returns:
             tuple: (updated_count: int, added_count: int)
@@ -295,6 +711,11 @@ class WordManagementService:
                     word.sentences = f"{word_data['english_sentence']}<br>{word_data['russian_sentence']}"
                     word.level = word_data['level']
                     word.listening = get_clean_audio_filename(word_data['english_word'])
+                    WordManagementService._apply_enrichment_fields(
+                        word,
+                        word_data,
+                        topic_resolutions=topic_resolutions,
+                    )
                     updated_count += 1
 
             # Добавляем новые слова (если выбраны)
@@ -309,6 +730,11 @@ class WordManagementService:
                         listening=get_clean_audio_filename(english_word_normalized)
                     )
                     db.session.add(new_word)
+                    WordManagementService._apply_enrichment_fields(
+                        new_word,
+                        word_data,
+                        topic_resolutions=topic_resolutions,
+                    )
                     added_count += 1
 
             db.session.commit()

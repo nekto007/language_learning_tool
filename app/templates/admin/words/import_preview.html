@@ -50,6 +50,79 @@
         </div>
         {% endif %}
 
+        <!-- Разрешение тем -->
+        {% if topic_candidates %}
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 bg-info text-white">
+                <h6 class="m-0 font-weight-bold">
+                    <i class="fas fa-tags"></i> Новые или неоднозначные темы ({{ topic_candidates|length }})
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Для строк с <code>topic_ru;topic_en</code> импорт нормализует тему в
+                    <code>topic_ru (topic_en)</code>. Если такой темы нет в базе, выберите,
+                    что делать при подтверждении импорта.
+                </p>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Тема из файла</th>
+                                <th>Ближайшая тема</th>
+                                <th>Действие</th>
+                                <th>Существующая тема</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for candidate in topic_candidates %}
+                            <tr>
+                                <td><strong>{{ candidate.topic }}</strong></td>
+                                <td>
+                                    {% if candidate.suggestion %}
+                                    {{ candidate.suggestion.name }}
+                                    <span class="badge badge-secondary">{{ candidate.suggestion.score }}</span>
+                                    {% else %}
+                                    <span class="text-muted">нет похожей</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <select class="form-control form-control-sm"
+                                            name="topic_action_{{ candidate.key }}">
+                                        <option value="map"
+                                                {% if candidate.default_action == 'map' %}selected{% endif %}
+                                                {% if not existing_topics %}disabled{% endif %}>
+                                            Привязать к существующей
+                                        </option>
+                                        <option value="create"
+                                                {% if candidate.default_action == 'create' %}selected{% endif %}>
+                                            Создать тему из файла
+                                        </option>
+                                        <option value="skip">Не привязывать тему</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-control form-control-sm"
+                                            name="topic_map_{{ candidate.key }}"
+                                            {% if not existing_topics %}disabled{% endif %}>
+                                        {% for topic in existing_topics %}
+                                        <option value="{{ topic.id }}"
+                                                {% if candidate.suggestion and topic.id == candidate.suggestion.id %}selected{% endif %}>
+                                            {{ topic.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Существующие слова -->
         {% if existing_words %}
         <div class="card shadow mb-4">
@@ -70,6 +143,14 @@
                                 <th>Английское предложение</th>
                                 <th>Русское предложение</th>
                                 <th>Уровень</th>
+                                {% if has_enrichment %}
+                                <th>Topic</th>
+                                <th>IPA</th>
+                                <th>Synonyms</th>
+                                <th>Antonyms</th>
+                                <th>Freq</th>
+                                <th>Etymology</th>
+                                {% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -81,6 +162,21 @@
                                 <td>{{ word.english_sentence }}</td>
                                 <td>{{ word.russian_sentence }}</td>
                                 <td><span class="badge badge-primary">{{ word.level }}</span></td>
+                                {% if has_enrichment %}
+                                <td>
+                                    {{ word.topic or '' }}
+                                    {% if word.topic_status == 'existing' %}
+                                    <br><small class="text-success">есть: {{ word.topic_existing_name }}</small>
+                                    {% elif word.topic_status == 'needs_resolution' %}
+                                    <br><small class="text-info">нужно выбрать действие выше</small>
+                                    {% endif %}
+                                </td>
+                                <td>{% if word.ipa_transcription %}/{{ word.ipa_transcription }}/{% endif %}</td>
+                                <td>{{ (word.synonyms or []) | join(', ') }}</td>
+                                <td>{{ (word.antonyms or []) | join(', ') }}</td>
+                                <td>{{ word.frequency_band or '' }}</td>
+                                <td>{{ word.etymology or '' }}</td>
+                                {% endif %}
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -123,6 +219,14 @@
                                 <th>Английское предложение</th>
                                 <th>Русское предложение</th>
                                 <th>Уровень</th>
+                                {% if has_enrichment %}
+                                <th>Topic</th>
+                                <th>IPA</th>
+                                <th>Synonyms</th>
+                                <th>Antonyms</th>
+                                <th>Freq</th>
+                                <th>Etymology</th>
+                                {% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -138,6 +242,21 @@
                                 <td>{{ word.english_sentence }}</td>
                                 <td>{{ word.russian_sentence }}</td>
                                 <td><span class="badge badge-warning">{{ word.level }}</span></td>
+                                {% if has_enrichment %}
+                                <td>
+                                    {{ word.topic or '' }}
+                                    {% if word.topic_status == 'existing' %}
+                                    <br><small class="text-success">есть: {{ word.topic_existing_name }}</small>
+                                    {% elif word.topic_status == 'needs_resolution' %}
+                                    <br><small class="text-info">нужно выбрать действие выше</small>
+                                    {% endif %}
+                                </td>
+                                <td>{% if word.ipa_transcription %}/{{ word.ipa_transcription }}/{% endif %}</td>
+                                <td>{{ (word.synonyms or []) | join(', ') }}</td>
+                                <td>{{ (word.antonyms or []) | join(', ') }}</td>
+                                <td>{{ word.frequency_band or '' }}</td>
+                                <td>{{ word.etymology or '' }}</td>
+                                {% endif %}
                             </tr>
                             {% endfor %}
                         </tbody>

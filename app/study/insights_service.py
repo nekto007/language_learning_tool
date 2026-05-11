@@ -716,7 +716,7 @@ def get_vocabulary_growth(user_id: int, days: int = 30) -> dict[str, Any]:
 
     counts_by_date: dict[date, int] = {row.d: int(row.cnt) for row in rows}
 
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     dates: list[str] = []
     counts: list[int] = []
     for offset in range(days):
@@ -763,7 +763,7 @@ def get_learning_velocity(user_id: int, weeks: int = 4) -> dict[str, Any]:
     from app.study.models import UserWord
     from app.curriculum.models import LessonProgress
 
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     # Anchor on Monday of the current week.
     days_since_monday = today.weekday()
     current_monday = today - timedelta(days=days_since_monday)

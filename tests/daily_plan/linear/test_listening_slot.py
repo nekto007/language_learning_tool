@@ -116,10 +116,11 @@ def _mark_completed(db_session, user: User, lesson: Lessons) -> None:
 
 
 def _record_listening_xp_event(db_session, user: User, source: str) -> None:
+    from app.daily_plan.linear.xp import get_linear_event_local_date
     event = StreakEvent(
         user_id=user.id,
         event_type=LINEAR_XP_EVENT_TYPE,
-        event_date=datetime.now(timezone.utc).date(),
+        event_date=get_linear_event_local_date(user.id),
         coins_delta=0,
         details={'source': source, 'xp': 15},
     )
@@ -414,11 +415,12 @@ class TestMaybeAwardListeningXp:
         assert result is None
 
     def test_slot_detected_as_done_via_linear_listening_event(self, db_session):
+        from app.daily_plan.linear.xp import get_linear_event_local_date
         user = _make_user(db_session)
         event = StreakEvent(
             user_id=user.id,
             event_type=LINEAR_XP_EVENT_TYPE,
-            event_date=datetime.now(timezone.utc).date(),
+            event_date=get_linear_event_local_date(user.id),
             coins_delta=0,
             details={'source': 'linear_listening', 'xp': 18},
         )
