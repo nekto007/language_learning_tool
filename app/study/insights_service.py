@@ -1206,6 +1206,117 @@ def get_skills_balance(user_id: int) -> dict[str, int]:
     }
 
 
+def get_level_eta(user_id: int) -> dict[str, Any]:
+    """Estimate weeks until user reaches the next CEFR level.
+
+    Uses remaining modules at current level, average lessons/week from recent
+    velocity, and average lessons/module from curriculum data.
+
+    Returns:
+      - current_level: str
+      - next_level: str | None
+      - weeks_estimate: int | None (None when velocity is zero/unknown)
+      - confidence: 'low' | 'medium' | 'high'
+    """
+    import math
+    from app.curriculum.models import CEFRLevel, Module, Lessons, LessonProgress
+    from app.daily_plan.level_utils import get_user_current_cefr_level
+
+    current_code = get_user_current_cefr_level(user_id, db)
+
+    current_level = (
+        db.session.query(CEFRLevel)
+        .filter(CEFRLevel.code == current_code)
+        .first()
+    )
+    if current_level is None:
+        return {'current_level': current_code, 'next_level': None, 'weeks_estimate': None, 'confidence': 'low'}
+
+    next_level_row = (
+        db.session.query(CEFRLevel)
+        .filter(CEFRLevel.order > current_level.order)
+        .order_by(CEFRLevel.order)
+        .first()
+    )
+    next_level_code = next_level_row.code if next_level_row else None
+
+    modules_at_level = (
+        db.session.query(Module)
+        .filter(Module.level_id == current_level.id)
+        .all()
+    )
+
+    remaining_module_count = 0
+    remaining_lesson_counts: list[int] = []
+
+    for module in modules_at_level:
+        total = (
+            db.session.query(func.count(Lessons.id))
+            .filter(Lessons.module_id == module.id)
+            .scalar()
+        ) or 0
+
+        completed = (
+            db.session.query(func.count(LessonProgress.id))
+            .filter(
+                LessonProgress.user_id == user_id,
+                LessonProgress.status == 'completed',
+                LessonProgress.lesson_id.in_(
+                    db.session.query(Lessons.id).filter(Lessons.module_id == module.id)
+                ),
+            )
+            .scalar()
+        ) or 0
+
+        if completed < total:
+            remaining_module_count += 1
+            remaining_lesson_counts.append(total)
+
+    if remaining_module_count == 0:
+        return {
+            'current_level': current_code,
+            'next_level': next_level_code,
+            'weeks_estimate': 0,
+            'confidence': 'high',
+        }
+
+    avg_lessons_per_module = sum(remaining_lesson_counts) / len(remaining_lesson_counts)
+
+    velocity = get_learning_velocity(user_id, weeks=4)
+    lesson_counts_per_week = velocity['lesson_counts']
+    non_zero_weeks = sum(1 for c in lesson_counts_per_week if c > 0)
+
+    if non_zero_weeks >= 3:
+        confidence = 'high'
+    elif non_zero_weeks >= 2:
+        confidence = 'medium'
+    else:
+        confidence = 'low'
+
+    avg_lessons_per_week = (
+        sum(lesson_counts_per_week) / len(lesson_counts_per_week)
+        if lesson_counts_per_week else 0.0
+    )
+
+    if avg_lessons_per_week <= 0 or avg_lessons_per_module <= 0:
+        return {
+            'current_level': current_code,
+            'next_level': next_level_code,
+            'weeks_estimate': None,
+            'confidence': confidence,
+        }
+
+    modules_per_week = avg_lessons_per_week / avg_lessons_per_module
+    weeks_estimate = max(1, math.ceil(remaining_module_count / modules_per_week))
+
+    return {
+        'current_level': current_code,
+        'next_level': next_level_code,
+        'weeks_estimate': weeks_estimate,
+        'confidence': confidence,
+    }
+
+
 def get_pronunciation_weaknesses(user_id: int, min_attempts: int = 3) -> list[str]:
     """Return words where match_rate < 50% across all pronunciation attempts.
 

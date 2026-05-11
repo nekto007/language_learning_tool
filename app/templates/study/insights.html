@@ -388,6 +388,36 @@
         {% endif %}
     </div>
 
+    <!-- Level ETA -->
+    {% if level_eta and level_eta.next_level %}
+    <div class="insights-section">
+        <div class="insights-section__header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <h2>До следующего уровня</h2>
+        </div>
+        {% if level_eta.weeks_estimate is not none and level_eta.weeks_estimate > 0 %}
+        <p class="insights-highlight">
+            До уровня <strong>{{ level_eta.next_level }}</strong>:
+            <strong>~{{ level_eta.weeks_estimate }} {{ 'неделя' if level_eta.weeks_estimate == 1 else 'недели' if level_eta.weeks_estimate <= 4 else 'недель' }}</strong>
+            при текущем темпе
+        </p>
+        {% elif level_eta.weeks_estimate == 0 %}
+        <p class="insights-highlight">Уровень <strong>{{ level_eta.current_level }}</strong> завершён — переходи к <strong>{{ level_eta.next_level }}</strong>!</p>
+        {% else %}
+        <p class="insights-subtitle">Начни заниматься регулярно, чтобы увидеть прогноз</p>
+        {% endif %}
+        <div class="level-eta-meta">
+            <span class="level-eta__current">Текущий уровень: <strong>{{ level_eta.current_level }}</strong></span>
+            <span class="level-eta__confidence level-eta__confidence--{{ level_eta.confidence }}">
+                {% if level_eta.confidence == 'high' %}Высокая точность{% elif level_eta.confidence == 'medium' %}Средняя точность{% else %}Мало данных{% endif %}
+            </span>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Extra summary row -->
     <div class="insights-section insights-extra">
         <div class="insights-extra__grid">
@@ -989,6 +1019,43 @@
 .skills-radar-legend__score {
     font-weight: 700;
     color: var(--ins-primary);
+}
+
+/* ---- Level ETA ---- */
+.level-eta-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    font-size: 0.8125rem;
+}
+
+.level-eta__current {
+    color: var(--ins-text-muted);
+}
+
+.level-eta__confidence {
+    padding: 0.125rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.level-eta__confidence--high {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.level-eta__confidence--medium {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+}
+
+.level-eta__confidence--low {
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--ins-text-muted);
 }
 
 /* ---- Extra Summary ---- */

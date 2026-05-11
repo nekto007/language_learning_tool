@@ -1191,11 +1191,11 @@
 - Modify: `app/templates/study/insights.html`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] Based on: remaining modules at current level, average lessons/week from recent velocity, lessons/module from curriculum data
-- [ ] `get_level_eta(user_id, db) -> {current_level, next_level, weeks_estimate, confidence}` — confidence is 'low'/'medium'/'high' based on how much history user has
-- [ ] Show on insights page: "До уровня B1: ~6 недель при текущем темпе"
-- [ ] Tests: user with 4 modules/week and 8 remaining → ETA = 2 weeks; < 1 week history → confidence=low
-- [ ] Run pytest tests/study/
+- [x] Based on: remaining modules at current level, average lessons/week from recent velocity, lessons/module from curriculum data
+- [x] `get_level_eta(user_id, db) -> {current_level, next_level, weeks_estimate, confidence}` — confidence is 'low'/'medium'/'high' based on how much history user has
+- [x] Show on insights page: "До уровня B1: ~6 недель при текущем темпе"
+- [x] Tests: user with 4 modules/week and 8 remaining → ETA = 2 weeks; < 1 week history → confidence=low
+- [x] Run pytest tests/study/
 
 ---
 ### Task 78: Weekly learning report (dashboard summary)

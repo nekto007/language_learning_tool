@@ -6,16 +6,17 @@ Task 57: Pronunciation weakness detection.
 Task 66: Weak area automatic detection.
 Task 74: Grammar mastery radar chart.
 Task 75: Learning velocity trend widget.
+Task 77: Estimated time to next CEFR level.
 """
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, date, timedelta, timezone
 
 import pytest
 
-from app.curriculum.models import CEFRLevel, Lessons, Module, UserWritingAttempt, PronunciationAttempt, ListeningAttempt
-from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats, get_weak_areas, get_skills_balance, get_grammar_mastery_by_topic, get_learning_velocity
+from app.curriculum.models import CEFRLevel, Lessons, Module, UserWritingAttempt, PronunciationAttempt, ListeningAttempt, LessonProgress
+from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats, get_weak_areas, get_skills_balance, get_grammar_mastery_by_topic, get_learning_velocity, get_level_eta
 from app.study.models import UserCardDirection, UserWord
 from app.words.models import CollectionWords
 from app.utils.db import db
@@ -973,3 +974,135 @@ class TestGetLearningVelocity:
             _make_user_word(db_session, other.id, days_ago=0)
         result = get_learning_velocity(test_user.id, weeks=2)
         assert result['words_this_week'] == 0
+
+
+# ---------------------------------------------------------------------------
+# Helpers for level ETA tests (Task 77)
+# ---------------------------------------------------------------------------
+
+_eta_order_counter = 100
+
+
+def _make_cefr_level(db_session, order: int) -> CEFRLevel:
+    """Create a CEFRLevel with a unique 2-char code."""
+    code = uuid.uuid4().hex[:2].upper()
+    level = CEFRLevel(code=code, name=f'Level {code}', description='d', order=order)
+    db_session.add(level)
+    db_session.flush()
+    return level
+
+
+def _make_module_with_lessons(db_session, level: CEFRLevel, module_num: int, lesson_count: int):
+    """Create a module with *lesson_count* lessons; return (module, [lesson, ...])."""
+    module = Module(
+        level_id=level.id,
+        number=module_num,
+        title=f'Module {module_num}',
+        description='d',
+        raw_content={'module': {'id': module_num}},
+    )
+    db_session.add(module)
+    db_session.flush()
+    lessons = []
+    for i in range(lesson_count):
+        lesson = Lessons(
+            module_id=module.id,
+            number=i + 1,
+            title=f'Lesson {i + 1}',
+            type='card',
+            content={},
+        )
+        db_session.add(lesson)
+        lessons.append(lesson)
+    db_session.flush()
+    return module, lessons
+
+
+def _complete_lesson(db_session, user_id: int, lesson: Lessons, days_ago: int = 0):
+    completed_at = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    lp = LessonProgress(
+        user_id=user_id,
+        lesson_id=lesson.id,
+        status='completed',
+        score=80.0,
+        completed_at=completed_at,
+    )
+    db_session.add(lp)
+    db_session.flush()
+    return lp
+
+
+# ---------------------------------------------------------------------------
+# Tests for get_level_eta (Task 77)
+# ---------------------------------------------------------------------------
+
+class TestGetLevelEta:
+    def test_eta_with_known_rate_and_remaining(self, app, db_session, test_user):
+        """user with 4 modules/week (20 lessons/week, 5 per module) and 8 remaining → ETA = 2 weeks."""
+        today = date.today()
+        days_since_monday = today.weekday()
+
+        # Target level with 8 modules × 5 lessons each (all remaining)
+        a1 = _make_cefr_level(db_session, order=200)
+        test_user.onboarding_level = a1.code
+        db_session.flush()
+
+        for i in range(8):
+            _make_module_with_lessons(db_session, a1, i + 1, 5)
+
+        # Velocity level with 80 completed lessons over 4 weeks = 20/week
+        a0 = _make_cefr_level(db_session, order=100)
+        all_velocity_lessons = []
+        for i in range(16):  # 16 modules × 5 lessons = 80
+            _, lessons = _make_module_with_lessons(db_session, a0, i + 1, 5)
+            all_velocity_lessons.extend(lessons)
+
+        # Spread 80 lessons across 4 weeks (20 per week).
+        # Use the Monday of each week to stay safely within the velocity window.
+        for idx, lesson in enumerate(all_velocity_lessons):
+            week_idx = idx // 20  # 0..3 (week 0 = oldest = 3 weeks ago)
+            weeks_ago = 3 - week_idx
+            days_ago = days_since_monday + 7 * weeks_ago
+            _complete_lesson(db_session, test_user.id, lesson, days_ago=days_ago)
+
+        result = get_level_eta(test_user.id)
+
+        assert result['current_level'] == a1.code
+        assert result['weeks_estimate'] == 2
+        assert result['confidence'] in ('medium', 'high')
+
+    def test_no_velocity_history_returns_low_confidence(self, app, db_session, test_user):
+        """< 1 week history → confidence=low."""
+        a1 = _make_cefr_level(db_session, order=300)
+        test_user.onboarding_level = a1.code
+        db_session.flush()
+
+        _make_module_with_lessons(db_session, a1, 1, 5)
+
+        result = get_level_eta(test_user.id)
+        assert result['confidence'] == 'low'
+
+    def test_all_modules_completed_returns_zero_weeks(self, app, db_session, test_user):
+        """If all modules at current level are fully completed, weeks_estimate=0."""
+        a1 = _make_cefr_level(db_session, order=400)
+        a2 = _make_cefr_level(db_session, order=401)
+        test_user.onboarding_level = a1.code
+        db_session.flush()
+
+        _, lessons = _make_module_with_lessons(db_session, a1, 1, 3)
+        for lesson in lessons:
+            _complete_lesson(db_session, test_user.id, lesson, days_ago=1)
+
+        result = get_level_eta(test_user.id)
+        assert result['weeks_estimate'] == 0
+        assert result['next_level'] == a2.code
+
+    def test_result_has_required_keys(self, app, db_session, test_user):
+        a1 = _make_cefr_level(db_session, order=500)
+        test_user.onboarding_level = a1.code
+        db_session.flush()
+        _make_module_with_lessons(db_session, a1, 1, 3)
+
+        result = get_level_eta(test_user.id)
+        for key in ('current_level', 'next_level', 'weeks_estimate', 'confidence'):
+            assert key in result
