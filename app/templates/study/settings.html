@@ -1026,6 +1026,38 @@
         </div>
     </div>
 
+    <!-- Plan Difficulty Card -->
+    {% if current_user.use_linear_plan %}
+    <div class="ss-card slideUp" style="animation-delay: .15s">
+        <div class="ss-card__header">
+            <div class="ss-card__header-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+            </div>
+            <h2 class="ss-card__title">Режим плана дня</h2>
+        </div>
+        <div class="ss-card__body">
+            <p class="ss-card__desc">Выберите, сколько заданий показывать в ежедневном плане.</p>
+            <form method="POST" action="{{ url_for('study.settings_difficulty') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="ss-form__group" style="margin-bottom: 1.25rem;">
+                    <label class="ss-form__label" for="plan_difficulty_select">Режим сложности</label>
+                    <select id="plan_difficulty_select" name="plan_difficulty" class="ss-form__select">
+                        <option value="light" {% if plan_difficulty == 'light' %}selected{% endif %}>Лёгкий — 2 задания (уроки + карточки)</option>
+                        <option value="normal" {% if plan_difficulty == 'normal' %}selected{% endif %}>Стандартный — 3-4 задания</option>
+                        <option value="intensive" {% if plan_difficulty == 'intensive' %}selected{% endif %}>Интенсивный — стандарт + 2 бонусных задания</option>
+                    </select>
+                    <span class="ss-form__hint">Изменение вступит в силу при следующей загрузке плана.</span>
+                </div>
+                <div class="ss-form__actions">
+                    <button type="submit" class="ss-btn ss-btn--primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Telegram Integration -->
     <div class="ss-card slideUp" style="animation-delay: .2s" id="telegram-section">
         <div class="ss-card__header">

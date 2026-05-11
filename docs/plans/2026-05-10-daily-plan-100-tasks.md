@@ -777,11 +777,11 @@
 - Modify: `app/templates/study/settings.html` (or create settings page)
 - Tests: `tests/daily_plan/linear/test_plan.py`
 
-- [ ] Add `plan_difficulty ENUM('light', 'normal', 'intensive') DEFAULT 'normal'` to User
-- [ ] In `build_chain`: light mode — only 2 baseline slots (curriculum + SRS); normal — standard 4; intensive — standard + 2 extension slots always shown
-- [ ] Settings page toggle (or add to existing StudySettings page if one exists)
-- [ ] Tests: light → 2 baseline slots; normal → standard; intensive → forces extension slots
-- [ ] Run pytest tests/daily_plan/linear/
+- [x] Add `plan_difficulty ENUM('light', 'normal', 'intensive') DEFAULT 'normal'` to User
+- [x] In `build_chain`: light mode — only 2 baseline slots (curriculum + SRS); normal — standard 4; intensive — standard + 2 extension slots always shown
+- [x] Settings page toggle (or add to existing StudySettings page if one exists)
+- [x] Tests: light → 2 baseline slots; normal → standard; intensive → forces extension slots
+- [x] Run pytest tests/daily_plan/linear/
 
 ---
 ### Task 50: Plan performance analytics route

@@ -69,6 +69,10 @@ class User(db.Model, UserMixin):
     # Plan pause / vacation mode: when set and >= today, plan returns paused mode.
     plan_paused_until = Column(Date, nullable=True)
 
+    # Plan difficulty: controls how many baseline slots are built each day.
+    # 'light' = 2 slots (curriculum + SRS); 'normal' = standard 3-4; 'intensive' = standard + 2 extra always shown.
+    plan_difficulty = Column(String(20), nullable=False, default='normal', server_default='normal')
+
     referred_by = relationship('User', remote_side='User.id', foreign_keys=[referred_by_id])
 
     __table_args__ = (

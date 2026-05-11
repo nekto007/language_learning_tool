@@ -352,8 +352,31 @@ def settings():
         return redirect(url_for('study.index'))
 
     bot_username = current_app.config.get('TELEGRAM_BOT_USERNAME', 'llt_englishbot')
+    plan_difficulty = getattr(current_user, 'plan_difficulty', 'normal') or 'normal'
     return render_template('study/settings.html', form=form,
-                           telegram_bot_username=bot_username)
+                           telegram_bot_username=bot_username,
+                           plan_difficulty=plan_difficulty)
+
+
+_VALID_DIFFICULTIES = {'light', 'normal', 'intensive'}
+
+
+@study.route('/settings/difficulty', methods=['POST'])
+@login_required
+@module_required('study')
+def settings_difficulty():
+    """Update plan_difficulty for the current user."""
+    from app.auth.models import User as AuthUser
+    difficulty = request.form.get('plan_difficulty', 'normal')
+    if difficulty not in _VALID_DIFFICULTIES:
+        flash(_('Неверный режим сложности'), 'danger')
+        return redirect(url_for('study.settings'))
+    user = db.session.get(AuthUser, current_user.id)
+    if user is not None:
+        user.plan_difficulty = difficulty
+        db.session.commit()
+    flash(_('Режим плана обновлён'), 'success')
+    return redirect(url_for('study.settings'))
 
 
 @study.route('/cards')

@@ -40,6 +40,21 @@ logger = logging.getLogger(__name__)
 
 EXTENSION_PRIORITY: tuple[str, ...] = ('curriculum', 'srs', 'reading', 'listening', 'writing', 'error_review')
 
+# Number of extension slots always pre-built for intensive difficulty mode.
+INTENSIVE_FORCED_EXTRAS = 2
+
+
+def _get_plan_difficulty(user_id: int, db: Any) -> str:
+    """Return the user's plan_difficulty ('light', 'normal', 'intensive')."""
+    from app.auth.models import User
+    user = db.session.get(User, user_id)
+    if user is None:
+        return 'normal'
+    val = getattr(user, 'plan_difficulty', None)
+    if val not in ('light', 'normal', 'intensive'):
+        return 'normal'
+    return val
+
 DEFAULT_MAX_EXTRA = 10
 
 
@@ -320,8 +335,16 @@ def extend_chain_after_activity(
     plan['baseline_slots'] = chain[:baseline_count]
 
 
-def _build_baseline(user_id: int, db: Any) -> list[dict[str, Any]]:
-    """Build the baseline slots (mirrors the legacy linear-plan assembler)."""
+def _build_baseline(
+    user_id: int,
+    db: Any,
+    difficulty: str = 'normal',
+) -> list[dict[str, Any]]:
+    """Build the baseline slots.
+
+    In 'light' mode only curriculum + SRS are returned (2 slots). In
+    'normal' and 'intensive' modes the standard 3-4 slot set is used.
+    """
     # Imported lazily to avoid a circular import: plan.py imports chain.py
     # in Task 2 once integration lands.
     from app.daily_plan.linear.plan import _get_user_focus, _lesson_from_slot_data
@@ -336,11 +359,16 @@ def _build_baseline(user_id: int, db: Any) -> list[dict[str, Any]]:
     if curriculum_dict.get('completed'):
         srs_anchor = _lesson_from_slot_data(curriculum_dict, db) or next_lesson
     srs_dict = build_srs_slot(user_id, db, curriculum_lesson=srs_anchor).to_dict()
-    reading_dict = build_reading_slot(user_id, db, focus=focus).to_dict()
-    error_review = build_error_review_slot(user_id, db)
 
     if focus == 'grammar':
         curriculum_dict.setdefault('data', {})['prioritize_grammar'] = True
+
+    if difficulty == 'light':
+        # Light mode: only curriculum + SRS — minimal daily commitment.
+        return [curriculum_dict, srs_dict]
+
+    reading_dict = build_reading_slot(user_id, db, focus=focus).to_dict()
+    error_review = build_error_review_slot(user_id, db)
 
     if focus == 'reading':
         baseline = [curriculum_dict, reading_dict, srs_dict]
@@ -356,13 +384,19 @@ def build_chain(
     db: Any,
     *,
     max_extra: int = DEFAULT_MAX_EXTRA,
+    difficulty: Optional[str] = None,
 ) -> dict[str, Any]:
     """Return the full slot chain plus metadata.
 
-    ``slots`` always starts with the baseline (3 or 4 slots); extra
-    slots are appended only after the *previous* slot is completed.
-    The growth loop stops at the first incomplete slot or when no
-    source can supply more work today.
+    ``slots`` always starts with the baseline; extra slots are appended only
+    after the *previous* slot is completed. The growth loop stops at the first
+    incomplete slot or when no source can supply more work today.
+
+    Behaviour varies by ``plan_difficulty``:
+    - 'light': baseline = curriculum + SRS only (2 slots); no forced extras.
+    - 'normal' (default): standard 3-4 baseline; extras built only when baseline done.
+    - 'intensive': standard baseline; INTENSIVE_FORCED_EXTRAS extension slots
+      are always pre-built and shown upfront even when baseline is incomplete.
 
     Returns::
 
@@ -373,19 +407,41 @@ def build_chain(
           'exhausted_sources': list[str],
         }
     """
-    baseline = _build_baseline(user_id, db)
+    if difficulty is None:
+        difficulty = _get_plan_difficulty(user_id, db)
+
+    baseline = _build_baseline(user_id, db, difficulty=difficulty)
     chain: list[dict[str, Any]] = list(baseline)
     baseline_count = len(baseline)
 
-    # Stop if any baseline slot is still incomplete — the user must finish
-    # the minimum before the chain extends.
-    if any(not slot.get('completed', False) for slot in baseline):
-        logger.info(
-            "chain user=%s baseline_pending=%d/%d extras_skipped=true",
-            user_id,
-            sum(1 for s in baseline if not s.get('completed')),
-            baseline_count,
-        )
+    baseline_incomplete = any(not slot.get('completed', False) for slot in baseline)
+
+    if baseline_incomplete:
+        if difficulty == 'intensive':
+            # Intensive: always pre-build INTENSIVE_FORCED_EXTRAS extension slots
+            # so they are visible even before the baseline is done (locked in UI).
+            forced = 0
+            while forced < INTENSIVE_FORCED_EXTRAS:
+                next_slot = build_next_slot(user_id, db, chain)
+                if next_slot is None:
+                    break
+                chain.append(next_slot)
+                forced += 1
+            logger.info(
+                "chain user=%s difficulty=intensive baseline_pending=%d/%d forced_extras=%d",
+                user_id,
+                sum(1 for s in baseline if not s.get('completed')),
+                baseline_count,
+                forced,
+            )
+        else:
+            # Light/normal: stop if any baseline slot is incomplete.
+            logger.info(
+                "chain user=%s difficulty=%s baseline_pending=%d/%d extras_skipped=true",
+                user_id, difficulty,
+                sum(1 for s in baseline if not s.get('completed')),
+                baseline_count,
+            )
         return {
             'slots': chain,
             'baseline_count': baseline_count,
@@ -394,7 +450,7 @@ def build_chain(
         }
 
     has_more_available = True
-    extras_added = 0
+    extras_added = len(chain) - baseline_count
     while extras_added < max_extra:
         if not chain[-1].get('completed', False):
             break
@@ -417,8 +473,8 @@ def build_chain(
             exhausted_sources.append(source)
 
     logger.info(
-        "chain user=%s baseline=%d extras=%d total=%d has_more=%s exhausted=%s",
-        user_id, baseline_count, extras_added, len(chain),
+        "chain user=%s difficulty=%s baseline=%d extras=%d total=%d has_more=%s exhausted=%s",
+        user_id, difficulty, baseline_count, extras_added, len(chain),
         has_more_available, ','.join(exhausted_sources) or 'none',
     )
     return {
