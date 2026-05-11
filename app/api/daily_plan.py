@@ -261,7 +261,7 @@ def daily_status():
                 )
             try:
                 from app.achievements.services import check_immersion_achievement
-                check_immersion_achievement(user_id, today, db.session)
+                check_immersion_achievement(user_id, today, db.session, tz=tz)
             except Exception:
                 logger.warning("immersion achievement check failed for user %s", user_id, exc_info=True)
             try:
@@ -663,7 +663,7 @@ def daily_plan_next_slot():
             )
             try:
                 from app.achievements.services import check_immersion_achievement
-                check_immersion_achievement(user.id, today, db.session)
+                check_immersion_achievement(user.id, today, db.session, tz=tz)
             except Exception:
                 logger.warning("immersion achievement check failed for user %s", user.id, exc_info=True)
             try:

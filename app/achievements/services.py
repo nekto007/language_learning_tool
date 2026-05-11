@@ -702,22 +702,26 @@ def check_speaking_achievements(user_id: int, db_session=None) -> List[Achieveme
     return AchievementService._award_badges(user_id, codes_to_award)
 
 
-def check_immersion_achievement(user_id: int, target_date, db_session=None) -> List[Achievement]:
+def check_immersion_achievement(user_id: int, target_date, db_session=None, tz: str = 'UTC') -> List[Achievement]:
     """Award immersion_daily / immersion_week after all 4 skills practiced on target_date.
 
-    Checks for at least one row each in ListeningAttempt, UserWritingAttempt,
-    PronunciationAttempt, and UserReadingSession on the given date (UTC range).
-    Also checks 7-day immersion streak for the immersion_week badge.
-    Idempotent: re-calling when badge already owned returns [].
+    target_date is the user's LOCAL date. tz must match the timezone used to derive it
+    so that the UTC query window aligns correctly with the user's day.
     """
     from datetime import timedelta
+    import pytz
     from app.curriculum.models import ListeningAttempt, UserWritingAttempt, PronunciationAttempt
     from app.books.reading_session import UserReadingSession
     from sqlalchemy import func
 
     session = db_session if db_session is not None else db.session
 
-    day_start = datetime(target_date.year, target_date.month, target_date.day)
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.utc
+    day_start_local = tz_obj.localize(datetime(target_date.year, target_date.month, target_date.day))
+    day_start = day_start_local.astimezone(pytz.utc).replace(tzinfo=None)
     day_end = day_start + timedelta(days=1)
     day_start_tz = day_start.replace(tzinfo=timezone.utc)
     day_end_tz = day_end.replace(tzinfo=timezone.utc)

@@ -309,7 +309,9 @@ def submit_lesson(lesson_id):
                 if challenge_result and not challenge_result.get('already_completed'):
                     result['challenge_completed'] = True
                     result['challenge_bonus_xp'] = challenge_result.get('bonus_xp', 0)
+                    db.session.commit()
             except Exception as ch_err:
+                db.session.rollback()
                 logger.warning("Challenge auto-complete failed for lesson %s: %s", lesson_id, ch_err)
 
         return jsonify(result)
