@@ -931,6 +931,110 @@ def get_weak_areas(user_id: int, top_n: int = 3) -> list[dict[str, Any]]:
     return areas[:top_n]
 
 
+def get_skills_balance(user_id: int) -> dict[str, int]:
+    """Return skills balance scores (0-100) for all 6 skill areas.
+
+    Keys: vocabulary, grammar, reading, listening, writing, speaking.
+    Scores scale from 0 (no activity / poor accuracy) to 100 (excellent).
+    Returns 0 for a skill when the user has insufficient data.
+    """
+    from app.study.models import UserWord, UserCardDirection
+    from app.grammar_lab.models import UserGrammarExercise
+    from app.books.reading_session import UserReadingSession
+    from app.curriculum.models import ListeningAttempt, UserWritingAttempt, PronunciationAttempt
+
+    now = datetime.now(timezone.utc)
+    seven_days_ago = now - timedelta(days=7)
+    thirty_days_ago = now - timedelta(days=30)
+
+    # --- Vocabulary: SRS card accuracy (all-time, min 10 reviews) ---
+    srs_row = (
+        db.session.query(
+            func.coalesce(func.sum(UserCardDirection.correct_count), 0).label('correct'),
+            func.coalesce(
+                func.sum(UserCardDirection.correct_count + UserCardDirection.incorrect_count), 0
+            ).label('total'),
+        )
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(UserWord.user_id == user_id)
+        .one()
+    )
+    srs_total = int(srs_row.total)
+    vocabulary_score = round(float(srs_row.correct) / srs_total * 100) if srs_total >= 10 else 0
+
+    # --- Grammar: overall accuracy across all exercises (min 3 attempts) ---
+    grammar_row = (
+        db.session.query(
+            func.coalesce(func.sum(UserGrammarExercise.correct_count), 0).label('correct'),
+            func.coalesce(
+                func.sum(UserGrammarExercise.correct_count + UserGrammarExercise.incorrect_count), 0
+            ).label('total'),
+        )
+        .filter(UserGrammarExercise.user_id == user_id)
+        .one()
+    )
+    grammar_total = int(grammar_row.total)
+    grammar_score = round(float(grammar_row.correct) / grammar_total * 100) if grammar_total >= 3 else 0
+
+    # --- Reading: sessions last 7 days; 5+ sessions/week → 100 ---
+    reading_count = (
+        db.session.query(func.count(UserReadingSession.id))
+        .filter(
+            UserReadingSession.user_id == user_id,
+            UserReadingSession.started_at >= seven_days_ago,
+        )
+        .scalar()
+    ) or 0
+    reading_score = min(100, round(int(reading_count) / 5 * 100))
+
+    # --- Listening: attempts last 7 days; 5+ per week → 100 ---
+    listening_count = (
+        db.session.query(func.count(ListeningAttempt.id))
+        .filter(
+            ListeningAttempt.user_id == user_id,
+            ListeningAttempt.created_at >= seven_days_ago,
+        )
+        .scalar()
+    ) or 0
+    listening_score = min(100, round(int(listening_count) / 5 * 100))
+
+    # --- Writing: attempts last 7 days; 5+ per week → 100 ---
+    writing_count = (
+        db.session.query(func.count(UserWritingAttempt.id))
+        .filter(
+            UserWritingAttempt.user_id == user_id,
+            UserWritingAttempt.created_at >= seven_days_ago,
+        )
+        .scalar()
+    ) or 0
+    writing_score = min(100, round(int(writing_count) / 5 * 100))
+
+    # --- Speaking: pronunciation match rate last 30 days (min 3 attempts) ---
+    speaking_row = (
+        db.session.query(
+            func.count(PronunciationAttempt.id).label('total'),
+            func.sum(func.cast(PronunciationAttempt.matched, db.Integer)).label('matched'),
+        )
+        .filter(
+            PronunciationAttempt.user_id == user_id,
+            PronunciationAttempt.created_at >= thirty_days_ago,
+        )
+        .one()
+    )
+    speaking_total = int(speaking_row.total) if speaking_row.total else 0
+    speaking_matched = int(speaking_row.matched) if speaking_row.matched else 0
+    speaking_score = round(speaking_matched / speaking_total * 100) if speaking_total >= 3 else 0
+
+    return {
+        'vocabulary': vocabulary_score,
+        'grammar': grammar_score,
+        'reading': reading_score,
+        'listening': listening_score,
+        'writing': writing_score,
+        'speaking': speaking_score,
+    }
+
+
 def get_pronunciation_weaknesses(user_id: int, min_attempts: int = 3) -> list[str]:
     """Return words where match_rate < 50% across all pronunciation attempts.
 

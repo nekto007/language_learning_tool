@@ -1133,10 +1133,10 @@
 - Modify: `app/templates/study/insights.html`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] `get_skills_balance(user_id, db) -> dict` — scores 0-100 for vocabulary (SRS accuracy), grammar (grammar lab accuracy), reading (reading sessions / week), listening (listening attempts / week), writing (writing attempts / week), speaking (pronunciation match rate)
-- [ ] Render Chart.js radar chart on insights page
-- [ ] Tests: each skill score computed correctly; zero activity → 0; full activity → near 100
-- [ ] Run pytest tests/study/
+- [x] `get_skills_balance(user_id, db) -> dict` — scores 0-100 for vocabulary (SRS accuracy), grammar (grammar lab accuracy), reading (reading sessions / week), listening (listening attempts / week), writing (writing attempts / week), speaking (pronunciation match rate)
+- [x] Render Chart.js radar chart on insights page
+- [x] Tests: each skill score computed correctly; zero activity → 0; full activity → near 100
+- [x] Run pytest tests/study/
 
 ---
 ### Task 74: Grammar mastery radar chart

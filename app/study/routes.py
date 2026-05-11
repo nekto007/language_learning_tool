@@ -695,7 +695,8 @@ def stats():
 def insights():
     from app.study.insights_service import (
         get_activity_heatmap, get_best_study_time, get_words_at_risk,
-        get_grammar_weaknesses, get_reading_speed_trend, get_learning_summary
+        get_grammar_weaknesses, get_reading_speed_trend, get_learning_summary,
+        get_skills_balance,
     )
     from app.achievements.streak_service import get_milestone_history
 
@@ -710,6 +711,11 @@ def insights():
     except Exception:
         logger.exception("milestone_history failed for user %s", current_user.id)
         milestone_history = []
+    try:
+        skills_balance = get_skills_balance(current_user.id)
+    except Exception:
+        logger.exception("skills_balance failed for user %s", current_user.id)
+        skills_balance = {'vocabulary': 0, 'grammar': 0, 'reading': 0, 'listening': 0, 'writing': 0, 'speaking': 0}
 
     return render_template('study/insights.html',
         heatmap=heatmap,
@@ -719,6 +725,7 @@ def insights():
         reading_trend=reading_trend,
         summary=summary,
         milestone_history=milestone_history,
+        skills_balance=skills_balance,
     )
 
 

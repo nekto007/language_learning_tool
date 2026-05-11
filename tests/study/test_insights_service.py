@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.curriculum.models import CEFRLevel, Lessons, Module, UserWritingAttempt, PronunciationAttempt, ListeningAttempt
-from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats, get_weak_areas
+from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats, get_weak_areas, get_skills_balance
 from app.study.models import UserCardDirection, UserWord
 from app.words.models import CollectionWords
 from app.utils.db import db
@@ -593,3 +593,119 @@ class TestGetWeakAreas:
         result = get_weak_areas(test_user.id)
         kinds = [a['kind'] for a in result]
         assert 'writing' not in kinds
+
+
+# ---------------------------------------------------------------------------
+# Tests for get_skills_balance (Task 73)
+# ---------------------------------------------------------------------------
+
+class TestGetSkillsBalance:
+    _SKILL_KEYS = {'vocabulary', 'grammar', 'reading', 'listening', 'writing', 'speaking'}
+
+    def test_zero_activity_returns_all_zeros(self, app, db_session, test_user):
+        result = get_skills_balance(test_user.id)
+        assert set(result.keys()) == self._SKILL_KEYS
+        for key in self._SKILL_KEYS:
+            assert result[key] == 0
+
+    def test_vocabulary_score_from_srs_accuracy(self, app, db_session, test_user):
+        # 8 correct, 2 incorrect out of 10 total → 80%
+        for _ in range(8):
+            _make_srs_card(db_session, test_user.id, correct=1, incorrect=0)
+        for _ in range(2):
+            _make_srs_card(db_session, test_user.id, correct=0, incorrect=1)
+        result = get_skills_balance(test_user.id)
+        assert result['vocabulary'] == 80
+
+    def test_vocabulary_below_min_reviews_returns_zero(self, app, db_session, test_user):
+        # Only 5 total reviews → below threshold of 10
+        for _ in range(5):
+            _make_srs_card(db_session, test_user.id, correct=1, incorrect=0)
+        result = get_skills_balance(test_user.id)
+        assert result['vocabulary'] == 0
+
+    def test_grammar_score_from_accuracy(self, app, db_session, test_user):
+        # 6 correct out of 10 total → 60%
+        _make_grammar_weak_area(db_session, test_user.id, accuracy_pct=60, attempts=10)
+        result = get_skills_balance(test_user.id)
+        assert result['grammar'] == 60
+
+    def test_grammar_below_min_attempts_returns_zero(self, app, db_session, test_user):
+        # Only 2 attempts → below threshold of 3
+        _make_grammar_weak_area(db_session, test_user.id, accuracy_pct=90, attempts=2)
+        result = get_skills_balance(test_user.id)
+        assert result['grammar'] == 0
+
+    def test_listening_score_from_weekly_attempts(self, app, db_session, test_user):
+        lesson = _make_lesson(db_session)
+        # 5 attempts this week → 100%
+        for _ in range(5):
+            _make_listening_attempt(db_session, test_user.id, lesson.id, score=80.0, days_ago=0)
+        result = get_skills_balance(test_user.id)
+        assert result['listening'] == 100
+
+    def test_listening_partial_score(self, app, db_session, test_user):
+        lesson = _make_lesson(db_session)
+        # 2 attempts out of 5 target → 40%
+        for _ in range(2):
+            _make_listening_attempt(db_session, test_user.id, lesson.id, score=80.0, days_ago=0)
+        result = get_skills_balance(test_user.id)
+        assert result['listening'] == 40
+
+    def test_listening_old_attempts_excluded(self, app, db_session, test_user):
+        lesson = _make_lesson(db_session)
+        # Attempts from 10 days ago → not in 7-day window
+        for _ in range(5):
+            _make_listening_attempt(db_session, test_user.id, lesson.id, score=80.0, days_ago=10)
+        result = get_skills_balance(test_user.id)
+        assert result['listening'] == 0
+
+    def test_writing_score_from_weekly_attempts(self, app, db_session, test_user):
+        lesson = _make_lesson(db_session)
+        # 3 writing attempts this week → 60%
+        for _ in range(3):
+            _make_attempt(db_session, test_user.id, lesson.id, text='test text', days_ago=0)
+        result = get_skills_balance(test_user.id)
+        assert result['writing'] == 60
+
+    def test_speaking_score_from_match_rate(self, app, db_session, test_user):
+        # 9 matched out of 12 total → 75%
+        for _ in range(9):
+            _make_pronunciation_attempt_at(db_session, test_user.id, 'apple', matched=True, days_ago=0)
+        for _ in range(3):
+            _make_pronunciation_attempt_at(db_session, test_user.id, 'orange', matched=False, days_ago=0)
+        result = get_skills_balance(test_user.id)
+        assert result['speaking'] == 75
+
+    def test_speaking_below_min_attempts_returns_zero(self, app, db_session, test_user):
+        # Only 2 pronunciation attempts → below min of 3
+        for _ in range(2):
+            _make_pronunciation_attempt_at(db_session, test_user.id, 'apple', matched=True, days_ago=0)
+        result = get_skills_balance(test_user.id)
+        assert result['speaking'] == 0
+
+    def test_reading_score_capped_at_100(self, app, db_session, test_user):
+        # 10 reading sessions this week → should cap at 100 (not 200)
+        from app.books.reading_session import UserReadingSession
+        from app.books.models import Book, Chapter
+        book = Book(title='Test Book', author='Author', level='A1', chapters_cnt=10)
+        db_session.add(book)
+        db_session.flush()
+        chapters = []
+        for i in range(10):
+            ch = Chapter(book_id=book.id, chap_num=i + 1, title=f'Ch{i}', words=100, text_raw='x')
+            db_session.add(ch)
+            chapters.append(ch)
+        db_session.flush()
+        now = datetime.now(timezone.utc)
+        for ch in chapters:
+            rs = UserReadingSession(
+                user_id=test_user.id,
+                chapter_id=ch.id,
+                started_at=now - timedelta(hours=1),
+                ended_at=now,
+            )
+            db_session.add(rs)
+        db_session.flush()
+        result = get_skills_balance(test_user.id)
+        assert result['reading'] == 100
