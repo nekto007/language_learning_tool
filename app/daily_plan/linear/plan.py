@@ -115,6 +115,37 @@ def _get_skipped_slot_kinds(
     return {e.step_kind for e in events if e.step_kind}
 
 
+def _apply_time_of_day_order(
+    all_slots: list[dict[str, Any]],
+    baseline_count: int,
+    user_local_hour: int,
+    difficulty: str,
+) -> tuple[list[dict[str, Any]], str]:
+    """Reorder baseline slots by time-of-day for 'normal' difficulty only.
+
+    Evening (>=20): SRS first (quickest habit), then curriculum.
+    Morning (<=9): curriculum first (fresh brain) — already default.
+    Otherwise: unchanged.
+    Light/intensive difficulty: always use fixed order.
+    Returns (slots_list, slot_order_reason).
+    """
+    if difficulty != 'normal' or baseline_count <= 1:
+        return all_slots, 'default'
+
+    baseline = all_slots[:baseline_count]
+    rest = all_slots[baseline_count:]
+
+    curriculum_slots = [s for s in baseline if s.get('kind') == 'curriculum']
+    srs_slots = [s for s in baseline if s.get('kind') == 'srs']
+    other_slots = [s for s in baseline if s.get('kind') not in ('curriculum', 'srs')]
+
+    if user_local_hour >= 20:
+        return srs_slots + curriculum_slots + other_slots + rest, 'evening'
+    if user_local_hour <= 9:
+        return curriculum_slots + srs_slots + other_slots + rest, 'morning'
+    return all_slots, 'default'
+
+
 def compute_linear_day_secured(baseline_slots: list[dict[str, Any]]) -> bool:
     """Return True when every baseline slot is flagged completed.
 
@@ -205,12 +236,19 @@ def get_linear_plan(
         level_progress.lessons_remaining_in_level,
     )
 
-    from app.daily_plan.linear.chain import build_chain
-    from app.utils.time_utils import get_user_local_date
+    from app.daily_plan.linear.chain import _get_plan_difficulty, build_chain
+    from app.utils.time_utils import get_user_local_date, get_user_local_hour
 
     chain_result = build_chain(user_id, session_provider)
     all_slots = chain_result['slots']
     baseline_count = chain_result['baseline_count']
+
+    difficulty = _get_plan_difficulty(user_id, session_provider)
+    user_local_hour = get_user_local_hour(user_id, session_provider)
+    all_slots, slot_order_reason = _apply_time_of_day_order(
+        all_slots, baseline_count, user_local_hour, difficulty
+    )
+
     baseline_slots = all_slots[:baseline_count]
 
     plan_date = get_user_local_date(user_id, session_provider)
@@ -264,4 +302,5 @@ def get_linear_plan(
         'total_estimated_minutes': total_estimated_minutes,
         'plan_intensity': get_plan_intensity(total_estimated_minutes),
         'tomorrow_preview': tomorrow_preview,
+        'slot_order_reason': slot_order_reason,
     }

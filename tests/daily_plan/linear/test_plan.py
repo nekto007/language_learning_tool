@@ -622,3 +622,145 @@ class TestGetPlanDifficultyHelper:
         from app.daily_plan.linear.chain import _get_plan_difficulty
 
         assert _get_plan_difficulty(999999999, real_db) == 'normal'
+
+
+# ── Task 51: Adaptive slot order by time-of-day ───────────────────────
+
+
+class TestApplyTimeOfDayOrder:
+    """Unit tests for _apply_time_of_day_order (no DB needed)."""
+
+    def _slots(self) -> list[dict]:
+        return [
+            {'kind': 'curriculum', 'completed': False},
+            {'kind': 'srs', 'completed': False},
+            {'kind': 'reading', 'completed': False},
+        ]
+
+    def test_evening_srs_first(self):
+        from app.daily_plan.linear.plan import _apply_time_of_day_order
+
+        result, reason = _apply_time_of_day_order(self._slots(), 3, 21, 'normal')
+
+        assert result[0]['kind'] == 'srs'
+        assert result[1]['kind'] == 'curriculum'
+        assert reason == 'evening'
+
+    def test_evening_boundary_at_20(self):
+        from app.daily_plan.linear.plan import _apply_time_of_day_order
+
+        result, reason = _apply_time_of_day_order(self._slots(), 3, 20, 'normal')
+
+        assert result[0]['kind'] == 'srs'
+        assert reason == 'evening'
+
+    def test_morning_curriculum_first(self):
+        from app.daily_plan.linear.plan import _apply_time_of_day_order
+
+        result, reason = _apply_time_of_day_order(self._slots(), 3, 8, 'normal')
+
+        assert result[0]['kind'] == 'curriculum'
+        assert reason == 'morning'
+
+    def test_morning_boundary_at_9(self):
+        from app.daily_plan.linear.plan import _apply_time_of_day_order
+
+        result, reason = _apply_time_of_day_order(self._slots(), 3, 9, 'normal')
+
+        assert result[0]['kind'] == 'curriculum'
+        assert reason == 'morning'
+
+    def test_default_order_midday(self):
+        from app.daily_plan.linear.plan import _apply_time_of_day_order
+
+        result, reason = _apply_time_of_day_order(self._slots(), 3, 14, 'normal')
+
+        assert result[0]['kind'] == 'curriculum'
+        assert reason == 'default'
+
+    def test_default_order_hour_10(self):
+        from app.daily_plan.linear.plan import _apply_time_of_day_order
+
+        result, reason = _apply_time_of_day_order(self._slots(), 3, 10, 'normal')
+
+        assert reason == 'default'
+
+    def test_default_order_hour_19(self):
+        from app.daily_plan.linear.plan import _apply_time_of_day_order
+
+        result, reason = _apply_time_of_day_order(self._slots(), 3, 19, 'normal')
+
+        assert reason == 'default'
+
+    def test_light_mode_not_reordered(self):
+        from app.daily_plan.linear.plan import _apply_time_of_day_order
+
+        slots = [
+            {'kind': 'curriculum', 'completed': False},
+            {'kind': 'srs', 'completed': False},
+        ]
+        result, reason = _apply_time_of_day_order(slots, 2, 21, 'light')
+
+        assert result[0]['kind'] == 'curriculum'
+        assert reason == 'default'
+
+    def test_intensive_mode_not_reordered(self):
+        from app.daily_plan.linear.plan import _apply_time_of_day_order
+
+        result, reason = _apply_time_of_day_order(self._slots(), 3, 21, 'intensive')
+
+        assert result[0]['kind'] == 'curriculum'
+        assert reason == 'default'
+
+    def test_extension_slots_preserved_after_reorder(self):
+        from app.daily_plan.linear.plan import _apply_time_of_day_order
+
+        slots = [
+            {'kind': 'curriculum', 'completed': False},
+            {'kind': 'srs', 'completed': False},
+            {'kind': 'reading', 'completed': False},
+            {'kind': 'error_review', 'completed': False},  # extension
+        ]
+        result, reason = _apply_time_of_day_order(slots, 3, 21, 'normal')
+
+        assert result[3]['kind'] == 'error_review'
+        assert len(result) == 4
+
+    def test_all_slots_preserved_after_reorder(self):
+        from app.daily_plan.linear.plan import _apply_time_of_day_order
+
+        result, _ = _apply_time_of_day_order(self._slots(), 3, 21, 'normal')
+
+        kinds = {s['kind'] for s in result}
+        assert kinds == {'curriculum', 'srs', 'reading'}
+        assert len(result) == 3
+
+
+class TestSlotOrderReasonInPayload:
+    """slot_order_reason is always present in get_linear_plan payload."""
+
+    def test_slot_order_reason_in_payload(self, db_session):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module)
+        user = _make_user(db_session)
+        user.onboarding_level = level.code
+        db_session.commit()
+
+        payload = get_linear_plan(user.id, real_db)
+
+        assert 'slot_order_reason' in payload
+        assert payload['slot_order_reason'] in ('default', 'morning', 'evening')
+
+    def test_light_mode_always_default_reason(self, db_session):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module)
+        user = _make_user(db_session)
+        user.onboarding_level = level.code
+        user.plan_difficulty = 'light'
+        db_session.commit()
+
+        payload = get_linear_plan(user.id, real_db)
+
+        assert payload['slot_order_reason'] == 'default'

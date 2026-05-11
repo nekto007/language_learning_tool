@@ -804,11 +804,11 @@
 - Modify: `app/daily_plan/linear/plan.py`
 - Tests: `tests/daily_plan/linear/test_plan.py`
 
-- [ ] In `get_linear_plan()`: if user_local_hour ≥ 20 (evening), reorder: SRS first (quickest habit), then curriculum; morning (≤9): curriculum first (fresh brain)
-- [ ] Only reorder for `plan_difficulty='normal'`; light/intensive use fixed order
-- [ ] Add `slot_order_reason: str` to plan payload for UI tooltip
-- [ ] Tests: hour=21 → SRS first; hour=8 → curriculum first; hour=14 → default order; light mode → fixed
-- [ ] Run pytest tests/daily_plan/linear/
+- [x] In `get_linear_plan()`: if user_local_hour ≥ 20 (evening), reorder: SRS first (quickest habit), then curriculum; morning (≤9): curriculum first (fresh brain)
+- [x] Only reorder for `plan_difficulty='normal'`; light/intensive use fixed order
+- [x] Add `slot_order_reason: str` to plan payload for UI tooltip
+- [x] Tests: hour=21 → SRS first; hour=8 → curriculum first; hour=14 → default order; light mode → fixed
+- [x] Run pytest tests/daily_plan/linear/
 
 ---
 ### Task 52: Plan completion celebration screen
