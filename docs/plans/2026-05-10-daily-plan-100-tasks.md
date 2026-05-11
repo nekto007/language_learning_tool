@@ -943,11 +943,11 @@
 - Modify: `app/templates/study/index.html`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] `get_pronunciation_stats(user_id, db)` — total attempts, match_rate last 7 days, total words practiced
-- [ ] Dashboard widget: "Произношение: N слов · X% совпадений"
-- [ ] Widget wrapped in `_safe_widget_call()`
-- [ ] Tests: correct aggregates; zero attempts → zeros
-- [ ] Run pytest -m smoke
+- [x] `get_pronunciation_stats(user_id, db)` — total attempts, match_rate last 7 days, total words practiced
+- [x] Dashboard widget: "Произношение: N слов · X% совпадений"
+- [x] Widget wrapped in `_safe_widget_call()`
+- [x] Tests: correct aggregates; zero attempts → zeros
+- [x] Run pytest -m smoke
 
 ---
 ### Task 61: Immersion completion achievement

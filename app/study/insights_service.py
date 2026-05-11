@@ -752,6 +752,55 @@ def get_weekly_summary(user_id: int) -> dict[str, Any]:
 # Pronunciation weaknesses
 # ---------------------------------------------------------------------------
 
+def get_pronunciation_stats(user_id: int) -> dict[str, Any]:
+    """Return pronunciation analytics.
+
+    Keys:
+      - total_attempts: all-time count of PronunciationAttempt rows
+      - total_words: distinct words practiced (all time)
+      - match_rate_7d: percentage of matched attempts in the last 7 days (0.0 if none)
+    """
+    from app.curriculum.models import PronunciationAttempt
+
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+
+    total_attempts = (
+        db.session.query(func.count(PronunciationAttempt.id))
+        .filter(PronunciationAttempt.user_id == user_id)
+        .scalar()
+    ) or 0
+
+    total_words = (
+        db.session.query(func.count(func.distinct(PronunciationAttempt.word)))
+        .filter(PronunciationAttempt.user_id == user_id)
+        .scalar()
+    ) or 0
+
+    row_7d = (
+        db.session.query(
+            func.count(PronunciationAttempt.id).label('total'),
+            func.sum(
+                func.cast(PronunciationAttempt.matched, db.Integer)
+            ).label('matched'),
+        )
+        .filter(
+            PronunciationAttempt.user_id == user_id,
+            PronunciationAttempt.created_at >= seven_days_ago,
+        )
+        .one()
+    )
+
+    total_7d = int(row_7d.total) if row_7d.total else 0
+    matched_7d = int(row_7d.matched) if row_7d.matched else 0
+    match_rate_7d = round(matched_7d / total_7d * 100, 1) if total_7d > 0 else 0.0
+
+    return {
+        'total_attempts': int(total_attempts),
+        'total_words': int(total_words),
+        'match_rate_7d': match_rate_7d,
+    }
+
+
 def get_pronunciation_weaknesses(user_id: int, min_attempts: int = 3) -> list[str]:
     """Return words where match_rate < 50% across all pronunciation attempts.
 

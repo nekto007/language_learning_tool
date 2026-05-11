@@ -475,6 +475,19 @@
     </div>
     {% endif %}
 
+    <!-- Pronunciation stats compact widget (task 60) -->
+    {% if pronunciation_stats and pronunciation_stats.total_words > 0 %}
+    <div class="dash-pronunciation-stats" style="margin-top: 1rem;">
+        <span class="dash-pronunciation-stats__icon">&#127908;</span>
+        <span class="dash-pronunciation-stats__label">Произношение:</span>
+        <span class="dash-pronunciation-stats__value">{{ pronunciation_stats.total_words }} {% if pronunciation_stats.total_words == 1 %}слово{% elif pronunciation_stats.total_words < 5 %}слова{% else %}слов{% endif %}</span>
+        {% if pronunciation_stats.match_rate_7d > 0 %}
+        <span class="dash-pronunciation-stats__sep">·</span>
+        <span class="dash-pronunciation-stats__rate">{{ pronunciation_stats.match_rate_7d | int }}% совпадений</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Quiz Modal -->
     <div class="modal fade" id="quizLimitModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="quizLimitModalTitle">
         <div class="modal-dialog">

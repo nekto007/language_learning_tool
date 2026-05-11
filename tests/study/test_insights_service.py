@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.curriculum.models import CEFRLevel, Lessons, Module, UserWritingAttempt, PronunciationAttempt
-from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses
+from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats
 from app.study.models import UserCardDirection, UserWord
 from app.words.models import CollectionWords
 from app.utils.db import db
@@ -324,3 +324,80 @@ class TestGetPronunciationWeaknesses:
             _make_pronunciation_attempt(db_session, other.id, 'shared', matched=False)
         result = get_pronunciation_weaknesses(test_user.id)
         assert result == []
+
+
+# ---------------------------------------------------------------------------
+# Tests for get_pronunciation_stats (Task 60)
+# ---------------------------------------------------------------------------
+
+def _make_pronunciation_attempt_at(
+    db_session,
+    user_id: int,
+    word: str,
+    matched: bool,
+    days_ago: int = 0,
+) -> PronunciationAttempt:
+    attempt = PronunciationAttempt(
+        user_id=user_id,
+        word=word,
+        recognized_text=word if matched else 'wrong',
+        matched=matched,
+    )
+    attempt.created_at = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    db_session.add(attempt)
+    db_session.flush()
+    return attempt
+
+
+class TestGetPronunciationStats:
+    def test_zero_attempts_returns_zeros(self, app, db_session, test_user):
+        result = get_pronunciation_stats(test_user.id)
+        assert result['total_attempts'] == 0
+        assert result['total_words'] == 0
+        assert result['match_rate_7d'] == 0.0
+
+    def test_total_attempts_counted(self, app, db_session, test_user):
+        _make_pronunciation_attempt_at(db_session, test_user.id, 'hello', matched=True)
+        _make_pronunciation_attempt_at(db_session, test_user.id, 'world', matched=False)
+        result = get_pronunciation_stats(test_user.id)
+        assert result['total_attempts'] == 2
+
+    def test_total_words_counts_distinct(self, app, db_session, test_user):
+        _make_pronunciation_attempt_at(db_session, test_user.id, 'hello', matched=True)
+        _make_pronunciation_attempt_at(db_session, test_user.id, 'hello', matched=False)
+        _make_pronunciation_attempt_at(db_session, test_user.id, 'world', matched=True)
+        result = get_pronunciation_stats(test_user.id)
+        assert result['total_words'] == 2
+
+    def test_match_rate_7d_correct(self, app, db_session, test_user):
+        # 3 matched, 1 not matched in last 7 days = 75%
+        for _ in range(3):
+            _make_pronunciation_attempt_at(db_session, test_user.id, 'hi', matched=True, days_ago=1)
+        _make_pronunciation_attempt_at(db_session, test_user.id, 'hi', matched=False, days_ago=1)
+        result = get_pronunciation_stats(test_user.id)
+        assert result['match_rate_7d'] == 75.0
+
+    def test_old_attempts_excluded_from_7d_rate(self, app, db_session, test_user):
+        # Old failed attempts (>7 days) should not affect 7d rate
+        _make_pronunciation_attempt_at(db_session, test_user.id, 'old', matched=False, days_ago=10)
+        _make_pronunciation_attempt_at(db_session, test_user.id, 'old', matched=True, days_ago=1)
+        result = get_pronunciation_stats(test_user.id)
+        # total_attempts includes old; match_rate_7d only counts last 7 days → 1/1 = 100%
+        assert result['total_attempts'] == 2
+        assert result['match_rate_7d'] == 100.0
+
+    def test_other_users_attempts_excluded(self, app, db_session, test_user):
+        from app.auth.models import User
+        other = User(
+            email=f'other_{uuid.uuid4().hex[:8]}@test.com',
+            username=f'other_{uuid.uuid4().hex[:8]}',
+            onboarding_completed=True,
+        )
+        other.set_password('pass')
+        db_session.add(other)
+        db_session.flush()
+
+        _make_pronunciation_attempt_at(db_session, other.id, 'hello', matched=True)
+        result = get_pronunciation_stats(test_user.id)
+        assert result['total_attempts'] == 0
+        assert result['total_words'] == 0
