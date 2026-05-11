@@ -533,6 +533,32 @@ INITIAL_ACHIEVEMENTS = [
         'xp_reward': 100,
         'category': 'mission'
     },
+
+    # Daily challenge achievements
+    {
+        'code': 'challenge_first',
+        'name': 'Первый вызов',
+        'description': 'Завершите первый ежедневный челлендж',
+        'icon': '🎯',
+        'xp_reward': 30,
+        'category': 'challenge'
+    },
+    {
+        'code': 'challenge_streak_7',
+        'name': 'Неделя вызовов',
+        'description': 'Завершайте ежедневный челлендж 7 дней подряд',
+        'icon': '🔥',
+        'xp_reward': 200,
+        'category': 'challenge'
+    },
+    {
+        'code': 'challenger',
+        'name': 'Настоящий челленджер',
+        'description': 'Завершите 30 ежедневных челленджей',
+        'icon': '🏆',
+        'xp_reward': 500,
+        'category': 'challenge'
+    },
 ]
 
 

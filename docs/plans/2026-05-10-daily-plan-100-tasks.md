@@ -1467,10 +1467,10 @@
 - Modify: `app/achievements/services.py`
 - Tests: `tests/achievements/test_challenge_achievements.py`
 
-- [ ] Seed: `challenge_first` (first challenge complete), `challenge_streak_7` (7-day challenge streak), `challenger` (30 challenges completed total)
-- [ ] `check_challenge_achievements(user_id, db)` called after challenge completion
-- [ ] Tests: first completion → challenge_first; 7-day → challenge_streak_7; 30 total → challenger
-- [ ] Run pytest tests/achievements/
+- [x] Seed: `challenge_first` (first challenge complete), `challenge_streak_7` (7-day challenge streak), `challenger` (30 challenges completed total)
+- [x] `check_challenge_achievements(user_id, db)` called after challenge completion
+- [x] Tests: first completion → challenge_first; 7-day → challenge_streak_7; 30 total → challenger
+- [x] Run pytest tests/achievements/
 
 ---
 ### Task 97: Notification for plan streak milestones

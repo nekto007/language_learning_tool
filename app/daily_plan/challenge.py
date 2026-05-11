@@ -164,6 +164,15 @@ def complete_challenge(
     db.session.add(completion)
     db.session.flush()
 
+    try:
+        from app.achievements.services import check_challenge_achievements
+        check_challenge_achievements(user_id)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            "Failed to check challenge achievements for user %s", user_id
+        )
+
     return {
         'challenge_id': challenge_id,
         'user_id': user_id,

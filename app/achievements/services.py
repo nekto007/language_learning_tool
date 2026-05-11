@@ -822,6 +822,62 @@ def check_weekly_milestone_achievements(user_id: int, streak_days: int, db_sessi
     return [achievement]
 
 
+def check_challenge_achievements(user_id: int, db_session=None) -> List[Achievement]:
+    """Award challenge-related achievements after a DailyChallengeCompletion is created.
+
+    Checks:
+    - challenge_first: user has at least 1 DailyChallengeCompletion
+    - challenge_streak_7: 7-day consecutive challenge completion streak
+    - challenger: 30 total challenge completions
+    """
+    from app.daily_plan.models import DailyChallenge, DailyChallengeCompletion
+    from sqlalchemy import func
+    import datetime as _dt
+
+    session = db_session if db_session is not None else db.session
+
+    codes_to_award: set[str] = set()
+
+    total = session.query(func.count(DailyChallengeCompletion.id)).filter(
+        DailyChallengeCompletion.user_id == user_id,
+    ).scalar() or 0
+
+    if total >= 1:
+        codes_to_award.add('challenge_first')
+
+    if total >= 30:
+        codes_to_award.add('challenger')
+
+    # Compute challenge streak inline (walk-backward same as get_challenge_streak)
+    today = _dt.date.today()
+    cutoff = today - _dt.timedelta(days=365)
+    rows = (
+        session.query(DailyChallenge.challenge_date)
+        .join(DailyChallengeCompletion, DailyChallengeCompletion.challenge_id == DailyChallenge.id)
+        .filter(
+            DailyChallengeCompletion.user_id == user_id,
+            DailyChallenge.challenge_date >= cutoff,
+        )
+        .distinct()
+        .all()
+    )
+    active_dates = {row[0] for row in rows if row[0] is not None}
+    streak = 0
+    for offset in range(365):
+        check_date = today - _dt.timedelta(days=offset)
+        if check_date in active_dates:
+            streak += 1
+        elif offset == 0:
+            continue  # today not done yet, check yesterday
+        else:
+            break
+
+    if streak >= 7:
+        codes_to_award.add('challenge_streak_7')
+
+    return AchievementService._award_badges(user_id, codes_to_award)
+
+
 def process_lesson_completion(user_id: int, lesson_id: int, score: float) -> Dict:
     """
     Complete workflow for lesson completion: assign grade, update stats, check achievements
