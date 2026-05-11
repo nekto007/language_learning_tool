@@ -615,7 +615,7 @@ def check_listening_achievements(user_id: int, db_session=None) -> List[Achievem
     if total >= 10:
         from sqlalchemy import select, literal_column
         subq = (
-            select([ListeningAttempt.score])
+            select(ListeningAttempt.score)
             .where(ListeningAttempt.user_id == user_id)
             .order_by(ListeningAttempt.created_at.desc())
             .limit(10)

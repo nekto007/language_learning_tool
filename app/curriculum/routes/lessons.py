@@ -290,6 +290,28 @@ def submit_lesson(lesson_id):
         else:
             return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
 
+        if result.get('passed'):
+            try:
+                from app.daily_plan.challenge import maybe_auto_complete_challenge
+                time_spent = data.get('time_spent_seconds') if isinstance(data, dict) else None
+                if isinstance(time_spent, (int, float)) and time_spent >= 0:
+                    time_spent = int(time_spent)
+                else:
+                    time_spent = None
+                challenge_result = maybe_auto_complete_challenge(
+                    user_id=current_user.id,
+                    lesson_id=lesson_id,
+                    passed=True,
+                    score=result.get('score'),
+                    time_spent_seconds=time_spent,
+                    db=db,
+                )
+                if challenge_result and not challenge_result.get('already_completed'):
+                    result['challenge_completed'] = True
+                    result['challenge_bonus_xp'] = challenge_result.get('bonus_xp', 0)
+            except Exception as ch_err:
+                logger.warning("Challenge auto-complete failed for lesson %s: %s", lesson_id, ch_err)
+
         return jsonify(result)
 
     except Exception as e:
@@ -378,7 +400,7 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
         hint_chars = 0
     user_text = data.get('user_text', '')
     try:
-        replay_count = int(data.get('replay_count') or 0)
+        replay_count = min(int(data.get('replay_count') or 0), _DICTATION_MAX_REPLAYS)
     except (TypeError, ValueError):
         replay_count = 0
 
@@ -478,7 +500,7 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
     if not isinstance(user_answers, list):
         user_answers = []
     try:
-        replay_count = int(data.get('replay_count') or 0)
+        replay_count = min(int(data.get('replay_count') or 0), _DICTATION_MAX_REPLAYS)
     except (TypeError, ValueError):
         replay_count = 0
 

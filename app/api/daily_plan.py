@@ -1127,8 +1127,33 @@ def challenge_complete():
     if not isinstance(challenge_id, int):
         return api_error('invalid_input', 'challenge_id is required', 400)
 
-    score = body.get('score')
-    time_spent_seconds = body.get('time_spent_seconds')
+    from datetime import date as _date
+    from app.daily_plan.models import DailyChallenge
+    _challenge_check = DailyChallenge.query.filter_by(id=challenge_id).first()
+    if _challenge_check is None or _challenge_check.challenge_date != _date.today():
+        return api_error('invalid_input', 'challenge_id does not match today\'s challenge', 400)
+
+    raw_score = body.get('score')
+    if raw_score is not None:
+        try:
+            score = float(raw_score)
+            if not (0.0 <= score <= 100.0):
+                return api_error('invalid_input', 'score must be between 0 and 100', 400)
+        except (TypeError, ValueError):
+            return api_error('invalid_input', 'score must be a number', 400)
+    else:
+        score = None
+
+    raw_time = body.get('time_spent_seconds')
+    if raw_time is not None:
+        try:
+            time_spent_seconds = int(raw_time)
+            if time_spent_seconds < 0:
+                return api_error('invalid_input', 'time_spent_seconds must be non-negative', 400)
+        except (TypeError, ValueError):
+            return api_error('invalid_input', 'time_spent_seconds must be an integer', 400)
+    else:
+        time_spent_seconds = None
 
     try:
         result = complete_challenge(

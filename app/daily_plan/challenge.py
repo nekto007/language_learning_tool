@@ -1,8 +1,11 @@
 """Daily challenge service: one shared challenge per calendar day."""
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from app.daily_plan.models import CHALLENGE_CATEGORIES
 
@@ -180,3 +183,71 @@ def complete_challenge(
         'bonus_xp': challenge.bonus_xp,
         'completed_at': completion.completed_at.isoformat() if completion.completed_at else None,
     }
+
+
+_SPEED_RUN_MAX_SECONDS = 300  # 5 minutes
+_ACCURACY_FOCUS_MIN_SCORE = 90.0
+
+
+def maybe_auto_complete_challenge(
+    user_id: int,
+    lesson_id: int,
+    passed: bool,
+    score: Optional[float],
+    time_spent_seconds: Optional[int],
+    db,
+) -> Optional[dict]:
+    """Auto-complete today's daily challenge if the lesson meets challenge criteria.
+
+    Called from the lesson submission handler after a successful lesson result.
+    - listening_deep: passed AND lesson_id matches challenge.lesson_id
+    - accuracy_focus: passed AND score >= 90
+    - speed_run: passed AND time_spent_seconds < 300 (client must provide)
+
+    Returns the completion dict (with bonus_xp) when newly completed, or None.
+    Caller must commit.
+    """
+    if not passed:
+        return None
+
+    from app.daily_plan.models import DailyChallenge, DailyChallengeCompletion
+
+    today = date.today()
+    challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
+    if challenge is None:
+        return None
+
+    existing = DailyChallengeCompletion.query.filter_by(
+        challenge_id=challenge.id,
+        user_id=user_id,
+    ).first()
+    if existing:
+        return None
+
+    qualifies = False
+    if challenge.category == 'listening_deep' and challenge.lesson_id == lesson_id:
+        qualifies = True
+    elif challenge.category == 'accuracy_focus' and score is not None and score >= _ACCURACY_FOCUS_MIN_SCORE:
+        qualifies = True
+    elif challenge.category == 'speed_run' and time_spent_seconds is not None and time_spent_seconds < _SPEED_RUN_MAX_SECONDS:
+        qualifies = True
+
+    if not qualifies:
+        return None
+
+    try:
+        result = complete_challenge(
+            user_id=user_id,
+            challenge_id=challenge.id,
+            score=score,
+            time_spent_seconds=time_spent_seconds,
+            db=db,
+        )
+        from app.achievements.xp_service import award_xp
+        bonus_xp = result.get('bonus_xp', 0)
+        if bonus_xp and not result.get('already_completed'):
+            award_xp(user_id, bonus_xp, 'daily_challenge')
+        return result
+    except Exception:
+        logger.exception("maybe_auto_complete_challenge failed for user=%s lesson=%s", user_id, lesson_id)
+        return None
