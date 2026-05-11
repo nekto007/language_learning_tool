@@ -379,6 +379,17 @@
                             Слабая тема: {{ _data.weak_topic_name }}
                         </div>
                         {% endif %}
+                        {% if _data.get('adaptive_hint') %}
+                        <div class="linear-slot__pill linear-slot__pill--adaptive-hint"
+                             data-adaptive-hint="{{ _data.adaptive_hint }}"
+                             role="note">
+                            {% if _data.adaptive_hint == 'слишком сложно' %}
+                            Сложный материал — не торопись
+                            {% else %}
+                            Темп можно ускорить
+                            {% endif %}
+                        </div>
+                        {% endif %}
                         {% elif _kind == 'srs' and _data.get('mode') == 'deck_quiz' %}
                         <div class="linear-slot__meta">
                             {% set _deck_count = _data.get('deck_word_count', 0) | int %}

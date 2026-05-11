@@ -19,8 +19,12 @@ from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.daily_plan.linear.slots import LinearSlot
 from app.daily_plan.linear.slots.curriculum_slot import (
+    _ADAPTIVE_HINT_WINDOW,
+    _ADAPTIVE_LOW_THRESHOLD,
+    _ADAPTIVE_HIGH_THRESHOLD,
     _DEFAULT_ETA_MINUTES,
     _LESSON_ETA_MINUTES,
+    _compute_adaptive_hint,
     build_curriculum_slot,
 )
 from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE, get_source_for_lesson_type
@@ -527,3 +531,122 @@ class TestLinearPlanIntegration:
         )
         assert curriculum_slot['completed'] is True
         assert curriculum_slot['url'] is None
+
+
+class TestComputeAdaptiveHint:
+    """Unit tests for _compute_adaptive_hint (pure function)."""
+
+    def test_all_low_scores_returns_too_hard(self):
+        scores = [50.0, 45.0, 55.0, 40.0, 58.0]  # all < 60
+        assert _compute_adaptive_hint(scores) == 'слишком сложно'
+
+    def test_all_high_scores_returns_speed_up(self):
+        scores = [95.0, 92.0, 98.0, 91.0, 100.0]  # all > 90
+        assert _compute_adaptive_hint(scores) == 'отлично, можно ускорить'
+
+    def test_mixed_scores_returns_none(self):
+        scores = [50.0, 80.0, 90.0, 60.0, 70.0]  # mixed
+        assert _compute_adaptive_hint(scores) is None
+
+    def test_fewer_than_window_returns_none(self):
+        scores = [40.0, 30.0, 50.0]  # only 3, need 5
+        assert _compute_adaptive_hint(scores) is None
+
+    def test_empty_scores_returns_none(self):
+        assert _compute_adaptive_hint([]) is None
+
+    def test_exactly_at_low_threshold_not_low(self):
+        # Score of exactly 60.0 is NOT < 60 so hint should not fire
+        scores = [60.0, 55.0, 50.0, 45.0, 40.0]
+        assert _compute_adaptive_hint(scores) is None
+
+    def test_exactly_at_high_threshold_not_high(self):
+        # Score of exactly 90.0 is NOT > 90 so hint should not fire
+        scores = [90.0, 95.0, 92.0, 97.0, 91.0]
+        assert _compute_adaptive_hint(scores) is None
+
+
+class TestAdaptiveHintInSlot:
+    """Integration tests for adaptive hint in build_curriculum_slot."""
+
+    def _make_attempt(
+        self,
+        db_session,
+        user,
+        lesson,
+        *,
+        score: float,
+        completed_at: datetime,
+    ):
+        from app.curriculum.models import LessonAttempt
+        attempt = LessonAttempt(
+            user_id=user.id,
+            lesson_id=lesson.id,
+            attempt_number=1,
+            score=score,
+            passed=score >= 60,
+            completed_at=completed_at,
+        )
+        db_session.add(attempt)
+        db_session.commit()
+        return attempt
+
+    def test_five_low_scores_add_too_hard_hint(self, db_session, curriculum):
+        level_code = curriculum['level'].code
+        user = _make_user(db_session, onboarding_level=level_code)
+        quiz_lesson = curriculum['lessons']['quiz']
+        # Create 5 low-score attempts
+        for i, score in enumerate([50.0, 45.0, 55.0, 40.0, 58.0]):
+            self._make_attempt(
+                db_session, user, quiz_lesson,
+                score=score,
+                completed_at=datetime(2026, 5, 1, 10, i, 0),
+            )
+        slot = build_curriculum_slot(user.id, real_db)
+        assert slot.data.get('adaptive_hint') == 'слишком сложно'
+
+    def test_five_high_scores_add_speed_up_hint(self, db_session, curriculum):
+        level_code = curriculum['level'].code
+        user = _make_user(db_session, onboarding_level=level_code)
+        quiz_lesson = curriculum['lessons']['quiz']
+        for i, score in enumerate([95.0, 92.0, 98.0, 91.0, 100.0]):
+            self._make_attempt(
+                db_session, user, quiz_lesson,
+                score=score,
+                completed_at=datetime(2026, 5, 1, 10, i, 0),
+            )
+        slot = build_curriculum_slot(user.id, real_db)
+        assert slot.data.get('adaptive_hint') == 'отлично, можно ускорить'
+
+    def test_mixed_scores_no_hint(self, db_session, curriculum):
+        level_code = curriculum['level'].code
+        user = _make_user(db_session, onboarding_level=level_code)
+        quiz_lesson = curriculum['lessons']['quiz']
+        for i, score in enumerate([50.0, 80.0, 90.0, 60.0, 70.0]):
+            self._make_attempt(
+                db_session, user, quiz_lesson,
+                score=score,
+                completed_at=datetime(2026, 5, 1, 10, i, 0),
+            )
+        slot = build_curriculum_slot(user.id, real_db)
+        assert 'adaptive_hint' not in slot.data
+
+    def test_fewer_than_five_attempts_no_hint(self, db_session, curriculum):
+        level_code = curriculum['level'].code
+        user = _make_user(db_session, onboarding_level=level_code)
+        quiz_lesson = curriculum['lessons']['quiz']
+        # Only 3 low-score attempts — not enough to trigger hint
+        for i, score in enumerate([30.0, 40.0, 50.0]):
+            self._make_attempt(
+                db_session, user, quiz_lesson,
+                score=score,
+                completed_at=datetime(2026, 5, 1, 10, i, 0),
+            )
+        slot = build_curriculum_slot(user.id, real_db)
+        assert 'adaptive_hint' not in slot.data
+
+    def test_no_attempts_no_hint(self, db_session, curriculum):
+        level_code = curriculum['level'].code
+        user = _make_user(db_session, onboarding_level=level_code)
+        slot = build_curriculum_slot(user.id, real_db)
+        assert 'adaptive_hint' not in slot.data

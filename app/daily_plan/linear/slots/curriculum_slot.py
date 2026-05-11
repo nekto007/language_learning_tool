@@ -110,6 +110,52 @@ _WEAK_ACCURACY_MAX = 0.6
 # Minimum number of attempts before a topic is eligible to be marked weak.
 _WEAK_MIN_ATTEMPTS = 3
 
+# Lesson types that produce meaningful quiz scores for adaptive difficulty.
+_QUIZ_LESSON_TYPES: frozenset[str] = frozenset({
+    'quiz', 'grammar', 'final_test',
+    'listening_quiz', 'dialogue_completion_quiz',
+    'ordering_quiz', 'translation_quiz', 'listening_immersion_quiz',
+})
+
+_ADAPTIVE_LOW_THRESHOLD = 60.0    # all below → content too hard
+_ADAPTIVE_HIGH_THRESHOLD = 90.0   # all above → content too easy
+_ADAPTIVE_HINT_WINDOW = 5         # consecutive recent attempts required
+
+
+def _get_recent_quiz_scores(
+    user_id: int,
+    db: Any,
+    n: int = _ADAPTIVE_HINT_WINDOW,
+) -> list[float]:
+    """Return scores from the last N completed quiz-type lesson attempts."""
+    from app.curriculum.models import LessonAttempt, Lessons
+
+    rows = (
+        db.session.query(LessonAttempt.score)
+        .join(Lessons, Lessons.id == LessonAttempt.lesson_id)
+        .filter(
+            LessonAttempt.user_id == user_id,
+            LessonAttempt.score.isnot(None),
+            LessonAttempt.completed_at.isnot(None),
+            Lessons.type.in_(tuple(_QUIZ_LESSON_TYPES)),
+        )
+        .order_by(LessonAttempt.completed_at.desc())
+        .limit(n)
+        .all()
+    )
+    return [float(row.score) for row in rows]
+
+
+def _compute_adaptive_hint(scores: list[float]) -> Optional[str]:
+    """Return hint key if all scores consistently low or high; else None."""
+    if len(scores) < _ADAPTIVE_HINT_WINDOW:
+        return None
+    if all(s < _ADAPTIVE_LOW_THRESHOLD for s in scores):
+        return 'слишком сложно'
+    if all(s > _ADAPTIVE_HIGH_THRESHOLD for s in scores):
+        return 'отлично, можно ускорить'
+    return None
+
 
 def _get_weak_grammar_topic_ids(
     user_id: int,
@@ -275,14 +321,19 @@ def build_curriculum_slot(
                 )
                 break
 
+    adaptive_hint = _compute_adaptive_hint(_get_recent_quiz_scores(user_id, db))
+    if adaptive_hint:
+        data['adaptive_hint'] = adaptive_hint
+
     logger.info(
         "curriculum_slot user=%s state=pending lesson=%s type=%s module=%s level=%s"
-        " eta=%d weak_hint=%s",
+        " eta=%d weak_hint=%s adaptive_hint=%s",
         user_id, next_lesson.id, next_lesson.type,
         getattr(module, 'number', None),
         getattr(level, 'code', None),
         _eta_minutes(next_lesson.type),
         weak_hint_fired,
+        adaptive_hint,
     )
     return LinearSlot(
         kind='curriculum',

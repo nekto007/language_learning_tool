@@ -1043,11 +1043,11 @@
 - Modify: `app/daily_plan/linear/slots/curriculum_slot.py`
 - Tests: `tests/daily_plan/linear/test_curriculum_slot.py`
 
-- [ ] If user's last 5 lessons all scored < 60% on quizzes, add `adaptive_hint: 'слишком сложно'` to slot.data
-- [ ] If last 5 all scored > 90%, add `adaptive_hint: 'отлично, можно ускорить'`
-- [ ] Template: show subtle hint in slot — "Темп можно ускорить" / "Сложный материал — не торопись"
-- [ ] Tests: 5 low-score lessons → slow-down hint; 5 high-score → speed-up hint; mixed → no hint
-- [ ] Run pytest tests/daily_plan/linear/
+- [x] If user's last 5 lessons all scored < 60% on quizzes, add `adaptive_hint: 'слишком сложно'` to slot.data
+- [x] If last 5 all scored > 90%, add `adaptive_hint: 'отлично, можно ускорить'`
+- [x] Template: show subtle hint in slot — "Темп можно ускорить" / "Сложный материал — не торопись"
+- [x] Tests: 5 low-score lessons → slow-down hint; 5 high-score → speed-up hint; mixed → no hint
+- [x] Run pytest tests/daily_plan/linear/
 
 ---
 ### Task 68: Custom vocabulary list (user-created collection)
