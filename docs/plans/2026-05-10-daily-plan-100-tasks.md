@@ -833,12 +833,12 @@
 - Create: `app/static/js/speech_api.js`
 - Tests: `tests/study/test_speech_api_ui.py` (integration-level, mock SpeechRecognition)
 
-- [ ] `SpeechAPI` class: `startRecognition(onResult, onError)`, `stopRecognition()`, `isSupported() -> bool`
-- [ ] Handles no-support gracefully: if `window.SpeechRecognition` undefined, isSupported() returns false
-- [ ] Language: `recognition.lang = 'en-US'`; continuous=false; interimResults=false
-- [ ] Module exported as ES module (`export default SpeechAPI`)
-- [ ] Tests: mock SpeechRecognition API; startRecognition triggers onResult with transcript; unsupported path triggers onError
-- [ ] Run pytest -m smoke (JS unit tests via pytest-js if available, else document as manual test)
+- [x] `SpeechAPI` class: `startRecognition(onResult, onError)`, `stopRecognition()`, `isSupported() -> bool`
+- [x] Handles no-support gracefully: if `window.SpeechRecognition` undefined, isSupported() returns false
+- [x] Language: `recognition.lang = 'en-US'`; continuous=false; interimResults=false
+- [x] Module exported as ES module (`export default SpeechAPI`)
+- [x] Tests: mock SpeechRecognition API; startRecognition triggers onResult with transcript; unsupported path triggers onError
+- [x] Run pytest -m smoke (JS unit tests via pytest-js if available, else document as manual test)
 
 ---
 ### Task 54: Shadow reading exercise type
