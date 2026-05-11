@@ -89,6 +89,65 @@
   font-size: 0.75rem;
   padding: 0.25rem 0.75rem;
 }
+/* Add to list widget */
+.word-add-to-list {
+  position: relative;
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+.word-add-to-list__btn {
+  background: none;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 0.375rem;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #888);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: background 0.15s;
+}
+.word-add-to-list__btn:hover {
+  background: var(--color-bg-hover, #f0f0f0);
+}
+.word-add-to-list__btn--added {
+  color: var(--color-success, #16a34a) !important;
+  border-color: var(--color-success, #16a34a) !important;
+}
+.word-add-to-list__dropdown {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  background: white;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  min-width: 160px;
+  z-index: 200;
+  display: none;
+}
+.word-add-to-list__dropdown--open {
+  display: block;
+}
+.word-add-to-list__dropdown-item {
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 0.375rem;
+}
+.word-add-to-list__dropdown-item:hover {
+  background: var(--color-bg-secondary, #f8f9fa);
+}
+.word-add-to-list__dropdown-empty {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #888);
+  cursor: default;
+}
 </style>
 {% endblock %}
 
@@ -247,6 +306,26 @@
                         data-word-id="{{ word.id }}">{{ _('Сохранить') }}</button>
               </div>
             </div>
+            {% if user_custom_lists is defined %}
+            <div class="word-add-to-list"
+                 data-word="{{ word.english | e }}"
+                 data-translation="{{ word.russian | e }}">
+              <button class="word-add-to-list__btn" type="button"
+                      aria-label="{{ _('Добавить в список') }}">
+                <i class="fas fa-bookmark"></i>
+                <span class="word-add-to-list__label">{{ _('В список') }}</span>
+              </button>
+              <div class="word-add-to-list__dropdown">
+                {% if user_custom_lists %}
+                  {% for lst in user_custom_lists %}
+                  <div class="word-add-to-list__dropdown-item" data-list-id="{{ lst.id }}">{{ lst.name }}</div>
+                  {% endfor %}
+                {% else %}
+                <div class="word-add-to-list__dropdown-empty">{{ _('Нет списков') }}</div>
+                {% endif %}
+              </div>
+            </div>
+            {% endif %}
           </div>
           <div class="card-flip-hint">
             <i class="fas fa-sync-alt"></i>
@@ -644,6 +723,63 @@ document.addEventListener('DOMContentLoaded', init);
     });
 
     startAuto();
+  });
+})();
+
+// Add to custom list widget
+(function initAddToList() {
+  const csrfToken = lessonConfig.csrfToken;
+
+  document.querySelectorAll('.word-add-to-list').forEach(function(widget) {
+    const btn = widget.querySelector('.word-add-to-list__btn');
+    const dropdown = widget.querySelector('.word-add-to-list__dropdown');
+    const word = widget.getAttribute('data-word');
+    const translation = widget.getAttribute('data-translation');
+
+    if (!btn || !dropdown) return;
+
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      // Close any other open dropdowns first
+      document.querySelectorAll('.word-add-to-list__dropdown--open').forEach(function(d) {
+        if (d !== dropdown) d.classList.remove('word-add-to-list__dropdown--open');
+      });
+      dropdown.classList.toggle('word-add-to-list__dropdown--open');
+    });
+
+    dropdown.querySelectorAll('.word-add-to-list__dropdown-item').forEach(function(item) {
+      item.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const listId = item.getAttribute('data-list-id');
+        dropdown.classList.remove('word-add-to-list__dropdown--open');
+
+        fetch('/study/api/custom-lists/' + listId + '/words', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+          },
+          body: JSON.stringify({ word: word, translation: translation }),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.ok) {
+            btn.classList.add('word-add-to-list__btn--added');
+            const icon = btn.querySelector('i');
+            if (icon) icon.className = 'fas fa-check';
+            const label = btn.querySelector('.word-add-to-list__label');
+            if (label) label.textContent = '{{ _("Добавлено") }}';
+          }
+        })
+        .catch(function() {});
+      });
+    });
+  });
+
+  document.addEventListener('click', function() {
+    document.querySelectorAll('.word-add-to-list__dropdown--open').forEach(function(d) {
+      d.classList.remove('word-add-to-list__dropdown--open');
+    });
   });
 })();
 </script>

@@ -694,3 +694,130 @@ class TestEtymologyRoute:
     def test_etymology_field_in_model(self):
         from app.words.models import CollectionWords
         assert hasattr(CollectionWords, 'etymology')
+
+
+# ---------------------------------------------------------------------------
+# Task 69: Add words from vocabulary lessons to custom list
+# ---------------------------------------------------------------------------
+
+class TestAddToCustomListTemplate:
+    def test_add_to_list_button_in_template(self):
+        tpl = _read_vocabulary_template()
+        assert 'word-add-to-list' in tpl
+
+    def test_add_to_list_dropdown_in_template(self):
+        tpl = _read_vocabulary_template()
+        assert 'word-add-to-list__dropdown' in tpl
+
+    def test_add_to_list_js_fetch_in_template(self):
+        tpl = _read_vocabulary_template()
+        assert '/study/api/custom-lists/' in tpl
+
+
+class TestAddToCustomListAPI:
+    def test_word_added_to_list(self, app, db_session, test_user, client):
+        from app.study.models import CustomWordList, CustomWordListEntry
+        lst = CustomWordList(user_id=test_user.id, name='My List')
+        db_session.add(lst)
+        db_session.commit()
+
+        _login(client, test_user)
+        resp = client.post(
+            f'/study/api/custom-lists/{lst.id}/words',
+            json={'word': 'river', 'translation': 'река'},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['ok'] is True
+        assert data['already_existed'] is False
+        entry = CustomWordListEntry.query.filter_by(list_id=lst.id, word='river').first()
+        assert entry is not None
+        assert entry.translation == 'река'
+
+    def test_duplicate_add_is_idempotent(self, app, db_session, test_user, client):
+        from app.study.models import CustomWordList, CustomWordListEntry
+        lst = CustomWordList(user_id=test_user.id, name='My List')
+        db_session.add(lst)
+        db_session.commit()
+        entry = CustomWordListEntry(list_id=lst.id, word='stone', translation='камень')
+        db_session.add(entry)
+        db_session.commit()
+
+        _login(client, test_user)
+        resp = client.post(
+            f'/study/api/custom-lists/{lst.id}/words',
+            json={'word': 'stone', 'translation': 'камень'},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['ok'] is True
+        assert data['already_existed'] is True
+        count = CustomWordListEntry.query.filter_by(list_id=lst.id, word='stone').count()
+        assert count == 1
+
+    def test_403_for_other_user_list(self, app, db_session, test_user, client):
+        from app.auth.models import User
+        from app.study.models import CustomWordList
+        other = User(
+            email=f'other_{_unique()}@test.com',
+            username=f'other_{_unique()}',
+            onboarding_completed=True,
+        )
+        other.set_password('pass123')
+        db_session.add(other)
+        db_session.commit()
+        lst = CustomWordList(user_id=other.id, name='Other List')
+        db_session.add(lst)
+        db_session.commit()
+
+        _login(client, test_user)
+        resp = client.post(
+            f'/study/api/custom-lists/{lst.id}/words',
+            json={'word': 'cat', 'translation': 'кошка'},
+        )
+        assert resp.status_code == 403
+
+    def test_vocabulary_route_passes_user_lists(self, app, db_session, test_user, client):
+        from app.study.models import CustomWordList
+        lst = CustomWordList(user_id=test_user.id, name='Interesting Words')
+        db_session.add(lst)
+        db_session.commit()
+
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = 'listtest_' + _unique()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f'/curriculum/lesson/{lesson.id}/vocabulary')
+        html = resp.get_data(as_text=True)
+        assert 'Interesting Words' in html
+        assert 'word-add-to-list' in html
+
+    def test_list_selector_shows_user_lists_only(self, app, db_session, test_user, client):
+        from app.auth.models import User
+        from app.study.models import CustomWordList
+        other = User(
+            email=f'other_{_unique()}@test.com',
+            username=f'other_{_unique()}',
+            onboarding_completed=True,
+        )
+        other.set_password('pass123')
+        db_session.add(other)
+        db_session.commit()
+        other_lst = CustomWordList(user_id=other.id, name='Secret Other List')
+        db_session.add(other_lst)
+        my_lst = CustomWordList(user_id=test_user.id, name='My Own List')
+        db_session.add(my_lst)
+        db_session.commit()
+
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = 'listtest2_' + _unique()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f'/curriculum/lesson/{lesson.id}/vocabulary')
+        html = resp.get_data(as_text=True)
+        assert 'My Own List' in html
+        assert 'Secret Other List' not in html

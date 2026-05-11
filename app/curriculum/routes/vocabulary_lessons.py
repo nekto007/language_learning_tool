@@ -171,12 +171,21 @@ def render_vocabulary_lesson(lesson):
 
     next_lesson = get_next_lesson(lesson.id)
 
+    from app.study.models import CustomWordList
+    user_custom_lists = []
+    if current_user.is_authenticated:
+        lists = CustomWordList.query.filter_by(user_id=current_user.id).order_by(
+            CustomWordList.created_at.desc()
+        ).all()
+        user_custom_lists = [{'id': lst.id, 'name': lst.name} for lst in lists]
+
     return render_template(
         'curriculum/lessons/vocabulary.html',
         lesson=lesson,
         words=words,
         progress=progress,
-        next_lesson=next_lesson
+        next_lesson=next_lesson,
+        user_custom_lists=user_custom_lists,
     )
 
 
@@ -483,12 +492,21 @@ def vocabulary_lesson(lesson_id):
 
     next_lesson = get_next_lesson(lesson.id)
 
+    from app.study.models import CustomWordList
+    user_custom_lists = []
+    if current_user.is_authenticated:
+        lists = CustomWordList.query.filter_by(user_id=current_user.id).order_by(
+            CustomWordList.created_at.desc()
+        ).all()
+        user_custom_lists = [{'id': lst.id, 'name': lst.name} for lst in lists]
+
     return render_template(
         'curriculum/lessons/vocabulary.html',
         lesson=lesson,
         words=words,
         progress=progress,
-        next_lesson=next_lesson
+        next_lesson=next_lesson,
+        user_custom_lists=user_custom_lists,
     )
 
 

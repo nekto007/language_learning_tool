@@ -753,3 +753,32 @@ def check_celebrations():
         'total_xp': current_total_xp,
         'celebrations': celebrations,
     })
+
+
+@study.route('/api/custom-lists/<int:list_id>/words', methods=['POST'])
+@login_required
+def add_word_to_custom_list(list_id: int):
+    """Add a word to a custom list (idempotent). Used from vocabulary lesson AJAX."""
+    from app.study.models import CustomWordList, CustomWordListEntry
+
+    word_list = CustomWordList.query.get_or_404(list_id)
+    if word_list.user_id != current_user.id:
+        return api_error('forbidden', 'Access denied', 403)
+
+    data = request.get_json(silent=True) or {}
+    word = data.get('word', '').strip()
+    translation = data.get('translation', '').strip()
+
+    if not word or not translation:
+        return api_error('invalid_input', 'word and translation are required', 400)
+
+    existing = CustomWordListEntry.query.filter_by(list_id=list_id, word=word).first()
+    if existing:
+        return jsonify({'ok': True, 'entry_id': existing.id, 'word': word,
+                        'translation': translation, 'already_existed': True})
+
+    entry = CustomWordListEntry(list_id=list_id, word=word, translation=translation)
+    db.session.add(entry)
+    db.session.commit()
+    return jsonify({'ok': True, 'entry_id': entry.id, 'word': word,
+                    'translation': translation, 'already_existed': False})

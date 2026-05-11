@@ -1073,11 +1073,11 @@
 - Modify: `app/curriculum/routes/vocabulary_lessons.py` (add API)
 - Tests: `tests/curriculum/test_vocabulary_lessons.py`
 
-- [ ] Add "+" button on each vocabulary word in lesson → dropdown "Добавить в список" showing user's custom lists
-- [ ] AJAX: `POST /api/custom-lists/<list_id>/words {word, translation}` — adds entry
-- [ ] Visual feedback: button becomes checkmark after add
-- [ ] Tests: word added to list; duplicate add → idempotent (no duplicate entry); list selector shows correct user lists
-- [ ] Run pytest tests/curriculum/
+- [x] Add "+" button on each vocabulary word in lesson → dropdown "Добавить в список" showing user's custom lists
+- [x] AJAX: `POST /api/custom-lists/<list_id>/words {word, translation}` — adds entry
+- [x] Visual feedback: button becomes checkmark after add
+- [x] Tests: word added to list; duplicate add → idempotent (no duplicate entry); list selector shows correct user lists
+- [x] Run pytest tests/curriculum/
 
 ---
 ### Task 70: Vocabulary import from plain text
