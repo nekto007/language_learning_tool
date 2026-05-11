@@ -1454,6 +1454,66 @@ def get_level_eta(user_id: int) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Comprehension score by lesson type (last 30 days)
+# ---------------------------------------------------------------------------
+
+def get_comprehension_by_type(user_id: int, days: int = 30) -> list[dict[str, Any]]:
+    """Return average score per graded lesson type over the last *days* days.
+
+    Only includes types with at least one attempt in the period.
+    Returns list of dicts sorted by avg_score descending::
+
+        [{"lesson_type": "quiz", "label": "Тест", "avg_score": 82.0, "attempt_count": 5}, ...]
+    """
+    from app.curriculum.models import LessonAttempt, Lessons
+
+    GRADED_TYPES = (
+        'quiz', 'grammar', 'dictation', 'final_test', 'audio_fill_blank',
+        'sentence_correction', 'sentence_completion', 'translation',
+    )
+    TYPE_LABELS: dict[str, str] = {
+        'quiz': 'Тест',
+        'grammar': 'Грамматика',
+        'dictation': 'Диктант',
+        'final_test': 'Итог. тест',
+        'audio_fill_blank': 'Аудио-пробел',
+        'sentence_correction': 'Исправление',
+        'sentence_completion': 'Дополнение',
+        'translation': 'Перевод',
+    }
+
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
+
+    rows = (
+        db.session.query(
+            Lessons.type.label('lesson_type'),
+            func.avg(LessonAttempt.score).label('avg_score'),
+            func.count(LessonAttempt.id).label('attempt_count'),
+        )
+        .join(Lessons, LessonAttempt.lesson_id == Lessons.id)
+        .filter(
+            LessonAttempt.user_id == user_id,
+            LessonAttempt.score.isnot(None),
+            LessonAttempt.started_at >= cutoff,
+            Lessons.type.in_(GRADED_TYPES),
+        )
+        .group_by(Lessons.type)
+        .order_by(func.avg(LessonAttempt.score).desc())
+        .all()
+    )
+
+    return [
+        {
+            'lesson_type': row.lesson_type,
+            'label': TYPE_LABELS.get(row.lesson_type, row.lesson_type),
+            'avg_score': round(float(row.avg_score), 1),
+            'attempt_count': int(row.attempt_count),
+        }
+        for row in rows
+    ]
+
+
 def get_pronunciation_weaknesses(user_id: int, min_attempts: int = 3) -> list[str]:
     """Return words where match_rate < 50% across all pronunciation attempts.
 

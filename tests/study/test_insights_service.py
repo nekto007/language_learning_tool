@@ -17,7 +17,7 @@ from datetime import datetime, date, timedelta, timezone
 import pytest
 
 from app.curriculum.models import CEFRLevel, Lessons, Module, UserWritingAttempt, PronunciationAttempt, ListeningAttempt, LessonProgress
-from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats, get_weak_areas, get_skills_balance, get_grammar_mastery_by_topic, get_learning_velocity, get_level_eta, get_accuracy_trend
+from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats, get_weak_areas, get_skills_balance, get_grammar_mastery_by_topic, get_learning_velocity, get_level_eta, get_accuracy_trend, get_comprehension_by_type
 from app.study.models import UserCardDirection, UserWord, StudySession
 from app.words.models import CollectionWords
 from app.utils.db import db
@@ -1244,3 +1244,89 @@ class TestGetAccuracyTrend:
         _make_srs_session(db_session, other.id, correct=10, incorrect=0, days_ago=2)
         result = get_accuracy_trend(test_user.id, days=30)
         assert result['dates'] == []
+
+
+# ---------------------------------------------------------------------------
+# Task 80: Comprehension score tracking per lesson type
+# ---------------------------------------------------------------------------
+
+class TestGetComprehensionByType:
+    def test_empty_returns_empty_list(self, app, db_session, test_user):
+        result = get_comprehension_by_type(test_user.id)
+        assert result == []
+
+    def test_single_type_correct_fields(self, app, db_session, test_user):
+        lesson = _make_quiz_lesson(db_session, 'quiz')
+        _make_lesson_attempt(db_session, test_user.id, lesson.id, score=80.0, days_ago=3)
+        result = get_comprehension_by_type(test_user.id)
+        assert len(result) == 1
+        row = result[0]
+        assert row['lesson_type'] == 'quiz'
+        assert row['label'] == 'Тест'
+        assert row['avg_score'] == 80.0
+        assert row['attempt_count'] == 1
+
+    def test_avg_score_multiple_attempts(self, app, db_session, test_user):
+        lesson = _make_quiz_lesson(db_session, 'dictation')
+        _make_lesson_attempt(db_session, test_user.id, lesson.id, score=60.0, days_ago=2)
+        _make_lesson_attempt(db_session, test_user.id, lesson.id, score=80.0, days_ago=1)
+        result = get_comprehension_by_type(test_user.id)
+        assert len(result) == 1
+        assert result[0]['avg_score'] == 70.0
+        assert result[0]['attempt_count'] == 2
+
+    def test_multiple_types_all_returned(self, app, db_session, test_user):
+        quiz_lesson = _make_quiz_lesson(db_session, 'quiz')
+        grammar_lesson = _make_quiz_lesson(db_session, 'grammar')
+        _make_lesson_attempt(db_session, test_user.id, quiz_lesson.id, score=90.0, days_ago=1)
+        _make_lesson_attempt(db_session, test_user.id, grammar_lesson.id, score=70.0, days_ago=1)
+        result = get_comprehension_by_type(test_user.id)
+        types_returned = {r['lesson_type'] for r in result}
+        assert 'quiz' in types_returned
+        assert 'grammar' in types_returned
+
+    def test_sorted_by_avg_score_descending(self, app, db_session, test_user):
+        quiz_lesson = _make_quiz_lesson(db_session, 'quiz')
+        dict_lesson = _make_quiz_lesson(db_session, 'dictation')
+        _make_lesson_attempt(db_session, test_user.id, quiz_lesson.id, score=90.0, days_ago=1)
+        _make_lesson_attempt(db_session, test_user.id, dict_lesson.id, score=50.0, days_ago=1)
+        result = get_comprehension_by_type(test_user.id)
+        scores = [r['avg_score'] for r in result]
+        assert scores == sorted(scores, reverse=True)
+
+    def test_attempt_outside_window_excluded(self, app, db_session, test_user):
+        lesson = _make_quiz_lesson(db_session, 'quiz')
+        _make_lesson_attempt(db_session, test_user.id, lesson.id, score=90.0, days_ago=35)
+        result = get_comprehension_by_type(test_user.id, days=30)
+        assert result == []
+
+    def test_type_with_no_score_excluded(self, app, db_session, test_user):
+        from app.curriculum.models import LessonAttempt
+        lesson = _make_quiz_lesson(db_session, 'quiz')
+        started = datetime.now(timezone.utc).replace(tzinfo=None)
+        attempt = LessonAttempt(
+            user_id=test_user.id,
+            lesson_id=lesson.id,
+            attempt_number=1,
+            started_at=started,
+            score=None,
+        )
+        db_session.add(attempt)
+        db_session.flush()
+        result = get_comprehension_by_type(test_user.id)
+        assert result == []
+
+    def test_other_user_excluded(self, app, db_session, test_user):
+        from app.auth.models import User
+        other = User(
+            email=f'comp_{uuid.uuid4().hex[:6]}@test.com',
+            username=f'comp_{uuid.uuid4().hex[:6]}',
+            onboarding_completed=True,
+        )
+        other.set_password('pass')
+        db_session.add(other)
+        db_session.flush()
+        lesson = _make_quiz_lesson(db_session, 'quiz')
+        _make_lesson_attempt(db_session, other.id, lesson.id, score=85.0, days_ago=1)
+        result = get_comprehension_by_type(test_user.id)
+        assert result == []

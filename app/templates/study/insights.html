@@ -496,6 +496,34 @@
     </div>
     {% endif %}
 
+    <!-- Comprehension by lesson type -->
+    {% if comprehension_by_type %}
+    <div class="insights-section">
+        <div class="insights-section__header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="3" y1="9" x2="21" y2="9"/>
+                <line x1="3" y1="15" x2="21" y2="15"/>
+                <line x1="9" y1="3" x2="9" y2="21"/>
+            </svg>
+            <h2>Понимание по типам уроков</h2>
+        </div>
+        <p class="insights-subtitle">Средний балл за последние 30 дней</p>
+        <div class="comprehension-table">
+            {% for item in comprehension_by_type %}
+            <div class="comprehension-row">
+                <span class="comprehension-row__label">{{ item.label }}</span>
+                <div class="comprehension-row__bar-wrap">
+                    <div class="comprehension-row__bar" style="width:{{ item.avg_score }}%; background: {{ '#ef4444' if item.avg_score < 60 else '#f59e0b' if item.avg_score < 80 else '#10b981' }}"></div>
+                </div>
+                <span class="comprehension-row__score {% if item.avg_score < 60 %}comprehension-row__score--low{% elif item.avg_score < 80 %}comprehension-row__score--mid{% else %}comprehension-row__score--high{% endif %}">{{ item.avg_score }}%</span>
+                <span class="comprehension-row__count">{{ item.attempt_count }} поп.</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Extra summary row -->
     <div class="insights-section insights-extra">
         <div class="insights-extra__grid">
@@ -1134,6 +1162,58 @@
 .level-eta__confidence--low {
     background: rgba(100, 116, 139, 0.1);
     color: var(--ins-text-muted);
+}
+
+/* ---- Comprehension Table ---- */
+.comprehension-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.comprehension-row {
+    display: grid;
+    grid-template-columns: 7rem 1fr 3.5rem 3rem;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.comprehension-row__label {
+    font-size: 0.85rem;
+    color: var(--ins-text);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.comprehension-row__bar-wrap {
+    height: 8px;
+    background: var(--ins-border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.comprehension-row__bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+
+.comprehension-row__score {
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: right;
+}
+
+.comprehension-row__score--low { color: #ef4444; }
+.comprehension-row__score--mid { color: #d97706; }
+.comprehension-row__score--high { color: #059669; }
+
+.comprehension-row__count {
+    font-size: 0.75rem;
+    color: var(--ins-text-muted);
+    text-align: right;
 }
 
 /* ---- Extra Summary ---- */

@@ -1232,11 +1232,11 @@
 - Modify: `app/study/insights_service.py`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] Ensure `LessonAttempt.score` is stored per lesson type (quiz, grammar, dictation, final_test all already do this)
-- [ ] `get_comprehension_by_type(user_id, db)` — avg score per lesson type over last 30 days
-- [ ] Show as mini-table on insights page: "Тест: 82% | Грамматика: 68% | Диктант: 71%"
-- [ ] Tests: correct averages per type; type with no attempts → excluded
-- [ ] Run pytest tests/study/
+- [x] Ensure `LessonAttempt.score` is stored per lesson type (quiz, grammar, dictation, final_test all already do this)
+- [x] `get_comprehension_by_type(user_id, db)` — avg score per lesson type over last 30 days
+- [x] Show as mini-table on insights page: "Тест: 82% | Грамматика: 68% | Диктант: 71%"
+- [x] Tests: correct averages per type; type with no attempts → excluded
+- [x] Run pytest tests/study/
 
 ---
 ### Task 81: Time-of-day learning patterns
