@@ -400,6 +400,94 @@ def test_listening_immersion_audio_covers_all_levels():
 
 
 # ---------------------------------------------------------------------------
+# Integration: listening_quiz_audio.json round-trip parsing (Task 32)
+# ---------------------------------------------------------------------------
+
+
+def test_listening_quiz_audio_json_parses():
+    data_file = (
+        Path(__file__).resolve().parents[2]
+        / "content"
+        / "immersion"
+        / "listening_quiz_audio.json"
+    )
+    assert data_file.exists(), f"Missing: {data_file}"
+    entries, errors = load_entries([str(data_file)])
+    assert errors == [], f"Parse errors: {errors}"
+    assert len(entries) == 77, f"Expected 77 entries, got {len(entries)}"
+
+
+def test_listening_quiz_audio_unique_keys():
+    data_file = (
+        Path(__file__).resolve().parents[2]
+        / "content"
+        / "immersion"
+        / "listening_quiz_audio.json"
+    )
+    entries, _ = load_entries([str(data_file)])
+    keys = [e.external_key for e in entries]
+    assert len(keys) == len(set(keys)), "Duplicate external_key found"
+
+
+def test_listening_quiz_audio_all_excluded():
+    """All listening_quiz entries document item-level audio exclusion."""
+    data_file = (
+        Path(__file__).resolve().parents[2]
+        / "content"
+        / "immersion"
+        / "listening_quiz_audio.json"
+    )
+    entries, _ = load_entries([str(data_file)])
+    for e in entries:
+        assert e.exclusion_reason, (
+            f"{e.external_key}: expected exclusion_reason (audio is item-level)"
+        )
+        assert "exercises" in e.exclusion_reason or "item-level" in e.exclusion_reason
+
+
+def test_listening_quiz_audio_covers_all_levels():
+    data_file = (
+        Path(__file__).resolve().parents[2]
+        / "content"
+        / "immersion"
+        / "listening_quiz_audio.json"
+    )
+    entries, _ = load_entries([str(data_file)])
+    levels = {e.level for e in entries}
+    assert levels == {"A1", "A2", "B1", "B2", "C1"}
+
+
+def test_listening_quiz_audio_level_counts():
+    data_file = (
+        Path(__file__).resolve().parents[2]
+        / "content"
+        / "immersion"
+        / "listening_quiz_audio.json"
+    )
+    entries, _ = load_entries([str(data_file)])
+    by_level = {}
+    for e in entries:
+        by_level[e.level] = by_level.get(e.level, 0) + 1
+    assert by_level == {"A1": 16, "A2": 22, "B1": 14, "B2": 12, "C1": 13}
+
+
+def test_listening_quiz_audio_plan_all_skip_excluded():
+    """All entries should plan as skip_excluded (item-level audio already present)."""
+    data_file = (
+        Path(__file__).resolve().parents[2]
+        / "content"
+        / "immersion"
+        / "listening_quiz_audio.json"
+    )
+    entries, _ = load_entries([str(data_file)])
+    repo = FakeRepository(modules={("A1", 1): 101})
+    repo.add_lesson("A1", 1, "listening_quiz", {"exercises": []})
+    a1_entries = [e for e in entries if e.level == "A1" and e.module_number == 1]
+    plan = plan_patch(a1_entries, repo)
+    assert all(c.action == "skip_excluded" for c in plan.changes)
+
+
+# ---------------------------------------------------------------------------
 # Integration smoke: DBRepository imports correctly
 # ---------------------------------------------------------------------------
 

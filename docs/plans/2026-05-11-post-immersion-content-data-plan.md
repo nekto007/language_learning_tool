@@ -517,10 +517,10 @@
 - Create: `content/immersion/listening_quiz_audio.json`
 - Use: `scripts/import_lesson_audio_metadata.py`
 
-- [ ] Add lesson-level or item-level audio refs for all 77 source `listening_quiz` lessons or document exclusions
-- [ ] Add audio clips only where the quiz template can use them
-- [ ] Preserve quiz answers and options
-- [ ] Verify audio metadata does not reshuffle answer semantics
+- [x] Add lesson-level or item-level audio refs for all 77 source `listening_quiz` lessons or document exclusions
+- [x] Add audio clips only where the quiz template can use them
+- [x] Preserve quiz answers and options
+- [x] Verify audio metadata does not reshuffle answer semantics
 
 ---
 ### Task 33: Add duration and transcript quality checks
