@@ -300,3 +300,161 @@ class TestSentenceReplayCSS:
     def test_sentence_replay_text_class_defined(self):
         css = _read_design_system_css()
         assert ".sentence-replay-text" in css
+
+
+# ---------------------------------------------------------------------------
+# Task 34: Audio URL verification — content_commands CLI
+# ---------------------------------------------------------------------------
+
+class TestContentAuditAudioExpected:
+    """Verify AUDIO_EXPECTED covers all required lesson types."""
+
+    def test_dictation_in_audio_expected(self):
+        from app.cli.content_commands import AUDIO_EXPECTED
+        assert 'dictation' in AUDIO_EXPECTED
+
+    def test_audio_fill_blank_in_audio_expected(self):
+        from app.cli.content_commands import AUDIO_EXPECTED
+        assert 'audio_fill_blank' in AUDIO_EXPECTED
+
+    def test_shadow_reading_in_audio_expected(self):
+        from app.cli.content_commands import AUDIO_EXPECTED
+        assert 'shadow_reading' in AUDIO_EXPECTED
+
+    def test_listening_immersion_in_audio_expected(self):
+        from app.cli.content_commands import AUDIO_EXPECTED
+        assert 'listening_immersion' in AUDIO_EXPECTED
+
+
+class TestIsLocalPath:
+    """Unit tests for _is_local_path helper."""
+
+    def test_static_prefix_is_local(self):
+        from app.cli.content_commands import _is_local_path
+        assert _is_local_path('/static/audio/foo.mp3') is True
+
+    def test_root_path_is_local(self):
+        from app.cli.content_commands import _is_local_path
+        assert _is_local_path('/audio/foo.mp3') is True
+
+    def test_https_url_is_not_local(self):
+        from app.cli.content_commands import _is_local_path
+        assert _is_local_path('https://cdn.example.com/foo.mp3') is False
+
+    def test_http_url_is_not_local(self):
+        from app.cli.content_commands import _is_local_path
+        assert _is_local_path('http://example.com/foo.mp3') is False
+
+    def test_protocol_relative_not_local(self):
+        from app.cli.content_commands import _is_local_path
+        assert _is_local_path('//cdn.example.com/foo.mp3') is False
+
+    def test_empty_string_not_local(self):
+        from app.cli.content_commands import _is_local_path
+        assert _is_local_path('') is False
+
+
+class TestFormatReport:
+    """Unit tests for _format_report helper."""
+
+    def test_empty_list_no_lessons(self):
+        from app.cli.content_commands import _format_report
+        report = _format_report([])
+        assert 'No lessons' in report
+
+    def test_single_missing_lesson(self):
+        from app.cli.content_commands import _format_report
+        row = {
+            'lesson_id': 42,
+            'title': 'Test Dictation',
+            'type': 'dictation',
+            'module_number': 3,
+            'module_title': 'Module 3',
+            'level_code': 'A2',
+            'level_order': 2,
+            'lesson_number': 7,
+            'audio_url': '',
+            'status': 'missing',
+        }
+        report = _format_report([row])
+        assert 'dictation' in report
+        assert 'missing' in report
+        assert 'Test Dictation' in report
+        assert 'A2' in report
+
+    def test_broken_local_status_appears(self):
+        from app.cli.content_commands import _format_report
+        row = {
+            'lesson_id': 99,
+            'title': 'Shadow Read',
+            'type': 'shadow_reading',
+            'module_number': 1,
+            'module_title': 'Module 1',
+            'level_code': 'B1',
+            'level_order': 3,
+            'lesson_number': 2,
+            'audio_url': '/static/audio/nonexistent.mp3',
+            'status': 'broken_local',
+        }
+        report = _format_report([row])
+        assert 'broken_local' in report
+
+    def test_count_line_present(self):
+        from app.cli.content_commands import _format_report
+        rows = [
+            {
+                'lesson_id': i,
+                'title': f'L{i}',
+                'type': 'dictation',
+                'module_number': 1,
+                'module_title': 'M',
+                'level_code': 'A1',
+                'level_order': 1,
+                'lesson_number': i,
+                'audio_url': '',
+                'status': 'missing',
+            }
+            for i in range(3)
+        ]
+        report = _format_report(rows)
+        assert '3' in report
+
+
+class TestContentAuditOutputOption:
+    """Verify --output flag writes report to a file."""
+
+    def test_output_flag_writes_file(self, app, tmp_path):
+        from click.testing import CliRunner
+        from app.cli.content_commands import content_audit_cmd
+
+        out_file = tmp_path / 'audio_report.txt'
+        runner = CliRunner()
+        with app.app_context():
+            result = runner.invoke(content_audit_cmd, ['audio', '--output', str(out_file)])
+
+        assert result.exit_code == 0, result.output
+        assert out_file.exists()
+        content = out_file.read_text()
+        assert len(content) > 0
+
+    def test_output_flag_prints_written_path(self, app, tmp_path):
+        from click.testing import CliRunner
+        from app.cli.content_commands import content_audit_cmd
+
+        out_file = tmp_path / 'report.txt'
+        runner = CliRunner()
+        with app.app_context():
+            result = runner.invoke(content_audit_cmd, ['audio', '-o', str(out_file)])
+
+        assert 'Report written to' in result.output
+
+    def test_no_output_flag_prints_to_stdout(self, app):
+        from click.testing import CliRunner
+        from app.cli.content_commands import content_audit_cmd
+
+        runner = CliRunner()
+        with app.app_context():
+            result = runner.invoke(content_audit_cmd, ['audio'])
+
+        assert result.exit_code == 0
+        assert len(result.output) > 0

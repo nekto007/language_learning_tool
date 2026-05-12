@@ -541,10 +541,10 @@
 - Modify: `app/cli/content_commands.py`
 - Tests: `tests/curriculum/test_listening_ui.py`
 
-- [ ] Include imported `dictation`, `audio_fill_blank`, and `shadow_reading`
-- [ ] Keep existing `listening_immersion` audit behavior
-- [ ] Add broken-local-path detection
-- [ ] Add report output path support
+- [x] Include imported `dictation`, `audio_fill_blank`, and `shadow_reading`
+- [x] Keep existing `listening_immersion` audit behavior
+- [x] Add broken-local-path detection
+- [x] Add report output path support
 
 ---
 ### BLOCK E: Vocabulary Metadata and SRS Data (Tasks 35-44)
