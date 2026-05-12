@@ -1,0 +1,1619 @@
+[
+  {
+    "external_key": "immersion:writing_prompt:A1:01:greetings",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Знакомство и приветствия",
+    "title_en": "Writing: Greetings and Introductions",
+    "description": "Напишите короткое представление о себе, используя слова и фразы модуля «Знакомство и приветствия».",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Introduce yourself in 4-5 sentences. Write your name, age, country, and one thing you like.",
+      "min_words": 25,
+      "example_response": "Hello! My name is Anna. I am 23 years old. I am from Russia. I like music and books. Nice to meet you.",
+      "checklist": [
+        "Used a greeting at the start",
+        "Said your name and age",
+        "Mentioned your country or city",
+        "Wrote at least 4 sentences"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:02:numbers_and_colors",
+    "level": "A1",
+    "module_number": 2,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Предметы вокруг нас",
+    "title_en": "Writing: Objects Around Us",
+    "description": "Опишите предметы вокруг вас, используя простые конструкции this/that и базовый словарь модуля.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Look around the room. Describe 4-5 objects you can see. Use 'this is' and 'that is'.",
+      "min_words": 25,
+      "example_response": "This is a table. That is a chair. This is my book. That is a window. I have a pen on the table.",
+      "checklist": [
+        "Named at least 4 objects",
+        "Used 'this is' or 'that is'",
+        "Used at least 3 module words",
+        "Wrote in short clear sentences"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:03:clothing",
+    "level": "A1",
+    "module_number": 3,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Одежда",
+    "title_en": "Writing: Clothing",
+    "description": "Опишите вашу любимую одежду, используя слова из модуля.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Describe what you usually wear. Write about 3-4 clothing items and their colors.",
+      "min_words": 25,
+      "example_response": "I often wear a blue shirt and black jeans. I have white shoes. In winter I wear a warm coat and a red scarf.",
+      "checklist": [
+        "Named at least 3 clothing items",
+        "Mentioned colors",
+        "Used 'wear' or 'have'",
+        "Wrote in present simple"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:04:objects_around_us",
+    "level": "A1",
+    "module_number": 4,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Числа и цвета",
+    "title_en": "Writing: Numbers and Colors",
+    "description": "Опишите окружающие вас вещи, используя числа и цвета.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Write 4-5 sentences about things you can count in your room. Use numbers and colors.",
+      "min_words": 25,
+      "example_response": "I see two red books on my desk. There are three green plants on the window. I have one black pen and four white papers.",
+      "checklist": [
+        "Used at least 3 numbers",
+        "Used at least 2 colors",
+        "Named common objects",
+        "Wrote at least 4 sentences"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:05:classroom_objects",
+    "level": "A1",
+    "module_number": 5,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Предметы в классе и комнате",
+    "title_en": "Writing: Classroom and Room Objects",
+    "description": "Опишите ваш класс или комнату, используя лексику модуля.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Describe your classroom or room. What is on the desk, wall, and floor? Write 4-5 sentences.",
+      "min_words": 25,
+      "example_response": "In my room there is a big desk. On the desk I have a laptop and books. There is a chair near the desk. On the wall there is a picture.",
+      "checklist": [
+        "Used 'there is' or 'there are'",
+        "Named at least 4 objects",
+        "Used location words (on, in, near)",
+        "Wrote in present simple"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:06:family",
+    "level": "A1",
+    "module_number": 6,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Семья",
+    "title_en": "Writing: Family",
+    "description": "Расскажите о своей семье, используя слова модуля «Семья».",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Write about your family. Say who they are, their names, and one thing each person does.",
+      "min_words": 25,
+      "example_response": "I have a mother, a father and a sister. My mother's name is Olga. She is a teacher. My father works in an office. My sister is a student.",
+      "checklist": [
+        "Mentioned at least 3 family members",
+        "Used possessive 'my'",
+        "Said what they do or like",
+        "Wrote in present simple"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:07:home_and_furniture",
+    "level": "A1",
+    "module_number": 7,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Дом и мебель",
+    "title_en": "Writing: Home and Furniture",
+    "description": "Опишите ваш дом и мебель в нём.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Describe the rooms in your home and the furniture in them. Write 4-5 sentences.",
+      "min_words": 25,
+      "example_response": "My flat has two rooms and a kitchen. In the living room there is a sofa and a TV. In the bedroom I have a bed and a small table. The kitchen has a fridge.",
+      "checklist": [
+        "Named at least 2 rooms",
+        "Named at least 3 furniture items",
+        "Used 'there is' / 'there are'",
+        "Wrote at least 4 sentences"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:08:days_and_time",
+    "level": "A1",
+    "module_number": 8,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Дни недели и время",
+    "title_en": "Writing: Days and Time",
+    "description": "Расскажите, что вы делаете в разные дни недели.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Describe your week. What do you do on different days? Mention the time when possible.",
+      "min_words": 25,
+      "example_response": "On Monday I go to work at 9 a.m. On Wednesday I have an English class at 6 p.m. On Saturday I meet my friends. On Sunday I stay at home.",
+      "checklist": [
+        "Used at least 3 days of the week",
+        "Mentioned time (a.m./p.m. or o'clock)",
+        "Used 'on Monday/Tuesday...' pattern",
+        "Wrote in present simple"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:09:weather_and_seasons",
+    "level": "A1",
+    "module_number": 9,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Погода и времена года",
+    "title_en": "Writing: Weather and Seasons",
+    "description": "Опишите погоду и ваше любимое время года.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Write about your favourite season. Describe the weather and what you do then.",
+      "min_words": 25,
+      "example_response": "My favourite season is summer. It is warm and sunny. The sky is blue. I go to the park and swim in the river. I do not like winter because it is cold.",
+      "checklist": [
+        "Named at least 2 seasons",
+        "Used weather words (warm, cold, rainy)",
+        "Said one activity for the season",
+        "Wrote at least 4 sentences"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:10:daily_routine",
+    "level": "A1",
+    "module_number": 10,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Повседневная жизнь",
+    "title_en": "Writing: Daily Routine",
+    "description": "Опишите ваш обычный день.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Describe your daily routine from morning to evening. Use at least 5 verbs.",
+      "min_words": 25,
+      "example_response": "I get up at 7 a.m. I have breakfast and drink coffee. Then I go to work. I have lunch at 1 p.m. In the evening I read a book and go to bed at 11.",
+      "checklist": [
+        "Wrote about morning, day and evening",
+        "Used at least 5 different verbs",
+        "Mentioned times",
+        "Wrote in present simple"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:11:professions",
+    "level": "A1",
+    "module_number": 11,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Профессии",
+    "title_en": "Writing: Professions",
+    "description": "Расскажите о профессиях членов вашей семьи или друзей.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Write about the jobs of 3 people you know. Say what they do at work.",
+      "min_words": 25,
+      "example_response": "My father is an engineer. He works in a big factory. My mother is a doctor. She helps people at the hospital. My friend Anna is a teacher.",
+      "checklist": [
+        "Named at least 3 professions",
+        "Used 'is a' + profession",
+        "Said one thing each person does",
+        "Wrote in present simple"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:12:daily_habits",
+    "level": "A1",
+    "module_number": 12,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Повседневные привычки",
+    "title_en": "Writing: Daily Habits and Frequency",
+    "description": "Опишите ваши повседневные привычки, используя наречия частотности.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Describe things you always, often, sometimes, and never do. Write 4-5 sentences.",
+      "min_words": 25,
+      "example_response": "I always drink coffee in the morning. I often go for a walk after work. I sometimes watch films on Sunday. I never eat fast food. I usually go to bed early.",
+      "checklist": [
+        "Used 'always', 'often', 'sometimes', 'never'",
+        "Wrote about real habits",
+        "Used at least 4 different activities",
+        "Wrote in present simple"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:13:body_parts",
+    "level": "A1",
+    "module_number": 13,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Части тела",
+    "title_en": "Writing: Body Parts",
+    "description": "Опишите внешность человека, используя названия частей тела.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Describe what a friend or family member looks like. Mention eyes, hair, and other features.",
+      "min_words": 25,
+      "example_response": "My sister Maria has long brown hair and blue eyes. She has a small nose. She is tall. Her hands are small. She has a nice smile.",
+      "checklist": [
+        "Mentioned at least 4 body parts",
+        "Used colors for hair or eyes",
+        "Used 'has' / 'have'",
+        "Wrote at least 4 sentences"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:14:can_abilities",
+    "level": "A1",
+    "module_number": 14,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Умения и способности",
+    "title_en": "Writing: Skills and Abilities",
+    "description": "Расскажите, что вы умеете и не умеете делать, используя can/can't.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Write what you can and cannot do. Mention at least 3 abilities and 2 things you cannot do yet.",
+      "min_words": 25,
+      "example_response": "I can swim and ride a bike. I can speak English a little. I cannot drive a car yet. I cannot play the guitar. My brother can play football very well.",
+      "checklist": [
+        "Used 'can' at least 3 times",
+        "Used 'cannot' or 'can't' at least 2 times",
+        "Mentioned real abilities",
+        "Wrote at least 4 sentences"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:15:food_and_drinks",
+    "level": "A1",
+    "module_number": 15,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Еда и напитки",
+    "title_en": "Writing: Food and Drinks",
+    "description": "Опишите вашу любимую еду и напитки.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "Write about your favourite food and drinks. Say what you like and don't like.",
+      "min_words": 25,
+      "example_response": "I like pizza and pasta. I often drink tea with milk. I don't like fish. For breakfast I eat eggs and toast. My favourite drink is orange juice.",
+      "checklist": [
+        "Named at least 4 foods or drinks",
+        "Used 'like' and 'don't like'",
+        "Mentioned breakfast, lunch or dinner",
+        "Wrote in present simple"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A1:16:personal_belongings",
+    "level": "A1",
+    "module_number": 16,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Личные вещи",
+    "title_en": "Writing: Personal Belongings",
+    "description": "Опишите ваши личные вещи и любимый предмет.",
+    "tags": ["immersion", "writing", "writing_prompt", "a1"],
+    "content": {
+      "prompt": "What is in your bag or backpack? Describe 4-5 personal items.",
+      "min_words": 25,
+      "example_response": "In my bag I have a phone and a wallet. I also have keys and a small notebook. My favourite thing is my black umbrella. I always carry a bottle of water.",
+      "checklist": [
+        "Named at least 4 personal items",
+        "Used 'I have' or 'in my bag'",
+        "Said one favourite item",
+        "Wrote in present simple"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:01:food_articles",
+    "level": "A2",
+    "module_number": 1,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Артикли и some/any (еда)",
+    "title_en": "Writing: Articles and some/any (Food)",
+    "description": "Опишите содержимое вашего холодильника, используя some/any и артикли.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Describe what is in your fridge right now. Use 'some', 'any', 'a', and 'an' correctly.",
+      "min_words": 40,
+      "example_response": "There is some milk and some cheese in my fridge. I have an apple and a few tomatoes. There aren't any vegetables left. I need to buy some bread, an onion and some yoghurt at the supermarket tomorrow morning.",
+      "checklist": [
+        "Used 'some' and 'any' correctly",
+        "Used 'a' or 'an' at least twice",
+        "Mentioned at least 5 foods",
+        "Used 'there is' / 'there are'"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:02:shopping",
+    "level": "A2",
+    "module_number": 2,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Магазины и покупки",
+    "title_en": "Writing: Shopping",
+    "description": "Расскажите о вашем последнем походе в магазин.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Describe a recent shopping trip. Where did you go, what did you buy, and how much did it cost?",
+      "min_words": 40,
+      "example_response": "Last Saturday I went to a clothes shop in the city centre. I bought a blue jacket and a pair of jeans. The jacket cost about fifty euros. The shop assistant was very friendly and helped me find the right size. I paid by card.",
+      "checklist": [
+        "Used past simple verbs",
+        "Mentioned the shop or place",
+        "Mentioned prices or money",
+        "Used at least 4 shopping words"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:03:cafe_and_restaurant",
+    "level": "A2",
+    "module_number": 3,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Кафе и ресторан",
+    "title_en": "Writing: Cafe and Restaurant",
+    "description": "Опишите визит в кафе или ресторан.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Describe your last visit to a cafe or restaurant. What did you order, and how was the food?",
+      "min_words": 40,
+      "example_response": "Last weekend I went to an Italian restaurant with my friend. We ordered a pizza and a salad. I had orange juice and my friend had coffee. The food was delicious and the waiter was very polite. The bill was not expensive. We will come back next month.",
+      "checklist": [
+        "Used past simple",
+        "Mentioned at least 3 menu items",
+        "Said what you thought about the food",
+        "Used at least 2 polite phrases"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:04:food_cooking",
+    "level": "A2",
+    "module_number": 4,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Еда и приготовление блюд",
+    "title_en": "Writing: Food and Cooking",
+    "description": "Опишите, как приготовить ваше любимое блюдо.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Describe how to cook a simple dish. List the ingredients and the main steps.",
+      "min_words": 40,
+      "example_response": "I love making pasta. First, I boil water and add some salt. Then I cook the pasta for ten minutes. In a pan I fry tomatoes and garlic with olive oil. When the pasta is ready, I mix it with the sauce and add cheese. The whole dish takes fifteen minutes.",
+      "checklist": [
+        "Listed at least 4 ingredients",
+        "Used cooking verbs (boil, fry, mix)",
+        "Used time markers (first, then)",
+        "Wrote at least 5 sentences"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:05:hobbies",
+    "level": "A2",
+    "module_number": 5,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Хобби и интересы",
+    "title_en": "Writing: Hobbies and Interests",
+    "description": "Расскажите о ваших хобби и интересах.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Write about your hobbies. How often do you do them, and why do you like them?",
+      "min_words": 40,
+      "example_response": "I have two main hobbies. I love reading and I play the guitar twice a week. Reading helps me relax after work because the stories take me to other worlds. I also enjoy taking photos when I travel. Last summer I took more than two hundred pictures in Italy.",
+      "checklist": [
+        "Mentioned at least 2 hobbies",
+        "Said how often you do them",
+        "Said why you like them",
+        "Used adverbs of frequency"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:06:school_life",
+    "level": "A2",
+    "module_number": 6,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Школьная жизнь",
+    "title_en": "Writing: School Life",
+    "description": "Опишите школьный день или любимый школьный предмет.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Describe a typical school or university day, or your favourite subject.",
+      "min_words": 40,
+      "example_response": "When I was at school, my favourite subject was history. We had lessons four times a week. The teacher told us many interesting stories about old times. I usually got good marks because I read extra books at home. My best friend sat next to me and we always studied together.",
+      "checklist": [
+        "Named at least 1 subject",
+        "Used past or present simple consistently",
+        "Mentioned a teacher or classmate",
+        "Used at least 4 school-related words"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:07:healthy_lifestyle",
+    "level": "A2",
+    "module_number": 7,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Здоровый образ жизни",
+    "title_en": "Writing: Healthy Lifestyle",
+    "description": "Расскажите о здоровых привычках и образе жизни.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Write about your healthy habits. What do you do (or want to do) to stay healthy?",
+      "min_words": 40,
+      "example_response": "I try to live a healthy life. I go to the gym three times a week and I usually walk to work. I drink a lot of water and I avoid sugar. I should sleep more, but I often work late. Next month I want to start swimming on Saturdays.",
+      "checklist": [
+        "Mentioned at least 3 habits",
+        "Used 'should' or 'want to' once",
+        "Used frequency adverbs",
+        "Wrote in present simple"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:08:city_transport",
+    "level": "A2",
+    "module_number": 8,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Путешествия по городу",
+    "title_en": "Writing: City Transport",
+    "description": "Опишите, как вы передвигаетесь по городу.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "How do you usually travel around your city? Describe the transport you use and why.",
+      "min_words": 40,
+      "example_response": "In my city I usually take the metro because it is fast and cheap. Sometimes I ride my bike when the weather is nice. I don't like driving in the city centre because there is too much traffic. On weekends I often walk if the place is not far.",
+      "checklist": [
+        "Mentioned at least 2 transport types",
+        "Explained why you prefer one",
+        "Used 'because'",
+        "Used at least 4 transport words"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:09:friends",
+    "level": "A2",
+    "module_number": 9,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Мои приятели",
+    "title_en": "Writing: My Buddies",
+    "description": "Расскажите о вашем близком друге.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Describe a close friend. What is their name, what do they look like, and what do you do together?",
+      "min_words": 40,
+      "example_response": "My best friend is called Igor. He is tall and has dark hair. He works as a designer and loves cycling. We have known each other for ten years. We often play tennis on Sundays and we sometimes travel together. He is always honest and very funny.",
+      "checklist": [
+        "Used adjectives for personality and appearance",
+        "Mentioned shared activities",
+        "Used present simple and past simple",
+        "Wrote at least 5 sentences"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:10:animals",
+    "level": "A2",
+    "module_number": 10,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Животные",
+    "title_en": "Writing: Animals",
+    "description": "Опишите ваше любимое животное или питомца.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Write about your favourite animal or pet. What does it look like and what does it eat?",
+      "min_words": 40,
+      "example_response": "I have a small grey cat called Mia. She is two years old and very curious. She loves chasing birds in the garden. She eats fish and special cat food. In the evening she likes to sleep on the sofa next to me. She is a perfect friend.",
+      "checklist": [
+        "Described appearance",
+        "Said what the animal eats",
+        "Mentioned its behaviour",
+        "Used at least 4 animal-related words"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:11:superlatives",
+    "level": "A2",
+    "module_number": 11,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Превосходная степень",
+    "title_en": "Writing: Superlatives",
+    "description": "Опишите рекорды и крайности в вашей жизни, используя превосходную степень.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Write 4-5 sentences using superlatives. What is the best, the biggest, the most interesting thing in your life?",
+      "min_words": 40,
+      "example_response": "The best book I have ever read is Pride and Prejudice. My happiest day was my brother's wedding last year. The biggest city I have visited is Tokyo. My most interesting hobby is photography. And the funniest person I know is my uncle Mike.",
+      "checklist": [
+        "Used at least 4 different superlatives",
+        "Used 'the' before each superlative",
+        "Wrote about personal experiences",
+        "Used at least 3 adjectives"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:12:city_village",
+    "level": "A2",
+    "module_number": 12,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Город и деревня",
+    "title_en": "Writing: City and Village",
+    "description": "Сравните жизнь в городе и в деревне.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Compare life in a big city and in a small village. Which one do you prefer and why?",
+      "min_words": 40,
+      "example_response": "Cities are bigger and have more shops, cafes and jobs. However, villages are quieter and the air is cleaner. I prefer living in the city because I love museums and the metro. But on weekends I like to visit my grandparents in their small village in the countryside.",
+      "checklist": [
+        "Compared at least 3 differences",
+        "Used comparative or superlative forms",
+        "Stated your preference",
+        "Used 'because' or 'however'"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:13:countries",
+    "level": "A2",
+    "module_number": 13,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Страны и национальности",
+    "title_en": "Writing: Countries and Nationalities",
+    "description": "Расскажите о странах, которые вы посетили или хотите посетить.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Describe a country you have visited or want to visit. What is special about it?",
+      "min_words": 40,
+      "example_response": "I really want to visit Japan. People in Japan are polite and the food is delicious. Tokyo is one of the biggest cities in the world. I would also love to see the cherry blossoms in spring. The language is difficult but I am learning a few phrases.",
+      "checklist": [
+        "Named a country and a nationality",
+        "Mentioned food, places or culture",
+        "Used 'want to' or 'would like to'",
+        "Wrote at least 5 sentences"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:14:food_and_health",
+    "level": "A2",
+    "module_number": 14,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Еда и здоровье",
+    "title_en": "Writing: Food and Health",
+    "description": "Опишите связь между едой и здоровьем.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Write about healthy and unhealthy food. What should people eat and avoid?",
+      "min_words": 40,
+      "example_response": "People should eat more fruits and vegetables every day. Whole grains and fish are also very good for health. We should drink water instead of sugary drinks. It is better to avoid fast food and sweets. I try to cook at home because home food is healthier.",
+      "checklist": [
+        "Named healthy and unhealthy foods",
+        "Used 'should' or 'shouldn't'",
+        "Mentioned at least 5 foods",
+        "Wrote a clear opinion"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:15:household_chores",
+    "level": "A2",
+    "module_number": 15,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Домашние обязанности",
+    "title_en": "Writing: Household Chores",
+    "description": "Расскажите о домашних обязанностях в вашей семье.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Describe the household chores in your home. Who does what?",
+      "min_words": 40,
+      "example_response": "In my family everyone helps at home. My mother usually cooks dinner and I wash the dishes. My father does the shopping and takes out the rubbish. My sister tidies her room every day. On Saturdays we clean the flat together. I don't really like ironing.",
+      "checklist": [
+        "Named at least 4 chores",
+        "Said who does each chore",
+        "Used frequency adverbs",
+        "Wrote in present simple"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:16:future_plans",
+    "level": "A2",
+    "module_number": 16,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Планы и договорённости",
+    "title_en": "Writing: Future Plans and Arrangements",
+    "description": "Опишите ваши планы на ближайшее будущее.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Describe your plans for next week or next month. Use 'going to' and present continuous for future.",
+      "min_words": 40,
+      "example_response": "Next week I am going to start a new English course. On Tuesday I am meeting my colleagues for lunch. On Saturday my sister is coming from London and we are visiting our grandparents. I am also going to finish reading my book before the weekend.",
+      "checklist": [
+        "Used 'going to' at least twice",
+        "Used present continuous for arrangements",
+        "Mentioned at least 3 specific plans",
+        "Mentioned a day or date"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:17:holiday_plans",
+    "level": "A2",
+    "module_number": 17,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Планы на отпуск",
+    "title_en": "Writing: Holiday Plans",
+    "description": "Опишите ваш планируемый отпуск.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Describe your next holiday plans. Where are you going, with whom, and what will you do?",
+      "min_words": 40,
+      "example_response": "In July I am going to Spain with my best friend. We are flying to Barcelona on the fifth and we are staying for ten days. We are going to visit the beach, eat seafood and walk in the old city. I think it will be a wonderful trip.",
+      "checklist": [
+        "Named a destination",
+        "Said when and with whom",
+        "Mentioned at least 3 planned activities",
+        "Used future forms correctly"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:18:weather_and_climate",
+    "level": "A2",
+    "module_number": 18,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Погода и климат (расширение)",
+    "title_en": "Writing: Weather and Climate",
+    "description": "Опишите климат в вашем регионе и сравните его с другими местами.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Describe the climate in your country. Compare it with another country you know.",
+      "min_words": 40,
+      "example_response": "The climate in my country is continental. Winters are long and cold, often below minus ten degrees. Summers are short but quite hot. In Spain the climate is much milder and the sun shines almost every day. I prefer the Spanish climate, but I love watching snow fall at home.",
+      "checklist": [
+        "Used at least 5 weather words",
+        "Compared two climates",
+        "Used comparative forms",
+        "Mentioned temperature or season"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:19:music_art",
+    "level": "A2",
+    "module_number": 19,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Музыка и искусство",
+    "title_en": "Writing: Music and Art",
+    "description": "Расскажите о вашем любимом музыкальном жанре или художнике.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Write about your favourite music or art. Who is the artist, and what do you like about their work?",
+      "min_words": 40,
+      "example_response": "My favourite musician is Adele. I love her voice because it is powerful and emotional. Her songs talk about real feelings and that's why so many people enjoy them. I also like visiting art galleries when I travel. Last month I saw an exhibition of Van Gogh and his colours were amazing.",
+      "checklist": [
+        "Named a specific artist or band",
+        "Said why you like them",
+        "Mentioned a song, album or work",
+        "Used at least 3 opinion phrases"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:20:nature_animals",
+    "level": "A2",
+    "module_number": 20,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Природа и животные",
+    "title_en": "Writing: Nature and Animals",
+    "description": "Опишите красивое место на природе или дикое животное.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Describe a beautiful natural place you have visited, or a wild animal you find interesting.",
+      "min_words": 40,
+      "example_response": "Last summer I went hiking in the Alps. The mountains were huge and the lakes were a deep blue colour. I saw a group of wild goats near the rocks. The air was clean and silent. I would love to go back next year and walk a longer trail.",
+      "checklist": [
+        "Described natural features (mountain, lake, forest)",
+        "Mentioned at least one animal",
+        "Used past simple verbs",
+        "Used at least 3 descriptive adjectives"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:21:environment_and_ecology",
+    "level": "A2",
+    "module_number": 21,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Окружающая среда, экология",
+    "title_en": "Writing: Environment and Ecology",
+    "description": "Расскажите, как защитить окружающую среду.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "What can people do at home to help the environment? Give at least 3 ideas and explain why.",
+      "min_words": 40,
+      "example_response": "There are many simple things we can do at home. First, we should recycle plastic, paper and glass. Second, we can save water by taking shorter showers. Third, we should turn off the lights when we leave the room. Small actions help to protect the planet for our children.",
+      "checklist": [
+        "Listed at least 3 actions",
+        "Used 'should' or 'can'",
+        "Used sequence words (first, second)",
+        "Explained why each action helps"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:A2:22:holidays_traditions",
+    "level": "A2",
+    "module_number": 22,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Праздники и традиции",
+    "title_en": "Writing: Holidays and Traditions",
+    "description": "Опишите ваш любимый праздник и его традиции.",
+    "tags": ["immersion", "writing", "writing_prompt", "a2"],
+    "content": {
+      "prompt": "Write about your favourite holiday or family tradition. How do you celebrate it?",
+      "min_words": 40,
+      "example_response": "My favourite holiday is New Year. We always cook a big dinner and invite our relatives. At midnight we listen to the president's speech and open champagne. We give each other small presents and watch fireworks from the balcony. The next day we sleep late and enjoy the leftovers.",
+      "checklist": [
+        "Named a specific holiday",
+        "Described at least 3 traditions",
+        "Used present simple for routines",
+        "Mentioned food or family"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:01:past_irregular",
+    "level": "B1",
+    "module_number": 1,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Истории из жизни",
+    "title_en": "Writing: Life Stories",
+    "description": "Расскажите интересную историю из вашей жизни, используя неправильные глаголы в прошедшем времени.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Tell a short story from your life. Use at least 6 irregular past verbs (went, ate, saw, made, etc.).",
+      "min_words": 70,
+      "example_response": "Last summer I went camping with two friends. We took a small tent and drove for three hours into the mountains. When we arrived, we made a fire and cooked sausages. At night we saw a fox near our tent and we became really scared. The next morning we found that the fox had eaten our bread. We had a great laugh about it and drove home.",
+      "checklist": [
+        "Used at least 6 irregular past verbs",
+        "Told a clear beginning, middle and end",
+        "Used time markers (then, after, next)",
+        "Wrote at least 7 sentences"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:02:cinema_and_theatre",
+    "level": "B1",
+    "module_number": 2,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Кино и театр, развлечения",
+    "title_en": "Writing: Cinema and Theatre",
+    "description": "Напишите рецензию на фильм или спектакль.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Write a short review of a film or play you have recently seen. What is it about, and would you recommend it?",
+      "min_words": 70,
+      "example_response": "Last weekend I watched the new Wes Anderson film at the local cinema. It tells the story of a journalist who visits a strange small town in France. The acting is brilliant and the colours are beautiful. The plot is not very clear at first, but it makes more sense in the second half. The soundtrack is also wonderful. I would definitely recommend it to people who enjoy unusual storytelling.",
+      "checklist": [
+        "Named the film or play",
+        "Briefly summarised the plot",
+        "Gave an opinion with reasons",
+        "Recommended it or warned against it"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:03:used_to",
+    "level": "B1",
+    "module_number": 3,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Детство и воспоминания",
+    "title_en": "Writing: Childhood and Memories",
+    "description": "Расскажите о своём детстве, используя конструкцию used to.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Write about what your life was like as a child. Use 'used to' at least 4 times to talk about past habits.",
+      "min_words": 70,
+      "example_response": "When I was a child, my life was very different. I used to live in a small town with my grandparents. We used to grow vegetables in the garden and I used to feed the chickens every morning. I didn't use to watch much television because we only had three channels. On Sundays my grandfather used to take me fishing by the lake. Those summers were the happiest time of my childhood.",
+      "checklist": [
+        "Used 'used to' at least 4 times",
+        "Described past habits and routines",
+        "Contrasted then and now",
+        "Wrote in first person"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:04:friends_and_character",
+    "level": "B1",
+    "module_number": 4,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Друзья, качества, характер",
+    "title_en": "Writing: Friends and Character",
+    "description": "Опишите характер близкого друга, используя прилагательные характера.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Describe the personality of a close friend. What kind of person are they, and how does it show in their actions?",
+      "min_words": 70,
+      "example_response": "My friend Maria is one of the most generous people I know. She always remembers her friends' birthdays and never forgets to ask how you are doing. She is also patient: when I was learning to drive, she sat next to me for hours without complaining. On the other hand, she can be a bit stubborn when she has an opinion. Still, she is honest and reliable, and that is why I trust her completely.",
+      "checklist": [
+        "Used at least 5 personality adjectives",
+        "Gave concrete examples for each trait",
+        "Used linking words (also, however, still)",
+        "Wrote a clear character portrait"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:05:family_relationships",
+    "level": "B1",
+    "module_number": 5,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Семейные отношения",
+    "title_en": "Writing: Family Relationships",
+    "description": "Опишите отношения в вашей семье.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Describe the relationships in your family. Who are you closest to, and how do you spend time together?",
+      "min_words": 70,
+      "example_response": "I have a close relationship with my younger brother even though we are very different. He is more relaxed than I am and often calms me down when I get stressed. We try to call each other every Sunday and we go on a short trip twice a year. My parents are divorced, but they still get on well, which makes family birthdays much easier. Overall, I think we are a supportive family.",
+      "checklist": [
+        "Described 2 or more relationships",
+        "Used phrases like 'get on with', 'close to', 'argue with'",
+        "Gave an example of shared activities",
+        "Wrote a balanced and personal text"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:06:sport_and_achievements",
+    "level": "B1",
+    "module_number": 6,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Спорт и достижения",
+    "title_en": "Writing: Sport and Achievements",
+    "description": "Расскажите о спорте и личных достижениях.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Describe a sport you like or a personal achievement you are proud of. What did it take to achieve it?",
+      "min_words": 70,
+      "example_response": "Two years ago I decided to run my first half-marathon. I had never been a serious runner, so I started training three times a week. At first I could only run for fifteen minutes without stopping. After six months I managed to finish the race in just under two hours. I felt incredibly proud because I had set a goal and reached it through regular effort. Now running is part of my life.",
+      "checklist": [
+        "Named a sport or specific achievement",
+        "Described preparation or training",
+        "Used time markers and past tenses",
+        "Explained why it matters to you"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:07:money_and_finances",
+    "level": "B1",
+    "module_number": 7,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Деньги и финансы",
+    "title_en": "Writing: Money and Finances",
+    "description": "Расскажите о ваших финансовых привычках и планах.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Write about how you manage your money. Do you save, spend, or invest? What are your financial goals?",
+      "min_words": 70,
+      "example_response": "I try to be careful with money but I am not very strict. Every month I put about twenty percent of my salary into a savings account. The rest I spend on rent, food, transport and small pleasures like books or going out with friends. My main financial goal at the moment is to save enough for a deposit on a small flat. I also want to learn the basics of investing next year.",
+      "checklist": [
+        "Used at least 4 finance words (save, spend, invest, budget, salary)",
+        "Described a real habit",
+        "Mentioned a financial goal",
+        "Wrote in a personal and clear style"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:08:work_and_career",
+    "level": "B1",
+    "module_number": 8,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Работа и карьера",
+    "title_en": "Writing: Work and Career",
+    "description": "Расскажите о вашей текущей работе или будущей карьере.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Describe your current job or the career you would like to have. What do you like or dislike about it?",
+      "min_words": 70,
+      "example_response": "I work as a junior developer at a small software company. I usually start at nine and finish around six in the evening. What I enjoy most about my job is solving difficult problems and learning new technologies. The team is small and friendly, which helps a lot. However, there are weeks when the deadlines are very tight and I have to work longer hours. In a few years I hope to become a senior engineer.",
+      "checklist": [
+        "Described the role and tasks",
+        "Mentioned both positives and negatives",
+        "Used at least 4 work-related words",
+        "Mentioned a future career step"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:09:city_and_country",
+    "level": "B1",
+    "module_number": 9,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Город и деревня (расширение), типы жилья",
+    "title_en": "Writing: City and Country, Types of Housing",
+    "description": "Сравните разные типы жилья и место, где бы вы хотели жить.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Compare living in a city flat and in a country house. Which would you choose for the next ten years and why?",
+      "min_words": 70,
+      "example_response": "City flats are usually small but very convenient. You can walk to shops, cafes and the metro, and you don't need a car. On the other hand, country houses offer more space, a garden, and a slower pace of life. For the next ten years I would choose a city flat because I am still building my career and I need to be close to my office. Maybe later I will move to the countryside.",
+      "checklist": [
+        "Compared two housing types",
+        "Listed advantages and disadvantages",
+        "Stated a clear preference",
+        "Used linking words (on the other hand, however)"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:10:food_and_restaurants",
+    "level": "B1",
+    "module_number": 10,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Еда и рестораны (расширение)",
+    "title_en": "Writing: Food and Restaurants",
+    "description": "Опишите кухню вашей страны или интересный ресторан.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Describe the cuisine of your country or a memorable restaurant experience. What makes it special?",
+      "min_words": 70,
+      "example_response": "Russian cuisine is rich and varied. We eat a lot of soups, like borscht and solyanka, and many dishes use sour cream. Last winter I visited a small restaurant in St Petersburg that served traditional food in a cosy old building. The owner explained each dish and the waitress recommended a local wine that paired perfectly with the meat. It was one of the best meals I have ever had.",
+      "checklist": [
+        "Named at least 4 dishes or ingredients",
+        "Described atmosphere or service",
+        "Used past tenses for the experience",
+        "Wrote at least 6 sentences"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:11:internet_and_social_media",
+    "level": "B1",
+    "module_number": 11,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Интернет и соцсети",
+    "title_en": "Writing: Internet and Social Media",
+    "description": "Расскажите о вашем использовании социальных сетей.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Describe how you use the internet and social media every day. Are they more helpful or harmful in your opinion?",
+      "min_words": 70,
+      "example_response": "I spend at least three hours a day online. I mostly read the news, watch videos and message my friends. Social media is useful because it helps me stay in touch with people who live abroad. However, I waste a lot of time scrolling without a real purpose, and I sometimes feel anxious after looking at perfect photos. Overall, I think the internet is helpful if you use it consciously and set limits.",
+      "checklist": [
+        "Described daily online habits",
+        "Listed both benefits and drawbacks",
+        "Gave a balanced opinion",
+        "Used at least 4 tech / internet words"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:12:technology",
+    "level": "B1",
+    "module_number": 12,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Технологии и гаджеты",
+    "title_en": "Writing: Technology and Gadgets",
+    "description": "Расскажите о гаджете, который изменил вашу жизнь.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Describe a technology or gadget that has changed your daily life. How did it change things?",
+      "min_words": 70,
+      "example_response": "Wireless headphones have completely changed the way I commute. Before, I had to deal with tangled cables and noisy buses. Now I just put them on and immediately have a quiet podcast world around me. I listen to language courses on my way to work and I take calls while I am cooking. The battery is the only thing that frustrates me, but overall I cannot imagine going back to wired headphones.",
+      "checklist": [
+        "Named a specific gadget",
+        "Compared life before and after",
+        "Mentioned at least 2 use cases",
+        "Used present perfect or comparative forms"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:13:travel_and_tourism",
+    "level": "B1",
+    "module_number": 13,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Путешествия и туризм",
+    "title_en": "Writing: Travel and Tourism",
+    "description": "Опишите ваш самый запоминающийся опыт путешествия.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Describe the most memorable trip you have taken. Where did you go, and why does it stay with you?",
+      "min_words": 70,
+      "example_response": "Three years ago I travelled to Iceland with two close friends. We rented a small car and drove around the southern coast for a week. The landscapes were unlike anything I had seen before: black sand beaches, huge waterfalls, and steaming geysers. One night we even saw the Northern Lights from our cabin. It stays with me because it reminded me how powerful and quiet nature can be.",
+      "checklist": [
+        "Named a destination and period",
+        "Described at least 3 specific places",
+        "Used past simple and past perfect",
+        "Explained why the trip mattered"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B1:14:fashion_and_style",
+    "level": "B1",
+    "module_number": 14,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Мода и стиль",
+    "title_en": "Writing: Fashion and Style",
+    "description": "Опишите ваш стиль одежды и отношение к моде.",
+    "tags": ["immersion", "writing", "writing_prompt", "b1"],
+    "content": {
+      "prompt": "Describe your personal style. How important is fashion in your life, and what do you wear in different situations?",
+      "min_words": 70,
+      "example_response": "I would describe my style as simple and practical. I prefer neutral colours like black, grey and white, and I rarely follow new trends. For the office I usually wear a plain shirt and tailored trousers, while at the weekends I switch to jeans and a soft hoodie. Fashion is not very important to me, but I do care about quality. I would rather buy one nice jacket than three cheap ones that fall apart.",
+      "checklist": [
+        "Described your style with adjectives",
+        "Mentioned at least 2 occasions",
+        "Used opinion phrases",
+        "Used clothes-related vocabulary"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B2:01:lifestyle_and_psychology",
+    "level": "B2",
+    "module_number": 1,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Образ жизни и психология",
+    "title_en": "Writing: Lifestyle and Psychology",
+    "description": "Опишите, как привычки влияют на психологическое благополучие.",
+    "tags": ["immersion", "writing", "writing_prompt", "b2"],
+    "content": {
+      "prompt": "Discuss how lifestyle choices affect mental well-being. Use examples from your own life or society.",
+      "min_words": 110,
+      "example_response": "Lifestyle choices have a clearer impact on mental well-being than many people realise. Regular exercise, balanced nutrition and consistent sleep are known to reduce stress and stabilise mood. From my own experience, even a short morning walk seems to set a better tone for the day. Social habits also play a major role: spending too much time alone or scrolling through social media can quietly reinforce anxious thinking. On the other hand, simple rituals like meeting a friend once a week or keeping a short journal often produce a noticeable difference. We cannot control everything, but we can usually control the structure of our daily lives, and this structure tends to shape how we feel.",
+      "checklist": [
+        "Made a clear argument",
+        "Used psychological vocabulary",
+        "Supported claims with examples",
+        "Used linking words (however, on the other hand)"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B2:02:science_and_technology",
+    "level": "B2",
+    "module_number": 2,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Наука и технологии (углубление)",
+    "title_en": "Writing: Science and Technology (Advanced)",
+    "description": "Обсудите влияние одной научной инновации на общество.",
+    "tags": ["immersion", "writing", "writing_prompt", "b2"],
+    "content": {
+      "prompt": "Choose one recent scientific or technological development and discuss its impact on society. Include both benefits and risks.",
+      "min_words": 110,
+      "example_response": "The widespread use of large language models is reshaping the way people work and learn. On the positive side, these tools dramatically reduce the time needed for routine writing, research and translation. Students can clarify difficult concepts quickly, while professionals can automate parts of their workflow. However, the risks are equally significant. Reliance on AI may weaken critical thinking, and the spread of plausible-sounding misinformation has already created real problems for journalism. Job displacement in some white-collar sectors is also a serious concern. Overall, the technology is impressive, but society still needs clearer rules and digital literacy to use it responsibly.",
+      "checklist": [
+        "Named a specific development",
+        "Discussed at least 2 benefits and 2 risks",
+        "Used advanced vocabulary",
+        "Wrote a balanced conclusion"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B2:03:media_and_communications",
+    "level": "B2",
+    "module_number": 3,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: СМИ и коммуникации",
+    "title_en": "Writing: Media and Communications",
+    "description": "Обсудите роль СМИ в формировании общественного мнения.",
+    "tags": ["immersion", "writing", "writing_prompt", "b2"],
+    "content": {
+      "prompt": "Discuss the role of the media in shaping public opinion today. Do traditional and online media play different roles?",
+      "min_words": 110,
+      "example_response": "The media still play a powerful role in shaping how people see the world, but the balance has shifted dramatically. Traditional outlets such as television and major newspapers used to set the agenda almost entirely. Today, they share that influence with social platforms and independent online creators. Online media allow more voices to be heard, but they also encourage filter bubbles and emotional reactions. Traditional media, when they are well-funded, still tend to verify facts more carefully. In my view, both layers are necessary: online media keep traditional outlets honest, while editorial journalism keeps the wider conversation grounded in evidence rather than rumour.",
+      "checklist": [
+        "Compared traditional and online media",
+        "Used at least 4 media-related terms",
+        "Gave examples or evidence",
+        "Stated a clear opinion"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B2:04:society_and_culture",
+    "level": "B2",
+    "module_number": 4,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Общество и культура",
+    "title_en": "Writing: Society and Culture",
+    "description": "Опишите культурное явление, которое отражает изменения в обществе.",
+    "tags": ["immersion", "writing", "writing_prompt", "b2"],
+    "content": {
+      "prompt": "Choose one cultural trend in your country and explain what it says about wider changes in society.",
+      "min_words": 110,
+      "example_response": "One striking cultural trend in my country is the rapid growth of small independent coffee shops. Twenty years ago, drinking coffee was usually a quick, functional habit; today, ordering a flat white in a carefully decorated cafe has become a daily ritual for many young professionals. This trend reflects deeper changes. It shows the rise of a middle class that values experience and aesthetics over price, the influence of global lifestyles brought in by travel and social media, and the slow but real shift towards remote work, since cafes have effectively become offices. A small cup of coffee tells a surprisingly long story.",
+      "checklist": [
+        "Named a specific trend",
+        "Connected it to broader change",
+        "Used at least 3 sociocultural terms",
+        "Structured argument logically"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B2:05:psychology_and_relationships",
+    "level": "B2",
+    "module_number": 5,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Психология и отношения (углубление)",
+    "title_en": "Writing: Psychology and Relationships (Advanced)",
+    "description": "Обсудите факторы, которые формируют здоровые отношения.",
+    "tags": ["immersion", "writing", "writing_prompt", "b2"],
+    "content": {
+      "prompt": "Discuss what makes a relationship healthy. Consider communication, boundaries, and shared values.",
+      "min_words": 110,
+      "example_response": "Healthy relationships rarely depend on one big factor; they grow out of dozens of small daily choices. Honest communication is the most obvious element. Partners who can say what they really feel without fear of judgement tend to solve problems before they become serious. Equally important is the ability to set and respect boundaries. People need separate friendships, hobbies and quiet time to bring something fresh back into the relationship. Shared values – about money, family or honesty – act as a long-term compass and make conflicts easier to resolve. Without these foundations, even the strongest initial attraction tends to fade under everyday pressure.",
+      "checklist": [
+        "Discussed at least 3 factors",
+        "Used psychology-related vocabulary",
+        "Used hedging language (tend to, may, often)",
+        "Wrote in formal, analytical tone"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B2:06:science_and_technology",
+    "level": "B2",
+    "module_number": 6,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Наука и технологии (AI, биотехнологии)",
+    "title_en": "Writing: Science and Technology (AI, Biotech)",
+    "description": "Обсудите этические вопросы, связанные с AI или биотехнологиями.",
+    "tags": ["immersion", "writing", "writing_prompt", "b2"],
+    "content": {
+      "prompt": "Discuss one ethical question raised by AI or biotechnology. Where should society draw a line?",
+      "min_words": 110,
+      "example_response": "Gene editing in human embryos forces society to ask uncomfortable questions about identity, fairness and risk. On one hand, the technology offers a real hope of eliminating severe inherited diseases. Few people would refuse to remove a gene that causes early-life suffering. On the other hand, the same tools could be used to select cosmetic traits, which raises the risk of a 'genetic class' divide between those who can afford enhancement and those who cannot. Long-term effects are also poorly understood. A sensible line, in my view, is to allow editing for clearly defined medical conditions while strictly banning cosmetic or enhancement uses, at least until the science is mature.",
+      "checklist": [
+        "Identified an ethical dilemma",
+        "Argued from at least 2 sides",
+        "Used at least 4 advanced terms",
+        "Suggested a position with reasoning"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B2:07:reported_questions",
+    "level": "B2",
+    "module_number": 7,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: СМИ и коммуникации (косвенная речь)",
+    "title_en": "Writing: Media and Communications (Reported Speech)",
+    "description": "Пересказажите интервью или новость, используя косвенную речь.",
+    "tags": ["immersion", "writing", "writing_prompt", "b2"],
+    "content": {
+      "prompt": "Imagine you have just read an interview with a public figure. Report the main points using reported speech and reported questions.",
+      "min_words": 110,
+      "example_response": "Yesterday I read a long interview with a well-known climate scientist in a Sunday paper. She explained that global emissions were still rising despite international agreements, and she said that the next ten years would be decisive. The journalist asked her whether ordinary people could really make a difference. She replied that individual choices mattered, but added that systemic policies were even more important. He also wanted to know if she felt optimistic. She admitted that she did not always feel hopeful, yet she insisted that giving up was not an option. The interview ended with her recommending three concrete actions.",
+      "checklist": [
+        "Used reported speech accurately",
+        "Used at least 2 reported questions",
+        "Used variety of reporting verbs (said, explained, admitted)",
+        "Wrote at least 6 sentences"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B2:08:passive_past",
+    "level": "B2",
+    "module_number": 8,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Технологии и инновации (пассив)",
+    "title_en": "Writing: Technology and Innovations (Passive)",
+    "description": "Опишите процесс или изобретение, используя пассивные конструкции.",
+    "tags": ["immersion", "writing", "writing_prompt", "b2"],
+    "content": {
+      "prompt": "Describe how a product is made or how an important invention was developed. Use passive forms.",
+      "min_words": 110,
+      "example_response": "Modern smartphones are designed by large teams of engineers across several countries. First, the main features are decided by product managers, then detailed plans are drawn by hardware and software specialists. Components such as chips, screens and cameras are sourced from different suppliers and shipped to assembly factories, where the phones are put together by both robots and human workers. Each device is tested for quality before it is packed and sent to warehouses. The whole process has been refined over decades and is now so efficient that millions of identical phones can be delivered to customers around the world every week.",
+      "checklist": [
+        "Used at least 6 passive forms",
+        "Described a clear process",
+        "Used sequence markers (first, then, finally)",
+        "Used technology-related vocabulary"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B2:09:crime_and_law",
+    "level": "B2",
+    "module_number": 9,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Преступность и право",
+    "title_en": "Writing: Crime and Law",
+    "description": "Обсудите вопрос наказания и профилактики преступности.",
+    "tags": ["immersion", "writing", "writing_prompt", "b2"],
+    "content": {
+      "prompt": "Discuss whether stronger punishments or better prevention is more effective in reducing crime.",
+      "min_words": 110,
+      "example_response": "Reducing crime is rarely a simple matter of choosing between harsher punishments and stronger prevention. Long prison sentences may discourage some offenders, but the evidence shows that they have only a limited deterrent effect on impulsive or desperate behaviour. Prevention, by contrast, addresses the conditions that push people towards crime in the first place: poverty, poor education and lack of opportunity. Countries that invest heavily in early childhood programmes, mental health and community policing tend to see lower long-term crime rates. In my view, the most effective approach combines firm but fair sentencing with serious investment in prevention. Neither tool alone can deliver lasting results.",
+      "checklist": [
+        "Took a clear position",
+        "Used legal and social vocabulary",
+        "Compared at least 2 approaches",
+        "Used cohesive devices"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B2:10:travel_and_tourism",
+    "level": "B2",
+    "module_number": 10,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Путешествия и туризм (сложные сценарии)",
+    "title_en": "Writing: Travel and Tourism (Complex Scenarios)",
+    "description": "Опишите сложную ситуацию в путешествии и её решение.",
+    "tags": ["immersion", "writing", "writing_prompt", "b2"],
+    "content": {
+      "prompt": "Describe a difficult travel situation you have faced (cancellation, language barrier, lost documents) and how you resolved it.",
+      "min_words": 110,
+      "example_response": "Last year my flight back from Lisbon was cancelled only two hours before departure. The airline app gave no clear instructions and the queue at the information desk stretched halfway around the terminal. After a stressful hour, I managed to speak to an agent who offered me a hotel voucher and a seat on the next morning's flight. The hotel turned out to be far from the airport, so I had to negotiate a taxi reimbursement, which the agent eventually agreed to. I learned the importance of staying calm, asking specific questions and always travelling with a small overnight bag.",
+      "checklist": [
+        "Described a specific problem",
+        "Explained steps taken to solve it",
+        "Used past perfect or past continuous",
+        "Reflected on what you learned"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B2:11:art_and_culture",
+    "level": "B2",
+    "module_number": 11,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Искусство и культура",
+    "title_en": "Writing: Art and Culture",
+    "description": "Обсудите значение искусства в современном обществе.",
+    "tags": ["immersion", "writing", "writing_prompt", "b2"],
+    "content": {
+      "prompt": "Discuss the role of art in modern society. Why does it still matter in a digital, fast-moving world?",
+      "min_words": 110,
+      "example_response": "Art continues to matter even in a society that increasingly measures value in efficiency and data. Painting, theatre and literature give people a language for feelings that everyday conversation rarely covers, from grief and loneliness to wonder and hope. In a fast-moving digital world, art also creates space for slowness and attention, which our brains badly need. It can challenge dominant narratives, expose injustice and bring marginalised voices into public conversation. Of course, art will not solve climate change or inequality directly, but it shapes the imagination that any real solution depends on. A society without art is, in a deep sense, a society without questions.",
+      "checklist": [
+        "Argued why art still matters",
+        "Mentioned at least 2 art forms",
+        "Used at least 5 art-related terms",
+        "Used a formal, reflective tone"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:B2:12:ecology_and_nature",
+    "level": "B2",
+    "module_number": 12,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Экология и природа (глобальные проблемы)",
+    "title_en": "Writing: Ecology and Nature (Global Issues)",
+    "description": "Обсудите одну глобальную экологическую проблему и пути её решения.",
+    "tags": ["immersion", "writing", "writing_prompt", "b2"],
+    "content": {
+      "prompt": "Discuss one major environmental issue and propose realistic solutions at individual, national, and global levels.",
+      "min_words": 110,
+      "example_response": "Plastic pollution in the oceans is one of the clearest environmental challenges of our time. Individually, people can refuse single-use packaging, support local refill shops and properly sort their waste. At the national level, governments need stricter laws on single-use plastics, deposit-return schemes and serious investment in recycling infrastructure. Globally, an enforceable treaty on plastic production would prevent the most polluting countries from undermining everyone else's efforts. None of these layers is enough on its own, but combined they could significantly slow the flow of plastic into the seas. The problem is huge, but it is far from hopeless if action is consistent.",
+      "checklist": [
+        "Named a specific issue",
+        "Proposed solutions at 3 levels",
+        "Used environmental vocabulary",
+        "Used modals of obligation (need to, should)"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:C1:01:trends_and_innovations",
+    "level": "C1",
+    "module_number": 1,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Тренды и инновации (начало)",
+    "title_en": "Writing: Trends and Innovations (Introduction)",
+    "description": "Проанализируйте текущие тренды в выбранной отрасли.",
+    "tags": ["immersion", "writing", "writing_prompt", "c1"],
+    "content": {
+      "prompt": "Analyse one major trend in an industry you know well. What is driving it, and what is likely to happen in the next five years?",
+      "min_words": 150,
+      "example_response": "Within the software industry, one of the most consequential trends is the rapid embedding of AI agents into everyday workflows. Three forces are driving this shift: the dramatic drop in inference costs, the maturity of orchestration frameworks, and growing client demand for measurable productivity gains rather than experimental pilots. Over the next five years, I expect the boundary between traditional SaaS products and agentic systems to blur almost completely. Vendors who still rely on static interfaces will struggle to justify their pricing, while those who invest in reliable evaluations, fine-grained permissions, and graceful failure modes will dominate enterprise contracts. We are also likely to see a parallel trend of regulatory consolidation, with the EU's AI Act setting de facto standards globally. Companies that treat compliance as a feature, not a cost, will be best positioned. In short, the next half-decade will reward depth of integration over surface-level novelty.",
+      "checklist": [
+        "Identified a specific trend",
+        "Analysed underlying drivers",
+        "Made a clear forecast",
+        "Used advanced cohesion and vocabulary"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:C1:02:ecology_and_nature",
+    "level": "C1",
+    "module_number": 2,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Экология и природа (углубление)",
+    "title_en": "Writing: Ecology and Nature (Advanced)",
+    "description": "Проведите критический анализ экологической политики.",
+    "tags": ["immersion", "writing", "writing_prompt", "c1"],
+    "content": {
+      "prompt": "Critically analyse one piece of environmental policy. Does it address the root causes of the problem or only its symptoms?",
+      "min_words": 150,
+      "example_response": "Carbon offset schemes have become one of the most visible instruments of corporate climate policy, yet they invite serious scrutiny. In principle, companies that cannot easily decarbonise pay for verified projects that remove or avoid emissions elsewhere, such as reforestation or methane capture. In practice, the picture is far less reassuring. A growing body of investigations has shown that many offsets dramatically overstate their impact, sometimes by an order of magnitude, while reforestation projects can be wiped out by a single wildfire. More fundamentally, offsets allow heavy emitters to delay structural change in their own operations and supply chains, which is the real source of the problem. A defensible policy framework would treat offsets as a last resort, tightly regulated and independently audited, while imposing absolute reduction targets on the largest emitters. Without that shift, the scheme risks functioning as expensive ethical insurance rather than meaningful climate action.",
+      "checklist": [
+        "Named a specific policy",
+        "Distinguished symptoms from root causes",
+        "Used hedged but firm language",
+        "Used advanced environmental vocabulary"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:C1:03:trends_and_innovations",
+    "level": "C1",
+    "module_number": 3,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Тренды и инновации (форсайт, прогнозы)",
+    "title_en": "Writing: Trends and Innovations (Foresight, Forecasts)",
+    "description": "Опишите свой прогноз развития одной сферы на 10 лет.",
+    "tags": ["immersion", "writing", "writing_prompt", "c1"],
+    "content": {
+      "prompt": "Imagine an area you know well in ten years. Build a foresight scenario with key drivers, uncertainties, and likely outcomes.",
+      "min_words": 150,
+      "example_response": "Imagining higher education in 2036, three drivers seem almost certain to shape the landscape: the maturation of personalised AI tutoring, the demographic decline of traditional eighteen-year-old cohorts in many developed economies, and the continued rise of skills-based hiring in tech-adjacent industries. The main uncertainty is regulatory: whether national governments choose to defend the prestige of legacy universities or to recognise alternative credentials at scale. In the most likely scenario, elite universities will retain their research role but lose much of their teaching monopoly to networks of credentialed micro-programmes augmented by AI tutors. Mid-tier institutions will face a brutal consolidation. A more disruptive scenario, however, is also plausible: if employers fully accept verified skill portfolios, the degree itself could lose meaningful market value within a decade. Either way, faculty incentives, pricing models and student expectations are set to shift more in the next ten years than they have in the last fifty.",
+      "checklist": [
+        "Used a foresight structure (drivers, uncertainties, outcomes)",
+        "Presented at least 2 scenarios",
+        "Used speculative language (would, could, is likely to)",
+        "Wrote in a structured analytical tone"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:C1:04:fashion_and_lifestyle",
+    "level": "C1",
+    "module_number": 4,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Мода и образ жизни",
+    "title_en": "Writing: Fashion and Lifestyle",
+    "description": "Проанализируйте, как мода отражает социальные изменения.",
+    "tags": ["immersion", "writing", "writing_prompt", "c1"],
+    "content": {
+      "prompt": "Analyse how fashion both reflects and shapes social change. Use specific examples from the last decade.",
+      "min_words": 150,
+      "example_response": "Fashion is often dismissed as superficial, yet the last decade offers a vivid illustration of how clothing both mirrors and accelerates social change. The rise of athleisure, for example, coincided with a wider redefinition of work, as flexible schedules and remote arrangements blurred the line between the office and the gym. At the same time, the explosion of second-hand platforms reflects growing scepticism about fast fashion's environmental cost, especially among consumers under thirty. Equally striking is the gradual mainstreaming of gender-fluid silhouettes on major runways, which would have been confined to subcultures only fifteen years ago. Yet fashion does not merely follow: by making certain choices visible and desirable, it normalises new behaviours, from carrying reusable bottles to wearing the same outfit to different events. Far from being trivial, the seasonal cycle of collections is one of the most sensitive indicators of where a society is heading.",
+      "checklist": [
+        "Used at least 3 concrete examples",
+        "Showed both reflection and influence",
+        "Used cohesion markers (yet, at the same time)",
+        "Used a critical, analytical register"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:C1:05:work_and_career",
+    "level": "C1",
+    "module_number": 5,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Работа и карьера (собеседования, переговоры)",
+    "title_en": "Writing: Work and Career (Interviews, Negotiations)",
+    "description": "Опишите стратегию подготовки к сложным переговорам.",
+    "tags": ["immersion", "writing", "writing_prompt", "c1"],
+    "content": {
+      "prompt": "Describe how you would prepare for a difficult salary or contract negotiation. What principles guide your strategy?",
+      "min_words": 150,
+      "example_response": "Preparing for a difficult salary negotiation, I would build my approach around three principles: clarity of value, calibrated alternatives and emotional discipline. The first step is to articulate, in concrete terms, what I bring to the role: not just years of experience, but specific outcomes, ideally with figures attached. Without that, any number I propose will sound arbitrary. The second step is to develop a credible alternative – a written competing offer, a freelance pipeline or a clear plan to stay in my current job under improved conditions. The strength of any negotiating position comes from being genuinely willing to walk away. The third element is emotional discipline. Negotiations often stall because one side reacts to perceived disrespect rather than to the substance of the offer. I would rehearse phrasing that reframes pressure into curiosity and assume that the recruiter is also constrained. Done well, the conversation becomes a joint problem-solving exercise rather than a contest.",
+      "checklist": [
+        "Outlined a clear strategy",
+        "Used at least 3 principles or steps",
+        "Used negotiation-specific vocabulary",
+        "Used hedged, professional tone"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:C1:06:culture_and_society",
+    "level": "C1",
+    "module_number": 6,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Культура и общество",
+    "title_en": "Writing: Culture and Society",
+    "description": "Обсудите культурное явление с точки зрения социального анализа.",
+    "tags": ["immersion", "writing", "writing_prompt", "c1"],
+    "content": {
+      "prompt": "Discuss how globalisation has reshaped local cultural identities. Are local cultures disappearing, adapting, or resisting?",
+      "min_words": 150,
+      "example_response": "Globalisation has not produced the single homogeneous culture that early commentators feared, but it has reshaped local identities in deeply uneven ways. In commercial space, the convergence is undeniable: the same chains, fashions and streaming hits dominate from Stockholm to Seoul. Beneath that surface, however, local cultures have proved remarkably resourceful. Korean and Spanish television, Nigerian music and Mexican cuisine have used global platforms to amplify rather than dilute their distinctiveness. At the same time, there are visible patterns of resistance, from indigenous-language education in Latin America to the protection of regional dialects in Italy. What is disappearing is not local culture as such, but its taken-for-granted continuity: where identity used to be inherited almost passively, it is now actively curated and defended. Globalisation, in short, has not flattened the world; it has forced local cultures to become more self-aware and more strategic about how they evolve.",
+      "checklist": [
+        "Took a nuanced position",
+        "Used cultural and sociological vocabulary",
+        "Used at least 3 examples",
+        "Used a complex argumentative structure"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:C1:07:media_and_communications",
+    "level": "C1",
+    "module_number": 7,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: СМИ и коммуникации (анализ новостей)",
+    "title_en": "Writing: Media and Communications (News Analysis)",
+    "description": "Проанализируйте, как новости подаются в разных источниках.",
+    "tags": ["immersion", "writing", "writing_prompt", "c1"],
+    "content": {
+      "prompt": "Choose a recent news event covered very differently by two outlets. Analyse the framing, language, and underlying assumptions of each.",
+      "min_words": 150,
+      "example_response": "When a major Western bank recently announced large-scale job cuts, two outlets I follow framed the story in strikingly different ways. The Financial Times treated the news as a rational restructuring driven by automation and cost pressures, foregrounding analyst quotes and share-price reactions. Its language was technical and detached: 'streamlining', 'efficiency gains', 'right-sizing'. By contrast, a left-leaning daily led with personal stories from junior employees and described the same event as 'another wave of layoffs', emphasising precarity and the widening gap between executive pay and ordinary workers. Both pieces were factually accurate, but each carried clear assumptions: the first treated capital efficiency as a neutral good, while the second treated job security as a baseline expectation. Reading them side by side made the framing choices unusually visible. It also showed how vocabulary, more than headlines, quietly shapes the moral judgement a reader reaches.",
+      "checklist": [
+        "Compared two specific outlets",
+        "Identified framing devices",
+        "Discussed language and assumptions",
+        "Used a critical, academic tone"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:C1:08:third_conditional",
+    "level": "C1",
+    "module_number": 8,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Путешествия и сожаления (третий условный)",
+    "title_en": "Writing: Travel and Regrets (Third Conditional)",
+    "description": "Опишите путешествие, которое вы хотели бы прожить иначе, используя третий условный.",
+    "tags": ["immersion", "writing", "writing_prompt", "c1"],
+    "content": {
+      "prompt": "Reflect on a past trip that did not go as planned. Use third conditional structures to describe alternative outcomes.",
+      "min_words": 150,
+      "example_response": "Looking back at my first solo trip to Tokyo, I see at least three turning points I would handle very differently today. If I had booked accommodation closer to the centre, I would have lost far less time on long, exhausting train rides at the end of every day. If I had researched basic phrases beyond apologies and directions, I would have been able to start more conversations in small restaurants instead of nodding politely at every recommendation. And if I had built in a single completely unplanned day, I might have stumbled into the kind of unexpected encounters that, with hindsight, become the most memorable parts of any trip. None of these regrets were catastrophic – the trip was still wonderful – but together they have shaped how I prepare now. I no longer try to optimise itineraries; I try to leave room for the unplanned good things that no checklist can guarantee.",
+      "checklist": [
+        "Used at least 4 third conditional structures",
+        "Reflected on real or plausible events",
+        "Connected past hypotheticals to present learning",
+        "Wrote in a reflective tone"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:C1:09:money_and_finances",
+    "level": "C1",
+    "module_number": 9,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Деньги и финансы (инвестиции, экономика)",
+    "title_en": "Writing: Money and Finances (Investments, Economy)",
+    "description": "Обсудите личную стратегию инвестирования.",
+    "tags": ["immersion", "writing", "writing_prompt", "c1"],
+    "content": {
+      "prompt": "Discuss the principles that should guide a long-term personal investment strategy in a high-inflation, high-volatility environment.",
+      "min_words": 150,
+      "example_response": "Designing a long-term investment strategy in a high-inflation, high-volatility environment forces a return to a few unglamorous principles. The first is diversification across asset classes that respond differently to inflation and growth shocks: a mix of broad equity index funds, inflation-linked government bonds and a modest allocation to real assets such as REITs or commodities tends to age better than any concentrated bet. The second is automation. Markets reward investors who keep contributing through downturns and punish those who try to time them, so a fixed monthly transfer into a diversified portfolio is, statistically, the most reliable habit a private investor can adopt. The third is honest cost discipline: high management fees and frequent trading quietly erode returns more than most people realise. Finally, a sober view of one's own risk tolerance matters more than any spreadsheet. A strategy you cannot stick to during a 30 percent drawdown is, in real terms, no strategy at all.",
+      "checklist": [
+        "Outlined at least 4 principles",
+        "Used financial vocabulary correctly",
+        "Showed awareness of risk and behaviour",
+        "Used a formal advisory tone"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:C1:10:social_problems",
+    "level": "C1",
+    "module_number": 10,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Социальные проблемы",
+    "title_en": "Writing: Social Problems",
+    "description": "Проанализируйте сложную социальную проблему.",
+    "tags": ["immersion", "writing", "writing_prompt", "c1"],
+    "content": {
+      "prompt": "Choose a complex social problem (housing, loneliness, inequality) and discuss why it is so resistant to easy solutions.",
+      "min_words": 150,
+      "example_response": "The shortage of affordable housing in major cities is a textbook example of a social problem that resists easy answers. On the surface, the diagnosis seems straightforward: supply has failed to keep pace with demand, especially in the centres of large metropolitan economies. The deeper picture is far more tangled. Restrictive zoning is defended by existing homeowners with strong political voice; construction is constrained by labour shortages and rising material costs; investor demand for residential property drives prices that bear no relation to local wages. Even when new units are built, they tend to be concentrated at the top of the market, leaving median households no better off. Any meaningful policy mix therefore has to combine planning reform, public investment, rental regulation and a longer time horizon than any electoral cycle. The reason this problem persists is not that we lack ideas; it is that the political coalition needed to implement them is unusually difficult to assemble.",
+      "checklist": [
+        "Named a specific problem",
+        "Discussed multiple causes",
+        "Explained political or structural obstacles",
+        "Used advanced argumentation"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:C1:11:sport_and_achievements",
+    "level": "C1",
+    "module_number": 11,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Спорт и достижения (профессиональный спорт)",
+    "title_en": "Writing: Sport and Achievements (Professional Sport)",
+    "description": "Обсудите цену успеха в профессиональном спорте.",
+    "tags": ["immersion", "writing", "writing_prompt", "c1"],
+    "content": {
+      "prompt": "Discuss the personal and ethical costs of high-level professional sport. Is the modern pursuit of records still defensible?",
+      "min_words": 150,
+      "example_response": "High-level professional sport increasingly resembles an extreme experiment in human optimisation, and its costs deserve closer scrutiny. Athletes who reach the top tier accept training regimes that begin in early childhood, displace traditional education and frequently leave lasting physical damage. Mental health pressures, once invisible, are now openly acknowledged: the gap between public adulation and private exhaustion can be devastating. Beyond the individual, the system itself raises ethical questions. The economics of major leagues rely on labour from countries with weak protections, while environmental costs of global tournaments have become impossible to ignore. None of this means the pursuit of records is indefensible, but it does mean that the casual romanticism around it is. A defensible version of elite sport would invest seriously in athlete welfare, broaden access at the base of the pyramid and treat record-breaking as one value among many, rather than as the sole measure of meaning.",
+      "checklist": [
+        "Discussed personal and ethical dimensions",
+        "Used a balanced argumentative structure",
+        "Used advanced sport-related vocabulary",
+        "Reached a nuanced conclusion"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:C1:12:education_and_career",
+    "level": "C1",
+    "module_number": 12,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Образование и карьера (академическая среда)",
+    "title_en": "Writing: Education and Career (Academic Environment)",
+    "description": "Сравните академическую и индустриальную карьерные траектории.",
+    "tags": ["immersion", "writing", "writing_prompt", "c1"],
+    "content": {
+      "prompt": "Compare a career in academia and a career in industry. What kind of person is better suited to each, and how should one decide between them?",
+      "min_words": 150,
+      "example_response": "Choosing between an academic and an industry career is less about prestige than about the kind of life one is prepared to lead for decades. Academia offers freedom of inquiry, the privilege of working on questions that may take years to mature, and a community of people who share that patience. The cost is well documented: short-term contracts, geographically forced moves, intense competition for permanent posts and salaries that rarely match comparable industry roles. Industry, by contrast, trades autonomy for resources. Projects move faster, teams are larger and the feedback loop from research to product is much shorter. Researchers who thrive in industry tend to enjoy collaborative problem-solving, deadlines and ambiguity about credit. A useful decision rule is to ask which kind of frustration is more tolerable: institutional slowness or commercial pressure. Few candidates will love either, but most can identify which one they can sustain for thirty years without losing their initial curiosity.",
+      "checklist": [
+        "Compared both paths fairly",
+        "Discussed personal fit factors",
+        "Used academic and career vocabulary",
+        "Offered a decision framework"
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:writing_prompt:C1:13:law_and_order",
+    "level": "C1",
+    "module_number": 13,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Право и порядок",
+    "title_en": "Writing: Law and Order",
+    "description": "Обсудите баланс свободы и безопасности в современном обществе.",
+    "tags": ["immersion", "writing", "writing_prompt", "c1"],
+    "content": {
+      "prompt": "Discuss how modern democracies should balance individual freedoms and collective security. Where should the line be drawn?",
+      "min_words": 150,
+      "example_response": "The tension between individual freedom and collective security has always been at the centre of democratic politics, but digital infrastructure has sharpened it considerably. Modern states can monitor financial flows, communications and even physical movement with a precision that earlier governments could not have imagined. In response, civil liberties advocates rightly insist that any expansion of surveillance must be matched by independent oversight, time-limited authorisations and meaningful judicial review. Yet the security side of the argument is not trivial: organised crime, terrorism and large-scale fraud all exploit gaps in coordination. A defensible line, in my view, runs not through the question of whether surveillance powers exist, but through who controls them, how transparently they are audited and how easily citizens can challenge their use in court. Democracies that treat oversight as a feature, not a nuisance, tend to retain public trust even when they extend state powers temporarily during genuine crises.",
+      "checklist": [
+        "Discussed both freedom and security",
+        "Used legal and political vocabulary",
+        "Took a position with reasoning",
+        "Used a formal, balanced register"
+      ]
+    }
+  }
+]

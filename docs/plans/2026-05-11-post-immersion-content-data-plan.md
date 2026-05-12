@@ -343,11 +343,11 @@
 **Files:**
 - Create: `content/immersion/writing_prompt_lessons.json`
 
-- [ ] Add 77 writing prompts, one per source module
-- [ ] Include `prompt`, `min_words`, `example_response`, and checklist
-- [ ] Match prompt difficulty to CEFR level
-- [ ] Keep prompts tied to module vocabulary or grammar
-- [ ] Store stable `external_key`
+- [x] Add 77 writing prompts, one per source module
+- [x] Include `prompt`, `min_words`, `example_response`, and checklist
+- [x] Match prompt difficulty to CEFR level
+- [x] Keep prompts tied to module vocabulary or grammar
+- [x] Store stable `external_key`
 
 ---
 ### Task 19: Import writing prompt lessons
