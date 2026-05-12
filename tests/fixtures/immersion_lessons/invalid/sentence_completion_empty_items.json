@@ -1,0 +1,12 @@
+[
+  {
+    "external_key": "fixture:sentence_completion:A2:99:empty_items",
+    "level": "A2",
+    "module_number": 1,
+    "lesson_type": "sentence_completion",
+    "title": "Bad: Sentence completion with empty items",
+    "content": {
+      "items": []
+    }
+  }
+]

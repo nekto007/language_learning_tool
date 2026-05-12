@@ -1,0 +1,21 @@
+[
+  {
+    "external_key": "fixture:writing_prompt:A1:01",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "writing_prompt",
+    "title": "Письмо: Утренний распорядок",
+    "title_en": "Writing: Morning Routine",
+    "content": {
+      "prompt": "Describe your morning routine in 3-5 sentences.",
+      "min_words": 25,
+      "example_response": "Every morning I wake up at 7. I drink coffee and read the news. Then I go to work by bus.",
+      "checklist": [
+        "Used at least 3 new words",
+        "Wrote 3 or more sentences",
+        "Used the present simple tense",
+        "Reread before submitting"
+      ]
+    }
+  }
+]

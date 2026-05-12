@@ -845,6 +845,177 @@ def test_main_no_source_check_skips_canonical_lookup(tmp_path, capsys):
 
 
 # ---------------------------------------------------------------------------
+# Content fixture tests (Task 13)
+# ---------------------------------------------------------------------------
+
+
+FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "immersion_lessons"
+VALID_FIXTURES_DIR = FIXTURES_DIR / "valid"
+INVALID_FIXTURES_DIR = FIXTURES_DIR / "invalid"
+
+NEW_LESSON_TYPES = (
+    "dictation",
+    "audio_fill_blank",
+    "translation",
+    "sentence_correction",
+    "writing_prompt",
+    "sentence_completion",
+    "collocation_matching",
+    "shadow_reading",
+    "pronunciation",
+    "idiom",
+)
+
+
+def _load_fixture_entries(path: Path) -> list:
+    raws = load_lessons(path)
+    out = []
+    for raw in raws:
+        entry, err = parse_entry(raw, source_path=str(path))
+        assert err is None, f"{path}: parse_entry failed: {err}"
+        out.append(entry)
+    return out
+
+
+def test_fixtures_dir_has_one_valid_fixture_per_new_lesson_type():
+    """Every new lesson type must have at least one valid fixture file."""
+    found_types = set()
+    for fixture in VALID_FIXTURES_DIR.glob("*.json"):
+        for entry in _load_fixture_entries(fixture):
+            found_types.add(entry.lesson_type)
+    missing = set(NEW_LESSON_TYPES) - found_types
+    assert not missing, f"missing valid fixtures for: {sorted(missing)}"
+
+
+@pytest.mark.parametrize("lesson_type", NEW_LESSON_TYPES)
+def test_valid_fixture_passes_validation(lesson_type: str):
+    """Each valid fixture parses and passes content-schema + audio validation."""
+    fixture = VALID_FIXTURES_DIR / f"{lesson_type}.json"
+    assert fixture.exists(), f"missing fixture: {fixture}"
+    entries = _load_fixture_entries(fixture)
+    assert entries, f"empty fixture: {fixture}"
+    canonical_ids = {(e.level, e.module_number) for e in entries}
+    errors = validate_entries(
+        entries,
+        canonical_module_ids=canonical_ids,
+        check_content_schema=True,
+    )
+    assert errors == [], f"unexpected errors for {lesson_type}: {errors}"
+
+
+def test_invalid_fixtures_dir_is_non_empty():
+    """Sanity check: at least one invalid fixture per new lesson type exists."""
+    invalid_files = list(INVALID_FIXTURES_DIR.glob("*.json"))
+    assert invalid_files, "no invalid fixtures found"
+    # Each invalid fixture filename starts with the lesson_type it exercises.
+    covered = set()
+    for path in invalid_files:
+        for lt in NEW_LESSON_TYPES:
+            if path.name.startswith(lt + "_"):
+                covered.add(lt)
+    missing = set(NEW_LESSON_TYPES) - covered
+    assert not missing, f"no invalid fixture for: {sorted(missing)}"
+
+
+@pytest.mark.parametrize(
+    "invalid_filename",
+    sorted(p.name for p in INVALID_FIXTURES_DIR.glob("*.json")),
+)
+def test_invalid_fixture_is_rejected_by_validation(invalid_filename: str):
+    """Every invalid fixture must surface at least one validation error."""
+    fixture = INVALID_FIXTURES_DIR / invalid_filename
+    entries = _load_fixture_entries(fixture)
+    canonical_ids = {(e.level, e.module_number) for e in entries}
+    errors = validate_entries(
+        entries,
+        canonical_module_ids=canonical_ids,
+        check_content_schema=True,
+    )
+    assert errors, f"expected validation errors for {invalid_filename}, got none"
+
+
+def test_invalid_fixtures_block_db_writes_via_main(tmp_path, capsys):
+    """`--validate-only` over an invalid fixture exits with rc=2 and writes nothing."""
+    import import_immersion_lessons as mod
+
+    canonical = _write_canonical(tmp_path, ("A1", 1, "greetings"), ("A2", 1, "x"), ("B1", 1, "y"))
+    for fixture in INVALID_FIXTURES_DIR.glob("*.json"):
+        rc = mod.main(
+            [
+                str(fixture),
+                "--validate-only",
+                "--canonical-modules-dir",
+                str(canonical),
+            ]
+        )
+        assert rc == 2, f"expected rc=2 for {fixture.name}, got {rc}"
+        err = capsys.readouterr().err
+        assert "ERROR" in err, f"no error reported for {fixture.name}"
+
+
+def test_valid_fixtures_can_be_imported_and_rerun_without_duplicates():
+    """End-to-end through FakeRepository: import every valid fixture, then re-run.
+
+    On the second run, every entry must hit `noop` and the lesson count must
+    stay constant — the importer is fully idempotent.
+    """
+    all_entries: list = []
+    modules: dict = {}
+    next_module_id = 1000
+    for fixture in sorted(VALID_FIXTURES_DIR.glob("*.json")):
+        for entry in _load_fixture_entries(fixture):
+            key = (entry.level, entry.module_number)
+            if key not in modules:
+                modules[key] = next_module_id
+                next_module_id += 1
+            all_entries.append(entry)
+
+    # Sanity: input is internally consistent.
+    canonical_ids = set(modules.keys())
+    errors = validate_entries(
+        all_entries,
+        canonical_module_ids=canonical_ids,
+        check_content_schema=True,
+    )
+    assert errors == [], errors
+
+    repo = FakeRepository.with_modules(modules)
+    plan = plan_import(all_entries, repo)
+    assert plan.errors == []
+    actions = [c.action for c in plan.changes]
+    assert actions.count("create") == len(all_entries)
+
+    apply_plan(all_entries, plan, repo)
+    first_run_count = len(repo.lessons)
+    assert first_run_count == len(all_entries)
+
+    plan2 = plan_import(all_entries, repo)
+    assert plan2.errors == []
+    assert [c.action for c in plan2.changes] == ["noop"] * len(all_entries)
+    apply_plan(all_entries, plan2, repo)
+    assert len(repo.lessons) == first_run_count
+
+
+@pytest.mark.parametrize("lesson_type", NEW_LESSON_TYPES)
+def test_valid_fixture_round_trip_per_type(lesson_type: str):
+    """Per-type round trip: load fixture, plan create, apply, replay -> noop."""
+    fixture = VALID_FIXTURES_DIR / f"{lesson_type}.json"
+    entries = _load_fixture_entries(fixture)
+    modules = {(e.level, e.module_number): 500 + i for i, e in enumerate(entries)}
+    repo = FakeRepository.with_modules(modules)
+    plan = plan_import(entries, repo)
+    assert plan.errors == []
+    assert all(c.action == "create" for c in plan.changes)
+    apply_plan(entries, plan, repo)
+    assert len(repo.lessons) == len(entries)
+
+    plan2 = plan_import(entries, repo)
+    assert all(c.action == "noop" for c in plan2.changes)
+    apply_plan(entries, plan2, repo)
+    assert len(repo.lessons) == len(entries)
+
+
+# ---------------------------------------------------------------------------
 # DBRepository smoke test (requires the Flask app and DB)
 # ---------------------------------------------------------------------------
 

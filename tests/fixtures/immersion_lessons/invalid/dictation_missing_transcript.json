@@ -1,0 +1,12 @@
+[
+  {
+    "external_key": "fixture:dictation:A1:99:no_transcript",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "dictation",
+    "title": "Bad: Dictation without transcript",
+    "content": {
+      "audio_url": "/static/audio/missing_transcript.mp3"
+    }
+  }
+]

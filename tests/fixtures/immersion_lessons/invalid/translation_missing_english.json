@@ -1,0 +1,12 @@
+[
+  {
+    "external_key": "fixture:translation:A1:99:no_english",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "translation",
+    "title": "Bad: Translation without english",
+    "content": {
+      "russian": "Доброе утро!"
+    }
+  }
+]

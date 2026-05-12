@@ -276,10 +276,10 @@
 - Create: `tests/fixtures/immersion_lessons/`
 - Tests: `tests/scripts/test_import_immersion_lessons.py`
 
-- [ ] Add one valid fixture per new lesson type
-- [ ] Add invalid fixture examples for required-field failures
-- [ ] Verify importer rejects invalid content before DB writes
-- [ ] Verify importer can re-run without duplicates
+- [x] Add one valid fixture per new lesson type
+- [x] Add invalid fixture examples for required-field failures
+- [x] Verify importer rejects invalid content before DB writes
+- [x] Verify importer can re-run without duplicates
 
 ---
 ### Task 14: Create staging smoke data set

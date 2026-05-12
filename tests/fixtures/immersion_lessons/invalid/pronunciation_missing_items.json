@@ -1,0 +1,10 @@
+[
+  {
+    "external_key": "fixture:pronunciation:A1:99:no_items",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "pronunciation",
+    "title": "Bad: Pronunciation without items",
+    "content": {}
+  }
+]

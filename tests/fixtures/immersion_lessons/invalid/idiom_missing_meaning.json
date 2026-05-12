@@ -1,0 +1,14 @@
+[
+  {
+    "external_key": "fixture:idiom:B1:99:no_meaning",
+    "level": "B1",
+    "module_number": 1,
+    "lesson_type": "idiom",
+    "title": "Bad: Idiom without meaning",
+    "content": {
+      "items": [
+        {"phrase": "break the ice", "example": "He told a joke."}
+      ]
+    }
+  }
+]
