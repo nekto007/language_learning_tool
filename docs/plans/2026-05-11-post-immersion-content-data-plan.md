@@ -167,11 +167,11 @@
 **Files:**
 - Create: `docs/content/immersion-content-targets.md`
 
-- [ ] Define required per-module coverage for slot-critical lessons
-- [ ] Define minimum CEFR coverage for non-slot new lesson types
-- [ ] Define audio quality requirements
-- [ ] Define vocabulary metadata coverage targets
-- [ ] Define acceptance criteria for production readiness
+- [x] Define required per-module coverage for slot-critical lessons
+- [x] Define minimum CEFR coverage for non-slot new lesson types
+- [x] Define audio quality requirements
+- [x] Define vocabulary metadata coverage targets
+- [x] Define acceptance criteria for production readiness
 
 ---
 ### Task 7: Create repository content/data structure
