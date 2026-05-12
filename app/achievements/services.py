@@ -853,7 +853,7 @@ def check_challenge_achievements(user_id: int, db_session=None) -> List[Achievem
         codes_to_award.add('challenger')
 
     # Compute challenge streak inline (walk-backward same as get_challenge_streak)
-    today = _dt.date.today()
+    today = datetime.now(timezone.utc).date()
     cutoff = today - _dt.timedelta(days=365)
     rows = (
         session.query(DailyChallenge.challenge_date)

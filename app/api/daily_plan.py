@@ -91,7 +91,7 @@ def _compute_listening_goal(user, tz: str) -> dict:
             lesson = lessons_map.get(lesson_id)
             duration = 300
             if lesson and lesson.content and isinstance(lesson.content, dict):
-                duration = lesson.content.get('duration_seconds', 300)
+                duration = min(int(lesson.content.get('duration_seconds', 300)), 3600)
             total_seconds += duration
 
     listening_minutes_today = round(total_seconds / 60, 1)
@@ -1129,10 +1129,10 @@ def challenge_complete():
     if not isinstance(challenge_id, int):
         return api_error('invalid_input', 'challenge_id is required', 400)
 
-    from datetime import date as _date
+    from datetime import datetime as _datetime, timezone as _timezone
     from app.daily_plan.models import DailyChallenge
     _challenge_check = DailyChallenge.query.filter_by(id=challenge_id).first()
-    if _challenge_check is None or _challenge_check.challenge_date != _date.today():
+    if _challenge_check is None or _challenge_check.challenge_date != _datetime.now(_timezone.utc).date():
         return api_error('invalid_input', 'challenge_id does not match today\'s challenge', 400)
 
     raw_score = body.get('score')

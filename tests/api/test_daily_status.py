@@ -132,93 +132,67 @@ class TestListeningGoalInDailyStatus:
 class TestComputeListeningGoalUnit:
     """Unit tests for _compute_listening_goal helper."""
 
-    def test_no_attempts_returns_zero(self, app, db_session):
+    def test_no_attempts_returns_zero(self, app, db_session, test_user):
         from app.api.daily_plan import _compute_listening_goal
-        from app.auth.models import User
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-            user.listening_goal_minutes = 10
-            result = _compute_listening_goal(user, 'Europe/Moscow')
+            test_user.listening_goal_minutes = 10
+            result = _compute_listening_goal(test_user, 'Europe/Moscow')
 
         assert result['listening_minutes_today'] == 0.0
         assert result['listening_goal_minutes'] == 10
         assert result['listening_goal_reached'] is False
 
-    def test_goal_zero_always_reached(self, app, db_session):
+    def test_goal_zero_always_reached(self, app, db_session, test_user):
         from app.api.daily_plan import _compute_listening_goal
-        from app.auth.models import User
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-            user.listening_goal_minutes = 0
-            result = _compute_listening_goal(user, 'Europe/Moscow')
+            test_user.listening_goal_minutes = 0
+            result = _compute_listening_goal(test_user, 'Europe/Moscow')
 
         assert result['listening_goal_reached'] is True
         assert result['listening_goal_minutes'] == 0
 
-    def test_attempts_today_accumulate_minutes(self, app, db_session):
-        """Two attempts with 300s each = 10 minutes total → goal reached."""
+    def test_attempts_today_accumulate_minutes(self, app, db_session, test_user, test_lesson_vocabulary):
+        """One listening attempt for a 300s lesson = 5 minutes → goal reached at goal=5."""
         from app.api.daily_plan import _compute_listening_goal
-        from app.auth.models import User
-        from app.curriculum.models import ListeningAttempt, Lessons
+        from app.curriculum.models import ListeningAttempt
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-            lesson = db_session.query(Lessons).first()
-            if lesson is None:
-                return
-
-            user.listening_goal_minutes = 10
+            # goal = 5 min; one 300s lesson = 5 min → reached
+            test_user.listening_goal_minutes = 5
 
             now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
-            for _ in range(2):
-                attempt = ListeningAttempt(
-                    user_id=user.id,
-                    lesson_id=lesson.id,
-                    score=80.0,
-                    replay_count=0,
-                    created_at=now_utc,
-                )
-                db_session.add(attempt)
+            attempt = ListeningAttempt(
+                user_id=test_user.id,
+                lesson_id=test_lesson_vocabulary.id,
+                score=80.0,
+                replay_count=0,
+                created_at=now_utc,
+            )
+            db_session.add(attempt)
             db_session.flush()
 
-            result = _compute_listening_goal(user, 'UTC')
+            result = _compute_listening_goal(test_user, 'UTC')
 
-        assert result['listening_minutes_today'] == 10.0
+        assert result['listening_minutes_today'] == 5.0
         assert result['listening_goal_reached'] is True
 
-    def test_attempts_use_content_duration(self, app, db_session):
+    def test_attempts_use_content_duration(self, app, db_session, test_user, test_lesson_vocabulary):
         """Lesson content duration_seconds used when available."""
         from app.api.daily_plan import _compute_listening_goal
-        from app.auth.models import User
-        from app.curriculum.models import ListeningAttempt, Lessons
+        from app.curriculum.models import ListeningAttempt
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-            lesson = db_session.query(Lessons).filter(
-                Lessons.content.isnot(None)
-            ).first()
-            if lesson is None:
-                return
-
-            user.listening_goal_minutes = 5
-            original_content = lesson.content or {}
-            lesson.content = {**original_content, 'duration_seconds': 120}
+            test_user.listening_goal_minutes = 5
+            original_content = test_lesson_vocabulary.content or {}
+            test_lesson_vocabulary.content = {**original_content, 'duration_seconds': 120}
             db_session.flush()
 
             now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
             attempt = ListeningAttempt(
-                user_id=user.id,
-                lesson_id=lesson.id,
+                user_id=test_user.id,
+                lesson_id=test_lesson_vocabulary.id,
                 score=90.0,
                 replay_count=0,
                 created_at=now_utc,
@@ -226,7 +200,7 @@ class TestComputeListeningGoalUnit:
             db_session.add(attempt)
             db_session.flush()
 
-            result = _compute_listening_goal(user, 'UTC')
+            result = _compute_listening_goal(test_user, 'UTC')
 
         assert result['listening_minutes_today'] == 2.0
 
@@ -305,59 +279,47 @@ class TestGetRecoverySuggestionUnit:
 
         assert result is None
 
-    def test_returns_none_when_yesterday_secured(self, app, db_session):
+    def test_returns_none_when_yesterday_secured(self, app, db_session, test_user):
         """DailyPlanLog exists with secured_at set → returns None."""
         from app.api.daily_plan import _get_recovery_suggestion
         from app.daily_plan.models import DailyPlanLog
-        from app.auth.models import User
-        from datetime import datetime, timedelta, timezone
         import pytz
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-
             tz_obj = pytz.timezone('UTC')
             yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
 
             log = DailyPlanLog(
-                user_id=user.id,
+                user_id=test_user.id,
                 plan_date=yesterday,
                 secured_at=datetime.now(timezone.utc).replace(tzinfo=None),
             )
             db_session.add(log)
             db_session.flush()
 
-            result = _get_recovery_suggestion(user.id, 'UTC')
+            result = _get_recovery_suggestion(test_user.id, 'UTC')
 
         assert result is None
 
-    def test_returns_suggestion_when_yesterday_unsecured(self, app, db_session):
+    def test_returns_suggestion_when_yesterday_unsecured(self, app, db_session, test_user):
         """DailyPlanLog exists with secured_at=None → returns recovery suggestion."""
         from app.api.daily_plan import _get_recovery_suggestion
         from app.daily_plan.models import DailyPlanLog
-        from app.auth.models import User
-        from datetime import datetime, timedelta
         import pytz
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-
             tz_obj = pytz.timezone('UTC')
             yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
 
             log = DailyPlanLog(
-                user_id=user.id,
+                user_id=test_user.id,
                 plan_date=yesterday,
                 secured_at=None,
             )
             db_session.add(log)
             db_session.flush()
 
-            result = _get_recovery_suggestion(user.id, 'UTC')
+            result = _get_recovery_suggestion(test_user.id, 'UTC')
 
         assert result is not None
         assert 'missed_kind' in result
@@ -365,24 +327,18 @@ class TestGetRecoverySuggestionUnit:
         assert result['missed_date'] == yesterday.isoformat()
         assert result['missed_kind'] == 'srs'
 
-    def test_mission_type_used_as_missed_kind(self, app, db_session):
+    def test_mission_type_used_as_missed_kind(self, app, db_session, test_user):
         """mission_type from DailyPlanLog used as missed_kind when set."""
         from app.api.daily_plan import _get_recovery_suggestion
         from app.daily_plan.models import DailyPlanLog
-        from app.auth.models import User
-        from datetime import datetime, timedelta
         import pytz
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-
             tz_obj = pytz.timezone('UTC')
             yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
 
             log = DailyPlanLog(
-                user_id=user.id,
+                user_id=test_user.id,
                 plan_date=yesterday,
                 mission_type='progress',
                 secured_at=None,
@@ -390,7 +346,7 @@ class TestGetRecoverySuggestionUnit:
             db_session.add(log)
             db_session.flush()
 
-            result = _get_recovery_suggestion(user.id, 'UTC')
+            result = _get_recovery_suggestion(test_user.id, 'UTC')
 
         assert result is not None
         assert result['missed_kind'] == 'progress'
@@ -443,19 +399,15 @@ class TestListeningStreakDaysInDailyStatus:
 class TestComputeGoalProgressUnit:
     """Unit tests for _compute_goal_progress helper."""
 
-    def test_no_activity_returns_zeros(self, app, db_session):
+    def test_no_activity_returns_zeros(self, app, db_session, test_user):
         """No new cards and no completed lessons → actual=0 for both goals."""
         from app.api.daily_plan import _compute_goal_progress
-        from app.auth.models import User
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-            user.daily_word_goal = 10
-            user.weekly_lesson_goal = 5
+            test_user.daily_word_goal = 10
+            test_user.weekly_lesson_goal = 5
 
-            result = _compute_goal_progress(user, 'UTC')
+            result = _compute_goal_progress(test_user, 'UTC')
 
         gp = result['goal_progress']
         assert gp['daily_words']['goal'] == 10
@@ -465,112 +417,84 @@ class TestComputeGoalProgressUnit:
         assert gp['weekly_lessons']['actual'] == 0
         assert gp['weekly_lessons']['reached'] is False
 
-    def test_daily_words_reached_when_actual_gte_goal(self, app, db_session):
+    def test_daily_words_reached_when_actual_gte_goal(self, app, db_session, test_user):
         """words_today >= daily_word_goal → reached=True."""
         from app.api.daily_plan import _compute_goal_progress
-        from app.auth.models import User
         from unittest.mock import patch
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-            user.daily_word_goal = 5
-            user.weekly_lesson_goal = 10
+            test_user.daily_word_goal = 5
+            test_user.weekly_lesson_goal = 10
 
             with patch('app.srs.counting.count_new_cards_today', return_value=5):
-                result = _compute_goal_progress(user, 'UTC')
+                result = _compute_goal_progress(test_user, 'UTC')
 
         gp = result['goal_progress']
         assert gp['daily_words']['actual'] == 5
         assert gp['daily_words']['reached'] is True
 
-    def test_daily_words_not_reached_when_actual_lt_goal(self, app, db_session):
+    def test_daily_words_not_reached_when_actual_lt_goal(self, app, db_session, test_user):
         """words_today < daily_word_goal → reached=False."""
         from app.api.daily_plan import _compute_goal_progress
-        from app.auth.models import User
         from unittest.mock import patch
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-            user.daily_word_goal = 10
-            user.weekly_lesson_goal = 5
+            test_user.daily_word_goal = 10
+            test_user.weekly_lesson_goal = 5
 
             with patch('app.srs.counting.count_new_cards_today', return_value=3):
-                result = _compute_goal_progress(user, 'UTC')
+                result = _compute_goal_progress(test_user, 'UTC')
 
         gp = result['goal_progress']
         assert gp['daily_words']['actual'] == 3
         assert gp['daily_words']['reached'] is False
 
-    def test_weekly_lessons_reached_when_actual_gte_goal(self, app, db_session):
+    def test_weekly_lessons_reached_when_actual_gte_goal(self, app, db_session, test_user, test_lesson_vocabulary):
         """lessons_this_week >= weekly_lesson_goal → reached=True."""
-        from datetime import datetime, timezone, timedelta
         from app.api.daily_plan import _compute_goal_progress
-        from app.auth.models import User
-        from app.curriculum.models import LessonProgress, Lessons
+        from app.curriculum.models import LessonProgress
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-            lesson = db_session.query(Lessons).first()
-            if lesson is None:
-                return
-
-            user.daily_word_goal = 10
-            user.weekly_lesson_goal = 3
+            test_user.daily_word_goal = 10
+            test_user.weekly_lesson_goal = 1
 
             now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
-            for _ in range(3):
-                lp = LessonProgress(
-                    user_id=user.id,
-                    lesson_id=lesson.id,
-                    status='completed',
-                    completed_at=now_utc,
-                )
-                db_session.add(lp)
+            lp = LessonProgress(
+                user_id=test_user.id,
+                lesson_id=test_lesson_vocabulary.id,
+                status='completed',
+                completed_at=now_utc,
+            )
+            db_session.add(lp)
             db_session.flush()
 
-            result = _compute_goal_progress(user, 'UTC')
+            result = _compute_goal_progress(test_user, 'UTC')
 
         gp = result['goal_progress']
-        assert gp['weekly_lessons']['actual'] >= 3
+        assert gp['weekly_lessons']['actual'] >= 1
         assert gp['weekly_lessons']['reached'] is True
 
-    def test_week_boundary_excludes_last_week_lessons(self, app, db_session):
+    def test_week_boundary_excludes_last_week_lessons(self, app, db_session, test_user, test_lesson_vocabulary):
         """LessonProgress completed before Monday this week not counted."""
-        from datetime import datetime, timezone, timedelta
         from app.api.daily_plan import _compute_goal_progress
-        from app.auth.models import User
-        from app.curriculum.models import LessonProgress, Lessons
-        import pytz
+        from app.curriculum.models import LessonProgress
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-            lesson = db_session.query(Lessons).first()
-            if lesson is None:
-                return
-
-            user.daily_word_goal = 5
-            user.weekly_lesson_goal = 2
+            test_user.daily_word_goal = 5
+            test_user.weekly_lesson_goal = 2
 
             # Completed 10 days ago (definitely last week)
             old_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=10)
             lp = LessonProgress(
-                user_id=user.id,
-                lesson_id=lesson.id,
+                user_id=test_user.id,
+                lesson_id=test_lesson_vocabulary.id,
                 status='completed',
                 completed_at=old_date,
             )
             db_session.add(lp)
             db_session.flush()
 
-            result = _compute_goal_progress(user, 'UTC')
+            result = _compute_goal_progress(test_user, 'UTC')
 
         gp = result['goal_progress']
         # Old lesson should not count toward this week
@@ -688,75 +612,56 @@ class TestStudyMinutesInDailyStatus:
 class TestComputeStudyMinutesUnit:
     """Unit tests for _compute_study_minutes and DailyStudyMinutes model."""
 
-    def test_no_rows_returns_zero(self, app, db_session):
+    def test_no_rows_returns_zero(self, app, db_session, test_user):
         from app.api.daily_plan import _compute_study_minutes
-        from app.auth.models import User
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-            result = _compute_study_minutes(user, 'UTC')
+            result = _compute_study_minutes(test_user, 'UTC')
 
         assert result == 0
 
-    def test_add_study_minutes_creates_row(self, app, db_session):
+    def test_add_study_minutes_creates_row(self, app, db_session, test_user):
         """add_study_minutes creates a row when none exists."""
         from datetime import date
         from app.curriculum.models import DailyStudyMinutes, add_study_minutes, get_minutes_today
-        from app.auth.models import User
         from app.utils.db import db
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-
             today = date(2026, 5, 21)
-            add_study_minutes(user.id, today, 15, db)
+            add_study_minutes(test_user.id, today, 15, db)
             db_session.flush()
 
-            result = get_minutes_today(user.id, today, db)
+            result = get_minutes_today(test_user.id, today, db)
             assert result == 15
 
-    def test_add_study_minutes_accumulates(self, app, db_session):
+    def test_add_study_minutes_accumulates(self, app, db_session, test_user):
         """Multiple add_study_minutes calls accumulate minutes for the same date."""
         from datetime import date
         from app.curriculum.models import add_study_minutes, get_minutes_today
-        from app.auth.models import User
         from app.utils.db import db
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-
             today = date(2026, 5, 22)
-            add_study_minutes(user.id, today, 10, db)
+            add_study_minutes(test_user.id, today, 10, db)
             db_session.flush()
-            add_study_minutes(user.id, today, 15, db)
+            add_study_minutes(test_user.id, today, 15, db)
             db_session.flush()
 
-            result = get_minutes_today(user.id, today, db)
+            result = get_minutes_today(test_user.id, today, db)
             assert result == 25
 
-    def test_different_dates_independent(self, app, db_session):
+    def test_different_dates_independent(self, app, db_session, test_user):
         """Minutes are bucketed per date independently."""
         from datetime import date
         from app.curriculum.models import add_study_minutes, get_minutes_today
-        from app.auth.models import User
         from app.utils.db import db
 
         with app.app_context():
-            user = db_session.query(User).first()
-            if user is None:
-                return
-
             d1 = date(2026, 5, 23)
             d2 = date(2026, 5, 24)
-            add_study_minutes(user.id, d1, 20, db)
-            add_study_minutes(user.id, d2, 8, db)
+            add_study_minutes(test_user.id, d1, 20, db)
+            add_study_minutes(test_user.id, d2, 8, db)
             db_session.flush()
 
-            assert get_minutes_today(user.id, d1, db) == 20
-            assert get_minutes_today(user.id, d2, db) == 8
+            assert get_minutes_today(test_user.id, d1, db) == 20
+            assert get_minutes_today(test_user.id, d2, db) == 8
