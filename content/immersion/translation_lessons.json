@@ -1,0 +1,377 @@
+[
+  {
+    "external_key": "immersion:translation:A1:01:introductions",
+    "level": "A1",
+    "lesson_number_hint": 1,
+    "lesson_type": "translation",
+    "title": "Перевод: Знакомство",
+    "title_en": "Translation: Introductions",
+    "description": "Переведите предложение о знакомстве с русского на английский.",
+    "tags": ["immersion", "translation", "a1", "introductions"],
+    "content": {
+      "russian": "Меня зовут Анна. Мне двадцать лет.",
+      "english": "My name is Anna. I am twenty years old.",
+      "hint_words": ["name", "twenty", "years", "old"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:A1:02:daily_routine",
+    "level": "A1",
+    "lesson_number_hint": 2,
+    "lesson_type": "translation",
+    "title": "Перевод: Распорядок дня",
+    "title_en": "Translation: Daily Routine",
+    "description": "Переведите предложение о ежедневных делах.",
+    "tags": ["immersion", "translation", "a1", "daily_routine"],
+    "content": {
+      "russian": "Я каждый день хожу в школу.",
+      "english": "I go to school every day.",
+      "hint_words": ["go", "school", "every", "day"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:A1:03:food",
+    "level": "A1",
+    "lesson_number_hint": 3,
+    "lesson_type": "translation",
+    "title": "Перевод: Еда",
+    "title_en": "Translation: Food",
+    "description": "Переведите предложение об еде и напитках.",
+    "tags": ["immersion", "translation", "a1", "food"],
+    "content": {
+      "russian": "Мне нравится пить чай по утрам.",
+      "english": "I like drinking tea in the mornings.",
+      "hint_words": ["like", "drinking", "tea", "mornings"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:A1:04:home",
+    "level": "A1",
+    "lesson_number_hint": 4,
+    "lesson_type": "translation",
+    "title": "Перевод: Дом",
+    "title_en": "Translation: Home",
+    "description": "Переведите описание домашних условий.",
+    "tags": ["immersion", "translation", "a1", "home"],
+    "content": {
+      "russian": "Моя комната небольшая, но удобная.",
+      "english": "My room is small but comfortable.",
+      "hint_words": ["room", "small", "but", "comfortable"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:A1:05:shopping",
+    "level": "A1",
+    "lesson_number_hint": 5,
+    "lesson_type": "translation",
+    "title": "Перевод: Покупки",
+    "title_en": "Translation: Shopping",
+    "description": "Переведите вопрос о цене в магазине.",
+    "tags": ["immersion", "translation", "a1", "shopping"],
+    "content": {
+      "russian": "Сколько стоит эта куртка?",
+      "english": "How much does this jacket cost?",
+      "hint_words": ["how", "much", "jacket", "cost"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:A2:01:travel",
+    "level": "A2",
+    "lesson_number_hint": 1,
+    "lesson_type": "translation",
+    "title": "Перевод: Путешествие",
+    "title_en": "Translation: Travel",
+    "description": "Переведите предложение о поездке за рубеж.",
+    "tags": ["immersion", "translation", "a2", "travel"],
+    "content": {
+      "russian": "В прошлом году мы ездили в Лондон на три дня.",
+      "english": "Last year we went to London for three days.",
+      "hint_words": ["last", "year", "went", "London", "three", "days"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:A2:02:work",
+    "level": "A2",
+    "lesson_number_hint": 2,
+    "lesson_type": "translation",
+    "title": "Перевод: Работа",
+    "title_en": "Translation: Work",
+    "description": "Переведите описание профессии родственника.",
+    "tags": ["immersion", "translation", "a2", "work", "professions"],
+    "content": {
+      "russian": "Моя сестра работает врачом в больнице.",
+      "english": "My sister works as a doctor at a hospital.",
+      "hint_words": ["sister", "works", "doctor", "hospital"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:A2:03:hobbies",
+    "level": "A2",
+    "lesson_number_hint": 3,
+    "lesson_type": "translation",
+    "title": "Перевод: Хобби",
+    "title_en": "Translation: Hobbies",
+    "description": "Переведите предложение об увлечениях.",
+    "tags": ["immersion", "translation", "a2", "hobbies"],
+    "content": {
+      "russian": "По выходным я люблю готовить новые блюда.",
+      "english": "On weekends I love cooking new dishes.",
+      "hint_words": ["weekends", "love", "cooking", "new", "dishes"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:A2:04:future_plans",
+    "level": "A2",
+    "lesson_number_hint": 4,
+    "lesson_type": "translation",
+    "title": "Перевод: Планы на будущее",
+    "title_en": "Translation: Future Plans",
+    "description": "Переведите предложение с планами на ближайшее время.",
+    "tags": ["immersion", "translation", "a2", "future", "plans"],
+    "content": {
+      "russian": "Мы собираемся переехать в новую квартиру в следующем месяце.",
+      "english": "We are going to move to a new apartment next month.",
+      "hint_words": ["going", "move", "new", "apartment", "next", "month"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:A2:05:languages",
+    "level": "A2",
+    "lesson_number_hint": 5,
+    "lesson_type": "translation",
+    "title": "Перевод: Языки",
+    "title_en": "Translation: Languages",
+    "description": "Переведите предложение об изучении иностранного языка.",
+    "tags": ["immersion", "translation", "a2", "languages", "study"],
+    "content": {
+      "russian": "Она изучает испанский язык уже два года.",
+      "english": "She has been studying Spanish for two years.",
+      "hint_words": ["studying", "Spanish", "already", "two", "years"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:B1:01:career",
+    "level": "B1",
+    "lesson_number_hint": 1,
+    "lesson_type": "translation",
+    "title": "Перевод: Карьера",
+    "title_en": "Translation: Career",
+    "description": "Переведите предложение о смене карьеры.",
+    "tags": ["immersion", "translation", "b1", "career", "business"],
+    "content": {
+      "russian": "Он решил сменить профессию и начать собственный бизнес.",
+      "english": "He decided to change his profession and start his own business.",
+      "hint_words": ["decided", "change", "profession", "start", "own", "business"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:B1:02:environment",
+    "level": "B1",
+    "lesson_number_hint": 2,
+    "lesson_type": "translation",
+    "title": "Перевод: Окружающая среда",
+    "title_en": "Translation: Environment",
+    "description": "Переведите предложение об экологической проблеме.",
+    "tags": ["immersion", "translation", "b1", "environment", "cities"],
+    "content": {
+      "russian": "Загрязнение воздуха стало серьёзной проблемой в крупных городах.",
+      "english": "Air pollution has become a serious problem in large cities.",
+      "hint_words": ["pollution", "become", "serious", "problem", "large", "cities"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:B1:03:technology",
+    "level": "B1",
+    "lesson_number_hint": 3,
+    "lesson_type": "translation",
+    "title": "Перевод: Технологии",
+    "title_en": "Translation: Technology",
+    "description": "Переведите предложение о роли смартфона в жизни людей.",
+    "tags": ["immersion", "translation", "b1", "technology", "smartphones"],
+    "content": {
+      "russian": "Без смартфона многие люди чувствуют себя потерянными.",
+      "english": "Without a smartphone many people feel lost.",
+      "hint_words": ["without", "smartphone", "people", "feel", "lost"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:B1:04:health",
+    "level": "B1",
+    "lesson_number_hint": 4,
+    "lesson_type": "translation",
+    "title": "Перевод: Здоровье",
+    "title_en": "Translation: Health",
+    "description": "Переведите совет о здоровом образе жизни.",
+    "tags": ["immersion", "translation", "b1", "health", "fitness"],
+    "content": {
+      "russian": "Регулярные физические упражнения помогают снизить уровень стресса.",
+      "english": "Regular physical exercise helps reduce stress levels.",
+      "hint_words": ["regular", "physical", "exercise", "helps", "reduce", "stress"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:B1:05:culture",
+    "level": "B1",
+    "lesson_number_hint": 5,
+    "lesson_type": "translation",
+    "title": "Перевод: Культура",
+    "title_en": "Translation: Culture",
+    "description": "Переведите предложение о кинофильме.",
+    "tags": ["immersion", "translation", "b1", "culture", "film"],
+    "content": {
+      "russian": "Этот фильм основан на реальных событиях, произошедших в девяностых годах.",
+      "english": "This film is based on real events that took place in the nineties.",
+      "hint_words": ["film", "based", "real", "events", "took", "place", "nineties"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:B2:01:psychology",
+    "level": "B2",
+    "lesson_number_hint": 1,
+    "lesson_type": "translation",
+    "title": "Перевод: Психология",
+    "title_en": "Translation: Psychology",
+    "description": "Переведите утверждение о психологии поведения.",
+    "tags": ["immersion", "translation", "b2", "psychology", "behaviour"],
+    "content": {
+      "russian": "Люди склонны переоценивать свои способности в незнакомых ситуациях.",
+      "english": "People tend to overestimate their abilities in unfamiliar situations.",
+      "hint_words": ["tend", "overestimate", "abilities", "unfamiliar", "situations"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:B2:02:globalisation",
+    "level": "B2",
+    "lesson_number_hint": 2,
+    "lesson_type": "translation",
+    "title": "Перевод: Глобализация",
+    "title_en": "Translation: Globalisation",
+    "description": "Переведите тезис о влиянии глобализации.",
+    "tags": ["immersion", "translation", "b2", "globalisation", "economics"],
+    "content": {
+      "russian": "Глобализация оказала значительное влияние на местные рынки труда.",
+      "english": "Globalisation has had a significant impact on local labour markets.",
+      "hint_words": ["globalisation", "significant", "impact", "local", "labour", "markets"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:B2:03:social_media",
+    "level": "B2",
+    "lesson_number_hint": 3,
+    "lesson_type": "translation",
+    "title": "Перевод: Социальные сети",
+    "title_en": "Translation: Social Media",
+    "description": "Переведите предложение о влиянии социальных сетей.",
+    "tags": ["immersion", "translation", "b2", "social_media", "society"],
+    "content": {
+      "russian": "Социальные сети изменили то, как люди формируют и поддерживают дружеские связи.",
+      "english": "Social media has changed the way people form and maintain friendships.",
+      "hint_words": ["social", "media", "changed", "way", "form", "maintain", "friendships"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:B2:04:science",
+    "level": "B2",
+    "lesson_number_hint": 4,
+    "lesson_type": "translation",
+    "title": "Перевод: Наука",
+    "title_en": "Translation: Science",
+    "description": "Переведите научный тезис об исчезновении видов.",
+    "tags": ["immersion", "translation", "b2", "science", "environment"],
+    "content": {
+      "russian": "Учёные до сих пор не могут объяснить, почему некоторые виды животных исчезают так быстро.",
+      "english": "Scientists still cannot explain why some animal species are disappearing so quickly.",
+      "hint_words": ["scientists", "still", "explain", "species", "disappearing", "quickly"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:B2:05:education",
+    "level": "B2",
+    "lesson_number_hint": 5,
+    "lesson_type": "translation",
+    "title": "Перевод: Образование",
+    "title_en": "Translation: Education",
+    "description": "Переведите суждение о роли критического мышления.",
+    "tags": ["immersion", "translation", "b2", "education", "critical_thinking"],
+    "content": {
+      "russian": "Критическое мышление важнее заучивания фактов наизусть.",
+      "english": "Critical thinking is more important than memorising facts by rote.",
+      "hint_words": ["critical", "thinking", "more", "important", "memorising", "facts"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:C1:01:philosophy",
+    "level": "C1",
+    "lesson_number_hint": 1,
+    "lesson_type": "translation",
+    "title": "Перевод: Философия",
+    "title_en": "Translation: Philosophy",
+    "description": "Переведите философское утверждение о природе сознания.",
+    "tags": ["immersion", "translation", "c1", "philosophy", "consciousness"],
+    "content": {
+      "russian": "Несмотря на технологический прогресс, фундаментальные вопросы о природе сознания остаются без ответа.",
+      "english": "Despite technological progress, fundamental questions about the nature of consciousness remain unanswered.",
+      "hint_words": ["despite", "technological", "fundamental", "consciousness", "remain", "unanswered"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:C1:02:democracy",
+    "level": "C1",
+    "lesson_number_hint": 2,
+    "lesson_type": "translation",
+    "title": "Перевод: Демократия",
+    "title_en": "Translation: Democracy",
+    "description": "Переведите утверждение о сути демократии.",
+    "tags": ["immersion", "translation", "c1", "politics", "democracy"],
+    "content": {
+      "russian": "Подлинная демократия требует не только права голоса, но и осознанного участия граждан.",
+      "english": "Genuine democracy requires not only the right to vote but also the informed participation of citizens.",
+      "hint_words": ["genuine", "democracy", "requires", "right", "vote", "informed", "participation", "citizens"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:C1:03:literature",
+    "level": "C1",
+    "lesson_number_hint": 3,
+    "lesson_type": "translation",
+    "title": "Перевод: Литература",
+    "title_en": "Translation: Literature",
+    "description": "Переведите мысль об авторском замысле в литературе.",
+    "tags": ["immersion", "translation", "c1", "literature", "interpretation"],
+    "content": {
+      "russian": "Автор намеренно оставляет финал открытым, предлагая читателю самому интерпретировать смысл произведения.",
+      "english": "The author deliberately leaves the ending open, inviting the reader to interpret the meaning of the work themselves.",
+      "hint_words": ["deliberately", "leaves", "ending", "open", "inviting", "reader", "interpret", "meaning"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:C1:04:sustainability",
+    "level": "C1",
+    "lesson_number_hint": 4,
+    "lesson_type": "translation",
+    "title": "Перевод: Устойчивое развитие",
+    "title_en": "Translation: Sustainable Development",
+    "description": "Переведите определение устойчивого развития.",
+    "tags": ["immersion", "translation", "c1", "environment", "sustainability"],
+    "content": {
+      "russian": "Устойчивое развитие предполагает удовлетворение потребностей нынешнего поколения без ущерба для будущих.",
+      "english": "Sustainable development means meeting the needs of the present generation without compromising those of future ones.",
+      "hint_words": ["sustainable", "development", "meeting", "needs", "present", "generation", "compromising", "future"]
+    }
+  },
+  {
+    "external_key": "immersion:translation:C1:05:medicine",
+    "level": "C1",
+    "lesson_number_hint": 5,
+    "lesson_type": "translation",
+    "title": "Перевод: Медицина",
+    "title_en": "Translation: Medicine",
+    "description": "Переведите предложение о персонализированной медицине.",
+    "tags": ["immersion", "translation", "c1", "medicine", "genetics"],
+    "content": {
+      "russian": "Персонализированная медицина позволяет подбирать лечение с учётом генетических особенностей конкретного пациента.",
+      "english": "Personalised medicine allows treatment to be tailored to the genetic characteristics of each individual patient.",
+      "hint_words": ["personalised", "medicine", "allows", "treatment", "tailored", "genetic", "individual", "patient"]
+    }
+  }
+]

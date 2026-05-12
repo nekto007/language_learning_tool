@@ -404,10 +404,10 @@
 **Files:**
 - Create: `content/immersion/translation_lessons.json`
 
-- [ ] Add at least 5 lessons per CEFR level, 25 total
-- [ ] Include `russian`, `english`, and optional `hint_words`
-- [ ] Avoid duplicate content from existing `translation_quiz`
-- [ ] Tie examples to module vocabulary
+- [x] Add at least 5 lessons per CEFR level, 25 total
+- [x] Include `russian`, `english`, and optional `hint_words`
+- [x] Avoid duplicate content from existing `translation_quiz`
+- [x] Tie examples to module vocabulary
 
 ---
 ### Task 24: Prepare sentence correction CEFR seed
