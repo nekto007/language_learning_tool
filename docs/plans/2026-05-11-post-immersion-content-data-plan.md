@@ -570,10 +570,10 @@
 - Create: `scripts/import_frequency_bands.py`
 - Tests: `tests/scripts/test_import_frequency_bands.py`
 
-- [ ] Fill `frequency_band` for priority words first
-- [ ] Use external frequency data or curated CEFR fallback
-- [ ] Validate only allowed values: 1, 2, 3
-- [ ] Preserve existing non-null values unless `--force`
+- [x] Fill `frequency_band` for priority words first
+- [x] Use external frequency data or curated CEFR fallback
+- [x] Validate only allowed values: 1, 2, 3
+- [x] Preserve existing non-null values unless `--force`
 
 ---
 ### Task 37: Import IPA transcriptions
