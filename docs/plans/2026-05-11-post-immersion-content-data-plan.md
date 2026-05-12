@@ -368,11 +368,11 @@
 **Files:**
 - Create: `content/immersion/shadow_reading_lessons.json`
 
-- [ ] Add 77 shadow reading lessons, one per source module
-- [ ] Include `audio_url`, `text`, `translation`, and optional `words`
-- [ ] Reuse existing listening dialogue text where suitable
-- [ ] Keep text length aligned to CEFR level
-- [ ] Store stable `external_key`
+- [x] Add 77 shadow reading lessons, one per source module
+- [x] Include `audio_url`, `text`, `translation`, and optional `words`
+- [x] Reuse existing listening dialogue text where suitable
+- [x] Keep text length aligned to CEFR level
+- [x] Store stable `external_key`
 
 ---
 ### Task 21: Import shadow reading lessons
