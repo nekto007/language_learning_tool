@@ -448,10 +448,10 @@
 **Files:**
 - Create: `content/immersion/collocation_matching_lessons.json`
 
-- [ ] Add at least 5 lessons per CEFR level, 25 total
-- [ ] Include `pairs` with `phrase` and `translation`
-- [ ] Reuse collocations from `content/vocabulary/collocations.csv`
-- [ ] Keep distractors level-appropriate
+- [x] Add at least 5 lessons per CEFR level, 25 total
+- [x] Include `pairs` with `phrase` and `translation`
+- [x] Reuse collocations from `content/vocabulary/collocations.csv`
+- [x] Keep distractors level-appropriate
 
 ---
 ### Task 28: Prepare idiom seed
