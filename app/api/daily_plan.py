@@ -32,6 +32,7 @@ def _get_recovery_suggestion(user_id: int, tz: str) -> dict | None:
     """Return recovery suggestion when yesterday's plan was not secured, else None."""
     import pytz
     from datetime import datetime, timedelta
+    from app.auth.models import User
     from app.daily_plan.models import DailyPlanLog
 
     try:
@@ -45,8 +46,13 @@ def _get_recovery_suggestion(user_id: int, tz: str) -> dict | None:
     if log is None or log.secured_at is not None:
         return None
 
+    user = db.session.get(User, user_id)
+    if user is not None and user.use_linear_plan:
+        action_url = '/study?source=linear_plan'
+    else:
+        action_url = '/dashboard'
+
     missed_kind = log.mission_type or 'srs'
-    action_url = '/study?source=linear_plan'
     return {'missed_kind': missed_kind, 'action_url': action_url, 'missed_date': yesterday.isoformat()}
 
 
@@ -87,8 +93,8 @@ def _compute_listening_goal(user, tz: str) -> dict:
             lesson.id: lesson
             for lesson in Lessons.query.filter(Lessons.id.in_(unique_lesson_ids)).all()
         }
-        for attempt in attempts:
-            lesson = lessons_map.get(attempt.lesson_id)
+        for lesson_id in unique_lesson_ids:
+            lesson = lessons_map.get(lesson_id)
             duration = 300
             if lesson and lesson.content and isinstance(lesson.content, dict):
                 duration = min(int(lesson.content.get('duration_seconds', 300)), 3600)
@@ -737,7 +743,7 @@ _CLIENT_EVENTS = {
 }
 
 _SKIP_REASONS = {'no_time', 'too_hard', 'not_today'}
-_SKIP_SLOT_KINDS = {'curriculum', 'srs', 'reading', 'listening', 'writing', 'error_review'}
+_SKIP_SLOT_KINDS = {'curriculum', 'srs', 'reading', 'listening', 'writing', 'error_review', 'speaking'}
 
 
 @api_daily_plan.route('/daily-plan/events', methods=['POST'])
@@ -1011,7 +1017,7 @@ def plan_pause():
 
     body = request.get_json(silent=True) or {}
     days = body.get('days')
-    if not isinstance(days, int) or not (1 <= days <= 14):
+    if isinstance(days, bool) or not isinstance(days, int) or not (1 <= days <= 14):
         return api_error('invalid_days', 'days must be an integer between 1 and 14', 400)
 
     user = db.session.get(User, current_user.id)

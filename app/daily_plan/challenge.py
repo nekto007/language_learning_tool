@@ -285,9 +285,8 @@ def maybe_auto_complete_challenge(
     """Auto-complete today's daily challenge if the lesson meets challenge criteria.
 
     Called from the lesson submission handler after a successful lesson result.
-    - listening_deep: passed AND lesson_id matches challenge.lesson_id
-    - accuracy_focus: passed AND score >= 90
-    - speed_run: passed AND time_spent_seconds < 300 (client must provide)
+    Delegates to check_challenge_criteria for server-side validation.
+    For listening_deep, also requires lesson_id to match the challenge lesson.
 
     Returns the completion dict (with bonus_xp) when newly completed, or None.
     Caller must commit.
@@ -318,19 +317,17 @@ def maybe_auto_complete_challenge(
     if existing:
         return None
 
-    qualifies = False
-    if challenge.category == 'listening_deep' and challenge.lesson_id == lesson_id:
-        qualifies = True
-    elif challenge.category == 'accuracy_focus' and score is not None and score >= _ACCURACY_FOCUS_MIN_SCORE:
-        qualifies = True
-    elif (
-        challenge.category == 'speed_run'
-        and time_spent_seconds is not None
-        and _SPEED_RUN_MIN_SECONDS <= time_spent_seconds < _SPEED_RUN_MAX_SECONDS
-    ):
-        qualifies = True
+    criteria_error = check_challenge_criteria(
+        challenge=challenge,
+        user_id=user_id,
+        score=score,
+        time_spent_seconds=time_spent_seconds,
+        db=db,
+    )
+    if criteria_error is not None:
+        return None
 
-    if not qualifies:
+    if challenge.category == 'listening_deep' and challenge.lesson_id != lesson_id:
         return None
 
     try:
