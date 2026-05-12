@@ -356,11 +356,11 @@
 - Use: `scripts/import_immersion_lessons.py`
 - Output: `reports/writing_prompt_import.md`
 
-- [ ] Insert writing prompts after `translation_quiz` or before module `final_test`
-- [ ] Verify one imported writing prompt for every source module that exists in target DB
-- [ ] Report skipped source modules that are not present in target DB
-- [ ] Verify daily plan writing slot can find a writing lesson in each current module
-- [ ] Verify submissions create `UserWritingAttempt`
+- [x] Insert writing prompts after `translation_quiz` or before module `final_test`
+- [x] Verify one imported writing prompt for every source module that exists in target DB
+- [x] Report skipped source modules that are not present in target DB
+- [x] Verify daily plan writing slot can find a writing lesson in each current module
+- [x] Verify submissions create `UserWritingAttempt`
 
 ---
 ### Task 20: Prepare per-module shadow reading content
