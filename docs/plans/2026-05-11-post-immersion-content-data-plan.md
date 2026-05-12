@@ -505,10 +505,10 @@
 - Create: `scripts/import_lesson_audio_metadata.py`
 - Tests: `tests/scripts/test_import_lesson_audio_metadata.py`
 
-- [ ] Add `audio_url` for all 77 source `listening_immersion` lessons or document exclusions
-- [ ] Add `duration_seconds`
-- [ ] Add transcript/text normalization if missing
-- [ ] Import without changing non-audio lesson fields
+- [x] Add `audio_url` for all 77 source `listening_immersion` lessons or document exclusions
+- [x] Add `duration_seconds`
+- [x] Add transcript/text normalization if missing
+- [x] Import without changing non-audio lesson fields
 
 ---
 ### Task 32: Add audio metadata for listening quiz lessons
