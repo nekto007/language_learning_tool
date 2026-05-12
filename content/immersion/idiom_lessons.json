@@ -7,7 +7,13 @@
     "title": "Идиомы: время и сроки",
     "title_en": "Idioms: Time and Deadlines",
     "description": "Самые практичные идиомы о времени — их используют в разговорной речи и деловых переписках каждый день.",
-    "tags": ["immersion", "idiom", "b1", "time", "everyday"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "b1",
+      "time",
+      "everyday"
+    ],
     "content": {
       "external_key": "immersion:idiom:B1:01:time_idioms",
       "items": [
@@ -37,7 +43,8 @@
           "example": "We had to beat the clock to submit the report before midnight."
         }
       ]
-    }
+    },
+    "module_number": 1
   },
   {
     "external_key": "immersion:idiom:B1:02:work_idioms",
@@ -47,7 +54,13 @@
     "title": "Идиомы: работа и карьера",
     "title_en": "Idioms: Work and Career",
     "description": "Идиомы для рабочих ситуаций — начало проектов, неудачи, связи и обучение на новом месте.",
-    "tags": ["immersion", "idiom", "b1", "work", "career"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "b1",
+      "work",
+      "career"
+    ],
     "content": {
       "external_key": "immersion:idiom:B1:02:work_idioms",
       "items": [
@@ -77,7 +90,8 @@
           "example": "I was burning the midnight oil to finish the presentation."
         }
       ]
-    }
+    },
+    "module_number": 2
   },
   {
     "external_key": "immersion:idiom:B1:03:feelings_idioms",
@@ -87,7 +101,13 @@
     "title": "Идиомы: чувства и эмоции",
     "title_en": "Idioms: Feelings and Emotions",
     "description": "Образные выражения для описания радости, грусти, волнения и плохого самочувствия.",
-    "tags": ["immersion", "idiom", "b1", "feelings", "emotions"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "b1",
+      "feelings",
+      "emotions"
+    ],
     "content": {
       "external_key": "immersion:idiom:B1:03:feelings_idioms",
       "items": [
@@ -117,7 +137,8 @@
           "example": "I always get butterflies in my stomach before a job interview."
         }
       ]
-    }
+    },
+    "module_number": 3
   },
   {
     "external_key": "immersion:idiom:B1:04:everyday_idioms",
@@ -127,7 +148,13 @@
     "title": "Идиомы: повседневные ситуации",
     "title_en": "Idioms: Everyday Life Situations",
     "description": "Наиболее частые идиомы в неформальном общении — проблемы, решения и жизненные компромиссы.",
-    "tags": ["immersion", "idiom", "b1", "everyday", "practical"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "b1",
+      "everyday",
+      "practical"
+    ],
     "content": {
       "external_key": "immersion:idiom:B1:04:everyday_idioms",
       "items": [
@@ -157,7 +184,8 @@
           "example": "Arriving late again was the last straw — the manager fired him."
         }
       ]
-    }
+    },
+    "module_number": 4
   },
   {
     "external_key": "immersion:idiom:B1:05:communication_idioms",
@@ -167,7 +195,13 @@
     "title": "Идиомы: общение и информация",
     "title_en": "Idioms: Communication and Information",
     "description": "Идиомы о том, как говорят, молчат, намекают и раскрывают секреты.",
-    "tags": ["immersion", "idiom", "b1", "communication", "speaking"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "b1",
+      "communication",
+      "speaking"
+    ],
     "content": {
       "external_key": "immersion:idiom:B1:05:communication_idioms",
       "items": [
@@ -197,7 +231,8 @@
           "example": "His email sounds polite, but if you read between the lines, he's unhappy."
         }
       ]
-    }
+    },
+    "module_number": 5
   },
   {
     "external_key": "immersion:idiom:B2:01:problem_idioms",
@@ -207,7 +242,13 @@
     "title": "Идиомы: проблемы и трудные ситуации",
     "title_en": "Idioms: Problems and Difficult Situations",
     "description": "Образные выражения для сложных жизненных и рабочих ситуаций — когда нет хорошего выхода.",
-    "tags": ["immersion", "idiom", "b2", "problems", "decisions"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "b2",
+      "problems",
+      "decisions"
+    ],
     "content": {
       "external_key": "immersion:idiom:B2:01:problem_idioms",
       "items": [
@@ -237,7 +278,8 @@
           "example": "Losing that job was a blessing in disguise — I found a much better one."
         }
       ]
-    }
+    },
+    "module_number": 1
   },
   {
     "external_key": "immersion:idiom:B2:02:money_idioms",
@@ -247,7 +289,13 @@
     "title": "Идиомы: деньги и финансы",
     "title_en": "Idioms: Money and Finance",
     "description": "Идиомы о деньгах, расходах и экономии — незаменимы в разговорах о бюджете и ценах.",
-    "tags": ["immersion", "idiom", "b2", "money", "finance"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "b2",
+      "money",
+      "finance"
+    ],
     "content": {
       "external_key": "immersion:idiom:B2:02:money_idioms",
       "items": [
@@ -279,7 +327,8 @@
           "example": "The subscription service became a cash cow for the company."
         }
       ]
-    }
+    },
+    "module_number": 2
   },
   {
     "external_key": "immersion:idiom:B2:03:knowledge_idioms",
@@ -289,7 +338,13 @@
     "title": "Идиомы: знания и понимание",
     "title_en": "Idioms: Knowledge and Understanding",
     "description": "Идиомы о том, что знают и чего не знают — пригодятся в учёбе, обсуждениях и объяснениях.",
-    "tags": ["immersion", "idiom", "b2", "knowledge", "learning"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "b2",
+      "knowledge",
+      "learning"
+    ],
     "content": {
       "external_key": "immersion:idiom:B2:03:knowledge_idioms",
       "items": [
@@ -319,7 +374,8 @@
           "example": "Once you connect the dots, the pattern becomes obvious."
         }
       ]
-    }
+    },
+    "module_number": 3
   },
   {
     "external_key": "immersion:idiom:B2:04:relationship_idioms",
@@ -329,7 +385,13 @@
     "title": "Идиомы: отношения и общение",
     "title_en": "Idioms: Relationships and Social Interaction",
     "description": "Образные выражения для разных типов межличностного взаимодействия — конфликты, примирения, симпатии.",
-    "tags": ["immersion", "idiom", "b2", "relationships", "social"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "b2",
+      "relationships",
+      "social"
+    ],
     "content": {
       "external_key": "immersion:idiom:B2:04:relationship_idioms",
       "items": [
@@ -361,7 +423,8 @@
           "example": "His constant interruptions really get under my skin."
         }
       ]
-    }
+    },
+    "module_number": 4
   },
   {
     "external_key": "immersion:idiom:B2:05:change_idioms",
@@ -371,7 +434,13 @@
     "title": "Идиомы: перемены и решения",
     "title_en": "Idioms: Change and Bold Decisions",
     "description": "Идиомы о переменах, новых начинаниях и смелых шагах вперёд.",
-    "tags": ["immersion", "idiom", "b2", "change", "decisions"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "b2",
+      "change",
+      "decisions"
+    ],
     "content": {
       "external_key": "immersion:idiom:B2:05:change_idioms",
       "items": [
@@ -403,7 +472,8 @@
           "culturally_sensitive": false
         }
       ]
-    }
+    },
+    "module_number": 5
   },
   {
     "external_key": "immersion:idiom:C1:01:abstract_thinking_idioms",
@@ -413,7 +483,13 @@
     "title": "Идиомы: абстрактное мышление",
     "title_en": "Idioms: Abstract Thinking and Complexity",
     "description": "Идиомы для обсуждения сложных идей, неопределённости и неоднозначных ситуаций — язык академических и деловых дискуссий.",
-    "tags": ["immersion", "idiom", "c1", "abstract", "thinking"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "c1",
+      "abstract",
+      "thinking"
+    ],
     "content": {
       "external_key": "immersion:idiom:C1:01:abstract_thinking_idioms",
       "items": [
@@ -443,7 +519,8 @@
           "example": "Social media is a double-edged sword: it connects people and spreads misinformation."
         }
       ]
-    }
+    },
+    "module_number": 1
   },
   {
     "external_key": "immersion:idiom:C1:02:power_idioms",
@@ -453,7 +530,13 @@
     "title": "Идиомы: власть и влияние",
     "title_en": "Idioms: Power and Influence",
     "description": "Образные выражения о власти, контроле и скрытых механизмах влияния — незаменимы при анализе политических и корпоративных текстов.",
-    "tags": ["immersion", "idiom", "c1", "power", "influence"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "c1",
+      "power",
+      "influence"
+    ],
     "content": {
       "external_key": "immersion:idiom:C1:02:power_idioms",
       "items": [
@@ -483,7 +566,8 @@
           "example": "She has a lot of clout in the industry — her endorsement matters."
         }
       ]
-    }
+    },
+    "module_number": 2
   },
   {
     "external_key": "immersion:idiom:C1:03:risk_idioms",
@@ -493,7 +577,13 @@
     "title": "Идиомы: риск и неопределённость",
     "title_en": "Idioms: Risk and Uncertainty",
     "description": "Идиомы для описания рискованных ситуаций, интуитивных решений и действий без гарантий.",
-    "tags": ["immersion", "idiom", "c1", "risk", "uncertainty"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "c1",
+      "risk",
+      "uncertainty"
+    ],
     "content": {
       "external_key": "immersion:idiom:C1:03:risk_idioms",
       "items": [
@@ -523,7 +613,8 @@
           "example": "Applying without the required experience was a shot in the dark, but it worked."
         }
       ]
-    }
+    },
+    "module_number": 3
   },
   {
     "external_key": "immersion:idiom:C1:04:effort_idioms",
@@ -533,7 +624,13 @@
     "title": "Идиомы: усилия и прогресс",
     "title_en": "Idioms: Effort and Progress",
     "description": "Образные выражения о трудоёмкой работе, препятствиях и движении вперёд — типичны в деловой и публицистической речи.",
-    "tags": ["immersion", "idiom", "c1", "effort", "progress"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "c1",
+      "effort",
+      "progress"
+    ],
     "content": {
       "external_key": "immersion:idiom:C1:04:effort_idioms",
       "items": [
@@ -563,7 +660,8 @@
           "example": "After six hours of studying, the law of diminishing returns kicks in."
         }
       ]
-    }
+    },
+    "module_number": 4
   },
   {
     "external_key": "immersion:idiom:C1:05:social_dynamics_idioms",
@@ -573,7 +671,13 @@
     "title": "Идиомы: социальная динамика",
     "title_en": "Idioms: Social Dynamics and Conformity",
     "description": "Идиомы о давлении группы, конформизме и стремлении выделиться — полезны для анализа социальных и культурных текстов.",
-    "tags": ["immersion", "idiom", "c1", "social", "conformity"],
+    "tags": [
+      "immersion",
+      "idiom",
+      "c1",
+      "social",
+      "conformity"
+    ],
     "content": {
       "external_key": "immersion:idiom:C1:05:social_dynamics_idioms",
       "items": [
@@ -605,6 +709,7 @@
           "example": "Instead of committing to one supplier, they decided to play the field for a year."
         }
       ]
-    }
+    },
+    "module_number": 5
   }
 ]

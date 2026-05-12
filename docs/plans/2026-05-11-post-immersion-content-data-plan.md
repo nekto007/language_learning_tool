@@ -471,14 +471,14 @@
 - Use: `scripts/import_immersion_lessons.py`
 - Output: `reports/cefr_seed_import.md`
 
-- [ ] Import `audio_fill_blank`
-- [ ] Import `translation`
-- [ ] Import `sentence_correction`
-- [ ] Import `sentence_completion`
-- [ ] Import `pronunciation`
-- [ ] Import `collocation_matching`
-- [ ] Import `idiom`
-- [ ] Verify zero duplicate lessons after second import run
+- [x] Import `audio_fill_blank`
+- [x] Import `translation`
+- [x] Import `sentence_correction`
+- [x] Import `sentence_completion`
+- [x] Import `pronunciation`
+- [x] Import `collocation_matching`
+- [x] Import `idiom`
+- [x] Verify zero duplicate lessons after second import run
 
 ---
 ### BLOCK D: Existing Listening and Audio Enrichment (Tasks 30-34)

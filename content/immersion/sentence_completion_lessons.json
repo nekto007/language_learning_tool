@@ -7,7 +7,13 @@
     "title": "Завершение предложений: глагол to be",
     "title_en": "Sentence Completion: Verb To Be",
     "description": "Завершите каждое предложение, используя правильную форму глагола to be.",
-    "tags": ["immersion", "sentence_completion", "a1", "to_be", "verb"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a1",
+      "to_be",
+      "verb"
+    ],
     "content": {
       "items": [
         {
@@ -36,7 +42,8 @@
           "context": "Classroom"
         }
       ]
-    }
+    },
+    "module_number": 1
   },
   {
     "external_key": "immersion:sentence_completion:A1:02:have_got",
@@ -46,7 +53,13 @@
     "title": "Завершение предложений: have/has got",
     "title_en": "Sentence Completion: Have/Has Got",
     "description": "Завершите каждое предложение, используя have got или has got.",
-    "tags": ["immersion", "sentence_completion", "a1", "have_got", "possession"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a1",
+      "have_got",
+      "possession"
+    ],
     "content": {
       "items": [
         {
@@ -75,7 +88,8 @@
           "context": "Children"
         }
       ]
-    }
+    },
+    "module_number": 2
   },
   {
     "external_key": "immersion:sentence_completion:A1:03:daily_routine",
@@ -85,7 +99,13 @@
     "title": "Завершение предложений: распорядок дня",
     "title_en": "Sentence Completion: Daily Routine",
     "description": "Завершите предложения о ежедневных действиях.",
-    "tags": ["immersion", "sentence_completion", "a1", "present_simple", "daily_routine"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a1",
+      "present_simple",
+      "daily_routine"
+    ],
     "content": {
       "items": [
         {
@@ -114,7 +134,8 @@
           "context": "Weekend"
         }
       ]
-    }
+    },
+    "module_number": 3
   },
   {
     "external_key": "immersion:sentence_completion:A1:04:prepositions_place",
@@ -124,7 +145,13 @@
     "title": "Завершение предложений: предлоги места",
     "title_en": "Sentence Completion: Prepositions of Place",
     "description": "Завершите предложения, используя предлоги места.",
-    "tags": ["immersion", "sentence_completion", "a1", "prepositions", "place"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a1",
+      "prepositions",
+      "place"
+    ],
     "content": {
       "items": [
         {
@@ -153,7 +180,8 @@
           "context": "Building"
         }
       ]
-    }
+    },
+    "module_number": 4
   },
   {
     "external_key": "immersion:sentence_completion:A1:05:basic_adjectives",
@@ -163,7 +191,13 @@
     "title": "Завершение предложений: прилагательные",
     "title_en": "Sentence Completion: Basic Adjectives",
     "description": "Завершите предложения, используя подходящие прилагательные.",
-    "tags": ["immersion", "sentence_completion", "a1", "adjectives", "description"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a1",
+      "adjectives",
+      "description"
+    ],
     "content": {
       "items": [
         {
@@ -192,7 +226,8 @@
           "context": "Feeling tired"
         }
       ]
-    }
+    },
+    "module_number": 5
   },
   {
     "external_key": "immersion:sentence_completion:A2:01:past_simple",
@@ -202,7 +237,13 @@
     "title": "Завершение предложений: прошедшее простое время",
     "title_en": "Sentence Completion: Past Simple",
     "description": "Завершите предложения о действиях в прошлом.",
-    "tags": ["immersion", "sentence_completion", "a2", "past_simple", "past"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a2",
+      "past_simple",
+      "past"
+    ],
     "content": {
       "items": [
         {
@@ -231,7 +272,8 @@
           "context": "Rainy day"
         }
       ]
-    }
+    },
+    "module_number": 1
   },
   {
     "external_key": "immersion:sentence_completion:A2:02:present_continuous",
@@ -241,7 +283,13 @@
     "title": "Завершение предложений: настоящее длительное время",
     "title_en": "Sentence Completion: Present Continuous",
     "description": "Завершите предложения о действиях, происходящих прямо сейчас.",
-    "tags": ["immersion", "sentence_completion", "a2", "present_continuous", "now"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a2",
+      "present_continuous",
+      "now"
+    ],
     "content": {
       "items": [
         {
@@ -270,7 +318,8 @@
           "context": "Park"
         }
       ]
-    }
+    },
+    "module_number": 2
   },
   {
     "external_key": "immersion:sentence_completion:A2:03:comparatives",
@@ -280,7 +329,13 @@
     "title": "Завершение предложений: сравнительные прилагательные",
     "title_en": "Sentence Completion: Comparative Adjectives",
     "description": "Завершите предложения, используя сравнительную форму прилагательных.",
-    "tags": ["immersion", "sentence_completion", "a2", "comparatives", "adjectives"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a2",
+      "comparatives",
+      "adjectives"
+    ],
     "content": {
       "items": [
         {
@@ -309,7 +364,8 @@
           "context": "Accommodation"
         }
       ]
-    }
+    },
+    "module_number": 3
   },
   {
     "external_key": "immersion:sentence_completion:A2:04:frequency_adverbs",
@@ -319,7 +375,13 @@
     "title": "Завершение предложений: наречия частотности",
     "title_en": "Sentence Completion: Frequency Adverbs",
     "description": "Завершите предложения, используя наречия частотности.",
-    "tags": ["immersion", "sentence_completion", "a2", "frequency", "adverbs"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a2",
+      "frequency",
+      "adverbs"
+    ],
     "content": {
       "items": [
         {
@@ -348,7 +410,8 @@
           "context": "Daily habit"
         }
       ]
-    }
+    },
+    "module_number": 4
   },
   {
     "external_key": "immersion:sentence_completion:A2:05:can_modal",
@@ -358,7 +421,14 @@
     "title": "Завершение предложений: модальный глагол can",
     "title_en": "Sentence Completion: Modal Verb Can",
     "description": "Завершите предложения, используя can или can't.",
-    "tags": ["immersion", "sentence_completion", "a2", "can", "modals", "ability"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a2",
+      "can",
+      "modals",
+      "ability"
+    ],
     "content": {
       "items": [
         {
@@ -387,7 +457,8 @@
           "context": "Languages"
         }
       ]
-    }
+    },
+    "module_number": 5
   },
   {
     "external_key": "immersion:sentence_completion:B1:01:present_perfect",
@@ -397,7 +468,13 @@
     "title": "Завершение предложений: настоящее совершённое время",
     "title_en": "Sentence Completion: Present Perfect",
     "description": "Завершите предложения, используя Present Perfect.",
-    "tags": ["immersion", "sentence_completion", "b1", "present_perfect", "experience"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b1",
+      "present_perfect",
+      "experience"
+    ],
     "content": {
       "items": [
         {
@@ -426,7 +503,8 @@
           "context": "School"
         }
       ]
-    }
+    },
+    "module_number": 1
   },
   {
     "external_key": "immersion:sentence_completion:B1:02:first_conditional",
@@ -436,7 +514,13 @@
     "title": "Завершение предложений: первый тип условных предложений",
     "title_en": "Sentence Completion: First Conditional",
     "description": "Завершите условные предложения о реальных ситуациях.",
-    "tags": ["immersion", "sentence_completion", "b1", "first_conditional", "conditions"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b1",
+      "first_conditional",
+      "conditions"
+    ],
     "content": {
       "items": [
         {
@@ -465,7 +549,8 @@
           "context": "Travel"
         }
       ]
-    }
+    },
+    "module_number": 2
   },
   {
     "external_key": "immersion:sentence_completion:B1:03:verb_patterns",
@@ -475,7 +560,14 @@
     "title": "Завершение предложений: глагольные конструкции",
     "title_en": "Sentence Completion: Verb Patterns",
     "description": "Завершите предложения, выбрав правильную глагольную конструкцию.",
-    "tags": ["immersion", "sentence_completion", "b1", "verb_patterns", "gerund", "infinitive"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b1",
+      "verb_patterns",
+      "gerund",
+      "infinitive"
+    ],
     "content": {
       "items": [
         {
@@ -504,7 +596,8 @@
           "context": "Shopping decision"
         }
       ]
-    }
+    },
+    "module_number": 3
   },
   {
     "external_key": "immersion:sentence_completion:B1:04:used_to",
@@ -514,7 +607,13 @@
     "title": "Завершение предложений: used to",
     "title_en": "Sentence Completion: Used To",
     "description": "Завершите предложения о прошлых привычках и состояниях.",
-    "tags": ["immersion", "sentence_completion", "b1", "used_to", "past_habits"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b1",
+      "used_to",
+      "past_habits"
+    ],
     "content": {
       "items": [
         {
@@ -543,7 +642,8 @@
           "context": "Housing change"
         }
       ]
-    }
+    },
+    "module_number": 4
   },
   {
     "external_key": "immersion:sentence_completion:B1:05:advice_should",
@@ -553,7 +653,14 @@
     "title": "Завершение предложений: советы с should",
     "title_en": "Sentence Completion: Advice with Should",
     "description": "Завершите предложения, давая советы.",
-    "tags": ["immersion", "sentence_completion", "b1", "should", "advice", "modals"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b1",
+      "should",
+      "advice",
+      "modals"
+    ],
     "content": {
       "items": [
         {
@@ -582,7 +689,8 @@
           "context": "Commuting"
         }
       ]
-    }
+    },
+    "module_number": 5
   },
   {
     "external_key": "immersion:sentence_completion:B2:01:second_conditional",
@@ -592,7 +700,13 @@
     "title": "Завершение предложений: второй тип условных предложений",
     "title_en": "Sentence Completion: Second Conditional",
     "description": "Завершите гипотетические условные предложения.",
-    "tags": ["immersion", "sentence_completion", "b2", "second_conditional", "hypothetical"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b2",
+      "second_conditional",
+      "hypothetical"
+    ],
     "content": {
       "items": [
         {
@@ -621,7 +735,8 @@
           "context": "Language and career"
         }
       ]
-    }
+    },
+    "module_number": 1
   },
   {
     "external_key": "immersion:sentence_completion:B2:02:passive_voice",
@@ -631,7 +746,13 @@
     "title": "Завершение предложений: страдательный залог",
     "title_en": "Sentence Completion: Passive Voice",
     "description": "Завершите предложения в страдательном залоге.",
-    "tags": ["immersion", "sentence_completion", "b2", "passive", "formal"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b2",
+      "passive",
+      "formal"
+    ],
     "content": {
       "items": [
         {
@@ -660,7 +781,8 @@
           "context": "Airport announcement"
         }
       ]
-    }
+    },
+    "module_number": 2
   },
   {
     "external_key": "immersion:sentence_completion:B2:03:reported_speech",
@@ -670,7 +792,13 @@
     "title": "Завершение предложений: косвенная речь",
     "title_en": "Sentence Completion: Reported Speech",
     "description": "Завершите предложения с косвенной речью.",
-    "tags": ["immersion", "sentence_completion", "b2", "reported_speech", "indirect_speech"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b2",
+      "reported_speech",
+      "indirect_speech"
+    ],
     "content": {
       "items": [
         {
@@ -699,7 +827,8 @@
           "context": "Customer service"
         }
       ]
-    }
+    },
+    "module_number": 3
   },
   {
     "external_key": "immersion:sentence_completion:B2:04:relative_clauses",
@@ -709,7 +838,13 @@
     "title": "Завершение предложений: придаточные определительные",
     "title_en": "Sentence Completion: Relative Clauses",
     "description": "Завершите предложения, добавив определительные придаточные.",
-    "tags": ["immersion", "sentence_completion", "b2", "relative_clauses", "complex_sentences"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b2",
+      "relative_clauses",
+      "complex_sentences"
+    ],
     "content": {
       "items": [
         {
@@ -738,7 +873,8 @@
           "context": "Personal experience"
         }
       ]
-    }
+    },
+    "module_number": 4
   },
   {
     "external_key": "immersion:sentence_completion:B2:05:past_perfect",
@@ -748,7 +884,13 @@
     "title": "Завершение предложений: прошедшее совершённое время",
     "title_en": "Sentence Completion: Past Perfect",
     "description": "Завершите предложения, используя Past Perfect для описания последовательности событий.",
-    "tags": ["immersion", "sentence_completion", "b2", "past_perfect", "sequence"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b2",
+      "past_perfect",
+      "sequence"
+    ],
     "content": {
       "items": [
         {
@@ -777,7 +919,8 @@
           "context": "Office problem"
         }
       ]
-    }
+    },
+    "module_number": 5
   },
   {
     "external_key": "immersion:sentence_completion:C1:01:third_conditional",
@@ -787,7 +930,13 @@
     "title": "Завершение предложений: третий тип условных предложений",
     "title_en": "Sentence Completion: Third Conditional",
     "description": "Завершите условные предложения о нереализованных возможностях в прошлом.",
-    "tags": ["immersion", "sentence_completion", "c1", "third_conditional", "hypothetical_past"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "c1",
+      "third_conditional",
+      "hypothetical_past"
+    ],
     "content": {
       "items": [
         {
@@ -816,7 +965,8 @@
           "context": "Workplace context"
         }
       ]
-    }
+    },
+    "module_number": 1
   },
   {
     "external_key": "immersion:sentence_completion:C1:02:inversion",
@@ -826,7 +976,14 @@
     "title": "Завершение предложений: инверсия",
     "title_en": "Sentence Completion: Inversion for Emphasis",
     "description": "Завершите предложения с инверсионными конструкциями.",
-    "tags": ["immersion", "sentence_completion", "c1", "inversion", "formal", "emphasis"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "c1",
+      "inversion",
+      "formal",
+      "emphasis"
+    ],
     "content": {
       "items": [
         {
@@ -855,7 +1012,8 @@
           "context": "Timing coincidence"
         }
       ]
-    }
+    },
+    "module_number": 2
   },
   {
     "external_key": "immersion:sentence_completion:C1:03:complex_modals",
@@ -865,7 +1023,14 @@
     "title": "Завершение предложений: сложные модальные глаголы",
     "title_en": "Sentence Completion: Complex Modals",
     "description": "Завершите предложения, используя сложные модальные конструкции для рассуждений и предположений.",
-    "tags": ["immersion", "sentence_completion", "c1", "modals", "deduction", "speculation"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "c1",
+      "modals",
+      "deduction",
+      "speculation"
+    ],
     "content": {
       "items": [
         {
@@ -894,7 +1059,8 @@
           "context": "Technical problem"
         }
       ]
-    }
+    },
+    "module_number": 3
   },
   {
     "external_key": "immersion:sentence_completion:C1:04:wish_patterns",
@@ -904,7 +1070,14 @@
     "title": "Завершение предложений: конструкции с wish",
     "title_en": "Sentence Completion: Wish Patterns",
     "description": "Завершите предложения, выражая сожаление или желание.",
-    "tags": ["immersion", "sentence_completion", "c1", "wish", "regret", "subjunctive"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "c1",
+      "wish",
+      "regret",
+      "subjunctive"
+    ],
     "content": {
       "items": [
         {
@@ -933,7 +1106,8 @@
           "context": "Project retrospective"
         }
       ]
-    }
+    },
+    "module_number": 4
   },
   {
     "external_key": "immersion:sentence_completion:C1:05:discourse_markers",
@@ -943,7 +1117,14 @@
     "title": "Завершение предложений: дискурсивные маркеры",
     "title_en": "Sentence Completion: Discourse Markers",
     "description": "Завершите предложения с академическими и формальными дискурсивными маркерами.",
-    "tags": ["immersion", "sentence_completion", "c1", "discourse_markers", "academic", "formal"],
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "c1",
+      "discourse_markers",
+      "academic",
+      "formal"
+    ],
     "content": {
       "items": [
         {
@@ -972,6 +1153,7 @@
           "context": "Project summary"
         }
       ]
-    }
+    },
+    "module_number": 5
   }
 ]

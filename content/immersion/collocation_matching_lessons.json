@@ -7,18 +7,43 @@
     "title": "Сочетания: базовые глаголы",
     "title_en": "Collocations: Basic Verbs",
     "description": "Самые частые сочетания глаголов с существительными — основа разговорного английского.",
-    "tags": ["immersion", "vocabulary", "collocations", "a1", "basic_verbs"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "a1",
+      "basic_verbs"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:A1:01:basic_verbs",
       "pairs": [
-        {"phrase": "have breakfast", "translation": "завтракать"},
-        {"phrase": "go home", "translation": "идти домой"},
-        {"phrase": "make a call", "translation": "позвонить"},
-        {"phrase": "take a seat", "translation": "присесть"},
-        {"phrase": "do the dishes", "translation": "мыть посуду"},
-        {"phrase": "get up", "translation": "вставать"}
+        {
+          "phrase": "have breakfast",
+          "translation": "завтракать"
+        },
+        {
+          "phrase": "go home",
+          "translation": "идти домой"
+        },
+        {
+          "phrase": "make a call",
+          "translation": "позвонить"
+        },
+        {
+          "phrase": "take a seat",
+          "translation": "присесть"
+        },
+        {
+          "phrase": "do the dishes",
+          "translation": "мыть посуду"
+        },
+        {
+          "phrase": "get up",
+          "translation": "вставать"
+        }
       ]
-    }
+    },
+    "module_number": 1
   },
   {
     "external_key": "immersion:collocation_matching:A1:02:everyday_actions",
@@ -28,18 +53,43 @@
     "title": "Сочетания: повседневные действия",
     "title_en": "Collocations: Everyday Actions",
     "description": "Выражения для описания обычного дня — еда, сон, работа, отдых.",
-    "tags": ["immersion", "vocabulary", "collocations", "a1", "daily_routine"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "a1",
+      "daily_routine"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:A1:02:everyday_actions",
       "pairs": [
-        {"phrase": "have lunch", "translation": "обедать"},
-        {"phrase": "go to bed", "translation": "ложиться спать"},
-        {"phrase": "take a shower", "translation": "принять душ"},
-        {"phrase": "make dinner", "translation": "готовить ужин"},
-        {"phrase": "do homework", "translation": "делать домашнее задание"},
-        {"phrase": "go to school", "translation": "идти в школу"}
+        {
+          "phrase": "have lunch",
+          "translation": "обедать"
+        },
+        {
+          "phrase": "go to bed",
+          "translation": "ложиться спать"
+        },
+        {
+          "phrase": "take a shower",
+          "translation": "принять душ"
+        },
+        {
+          "phrase": "make dinner",
+          "translation": "готовить ужин"
+        },
+        {
+          "phrase": "do homework",
+          "translation": "делать домашнее задание"
+        },
+        {
+          "phrase": "go to school",
+          "translation": "идти в школу"
+        }
       ]
-    }
+    },
+    "module_number": 2
   },
   {
     "external_key": "immersion:collocation_matching:A1:03:feelings_states",
@@ -49,18 +99,43 @@
     "title": "Сочетания: состояния и чувства",
     "title_en": "Collocations: Feelings and States",
     "description": "Как по-английски выразить, что ты чувствуешь — базовые сочетания.",
-    "tags": ["immersion", "vocabulary", "collocations", "a1", "feelings"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "a1",
+      "feelings"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:A1:03:feelings_states",
       "pairs": [
-        {"phrase": "feel happy", "translation": "чувствовать себя счастливым"},
-        {"phrase": "be tired", "translation": "быть усталым"},
-        {"phrase": "get hungry", "translation": "проголодаться"},
-        {"phrase": "feel cold", "translation": "мёрзнуть / быть холодным"},
-        {"phrase": "be scared", "translation": "бояться"},
-        {"phrase": "get bored", "translation": "заскучать"}
+        {
+          "phrase": "feel happy",
+          "translation": "чувствовать себя счастливым"
+        },
+        {
+          "phrase": "be tired",
+          "translation": "быть усталым"
+        },
+        {
+          "phrase": "get hungry",
+          "translation": "проголодаться"
+        },
+        {
+          "phrase": "feel cold",
+          "translation": "мёрзнуть / быть холодным"
+        },
+        {
+          "phrase": "be scared",
+          "translation": "бояться"
+        },
+        {
+          "phrase": "get bored",
+          "translation": "заскучать"
+        }
       ]
-    }
+    },
+    "module_number": 3
   },
   {
     "external_key": "immersion:collocation_matching:A1:04:time_expressions",
@@ -70,18 +145,43 @@
     "title": "Сочетания: время и распорядок",
     "title_en": "Collocations: Time Expressions",
     "description": "Устойчивые выражения со словом «time» и наречиями времени.",
-    "tags": ["immersion", "vocabulary", "collocations", "a1", "time"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "a1",
+      "time"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:A1:04:time_expressions",
       "pairs": [
-        {"phrase": "have a good time", "translation": "хорошо провести время"},
-        {"phrase": "be on time", "translation": "быть вовремя"},
-        {"phrase": "take your time", "translation": "не торопись"},
-        {"phrase": "free time", "translation": "свободное время"},
-        {"phrase": "all the time", "translation": "всё время"},
-        {"phrase": "at the same time", "translation": "в то же время"}
+        {
+          "phrase": "have a good time",
+          "translation": "хорошо провести время"
+        },
+        {
+          "phrase": "be on time",
+          "translation": "быть вовремя"
+        },
+        {
+          "phrase": "take your time",
+          "translation": "не торопись"
+        },
+        {
+          "phrase": "free time",
+          "translation": "свободное время"
+        },
+        {
+          "phrase": "all the time",
+          "translation": "всё время"
+        },
+        {
+          "phrase": "at the same time",
+          "translation": "в то же время"
+        }
       ]
-    }
+    },
+    "module_number": 4
   },
   {
     "external_key": "immersion:collocation_matching:A1:05:places_movement",
@@ -91,18 +191,43 @@
     "title": "Сочетания: места и движение",
     "title_en": "Collocations: Places and Movement",
     "description": "Глаголы движения с существительными — как говорить куда идёшь.",
-    "tags": ["immersion", "vocabulary", "collocations", "a1", "movement"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "a1",
+      "movement"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:A1:05:places_movement",
       "pairs": [
-        {"phrase": "go shopping", "translation": "идти за покупками"},
-        {"phrase": "take a bus", "translation": "ехать на автобусе"},
-        {"phrase": "arrive at school", "translation": "прийти в школу"},
-        {"phrase": "stay at home", "translation": "оставаться дома"},
-        {"phrase": "go for a walk", "translation": "пойти погулять"},
-        {"phrase": "visit friends", "translation": "навестить друзей"}
+        {
+          "phrase": "go shopping",
+          "translation": "идти за покупками"
+        },
+        {
+          "phrase": "take a bus",
+          "translation": "ехать на автобусе"
+        },
+        {
+          "phrase": "arrive at school",
+          "translation": "прийти в школу"
+        },
+        {
+          "phrase": "stay at home",
+          "translation": "оставаться дома"
+        },
+        {
+          "phrase": "go for a walk",
+          "translation": "пойти погулять"
+        },
+        {
+          "phrase": "visit friends",
+          "translation": "навестить друзей"
+        }
       ]
-    }
+    },
+    "module_number": 5
   },
   {
     "external_key": "immersion:collocation_matching:A2:01:make_do",
@@ -112,18 +237,43 @@
     "title": "Сочетания: make и do",
     "title_en": "Collocations: make vs do",
     "description": "Классическая проблема для учащихся: когда make, а когда do? Запоминаем через сочетания.",
-    "tags": ["immersion", "vocabulary", "collocations", "a2", "make_do"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "a2",
+      "make_do"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:A2:01:make_do",
       "pairs": [
-        {"phrase": "make a decision", "translation": "принять решение"},
-        {"phrase": "do exercise", "translation": "делать зарядку / заниматься спортом"},
-        {"phrase": "make a mistake", "translation": "совершить ошибку"},
-        {"phrase": "do the cleaning", "translation": "делать уборку"},
-        {"phrase": "make a plan", "translation": "составить план"},
-        {"phrase": "do research", "translation": "проводить исследование"}
+        {
+          "phrase": "make a decision",
+          "translation": "принять решение"
+        },
+        {
+          "phrase": "do exercise",
+          "translation": "делать зарядку / заниматься спортом"
+        },
+        {
+          "phrase": "make a mistake",
+          "translation": "совершить ошибку"
+        },
+        {
+          "phrase": "do the cleaning",
+          "translation": "делать уборку"
+        },
+        {
+          "phrase": "make a plan",
+          "translation": "составить план"
+        },
+        {
+          "phrase": "do research",
+          "translation": "проводить исследование"
+        }
       ]
-    }
+    },
+    "module_number": 1
   },
   {
     "external_key": "immersion:collocation_matching:A2:02:get_collocations",
@@ -133,18 +283,43 @@
     "title": "Сочетания с get",
     "title_en": "Collocations with get",
     "description": "Глагол get — один из самых многозначных. Разбираем его ключевые сочетания.",
-    "tags": ["immersion", "vocabulary", "collocations", "a2", "get"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "a2",
+      "get"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:A2:02:get_collocations",
       "pairs": [
-        {"phrase": "get married", "translation": "пожениться / выйти замуж"},
-        {"phrase": "get lost", "translation": "заблудиться"},
-        {"phrase": "get dressed", "translation": "одеться"},
-        {"phrase": "get better", "translation": "поправляться / становиться лучше"},
-        {"phrase": "get ready", "translation": "подготовиться"},
-        {"phrase": "get angry", "translation": "рассердиться"}
+        {
+          "phrase": "get married",
+          "translation": "пожениться / выйти замуж"
+        },
+        {
+          "phrase": "get lost",
+          "translation": "заблудиться"
+        },
+        {
+          "phrase": "get dressed",
+          "translation": "одеться"
+        },
+        {
+          "phrase": "get better",
+          "translation": "поправляться / становиться лучше"
+        },
+        {
+          "phrase": "get ready",
+          "translation": "подготовиться"
+        },
+        {
+          "phrase": "get angry",
+          "translation": "рассердиться"
+        }
       ]
-    }
+    },
+    "module_number": 2
   },
   {
     "external_key": "immersion:collocation_matching:A2:03:shopping_food",
@@ -154,18 +329,44 @@
     "title": "Сочетания: покупки и еда",
     "title_en": "Collocations: Shopping and Food",
     "description": "Полезные выражения для магазина, кафе и разговора о еде.",
-    "tags": ["immersion", "vocabulary", "collocations", "a2", "shopping", "food"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "a2",
+      "shopping",
+      "food"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:A2:03:shopping_food",
       "pairs": [
-        {"phrase": "pay by card", "translation": "платить картой"},
-        {"phrase": "order food", "translation": "заказать еду"},
-        {"phrase": "try on clothes", "translation": "примерить одежду"},
-        {"phrase": "ask for the bill", "translation": "попросить счёт"},
-        {"phrase": "go grocery shopping", "translation": "идти за продуктами"},
-        {"phrase": "check the price", "translation": "проверить цену"}
+        {
+          "phrase": "pay by card",
+          "translation": "платить картой"
+        },
+        {
+          "phrase": "order food",
+          "translation": "заказать еду"
+        },
+        {
+          "phrase": "try on clothes",
+          "translation": "примерить одежду"
+        },
+        {
+          "phrase": "ask for the bill",
+          "translation": "попросить счёт"
+        },
+        {
+          "phrase": "go grocery shopping",
+          "translation": "идти за продуктами"
+        },
+        {
+          "phrase": "check the price",
+          "translation": "проверить цену"
+        }
       ]
-    }
+    },
+    "module_number": 3
   },
   {
     "external_key": "immersion:collocation_matching:A2:04:health_body",
@@ -175,18 +376,43 @@
     "title": "Сочетания: здоровье и тело",
     "title_en": "Collocations: Health and Body",
     "description": "Как говорить о здоровье, болезнях и медицине по-английски.",
-    "tags": ["immersion", "vocabulary", "collocations", "a2", "health"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "a2",
+      "health"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:A2:04:health_body",
       "pairs": [
-        {"phrase": "have a headache", "translation": "болеть голова"},
-        {"phrase": "catch a cold", "translation": "простудиться"},
-        {"phrase": "see a doctor", "translation": "обратиться к врачу"},
-        {"phrase": "take medicine", "translation": "принять лекарство"},
-        {"phrase": "feel sick", "translation": "чувствовать себя плохо"},
-        {"phrase": "stay in bed", "translation": "лежать в постели"}
+        {
+          "phrase": "have a headache",
+          "translation": "болеть голова"
+        },
+        {
+          "phrase": "catch a cold",
+          "translation": "простудиться"
+        },
+        {
+          "phrase": "see a doctor",
+          "translation": "обратиться к врачу"
+        },
+        {
+          "phrase": "take medicine",
+          "translation": "принять лекарство"
+        },
+        {
+          "phrase": "feel sick",
+          "translation": "чувствовать себя плохо"
+        },
+        {
+          "phrase": "stay in bed",
+          "translation": "лежать в постели"
+        }
       ]
-    }
+    },
+    "module_number": 4
   },
   {
     "external_key": "immersion:collocation_matching:A2:05:work_study",
@@ -196,18 +422,44 @@
     "title": "Сочетания: учёба и работа",
     "title_en": "Collocations: Study and Work",
     "description": "Выражения для разговора об учёбе, работе и карьере.",
-    "tags": ["immersion", "vocabulary", "collocations", "a2", "work", "study"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "a2",
+      "work",
+      "study"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:A2:05:work_study",
       "pairs": [
-        {"phrase": "pass an exam", "translation": "сдать экзамен"},
-        {"phrase": "apply for a job", "translation": "подать заявку на работу"},
-        {"phrase": "take notes", "translation": "делать заметки"},
-        {"phrase": "miss a class", "translation": "пропустить занятие"},
-        {"phrase": "earn a salary", "translation": "получать зарплату"},
-        {"phrase": "attend a meeting", "translation": "присутствовать на встрече"}
+        {
+          "phrase": "pass an exam",
+          "translation": "сдать экзамен"
+        },
+        {
+          "phrase": "apply for a job",
+          "translation": "подать заявку на работу"
+        },
+        {
+          "phrase": "take notes",
+          "translation": "делать заметки"
+        },
+        {
+          "phrase": "miss a class",
+          "translation": "пропустить занятие"
+        },
+        {
+          "phrase": "earn a salary",
+          "translation": "получать зарплату"
+        },
+        {
+          "phrase": "attend a meeting",
+          "translation": "присутствовать на встрече"
+        }
       ]
-    }
+    },
+    "module_number": 5
   },
   {
     "external_key": "immersion:collocation_matching:B1:01:travel_journey",
@@ -217,18 +469,43 @@
     "title": "Сочетания: путешествия",
     "title_en": "Collocations: Travel and Journeys",
     "description": "Устойчивые выражения для разговора о путешествиях, поездках и отпуске.",
-    "tags": ["immersion", "vocabulary", "collocations", "b1", "travel"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "b1",
+      "travel"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:B1:01:travel_journey",
       "pairs": [
-        {"phrase": "book a hotel", "translation": "забронировать отель"},
-        {"phrase": "catch a flight", "translation": "успеть на самолёт"},
-        {"phrase": "go through customs", "translation": "пройти таможню"},
-        {"phrase": "check in online", "translation": "зарегистрироваться онлайн"},
-        {"phrase": "pack a suitcase", "translation": "собрать чемодан"},
-        {"phrase": "miss a connection", "translation": "опоздать на пересадку"}
+        {
+          "phrase": "book a hotel",
+          "translation": "забронировать отель"
+        },
+        {
+          "phrase": "catch a flight",
+          "translation": "успеть на самолёт"
+        },
+        {
+          "phrase": "go through customs",
+          "translation": "пройти таможню"
+        },
+        {
+          "phrase": "check in online",
+          "translation": "зарегистрироваться онлайн"
+        },
+        {
+          "phrase": "pack a suitcase",
+          "translation": "собрать чемодан"
+        },
+        {
+          "phrase": "miss a connection",
+          "translation": "опоздать на пересадку"
+        }
       ]
-    }
+    },
+    "module_number": 1
   },
   {
     "external_key": "immersion:collocation_matching:B1:02:communication",
@@ -238,18 +515,43 @@
     "title": "Сочетания: общение и речь",
     "title_en": "Collocations: Communication and Speech",
     "description": "Глагольные сочетания для описания процесса общения — от переговоров до переписки.",
-    "tags": ["immersion", "vocabulary", "collocations", "b1", "communication"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "b1",
+      "communication"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:B1:02:communication",
       "pairs": [
-        {"phrase": "reach an agreement", "translation": "прийти к соглашению"},
-        {"phrase": "raise a question", "translation": "поднять вопрос"},
-        {"phrase": "make a point", "translation": "высказать довод / обратить внимание"},
-        {"phrase": "keep in touch", "translation": "оставаться на связи"},
-        {"phrase": "give feedback", "translation": "дать обратную связь"},
-        {"phrase": "break the news", "translation": "сообщить новость (неожиданную)"}
+        {
+          "phrase": "reach an agreement",
+          "translation": "прийти к соглашению"
+        },
+        {
+          "phrase": "raise a question",
+          "translation": "поднять вопрос"
+        },
+        {
+          "phrase": "make a point",
+          "translation": "высказать довод / обратить внимание"
+        },
+        {
+          "phrase": "keep in touch",
+          "translation": "оставаться на связи"
+        },
+        {
+          "phrase": "give feedback",
+          "translation": "дать обратную связь"
+        },
+        {
+          "phrase": "break the news",
+          "translation": "сообщить новость (неожиданную)"
+        }
       ]
-    }
+    },
+    "module_number": 2
   },
   {
     "external_key": "immersion:collocation_matching:B1:03:take_collocations",
@@ -259,18 +561,43 @@
     "title": "Сочетания с take",
     "title_en": "Collocations with take",
     "description": "Глагол take встречается в тысячах устойчивых выражений. Изучаем ключевые.",
-    "tags": ["immersion", "vocabulary", "collocations", "b1", "take"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "b1",
+      "take"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:B1:03:take_collocations",
       "pairs": [
-        {"phrase": "take part in", "translation": "принимать участие в"},
-        {"phrase": "take responsibility", "translation": "взять ответственность"},
-        {"phrase": "take advantage of", "translation": "воспользоваться чем-либо"},
-        {"phrase": "take for granted", "translation": "принимать как должное"},
-        {"phrase": "take place", "translation": "происходить / состояться"},
-        {"phrase": "take into account", "translation": "принимать во внимание"}
+        {
+          "phrase": "take part in",
+          "translation": "принимать участие в"
+        },
+        {
+          "phrase": "take responsibility",
+          "translation": "взять ответственность"
+        },
+        {
+          "phrase": "take advantage of",
+          "translation": "воспользоваться чем-либо"
+        },
+        {
+          "phrase": "take for granted",
+          "translation": "принимать как должное"
+        },
+        {
+          "phrase": "take place",
+          "translation": "происходить / состояться"
+        },
+        {
+          "phrase": "take into account",
+          "translation": "принимать во внимание"
+        }
       ]
-    }
+    },
+    "module_number": 3
   },
   {
     "external_key": "immersion:collocation_matching:B1:04:problems_solutions",
@@ -280,18 +607,43 @@
     "title": "Сочетания: проблемы и решения",
     "title_en": "Collocations: Problems and Solutions",
     "description": "Как говорить о трудностях и их решении — полезно для обсуждений и эссе.",
-    "tags": ["immersion", "vocabulary", "collocations", "b1", "problems"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "b1",
+      "problems"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:B1:04:problems_solutions",
       "pairs": [
-        {"phrase": "solve a problem", "translation": "решить проблему"},
-        {"phrase": "face a challenge", "translation": "столкнуться с трудностью"},
-        {"phrase": "find a solution", "translation": "найти решение"},
-        {"phrase": "deal with a situation", "translation": "справиться с ситуацией"},
-        {"phrase": "overcome difficulties", "translation": "преодолеть трудности"},
-        {"phrase": "avoid a conflict", "translation": "избежать конфликта"}
+        {
+          "phrase": "solve a problem",
+          "translation": "решить проблему"
+        },
+        {
+          "phrase": "face a challenge",
+          "translation": "столкнуться с трудностью"
+        },
+        {
+          "phrase": "find a solution",
+          "translation": "найти решение"
+        },
+        {
+          "phrase": "deal with a situation",
+          "translation": "справиться с ситуацией"
+        },
+        {
+          "phrase": "overcome difficulties",
+          "translation": "преодолеть трудности"
+        },
+        {
+          "phrase": "avoid a conflict",
+          "translation": "избежать конфликта"
+        }
       ]
-    }
+    },
+    "module_number": 4
   },
   {
     "external_key": "immersion:collocation_matching:B1:05:emotions_reactions",
@@ -301,18 +653,43 @@
     "title": "Сочетания: эмоции и реакции",
     "title_en": "Collocations: Emotions and Reactions",
     "description": "Более точный язык для описания чувств — выходим за рамки happy/sad.",
-    "tags": ["immersion", "vocabulary", "collocations", "b1", "emotions"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "b1",
+      "emotions"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:B1:05:emotions_reactions",
       "pairs": [
-        {"phrase": "burst into tears", "translation": "расплакаться"},
-        {"phrase": "lose your temper", "translation": "выйти из себя"},
-        {"phrase": "feel relieved", "translation": "почувствовать облегчение"},
-        {"phrase": "be deeply moved", "translation": "быть глубоко тронутым"},
-        {"phrase": "show appreciation", "translation": "выразить признательность"},
-        {"phrase": "hold back emotions", "translation": "сдерживать эмоции"}
+        {
+          "phrase": "burst into tears",
+          "translation": "расплакаться"
+        },
+        {
+          "phrase": "lose your temper",
+          "translation": "выйти из себя"
+        },
+        {
+          "phrase": "feel relieved",
+          "translation": "почувствовать облегчение"
+        },
+        {
+          "phrase": "be deeply moved",
+          "translation": "быть глубоко тронутым"
+        },
+        {
+          "phrase": "show appreciation",
+          "translation": "выразить признательность"
+        },
+        {
+          "phrase": "hold back emotions",
+          "translation": "сдерживать эмоции"
+        }
       ]
-    }
+    },
+    "module_number": 5
   },
   {
     "external_key": "immersion:collocation_matching:B2:01:business_formal",
@@ -322,18 +699,43 @@
     "title": "Сочетания: деловой язык",
     "title_en": "Collocations: Business Language",
     "description": "Устойчивые выражения делового и официального английского.",
-    "tags": ["immersion", "vocabulary", "collocations", "b2", "business"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "b2",
+      "business"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:B2:01:business_formal",
       "pairs": [
-        {"phrase": "meet a deadline", "translation": "уложиться в срок"},
-        {"phrase": "launch a product", "translation": "запустить продукт"},
-        {"phrase": "sign a contract", "translation": "подписать контракт"},
-        {"phrase": "generate revenue", "translation": "получать доход"},
-        {"phrase": "negotiate terms", "translation": "обсудить условия"},
-        {"phrase": "submit a report", "translation": "представить отчёт"}
+        {
+          "phrase": "meet a deadline",
+          "translation": "уложиться в срок"
+        },
+        {
+          "phrase": "launch a product",
+          "translation": "запустить продукт"
+        },
+        {
+          "phrase": "sign a contract",
+          "translation": "подписать контракт"
+        },
+        {
+          "phrase": "generate revenue",
+          "translation": "получать доход"
+        },
+        {
+          "phrase": "negotiate terms",
+          "translation": "обсудить условия"
+        },
+        {
+          "phrase": "submit a report",
+          "translation": "представить отчёт"
+        }
       ]
-    }
+    },
+    "module_number": 1
   },
   {
     "external_key": "immersion:collocation_matching:B2:02:cause_effect",
@@ -343,18 +745,44 @@
     "title": "Сочетания: причина и следствие",
     "title_en": "Collocations: Cause and Effect",
     "description": "Выражения для описания причинно-следственных связей — незаменимы в аналитических текстах.",
-    "tags": ["immersion", "vocabulary", "collocations", "b2", "cause_effect", "academic"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "b2",
+      "cause_effect",
+      "academic"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:B2:02:cause_effect",
       "pairs": [
-        {"phrase": "lead to consequences", "translation": "приводить к последствиям"},
-        {"phrase": "result in failure", "translation": "заканчиваться провалом"},
-        {"phrase": "stem from neglect", "translation": "проистекать из халатности"},
-        {"phrase": "trigger a reaction", "translation": "вызвать реакцию"},
-        {"phrase": "contribute to growth", "translation": "способствовать росту"},
-        {"phrase": "give rise to concerns", "translation": "порождать опасения"}
+        {
+          "phrase": "lead to consequences",
+          "translation": "приводить к последствиям"
+        },
+        {
+          "phrase": "result in failure",
+          "translation": "заканчиваться провалом"
+        },
+        {
+          "phrase": "stem from neglect",
+          "translation": "проистекать из халатности"
+        },
+        {
+          "phrase": "trigger a reaction",
+          "translation": "вызвать реакцию"
+        },
+        {
+          "phrase": "contribute to growth",
+          "translation": "способствовать росту"
+        },
+        {
+          "phrase": "give rise to concerns",
+          "translation": "порождать опасения"
+        }
       ]
-    }
+    },
+    "module_number": 2
   },
   {
     "external_key": "immersion:collocation_matching:B2:03:abstract_nouns",
@@ -364,18 +792,43 @@
     "title": "Сочетания: абстрактные существительные",
     "title_en": "Collocations: Abstract Nouns",
     "description": "Сложные, но частотные сочетания с абстрактными понятиями: мнение, знание, риск.",
-    "tags": ["immersion", "vocabulary", "collocations", "b2", "abstract"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "b2",
+      "abstract"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:B2:03:abstract_nouns",
       "pairs": [
-        {"phrase": "gain experience", "translation": "приобрести опыт"},
-        {"phrase": "express an opinion", "translation": "высказать мнение"},
-        {"phrase": "pose a risk", "translation": "представлять риск"},
-        {"phrase": "share knowledge", "translation": "делиться знаниями"},
-        {"phrase": "acquire skills", "translation": "приобрести навыки"},
-        {"phrase": "raise awareness", "translation": "повысить осведомлённость"}
+        {
+          "phrase": "gain experience",
+          "translation": "приобрести опыт"
+        },
+        {
+          "phrase": "express an opinion",
+          "translation": "высказать мнение"
+        },
+        {
+          "phrase": "pose a risk",
+          "translation": "представлять риск"
+        },
+        {
+          "phrase": "share knowledge",
+          "translation": "делиться знаниями"
+        },
+        {
+          "phrase": "acquire skills",
+          "translation": "приобрести навыки"
+        },
+        {
+          "phrase": "raise awareness",
+          "translation": "повысить осведомлённость"
+        }
       ]
-    }
+    },
+    "module_number": 3
   },
   {
     "external_key": "immersion:collocation_matching:B2:04:strong_adjectives",
@@ -385,18 +838,44 @@
     "title": "Сочетания: усиленные прилагательные",
     "title_en": "Collocations: Strong Adjective + Noun",
     "description": "Когда 'very good' уже мало — интенсивные прилагательные в сочетаниях.",
-    "tags": ["immersion", "vocabulary", "collocations", "b2", "adjectives", "intensifiers"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "b2",
+      "adjectives",
+      "intensifiers"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:B2:04:strong_adjectives",
       "pairs": [
-        {"phrase": "a blatant lie", "translation": "откровенная ложь"},
-        {"phrase": "a fierce competition", "translation": "жёсткая конкуренция"},
-        {"phrase": "a profound impact", "translation": "глубокое влияние"},
-        {"phrase": "a widespread belief", "translation": "широко распространённое убеждение"},
-        {"phrase": "a pivotal moment", "translation": "поворотный момент"},
-        {"phrase": "a stark contrast", "translation": "разительный контраст"}
+        {
+          "phrase": "a blatant lie",
+          "translation": "откровенная ложь"
+        },
+        {
+          "phrase": "a fierce competition",
+          "translation": "жёсткая конкуренция"
+        },
+        {
+          "phrase": "a profound impact",
+          "translation": "глубокое влияние"
+        },
+        {
+          "phrase": "a widespread belief",
+          "translation": "широко распространённое убеждение"
+        },
+        {
+          "phrase": "a pivotal moment",
+          "translation": "поворотный момент"
+        },
+        {
+          "phrase": "a stark contrast",
+          "translation": "разительный контраст"
+        }
       ]
-    }
+    },
+    "module_number": 4
   },
   {
     "external_key": "immersion:collocation_matching:B2:05:change_development",
@@ -406,18 +885,43 @@
     "title": "Сочетания: изменения и развитие",
     "title_en": "Collocations: Change and Development",
     "description": "Богатый словарь для описания изменений, прогресса и трансформаций.",
-    "tags": ["immersion", "vocabulary", "collocations", "b2", "change"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "b2",
+      "change"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:B2:05:change_development",
       "pairs": [
-        {"phrase": "undergo a transformation", "translation": "претерпеть трансформацию"},
-        {"phrase": "implement a change", "translation": "внедрить изменение"},
-        {"phrase": "sustain growth", "translation": "поддерживать рост"},
-        {"phrase": "achieve a breakthrough", "translation": "добиться прорыва"},
-        {"phrase": "reverse a trend", "translation": "изменить тенденцию на противоположную"},
-        {"phrase": "drive innovation", "translation": "стимулировать инновации"}
+        {
+          "phrase": "undergo a transformation",
+          "translation": "претерпеть трансформацию"
+        },
+        {
+          "phrase": "implement a change",
+          "translation": "внедрить изменение"
+        },
+        {
+          "phrase": "sustain growth",
+          "translation": "поддерживать рост"
+        },
+        {
+          "phrase": "achieve a breakthrough",
+          "translation": "добиться прорыва"
+        },
+        {
+          "phrase": "reverse a trend",
+          "translation": "изменить тенденцию на противоположную"
+        },
+        {
+          "phrase": "drive innovation",
+          "translation": "стимулировать инновации"
+        }
       ]
-    }
+    },
+    "module_number": 5
   },
   {
     "external_key": "immersion:collocation_matching:C1:01:academic_discourse",
@@ -427,18 +931,43 @@
     "title": "Сочетания: академический дискурс",
     "title_en": "Collocations: Academic Discourse",
     "description": "Формальные сочетания для академического письма — эссе, аналитика, аргументация.",
-    "tags": ["immersion", "vocabulary", "collocations", "c1", "academic"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "c1",
+      "academic"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:C1:01:academic_discourse",
       "pairs": [
-        {"phrase": "draw a conclusion", "translation": "сделать вывод"},
-        {"phrase": "challenge an assumption", "translation": "оспорить допущение"},
-        {"phrase": "substantiate a claim", "translation": "подтвердить утверждение"},
-        {"phrase": "address a hypothesis", "translation": "рассмотреть гипотезу"},
-        {"phrase": "cite evidence", "translation": "привести доказательства"},
-        {"phrase": "shed light on", "translation": "пролить свет на"}
+        {
+          "phrase": "draw a conclusion",
+          "translation": "сделать вывод"
+        },
+        {
+          "phrase": "challenge an assumption",
+          "translation": "оспорить допущение"
+        },
+        {
+          "phrase": "substantiate a claim",
+          "translation": "подтвердить утверждение"
+        },
+        {
+          "phrase": "address a hypothesis",
+          "translation": "рассмотреть гипотезу"
+        },
+        {
+          "phrase": "cite evidence",
+          "translation": "привести доказательства"
+        },
+        {
+          "phrase": "shed light on",
+          "translation": "пролить свет на"
+        }
       ]
-    }
+    },
+    "module_number": 1
   },
   {
     "external_key": "immersion:collocation_matching:C1:02:nuanced_verbs",
@@ -448,18 +977,44 @@
     "title": "Сочетания: точные глаголы",
     "title_en": "Collocations: Precise Verbs",
     "description": "Точные глаголы вместо расплывчатых — уровень носителя языка.",
-    "tags": ["immersion", "vocabulary", "collocations", "c1", "verbs", "precision"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "c1",
+      "verbs",
+      "precision"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:C1:02:nuanced_verbs",
       "pairs": [
-        {"phrase": "elicit a response", "translation": "вызвать / получить реакцию"},
-        {"phrase": "mitigate risks", "translation": "снизить риски"},
-        {"phrase": "exacerbate a problem", "translation": "усугубить проблему"},
-        {"phrase": "alleviate suffering", "translation": "облегчить страдание"},
-        {"phrase": "undermine confidence", "translation": "подорвать уверенность"},
-        {"phrase": "consolidate power", "translation": "укрепить власть"}
+        {
+          "phrase": "elicit a response",
+          "translation": "вызвать / получить реакцию"
+        },
+        {
+          "phrase": "mitigate risks",
+          "translation": "снизить риски"
+        },
+        {
+          "phrase": "exacerbate a problem",
+          "translation": "усугубить проблему"
+        },
+        {
+          "phrase": "alleviate suffering",
+          "translation": "облегчить страдание"
+        },
+        {
+          "phrase": "undermine confidence",
+          "translation": "подорвать уверенность"
+        },
+        {
+          "phrase": "consolidate power",
+          "translation": "укрепить власть"
+        }
       ]
-    }
+    },
+    "module_number": 2
   },
   {
     "external_key": "immersion:collocation_matching:C1:03:policy_society",
@@ -469,18 +1024,44 @@
     "title": "Сочетания: политика и общество",
     "title_en": "Collocations: Policy and Society",
     "description": "Язык аналитиков, журналистов и политиков — сложные тематические сочетания.",
-    "tags": ["immersion", "vocabulary", "collocations", "c1", "politics", "society"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "c1",
+      "politics",
+      "society"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:C1:03:policy_society",
       "pairs": [
-        {"phrase": "enact legislation", "translation": "принять законодательство"},
-        {"phrase": "exercise authority", "translation": "осуществлять власть"},
-        {"phrase": "foster social cohesion", "translation": "укреплять социальное единство"},
-        {"phrase": "impose sanctions", "translation": "вводить санкции"},
-        {"phrase": "uphold democratic values", "translation": "отстаивать демократические ценности"},
-        {"phrase": "tackle inequality", "translation": "бороться с неравенством"}
+        {
+          "phrase": "enact legislation",
+          "translation": "принять законодательство"
+        },
+        {
+          "phrase": "exercise authority",
+          "translation": "осуществлять власть"
+        },
+        {
+          "phrase": "foster social cohesion",
+          "translation": "укреплять социальное единство"
+        },
+        {
+          "phrase": "impose sanctions",
+          "translation": "вводить санкции"
+        },
+        {
+          "phrase": "uphold democratic values",
+          "translation": "отстаивать демократические ценности"
+        },
+        {
+          "phrase": "tackle inequality",
+          "translation": "бороться с неравенством"
+        }
       ]
-    }
+    },
+    "module_number": 3
   },
   {
     "external_key": "immersion:collocation_matching:C1:04:complex_prepositions",
@@ -490,18 +1071,43 @@
     "title": "Сочетания: сложные предлоги",
     "title_en": "Collocations: Complex Preposition Phrases",
     "description": "Устойчивые предложные обороты с нюансами — финальный уровень лексической точности.",
-    "tags": ["immersion", "vocabulary", "collocations", "c1", "prepositions"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "c1",
+      "prepositions"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:C1:04:complex_prepositions",
       "pairs": [
-        {"phrase": "in light of recent events", "translation": "с учётом последних событий"},
-        {"phrase": "on the grounds of", "translation": "на основании / по причине"},
-        {"phrase": "with regard to", "translation": "в отношении / что касается"},
-        {"phrase": "in the wake of", "translation": "вслед за / в результате"},
-        {"phrase": "at the expense of", "translation": "за счёт / в ущерб"},
-        {"phrase": "by virtue of", "translation": "благодаря / в силу"}
+        {
+          "phrase": "in light of recent events",
+          "translation": "с учётом последних событий"
+        },
+        {
+          "phrase": "on the grounds of",
+          "translation": "на основании / по причине"
+        },
+        {
+          "phrase": "with regard to",
+          "translation": "в отношении / что касается"
+        },
+        {
+          "phrase": "in the wake of",
+          "translation": "вслед за / в результате"
+        },
+        {
+          "phrase": "at the expense of",
+          "translation": "за счёт / в ущерб"
+        },
+        {
+          "phrase": "by virtue of",
+          "translation": "благодаря / в силу"
+        }
       ]
-    }
+    },
+    "module_number": 4
   },
   {
     "external_key": "immersion:collocation_matching:C1:05:register_shift",
@@ -511,17 +1117,42 @@
     "title": "Сочетания: формальный vs неформальный",
     "title_en": "Collocations: Formal vs Informal Register",
     "description": "Одно значение — два регистра. Умение переключаться — признак высокого уровня.",
-    "tags": ["immersion", "vocabulary", "collocations", "c1", "register"],
+    "tags": [
+      "immersion",
+      "vocabulary",
+      "collocations",
+      "c1",
+      "register"
+    ],
     "content": {
       "external_key": "immersion:collocation_matching:C1:05:register_shift",
       "pairs": [
-        {"phrase": "commence proceedings", "translation": "начать разбирательство (формально: commence)"},
-        {"phrase": "prior to commencement", "translation": "до начала (формально: prior to)"},
-        {"phrase": "in lieu of payment", "translation": "вместо оплаты (формально: in lieu of)"},
-        {"phrase": "pursuant to the agreement", "translation": "в соответствии с соглашением"},
-        {"phrase": "notwithstanding the risks", "translation": "несмотря на риски"},
-        {"phrase": "contingent upon approval", "translation": "при условии одобрения"}
+        {
+          "phrase": "commence proceedings",
+          "translation": "начать разбирательство (формально: commence)"
+        },
+        {
+          "phrase": "prior to commencement",
+          "translation": "до начала (формально: prior to)"
+        },
+        {
+          "phrase": "in lieu of payment",
+          "translation": "вместо оплаты (формально: in lieu of)"
+        },
+        {
+          "phrase": "pursuant to the agreement",
+          "translation": "в соответствии с соглашением"
+        },
+        {
+          "phrase": "notwithstanding the risks",
+          "translation": "несмотря на риски"
+        },
+        {
+          "phrase": "contingent upon approval",
+          "translation": "при условии одобрения"
+        }
       ]
-    }
+    },
+    "module_number": 5
   }
 ]
