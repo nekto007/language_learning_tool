@@ -459,10 +459,10 @@
 **Files:**
 - Create: `content/immersion/idiom_lessons.json`
 
-- [ ] Add B1-C1 idiom content first, minimum 15 lessons total
-- [ ] Include `phrase`, `meaning`, `example`, and optional `audio_url`
-- [ ] Avoid obscure idioms without practical learner value
-- [ ] Mark culturally sensitive items for review
+- [x] Add B1-C1 idiom content first, minimum 15 lessons total
+- [x] Include `phrase`, `meaning`, `example`, and optional `audio_url`
+- [x] Avoid obscure idioms without practical learner value
+- [x] Mark culturally sensitive items for review
 
 ---
 ### Task 29: Import all CEFR seed lessons and verify counts
