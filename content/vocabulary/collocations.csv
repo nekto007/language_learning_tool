@@ -1,0 +1,90 @@
+# Vocabulary collocations — priority A1-B2 words
+# One row per collocation: english_word + collocation_phrase is the upsert key.
+# Column: english_word        — case-insensitive match against collection_words.english_word
+# Column: collocation_phrase  — the English collocation (verb+noun, adj+noun, etc.)
+# Column: translation         — Russian translation of the phrase
+# Column: example             — full example sentence (optional but recommended)
+# Generated: 2026-05-13
+# Coverage: ~60 high-frequency A1-B2 words, 2-3 collocations each
+english_word,collocation_phrase,translation,example
+# --- A1 ---
+work,go to work,идти на работу,I go to work by bus every morning.
+work,hard work,упорный труд,Success requires hard work and dedication.
+work,work on a project,работать над проектом,She is working on a new project this week.
+play,play a game,играть в игру,The children love to play a game after school.
+play,play an instrument,играть на инструменте,He learned to play an instrument when he was young.
+play,play outside,играть на улице,Let the kids play outside for an hour.
+time,have time,иметь время,Do you have time to talk?
+time,spend time,проводить время,We love to spend time together.
+time,on time,вовремя,Please arrive on time for the meeting.
+day,every day,каждый день,I exercise every day to stay healthy.
+day,all day,весь день,She worked all day without a break.
+day,have a good day,хорошо провести день,I hope you have a good day!
+# --- A2 ---
+make,make a decision,принять решение,It was difficult to make a decision under pressure.
+make,make a mistake,совершить ошибку,Everyone makes a mistake sometimes.
+make,make progress,добиться прогресса,You are making great progress with your English.
+have,have a meeting,проводить встречу,We have a meeting at ten o'clock.
+have,have fun,веселиться,Did you have fun at the party?
+have,have lunch,обедать,Let's have lunch together tomorrow.
+get,get angry,злиться,Try not to get angry when things go wrong.
+get,get ready,готовиться,Get ready or we will be late.
+get,get better,поправляться,I hope you get better soon.
+give,give a speech,произнести речь,The manager will give a speech at the ceremony.
+give,give advice,дать совет,She always gives good advice.
+give,give a hand,помочь,Can you give me a hand with this box?
+take,take a break,сделать перерыв,Let's take a break after the next lesson.
+take,take a photo,сфотографировать,She loves to take photos of nature.
+take,take notes,делать заметки,Always take notes during an important lecture.
+think,think about,думать о,I need to think about your suggestion.
+think,think of an idea,придумать идею,Can you think of a good idea for the project?
+know,get to know,познакомиться,I would like to get to know you better.
+know,know by heart,знать наизусть,She knows the poem by heart.
+see,see a doctor,обратиться к врачу,You should see a doctor about that cough.
+see,see the point,понимать смысл,I don't see the point of waiting any longer.
+help,help out,помогать,Could you help out with the cooking tonight?
+help,ask for help,просить о помощи,Don't be afraid to ask for help when you need it.
+look,look forward to,с нетерпением ждать,I look forward to hearing from you.
+look,look for,искать,I'm looking for my keys — have you seen them?
+# --- B1 ---
+problem,solve a problem,решить проблему,Engineers work hard to solve a complex problem.
+problem,face a problem,столкнуться с проблемой,Every leader must face a problem at some point.
+problem,deal with a problem,справляться с проблемой,The best approach is to deal with a problem early.
+job,apply for a job,подавать заявление о работе,She decided to apply for a job at the new company.
+job,lose a job,потерять работу,He lost his job during the economic crisis.
+job,do a good job,хорошо справиться с работой,You really did a good job on that presentation.
+plan,make a plan,составить план,Let's make a plan before we begin.
+plan,carry out a plan,выполнить план,The team worked together to carry out the plan.
+change,make a change,произвести изменение,It is time to make a change in our approach.
+change,go through a change,пережить перемены,The company went through a big change last year.
+result,achieve a result,достичь результата,Hard training helps athletes achieve good results.
+result,produce a result,дать результат,The new medicine produced impressive results.
+effect,have an effect,иметь эффект,Stress can have a negative effect on your health.
+effect,take effect,вступить в силу,The new rules will take effect next month.
+increase,dramatic increase,резкий рост,There has been a dramatic increase in online sales.
+increase,increase in demand,рост спроса,The company saw a steady increase in demand.
+decision,make a decision,принять решение,It took him a long time to make the right decision.
+decision,reach a decision,прийти к решению,The committee finally reached a decision.
+information,provide information,предоставить информацию,The guide provides useful information for tourists.
+information,gather information,собирать информацию,Researchers gather information from many sources.
+# --- B2 ---
+opportunity,take an opportunity,воспользоваться возможностью,Don't miss the chance — take this opportunity now.
+opportunity,create an opportunity,создать возможность,Good leaders create opportunities for their teams.
+challenge,face a challenge,столкнуться с трудностью,The team faced a serious challenge during the launch.
+challenge,meet a challenge,справиться с трудностью,We are confident we can meet this challenge.
+experience,gain experience,получать опыт,Internships help students gain real work experience.
+experience,rich experience,богатый опыт,She brings rich experience to this role.
+success,achieve success,добиться успеха,Persistence is key to achieving success.
+success,measure success,измерить успех,How do you measure success in your career?
+approach,take an approach,использовать подход,The school takes a student-centered approach to learning.
+approach,different approach,другой подход,We need a different approach to solve this issue.
+influence,have an influence,оказывать влияние,Music has a great influence on people's emotions.
+influence,under the influence,под влиянием,He made the decision under the influence of stress.
+relationship,build a relationship,выстраивать отношения,It takes time to build a strong relationship.
+relationship,close relationship,близкие отношения,She has a close relationship with her sister.
+value,place value,придавать ценность,We place great value on honesty in our team.
+value,core value,базовая ценность,Respect is a core value of the organization.
+risk,take a risk,рискнуть,Sometimes you have to take a risk to move forward.
+risk,reduce a risk,снизить риск,Regular checkups help reduce the risk of illness.
+role,play a role,играть роль,Education plays a key role in personal development.
+role,key role,ключевая роль,She played a key role in the company's success.

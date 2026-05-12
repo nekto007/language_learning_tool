@@ -609,10 +609,10 @@
 - Create: `scripts/import_word_collocations.py`
 - Tests: `tests/scripts/test_import_word_collocations.py`
 
-- [ ] Add at least two collocations for priority A2-B2 words where possible
-- [ ] Include translation and example
-- [ ] Upsert by `word_id + collocation_phrase`
-- [ ] Ensure collocation lesson content can reuse this dataset
+- [x] Add at least two collocations for priority A2-B2 words where possible
+- [x] Include translation and example
+- [x] Upsert by `word_id + collocation_phrase`
+- [x] Ensure collocation lesson content can reuse this dataset
 
 ---
 ### Task 40: Import etymology notes
