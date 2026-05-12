@@ -152,14 +152,14 @@
 - Create: `content/immersion/module_insertion_map.csv`
 - Output: `reports/module_insertion_map.md`
 
-- [ ] Export module id, CEFR level, module number, current lesson count
-- [ ] Use `module_completed/fixed/` as the canonical module source
-- [ ] Include source filename for every module
-- [ ] Define target insertion point for `dictation`
-- [ ] Define target insertion point for `writing_prompt`
-- [ ] Define target insertion point for `shadow_reading`
-- [ ] Ensure new numbering does not break current linear ordering
-- [ ] Ensure `final_test` remains final or explicitly document exceptions
+- [x] Export module id, CEFR level, module number, current lesson count
+- [x] Use `module_completed/fixed/` as the canonical module source
+- [x] Include source filename for every module
+- [x] Define target insertion point for `dictation`
+- [x] Define target insertion point for `writing_prompt`
+- [x] Define target insertion point for `shadow_reading`
+- [x] Ensure new numbering does not break current linear ordering
+- [x] Ensure `final_test` remains final or explicitly document exceptions
 
 ---
 ### Task 6: Define production content target matrix
