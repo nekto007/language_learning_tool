@@ -228,15 +228,15 @@
 - Create: `scripts/import_immersion_lessons.py`
 - Tests: `tests/scripts/test_import_immersion_lessons.py`
 
-- [ ] Read JSON/JSONL lesson data from `content/immersion/`
-- [ ] Resolve target modules by `module_completed/fixed/` source identity: level + order + title
-- [ ] Match existing records by stable `external_key` stored in lesson content
-- [ ] Create new lessons when missing
-- [ ] Update only imported lessons by default
-- [ ] Preserve unrelated lesson content and user progress
-- [ ] Support `--dry-run`
-- [ ] Support `--level`, `--module-id`, and `--lesson-type` filters
-- [ ] Run pytest tests/scripts/
+- [x] Read JSON/JSONL lesson data from `content/immersion/`
+- [x] Resolve target modules by `module_completed/fixed/` source identity: level + order + title
+- [x] Match existing records by stable `external_key` stored in lesson content
+- [x] Create new lessons when missing
+- [x] Update only imported lessons by default
+- [x] Preserve unrelated lesson content and user progress
+- [x] Support `--dry-run`
+- [x] Support `--level`, `--module-id`, and `--lesson-type` filters
+- [x] Run pytest tests/scripts/
 
 ---
 ### Task 11: Add importer validation mode
