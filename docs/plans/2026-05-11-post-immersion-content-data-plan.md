@@ -194,11 +194,11 @@
 **Files:**
 - Create: `docs/runbooks/immersion-data-readiness.md`
 
-- [ ] List import commands in safe execution order
-- [ ] List required pre-import audits
-- [ ] List required post-import row-count checks
-- [ ] List smoke-test URLs per lesson type
-- [ ] List rollback checkpoints
+- [x] List import commands in safe execution order
+- [x] List required pre-import audits
+- [x] List required post-import row-count checks
+- [x] List smoke-test URLs per lesson type
+- [x] List rollback checkpoints
 
 ---
 ### BLOCK B: Import Foundation and Schemas (Tasks 9-14)
