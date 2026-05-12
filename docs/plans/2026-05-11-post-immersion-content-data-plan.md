@@ -317,11 +317,11 @@
 **Files:**
 - Create: `content/immersion/dictation_lessons.json`
 
-- [ ] Add 77 dictation lessons, one per source module
-- [ ] Include `audio_url`, `transcript`, `hint_chars`, `duration_seconds`
-- [ ] Keep A1/A2 transcripts short and literal
-- [ ] Use B1-C1 transcripts with natural connected speech
-- [ ] Store stable `external_key`
+- [x] Add 77 dictation lessons, one per source module
+- [x] Include `audio_url`, `transcript`, `hint_chars`, `duration_seconds`
+- [x] Keep A1/A2 transcripts short and literal
+- [x] Use B1-C1 transcripts with natural connected speech
+- [x] Store stable `external_key`
 
 ---
 ### Task 17: Import dictation lessons

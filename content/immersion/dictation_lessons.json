@@ -1,0 +1,1619 @@
+[
+  {
+    "external_key": "immersion:dictation:A1:01:greetings",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "dictation",
+    "title": "Диктант: Знакомство и приветствия",
+    "title_en": "Dictation: Greetings and Introductions",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Знакомство и приветствия».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_01_greetings.mp3",
+      "transcript": "Hello! My name is Anna. Nice to meet you.",
+      "hint_chars": 1,
+      "duration_seconds": 9
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:02:numbers_and_colors",
+    "level": "A1",
+    "module_number": 2,
+    "lesson_type": "dictation",
+    "title": "Диктант: Предметы вокруг нас",
+    "title_en": "Dictation: Objects Around Us",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Предметы вокруг нас».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_02_numbers_and_colors.mp3",
+      "transcript": "This is a book. That is a chair. Look at the table.",
+      "hint_chars": 1,
+      "duration_seconds": 11
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:03:clothing",
+    "level": "A1",
+    "module_number": 3,
+    "lesson_type": "dictation",
+    "title": "Диктант: Одежда",
+    "title_en": "Dictation: Clothing",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Одежда».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_03_clothing.mp3",
+      "transcript": "I like this shirt. She has a red dress. He wears blue jeans.",
+      "hint_chars": 1,
+      "duration_seconds": 12
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:04:objects_around_us",
+    "level": "A1",
+    "module_number": 4,
+    "lesson_type": "dictation",
+    "title": "Диктант: Числа и цвета",
+    "title_en": "Dictation: Numbers and Colors",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Числа и цвета».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_04_objects_around_us.mp3",
+      "transcript": "One, two, three. Red, blue, yellow. I see five green apples.",
+      "hint_chars": 1,
+      "duration_seconds": 10
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:05:classroom_objects",
+    "level": "A1",
+    "module_number": 5,
+    "lesson_type": "dictation",
+    "title": "Диктант: Предметы в классе и комнате",
+    "title_en": "Dictation: Classroom Objects",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Предметы в классе и комнате».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_05_classroom_objects.mp3",
+      "transcript": "Take a pencil. Open your book. The teacher is at the desk.",
+      "hint_chars": 1,
+      "duration_seconds": 11
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:06:family",
+    "level": "A1",
+    "module_number": 6,
+    "lesson_type": "dictation",
+    "title": "Диктант: Семья",
+    "title_en": "Dictation: Family",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Семья».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_06_family.mp3",
+      "transcript": "This is my mother. I have one brother. My father works in a hospital.",
+      "hint_chars": 1,
+      "duration_seconds": 12
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:07:home_and_furniture",
+    "level": "A1",
+    "module_number": 7,
+    "lesson_type": "dictation",
+    "title": "Диктант: Дом и мебель",
+    "title_en": "Dictation: Home and Furniture",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Дом и мебель».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_07_home_and_furniture.mp3",
+      "transcript": "There is a sofa in the living room. A small table is near the window.",
+      "hint_chars": 1,
+      "duration_seconds": 13
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:08:days_and_time",
+    "level": "A1",
+    "module_number": 8,
+    "lesson_type": "dictation",
+    "title": "Диктант: Дни недели и время",
+    "title_en": "Dictation: Days and Time",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Дни недели и время».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_08_days_and_time.mp3",
+      "transcript": "Today is Monday. It is half past eight. We have classes on Tuesday and Thursday.",
+      "hint_chars": 1,
+      "duration_seconds": 13
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:09:weather_and_seasons",
+    "level": "A1",
+    "module_number": 9,
+    "lesson_type": "dictation",
+    "title": "Диктант: Погода и времена года",
+    "title_en": "Dictation: Weather and Seasons",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Погода и времена года».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_09_weather_and_seasons.mp3",
+      "transcript": "It is hot in summer. In winter it often snows. I love spring flowers.",
+      "hint_chars": 1,
+      "duration_seconds": 12
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:10:daily_routine",
+    "level": "A1",
+    "module_number": 10,
+    "lesson_type": "dictation",
+    "title": "Диктант: Повседневная жизнь",
+    "title_en": "Dictation: Daily Routine",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Повседневная жизнь».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_10_daily_routine.mp3",
+      "transcript": "I get up at seven. I have breakfast and go to work. I come home at six.",
+      "hint_chars": 1,
+      "duration_seconds": 15
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:11:professions",
+    "level": "A1",
+    "module_number": 11,
+    "lesson_type": "dictation",
+    "title": "Диктант: Профессии",
+    "title_en": "Dictation: Professions",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Профессии».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_11_professions.mp3",
+      "transcript": "My sister is a nurse. He works as a teacher. She wants to be a doctor.",
+      "hint_chars": 1,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:12:daily_habits",
+    "level": "A1",
+    "module_number": 12,
+    "lesson_type": "dictation",
+    "title": "Диктант: Повседневные привычки и частотность действий",
+    "title_en": "Dictation: Daily Habits and Frequency",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Повседневные привычки и частотность действий».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_12_daily_habits.mp3",
+      "transcript": "I usually drink tea in the morning. She never watches TV. They often go for a walk.",
+      "hint_chars": 1,
+      "duration_seconds": 15
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:13:body_parts",
+    "level": "A1",
+    "module_number": 13,
+    "lesson_type": "dictation",
+    "title": "Диктант: Части тела",
+    "title_en": "Dictation: Body Parts",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Части тела».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_13_body_parts.mp3",
+      "transcript": "My head hurts. He has blue eyes. She has long hair and small hands.",
+      "hint_chars": 1,
+      "duration_seconds": 12
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:14:can_abilities",
+    "level": "A1",
+    "module_number": 14,
+    "lesson_type": "dictation",
+    "title": "Диктант: Умения и способности",
+    "title_en": "Dictation: Skills and Abilities",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Умения и способности».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_14_can_abilities.mp3",
+      "transcript": "I can swim and run. She can play the guitar. He can speak two languages.",
+      "hint_chars": 1,
+      "duration_seconds": 13
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:15:food_and_drinks",
+    "level": "A1",
+    "module_number": 15,
+    "lesson_type": "dictation",
+    "title": "Диктант: Еда и напитки",
+    "title_en": "Dictation: Food and Drinks",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Еда и напитки».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_15_food_and_drinks.mp3",
+      "transcript": "I like coffee with milk. We eat bread and cheese for breakfast. She drinks water.",
+      "hint_chars": 1,
+      "duration_seconds": 13
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A1:16:personal_belongings",
+    "level": "A1",
+    "module_number": 16,
+    "lesson_type": "dictation",
+    "title": "Диктант: Личные вещи",
+    "title_en": "Dictation: Personal belongings",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Личные вещи».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A1_16_personal_belongings.mp3",
+      "transcript": "This is my phone. Where is her bag? My keys are on the table.",
+      "hint_chars": 1,
+      "duration_seconds": 12
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:01:food_articles",
+    "level": "A2",
+    "module_number": 1,
+    "lesson_type": "dictation",
+    "title": "Диктант: Артикли и some/any (еда)",
+    "title_en": "Dictation: Food Articles",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Артикли и some/any (еда)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_01_food_articles.mp3",
+      "transcript": "I bought some apples and a kilo of cheese. There isn't any milk in the fridge.",
+      "hint_chars": 1,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:02:shopping",
+    "level": "A2",
+    "module_number": 2,
+    "lesson_type": "dictation",
+    "title": "Диктант: Магазины и покупки",
+    "title_en": "Dictation: Shopping",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Магазины и покупки».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_02_shopping.mp3",
+      "transcript": "How much is this jacket? I need a smaller size. I'll pay by card, thank you.",
+      "hint_chars": 1,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:03:cafe_and_restaurant",
+    "level": "A2",
+    "module_number": 3,
+    "lesson_type": "dictation",
+    "title": "Диктант: Кафе и ресторан",
+    "title_en": "Dictation: Cafe and Restaurant",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Кафе и ресторан».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_03_cafe_and_restaurant.mp3",
+      "transcript": "I'd like a cup of coffee and a slice of cake. Could we have the bill, please?",
+      "hint_chars": 1,
+      "duration_seconds": 15
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:04:food_cooking",
+    "level": "A2",
+    "module_number": 4,
+    "lesson_type": "dictation",
+    "title": "Диктант: Еда и приготовление блюд",
+    "title_en": "Dictation: Food and Cooking",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Еда и приготовление блюд».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_04_food_cooking.mp3",
+      "transcript": "First, chop the onions. Then add some salt. Cook the soup for twenty minutes.",
+      "hint_chars": 1,
+      "duration_seconds": 12
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:05:hobbies",
+    "level": "A2",
+    "module_number": 5,
+    "lesson_type": "dictation",
+    "title": "Диктант: Хобби и интересы",
+    "title_en": "Dictation: Hobbies",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Хобби и интересы».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_05_hobbies.mp3",
+      "transcript": "On weekends I read books and watch films. My brother plays football twice a week.",
+      "hint_chars": 1,
+      "duration_seconds": 13
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:06:school_life",
+    "level": "A2",
+    "module_number": 6,
+    "lesson_type": "dictation",
+    "title": "Диктант: Школьная жизнь",
+    "title_en": "Dictation: School Life",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Школьная жизнь».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_06_school_life.mp3",
+      "transcript": "Our first lesson starts at nine. We study English, maths, and history every Monday.",
+      "hint_chars": 1,
+      "duration_seconds": 12
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:07:healthy_lifestyle",
+    "level": "A2",
+    "module_number": 7,
+    "lesson_type": "dictation",
+    "title": "Диктант: Здоровый образ жизни",
+    "title_en": "Dictation: Healthy Lifestyle",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Здоровый образ жизни».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_07_healthy_lifestyle.mp3",
+      "transcript": "I try to walk every day and eat more vegetables. Drinking water keeps you healthy.",
+      "hint_chars": 1,
+      "duration_seconds": 13
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:08:city_transport",
+    "level": "A2",
+    "module_number": 8,
+    "lesson_type": "dictation",
+    "title": "Диктант: Путешествия по городу",
+    "title_en": "Dictation: City Transport",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Путешествия по городу».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_08_city_transport.mp3",
+      "transcript": "Take the bus number ten and get off at the central square. The metro is faster.",
+      "hint_chars": 1,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:09:friends",
+    "level": "A2",
+    "module_number": 9,
+    "lesson_type": "dictation",
+    "title": "Диктант: Мои приятели",
+    "title_en": "Dictation: Buddies",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Мои приятели».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_09_friends.mp3",
+      "transcript": "My best friend lives in another city. We call each other every week and share news.",
+      "hint_chars": 1,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:10:animals",
+    "level": "A2",
+    "module_number": 10,
+    "lesson_type": "dictation",
+    "title": "Диктант: Животные",
+    "title_en": "Dictation: Animals",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Животные».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_10_animals.mp3",
+      "transcript": "Dogs are loyal and friendly. Cats sleep most of the day. Elephants live in Africa and Asia.",
+      "hint_chars": 1,
+      "duration_seconds": 15
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:11:superlatives",
+    "level": "A2",
+    "module_number": 11,
+    "lesson_type": "dictation",
+    "title": "Диктант: Превосходная степень",
+    "title_en": "Dictation: Superlatives",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Превосходная степень».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_11_superlatives.mp3",
+      "transcript": "This is the tallest building in the city. He is the most patient teacher I know.",
+      "hint_chars": 1,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:12:city_village",
+    "level": "A2",
+    "module_number": 12,
+    "lesson_type": "dictation",
+    "title": "Диктант: Город и деревня",
+    "title_en": "Dictation: City and Village",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Город и деревня».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_12_city_village.mp3",
+      "transcript": "Life in the village is quiet, but cities offer more jobs and entertainment.",
+      "hint_chars": 1,
+      "duration_seconds": 12
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:13:countries",
+    "level": "A2",
+    "module_number": 13,
+    "lesson_type": "dictation",
+    "title": "Диктант: Страны и национальности",
+    "title_en": "Dictation: Countries and Nationalities",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Страны и национальности».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_13_countries.mp3",
+      "transcript": "He is from Spain and speaks three languages. Many tourists visit Italy and Greece in summer.",
+      "hint_chars": 1,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:14:food_and_health",
+    "level": "A2",
+    "module_number": 14,
+    "lesson_type": "dictation",
+    "title": "Диктант: Еда и здоровье",
+    "title_en": "Dictation: Food and Health",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Еда и здоровье».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_14_food_and_health.mp3",
+      "transcript": "Eating too much sugar is bad for your health. Try to add fresh fruit to your diet.",
+      "hint_chars": 1,
+      "duration_seconds": 15
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:15:household_chores",
+    "level": "A2",
+    "module_number": 15,
+    "lesson_type": "dictation",
+    "title": "Диктант: Домашние обязанности",
+    "title_en": "Dictation: Household Chores",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Домашние обязанности».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_15_household_chores.mp3",
+      "transcript": "I wash the dishes after dinner and clean the kitchen on Saturdays.",
+      "hint_chars": 1,
+      "duration_seconds": 11
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:16:future_plans",
+    "level": "A2",
+    "module_number": 16,
+    "lesson_type": "dictation",
+    "title": "Диктант: Планы и договорённости",
+    "title_en": "Dictation: Future Plans and Arrangements",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Планы и договорённости».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_16_future_plans.mp3",
+      "transcript": "I'm meeting Sarah at six tomorrow. Next weekend we're going to visit my grandparents.",
+      "hint_chars": 1,
+      "duration_seconds": 12
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:17:holiday_plans",
+    "level": "A2",
+    "module_number": 17,
+    "lesson_type": "dictation",
+    "title": "Диктант: Планы на отпуск",
+    "title_en": "Dictation: Holiday Plans",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Планы на отпуск».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_17_holiday_plans.mp3",
+      "transcript": "In August we're going to fly to Greece for two weeks of sun and swimming.",
+      "hint_chars": 1,
+      "duration_seconds": 13
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:18:weather_and_climate",
+    "level": "A2",
+    "module_number": 18,
+    "lesson_type": "dictation",
+    "title": "Диктант: Погода и климат (расширение)",
+    "title_en": "Dictation: Weather and Climate",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Погода и климат (расширение)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_18_weather_and_climate.mp3",
+      "transcript": "The weather has been changing rapidly. Last winter was warmer than usual in our region.",
+      "hint_chars": 1,
+      "duration_seconds": 13
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:19:music_art",
+    "level": "A2",
+    "module_number": 19,
+    "lesson_type": "dictation",
+    "title": "Диктант: Музыка и искусство",
+    "title_en": "Dictation: Music and Art",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Музыка и искусство».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_19_music_art.mp3",
+      "transcript": "My favourite painter is Van Gogh. I love jazz music, especially old records from the sixties.",
+      "hint_chars": 1,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:20:nature_animals",
+    "level": "A2",
+    "module_number": 20,
+    "lesson_type": "dictation",
+    "title": "Диктант: Природа и животные",
+    "title_en": "Dictation: Nature and Animals",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Природа и животные».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_20_nature_animals.mp3",
+      "transcript": "Forests cover a large part of our country. Many wild animals live in the mountains.",
+      "hint_chars": 1,
+      "duration_seconds": 13
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:21:environment_and_ecology",
+    "level": "A2",
+    "module_number": 21,
+    "lesson_type": "dictation",
+    "title": "Диктант: Окружающая среда, экология",
+    "title_en": "Dictation: Environment and Ecology",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Окружающая среда, экология».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_21_environment_and_ecology.mp3",
+      "transcript": "We should recycle plastic and save water. Small actions help protect the environment.",
+      "hint_chars": 1,
+      "duration_seconds": 12
+    }
+  },
+  {
+    "external_key": "immersion:dictation:A2:22:holidays_traditions",
+    "level": "A2",
+    "module_number": 22,
+    "lesson_type": "dictation",
+    "title": "Диктант: Праздники и традиции",
+    "title_en": "Dictation: Holidays and Traditions",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Праздники и традиции».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "a2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_A2_22_holidays_traditions.mp3",
+      "transcript": "On New Year's Eve, families gather around the table and share gifts and warm wishes.",
+      "hint_chars": 1,
+      "duration_seconds": 13
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:01:past_irregular",
+    "level": "B1",
+    "module_number": 1,
+    "lesson_type": "dictation",
+    "title": "Диктант: Истории из жизни",
+    "title_en": "Dictation: Life Stories",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Истории из жизни».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_01_past_irregular.mp3",
+      "transcript": "When I was a child, my family lived in a small town near the sea. We often went fishing with my father.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:02:cinema_and_theatre",
+    "level": "B1",
+    "module_number": 2,
+    "lesson_type": "dictation",
+    "title": "Диктант: Кино и театр, развлечения",
+    "title_en": "Dictation: Cinema and Theatre",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Кино и театр, развлечения».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_02_cinema_and_theatre.mp3",
+      "transcript": "I really enjoyed the film we watched yesterday. The acting was brilliant and the story made me think.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:03:used_to",
+    "level": "B1",
+    "module_number": 3,
+    "lesson_type": "dictation",
+    "title": "Диктант: Детство и воспоминания",
+    "title_en": "Dictation: Childhood and Memories",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Детство и воспоминания».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_03_used_to.mp3",
+      "transcript": "I used to play in the yard with my cousins every summer evening. Those days were full of laughter and adventures.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:04:friends_and_character",
+    "level": "B1",
+    "module_number": 4,
+    "lesson_type": "dictation",
+    "title": "Диктант: Друзья, качества, характер",
+    "title_en": "Dictation: Friends and Character",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Друзья, качества, характер».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_04_friends_and_character.mp3",
+      "transcript": "My closest friend is honest, patient, and surprisingly funny. We have known each other for almost twenty years.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:05:family_relationships",
+    "level": "B1",
+    "module_number": 5,
+    "lesson_type": "dictation",
+    "title": "Диктант: Семейные отношения",
+    "title_en": "Dictation: Family Relationships",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Семейные отношения».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_05_family_relationships.mp3",
+      "transcript": "Living with relatives can be both rewarding and challenging. Open communication helps avoid misunderstandings.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:06:sport_and_achievements",
+    "level": "B1",
+    "module_number": 6,
+    "lesson_type": "dictation",
+    "title": "Диктант: Спорт и достижения",
+    "title_en": "Dictation: Sport and Achievements",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Спорт и достижения».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_06_sport_and_achievements.mp3",
+      "transcript": "After months of hard training, she finally won her first marathon. Her achievement inspired the whole team.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:07:money_and_finances",
+    "level": "B1",
+    "module_number": 7,
+    "lesson_type": "dictation",
+    "title": "Диктант: Деньги и финансы (начало)",
+    "title_en": "Dictation: Money and Finances",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Деньги и финансы (начало)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_07_money_and_finances.mp3",
+      "transcript": "Many young people struggle to save money because they spend too much on subscriptions and takeaway food.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:08:work_and_career",
+    "level": "B1",
+    "module_number": 8,
+    "lesson_type": "dictation",
+    "title": "Диктант: Работа и карьера (начало)",
+    "title_en": "Dictation: Work and Career",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Работа и карьера (начало)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_08_work_and_career.mp3",
+      "transcript": "He started his career as a junior developer and within five years became a team leader at a large company.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:09:city_and_country",
+    "level": "B1",
+    "module_number": 9,
+    "lesson_type": "dictation",
+    "title": "Диктант: Город и деревня (расширение), типы жилья",
+    "title_en": "Dictation: City and Country",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Город и деревня (расширение), типы жилья».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_09_city_and_country.mp3",
+      "transcript": "People who move to the countryside often appreciate the silence and the slower pace of daily life.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:10:food_and_restaurants",
+    "level": "B1",
+    "module_number": 10,
+    "lesson_type": "dictation",
+    "title": "Диктант: Еда и рестораны (расширение)",
+    "title_en": "Dictation: Food and Restaurants",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Еда и рестораны (расширение)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_10_food_and_restaurants.mp3",
+      "transcript": "The chef recommended the seasonal menu and explained how each dish was prepared with locally sourced ingredients.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:11:internet_and_social_media",
+    "level": "B1",
+    "module_number": 11,
+    "lesson_type": "dictation",
+    "title": "Диктант: Интернет и соцсети",
+    "title_en": "Dictation: Internet and Social Media",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Интернет и соцсети».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_11_internet_and_social_media.mp3",
+      "transcript": "Spending hours scrolling through social media can affect your mood and reduce your ability to concentrate.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:12:technology",
+    "level": "B1",
+    "module_number": 12,
+    "lesson_type": "dictation",
+    "title": "Диктант: Технологии и гаджеты",
+    "title_en": "Dictation: Technology and Gadgets",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Технологии и гаджеты».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_12_technology.mp3",
+      "transcript": "New gadgets appear every few months, but most people only use a small fraction of their actual features.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:13:travel_and_tourism",
+    "level": "B1",
+    "module_number": 13,
+    "lesson_type": "dictation",
+    "title": "Диктант: Путешествия и туризм / Путешествия за границу",
+    "title_en": "Dictation: Travel and Tourism",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Путешествия и туризм / Путешествия за границу».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_13_travel_and_tourism.mp3",
+      "transcript": "Travelling abroad broadens your horizons and helps you understand different cultures from a personal perspective.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B1:14:fashion_and_style",
+    "level": "B1",
+    "module_number": 14,
+    "lesson_type": "dictation",
+    "title": "Диктант: Мода и стиль",
+    "title_en": "Dictation: Fashion and Style",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Мода и стиль».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B1_14_fashion_and_style.mp3",
+      "transcript": "Many designers are now creating sustainable collections using recycled fabrics and ethical production processes.",
+      "hint_chars": 0,
+      "duration_seconds": 14
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B2:01:lifestyle_and_psychology",
+    "level": "B2",
+    "module_number": 1,
+    "lesson_type": "dictation",
+    "title": "Диктант: Образ жизни и психология",
+    "title_en": "Dictation: Lifestyle and Psychology",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Образ жизни и психология».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B2_01_lifestyle_and_psychology.mp3",
+      "transcript": "Researchers argue that small daily habits, such as morning walks or reading, contribute significantly to long-term well-being and mental health.",
+      "hint_chars": 0,
+      "duration_seconds": 20
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B2:02:science_and_technology",
+    "level": "B2",
+    "module_number": 2,
+    "lesson_type": "dictation",
+    "title": "Диктант: Наука и технологии (углубление)",
+    "title_en": "Dictation: Science and Technology (Advanced)",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Наука и технологии (углубление)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B2_02_science_and_technology.mp3",
+      "transcript": "Recent breakthroughs in quantum computing are forcing scientists to rethink the limits of computational power and information security.",
+      "hint_chars": 0,
+      "duration_seconds": 20
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B2:03:media_and_communications",
+    "level": "B2",
+    "module_number": 3,
+    "lesson_type": "dictation",
+    "title": "Диктант: СМИ и коммуникации",
+    "title_en": "Dictation: Media and Communications",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «СМИ и коммуникации».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B2_03_media_and_communications.mp3",
+      "transcript": "The way news spreads has changed dramatically with the rise of social platforms, blurring the line between journalism and personal opinion.",
+      "hint_chars": 0,
+      "duration_seconds": 20
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B2:04:society_and_culture",
+    "level": "B2",
+    "module_number": 4,
+    "lesson_type": "dictation",
+    "title": "Диктант: Общество и культура",
+    "title_en": "Dictation: Society and Culture",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Общество и культура».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B2_04_society_and_culture.mp3",
+      "transcript": "Cultural traditions evolve over generations, often blending influences from migration, technology, and economic transformation.",
+      "hint_chars": 0,
+      "duration_seconds": 20
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B2:05:psychology_and_relationships",
+    "level": "B2",
+    "module_number": 5,
+    "lesson_type": "dictation",
+    "title": "Диктант: Психология и отношения (углубление)",
+    "title_en": "Dictation: Psychology and Relationships (advanced)",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Психология и отношения (углубление)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B2_05_psychology_and_relationships.mp3",
+      "transcript": "Emotional intelligence plays a crucial role in maintaining healthy relationships, both personal and professional, throughout adult life.",
+      "hint_chars": 0,
+      "duration_seconds": 20
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B2:06:science_and_technology",
+    "level": "B2",
+    "module_number": 6,
+    "lesson_type": "dictation",
+    "title": "Диктант: Наука и технологии (AI, биотехнологии)",
+    "title_en": "Dictation: Science and Technology (AI, biotech)",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Наука и технологии (AI, биотехнологии)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B2_06_science_and_technology.mp3",
+      "transcript": "Advances in artificial intelligence and biotechnology raise complex ethical questions that lawmakers are only beginning to address.",
+      "hint_chars": 0,
+      "duration_seconds": 20
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B2:07:reported_questions",
+    "level": "B2",
+    "module_number": 7,
+    "lesson_type": "dictation",
+    "title": "Диктант: СМИ и коммуникации",
+    "title_en": "Dictation: Media and Communications",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «СМИ и коммуникации».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B2_07_reported_questions.mp3",
+      "transcript": "The journalist asked whether the government had considered the consequences of its decision before announcing the new policy.",
+      "hint_chars": 0,
+      "duration_seconds": 20
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B2:08:passive_past",
+    "level": "B2",
+    "module_number": 8,
+    "lesson_type": "dictation",
+    "title": "Диктант: Технологии и инновации",
+    "title_en": "Dictation: Technology and Innovations",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Технологии и инновации».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B2_08_passive_past.mp3",
+      "transcript": "The prototype was developed by a small team of engineers and was eventually adopted by several international corporations.",
+      "hint_chars": 0,
+      "duration_seconds": 20
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B2:09:crime_and_law",
+    "level": "B2",
+    "module_number": 9,
+    "lesson_type": "dictation",
+    "title": "Диктант: Преступность и право",
+    "title_en": "Dictation: Crime and Law",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Преступность и право».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B2_09_crime_and_law.mp3",
+      "transcript": "Effective legislation requires careful consultation with experts, civil society, and the communities most affected by the proposed reforms.",
+      "hint_chars": 0,
+      "duration_seconds": 20
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B2:10:travel_and_tourism",
+    "level": "B2",
+    "module_number": 10,
+    "lesson_type": "dictation",
+    "title": "Диктант: Путешествия и туризм (сложные сценарии)",
+    "title_en": "Dictation: Travel and Tourism (complex scenarios)",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Путешествия и туризм (сложные сценарии)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B2_10_travel_and_tourism.mp3",
+      "transcript": "Adventure travellers often face unexpected challenges, from delayed flights to language barriers and last-minute changes in accommodation.",
+      "hint_chars": 0,
+      "duration_seconds": 20
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B2:11:art_and_culture",
+    "level": "B2",
+    "module_number": 11,
+    "lesson_type": "dictation",
+    "title": "Диктант: Искусство и культура",
+    "title_en": "Dictation: Art and Culture",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Искусство и культура».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B2_11_art_and_culture.mp3",
+      "transcript": "Modern galleries are increasingly experimenting with immersive exhibits, inviting visitors to interact with the artworks rather than simply observe them.",
+      "hint_chars": 0,
+      "duration_seconds": 20
+    }
+  },
+  {
+    "external_key": "immersion:dictation:B2:12:ecology_and_nature",
+    "level": "B2",
+    "module_number": 12,
+    "lesson_type": "dictation",
+    "title": "Диктант: Экология и природа (глобальные проблемы)",
+    "title_en": "Dictation: Ecology and Nature (global issues)",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Экология и природа (глобальные проблемы)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "b2"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_B2_12_ecology_and_nature.mp3",
+      "transcript": "Climate change is reshaping ecosystems worldwide and forcing communities to adapt to rising sea levels, droughts, and extreme weather events.",
+      "hint_chars": 0,
+      "duration_seconds": 20
+    }
+  },
+  {
+    "external_key": "immersion:dictation:C1:01:trends_and_innovations",
+    "level": "C1",
+    "module_number": 1,
+    "lesson_type": "dictation",
+    "title": "Диктант: Тренды и инновации (начало)",
+    "title_en": "Dictation: Trends and Innovations (Introduction)",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Тренды и инновации (начало)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "c1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_C1_01_trends_and_innovations.mp3",
+      "transcript": "Emerging technologies frequently disrupt established industries, compelling traditional companies to reinvent themselves or risk becoming obsolete in a remarkably short timeframe.",
+      "hint_chars": 0,
+      "duration_seconds": 24
+    }
+  },
+  {
+    "external_key": "immersion:dictation:C1:02:ecology_and_nature",
+    "level": "C1",
+    "module_number": 2,
+    "lesson_type": "dictation",
+    "title": "Диктант: Экология и природа (углубление)",
+    "title_en": "Dictation: Ecology and Nature (Advanced)",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Экология и природа (углубление)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "c1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_C1_02_ecology_and_nature.mp3",
+      "transcript": "The depletion of natural resources has become one of the most pressing issues of our time, demanding coordinated action from governments, businesses, and individuals alike.",
+      "hint_chars": 0,
+      "duration_seconds": 24
+    }
+  },
+  {
+    "external_key": "immersion:dictation:C1:03:trends_and_innovations",
+    "level": "C1",
+    "module_number": 3,
+    "lesson_type": "dictation",
+    "title": "Диктант: Тренды и инновации (форсайт, прогнозы)",
+    "title_en": "Dictation: Trends and Innovations (foresight, forecasts)",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Тренды и инновации (форсайт, прогнозы)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "c1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_C1_03_trends_and_innovations.mp3",
+      "transcript": "Foresight specialists analyse weak signals across diverse fields, attempting to anticipate trends that may reshape society over the coming decades.",
+      "hint_chars": 0,
+      "duration_seconds": 24
+    }
+  },
+  {
+    "external_key": "immersion:dictation:C1:04:fashion_and_lifestyle",
+    "level": "C1",
+    "module_number": 4,
+    "lesson_type": "dictation",
+    "title": "Диктант: Мода и образ жизни",
+    "title_en": "Dictation: Fashion and Lifestyle",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Мода и образ жизни».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "c1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_C1_04_fashion_and_lifestyle.mp3",
+      "transcript": "Contemporary fashion is increasingly intertwined with personal identity, allowing individuals to express their values, aesthetics, and political views through everyday choices.",
+      "hint_chars": 0,
+      "duration_seconds": 24
+    }
+  },
+  {
+    "external_key": "immersion:dictation:C1:05:work_and_career",
+    "level": "C1",
+    "module_number": 5,
+    "lesson_type": "dictation",
+    "title": "Диктант: Работа и карьера (собеседования, переговоры)",
+    "title_en": "Dictation: Work and Career (Interviews, Negotiations)",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Работа и карьера (собеседования, переговоры)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "c1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_C1_05_work_and_career.mp3",
+      "transcript": "Successful negotiation hinges on preparation, active listening, and the ability to articulate your value without resorting to confrontation or rigid positions.",
+      "hint_chars": 0,
+      "duration_seconds": 24
+    }
+  },
+  {
+    "external_key": "immersion:dictation:C1:06:culture_and_society",
+    "level": "C1",
+    "module_number": 6,
+    "lesson_type": "dictation",
+    "title": "Диктант: Культура и общество",
+    "title_en": "Dictation: Culture and Society",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Культура и общество».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "c1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_C1_06_culture_and_society.mp3",
+      "transcript": "Globalisation has accelerated cultural exchange to an unprecedented degree, yet it has simultaneously sparked debates about preserving local identities and traditions.",
+      "hint_chars": 0,
+      "duration_seconds": 24
+    }
+  },
+  {
+    "external_key": "immersion:dictation:C1:07:media_and_communications",
+    "level": "C1",
+    "module_number": 7,
+    "lesson_type": "dictation",
+    "title": "Диктант: СМИ и коммуникации (анализ новостей)",
+    "title_en": "Dictation: Media and Communications (news analysis)",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «СМИ и коммуникации (анализ новостей)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "c1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_C1_07_media_and_communications.mp3",
+      "transcript": "Critical analysis of news sources has become an essential skill, particularly when misinformation can travel faster than verified reporting.",
+      "hint_chars": 0,
+      "duration_seconds": 24
+    }
+  },
+  {
+    "external_key": "immersion:dictation:C1:08:third_conditional",
+    "level": "C1",
+    "module_number": 8,
+    "lesson_type": "dictation",
+    "title": "Диктант: Путешествия и сожаления",
+    "title_en": "Dictation: Travel and Regrets",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Путешествия и сожаления».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "c1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_C1_08_third_conditional.mp3",
+      "transcript": "If we had booked the flights earlier, we would have visited at least three more cities during our autumn holiday.",
+      "hint_chars": 0,
+      "duration_seconds": 24
+    }
+  },
+  {
+    "external_key": "immersion:dictation:C1:09:money_and_finances",
+    "level": "C1",
+    "module_number": 9,
+    "lesson_type": "dictation",
+    "title": "Диктант: Деньги и финансы (инвестиции, экономика)",
+    "title_en": "Dictation: Money and Finances (investments, economy)",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Деньги и финансы (инвестиции, экономика)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "c1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_C1_09_money_and_finances.mp3",
+      "transcript": "Long-term investors typically focus on diversified portfolios and resist the temptation to react impulsively to short-term market fluctuations.",
+      "hint_chars": 0,
+      "duration_seconds": 24
+    }
+  },
+  {
+    "external_key": "immersion:dictation:C1:10:social_problems",
+    "level": "C1",
+    "module_number": 10,
+    "lesson_type": "dictation",
+    "title": "Диктант: Социальные проблемы",
+    "title_en": "Dictation: Social Problems",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Социальные проблемы».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "c1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_C1_10_social_problems.mp3",
+      "transcript": "Addressing inequality requires sustained policy commitment, transparent institutions, and active civic engagement at every level of society.",
+      "hint_chars": 0,
+      "duration_seconds": 24
+    }
+  },
+  {
+    "external_key": "immersion:dictation:C1:11:sport_and_achievements",
+    "level": "C1",
+    "module_number": 11,
+    "lesson_type": "dictation",
+    "title": "Диктант: Спорт и достижения (профессиональный спорт)",
+    "title_en": "Dictation: Sport and Achievements (professional sport)",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Спорт и достижения (профессиональный спорт)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "c1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_C1_11_sport_and_achievements.mp3",
+      "transcript": "Elite athletes typically combine rigorous physical preparation with mental conditioning, understanding that resilience is just as important as raw talent.",
+      "hint_chars": 0,
+      "duration_seconds": 24
+    }
+  },
+  {
+    "external_key": "immersion:dictation:C1:12:education_and_career",
+    "level": "C1",
+    "module_number": 12,
+    "lesson_type": "dictation",
+    "title": "Диктант: Образование и карьера (академическая среда)",
+    "title_en": "Dictation: Education and Career (academic environment)",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Образование и карьера (академическая среда)».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "c1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_C1_12_education_and_career.mp3",
+      "transcript": "Doctoral candidates often discover that academic success depends as much on networking and resilience as on the originality of their research.",
+      "hint_chars": 0,
+      "duration_seconds": 24
+    }
+  },
+  {
+    "external_key": "immersion:dictation:C1:13:law_and_order",
+    "level": "C1",
+    "module_number": 13,
+    "lesson_type": "dictation",
+    "title": "Диктант: Право и порядок",
+    "title_en": "Dictation: Law and Order",
+    "description": "Прослушайте аудио и запишите услышанное. Диктант сфокусирован на словах и фразах модуля «Право и порядок».",
+    "tags": [
+      "immersion",
+      "listening",
+      "dictation",
+      "c1"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/dictation/dictation_C1_13_law_and_order.mp3",
+      "transcript": "A robust legal system safeguards individual rights while ensuring that institutions remain accountable to the public they serve.",
+      "hint_chars": 0,
+      "duration_seconds": 24
+    }
+  }
+]
