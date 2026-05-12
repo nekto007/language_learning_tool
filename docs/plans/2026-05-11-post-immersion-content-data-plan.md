@@ -183,10 +183,10 @@
 - Create: `docs/content/README.md`
 - Create: `docs/runbooks/README.md`
 
-- [ ] Document what belongs in `content/immersion`
-- [ ] Document what belongs in `content/vocabulary`
-- [ ] Document report generation conventions
-- [ ] Document stable id conventions for imports
+- [x] Document what belongs in `content/immersion`
+- [x] Document what belongs in `content/vocabulary`
+- [x] Document report generation conventions
+- [x] Document stable id conventions for imports
 
 ---
 ### Task 8: Create production readiness checklist
