@@ -426,10 +426,10 @@
 **Files:**
 - Create: `content/immersion/sentence_completion_lessons.json`
 
-- [ ] Add at least 5 lessons per CEFR level, 25 total
-- [ ] Include `items` with `prompt`, `answer`, and optional `context`
-- [ ] Use natural sentence endings, not trivia-style answers
-- [ ] Align prompts to module grammar
+- [x] Add at least 5 lessons per CEFR level, 25 total
+- [x] Include `items` with `prompt`, `answer`, and optional `context`
+- [x] Use natural sentence endings, not trivia-style answers
+- [x] Align prompts to module grammar
 
 ---
 ### Task 26: Prepare pronunciation CEFR seed
