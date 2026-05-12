@@ -490,12 +490,12 @@
 - Output: `reports/existing_listening_payloads.md`
 - Tests: `tests/scripts/test_audit_existing_listening_payloads.py`
 
-- [ ] Inspect all 77 source `listening_immersion` lessons
-- [ ] Inspect all 77 source `listening_quiz` lessons
-- [ ] Compare source listening payloads with DB listening payloads
-- [ ] Report whether usable transcript/text already exists
-- [ ] Report whether audio should be lesson-level or item-level
-- [ ] Report lessons that should be excluded from audio requirements
+- [x] Inspect all 77 source `listening_immersion` lessons
+- [x] Inspect all 77 source `listening_quiz` lessons
+- [x] Compare source listening payloads with DB listening payloads
+- [x] Report whether usable transcript/text already exists
+- [x] Report whether audio should be lesson-level or item-level
+- [x] Report lessons that should be excluded from audio requirements
 
 ---
 ### Task 31: Add audio metadata for listening immersion lessons
