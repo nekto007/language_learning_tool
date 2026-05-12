@@ -178,8 +178,7 @@ def complete_challenge(
         from app.achievements.services import check_challenge_achievements
         check_challenge_achievements(user_id)
     except Exception:
-        import logging
-        logging.getLogger(__name__).exception(
+        logger.exception(
             "Failed to check challenge achievements for user %s", user_id
         )
 

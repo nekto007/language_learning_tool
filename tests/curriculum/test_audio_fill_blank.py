@@ -260,9 +260,9 @@ def _login(client, user):
 # LESSON_TYPE_TO_SOURCE mapping test
 # ---------------------------------------------------------------------------
 
-def test_audio_fill_blank_mapped_to_quiz_source():
+def test_audio_fill_blank_mapped_to_audio_fill_blank_source():
     from app.daily_plan.linear.xp import LESSON_TYPE_TO_SOURCE
-    assert LESSON_TYPE_TO_SOURCE.get('audio_fill_blank') == 'linear_curriculum_quiz'
+    assert LESSON_TYPE_TO_SOURCE.get('audio_fill_blank') == 'linear_curriculum_audio_fill_blank'
 
 
 # ---------------------------------------------------------------------------
