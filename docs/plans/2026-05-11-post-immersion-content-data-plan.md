@@ -596,10 +596,10 @@
 - Create: `scripts/import_synonyms_antonyms.py`
 - Tests: `tests/scripts/test_import_synonyms_antonyms.py`
 
-- [ ] Fill synonyms for priority words
-- [ ] Fill antonyms where useful and accurate
-- [ ] Store values as JSON lists
-- [ ] Reject malformed list values
+- [x] Fill synonyms for priority words
+- [x] Fill antonyms where useful and accurate
+- [x] Store values as JSON lists
+- [x] Reject malformed list values
 
 ---
 ### Task 39: Import word collocations
