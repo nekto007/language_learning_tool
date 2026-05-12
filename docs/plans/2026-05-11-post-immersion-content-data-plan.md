@@ -303,13 +303,13 @@
 - Output: `content/immersion/module_map.csv`
 - Tests: `tests/scripts/test_export_curriculum_module_map.py`
 
-- [ ] Export all 77 source modules from `module_completed/fixed/`
-- [ ] Include source filename, source module id, CEFR level, module order, title, and title_en
-- [ ] Include matching DB module id when present
-- [ ] Flag source/DB mismatches before content import
-- [ ] Export current lesson order per module
-- [ ] Include current `listening_quiz`, `translation_quiz`, and `listening_immersion` lesson ids
-- [ ] Use this file as the source of truth for content authors
+- [x] Export all 77 source modules from `module_completed/fixed/`
+- [x] Include source filename, source module id, CEFR level, module order, title, and title_en
+- [x] Include matching DB module id when present
+- [x] Flag source/DB mismatches before content import
+- [x] Export current lesson order per module
+- [x] Include current `listening_quiz`, `translation_quiz`, and `listening_immersion` lesson ids
+- [x] Use this file as the source of truth for content authors
 
 ---
 ### Task 16: Prepare per-module dictation content
