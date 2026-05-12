@@ -647,11 +647,11 @@
 - Create: `scripts/backfill_card_sources.py`
 - Tests: `tests/scripts/test_backfill_card_sources.py`
 
-- [ ] Fill source for existing 142 `user_card_directions`
-- [ ] Infer `lesson_vocab` where linked to curriculum words
-- [ ] Infer `book_reading` where linked to book/course imports
-- [ ] Leave ambiguous cards as `manual`
-- [ ] Add dry-run report and unresolved count
+- [x] Fill source for existing 142 `user_card_directions`
+- [x] Infer `lesson_vocab` where linked to curriculum words
+- [x] Infer `book_reading` where linked to book/course imports
+- [x] Leave ambiguous cards as `manual`
+- [x] Add dry-run report and unresolved count
 
 ---
 ### Task 43: Create vocabulary enrichment coverage report
