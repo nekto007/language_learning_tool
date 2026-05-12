@@ -210,16 +210,16 @@
 - Inspect: `app/curriculum/validators.py`
 - Inspect: `app/curriculum/routes/lessons.py`
 
-- [ ] Document `dictation` schema
-- [ ] Document `audio_fill_blank` schema
-- [ ] Document `translation` schema
-- [ ] Document `sentence_correction` schema
-- [ ] Document `writing_prompt` schema
-- [ ] Document `sentence_completion` schema
-- [ ] Document `collocation_matching` schema
-- [ ] Document `shadow_reading` schema
-- [ ] Document `pronunciation` schema
-- [ ] Document `idiom` schema
+- [x] Document `dictation` schema
+- [x] Document `audio_fill_blank` schema
+- [x] Document `translation` schema
+- [x] Document `sentence_correction` schema
+- [x] Document `writing_prompt` schema
+- [x] Document `sentence_completion` schema
+- [x] Document `collocation_matching` schema
+- [x] Document `shadow_reading` schema
+- [x] Document `pronunciation` schema
+- [x] Document `idiom` schema
 
 ---
 ### Task 10: Build a generic idempotent immersion lesson importer
