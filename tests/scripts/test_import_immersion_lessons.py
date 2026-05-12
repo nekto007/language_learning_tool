@@ -1062,3 +1062,116 @@ def test_db_repository_round_trip(db_session):
         .all()
     )
     assert len(rows2) == 1
+
+
+# ---------------------------------------------------------------------------
+# Staging smoke data set (Task 14)
+# ---------------------------------------------------------------------------
+
+
+STAGING_SMOKE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "content"
+    / "immersion"
+    / "staging_smoke_lessons.json"
+)
+
+
+def _load_staging_smoke_entries() -> list:
+    assert STAGING_SMOKE_PATH.exists(), f"missing fixture: {STAGING_SMOKE_PATH}"
+    raws = load_lessons(STAGING_SMOKE_PATH)
+    out = []
+    for raw in raws:
+        entry, err = parse_entry(raw, source_path=str(STAGING_SMOKE_PATH))
+        assert err is None, f"parse_entry failed for {raw.get('external_key')}: {err}"
+        out.append(entry)
+    return out
+
+
+def test_staging_smoke_covers_every_new_lesson_type():
+    """Staging smoke set must include exactly one lesson per new type."""
+    entries = _load_staging_smoke_entries()
+    found_types = [e.lesson_type for e in entries]
+    assert sorted(found_types) == sorted(NEW_LESSON_TYPES), (
+        f"types mismatch: {sorted(found_types)} vs {sorted(NEW_LESSON_TYPES)}"
+    )
+
+
+def test_staging_smoke_entries_all_marked_staging():
+    """Every entry must carry environment=staging so prod imports skip it by default."""
+    entries = _load_staging_smoke_entries()
+    for entry in entries:
+        assert entry.environment == "staging", (
+            f"{entry.external_key}: environment must be 'staging', got {entry.environment!r}"
+        )
+
+
+def test_staging_smoke_entries_use_local_static_audio_paths():
+    """Audio refs must be small/local — no remote URLs that staging can't fetch."""
+    entries = _load_staging_smoke_entries()
+    for entry in entries:
+        if entry.lesson_type not in AUDIO_REQUIRED_TYPES:
+            continue
+        audio_url = entry.content.get("audio_url")
+        assert isinstance(audio_url, str) and audio_url.startswith("/static/"), (
+            f"{entry.external_key}: lesson-level audio_url must start with /static/, got {audio_url!r}"
+        )
+
+
+def test_staging_smoke_entries_pass_content_validation():
+    """Every staging entry must pass the same validator the importer runs."""
+    entries = _load_staging_smoke_entries()
+    canonical_ids = {(e.level, e.module_number) for e in entries}
+    errors = validate_entries(
+        entries,
+        canonical_module_ids=canonical_ids,
+        check_content_schema=True,
+    )
+    assert errors == [], f"validation errors: {errors}"
+
+
+def test_staging_smoke_skipped_by_default_filter():
+    """`filter_entries(skip_staging=True)` must drop every staging fixture."""
+    entries = _load_staging_smoke_entries()
+    kept, skipped = filter_entries(entries, skip_staging=True)
+    assert kept == []
+    assert len(skipped) == len(entries)
+    assert all(c.action == "skip_environment" for c in skipped)
+
+
+def test_staging_smoke_included_when_staging_flag_set():
+    """`filter_entries(skip_staging=False)` must keep every staging fixture."""
+    entries = _load_staging_smoke_entries()
+    kept, skipped = filter_entries(entries, skip_staging=False)
+    assert kept == entries
+    assert skipped == []
+
+
+def test_staging_smoke_imports_idempotently():
+    """Round-trip: import staging set, re-run → every change is noop."""
+    entries = _load_staging_smoke_entries()
+    unique_module_keys = {(e.level, e.module_number) for e in entries}
+    modules = {key: 800 + i for i, key in enumerate(sorted(unique_module_keys))}
+    repo = FakeRepository.with_modules(modules)
+    plan = plan_import(entries, repo)
+    assert plan.errors == []
+    assert all(c.action == "create" for c in plan.changes)
+    apply_plan(entries, plan, repo)
+    assert len(repo.lessons) == len(entries)
+
+    plan2 = plan_import(entries, repo)
+    assert plan2.errors == []
+    assert [c.action for c in plan2.changes] == ["noop"] * len(entries)
+    apply_plan(entries, plan2, repo)
+    assert len(repo.lessons) == len(entries)
+
+
+def test_staging_smoke_external_keys_are_unique_and_staging_namespaced():
+    """Stable external_keys must be unique and clearly marked as staging."""
+    entries = _load_staging_smoke_entries()
+    keys = [e.external_key for e in entries]
+    assert len(keys) == len(set(keys)), "duplicate external_key in staging smoke set"
+    for key in keys:
+        assert key.startswith("staging:"), (
+            f"staging external_key must start with 'staging:', got {key!r}"
+        )

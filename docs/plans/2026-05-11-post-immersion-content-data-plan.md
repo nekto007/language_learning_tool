@@ -288,10 +288,10 @@
 - Create: `content/immersion/staging_smoke_lessons.json`
 - Tests: `tests/scripts/test_import_immersion_lessons.py`
 
-- [ ] Include one lesson of every new type
-- [ ] Include known-small audio URLs or local static paths
-- [ ] Include examples that exercise grading and completion paths
-- [ ] Mark staging fixtures with `environment=staging`
+- [x] Include one lesson of every new type
+- [x] Include known-small audio URLs or local static paths
+- [x] Include examples that exercise grading and completion paths
+- [x] Mark staging fixtures with `environment=staging`
 
 ---
 ### BLOCK C: Curriculum Lesson Content (Tasks 15-29)

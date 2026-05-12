@@ -1,0 +1,206 @@
+[
+  {
+    "external_key": "staging:dictation:A1:01:greetings",
+    "environment": "staging",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "dictation",
+    "title": "[STAGING] Диктант: Приветствия",
+    "title_en": "[STAGING] Dictation: Greetings",
+    "description": "Staging smoke fixture for dictation. Submit transcript to exercise word-level grader.",
+    "content": {
+      "audio_url": "/static/audio/staging/dictation_a1_01.mp3",
+      "transcript": "Hello, how are you today?",
+      "hint_chars": 1,
+      "duration_seconds": 6
+    }
+  },
+  {
+    "external_key": "staging:audio_fill_blank:A1:01:present_simple",
+    "environment": "staging",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "audio_fill_blank",
+    "title": "[STAGING] Аудио: Заполни пропуск",
+    "title_en": "[STAGING] Audio Fill-in-the-Blank",
+    "description": "Staging smoke fixture for audio_fill_blank. Mixes options-mode and free-text grading.",
+    "content": {
+      "audio_url": "/static/audio/staging/audio_fill_blank_a1_01.mp3",
+      "items": [
+        {
+          "audio_clip_url": "/static/audio/staging/afb_a1_01_item1.mp3",
+          "text_with_gap": "I ___ to school every day.",
+          "answer": "go",
+          "options": ["go", "goes", "going"]
+        },
+        {
+          "audio_clip_url": "/static/audio/staging/afb_a1_01_item2.mp3",
+          "text_with_gap": "She ___ tea in the morning.",
+          "answer": "drinks"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "staging:translation:A1:01:basic_phrase",
+    "environment": "staging",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "translation",
+    "title": "[STAGING] Перевод: Базовая фраза",
+    "title_en": "[STAGING] Translation: Basic Phrase",
+    "description": "Staging smoke fixture for translation. Submit English answer to exercise typo-tolerant grader.",
+    "content": {
+      "russian": "Доброе утро! Меня зовут Анна.",
+      "english": "Good morning! My name is Anna.",
+      "hint_words": ["good", "morning", "name"]
+    }
+  },
+  {
+    "external_key": "staging:sentence_correction:A2:01:article",
+    "environment": "staging",
+    "level": "A2",
+    "module_number": 1,
+    "lesson_type": "sentence_correction",
+    "title": "[STAGING] Найди ошибку: артикли",
+    "title_en": "[STAGING] Find the Error: Articles",
+    "description": "Staging smoke fixture for sentence_correction. Options pre-populated for choice-mode grading.",
+    "content": {
+      "incorrect_sentence": "She is a engineer.",
+      "correct_sentence": "She is an engineer.",
+      "error_type": "article",
+      "explanation": "Use 'an' before words starting with a vowel sound.",
+      "options": [
+        "She is an engineer.",
+        "She is the engineer.",
+        "She is engineer."
+      ]
+    }
+  },
+  {
+    "external_key": "staging:writing_prompt:A1:01:morning",
+    "environment": "staging",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "writing_prompt",
+    "title": "[STAGING] Письмо: Утренний распорядок",
+    "title_en": "[STAGING] Writing: Morning Routine",
+    "description": "Staging smoke fixture for writing_prompt. Exercises self-assess checklist + UserWritingAttempt write path.",
+    "content": {
+      "prompt": "Describe your morning routine in 3-5 sentences.",
+      "min_words": 25,
+      "example_response": "Every morning I wake up at seven. I drink coffee and read the news. Then I go to work by bus.",
+      "checklist": [
+        "Used at least 3 new words",
+        "Wrote 3 or more sentences",
+        "Used the present simple tense",
+        "Reread before submitting"
+      ]
+    }
+  },
+  {
+    "external_key": "staging:sentence_completion:A2:01:conditionals",
+    "environment": "staging",
+    "level": "A2",
+    "module_number": 1,
+    "lesson_type": "sentence_completion",
+    "title": "[STAGING] Закончи предложение",
+    "title_en": "[STAGING] Complete the Sentence",
+    "description": "Staging smoke fixture for sentence_completion. Two items exercise grader on multi-word answers.",
+    "content": {
+      "items": [
+        {
+          "prompt": "If it rains tomorrow, we ___",
+          "answer": "will stay at home",
+          "context": "First conditional with future result."
+        },
+        {
+          "prompt": "She has been studying English ___",
+          "answer": "for three years"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "staging:collocation_matching:B1:01:make_do",
+    "environment": "staging",
+    "level": "B1",
+    "module_number": 1,
+    "lesson_type": "collocation_matching",
+    "title": "[STAGING] Сочетаемость: make и do",
+    "title_en": "[STAGING] Collocations: make vs do",
+    "description": "Staging smoke fixture for collocation_matching. Four pairs exercise drag-and-drop completion path.",
+    "content": {
+      "pairs": [
+        {"phrase": "make a decision", "translation": "принять решение"},
+        {"phrase": "do homework", "translation": "делать домашнее задание"},
+        {"phrase": "make progress", "translation": "делать успехи"},
+        {"phrase": "do the dishes", "translation": "мыть посуду"}
+      ]
+    }
+  },
+  {
+    "external_key": "staging:shadow_reading:A2:01:introductions",
+    "environment": "staging",
+    "level": "A2",
+    "module_number": 1,
+    "lesson_type": "shadow_reading",
+    "title": "[STAGING] Шэдоу-ридинг: Знакомство",
+    "title_en": "[STAGING] Shadow Reading: Introductions",
+    "description": "Staging smoke fixture for shadow_reading. Listen-then-self-assess completion path.",
+    "content": {
+      "audio_url": "/static/audio/staging/shadow_a2_01.mp3",
+      "text": "Hi, I'm Sam. I live in London and I work as a teacher.",
+      "translation": "Привет, я Сэм. Я живу в Лондоне и работаю учителем.",
+      "words": ["live", "work", "teacher"]
+    }
+  },
+  {
+    "external_key": "staging:pronunciation:A1:01:th_vs_s",
+    "environment": "staging",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "pronunciation",
+    "title": "[STAGING] Произношение: /θ/ и /s/",
+    "title_en": "[STAGING] Pronunciation: /θ/ vs /s/",
+    "description": "Staging smoke fixture for pronunciation. Two items exercise speech-recognition and self-assess fallback paths.",
+    "content": {
+      "items": [
+        {
+          "word": "think",
+          "pronunciation_hint": "Stick the tongue between the teeth: /θɪŋk/.",
+          "audio_url": "/static/audio/staging/pron_think.mp3"
+        },
+        {
+          "word": "sink",
+          "pronunciation_hint": "Keep the tongue behind the teeth: /sɪŋk/."
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "staging:idiom:B1:01:everyday",
+    "environment": "staging",
+    "level": "B1",
+    "module_number": 1,
+    "lesson_type": "idiom",
+    "title": "[STAGING] Идиомы: повседневные выражения",
+    "title_en": "[STAGING] Idioms: Everyday Expressions",
+    "description": "Staging smoke fixture for idiom. Reveal + self-assess completion path on two items.",
+    "content": {
+      "items": [
+        {
+          "phrase": "break the ice",
+          "meaning": "начать разговор, чтобы преодолеть неловкость",
+          "example": "He told a joke to break the ice at the meeting.",
+          "audio_url": "/static/audio/staging/idiom_break_the_ice.mp3"
+        },
+        {
+          "phrase": "hit the books",
+          "meaning": "усердно учиться",
+          "example": "Exams are next week — time to hit the books."
+        }
+      ]
+    }
+  }
+]
