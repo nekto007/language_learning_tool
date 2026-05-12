@@ -1029,7 +1029,7 @@ def plan_pause():
     ).delete()
 
     # Insert one StreakEvent per paused day so streak walks over them neutrally
-    for offset in range(days + 1):
+    for offset in range(days):
         pause_date = today + timedelta(days=offset)
         db.session.add(StreakEvent(
             user_id=current_user.id,

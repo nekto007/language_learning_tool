@@ -705,10 +705,18 @@ _LISTENING_IMMERSION_TYPES = ('listening_immersion', 'listening_immersion_quiz')
 
 def _find_next_lesson_of_types(user_id: int, lesson_types: tuple) -> Optional[dict[str, Any]]:
     """Return the next incomplete lesson of the given types ordered by curriculum progression."""
+    from app.auth.models import User
     current_level_code = get_user_current_cefr_level(user_id, db)
     current_level = db.session.query(CEFRLevel).filter_by(code=current_level_code).first()
     if not current_level:
         return None
+
+    user = db.session.get(User, user_id)
+    onboarding_order = 0
+    if user and user.onboarding_level:
+        ob = db.session.query(CEFRLevel).filter_by(code=user.onboarding_level).first()
+        if ob:
+            onboarding_order = ob.order
 
     completed_ids_subq = (
         db.session.query(LessonProgress.lesson_id)
@@ -726,6 +734,7 @@ def _find_next_lesson_of_types(user_id: int, lesson_types: tuple) -> Optional[di
         .filter(
             Lessons.type.in_(lesson_types),
             Lessons.id.notin_(db.session.query(completed_ids_subq.c.lesson_id)),
+            CEFRLevel.order >= onboarding_order,
             CEFRLevel.order <= current_level.order,
         )
         .order_by(CEFRLevel.order, Module.number, Lessons.number, Lessons.id)

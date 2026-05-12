@@ -335,15 +335,20 @@ class TestAudioFillBlankSubmit:
         assert "item_results" in data
         assert len(data["item_results"]) == 2
 
-    def test_response_includes_items_for_reveal(self, app, db_session, test_user, client):
+    def test_response_includes_items_only_on_pass(self, app, db_session, test_user, client):
         lesson = _make_afb_lesson(db_session)
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/audio-fill-blank")
-        resp = self._submit(client, lesson.id, ["wrong", "wrong"])
-        data = resp.get_json()
-        assert "items" in data
-        assert len(data["items"]) == 2
-        assert "answer" in data["items"][0]
+        # Failed submission should NOT reveal correct answers
+        fail_resp = self._submit(client, lesson.id, ["wrong", "wrong"])
+        fail_data = fail_resp.get_json()
+        assert "items" not in fail_data
+        # Passed submission SHOULD reveal correct answers
+        pass_resp = self._submit(client, lesson.id, ["goes", "like"])
+        pass_data = pass_resp.get_json()
+        assert "items" in pass_data
+        assert len(pass_data["items"]) == 2
+        assert "answer" in pass_data["items"][0]
 
     def test_passed_marks_progress_completed(self, app, db_session, test_user, client):
         lesson = _make_afb_lesson(db_session)

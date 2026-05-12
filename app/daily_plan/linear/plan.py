@@ -84,8 +84,9 @@ def build_tomorrow_preview(user_id: int, db_session: Any) -> dict[str, Any]:
     state and slot types are stable day-to-day.
     """
     try:
-        from app.daily_plan.linear.chain import _build_baseline
-        baseline = _build_baseline(user_id, db_session)
+        from app.daily_plan.linear.chain import _build_baseline, _get_plan_difficulty
+        difficulty = _get_plan_difficulty(user_id, db_session)
+        baseline = _build_baseline(user_id, db_session, difficulty=difficulty)
         slot_types = [s['kind'] for s in baseline]
         estimated_minutes = sum(SLOT_ESTIMATED_MINUTES.get(kind, 0) for kind in slot_types)
         return {

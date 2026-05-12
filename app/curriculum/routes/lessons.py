@@ -542,11 +542,12 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
         result['next_lesson_url'] = url_for(
             'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
         )
-    # Always include correct answers for client-side reveal on completion
-    result['items'] = [
-        {'answer': it.get('answer', ''), 'text_with_gap': it.get('text_with_gap', '')}
-        for it in items
-    ]
+    # Only reveal correct answers after the lesson is passed
+    if grade.get('passed'):
+        result['items'] = [
+            {'answer': it.get('answer', ''), 'text_with_gap': it.get('text_with_gap', '')}
+            for it in items
+        ]
 
     return result
 
@@ -805,6 +806,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
         db.session.flush()
     except Exception as save_err:
         logger.warning(f"Writing attempt save failed for lesson {lesson.id}: {save_err}")
+        db.session.rollback()
 
     completed = meets_min and len(checked_items) >= 2
 
