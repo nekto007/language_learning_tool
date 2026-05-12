@@ -381,11 +381,11 @@
 - Use: `scripts/import_immersion_lessons.py`
 - Output: `reports/shadow_reading_import.md`
 
-- [ ] Insert shadow reading near `listening_immersion`
-- [ ] Verify one imported shadow reading lesson for every source module that exists in target DB
-- [ ] Report skipped source modules that are not present in target DB
-- [ ] Verify daily plan speaking slot can find a shadow reading lesson in each current module
-- [ ] Verify self-assessment completion awards linear XP
+- [x] Insert shadow reading near `listening_immersion`
+- [x] Verify one imported shadow reading lesson for every source module that exists in target DB
+- [x] Report skipped source modules that are not present in target DB
+- [x] Verify daily plan speaking slot can find a shadow reading lesson in each current module
+- [x] Verify self-assessment completion awards linear XP
 
 ---
 ### Task 22: Prepare audio fill-in-blank CEFR seed
