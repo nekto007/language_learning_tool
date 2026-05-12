@@ -756,7 +756,7 @@ def check_immersion_achievement(user_id: int, target_date, db_session=None, tz: 
     codes_to_award: set[str] = {'immersion_daily'}
 
     from app.achievements.streak_service import get_immersion_streak
-    streak = get_immersion_streak(user_id, db_session=session)
+    streak = get_immersion_streak(user_id, db_session=session, tz=tz)
     if streak >= 7:
         codes_to_award.add('immersion_week')
 

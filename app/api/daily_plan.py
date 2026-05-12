@@ -87,8 +87,8 @@ def _compute_listening_goal(user, tz: str) -> dict:
             lesson.id: lesson
             for lesson in Lessons.query.filter(Lessons.id.in_(unique_lesson_ids)).all()
         }
-        for lesson_id in unique_lesson_ids:
-            lesson = lessons_map.get(lesson_id)
+        for attempt in attempts:
+            lesson = lessons_map.get(attempt.lesson_id)
             duration = 300
             if lesson and lesson.content and isinstance(lesson.content, dict):
                 duration = min(int(lesson.content.get('duration_seconds', 300)), 3600)
