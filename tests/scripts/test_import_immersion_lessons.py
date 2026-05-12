@@ -19,6 +19,7 @@ if str(SCRIPT_PATH) not in sys.path:
     sys.path.insert(0, str(SCRIPT_PATH))
 
 from import_immersion_lessons import (  # noqa: E402
+    AUDIO_REQUIRED_TYPES,
     DBRepository,
     ImportChange,
     Repository,
@@ -26,9 +27,11 @@ from import_immersion_lessons import (  # noqa: E402
     diff_lesson_fields,
     filter_entries,
     format_report,
+    load_canonical_module_ids,
     load_lessons,
     parse_entry,
     plan_import,
+    validate_entries,
 )
 
 
@@ -614,6 +617,231 @@ def test_main_returns_2_on_malformed_json(tmp_path, capsys):
     assert rc == 2
     err = capsys.readouterr().err
     assert "ERROR" in err
+
+
+# ---------------------------------------------------------------------------
+# validate_entries / load_canonical_module_ids (Task 11)
+# ---------------------------------------------------------------------------
+
+
+def test_load_canonical_module_ids_reads_filenames(tmp_path: Path):
+    (tmp_path / "module_A1_01_greetings.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "module_B2_07_advanced.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "module_invalid.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "not_a_module.txt").write_text("", encoding="utf-8")
+    ids = load_canonical_module_ids(tmp_path)
+    assert ids == {("A1", 1), ("B2", 7)}
+
+
+def test_load_canonical_module_ids_missing_dir():
+    assert load_canonical_module_ids(Path("/no/such/dir/here")) == set()
+
+
+def test_validate_entries_passes_for_clean_dictation():
+    entry = _entry()
+    errors = validate_entries(
+        [entry],
+        canonical_module_ids={(entry.level, entry.module_number)},
+    )
+    assert errors == []
+
+
+def test_validate_entries_rejects_module_missing_from_source():
+    entry = _entry()
+    errors = validate_entries(
+        [entry],
+        canonical_module_ids={("B2", 99)},  # different module
+    )
+    assert any("not in canonical source directory" in e for e in errors)
+    assert any(entry.external_key in e for e in errors)
+
+
+def test_validate_entries_skips_source_check_when_none():
+    entry = _entry()
+    errors = validate_entries([entry], canonical_module_ids=None)
+    assert errors == []
+
+
+def test_validate_entries_detects_missing_audio_url():
+    raw = make_raw()
+    raw["content"] = {"transcript": "Hello world"}  # no audio_url
+    entry, err = parse_entry(raw)
+    assert err is None
+    errors = validate_entries([entry], canonical_module_ids=None)
+    assert any("requires non-empty content.audio_url" in e for e in errors)
+
+
+def test_validate_entries_rejects_empty_audio_url():
+    raw = make_raw(content={"audio_url": "   ", "transcript": "hi"})
+    entry, err = parse_entry(raw)
+    assert err is None
+    errors = validate_entries([entry], canonical_module_ids=None)
+    assert any("audio_url" in e for e in errors)
+
+
+def test_validate_entries_rejects_invalid_dictation_content_via_schema():
+    # transcript is required by DictationContentSchema
+    raw = make_raw(content={"audio_url": "/a.mp3"})
+    entry, err = parse_entry(raw)
+    assert err is None
+    errors = validate_entries([entry], canonical_module_ids=None)
+    assert any("content invalid" in e or "transcript" in e for e in errors)
+
+
+def test_validate_entries_rejects_unknown_lesson_type():
+    raw = make_raw(lesson_type="not_a_real_type")
+    entry, err = parse_entry(raw)
+    assert err is None
+    errors = validate_entries([entry], canonical_module_ids=None)
+    assert any("Unknown lesson type" in e for e in errors)
+
+
+def test_validate_entries_accepts_writing_prompt_without_audio():
+    raw = make_raw(
+        external_key="writing:A1:01:journal",
+        lesson_type="writing_prompt",
+        content={
+            "prompt": "Describe your morning routine.",
+            "min_words": 25,
+            "example_response": "Every morning I wake up...",
+            "checklist": ["Used 3 new words", "Past tense", "5+ sentences", "Reread it"],
+        },
+    )
+    entry, err = parse_entry(raw)
+    assert err is None
+    errors = validate_entries([entry], canonical_module_ids=None)
+    assert errors == []
+
+
+def test_validate_entries_detects_duplicate_external_key():
+    a = _entry()
+    b = _entry()  # same external_key
+    errors = validate_entries([a, b], canonical_module_ids=None)
+    assert any("duplicate external_key" in e for e in errors)
+
+
+def test_validate_entries_detects_duplicate_lesson_number_in_module():
+    a = _entry(lesson_number=5, external_key="dictation:A1:01:k1")
+    b = _entry(
+        lesson_number=5,
+        external_key="dictation:A1:01:k2",
+        content={
+            "audio_url": "/static/audio/dictation_a1_01b.mp3",
+            "transcript": "Goodbye!",
+        },
+    )
+    errors = validate_entries([a, b], canonical_module_ids=None)
+    assert any("duplicate lesson_number 5" in e for e in errors)
+
+
+def test_validate_entries_allows_skipping_content_schema():
+    raw = make_raw(content={"audio_url": "/a.mp3"})  # missing transcript
+    entry, err = parse_entry(raw)
+    assert err is None
+    errors = validate_entries(
+        [entry], canonical_module_ids=None, check_content_schema=False
+    )
+    # audio_url present, schema check disabled → no errors
+    assert errors == []
+
+
+def test_audio_required_types_includes_dictation():
+    assert "dictation" in AUDIO_REQUIRED_TYPES
+    assert "writing_prompt" not in AUDIO_REQUIRED_TYPES
+
+
+# ---------------------------------------------------------------------------
+# main() validation path
+# ---------------------------------------------------------------------------
+
+
+def _write_canonical(tmp_path: Path, *triples: tuple[str, int, str]):
+    canonical = tmp_path / "canonical"
+    canonical.mkdir()
+    for level, order, slug in triples:
+        (canonical / f"module_{level}_{order:02d}_{slug}.json").write_text(
+            "{}", encoding="utf-8"
+        )
+    return canonical
+
+
+def test_main_validate_only_passes_returns_zero(tmp_path, capsys):
+    import import_immersion_lessons as mod
+
+    canonical = _write_canonical(tmp_path, ("A1", 1, "greetings"))
+    payload = tmp_path / "good.json"
+    payload.write_text(json.dumps([make_raw()]), encoding="utf-8")
+    rc = mod.main(
+        [
+            str(payload),
+            "--validate-only",
+            "--canonical-modules-dir",
+            str(canonical),
+        ]
+    )
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "validate-only" in out
+
+
+def test_main_validate_only_fails_on_missing_audio(tmp_path, capsys):
+    import import_immersion_lessons as mod
+
+    canonical = _write_canonical(tmp_path, ("A1", 1, "greetings"))
+    bad = make_raw(content={"transcript": "no audio here"})
+    payload = tmp_path / "bad.json"
+    payload.write_text(json.dumps([bad]), encoding="utf-8")
+    rc = mod.main(
+        [
+            str(payload),
+            "--validate-only",
+            "--canonical-modules-dir",
+            str(canonical),
+        ]
+    )
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert "audio_url" in err
+
+
+def test_main_validate_only_fails_on_missing_canonical_module(tmp_path, capsys):
+    import import_immersion_lessons as mod
+
+    # canonical dir exists but doesn't include A1#1
+    canonical = _write_canonical(tmp_path, ("B2", 9, "advanced"))
+    payload = tmp_path / "p.json"
+    payload.write_text(json.dumps([make_raw()]), encoding="utf-8")
+    rc = mod.main(
+        [
+            str(payload),
+            "--validate-only",
+            "--canonical-modules-dir",
+            str(canonical),
+        ]
+    )
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert "canonical source directory" in err
+
+
+def test_main_no_source_check_skips_canonical_lookup(tmp_path, capsys):
+    import import_immersion_lessons as mod
+
+    # canonical dir empty — should fail without --no-source-check
+    canonical = tmp_path / "empty_canonical"
+    canonical.mkdir()
+    payload = tmp_path / "p.json"
+    payload.write_text(json.dumps([make_raw()]), encoding="utf-8")
+    rc = mod.main(
+        [
+            str(payload),
+            "--validate-only",
+            "--canonical-modules-dir",
+            str(canonical),
+            "--no-source-check",
+        ]
+    )
+    assert rc == 0
 
 
 # ---------------------------------------------------------------------------

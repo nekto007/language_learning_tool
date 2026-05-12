@@ -245,14 +245,14 @@
 - Modify: `scripts/import_immersion_lessons.py`
 - Tests: `tests/scripts/test_import_immersion_lessons.py`
 
-- [ ] Validate content through `LessonContentValidator`
-- [ ] Validate CEFR level and module references
-- [ ] Validate referenced module exists in `module_completed/fixed/`
-- [ ] Validate referenced module exists in target DB or report it as a source/DB mismatch
-- [ ] Validate lesson numbers are unique inside a module
-- [ ] Validate required audio fields for audio lesson types
-- [ ] Validate no imported lesson points to a missing module
-- [ ] Add clear error report without partial writes
+- [x] Validate content through `LessonContentValidator`
+- [x] Validate CEFR level and module references
+- [x] Validate referenced module exists in `module_completed/fixed/`
+- [x] Validate referenced module exists in target DB or report it as a source/DB mismatch
+- [x] Validate lesson numbers are unique inside a module
+- [x] Validate required audio fields for audio lesson types
+- [x] Validate no imported lesson points to a missing module
+- [x] Add clear error report without partial writes
 
 ---
 ### Task 12: Add content gap report generation

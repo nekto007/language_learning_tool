@@ -28,18 +28,30 @@ Filters (CLI):
     `--include-staging`        do not auto-skip staging fixtures
     `--report PATH`            write markdown report
 
+Validation (CLI):
+    `--canonical-modules-dir`  override canonical source directory
+    `--no-validate`            skip content-schema and audio validation
+    `--no-source-check`        skip canonical-source presence check
+    `--validate-only`          run validation + planning, never write to DB
+
+Validation rules (run before any DB write):
+    * `LessonContentValidator` checks the payload against its lesson_type schema.
+    * Audio lesson types must carry a non-empty `content.audio_url`.
+    * Each (level, module_number) must exist under `module_completed/fixed/`.
+    * `external_key` and (level, module_number, lesson_number) must be unique
+      inside the input set.
+
 Usage:
     python scripts/import_immersion_lessons.py FILE [FILE ...] [options]
 
-Task 10 — see `docs/plans/2026-05-11-post-immersion-content-data-plan.md`.
-Task 11 will add full payload validation through `LessonContentValidator`;
-this script only performs shape validation today.
+Tasks 10–11 — see `docs/plans/2026-05-11-post-immersion-content-data-plan.md`.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -47,6 +59,19 @@ from typing import Any, Iterable, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SOURCE_DIR = PROJECT_ROOT / "content" / "immersion"
+DEFAULT_CANONICAL_MODULES_DIR = PROJECT_ROOT / "module_completed" / "fixed"
+
+_CANONICAL_FILENAME_RE = re.compile(
+    r"^module_(?P<level>[A-C][0-9])_(?P<order>\d+)_(?P<slug>.+)\.json$"
+)
+
+AUDIO_REQUIRED_TYPES = (
+    "dictation",
+    "audio_fill_blank",
+    "shadow_reading",
+    "listening_immersion",
+    "listening_quiz",
+)
 
 REQUIRED_KEYS = (
     "external_key",
@@ -294,6 +319,107 @@ def diff_lesson_fields(existing, entry: LessonEntry) -> list:
     if entry.lesson_number is not None and existing.number != entry.lesson_number:
         diff.append("number")
     return diff
+
+
+def load_canonical_module_ids(source_dir: Path) -> set:
+    """Return set of (level, module_number) tuples present in canonical source.
+
+    Reads filenames under `module_completed/fixed/` and parses the
+    ``module_<level>_<order>_<slug>.json`` pattern. Used to verify imported
+    lessons reference a real canonical module before any DB writes happen.
+    """
+    found: set = set()
+    if not source_dir or not source_dir.exists():
+        return found
+    for path in source_dir.glob("*.json"):
+        match = _CANONICAL_FILENAME_RE.match(path.name)
+        if match:
+            found.add((match.group("level"), int(match.group("order"))))
+    return found
+
+
+def _validate_content_schema(lesson_type: str, content: Any) -> Optional[str]:
+    """Run `LessonContentValidator` against an entry's content payload.
+
+    Returns an error string when validation fails, or None on success.
+    """
+    try:
+        from app.curriculum.validators import LessonContentValidator
+        from marshmallow import ValidationError as MarshmallowValidationError
+    except ImportError as exc:  # pragma: no cover — env without app dependencies
+        return f"validator import failed: {exc}"
+    if not isinstance(content, dict):
+        return "content must be an object"
+    try:
+        LessonContentValidator.validate(lesson_type, dict(content))
+    except ValueError as exc:
+        return str(exc)
+    except MarshmallowValidationError as exc:
+        return f"content invalid: {exc.messages}"
+    return None
+
+
+def validate_entries(
+    entries: list,
+    *,
+    canonical_module_ids: Optional[set] = None,
+    check_content_schema: bool = True,
+) -> list:
+    """Run payload-level validation. Returns list of error strings.
+
+    Checks performed:
+    - duplicate `external_key` inside the input set
+    - `lesson_type` recognized by `LessonContentValidator`
+    - content payload conforms to its lesson_type schema (Marshmallow)
+    - required audio fields present for audio lesson types
+    - referenced module exists in canonical source (when provided)
+    - `lesson_number` is unique inside each (level, module_number) batch
+    """
+    errors: list = []
+    seen_keys: dict = {}
+    seen_numbers: dict = {}
+
+    for entry in entries:
+        prefix = entry.external_key
+        if prefix in seen_keys:
+            errors.append(f"{prefix}: duplicate external_key in input")
+            continue
+        seen_keys[prefix] = entry
+
+        if canonical_module_ids is not None:
+            if (entry.level, entry.module_number) not in canonical_module_ids:
+                errors.append(
+                    f"{prefix}: module {entry.level}#{entry.module_number} not in canonical source directory"
+                )
+
+        if entry.lesson_type in AUDIO_REQUIRED_TYPES:
+            audio_url = (
+                entry.content.get("audio_url")
+                if isinstance(entry.content, dict)
+                else None
+            )
+            if not isinstance(audio_url, str) or not audio_url.strip():
+                errors.append(
+                    f"{prefix}: lesson_type {entry.lesson_type!r} requires non-empty content.audio_url"
+                )
+
+        if check_content_schema:
+            content_err = _validate_content_schema(entry.lesson_type, entry.content)
+            if content_err:
+                errors.append(f"{prefix}: {content_err}")
+
+        if entry.lesson_number is not None:
+            number_key = (entry.level, entry.module_number, entry.lesson_number)
+            if number_key in seen_numbers:
+                errors.append(
+                    f"{prefix}: duplicate lesson_number {entry.lesson_number} "
+                    f"in {entry.level}#{entry.module_number} "
+                    f"(also {seen_numbers[number_key]})"
+                )
+            else:
+                seen_numbers[number_key] = prefix
+
+    return errors
 
 
 class Repository:
@@ -683,6 +809,27 @@ def main(argv=None) -> int:
         action="store_true",
         help="Also import entries with environment=staging.",
     )
+    parser.add_argument(
+        "--canonical-modules-dir",
+        type=Path,
+        default=DEFAULT_CANONICAL_MODULES_DIR,
+        help="Directory with canonical source modules (default: module_completed/fixed).",
+    )
+    parser.add_argument(
+        "--no-validate",
+        action="store_true",
+        help="Skip content-schema and audio validation.",
+    )
+    parser.add_argument(
+        "--no-source-check",
+        action="store_true",
+        help="Skip the check that each entry's module exists in --canonical-modules-dir.",
+    )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Run validation and planning, never write to DB. Returns rc=2 on errors.",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -720,6 +867,24 @@ def main(argv=None) -> int:
         lesson_type=args.lesson_type,
         skip_staging=not args.include_staging,
     )
+
+    if not args.no_validate:
+        canonical_ids = (
+            None if args.no_source_check else load_canonical_module_ids(args.canonical_modules_dir)
+        )
+        validation_errors = validate_entries(
+            kept,
+            canonical_module_ids=canonical_ids,
+            check_content_schema=True,
+        )
+        if validation_errors:
+            for err in validation_errors:
+                print(f"ERROR: {err}", file=sys.stderr)
+            return 2
+
+    if args.validate_only:
+        print(f"validate-only: {len(kept)} entries passed validation")
+        return 0
 
     try:
         from app import create_app
