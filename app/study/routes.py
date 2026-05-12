@@ -698,6 +698,7 @@ def stats():
 
 @study.route('/insights')
 @login_required
+@module_required('study')
 def insights():
     from app.study.insights_service import (
         get_activity_heatmap, get_best_study_time, get_words_at_risk,
@@ -779,6 +780,7 @@ _WRITING_TYPES = ['writing_prompt', 'translation', 'sentence_correction']
 
 @study.route('/writing')
 @login_required
+@module_required('study')
 def writing_history():
     from app.curriculum.models import Lessons, UserWritingAttempt
 
@@ -835,12 +837,14 @@ def writing_history():
 
 @study.route('/calendar')
 @login_required
+@module_required('study')
 def plan_calendar():
     """Plan completion heatmap: last 90 days from DailyPlanLog."""
-    from datetime import date, timedelta
+    from datetime import timedelta
     from app.daily_plan.models import DailyPlanLog
+    from app.utils.time_utils import get_user_local_date
 
-    today = date.today()
+    today = get_user_local_date(current_user.id, db)
     start_date = today - timedelta(days=89)
 
     rows = db.session.query(DailyPlanLog).filter(
@@ -908,13 +912,15 @@ def plan_calendar():
 
 @study.route('/weekly')
 @login_required
+@module_required('study')
 def weekly_plan():
     """Weekly plan overview: current week Mon-Sun with today's actual plan and projections."""
-    from datetime import date, timedelta
+    from datetime import timedelta
     from app.daily_plan.models import DailyPlanLog
     from app.daily_plan.linear.plan import SLOT_ESTIMATED_MINUTES
+    from app.utils.time_utils import get_user_local_date
 
-    today = date.today()
+    today = get_user_local_date(current_user.id, db)
     # Always show 3 past days + today + 3 future days (7 days total)
     start_day = today - timedelta(days=3)
     week_days = [start_day + timedelta(days=i) for i in range(7)]
@@ -995,13 +1001,15 @@ def weekly_plan():
 
 @study.route('/plan-stats')
 @login_required
+@module_required('study')
 def plan_stats():
     """Plan performance analytics: last 30 days from DailyPlanLog + StreakEvent."""
-    from datetime import date, timedelta
+    from datetime import timedelta
     from app.daily_plan.models import DailyPlanLog
     from app.achievements.models import StreakEvent
+    from app.utils.time_utils import get_user_local_date
 
-    today = date.today()
+    today = get_user_local_date(current_user.id, db)
     start_date = today - timedelta(days=29)
 
     logs = db.session.query(DailyPlanLog).filter(

@@ -1672,12 +1672,17 @@ def get_accuracy_trend(user_id: int, days: int = 30) -> dict[str, Any]:
             week_key = row.week.strftime('%Y-%m-%d') if hasattr(row.week, 'strftime') else str(row.week)[:10]
             quiz_by_week[week_key] = round(float(row.avg_score), 1)
 
-    # Build a unified list of weeks covering the range
-    all_weeks: list[str] = sorted(set(srs_by_week) | set(quiz_by_week))
-
     # If no data at all, return empty structure
-    if not all_weeks:
+    if not srs_by_week and not quiz_by_week:
         return {'dates': [], 'srs_accuracy': [], 'quiz_accuracy': []}
+
+    # Enumerate every ISO week from start_dt to now so gap weeks appear as null.
+    all_weeks: list[str] = []
+    # Align start_dt to its Monday (ISO week start)
+    week_cursor = start_dt - timedelta(days=start_dt.weekday())
+    while week_cursor <= now_utc:
+        all_weeks.append(week_cursor.strftime('%Y-%m-%d'))
+        week_cursor += timedelta(weeks=1)
 
     dates = all_weeks
     srs_accuracy = [srs_by_week.get(w) for w in dates]

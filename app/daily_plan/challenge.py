@@ -233,12 +233,19 @@ def check_challenge_criteria(
             return 'criteria_not_met'
 
     elif challenge.category == 'accuracy_focus':
-        if score is None or score < _ACCURACY_FOCUS_MIN_SCORE:
-            return 'criteria_not_met'
-        # Require a server-graded lesson attempt with qualifying score today.
-        # LessonAttempt is created by final_test/legacy flows; new lesson types
-        # (dictation, sentence_correction, etc.) write LessonProgress instead.
-        from app.curriculum.models import LessonAttempt, LessonProgress
+        # Verify server-recorded score only — do not trust client-submitted score.
+        # LessonAttempt covers final_test/legacy quiz flows (score always server-computed).
+        # New graded lesson types write LessonProgress via ProgressService — restrict
+        # the fallback to those types to prevent forged scores from the general
+        # /api/lesson/<id>/progress endpoint.
+        from app.curriculum.models import LessonAttempt, LessonProgress, Lessons
+        _SERVER_GRADED_TYPES = (
+            'dictation', 'audio_fill_blank', 'translation',
+            'sentence_correction', 'sentence_completion', 'collocation_matching',
+            'grammar',
+            'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
+            'dialogue_completion_quiz',
+        )
         qualifying = (
             db.session.query(LessonAttempt.id)
             .filter(
@@ -249,12 +256,21 @@ def check_challenge_criteria(
             .first()
         )
         if qualifying is None:
+            # Use last_activity instead of completed_at: completed_at is only set on the
+            # first pass and is never updated on repeat attempts, so a redo today with a
+            # qualifying score would carry yesterday's completed_at and fail this check.
+            # last_activity is always written by update_progress_with_grading regardless
+            # of pass/fail, and score reflects the latest attempt, so the combined filter
+            # (score >= threshold AND status == completed AND last_activity today) is safe.
             qualifying = (
                 db.session.query(LessonProgress.id)
+                .join(Lessons, Lessons.id == LessonProgress.lesson_id)
                 .filter(
                     LessonProgress.user_id == user_id,
+                    LessonProgress.score >= _ACCURACY_FOCUS_MIN_SCORE,
                     LessonProgress.status == 'completed',
-                    LessonProgress.completed_at >= today_start,
+                    LessonProgress.last_activity >= today_start,
+                    Lessons.type.in_(_SERVER_GRADED_TYPES),
                 )
                 .first()
             )

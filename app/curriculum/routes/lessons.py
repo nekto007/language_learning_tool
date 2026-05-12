@@ -25,9 +25,9 @@ WRITING_DAILY_LIMIT = 70
 
 def _count_pronunciation_attempts_today(user_id: int) -> int:
     from app.curriculum.models import PronunciationAttempt
-    today_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0, tzinfo=None
-    )
+    from app.utils.time_utils import get_user_local_day_bounds
+    from app.utils.db import db as _db
+    today_start, _ = get_user_local_day_bounds(user_id, _db)
     return PronunciationAttempt.query.filter(
         PronunciationAttempt.user_id == user_id,
         PronunciationAttempt.created_at >= today_start,
@@ -36,9 +36,9 @@ def _count_pronunciation_attempts_today(user_id: int) -> int:
 
 def _count_writing_attempts_today(user_id: int) -> int:
     from app.curriculum.models import UserWritingAttempt
-    today_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0, tzinfo=None
-    )
+    from app.utils.time_utils import get_user_local_day_bounds
+    from app.utils.db import db as _db
+    today_start, _ = get_user_local_day_bounds(user_id, _db)
     return UserWritingAttempt.query.filter(
         UserWritingAttempt.user_id == user_id,
         UserWritingAttempt.created_at >= today_start,
@@ -147,6 +147,29 @@ def update_lesson_progress(lesson_id):
         if not is_valid:
             return jsonify({'success': False, 'error': error_msg}), 400
 
+        # Server-graded lesson types must be submitted via /api/lesson/<id>/submit
+        # where the score is computed server-side. Reject score and completed status
+        # from this endpoint to prevent challenge score forgery.
+        # Note: 'grammar' and 'listening_immersion_quiz' complete via this endpoint
+        # (theory-only auto-complete and text-template flow respectively) so they are
+        # excluded from the full block; score is still stripped to prevent forgery.
+        _SERVER_GRADED_TYPES = frozenset((
+            'dictation', 'audio_fill_blank', 'translation',
+            'sentence_correction', 'sentence_completion', 'collocation_matching',
+            'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
+            'dialogue_completion_quiz',
+        ))
+        # For these types score must come from the submit endpoint, but status
+        # can be set via the progress endpoint (e.g. theory-only auto-complete).
+        _SCORE_STRIP_ONLY_TYPES = frozenset(('grammar', 'listening_immersion_quiz'))
+        lesson_for_check = Lessons.query.get(lesson_id)
+        if lesson_for_check and lesson_for_check.type in _SERVER_GRADED_TYPES:
+            cleaned_data.pop('score', None)
+            if cleaned_data.get('status') == 'completed':
+                cleaned_data.pop('status', None)
+        elif lesson_for_check and lesson_for_check.type in _SCORE_STRIP_ONLY_TYPES:
+            cleaned_data.pop('score', None)
+
         progress = LessonProgress.query.filter_by(
             user_id=current_user.id,
             lesson_id=lesson_id
@@ -207,7 +230,13 @@ def update_lesson_progress(lesson_id):
                 logger.warning(f"Linear XP award failed for lesson {lesson_id}: {xp_err}")
 
         completion_result = None
-        if progress.status == 'completed' and progress.score is not None:
+        # Skip process_lesson_completion for theory-only types (grammar, listening_immersion_quiz)
+        # whose score is stripped above — their score defaults to 0.0, not None, so the
+        # is-not-None guard alone would pass and record a spurious F-grade.
+        _is_score_strip_type = bool(
+            lesson_for_check and lesson_for_check.type in _SCORE_STRIP_ONLY_TYPES
+        )
+        if progress.status == 'completed' and progress.score is not None and not _is_score_strip_type:
             try:
                 from app.achievements.services import process_lesson_completion
                 lesson = Lessons.query.get(lesson_id)
@@ -257,7 +286,7 @@ def submit_lesson(lesson_id):
         if lesson.type == 'pronunciation' and not (isinstance(data, dict) and data.get('finish')):
             if _count_pronunciation_attempts_today(current_user.id) >= PRONUNCIATION_DAILY_LIMIT:
                 return _api_error('rate_limit_exceeded', 'Daily pronunciation attempt limit reached.', 429)
-        elif lesson.type == 'writing_prompt':
+        elif lesson.type in ('writing_prompt', 'translation', 'sentence_correction'):
             if _count_writing_attempts_today(current_user.id) >= WRITING_DAILY_LIMIT:
                 return _api_error('rate_limit_exceeded', 'Daily writing attempt limit reached.', 429)
 
@@ -601,15 +630,23 @@ def translation_lesson(lesson_id: int):
 def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
     """Grade a translation submission, update progress, award XP, return result."""
     from app.curriculum.grading import grade_translation
+    from app.curriculum.models import save_writing_attempt
     from app.curriculum.service import get_next_lesson
     from app.curriculum.services.progress_service import ProgressService
 
     content = lesson.content or {}
     correct_answer = content.get('english', '')
-    user_answer = data.get('user_answer', '')
+    user_answer = (data.get('user_answer', '') or '')[:2000]
 
     grade = grade_translation(user_answer, correct_answer)
     passed = grade['is_correct']
+
+    try:
+        save_writing_attempt(user_id, lesson.id, user_answer, passed, db)
+        db.session.flush()
+    except Exception as save_err:
+        logger.warning(f"Translation writing attempt save failed for lesson {lesson.id}: {save_err}")
+        db.session.rollback()
 
     # Build a progress-compatible result dict
     progress_result = {
@@ -632,7 +669,13 @@ def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict)
         except Exception as xp_err:
             logger.warning(f"Translation XP award failed for lesson {lesson.id}: {xp_err}")
 
-    result = {**grade}
+    try:
+        from app.achievements.services import check_writing_achievements
+        check_writing_achievements(user_id, db_session=db.session)
+    except Exception as ach_err:
+        logger.warning(f"Writing achievements check failed for user {user_id}: {ach_err}")
+
+    result = {**grade, 'passed': passed}
     next_lesson = get_next_lesson(lesson.id)
     if passed and next_lesson:
         result['next_lesson_url'] = url_for(
@@ -693,16 +736,24 @@ def sentence_correction_lesson(lesson_id: int):
 def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
     """Grade a sentence correction submission, update progress, award XP, return result."""
     from app.curriculum.grading import grade_sentence_correction
+    from app.curriculum.models import save_writing_attempt
     from app.curriculum.service import get_next_lesson
     from app.curriculum.services.progress_service import ProgressService
 
     content = lesson.content or {}
     correct_sentence = content.get('correct_sentence', '')
     explanation = content.get('explanation', '')
-    user_answer = data.get('user_answer', '')
+    user_answer = (data.get('user_answer', '') or '')[:2000]
 
     grade = grade_sentence_correction(user_answer, correct_sentence)
     passed = grade['is_correct']
+
+    try:
+        save_writing_attempt(user_id, lesson.id, user_answer, passed, db)
+        db.session.flush()
+    except Exception as save_err:
+        logger.warning(f"Sentence correction writing attempt save failed for lesson {lesson.id}: {save_err}")
+        db.session.rollback()
 
     progress_result = {
         'passed': passed,
@@ -724,7 +775,13 @@ def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, dat
         except Exception as xp_err:
             logger.warning(f"Sentence correction XP award failed for lesson {lesson.id}: {xp_err}")
 
-    result = {**grade, 'explanation': explanation}
+    try:
+        from app.achievements.services import check_writing_achievements
+        check_writing_achievements(user_id, db_session=db.session)
+    except Exception as ach_err:
+        logger.warning(f"Writing achievements check failed for user {user_id}: {ach_err}")
+
+    result = {**grade, 'passed': passed, 'explanation': explanation}
     next_lesson = get_next_lesson(lesson.id)
     if passed and next_lesson:
         result['next_lesson_url'] = url_for(
