@@ -393,10 +393,10 @@
 **Files:**
 - Create: `content/immersion/audio_fill_blank_lessons.json`
 
-- [ ] Add at least 5 lessons per CEFR level, 25 total
-- [ ] Include `audio_url` and `items`
-- [ ] Include both free-text and options mode
-- [ ] Include normalized answers suitable for typo-tolerant grading
+- [x] Add at least 5 lessons per CEFR level, 25 total
+- [x] Include `audio_url` and `items`
+- [x] Include both free-text and options mode
+- [x] Include normalized answers suitable for typo-tolerant grading
 
 ---
 ### Task 23: Prepare standalone translation CEFR seed
