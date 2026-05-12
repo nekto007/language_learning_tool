@@ -556,11 +556,11 @@
 - Output: `content/vocabulary/priority_words.csv`
 - Tests: `tests/scripts/test_export_vocabulary_priority.py`
 
-- [ ] Rank words by curriculum usage
-- [ ] Rank words by user card usage
-- [ ] Rank words by CEFR level when available
-- [ ] Handle current `frequency_rank=0` for all words
-- [ ] Export priority tiers for staged enrichment
+- [x] Rank words by curriculum usage
+- [x] Rank words by user card usage
+- [x] Rank words by CEFR level when available
+- [x] Handle current `frequency_rank=0` for all words
+- [x] Export priority tiers for staged enrichment
 
 ---
 ### Task 36: Import frequency bands
