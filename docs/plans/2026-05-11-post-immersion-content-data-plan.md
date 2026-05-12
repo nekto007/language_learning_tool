@@ -583,10 +583,10 @@
 - Create: `scripts/import_ipa_transcriptions.py`
 - Tests: `tests/scripts/test_import_ipa_transcriptions.py`
 
-- [ ] Fill IPA for priority words first
-- [ ] Validate IPA formatting
-- [ ] Avoid adding slashes into stored value if template already wraps it
-- [ ] Preserve existing non-null values unless `--force`
+- [x] Fill IPA for priority words first
+- [x] Validate IPA formatting
+- [x] Avoid adding slashes into stored value if template already wraps it
+- [x] Preserve existing non-null values unless `--force`
 
 ---
 ### Task 38: Import synonyms and antonyms
