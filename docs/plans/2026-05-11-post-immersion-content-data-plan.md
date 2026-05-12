@@ -415,10 +415,10 @@
 **Files:**
 - Create: `content/immersion/sentence_correction_lessons.json`
 
-- [ ] Add at least 5 lessons per CEFR level, 25 total
-- [ ] Include `incorrect_sentence`, `correct_sentence`, `error_type`, `explanation`
-- [ ] Cover article, tense, word order, preposition, and agreement errors
-- [ ] Add options where helpful for lower levels
+- [x] Add at least 5 lessons per CEFR level, 25 total
+- [x] Include `incorrect_sentence`, `correct_sentence`, `error_type`, `explanation`
+- [x] Cover article, tense, word order, preposition, and agreement errors
+- [x] Add options where helpful for lower levels
 
 ---
 ### Task 25: Prepare sentence completion CEFR seed

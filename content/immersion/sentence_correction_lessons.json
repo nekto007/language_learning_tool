@@ -1,0 +1,462 @@
+[
+  {
+    "external_key": "immersion:sentence_correction:A1:01:article_vowel",
+    "level": "A1",
+    "lesson_number_hint": 1,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: артикль перед гласной",
+    "title_en": "Sentence Correction: Article Before Vowel",
+    "description": "Найдите и исправьте ошибку с артиклем.",
+    "tags": ["immersion", "sentence_correction", "a1", "article"],
+    "content": {
+      "incorrect_sentence": "I have a dog. It is a animal.",
+      "correct_sentence": "I have a dog. It is an animal.",
+      "error_type": "article",
+      "explanation": "Use 'an' before words that start with a vowel sound (a, e, i, o, u). 'Animal' starts with 'a', so we write 'an animal'.",
+      "options": [
+        "It is a animal.",
+        "It is an animal.",
+        "It is the animal.",
+        "It is animal."
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:A1:02:tense_past",
+    "level": "A1",
+    "lesson_number_hint": 2,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: прошедшее время",
+    "title_en": "Sentence Correction: Past Tense",
+    "description": "Найдите и исправьте ошибку со временем глагола.",
+    "tags": ["immersion", "sentence_correction", "a1", "tense"],
+    "content": {
+      "incorrect_sentence": "Yesterday I go to school.",
+      "correct_sentence": "Yesterday I went to school.",
+      "error_type": "tense",
+      "explanation": "The word 'yesterday' shows this happened in the past. 'Go' is present tense. The past tense of 'go' is 'went'.",
+      "options": [
+        "Yesterday I go to school.",
+        "Yesterday I went to school.",
+        "Yesterday I goes to school.",
+        "Yesterday I going to school."
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:A1:03:word_order_adverb",
+    "level": "A1",
+    "lesson_number_hint": 3,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: порядок слов",
+    "title_en": "Sentence Correction: Word Order",
+    "description": "Найдите и исправьте ошибку в порядке слов.",
+    "tags": ["immersion", "sentence_correction", "a1", "word_order"],
+    "content": {
+      "incorrect_sentence": "She likes very much coffee.",
+      "correct_sentence": "She likes coffee very much.",
+      "error_type": "word_order",
+      "explanation": "In English, 'very much' comes after the object, not before it. The correct order is: verb + object + 'very much'.",
+      "options": [
+        "She likes very much coffee.",
+        "She likes coffee very much.",
+        "She very much likes coffee.",
+        "Very much she likes coffee."
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:A1:04:preposition_time",
+    "level": "A1",
+    "lesson_number_hint": 4,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: предлог времени",
+    "title_en": "Sentence Correction: Preposition of Time",
+    "description": "Найдите и исправьте ошибку с предлогом.",
+    "tags": ["immersion", "sentence_correction", "a1", "preposition"],
+    "content": {
+      "incorrect_sentence": "I am at home in night.",
+      "correct_sentence": "I am at home at night.",
+      "error_type": "preposition",
+      "explanation": "We use 'at' with night: 'at night'. We use 'in' with parts of the day like 'in the morning', 'in the evening', but 'at night' is the fixed expression.",
+      "options": [
+        "I am at home in night.",
+        "I am at home at night.",
+        "I am at home on night.",
+        "I am at home by night."
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:A1:05:agreement_plural",
+    "level": "A1",
+    "lesson_number_hint": 5,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: согласование во множественном числе",
+    "title_en": "Sentence Correction: Plural Agreement",
+    "description": "Найдите и исправьте ошибку согласования подлежащего и сказуемого.",
+    "tags": ["immersion", "sentence_correction", "a1", "agreement"],
+    "content": {
+      "incorrect_sentence": "My friends is happy today.",
+      "correct_sentence": "My friends are happy today.",
+      "error_type": "agreement",
+      "explanation": "'Friends' is plural, so we use 'are' not 'is'. Rule: plural subjects take 'are'; singular subjects take 'is'.",
+      "options": [
+        "My friends is happy today.",
+        "My friends are happy today.",
+        "My friends was happy today.",
+        "My friends am happy today."
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:A2:01:article_uncountable",
+    "level": "A2",
+    "lesson_number_hint": 1,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: артикль с неисчисляемым существительным",
+    "title_en": "Sentence Correction: Article with Uncountable Noun",
+    "description": "Найдите и исправьте ошибку с артиклем.",
+    "tags": ["immersion", "sentence_correction", "a2", "article"],
+    "content": {
+      "incorrect_sentence": "I drink a water every morning.",
+      "correct_sentence": "I drink water every morning.",
+      "error_type": "article",
+      "explanation": "'Water' is an uncountable noun and cannot be used with the indefinite article 'a/an'. Use it without an article when speaking in general.",
+      "options": [
+        "I drink a water every morning.",
+        "I drink water every morning.",
+        "I drink the water every morning.",
+        "I drink some a water every morning."
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:A2:02:tense_present_perfect_since",
+    "level": "A2",
+    "lesson_number_hint": 2,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: настоящее совершённое с 'since'",
+    "title_en": "Sentence Correction: Present Perfect with 'since'",
+    "description": "Найдите и исправьте ошибку со временем глагола.",
+    "tags": ["immersion", "sentence_correction", "a2", "tense"],
+    "content": {
+      "incorrect_sentence": "I live here since 2015.",
+      "correct_sentence": "I have lived here since 2015.",
+      "error_type": "tense",
+      "explanation": "With 'since' (indicating a starting point that continues to now), use the present perfect: 'have/has + past participle'. Simple present 'live' is incorrect here.",
+      "options": [
+        "I live here since 2015.",
+        "I have lived here since 2015.",
+        "I lived here since 2015.",
+        "I am living here since 2015."
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:A2:03:word_order_frequency_adverb",
+    "level": "A2",
+    "lesson_number_hint": 3,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: место наречия частотности",
+    "title_en": "Sentence Correction: Frequency Adverb Position",
+    "description": "Найдите и исправьте ошибку в порядке слов.",
+    "tags": ["immersion", "sentence_correction", "a2", "word_order"],
+    "content": {
+      "incorrect_sentence": "He always is tired after work.",
+      "correct_sentence": "He is always tired after work.",
+      "error_type": "word_order",
+      "explanation": "Frequency adverbs like 'always', 'usually', 'often' go after the verb 'to be'. The correct order is: subject + be + adverb + adjective.",
+      "options": [
+        "He always is tired after work.",
+        "He is always tired after work.",
+        "Always he is tired after work.",
+        "He is tired always after work."
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:A2:04:preposition_interest",
+    "level": "A2",
+    "lesson_number_hint": 4,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: предлог с 'interested'",
+    "title_en": "Sentence Correction: Preposition with 'interested'",
+    "description": "Найдите и исправьте ошибку с предлогом.",
+    "tags": ["immersion", "sentence_correction", "a2", "preposition"],
+    "content": {
+      "incorrect_sentence": "She is interested on music.",
+      "correct_sentence": "She is interested in music.",
+      "error_type": "preposition",
+      "explanation": "The fixed expression is 'interested in', not 'interested on'. We say: interested in something/someone.",
+      "options": [
+        "She is interested on music.",
+        "She is interested in music.",
+        "She is interested at music.",
+        "She is interested about music."
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:A2:05:agreement_every",
+    "level": "A2",
+    "lesson_number_hint": 5,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: согласование с 'every'",
+    "title_en": "Sentence Correction: Agreement with 'every'",
+    "description": "Найдите и исправьте ошибку согласования подлежащего и сказуемого.",
+    "tags": ["immersion", "sentence_correction", "a2", "agreement"],
+    "content": {
+      "incorrect_sentence": "Every student need to bring their book.",
+      "correct_sentence": "Every student needs to bring their book.",
+      "error_type": "agreement",
+      "explanation": "'Every' takes a singular verb even though it refers to many people. 'Every student' is grammatically singular, so the verb is 'needs', not 'need'.",
+      "options": [
+        "Every student need to bring their book.",
+        "Every student needs to bring their book.",
+        "Every student are needing to bring their book.",
+        "Every students need to bring their book."
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:B1:01:tense_conditional",
+    "level": "B1",
+    "lesson_number_hint": 1,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: условное предложение первого типа",
+    "title_en": "Sentence Correction: First Conditional",
+    "description": "Найдите и исправьте ошибку с временем в условном предложении.",
+    "tags": ["immersion", "sentence_correction", "b1", "tense", "conditional"],
+    "content": {
+      "incorrect_sentence": "If I will study hard, I will pass the exam.",
+      "correct_sentence": "If I study hard, I will pass the exam.",
+      "error_type": "tense",
+      "explanation": "In first conditional sentences, the 'if' clause uses simple present tense, not 'will'. Only the main clause uses 'will'. Pattern: If + present simple, will + infinitive."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:B1:02:article_abstract_noun",
+    "level": "B1",
+    "lesson_number_hint": 2,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: артикль с абстрактным существительным",
+    "title_en": "Sentence Correction: Article with Abstract Noun",
+    "description": "Найдите и исправьте ошибку с артиклем.",
+    "tags": ["immersion", "sentence_correction", "b1", "article"],
+    "content": {
+      "incorrect_sentence": "The life is beautiful and full of surprises.",
+      "correct_sentence": "Life is beautiful and full of surprises.",
+      "error_type": "article",
+      "explanation": "Abstract nouns used in a general sense do not take an article in English. We say 'life is...' not 'the life is...' when speaking about life in general."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:B1:03:preposition_duration",
+    "level": "B1",
+    "lesson_number_hint": 3,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: предлог с длительностью",
+    "title_en": "Sentence Correction: Preposition with Duration",
+    "description": "Найдите и исправьте ошибку с предлогом.",
+    "tags": ["immersion", "sentence_correction", "b1", "preposition"],
+    "content": {
+      "incorrect_sentence": "She has been waiting since two hours.",
+      "correct_sentence": "She has been waiting for two hours.",
+      "error_type": "preposition",
+      "explanation": "Use 'for' with a period of time (two hours, three days, a year). Use 'since' with a point in time (since Monday, since 2020). 'Two hours' is a duration, so 'for' is correct."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:B1:04:word_order_indirect_question",
+    "level": "B1",
+    "lesson_number_hint": 4,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: порядок слов в косвенном вопросе",
+    "title_en": "Sentence Correction: Word Order in Indirect Question",
+    "description": "Найдите и исправьте ошибку в порядке слов.",
+    "tags": ["immersion", "sentence_correction", "b1", "word_order"],
+    "content": {
+      "incorrect_sentence": "He told me where was the station.",
+      "correct_sentence": "He told me where the station was.",
+      "error_type": "word_order",
+      "explanation": "In indirect (reported) questions, use statement word order: subject + verb. Do not use question word order (was the station). The question becomes: 'where the station was'."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:B1:05:agreement_news",
+    "level": "B1",
+    "lesson_number_hint": 5,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: согласование с 'news'",
+    "title_en": "Sentence Correction: Agreement with 'news'",
+    "description": "Найдите и исправьте ошибку согласования.",
+    "tags": ["immersion", "sentence_correction", "b1", "agreement"],
+    "content": {
+      "incorrect_sentence": "The news are very disturbing today.",
+      "correct_sentence": "The news is very disturbing today.",
+      "error_type": "agreement",
+      "explanation": "'News' looks plural because it ends in -s, but it is an uncountable noun and always takes a singular verb. Say 'the news is', not 'the news are'."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:B2:01:tense_past_perfect",
+    "level": "B2",
+    "lesson_number_hint": 1,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: прошедшее совершённое время",
+    "title_en": "Sentence Correction: Past Perfect",
+    "description": "Найдите и исправьте ошибку со временем глагола.",
+    "tags": ["immersion", "sentence_correction", "b2", "tense"],
+    "content": {
+      "incorrect_sentence": "By the time she arrived, he has already left.",
+      "correct_sentence": "By the time she arrived, he had already left.",
+      "error_type": "tense",
+      "explanation": "When one past action happened before another past action, the earlier action uses past perfect (had + past participle). 'He had already left' before 'she arrived'."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:B2:02:article_superlative",
+    "level": "B2",
+    "lesson_number_hint": 2,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: артикль с превосходной степенью",
+    "title_en": "Sentence Correction: Article with Superlative",
+    "description": "Найдите и исправьте ошибку с артиклем.",
+    "tags": ["immersion", "sentence_correction", "b2", "article"],
+    "content": {
+      "incorrect_sentence": "She is a most talented musician I have ever heard.",
+      "correct_sentence": "She is the most talented musician I have ever heard.",
+      "error_type": "article",
+      "explanation": "Superlatives always require the definite article 'the', not the indefinite 'a/an'. We say 'the most talented', 'the best', 'the largest', etc."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:B2:03:preposition_succeed",
+    "level": "B2",
+    "lesson_number_hint": 3,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: предлог с 'succeed'",
+    "title_en": "Sentence Correction: Preposition after 'succeed'",
+    "description": "Найдите и исправьте ошибку с предлогом и формой глагола.",
+    "tags": ["immersion", "sentence_correction", "b2", "preposition"],
+    "content": {
+      "incorrect_sentence": "She succeeded to pass the entrance exam.",
+      "correct_sentence": "She succeeded in passing the entrance exam.",
+      "error_type": "preposition",
+      "explanation": "'Succeed' is followed by 'in + gerund (-ing form)', not by 'to + infinitive'. The correct pattern is: succeed in doing something."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:B2:04:word_order_inversion",
+    "level": "B2",
+    "lesson_number_hint": 4,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: инверсия после отрицательного наречия",
+    "title_en": "Sentence Correction: Inversion after Negative Adverb",
+    "description": "Найдите и исправьте ошибку в порядке слов.",
+    "tags": ["immersion", "sentence_correction", "b2", "word_order"],
+    "content": {
+      "incorrect_sentence": "Rarely he speaks in public about his personal life.",
+      "correct_sentence": "Rarely does he speak in public about his personal life.",
+      "error_type": "word_order",
+      "explanation": "When a negative or restrictive adverb (rarely, never, seldom, hardly) is placed at the start of a sentence for emphasis, the auxiliary verb and subject are inverted: Rarely does he..."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:B2:05:agreement_either_or",
+    "level": "B2",
+    "lesson_number_hint": 5,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: согласование с 'either...or'",
+    "title_en": "Sentence Correction: Agreement with 'either...or'",
+    "description": "Найдите и исправьте ошибку согласования.",
+    "tags": ["immersion", "sentence_correction", "b2", "agreement"],
+    "content": {
+      "incorrect_sentence": "Either the manager or the staff are responsible for the delay.",
+      "correct_sentence": "Either the manager or the staff is responsible for the delay.",
+      "error_type": "agreement",
+      "explanation": "With 'either...or' and 'neither...nor', the verb agrees with the subject closest to it. Here 'the staff' (closest) is a collective singular noun, so the verb is 'is'."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:C1:01:tense_subjunctive_wish",
+    "level": "C1",
+    "lesson_number_hint": 1,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: сослагательное наклонение с 'wish'",
+    "title_en": "Sentence Correction: Subjunctive after 'wish'",
+    "description": "Найдите и исправьте ошибку с временем глагола.",
+    "tags": ["immersion", "sentence_correction", "c1", "tense", "subjunctive"],
+    "content": {
+      "incorrect_sentence": "I wish I know the answer to this question.",
+      "correct_sentence": "I wish I knew the answer to this question.",
+      "error_type": "tense",
+      "explanation": "After 'wish' expressing a desire about the present, use a past tense form (subjunctive). 'I wish I knew' means you currently don't know. Using simple present 'know' is incorrect."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:C1:02:article_proper_name",
+    "level": "C1",
+    "lesson_number_hint": 2,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: артикль с именем собственным",
+    "title_en": "Sentence Correction: Article with Proper Name",
+    "description": "Найдите и исправьте ошибку с артиклем.",
+    "tags": ["immersion", "sentence_correction", "c1", "article"],
+    "content": {
+      "incorrect_sentence": "The Shakespeare wrote his tragedies during the reign of Queen Elizabeth I.",
+      "correct_sentence": "Shakespeare wrote his tragedies during the reign of Queen Elizabeth I.",
+      "error_type": "article",
+      "explanation": "Personal names and author names do not take the definite article in English. We say 'Shakespeare', not 'the Shakespeare'. Articles with proper names signal a specific, commonly agreed upon work or entity (e.g., 'the Bard'), but not the person's name directly."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:C1:03:preposition_composed",
+    "level": "C1",
+    "lesson_number_hint": 3,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: предлог с 'composed'",
+    "title_en": "Sentence Correction: Preposition with 'composed'",
+    "description": "Найдите и исправьте ошибку с предлогом.",
+    "tags": ["immersion", "sentence_correction", "c1", "preposition"],
+    "content": {
+      "incorrect_sentence": "The committee is composed by representatives from twelve different countries.",
+      "correct_sentence": "The committee is composed of representatives from twelve different countries.",
+      "error_type": "preposition",
+      "explanation": "The correct collocation is 'composed of', not 'composed by'. 'By' is used for passive agents (written by, created by). 'Composed of' means 'made up of' and describes the composition."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:C1:04:word_order_fronted_negative",
+    "level": "C1",
+    "lesson_number_hint": 4,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: инверсия после фронтированного отрицания",
+    "title_en": "Sentence Correction: Inversion after Fronted Negative",
+    "description": "Найдите и исправьте ошибку в порядке слов.",
+    "tags": ["immersion", "sentence_correction", "c1", "word_order"],
+    "content": {
+      "incorrect_sentence": "Not until he read the report he realized the full extent of the problem.",
+      "correct_sentence": "Not until he read the report did he realize the full extent of the problem.",
+      "error_type": "word_order",
+      "explanation": "When a fronted negative expression (Not until, Not once, Never, Only then) starts a main clause, subject-auxiliary inversion is required. The main clause becomes: 'did he realize', not 'he realized'."
+    }
+  },
+  {
+    "external_key": "immersion:sentence_correction:C1:05:agreement_a_number_of",
+    "level": "C1",
+    "lesson_number_hint": 5,
+    "lesson_type": "sentence_correction",
+    "title": "Исправление ошибки: согласование с 'a number of'",
+    "title_en": "Sentence Correction: Agreement with 'a number of'",
+    "description": "Найдите и исправьте ошибку согласования.",
+    "tags": ["immersion", "sentence_correction", "c1", "agreement"],
+    "content": {
+      "incorrect_sentence": "A number of students was absent from the lecture today.",
+      "correct_sentence": "A number of students were absent from the lecture today.",
+      "error_type": "agreement",
+      "explanation": "'A number of + plural noun' takes a plural verb. Contrast with 'the number of + plural noun', which takes a singular verb. 'A number of students were absent' vs 'The number of students was ten'."
+    }
+  }
+]
