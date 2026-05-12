@@ -622,10 +622,10 @@
 - Create: `scripts/import_etymology_notes.py`
 - Tests: `tests/scripts/test_import_etymology_notes.py`
 
-- [ ] Add concise notes for priority words
-- [ ] Avoid speculative or overly academic notes
-- [ ] Preserve existing non-null values unless `--force`
-- [ ] Keep notes short enough for vocabulary card UI
+- [x] Add concise notes for priority words
+- [x] Avoid speculative or overly academic notes
+- [x] Preserve existing non-null values unless `--force`
+- [x] Keep notes short enough for vocabulary card UI
 
 ---
 ### Task 41: Import cultural notes
