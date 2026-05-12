@@ -298,12 +298,14 @@ def check_challenge_criteria(
             .first()
         )
         if completed_today is None:
+            # Use last_activity (not completed_at): completed_at is set only on first
+            # completion and won't reflect today's replay. last_activity is always updated.
             completed_today = (
                 db.session.query(LessonProgress.id)
                 .filter(
                     LessonProgress.user_id == user_id,
                     LessonProgress.status == 'completed',
-                    LessonProgress.completed_at >= today_start,
+                    LessonProgress.last_activity >= today_start,
                 )
                 .first()
             )

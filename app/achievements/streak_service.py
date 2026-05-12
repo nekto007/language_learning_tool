@@ -423,8 +423,7 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     # Attempt free repair if enough steps done AND user has real activity
     if steps_total > 0 and steps_done >= required_steps and real_activity:
         missed = find_missed_date(user_id, tz=tz)
-        if missed:
-            apply_free_repair(user_id, missed, steps_done, steps_total)
+        if missed and apply_free_repair(user_id, missed, steps_done, steps_total):
             db.session.commit()
             streak = get_current_streak(user_id, tz=tz)
             streak_status = get_streak_status(user_id, tz=tz, steps_total=max(steps_total, 1))
