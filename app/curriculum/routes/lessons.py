@@ -250,9 +250,11 @@ def submit_lesson(lesson_id):
         lesson = Lessons.query.get_or_404(lesson_id)
         data = request.get_json()
 
-        # Rate limit checks to prevent leaderboard abuse
+        # Rate limit checks to prevent leaderboard abuse.
+        # The finish=True action only marks the lesson completed; it does not
+        # log a new attempt, so it must not be blocked by the rate limit.
         from app.api.errors import api_error as _api_error
-        if lesson.type == 'pronunciation':
+        if lesson.type == 'pronunciation' and not (isinstance(data, dict) and data.get('finish')):
             if _count_pronunciation_attempts_today(current_user.id) >= PRONUNCIATION_DAILY_LIMIT:
                 return _api_error('rate_limit_exceeded', 'Daily pronunciation attempt limit reached.', 429)
         elif lesson.type == 'writing_prompt':

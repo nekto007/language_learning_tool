@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ def get_challenge_streak(user_id: int, db) -> int:
     """
     from app.daily_plan.models import DailyChallenge, DailyChallengeCompletion
 
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     cutoff = today - timedelta(days=365)
 
     rows = (
@@ -98,11 +98,18 @@ def get_today_challenge(user_id: int, db) -> dict:
     """
     from app.daily_plan.models import DailyChallenge, DailyChallengeCompletion
 
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
     if challenge is None:
-        challenge = _seed_today_challenge(today, db)
-        db.session.commit()
+        try:
+            challenge = _seed_today_challenge(today, db)
+            db.session.commit()
+        except Exception:
+            logger.warning("get_today_challenge: race seeding challenge for %s, retrying read", today)
+            db.session.rollback()
+            challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
+            if challenge is None:
+                raise
 
     completion = DailyChallengeCompletion.query.filter_by(
         challenge_id=challenge.id,
@@ -186,7 +193,85 @@ def complete_challenge(
 
 
 _SPEED_RUN_MAX_SECONDS = 300  # 5 minutes
+_SPEED_RUN_MIN_SECONDS = 30   # sanity floor — can't complete a lesson in < 30s
 _ACCURACY_FOCUS_MIN_SCORE = 90.0
+
+
+def check_challenge_criteria(
+    challenge: 'DailyChallenge',
+    user_id: int,
+    score: Optional[float],
+    time_spent_seconds: Optional[int],
+    db,
+) -> Optional[str]:
+    """Return None if challenge criteria are met, or an error code string if not.
+
+    Validation is category-specific:
+    - listening_deep: a ListeningAttempt must exist today for the challenge lesson
+    - accuracy_focus: score must be provided and >= 90
+    - speed_run: time_spent_seconds must be provided and < 300
+    """
+    from app.daily_plan.models import DailyChallenge  # noqa: F401 (used by caller annotation)
+
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+    )
+
+    if challenge.category == 'listening_deep':
+        if challenge.lesson_id is None:
+            return 'challenge_not_configured'
+        from app.curriculum.models import ListeningAttempt
+        has_attempt = (
+            db.session.query(ListeningAttempt.id)
+            .filter(
+                ListeningAttempt.user_id == user_id,
+                ListeningAttempt.lesson_id == challenge.lesson_id,
+                ListeningAttempt.created_at >= today_start,
+            )
+            .first()
+        )
+        if has_attempt is None:
+            return 'criteria_not_met'
+
+    elif challenge.category == 'accuracy_focus':
+        if score is None or score < _ACCURACY_FOCUS_MIN_SCORE:
+            return 'criteria_not_met'
+        # Require a server-graded lesson attempt with qualifying score today
+        from app.curriculum.models import LessonAttempt
+        qualifying = (
+            db.session.query(LessonAttempt.id)
+            .filter(
+                LessonAttempt.user_id == user_id,
+                LessonAttempt.score >= _ACCURACY_FOCUS_MIN_SCORE,
+                LessonAttempt.completed_at >= today_start,
+            )
+            .first()
+        )
+        if qualifying is None:
+            return 'criteria_not_met'
+
+    elif challenge.category == 'speed_run':
+        if (
+            time_spent_seconds is None
+            or time_spent_seconds < _SPEED_RUN_MIN_SECONDS
+            or time_spent_seconds >= _SPEED_RUN_MAX_SECONDS
+        ):
+            return 'criteria_not_met'
+        # Require a server-verified lesson completion today
+        from app.curriculum.models import LessonAttempt
+        completed_today = (
+            db.session.query(LessonAttempt.id)
+            .filter(
+                LessonAttempt.user_id == user_id,
+                LessonAttempt.completed_at >= today_start,
+                LessonAttempt.passed.is_(True),
+            )
+            .first()
+        )
+        if completed_today is None:
+            return 'criteria_not_met'
+
+    return None
 
 
 def maybe_auto_complete_challenge(
@@ -212,10 +297,19 @@ def maybe_auto_complete_challenge(
 
     from app.daily_plan.models import DailyChallenge, DailyChallengeCompletion
 
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
     if challenge is None:
-        return None
+        try:
+            challenge = _seed_today_challenge(today, db)
+            db.session.commit()
+        except Exception:
+            logger.warning("maybe_auto_complete_challenge: race seeding challenge for %s, retrying read", today)
+            db.session.rollback()
+            challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
+            if challenge is None:
+                logger.exception("maybe_auto_complete_challenge: failed to seed or read challenge for %s", today)
+                return None
 
     existing = DailyChallengeCompletion.query.filter_by(
         challenge_id=challenge.id,
@@ -229,7 +323,11 @@ def maybe_auto_complete_challenge(
         qualifies = True
     elif challenge.category == 'accuracy_focus' and score is not None and score >= _ACCURACY_FOCUS_MIN_SCORE:
         qualifies = True
-    elif challenge.category == 'speed_run' and time_spent_seconds is not None and time_spent_seconds < _SPEED_RUN_MAX_SECONDS:
+    elif (
+        challenge.category == 'speed_run'
+        and time_spent_seconds is not None
+        and _SPEED_RUN_MIN_SECONDS <= time_spent_seconds < _SPEED_RUN_MAX_SECONDS
+    ):
         qualifies = True
 
     if not qualifies:

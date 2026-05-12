@@ -1018,7 +1018,8 @@ def plan_pause():
     if user is None:
         return api_error('not_found', 'User not found', 404)
 
-    today = date.today()
+    from app.utils.time_utils import get_user_local_date
+    today = get_user_local_date(current_user.id, db)
     paused_until = today + timedelta(days=days)
 
     # Remove any existing plan_pause events (e.g., user extending/changing pause)
@@ -1064,7 +1065,8 @@ def plan_resume():
     if user is None:
         return api_error('not_found', 'User not found', 404)
 
-    today = date.today()
+    from app.utils.time_utils import get_user_local_date
+    today = get_user_local_date(current_user.id, db)
     StreakEvent.query.filter(
         StreakEvent.user_id == current_user.id,
         StreakEvent.event_type == 'plan_pause',
@@ -1154,6 +1156,19 @@ def challenge_complete():
             return api_error('invalid_input', 'time_spent_seconds must be an integer', 400)
     else:
         time_spent_seconds = None
+
+    from app.daily_plan.challenge import check_challenge_criteria
+    criteria_error = check_challenge_criteria(
+        challenge=_challenge_check,
+        user_id=current_user.id,
+        score=score,
+        time_spent_seconds=time_spent_seconds,
+        db=db,
+    )
+    if criteria_error == 'criteria_not_met':
+        return api_error('criteria_not_met', 'Challenge criteria not satisfied', 403)
+    if criteria_error == 'challenge_not_configured':
+        return api_error('challenge_not_configured', 'Challenge is not properly configured', 500)
 
     try:
         result = complete_challenge(

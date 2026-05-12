@@ -302,12 +302,12 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
     When an enabled branch fails it falls through to the next option with a
     structured warning log.
     """
-    from datetime import date as _date
     from app.auth.models import User
+    from app.utils.time_utils import get_user_local_date
 
     user = User.query.get(user_id)
 
-    if user and user.plan_paused_until and user.plan_paused_until >= _date.today():
+    if user and user.plan_paused_until and user.plan_paused_until >= get_user_local_date(user_id):
         logger.info("daily_plan_unified user=%s mode=paused until=%s", user_id, user.plan_paused_until)
         return _with_plan_meta(
             {
