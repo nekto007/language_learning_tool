@@ -16,16 +16,24 @@ if str(SCRIPT_PATH) not in sys.path:
     sys.path.insert(0, str(SCRIPT_PATH))
 
 from audit_existing_listening_payloads import (  # noqa: E402
+    CEFR_TEXT_MAX,
+    CEFR_TEXT_MIN,
     LISTENING_TYPES,
-    ListeningLessonAudit,
+    QualityIssue,
+    _CHARS_PER_SECOND_MAX,
+    _CHARS_PER_SECOND_MIN,
+    _inspect_content,
     _is_placeholder,
     _is_real_url,
+    ListeningLessonAudit,
     audit_source,
     build_report,
     build_source_summary,
     format_json,
     format_markdown,
+    format_quality_markdown,
     main,
+    run_quality_checks,
 )
 
 
@@ -378,3 +386,331 @@ def test_main_missing_source_dir(tmp_path):
     rc = main(["--source-dir", str(tmp_path / "nonexistent"), "--output", str(out), "--no-db"])
     assert rc == 0  # graceful empty report
     assert out.exists()
+
+
+def test_main_writes_quality_report(tmp_path, source_dir):
+    out = tmp_path / "out.md"
+    quality_out = tmp_path / "quality.md"
+    rc = main([
+        "--source-dir", str(source_dir),
+        "--output", str(out),
+        "--no-db",
+        "--quality-report", str(quality_out),
+    ])
+    assert rc == 0
+    assert quality_out.exists()
+    content = quality_out.read_text(encoding="utf-8")
+    assert "Listening Duration & Transcript Quality Audit" in content
+
+
+def test_main_no_quality_report_flag(tmp_path, source_dir):
+    out = tmp_path / "out.md"
+    quality_out = tmp_path / "quality.md"
+    rc = main([
+        "--source-dir", str(source_dir),
+        "--output", str(out),
+        "--no-db",
+        "--no-quality-report",
+        "--quality-report", str(quality_out),
+    ])
+    assert rc == 0
+    assert not quality_out.exists()
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: duration_seconds extraction
+# ---------------------------------------------------------------------------
+
+
+def test_inspect_content_extracts_duration_seconds():
+    signals = _inspect_content({
+        "audio_url": "https://cdn.example.com/x.mp3",
+        "text": "Hello world.",
+        "duration_seconds": 12.5,
+    })
+    assert signals["duration_seconds"] == 12.5
+
+
+def test_inspect_content_duration_none_when_absent():
+    signals = _inspect_content({
+        "audio_url": "https://cdn.example.com/x.mp3",
+        "text": "Hello world.",
+    })
+    assert signals["duration_seconds"] is None
+
+
+def test_inspect_content_duration_invalid_value():
+    signals = _inspect_content({
+        "audio_url": "https://cdn.example.com/x.mp3",
+        "text": "Hello world.",
+        "duration_seconds": "not-a-number",
+    })
+    assert signals["duration_seconds"] is None
+
+
+def test_audit_source_captures_duration_seconds(tmp_path):
+    d = tmp_path / "modules"
+    d.mkdir()
+    _write_module(
+        d,
+        "module_B2_1_test.json",
+        {
+            "id": "b2-1",
+            "title": "Test",
+            "title_en": "Test",
+            "level": "B2",
+            "lessons": [
+                {
+                    "type": "listening_immersion",
+                    "title": "Duration Lesson",
+                    "order": 11,
+                    "content": {
+                        "audio_url": "https://cdn.example.com/b2.mp3",
+                        "text": "A " * 50,
+                        "translation": "Перевод.",
+                        "duration_seconds": 30.0,
+                    },
+                }
+            ],
+        },
+    )
+    audits = audit_source(d)
+    assert len(audits) == 1
+    assert audits[0].duration_seconds == 30.0
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: run_quality_checks
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def quality_source_dir(tmp_path: Path) -> Path:
+    d = tmp_path / "quality_modules"
+    d.mkdir()
+
+    # Module 1: real audio but no duration_seconds → missing_duration
+    _write_module(
+        d,
+        "module_B1_1_missing_dur.json",
+        {
+            "id": "b1-missing-dur",
+            "title": "Missing Dur",
+            "level": "B1",
+            "lessons": [
+                {
+                    "type": "listening_immersion",
+                    "title": "No Duration",
+                    "order": 11,
+                    "content": {
+                        "audio_url": "https://cdn.example.com/b1.mp3",
+                        "text": "She went to the market and bought fresh vegetables.",
+                        "translation": "Она пошла на рынок.",
+                    },
+                }
+            ],
+        },
+    )
+
+    # Module 2: no text at all → empty_text
+    _write_module(
+        d,
+        "module_A2_1_no_text.json",
+        {
+            "id": "a2-no-text",
+            "title": "No Text",
+            "level": "A2",
+            "lessons": [
+                {
+                    "type": "listening_quiz",
+                    "title": "Quiz No Text",
+                    "order": 6,
+                    "content": {
+                        "exercises": [
+                            {
+                                "audio": "[sound:a2.mp3]",
+                                "question": "What?",
+                                "options": ["A", "B"],
+                                "correct": "A",
+                            }
+                        ]
+                    },
+                }
+            ],
+        },
+    )
+
+    # Module 3: text too short for C1 level (only 5 chars) → text_too_short
+    _write_module(
+        d,
+        "module_C1_1_short_text.json",
+        {
+            "id": "c1-short",
+            "title": "Short",
+            "level": "C1",
+            "lessons": [
+                {
+                    "type": "listening_immersion",
+                    "title": "Too Short",
+                    "order": 11,
+                    "content": {
+                        "text": "Hi.",
+                        "translation": "Привет.",
+                    },
+                }
+            ],
+        },
+    )
+
+    # Module 4: text too long for A1 level (600 chars) → text_too_long
+    long_text = "Word " * 120  # 600 chars
+    _write_module(
+        d,
+        "module_A1_2_long_text.json",
+        {
+            "id": "a1-long",
+            "title": "Long",
+            "level": "A1",
+            "lessons": [
+                {
+                    "type": "listening_immersion",
+                    "title": "Too Long",
+                    "order": 11,
+                    "content": {
+                        "text": long_text,
+                        "translation": "Перевод.",
+                    },
+                }
+            ],
+        },
+    )
+
+    # Module 5: duration_seconds=5 but text is 500 chars → duration_text_mismatch (too long)
+    _write_module(
+        d,
+        "module_B2_1_dur_mismatch.json",
+        {
+            "id": "b2-mismatch",
+            "title": "Mismatch",
+            "level": "B2",
+            "lessons": [
+                {
+                    "type": "listening_immersion",
+                    "title": "Mismatch",
+                    "order": 11,
+                    "content": {
+                        "audio_url": "https://cdn.example.com/b2.mp3",
+                        "text": "Word " * 100,  # 500 chars
+                        "translation": "Перевод.",
+                        "duration_seconds": 5.0,  # 5s → max 87 chars expected
+                    },
+                }
+            ],
+        },
+    )
+
+    return d
+
+
+def test_quality_check_missing_duration(quality_source_dir):
+    audits = audit_source(quality_source_dir)
+    issues = run_quality_checks(audits)
+    missing = [i for i in issues if i.check == "missing_duration"]
+    assert len(missing) >= 1
+    assert any(i.lesson_title == "No Duration" for i in missing)
+
+
+def test_quality_check_empty_text(quality_source_dir):
+    audits = audit_source(quality_source_dir)
+    issues = run_quality_checks(audits)
+    empty = [i for i in issues if i.check == "empty_text"]
+    assert len(empty) >= 1
+    assert any(i.lesson_title == "Quiz No Text" for i in empty)
+
+
+def test_quality_check_text_too_short(quality_source_dir):
+    audits = audit_source(quality_source_dir)
+    issues = run_quality_checks(audits)
+    short = [i for i in issues if i.check == "text_too_short"]
+    assert len(short) >= 1
+    assert any(i.lesson_title == "Too Short" for i in short)
+
+
+def test_quality_check_text_too_long(quality_source_dir):
+    audits = audit_source(quality_source_dir)
+    issues = run_quality_checks(audits)
+    long_issues = [i for i in issues if i.check == "text_too_long"]
+    assert len(long_issues) >= 1
+    assert any(i.lesson_title == "Too Long" for i in long_issues)
+
+
+def test_quality_check_duration_text_mismatch(quality_source_dir):
+    audits = audit_source(quality_source_dir)
+    issues = run_quality_checks(audits)
+    mismatch = [i for i in issues if i.check == "duration_text_mismatch"]
+    assert len(mismatch) >= 1
+    assert any(i.lesson_title == "Mismatch" for i in mismatch)
+
+
+def test_quality_check_no_issue_for_valid_lesson(tmp_path):
+    d = tmp_path / "valid_modules"
+    d.mkdir()
+    # Valid B1 lesson: real audio + duration, reasonable text, plausible ratio
+    text = "She went to the market and bought fresh vegetables and fruit." * 2  # ~120 chars
+    dur = len(text) / ((_CHARS_PER_SECOND_MIN + _CHARS_PER_SECOND_MAX) / 2)
+    _write_module(
+        d,
+        "module_B1_1_valid.json",
+        {
+            "id": "b1-valid",
+            "title": "Valid",
+            "level": "B1",
+            "lessons": [
+                {
+                    "type": "listening_immersion",
+                    "title": "Valid Lesson",
+                    "order": 11,
+                    "content": {
+                        "audio_url": "https://cdn.example.com/b1.mp3",
+                        "text": text,
+                        "translation": "Перевод.",
+                        "duration_seconds": round(dur, 1),
+                    },
+                }
+            ],
+        },
+    )
+    audits = audit_source(d)
+    issues = run_quality_checks(audits)
+    assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: format_quality_markdown
+# ---------------------------------------------------------------------------
+
+
+def test_format_quality_markdown_no_issues(source_dir):
+    audits = audit_source(source_dir)
+    issues: list[QualityIssue] = []
+    md = format_quality_markdown(audits, issues)
+    assert "Listening Duration & Transcript Quality Audit" in md
+    assert "Total quality issues: 0" in md
+    assert "CEFR Text Length Thresholds" in md
+
+
+def test_format_quality_markdown_lists_issues(quality_source_dir):
+    audits = audit_source(quality_source_dir)
+    issues = run_quality_checks(audits)
+    md = format_quality_markdown(audits, issues)
+    assert "Missing duration_seconds" in md
+    assert "Empty transcript/text" in md
+    assert "Text too short" in md
+    assert "Audio duration vs text length mismatch" in md
+
+
+def test_format_quality_markdown_cefr_table(source_dir):
+    audits = audit_source(source_dir)
+    md = format_quality_markdown(audits, [])
+    assert "| A1 |" in md
+    assert "| C1 |" in md

@@ -51,15 +51,7 @@
 
 ## Source vs DB Comparison
 
-### listening_immersion
-- Source: 77  |  DB: 81  |  Match: False
-  - DB audio style `placeholder-lesson`: 81
-  - DB lessons with text content: 81
-
-### listening_quiz
-- Source: 77  |  DB: 81  |  Match: False
-  - DB audio style `placeholder-item`: 81
-  - DB lessons with text content: 0
+_DB access not available (--no-db mode)._
 
 ## Recommendations
 

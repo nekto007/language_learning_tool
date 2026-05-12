@@ -529,10 +529,10 @@
 - Modify: `scripts/audit_existing_listening_payloads.py`
 - Output: `reports/listening_duration_transcript_audit.md`
 
-- [ ] Check `duration_seconds` exists for audio lessons
-- [ ] Check transcript/text is not empty
-- [ ] Check transcript length is reasonable for CEFR level
-- [ ] Check audio duration and transcript length are plausible
+- [x] Check `duration_seconds` exists for audio lessons
+- [x] Check transcript/text is not empty
+- [x] Check transcript length is reasonable for CEFR level
+- [x] Check audio duration and transcript length are plausible
 
 ---
 ### Task 34: Extend audio URL verification

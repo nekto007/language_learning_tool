@@ -31,8 +31,17 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SOURCE_DIR = PROJECT_ROOT / "module_completed" / "fixed"
 DEFAULT_REPORT_PATH = PROJECT_ROOT / "reports" / "existing_listening_payloads.md"
+DEFAULT_QUALITY_REPORT_PATH = PROJECT_ROOT / "reports" / "listening_duration_transcript_audit.md"
 
 LISTENING_TYPES = ("listening_immersion", "listening_quiz")
+
+# Reasonable transcript/text length bounds per CEFR level (characters)
+CEFR_TEXT_MIN: dict[str, int] = {"A1": 20, "A2": 40, "B1": 80, "B2": 120, "C1": 150}
+CEFR_TEXT_MAX: dict[str, int] = {"A1": 500, "A2": 800, "B1": 1200, "B2": 1800, "C1": 3000}
+
+# Plausible speech rate: 90–210 wpm ≈ 1.5–3.5 words/s, avg 5 chars/word → 7.5–17.5 chars/s
+_CHARS_PER_SECOND_MIN = 7.5
+_CHARS_PER_SECOND_MAX = 17.5
 
 # A [sound:...] ref is a placeholder that needs a real audio hosting solution.
 _SOUND_PLACEHOLDER_PREFIX = "[sound:"
@@ -75,6 +84,9 @@ class ListeningLessonAudit:
     item_count: int = 0
     items_with_audio: int = 0
     items_with_transcript: int = 0
+
+    # Duration metadata
+    duration_seconds: float | None = None
 
     @property
     def audio_style(self) -> str:
@@ -140,6 +152,12 @@ def _inspect_content(content: dict) -> dict:
         if it.get("transcript"):
             items_with_transcript += 1
 
+    dur_raw = content.get("duration_seconds")
+    try:
+        duration_seconds: float | None = float(dur_raw) if dur_raw is not None else None
+    except (TypeError, ValueError):
+        duration_seconds = None
+
     return {
         "lesson_audio_real": _is_real_url(lesson_audio),
         "lesson_audio_placeholder": _is_placeholder(lesson_audio),
@@ -152,6 +170,7 @@ def _inspect_content(content: dict) -> dict:
         "item_count": len(items),
         "items_with_audio": items_with_audio,
         "items_with_transcript": items_with_transcript,
+        "duration_seconds": duration_seconds,
     }
 
 
@@ -345,6 +364,161 @@ def build_report(
     }
 
 
+@dataclass
+class QualityIssue:
+    module_filename: str
+    module_level: str
+    lesson_type: str
+    lesson_title: str
+    check: str
+    detail: str
+
+
+_QUALITY_CHECK_LABELS: dict[str, str] = {
+    "missing_duration": "Missing duration_seconds (audio lessons)",
+    "empty_text": "Empty transcript/text",
+    "text_too_short": "Text too short for CEFR level",
+    "text_too_long": "Text too long for CEFR level",
+    "duration_text_mismatch": "Audio duration vs text length mismatch",
+}
+
+
+def run_quality_checks(audits: list[ListeningLessonAudit]) -> list[QualityIssue]:
+    """Return one QualityIssue per failed check across all audited lessons."""
+    issues: list[QualityIssue] = []
+
+    for a in audits:
+        has_real_audio = a.lesson_audio_real or a.item_audio_real
+
+        if has_real_audio and a.duration_seconds is None:
+            issues.append(QualityIssue(
+                module_filename=a.module_filename,
+                module_level=a.module_level,
+                lesson_type=a.lesson_type,
+                lesson_title=a.lesson_title,
+                check="missing_duration",
+                detail="Lesson has real audio but no duration_seconds field.",
+            ))
+
+        if not a.has_text:
+            issues.append(QualityIssue(
+                module_filename=a.module_filename,
+                module_level=a.module_level,
+                lesson_type=a.lesson_type,
+                lesson_title=a.lesson_title,
+                check="empty_text",
+                detail="No transcript or text content found.",
+            ))
+
+        if a.has_text:
+            min_chars = CEFR_TEXT_MIN.get(a.module_level, 20)
+            max_chars = CEFR_TEXT_MAX.get(a.module_level, 3000)
+            if a.text_length < min_chars:
+                issues.append(QualityIssue(
+                    module_filename=a.module_filename,
+                    module_level=a.module_level,
+                    lesson_type=a.lesson_type,
+                    lesson_title=a.lesson_title,
+                    check="text_too_short",
+                    detail=(
+                        f"Text length {a.text_length} chars is below minimum "
+                        f"{min_chars} for {a.module_level}."
+                    ),
+                ))
+            elif a.text_length > max_chars:
+                issues.append(QualityIssue(
+                    module_filename=a.module_filename,
+                    module_level=a.module_level,
+                    lesson_type=a.lesson_type,
+                    lesson_title=a.lesson_title,
+                    check="text_too_long",
+                    detail=(
+                        f"Text length {a.text_length} chars exceeds maximum "
+                        f"{max_chars} for {a.module_level}."
+                    ),
+                ))
+
+        if a.has_text and a.duration_seconds is not None and a.duration_seconds > 0:
+            expected_min = a.duration_seconds * _CHARS_PER_SECOND_MIN
+            expected_max = a.duration_seconds * _CHARS_PER_SECOND_MAX
+            if a.text_length < expected_min:
+                issues.append(QualityIssue(
+                    module_filename=a.module_filename,
+                    module_level=a.module_level,
+                    lesson_type=a.lesson_type,
+                    lesson_title=a.lesson_title,
+                    check="duration_text_mismatch",
+                    detail=(
+                        f"Text length {a.text_length} chars is too short for "
+                        f"{a.duration_seconds}s audio (expected ≥{expected_min:.0f} chars at "
+                        f"{_CHARS_PER_SECOND_MIN} chars/s)."
+                    ),
+                ))
+            elif a.text_length > expected_max:
+                issues.append(QualityIssue(
+                    module_filename=a.module_filename,
+                    module_level=a.module_level,
+                    lesson_type=a.lesson_type,
+                    lesson_title=a.lesson_title,
+                    check="duration_text_mismatch",
+                    detail=(
+                        f"Text length {a.text_length} chars is too long for "
+                        f"{a.duration_seconds}s audio (expected ≤{expected_max:.0f} chars at "
+                        f"{_CHARS_PER_SECOND_MAX} chars/s)."
+                    ),
+                ))
+
+    return issues
+
+
+def format_quality_markdown(
+    audits: list[ListeningLessonAudit],
+    issues: list[QualityIssue],
+) -> str:
+    lines: list[str] = ["# Listening Duration & Transcript Quality Audit", ""]
+    lines.append(f"Total lessons audited: {len(audits)}")
+    lines.append(f"Total quality issues: {len(issues)}")
+    lines.append("")
+
+    by_check: dict[str, list[QualityIssue]] = defaultdict(list)
+    for issue in issues:
+        by_check[issue.check].append(issue)
+
+    lines.append("## Summary")
+    lines.append("")
+    for check, label in _QUALITY_CHECK_LABELS.items():
+        count = len(by_check.get(check, []))
+        status = "OK" if count == 0 else str(count)
+        lines.append(f"- {label}: {status}")
+    lines.append("")
+
+    for check, label in _QUALITY_CHECK_LABELS.items():
+        check_issues = by_check.get(check, [])
+        if not check_issues:
+            continue
+        lines.append(f"## {label}")
+        lines.append("")
+        for qi in check_issues:
+            lines.append(
+                f"- `{qi.module_filename}` / {qi.lesson_type} / "
+                f"{qi.lesson_title} ({qi.module_level}): {qi.detail}"
+            )
+        lines.append("")
+
+    lines.append("## CEFR Text Length Thresholds")
+    lines.append("")
+    lines.append("| Level | Min chars | Max chars |")
+    lines.append("|-------|-----------|-----------|")
+    for lv in ("A1", "A2", "B1", "B2", "C1"):
+        lines.append(f"| {lv} | {CEFR_TEXT_MIN.get(lv, '?')} | {CEFR_TEXT_MAX.get(lv, '?')} |")
+    lines.append("")
+    lines.append(
+        f"Speech rate assumption: {_CHARS_PER_SECOND_MIN}–{_CHARS_PER_SECOND_MAX} chars/second "
+        f"(approx. 90–210 wpm, avg. 5 chars/word)."
+    )
+    return "\n".join(lines)
+
+
 def format_markdown(report: dict[str, Any]) -> str:
     lines: list[str] = ["# Existing Listening Lesson Payload Audit", ""]
     source = report.get("source_summary", {})
@@ -474,6 +648,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip DB comparison even if DB is accessible.",
     )
+    parser.add_argument(
+        "--quality-report",
+        default=str(DEFAULT_QUALITY_REPORT_PATH),
+        help="Output path for the duration/transcript quality report.",
+    )
+    parser.add_argument(
+        "--no-quality-report",
+        action="store_true",
+        help="Skip writing the duration/transcript quality report.",
+    )
     args = parser.parse_args(argv)
 
     source_dir = Path(args.source_dir)
@@ -507,6 +691,19 @@ def main(argv: list[str] | None = None) -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(text, encoding="utf-8")
     print(f"Report written to {out_path}", file=sys.stderr)
+
+    if not args.no_quality_report:
+        quality_issues = run_quality_checks(source_audits)
+        quality_md = format_quality_markdown(source_audits, quality_issues)
+        quality_path = Path(args.quality_report)
+        quality_path.parent.mkdir(parents=True, exist_ok=True)
+        quality_path.write_text(quality_md, encoding="utf-8")
+        print(
+            f"Quality report written to {quality_path} "
+            f"({len(quality_issues)} issues)",
+            file=sys.stderr,
+        )
+
     return 0
 
 
