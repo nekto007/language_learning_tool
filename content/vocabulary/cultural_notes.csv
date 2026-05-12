@@ -1,0 +1,61 @@
+# Vocabulary cultural notes — priority words (A1-C1)
+# Column: english_word — case-insensitive match against collection_words.english_word
+# Column: context      — short label (max 100 chars): idiom, phrasal verb, politeness, British English, American English, formal, informal, slang, etc.
+# Column: note         — concise cultural context, max 200 chars; stored as plain text
+# Generated: 2026-05-13
+# Coverage: ~60 entries across idioms, phrasal verbs, politeness-sensitive words, and culture-specific usage
+english_word,context,note
+please,politeness,Essential in English requests; omitting it can sound rude. British speakers use it more frequently than Americans in everyday transactions like ordering food.
+sorry,politeness,British English uses 'sorry' far more than most languages — as apology, filler, and even to attract attention. Americans tend to say 'excuse me' in the same situations.
+thank you,politeness,Always expected after a service or gift in English-speaking cultures. 'Cheers' is a common informal British substitute. 'Thanks' is neutral; 'ta' is very informal British.
+excuse me,politeness,Used to get past someone (British prefer 'sorry'), attract attention, or introduce a polite interruption. Americans also use it after burping; British say 'pardon'.
+pardon,politeness,British English uses 'pardon?' to ask someone to repeat themselves. Americans say 'sorry?' or 'excuse me?' in the same context. Considered more formal than 'what?'
+cheers,British English,Primarily a drinking toast worldwide, but in British English it also means 'thank you' and 'goodbye'. A tourist using it as only a toast may seem overly formal to British locals.
+queue,British English,The British are famous for orderly queuing. 'Jumping the queue' is considered very rude. Americans say 'line' or 'stand in line'. The word itself marks British speech.
+fortnight,British English,Means two weeks. Widely used in Britain, Ireland, and Australia but almost unknown in American English. A distinctly British-flavoured word learners often miss.
+pub,British English,The public house is a central social institution in British culture — not just a bar. Buying rounds for your group is an expected social ritual; refusing your turn can cause offence.
+chips,British vs American English,In British English chips are thick-cut fried potatoes (like French fries). In American English chips are thin crisps. 'Crisps' is the British word for the thin, packaged variety.
+pants,British vs American English,In British English 'pants' means underwear; trousers are the outer garment. American English uses 'pants' for trousers. Using the wrong one can cause embarrassing misunderstandings.
+biscuit,British vs American English,In British English a biscuit is a sweet or savoury dry snack (cookie or cracker). In American English a biscuit is a soft, flaky bread roll served warm with meals.
+fall,American English,American English uses 'fall' for the season that British English calls 'autumn'. Both forms are understood globally, but 'autumn' sounds more formal in American contexts.
+faucet,American English,The American English word for the water tap. British English says 'tap'. 'Faucet' sounds technical or formal to British ears; 'tap' sounds quaint to Americans.
+lift,British vs American English,British English for an elevator. 'Lift' is also widely used in Irish and Australian English. American tourists often miss signs saying 'lift' in British buildings.
+flat,British English,British English for an apartment. 'Flat' is standard in Britain, Ireland, and much of the Commonwealth. American English prefers 'apartment'; 'flat' sounds distinctly British.
+mobile,British vs American English,British English for a mobile phone (cell phone). 'Mobile' emphasises portability; 'cell' refers to the cellular network technology. Both terms are understood globally.
+break a leg,idiom,Theatre superstition: wishing 'good luck' before a performance is considered bad luck, so 'break a leg' is used instead. Now used broadly to mean 'good luck' in any high-stakes situation.
+piece of cake,idiom,Something very easy to do. Possibly from the tradition of giving cake as a prize in competitions. Used across all English-speaking countries; avoid in formal or written contexts.
+hit the books,idiom,To study hard. Widely used in American English among students. British equivalents include 'hit the books' or 'swot up'. Informal; not suitable for formal writing.
+under the weather,idiom,Feeling slightly ill or unwell. Thought to originate from sailors who sheltered below deck in bad weather when sick. Common in both British and American English.
+bite the bullet,idiom,To endure a painful or difficult situation with determination. Originally referred to soldiers biting a bullet during surgery before anaesthesia. Used across all varieties of English.
+cost an arm and a leg,idiom,To be very expensive. Emphasises that the price is unreasonably high. Common in informal spoken and written English in Britain, America, and Australia.
+give up,phrasal verb,To stop trying; to surrender or abandon an effort. This is one of the most common phrasal verbs in English. The meaning changes completely if 'up' is removed: 'give' alone means to donate.
+look up,phrasal verb,Has two distinct meanings: to search for information ('look up a word in a dictionary') and to improve ('things are looking up'). Context makes the meaning clear.
+come across,phrasal verb,To encounter unexpectedly ('I came across an old letter') or to create an impression ('she comes across as confident'). Both senses are common in everyday English.
+give in,phrasal verb,To yield or surrender after resistance. Different from 'give up', which implies abandoning a task entirely. 'Give in' suggests capitulating to pressure from others.
+put off,phrasal verb,To postpone or delay ('she put off the meeting') or to cause dislike/reluctance ('the smell put me off'). A highly productive phrasal verb with multiple common senses.
+turn down,phrasal verb,To refuse an offer or to reduce the volume or intensity of something ('turn down the music'). The refusal sense is more common in interpersonal contexts.
+take off,phrasal verb,When an aircraft departs, a plan succeeds quickly, or someone removes clothing. One of the most polysemous phrasal verbs in English; learners need to acquire all three senses.
+run out,phrasal verb,To exhaust a supply ('we ran out of milk') or to expire ('time ran out'). Very common in everyday conversation; no single-word synonym covers both senses as naturally.
+bring up,phrasal verb,To raise a child or to mention a topic in conversation. The child-rearing sense is more formal than 'raise'. Both senses are frequent in everyday British and American English.
+set up,phrasal verb,To establish or arrange something ('set up a meeting'; 'set up a company'). Also used in the sense of framing someone for a crime ('he was set up'). Extremely common in business English.
+get on,phrasal verb,British English for having a good relationship ('we get on well') and also for progress ('how are you getting on?'). Americans prefer 'get along'. Common in British everyday speech.
+would,politeness,Using 'would' instead of 'will' adds politeness in requests. 'Would you help me?' is considerably softer than 'Will you help me?' This modal is central to polite English interaction.
+shall,British English,British English uses 'shall' for first-person future ('I shall return') and polite offers ('Shall I carry that?'). American English rarely uses 'shall'; 'will' and 'should' cover the same ground.
+indeed,formal,A formal or emphatic word for 'yes' or to reinforce a statement. British English uses it more frequently than American English. Overusing it in casual speech can sound stiff.
+quite,British vs American English,In British English 'quite' means 'fairly' or 'completely' depending on context. In American English it almost always means 'very'. This difference causes frequent misunderstanding.
+brilliant,British English,Used as a general expression of approval or enthusiasm in British English (equivalent to 'great' or 'awesome'). In other contexts it retains the meaning of exceptional intelligence or brightness.
+reckon,British English,Informal British and Australian English for 'think' or 'suppose' ('I reckon it'll rain'). Americans find it old-fashioned or rural. Very common in casual British everyday speech.
+fancy,British English,As a verb, British English uses 'fancy' to mean 'want' or 'feel like' ('Do you fancy a cup of tea?') and 'to be attracted to' ('she fancies him'). Americans use it only as an adjective meaning elaborate.
+mate,British English,Informal British English for a friend. Used as a term of address ('alright mate?'). Australian English also uses it broadly. Americans rarely use this sense; 'buddy' or 'pal' are closer equivalents.
+proper,British English,British informal for 'real', 'genuine', or 'thorough' ('a proper meal'; 'that was proper scary'). Used as an adverb intensifier in Northern English dialects. Americans would say 'real' or 'actual'.
+bloody,British English,A very common British intensifier ('bloody good'; 'bloody hell'). Considered mildly offensive by older generations but widely used in informal speech. Essentially absent from American English.
+rubbish,British English,British English for 'garbage', 'nonsense', or 'of poor quality'. 'That's rubbish!' dismisses a claim. American English prefers 'trash', 'garbage', or 'nonsense' in the same contexts.
+cheeky,British English,Slightly irreverent behaviour in a good-natured way ('a cheeky smile'; 'a cheeky pint'). Positive or neutral in British usage; largely unknown in American English.
+hire,British vs American English,British English uses 'hire' for short-term temporary use ('hire a car'; 'hire a hall'). American English uses 'rent' for the same concept. 'Hire' in American English mainly means to employ someone.
+holiday,British vs American English,British English for a vacation ('we're going on holiday'). American English uses 'vacation' for trips and 'holiday' only for festive days like Christmas or Thanksgiving.
+boot,British English,The rear storage compartment of a car. Americans call it a 'trunk'. British English also uses 'boot' for a type of footwear, which matches the American meaning. Context distinguishes the two.
+bonnet,British English,The hinged cover over a car's engine. Americans call it the 'hood'. British English also uses 'bonnet' for a traditional hat, so context is essential when discussing cars.
+motorway,British English,The British term for a high-speed multi-lane road. Americans call this a 'highway' or 'freeway'; Australians say 'freeway' or 'motorway'. In Britain 'M' followed by a number names specific motorways.
+pavement,British vs American English,British English for the footpath beside a road (Americans say 'sidewalk'). In American English 'pavement' means the road surface itself. Using the wrong word causes confusion.
+autumn,British vs American English,The preferred British and formal word for the season after summer. American English favours 'fall'. Both words are understood internationally but mark the speaker's variety of English.
+pudding,British English,In formal British English 'pudding' means dessert generally, not only the specific steamed or boiled dish. 'What's for pudding?' means 'What's for dessert?' This usage confuses many non-British learners.

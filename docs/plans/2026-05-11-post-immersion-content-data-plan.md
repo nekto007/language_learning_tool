@@ -635,10 +635,10 @@
 - Create: `scripts/import_cultural_notes.py`
 - Tests: `tests/scripts/test_import_cultural_notes.py`
 
-- [ ] Add notes for idioms, phrasal verbs, politeness-sensitive words, and culture-specific usage
-- [ ] Include `context`
-- [ ] Upsert without duplicating notes
-- [ ] Verify notes render in vocabulary lessons
+- [x] Add notes for idioms, phrasal verbs, politeness-sensitive words, and culture-specific usage
+- [x] Include `context`
+- [x] Upsert without duplicating notes
+- [x] Verify notes render in vocabulary lessons
 
 ---
 ### Task 42: Backfill SRS card source tags
