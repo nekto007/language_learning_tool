@@ -437,10 +437,10 @@
 **Files:**
 - Create: `content/immersion/pronunciation_lessons.json`
 
-- [ ] Add at least 5 lessons per CEFR level, 25 total
-- [ ] Include words, `pronunciation_hint`, and optional `audio_url`
-- [ ] Prioritize common learner traps and minimal pairs
-- [ ] Include fallback-friendly words for browsers without speech recognition
+- [x] Add at least 5 lessons per CEFR level, 25 total
+- [x] Include words, `pronunciation_hint`, and optional `audio_url`
+- [x] Prioritize common learner traps and minimal pairs
+- [x] Include fallback-friendly words for browsers without speech recognition
 
 ---
 ### Task 27: Prepare collocation matching seed

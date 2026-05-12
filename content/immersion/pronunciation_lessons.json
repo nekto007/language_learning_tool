@@ -1,0 +1,977 @@
+[
+  {
+    "external_key": "immersion:pronunciation:A1:01:th_sounds",
+    "level": "A1",
+    "lesson_number_hint": 1,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: звук TH",
+    "title_en": "Pronunciation: TH Sounds",
+    "description": "Тренируем самый трудный для русских звук — межзубный TH. Подходит для браузеров без распознавания речи.",
+    "tags": ["immersion", "speaking", "pronunciation", "a1", "th"],
+    "content": {
+      "external_key": "immersion:pronunciation:A1:01:th_sounds",
+      "items": [
+        {
+          "word": "the",
+          "pronunciation_hint": "/ðə/ — кончик языка между зубами, голосовой звук"
+        },
+        {
+          "word": "this",
+          "pronunciation_hint": "/ðɪs/ — не «дис», кончик языка касается верхних зубов"
+        },
+        {
+          "word": "that",
+          "pronunciation_hint": "/ðæt/ — звонкий TH: вибрация в горле"
+        },
+        {
+          "word": "think",
+          "pronunciation_hint": "/θɪŋk/ — глухой TH: выдох без голоса через зубы"
+        },
+        {
+          "word": "three",
+          "pronunciation_hint": "/θriː/ — не «три», сначала TH, потом R"
+        },
+        {
+          "word": "thing",
+          "pronunciation_hint": "/θɪŋ/ — сравни с «sing»: только добавляем TH впереди"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:A1:02:short_long_vowels",
+    "level": "A1",
+    "lesson_number_hint": 2,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: короткие и длинные гласные",
+    "title_en": "Pronunciation: Short vs Long Vowels",
+    "description": "Минимальные пары с короткими и длинными гласными — самая частая причина непонимания на слух.",
+    "tags": ["immersion", "speaking", "pronunciation", "a1", "vowels", "minimal_pairs"],
+    "content": {
+      "external_key": "immersion:pronunciation:A1:02:short_long_vowels",
+      "items": [
+        {
+          "word": "ship",
+          "pronunciation_hint": "/ʃɪp/ — короткий гласный, не «шип»"
+        },
+        {
+          "word": "sheep",
+          "pronunciation_hint": "/ʃiːp/ — длинный «и», почти вдвое длиннее"
+        },
+        {
+          "word": "bit",
+          "pronunciation_hint": "/bɪt/ — короткий «и», напряжение низкое"
+        },
+        {
+          "word": "beat",
+          "pronunciation_hint": "/biːt/ — длинный «и», губы в улыбке"
+        },
+        {
+          "word": "full",
+          "pronunciation_hint": "/fʊl/ — короткий «у», губы округлены слабо"
+        },
+        {
+          "word": "fool",
+          "pronunciation_hint": "/fuːl/ — длинный «у», губы сильно округлены"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:A1:03:word_stress_basics",
+    "level": "A1",
+    "lesson_number_hint": 3,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: ударение в простых словах",
+    "title_en": "Pronunciation: Stress in Simple Words",
+    "description": "Базовое ударение в двусложных словах, которые часто используются с первого дня.",
+    "tags": ["immersion", "speaking", "pronunciation", "a1", "stress"],
+    "content": {
+      "external_key": "immersion:pronunciation:A1:03:word_stress_basics",
+      "items": [
+        {
+          "word": "happy",
+          "pronunciation_hint": "/ˈhæpi/ — ударение на первом слоге: HA-ppy"
+        },
+        {
+          "word": "open",
+          "pronunciation_hint": "/ˈəʊpən/ — ударение на первом слоге: O-pen"
+        },
+        {
+          "word": "table",
+          "pronunciation_hint": "/ˈteɪbl/ — ударение на первом слоге: TA-ble"
+        },
+        {
+          "word": "water",
+          "pronunciation_hint": "/ˈwɔːtər/ — ударение на первом слоге: WA-ter"
+        },
+        {
+          "word": "English",
+          "pronunciation_hint": "/ˈɪŋɡlɪʃ/ — ударение на первом слоге: ENG-lish"
+        },
+        {
+          "word": "teacher",
+          "pronunciation_hint": "/ˈtiːtʃər/ — ударение на первом слоге: TEA-cher"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:A1:04:v_w_sounds",
+    "level": "A1",
+    "lesson_number_hint": 4,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: V и W",
+    "title_en": "Pronunciation: V vs W Sounds",
+    "description": "Звуки V и W часто путают. V — губо-зубной, W — только губной.",
+    "tags": ["immersion", "speaking", "pronunciation", "a1", "consonants", "v_w"],
+    "content": {
+      "external_key": "immersion:pronunciation:A1:04:v_w_sounds",
+      "items": [
+        {
+          "word": "very",
+          "pronunciation_hint": "/ˈveri/ — нижняя губа касается верхних зубов: V"
+        },
+        {
+          "word": "wine",
+          "pronunciation_hint": "/waɪn/ — только губы, зубы не задействованы: W"
+        },
+        {
+          "word": "voice",
+          "pronunciation_hint": "/vɔɪs/ — нижняя губа на зубах, голосовой: V"
+        },
+        {
+          "word": "word",
+          "pronunciation_hint": "/wɜːrd/ — только губы складываются в «у»: W"
+        },
+        {
+          "word": "visit",
+          "pronunciation_hint": "/ˈvɪzɪt/ — оба слога: V-звук в начале"
+        },
+        {
+          "word": "winter",
+          "pronunciation_hint": "/ˈwɪntər/ — W-звук в начале, губы вперёд"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:A1:05:final_consonants",
+    "level": "A1",
+    "lesson_number_hint": 5,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: финальные согласные",
+    "title_en": "Pronunciation: Final Consonants",
+    "description": "В английском слова нельзя «проглатывать» концы — финальный согласный меняет смысл.",
+    "tags": ["immersion", "speaking", "pronunciation", "a1", "consonants", "minimal_pairs"],
+    "content": {
+      "external_key": "immersion:pronunciation:A1:05:final_consonants",
+      "items": [
+        {
+          "word": "bed",
+          "pronunciation_hint": "/bed/ — финальный D произносится чётко"
+        },
+        {
+          "word": "bet",
+          "pronunciation_hint": "/bet/ — финальный T: лёгкий взрыв воздуха"
+        },
+        {
+          "word": "bag",
+          "pronunciation_hint": "/bæɡ/ — финальный G: не «бэк», закрыть горло"
+        },
+        {
+          "word": "back",
+          "pronunciation_hint": "/bæk/ — финальный K: резкий взрыв"
+        },
+        {
+          "word": "leave",
+          "pronunciation_hint": "/liːv/ — финальный V: вибрация губы на зубах"
+        },
+        {
+          "word": "leaf",
+          "pronunciation_hint": "/liːf/ — финальный F: глухой, выдох на зубах"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:A2:01:ed_endings",
+    "level": "A2",
+    "lesson_number_hint": 1,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: окончание -ed",
+    "title_en": "Pronunciation: -ed Endings",
+    "description": "Три способа произносить -ed в правильных глаголах прошедшего времени.",
+    "tags": ["immersion", "speaking", "pronunciation", "a2", "past_tense", "ed_endings"],
+    "content": {
+      "external_key": "immersion:pronunciation:A2:01:ed_endings",
+      "items": [
+        {
+          "word": "walked",
+          "pronunciation_hint": "/wɔːkt/ — после глухого согласного: только /t/"
+        },
+        {
+          "word": "played",
+          "pronunciation_hint": "/pleɪd/ — после гласного или звонкого: только /d/"
+        },
+        {
+          "word": "wanted",
+          "pronunciation_hint": "/ˈwɒntɪd/ — после T или D: добавляем /ɪd/"
+        },
+        {
+          "word": "stopped",
+          "pronunciation_hint": "/stɒpt/ — после P (глухой): окончание /t/"
+        },
+        {
+          "word": "called",
+          "pronunciation_hint": "/kɔːld/ — после L (звонкий): окончание /d/"
+        },
+        {
+          "word": "needed",
+          "pronunciation_hint": "/ˈniːdɪd/ — после D: окончание /ɪd/"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:A2:02:plural_s_endings",
+    "level": "A2",
+    "lesson_number_hint": 2,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: окончание множественного числа -s",
+    "title_en": "Pronunciation: Plural -s Endings",
+    "description": "Окончание -s/-es произносится тремя разными способами в зависимости от финального звука.",
+    "tags": ["immersion", "speaking", "pronunciation", "a2", "plurals", "s_endings"],
+    "content": {
+      "external_key": "immersion:pronunciation:A2:02:plural_s_endings",
+      "items": [
+        {
+          "word": "cats",
+          "pronunciation_hint": "/kæts/ — после глухого: только /s/"
+        },
+        {
+          "word": "dogs",
+          "pronunciation_hint": "/dɒɡz/ — после звонкого: только /z/"
+        },
+        {
+          "word": "buses",
+          "pronunciation_hint": "/ˈbʌsɪz/ — после шипящего/свистящего: добавляем /ɪz/"
+        },
+        {
+          "word": "books",
+          "pronunciation_hint": "/bʊks/ — после K (глухой): окончание /s/"
+        },
+        {
+          "word": "days",
+          "pronunciation_hint": "/deɪz/ — после гласного: окончание /z/"
+        },
+        {
+          "word": "churches",
+          "pronunciation_hint": "/ˈtʃɜːtʃɪz/ — после аффрикаты: окончание /ɪz/"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:A2:03:silent_letters",
+    "level": "A2",
+    "lesson_number_hint": 3,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: немые буквы",
+    "title_en": "Pronunciation: Silent Letters",
+    "description": "Буквы, которые пишутся, но не произносятся — одна из главных ловушек для учеников.",
+    "tags": ["immersion", "speaking", "pronunciation", "a2", "silent_letters"],
+    "content": {
+      "external_key": "immersion:pronunciation:A2:03:silent_letters",
+      "items": [
+        {
+          "word": "know",
+          "pronunciation_hint": "/nəʊ/ — K не произносится перед N"
+        },
+        {
+          "word": "write",
+          "pronunciation_hint": "/raɪt/ — W не произносится перед R"
+        },
+        {
+          "word": "hour",
+          "pronunciation_hint": "/aʊər/ — H не произносится, начинаем с гласного"
+        },
+        {
+          "word": "castle",
+          "pronunciation_hint": "/ˈkɑːsl/ — T не произносится: CA-sel"
+        },
+        {
+          "word": "island",
+          "pronunciation_hint": "/ˈaɪlənd/ — S не произносится: I-land"
+        },
+        {
+          "word": "lamb",
+          "pronunciation_hint": "/læm/ — B не произносится после M"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:A2:04:schwa_sound",
+    "level": "A2",
+    "lesson_number_hint": 4,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: звук шва (ə)",
+    "title_en": "Pronunciation: The Schwa Sound",
+    "description": "Шва — самый частый гласный в английском. Встречается в безударных слогах и в артиклях.",
+    "tags": ["immersion", "speaking", "pronunciation", "a2", "schwa", "vowels"],
+    "content": {
+      "external_key": "immersion:pronunciation:A2:04:schwa_sound",
+      "items": [
+        {
+          "word": "about",
+          "pronunciation_hint": "/əˈbaʊt/ — первый слог: нейтральный «э» без напряжения"
+        },
+        {
+          "word": "butter",
+          "pronunciation_hint": "/ˈbʌtər/ — второй слог: шва, не «бат-ТЕР»"
+        },
+        {
+          "word": "teacher",
+          "pronunciation_hint": "/ˈtiːtʃər/ — -er в конце всегда шва в BrE"
+        },
+        {
+          "word": "problem",
+          "pronunciation_hint": "/ˈprɒbləm/ — последний слог: шва"
+        },
+        {
+          "word": "cinema",
+          "pronunciation_hint": "/ˈsɪnəmə/ — два шва: sin-uh-muh"
+        },
+        {
+          "word": "banana",
+          "pronunciation_hint": "/bəˈnɑːnə/ — первый и последний слоги: шва"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:A2:05:r_sound",
+    "level": "A2",
+    "lesson_number_hint": 5,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: звук R",
+    "title_en": "Pronunciation: The R Sound",
+    "description": "Английский R совсем не похож на русский Р — язык не должен вибрировать.",
+    "tags": ["immersion", "speaking", "pronunciation", "a2", "r_sound"],
+    "content": {
+      "external_key": "immersion:pronunciation:A2:05:r_sound",
+      "items": [
+        {
+          "word": "red",
+          "pronunciation_hint": "/red/ — язык назад и вверх, нет вибрации"
+        },
+        {
+          "word": "right",
+          "pronunciation_hint": "/raɪt/ — губы слегка округлены, язык поднят к нёбу"
+        },
+        {
+          "word": "river",
+          "pronunciation_hint": "/ˈrɪvər/ — RIV-er: оба R без вибрации"
+        },
+        {
+          "word": "travel",
+          "pronunciation_hint": "/ˈtrævl/ — TR вместе: быстрый звук"
+        },
+        {
+          "word": "read",
+          "pronunciation_hint": "/riːd/ — R перед длинным «и»: не «рид», мягкое R"
+        },
+        {
+          "word": "world",
+          "pronunciation_hint": "/wɜːrld/ — W + округлённый R + L: сложное сочетание"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:B1:01:noun_verb_stress",
+    "level": "B1",
+    "lesson_number_hint": 1,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: ударение в существительных и глаголах",
+    "title_en": "Pronunciation: Noun vs Verb Stress",
+    "description": "Одно и то же слово меняет ударение в зависимости от части речи.",
+    "tags": ["immersion", "speaking", "pronunciation", "b1", "stress", "word_class"],
+    "content": {
+      "external_key": "immersion:pronunciation:B1:01:noun_verb_stress",
+      "items": [
+        {
+          "word": "record (noun)",
+          "pronunciation_hint": "/ˈrekərd/ — существительное: ударение на первом слоге"
+        },
+        {
+          "word": "record (verb)",
+          "pronunciation_hint": "/rɪˈkɔːrd/ — глагол: ударение на втором слоге"
+        },
+        {
+          "word": "permit (noun)",
+          "pronunciation_hint": "/ˈpɜːrmɪt/ — разрешение: ударение на первом слоге"
+        },
+        {
+          "word": "permit (verb)",
+          "pronunciation_hint": "/pərˈmɪt/ — разрешать: ударение на втором слоге"
+        },
+        {
+          "word": "present (noun/adj)",
+          "pronunciation_hint": "/ˈprezənt/ — подарок/настоящий: ударение на первом"
+        },
+        {
+          "word": "present (verb)",
+          "pronunciation_hint": "/prɪˈzent/ — представлять: ударение на втором слоге"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:B1:02:consonant_clusters",
+    "level": "B1",
+    "lesson_number_hint": 2,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: трудные сочетания согласных",
+    "title_en": "Pronunciation: Difficult Consonant Clusters",
+    "description": "Слова с несколькими согласными подряд, которые сложно произнести без добавления лишних гласных.",
+    "tags": ["immersion", "speaking", "pronunciation", "b1", "consonant_clusters"],
+    "content": {
+      "external_key": "immersion:pronunciation:B1:02:consonant_clusters",
+      "items": [
+        {
+          "word": "strengths",
+          "pronunciation_hint": "/streŋkθs/ — 8 букв, 5 звуков: str-engths как единый поток"
+        },
+        {
+          "word": "sixths",
+          "pronunciation_hint": "/sɪksθs/ — не добавляй гласную между K и TH"
+        },
+        {
+          "word": "scripts",
+          "pronunciation_hint": "/skrɪpts/ — скр + иpts: три согласных в конце"
+        },
+        {
+          "word": "twelfths",
+          "pronunciation_hint": "/twelfθs/ — финальный кластер: -lfths произноси слитно"
+        },
+        {
+          "word": "glimpsed",
+          "pronunciation_hint": "/ɡlɪmpst/ — -mpst в конце: не добавляй «э» между p и s"
+        },
+        {
+          "word": "texts",
+          "pronunciation_hint": "/teksts/ — -ksts в конце: произноси все согласные"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:B1:03:tion_sion_endings",
+    "level": "B1",
+    "lesson_number_hint": 3,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: суффиксы -tion и -sion",
+    "title_en": "Pronunciation: -tion and -sion Endings",
+    "description": "Эти суффиксы меняют произношение корня слова и часто сдвигают ударение.",
+    "tags": ["immersion", "speaking", "pronunciation", "b1", "suffixes", "tion_sion"],
+    "content": {
+      "external_key": "immersion:pronunciation:B1:03:tion_sion_endings",
+      "items": [
+        {
+          "word": "nation",
+          "pronunciation_hint": "/ˈneɪʃən/ — -tion = /ʃən/: nei-SHUN"
+        },
+        {
+          "word": "pension",
+          "pronunciation_hint": "/ˈpenʃən/ — -sion = /ʃən/ после согласного"
+        },
+        {
+          "word": "invasion",
+          "pronunciation_hint": "/ɪnˈveɪʒən/ — -sion = /ʒən/ после гласного: in-VAY-zhun"
+        },
+        {
+          "word": "question",
+          "pronunciation_hint": "/ˈkwestʃən/ — -stion = /tʃən/: ques-CHUN"
+        },
+        {
+          "word": "education",
+          "pronunciation_hint": "/ˌedjʊˈkeɪʃən/ — ударение на -CA-, суффикс /ʃən/"
+        },
+        {
+          "word": "decision",
+          "pronunciation_hint": "/dɪˈsɪʒən/ — -sion = /ʒən/: de-SI-zhun"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:B1:04:connected_speech_basics",
+    "level": "B1",
+    "lesson_number_hint": 4,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: слитная речь",
+    "title_en": "Pronunciation: Connected Speech Basics",
+    "description": "Как носители стягивают слова в быстрой речи. Понимание этих форм помогает как в говорении, так и в аудировании.",
+    "tags": ["immersion", "speaking", "pronunciation", "b1", "connected_speech", "reduction"],
+    "content": {
+      "external_key": "immersion:pronunciation:B1:04:connected_speech_basics",
+      "items": [
+        {
+          "word": "want to",
+          "pronunciation_hint": "/ˈwɒntə/ — в быстрой речи: «ванта», T+TO сливаются"
+        },
+        {
+          "word": "going to",
+          "pronunciation_hint": "/ˈɡɒnə/ — в быстрой речи: «гона» (gonna)"
+        },
+        {
+          "word": "have to",
+          "pronunciation_hint": "/ˈhæftə/ — в быстрой речи: «хэфта», V оглушается"
+        },
+        {
+          "word": "kind of",
+          "pronunciation_hint": "/ˈkaɪndəv/ — финальный F ослабляется: «кайндэв»"
+        },
+        {
+          "word": "did you",
+          "pronunciation_hint": "/ˈdɪdʒu/ — D+Y → /dʒ/: «диджу» (аффриката)"
+        },
+        {
+          "word": "don't you",
+          "pronunciation_hint": "/ˈdəʊntʃu/ — T+Y → /tʃ/: «донтшу»"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:B1:05:aspirated_stops",
+    "level": "B1",
+    "lesson_number_hint": 5,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: придыхание у взрывных согласных",
+    "title_en": "Pronunciation: Aspirated Stops",
+    "description": "В начале слова P, T, K произносятся с сильным выдохом (аспирацией) — это отличает их от B, D, G.",
+    "tags": ["immersion", "speaking", "pronunciation", "b1", "aspiration", "stops"],
+    "content": {
+      "external_key": "immersion:pronunciation:B1:05:aspirated_stops",
+      "items": [
+        {
+          "word": "pin",
+          "pronunciation_hint": "/pʰɪn/ — P с придыханием: поднеси ладонь — должен ощущаться выдох"
+        },
+        {
+          "word": "bin",
+          "pronunciation_hint": "/bɪn/ — B без придыхания: более мягкий, голосовой"
+        },
+        {
+          "word": "tin",
+          "pronunciation_hint": "/tʰɪn/ — T с придыханием: tuh + in"
+        },
+        {
+          "word": "din",
+          "pronunciation_hint": "/dɪn/ — D без придыхания: тихий голосовой взрыв"
+        },
+        {
+          "word": "cap",
+          "pronunciation_hint": "/kʰæp/ — K с придыханием: ощути воздух на ладони"
+        },
+        {
+          "word": "gap",
+          "pronunciation_hint": "/ɡæp/ — G без придыхания: глубже в горле, голосовой"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:B2:01:stress_shifts_with_suffixes",
+    "level": "B2",
+    "lesson_number_hint": 1,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: сдвиг ударения с суффиксами",
+    "title_en": "Pronunciation: Stress Shifts with Suffixes",
+    "description": "Суффиксы -ic, -ity, -ical, -tion, -ify часто сдвигают ударение в производных словах.",
+    "tags": ["immersion", "speaking", "pronunciation", "b2", "stress_shift", "word_formation"],
+    "content": {
+      "external_key": "immersion:pronunciation:B2:01:stress_shifts_with_suffixes",
+      "items": [
+        {
+          "word": "photograph",
+          "pronunciation_hint": "/ˈfəʊtəɡrɑːf/ — ударение на первом: PHO-to-graph"
+        },
+        {
+          "word": "photography",
+          "pronunciation_hint": "/fəˈtɒɡrəfi/ — ударение сдвигается: pho-TOG-ra-phy"
+        },
+        {
+          "word": "economy",
+          "pronunciation_hint": "/ɪˈkɒnəmi/ — e-CON-o-my"
+        },
+        {
+          "word": "economic",
+          "pronunciation_hint": "/ˌiːkəˈnɒmɪk/ — суффикс -ic: eco-NOM-ic"
+        },
+        {
+          "word": "electric",
+          "pronunciation_hint": "/ɪˈlektrɪk/ — e-LEC-tric"
+        },
+        {
+          "word": "electricity",
+          "pronunciation_hint": "/ɪˌlekˈtrɪsɪti/ — суффикс -ity сдвигает: e-lec-TRIC-i-ty"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:B2:02:vowel_length_voiced_voiceless",
+    "level": "B2",
+    "lesson_number_hint": 2,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: длина гласного перед звонким / глухим",
+    "title_en": "Pronunciation: Vowel Length Before Voiced/Voiceless",
+    "description": "Перед звонким согласным гласный длиннее, чем перед глухим. Это тонкое, но важное различие.",
+    "tags": ["immersion", "speaking", "pronunciation", "b2", "vowel_length", "voiced_voiceless"],
+    "content": {
+      "external_key": "immersion:pronunciation:B2:02:vowel_length_voiced_voiceless",
+      "items": [
+        {
+          "word": "seal",
+          "pronunciation_hint": "/siːl/ — перед L (звонким): гласный длиннее"
+        },
+        {
+          "word": "zeal",
+          "pronunciation_hint": "/ziːl/ — перед L: то же, что seal, но начинается с /z/"
+        },
+        {
+          "word": "leave",
+          "pronunciation_hint": "/liːv/ — перед V (звонким): гласный заметно длиннее"
+        },
+        {
+          "word": "leaf",
+          "pronunciation_hint": "/liːf/ — перед F (глухим): гласный чуть короче"
+        },
+        {
+          "word": "ride",
+          "pronunciation_hint": "/raɪd/ — перед D (звонким): дифтонг растянут"
+        },
+        {
+          "word": "right",
+          "pronunciation_hint": "/raɪt/ — перед T (глухим): дифтонг чуть короче"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:B2:03:weak_forms",
+    "level": "B2",
+    "lesson_number_hint": 3,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: слабые формы служебных слов",
+    "title_en": "Pronunciation: Weak Forms of Function Words",
+    "description": "Предлоги, артикли и вспомогательные глаголы в слитной речи почти никогда не произносятся в сильной форме.",
+    "tags": ["immersion", "speaking", "pronunciation", "b2", "weak_forms", "connected_speech"],
+    "content": {
+      "external_key": "immersion:pronunciation:B2:03:weak_forms",
+      "items": [
+        {
+          "word": "and",
+          "pronunciation_hint": "/ən/ или /n/ — в речи почти всегда шва: «эн» или даже просто «н»"
+        },
+        {
+          "word": "for",
+          "pronunciation_hint": "/fər/ — слабая форма: «фэ» с шва, не «фор»"
+        },
+        {
+          "word": "from",
+          "pronunciation_hint": "/frəm/ — слабая форма: «фрэм» с шва"
+        },
+        {
+          "word": "to",
+          "pronunciation_hint": "/tə/ — перед согласным: «тэ»; перед гласным: /tʊ/"
+        },
+        {
+          "word": "can",
+          "pronunciation_hint": "/kən/ — слабая форма: «кэн», не «кэн»; сильная — в конце фразы"
+        },
+        {
+          "word": "have",
+          "pronunciation_hint": "/həv/ или /əv/ — вспомогательный глагол: «хэв» или «эв»"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:B2:04:intonation_questions",
+    "level": "B2",
+    "lesson_number_hint": 4,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: интонация в вопросах",
+    "title_en": "Pronunciation: Intonation in Questions",
+    "description": "Yes/No-вопросы требуют восходящей интонации, Wh-вопросы — нисходящей. Это меняет смысл высказывания.",
+    "tags": ["immersion", "speaking", "pronunciation", "b2", "intonation", "questions"],
+    "content": {
+      "external_key": "immersion:pronunciation:B2:04:intonation_questions",
+      "items": [
+        {
+          "word": "Are you coming?",
+          "pronunciation_hint": "Восходящая интонация ↗ на последнем слоге: «...CO-ming↗?»"
+        },
+        {
+          "word": "Where are you going?",
+          "pronunciation_hint": "Нисходящая интонация ↘ на конце: «...GO-ing↘?»"
+        },
+        {
+          "word": "You're serious?",
+          "pronunciation_hint": "Восходящая ↗ — выражает удивление, несмотря на порядок слов"
+        },
+        {
+          "word": "What time is it?",
+          "pronunciation_hint": "Нисходящая ↘ — обычный информационный вопрос"
+        },
+        {
+          "word": "Can you help me?",
+          "pronunciation_hint": "Восходящая ↗ — просьба или вопрос Yes/No"
+        },
+        {
+          "word": "How does it work?",
+          "pronunciation_hint": "Нисходящая ↘ — Wh-вопрос запрашивает информацию"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:B2:05:tough_vowel_set",
+    "level": "B2",
+    "lesson_number_hint": 5,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: нестандартные гласные — though, through и другие",
+    "title_en": "Pronunciation: Irregular Vowel Spellings",
+    "description": "Группа слов с -ough и похожими паттернами, у которых совершенно разное произношение.",
+    "tags": ["immersion", "speaking", "pronunciation", "b2", "spelling_pronunciation", "irregular"],
+    "content": {
+      "external_key": "immersion:pronunciation:B2:05:tough_vowel_set",
+      "items": [
+        {
+          "word": "though",
+          "pronunciation_hint": "/ðəʊ/ — как «зоу», rhymes with go"
+        },
+        {
+          "word": "through",
+          "pronunciation_hint": "/θruː/ — как «фру», rhymes with blue"
+        },
+        {
+          "word": "tough",
+          "pronunciation_hint": "/tʌf/ — как «таф», rhymes with stuff"
+        },
+        {
+          "word": "cough",
+          "pronunciation_hint": "/kɒf/ — как «коф», rhymes with off"
+        },
+        {
+          "word": "bough",
+          "pronunciation_hint": "/baʊ/ — как «бау», rhymes with cow"
+        },
+        {
+          "word": "thought",
+          "pronunciation_hint": "/θɔːt/ — как «фот», rhymes with caught"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:C1:01:epenthesis_deletion",
+    "level": "C1",
+    "lesson_number_hint": 1,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: исчезающие слоги",
+    "title_en": "Pronunciation: Syllable Deletion in Natural Speech",
+    "description": "Носители языка «проглатывают» слоги в повседневной речи. Владение этим уровнем делает речь естественной.",
+    "tags": ["immersion", "speaking", "pronunciation", "c1", "syllable_deletion", "natural_speech"],
+    "content": {
+      "external_key": "immersion:pronunciation:C1:01:epenthesis_deletion",
+      "items": [
+        {
+          "word": "comfortable",
+          "pronunciation_hint": "/ˈkʌmftəbl/ — 4 слога, не 5: COMF-ta-ble (третий слог исчезает)"
+        },
+        {
+          "word": "library",
+          "pronunciation_hint": "/ˈlaɪbri/ — 2 слога в разговорной речи: LI-bry (второй R-слог выпадает)"
+        },
+        {
+          "word": "temperature",
+          "pronunciation_hint": "/ˈtemprɪtʃər/ — 4 слога: TEM-pri-cher (первый слог -ra- исчезает)"
+        },
+        {
+          "word": "vegetable",
+          "pronunciation_hint": "/ˈvedʒtəbl/ — 3 слога: VEJ-ta-ble (второй слог -ge- выпадает)"
+        },
+        {
+          "word": "particularly",
+          "pronunciation_hint": "/pəˈtɪkjəli/ — 5 слогов: par-TIK-yuh-lee (R-слог съедается)"
+        },
+        {
+          "word": "chocolate",
+          "pronunciation_hint": "/ˈtʃɒklɪt/ — 3 слога: CHOC-lit (второй слог -co- исчезает)"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:C1:02:assimilation",
+    "level": "C1",
+    "lesson_number_hint": 2,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: ассимиляция согласных",
+    "title_en": "Pronunciation: Consonant Assimilation",
+    "description": "Граница слов стирается: финальный согласный уподобляется начальному следующего слова.",
+    "tags": ["immersion", "speaking", "pronunciation", "c1", "assimilation", "connected_speech"],
+    "content": {
+      "external_key": "immersion:pronunciation:C1:02:assimilation",
+      "items": [
+        {
+          "word": "good boy",
+          "pronunciation_hint": "/ɡʊb bɔɪ/ — D перед B → /b/: «губ бой»"
+        },
+        {
+          "word": "ten pencils",
+          "pronunciation_hint": "/tem ˈpensɪlz/ — N перед P → /m/: «тем пэнсилз»"
+        },
+        {
+          "word": "this shop",
+          "pronunciation_hint": "/ðɪʃ ʃɒp/ — S перед SH → /ʃ/: «диш шоп»"
+        },
+        {
+          "word": "in camp",
+          "pronunciation_hint": "/ɪŋ kæmp/ — N перед K → /ŋ/: «инг кэмп»"
+        },
+        {
+          "word": "that person",
+          "pronunciation_hint": "/ðæp ˈpɜːrsn/ — T перед P → /p/: «дэп пёрсн»"
+        },
+        {
+          "word": "used to",
+          "pronunciation_hint": "/ˈjuːstə/ — D перед T: оба сливаются в один долгий /st/"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:C1:03:elision",
+    "level": "C1",
+    "lesson_number_hint": 3,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: элизия в сочетаниях слов",
+    "title_en": "Pronunciation: Elision in Word Boundaries",
+    "description": "Некоторые согласные полностью исчезают на стыке слов в нормальном темпе речи.",
+    "tags": ["immersion", "speaking", "pronunciation", "c1", "elision", "connected_speech"],
+    "content": {
+      "external_key": "immersion:pronunciation:C1:03:elision",
+      "items": [
+        {
+          "word": "next door",
+          "pronunciation_hint": "/neks dɔːr/ — T выпадает перед D: «некс дор»"
+        },
+        {
+          "word": "last year",
+          "pronunciation_hint": "/lɑːs jɪər/ — T выпадает перед Y: «лас йир»"
+        },
+        {
+          "word": "most people",
+          "pronunciation_hint": "/məʊs ˈpiːpl/ — T выпадает перед P: «моус пипл»"
+        },
+        {
+          "word": "just me",
+          "pronunciation_hint": "/dʒʌs mi/ — T выпадает перед носовым M: «джас ми»"
+        },
+        {
+          "word": "first thing",
+          "pronunciation_hint": "/fɜːs θɪŋ/ — T выпадает перед TH: «фёс финг»"
+        },
+        {
+          "word": "and then",
+          "pronunciation_hint": "/ən ðen/ — D исчезает, AND → /ən/: «эн зэн»"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:C1:04:tonic_stress_discourse",
+    "level": "C1",
+    "lesson_number_hint": 4,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: тоническое ударение и дискурс",
+    "title_en": "Pronunciation: Tonic Stress and Discourse Meaning",
+    "description": "Сдвиг тонического ударения меняет смысл всей фразы даже при одинаковых словах.",
+    "tags": ["immersion", "speaking", "pronunciation", "c1", "tonic_stress", "pragmatics"],
+    "content": {
+      "external_key": "immersion:pronunciation:C1:04:tonic_stress_discourse",
+      "items": [
+        {
+          "word": "I didn't say HE did it.",
+          "pronunciation_hint": "Ударение на HE → кто-то другой сделал"
+        },
+        {
+          "word": "I didn't SAY he did it.",
+          "pronunciation_hint": "Ударение на SAY → я имел в виду, но не говорил"
+        },
+        {
+          "word": "I didn't say he DID it.",
+          "pronunciation_hint": "Ударение на DID → я не уверен, что он сделал"
+        },
+        {
+          "word": "That's REALly interesting.",
+          "pronunciation_hint": "Ударение на REAL → искренний интерес"
+        },
+        {
+          "word": "That's really INteresting.",
+          "pronunciation_hint": "Ударение на IN- → разговорный нейтральный ответ"
+        },
+        {
+          "word": "I THOUGHT you knew.",
+          "pronunciation_hint": "Ударение на THOUGHT → но теперь вижу, что нет (мягкий упрёк)"
+        }
+      ]
+    }
+  },
+  {
+    "external_key": "immersion:pronunciation:C1:05:advanced_minimal_pairs",
+    "level": "C1",
+    "lesson_number_hint": 5,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: продвинутые минимальные пары",
+    "title_en": "Pronunciation: Advanced Minimal Pairs",
+    "description": "Тонкие различия в звуках, которые носители слышат сразу, но продвинутые учащиеся часто смешивают.",
+    "tags": ["immersion", "speaking", "pronunciation", "c1", "minimal_pairs", "advanced"],
+    "content": {
+      "external_key": "immersion:pronunciation:C1:05:advanced_minimal_pairs",
+      "items": [
+        {
+          "word": "caught",
+          "pronunciation_hint": "/kɔːt/ — открытый задний /ɔː/: «кот» с протяжным О"
+        },
+        {
+          "word": "cot",
+          "pronunciation_hint": "/kɒt/ — открытый короткий /ɒ/: «кот» чуть короче и ниже"
+        },
+        {
+          "word": "pull",
+          "pronunciation_hint": "/pʊl/ — краткий /ʊ/: слабо округлены губы"
+        },
+        {
+          "word": "pool",
+          "pronunciation_hint": "/puːl/ — долгий /uː/: сильно округлены губы, вдвое длиннее"
+        },
+        {
+          "word": "bird",
+          "pronunciation_hint": "/bɜːrd/ — центральный /ɜː/: нет аналога в русском, губы нейтральны"
+        },
+        {
+          "word": "bard",
+          "pronunciation_hint": "/bɑːrd/ — задний /ɑː/: рот шире открыт, звук глубже"
+        }
+      ]
+    }
+  }
+]
