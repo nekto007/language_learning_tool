@@ -331,11 +331,11 @@
 - Use: `scripts/import_immersion_lessons.py`
 - Output: `reports/dictation_import.md`
 
-- [ ] Insert dictation after existing `listening_quiz` or before `listening_immersion`
-- [ ] Preserve current module progression
-- [ ] Verify one imported dictation lesson for every source module that exists in target DB
-- [ ] Report skipped source modules that are not present in target DB
-- [ ] Verify daily plan listening slot can find a dictation in each current module
+- [x] Insert dictation after existing `listening_quiz` or before `listening_immersion`
+- [x] Preserve current module progression
+- [x] Verify one imported dictation lesson for every source module that exists in target DB
+- [x] Report skipped source modules that are not present in target DB
+- [x] Verify daily plan listening slot can find a dictation in each current module
 
 ---
 ### Task 18: Prepare per-module writing prompt content

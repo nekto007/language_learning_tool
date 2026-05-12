@@ -113,6 +113,7 @@ class LessonEntry:
     raw: dict = field(default_factory=dict)
     source_path: Optional[str] = None
     has_description: bool = False
+    anchor_after: Optional[str] = None
 
 
 @dataclass
@@ -126,6 +127,9 @@ class ImportChange:
     db_module_id: Optional[int] = None
     reason: str = ""
     diff_fields: list = field(default_factory=list)
+    shift_above: Optional[int] = None
+    anchor_type: Optional[str] = None
+    target_number: Optional[int] = None
 
 
 @dataclass
@@ -190,6 +194,11 @@ def parse_entry(raw: dict, source_path: Optional[str] = None) -> tuple:
     description = raw.get("description")
     if description is not None and not isinstance(description, str):
         return None, "description must be a string"
+    anchor_after = raw.get("anchor_after")
+    if anchor_after is not None:
+        if not isinstance(anchor_after, str) or not anchor_after.strip():
+            return None, "anchor_after must be a non-empty string"
+        anchor_after = anchor_after.strip()
     return (
         LessonEntry(
             external_key=external_key,
@@ -206,6 +215,7 @@ def parse_entry(raw: dict, source_path: Optional[str] = None) -> tuple:
             raw=raw,
             source_path=source_path,
             has_description=description_present,
+            anchor_after=anchor_after,
         ),
         None,
     )
@@ -463,14 +473,37 @@ class Repository:
     ):
         raise NotImplementedError
 
+    def find_lesson_number_by_type(
+        self, module_id: int, lesson_type: str
+    ) -> Optional[int]:
+        """Return the lowest lesson number in the module with the given type."""
+        raise NotImplementedError
+
+    def shift_module_lessons_above(self, module_id: int, threshold: int) -> int:
+        """Shift every lesson in the module with number >= threshold by +1.
+
+        Returns the number of rows shifted. Must execute as a single
+        statement so the unique (module_id, number) index does not flag
+        the intermediate states.
+        """
+        raise NotImplementedError
+
 
 def plan_import(
     entries: list,
     repo: Repository,
     *,
     db_module_id: Optional[int] = None,
+    anchor_after: Optional[str] = None,
 ) -> ImportPlan:
-    """Determine what would change without writing anything."""
+    """Determine what would change without writing anything.
+
+    When ``anchor_after`` (or per-entry ``anchor_after``) is set, new
+    lessons are placed directly after the anchor lesson of the given
+    type in their module. If the slot is occupied, the plan records a
+    ``shift_above`` instruction so ``apply_plan`` can bump existing
+    lessons by +1 before inserting.
+    """
     plan = ImportPlan()
     seen_keys: dict = {}
     for entry in entries:
@@ -506,12 +539,32 @@ def plan_import(
                 )
             )
             continue
+        entry_anchor = entry.anchor_after or anchor_after
         existing = repo.find_lesson_by_external_key(entry.external_key)
         if existing is None:
             target_number = entry.lesson_number
+            shift_above: Optional[int] = None
+            if target_number is None and entry_anchor:
+                anchor_number = repo.find_lesson_number_by_type(
+                    module_id, entry_anchor
+                )
+                if anchor_number is None:
+                    plan.errors.append(
+                        f"{entry.external_key}: anchor lesson_type "
+                        f"{entry_anchor!r} not found in module "
+                        f"{entry.level}#{entry.module_number}"
+                    )
+                    continue
+                target_number = anchor_number + 1
+                if repo.lesson_number_taken(
+                    module_id,
+                    target_number,
+                    exclude_external_key=entry.external_key,
+                ):
+                    shift_above = target_number
             if target_number is None:
                 target_number = repo.next_lesson_number(module_id)
-            elif repo.lesson_number_taken(
+            elif shift_above is None and repo.lesson_number_taken(
                 module_id,
                 target_number,
                 exclude_external_key=entry.external_key,
@@ -529,7 +582,15 @@ def plan_import(
                     lesson_type=entry.lesson_type,
                     db_module_id=module_id,
                     diff_fields=["title", "type", "content"],
-                    reason=f"new lesson #{target_number}",
+                    reason=f"new lesson #{target_number}"
+                    + (
+                        f" (anchor_after={entry_anchor}, shift_above={shift_above})"
+                        if entry_anchor
+                        else ""
+                    ),
+                    shift_above=shift_above,
+                    anchor_type=entry_anchor,
+                    target_number=target_number,
                 )
             )
         else:
@@ -576,7 +637,11 @@ def apply_plan(entries: list, plan: ImportPlan, repo: Repository) -> None:
         if entry is None:
             continue
         if change.action == "create":
-            target_number = entry.lesson_number
+            if change.shift_above is not None:
+                repo.shift_module_lessons_above(
+                    change.db_module_id, change.shift_above
+                )
+            target_number = change.target_number or entry.lesson_number
             if target_number is None:
                 target_number = repo.next_lesson_number(change.db_module_id)
             new_id = repo.create_lesson(
@@ -719,6 +784,49 @@ class DBRepository(Repository):
             lesson.number = number
         self.session.flush()
 
+    def find_lesson_number_by_type(
+        self, module_id: int, lesson_type: str
+    ) -> Optional[int]:
+        from sqlalchemy import func
+
+        from app.curriculum.models import Lessons
+
+        row = (
+            self.session.query(func.min(Lessons.number))
+            .filter(Lessons.module_id == module_id, Lessons.type == lesson_type)
+            .scalar()
+        )
+        return int(row) if row is not None else None
+
+    def shift_module_lessons_above(self, module_id: int, threshold: int) -> int:
+        from app.curriculum.models import Lessons
+
+        # Postgres validates the unique (module_id, number) index per row,
+        # so `n = n + 1` over consecutive numbers collides. Park rows in a
+        # non-conflicting high range first, then bring them back +1.
+        _PARK = 10000
+        affected = (
+            self.session.query(Lessons)
+            .filter(
+                Lessons.module_id == module_id,
+                Lessons.number >= threshold,
+            )
+            .update(
+                {Lessons.number: Lessons.number + _PARK},
+                synchronize_session=False,
+            )
+        )
+        if affected:
+            self.session.query(Lessons).filter(
+                Lessons.module_id == module_id,
+                Lessons.number >= threshold + _PARK,
+            ).update(
+                {Lessons.number: Lessons.number - _PARK + 1},
+                synchronize_session=False,
+            )
+        self.session.flush()
+        return int(affected or 0)
+
 
 def format_report(plan: ImportPlan, files: list, *, dry_run: bool) -> str:
     lines: list = []
@@ -830,6 +938,15 @@ def main(argv=None) -> int:
         action="store_true",
         help="Run validation and planning, never write to DB. Returns rc=2 on errors.",
     )
+    parser.add_argument(
+        "--anchor-after",
+        default=None,
+        help=(
+            "Anchor lesson_type for positional inserts. New lessons are "
+            "placed directly after the module's anchor lesson; lessons "
+            "below are shifted by +1. Per-entry 'anchor_after' wins."
+        ),
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -893,10 +1010,15 @@ def main(argv=None) -> int:
         print(f"ERROR: cannot import Flask app: {exc}", file=sys.stderr)
         return 2
 
-    app = create_app(os.environ.get("FLASK_ENV", "development"))
+    app = create_app()
     with app.app_context():
         repo = DBRepository(flask_db.session)
-        plan = plan_import(kept, repo, db_module_id=args.module_id)
+        plan = plan_import(
+            kept,
+            repo,
+            db_module_id=args.module_id,
+            anchor_after=args.anchor_after,
+        )
         plan.changes = list(skipped) + plan.changes
         if plan.errors:
             for err in plan.errors:

@@ -126,6 +126,24 @@ class FakeRepository(Repository):
         if number is not None:
             lesson.number = number
 
+    def find_lesson_number_by_type(self, module_id, lesson_type):
+        nums = [
+            l.number
+            for l in self.lessons.values()
+            if l.module_id == module_id and l.type == lesson_type
+        ]
+        return min(nums) if nums else None
+
+    def shift_module_lessons_above(self, module_id, threshold):
+        affected = [
+            l
+            for l in self.lessons.values()
+            if l.module_id == module_id and l.number >= threshold
+        ]
+        for lesson in affected:
+            lesson.number += 1
+        return len(affected)
+
 
 def make_raw(**overrides):
     base = {
@@ -436,6 +454,140 @@ def test_plan_rejects_move_to_taken_number():
     plan = plan_import([e], repo)
     assert plan.errors
     assert any("cannot move to lesson_number 10" in err for err in plan.errors)
+
+
+# ---------------------------------------------------------------------------
+# anchor_after positional insertion (Task 17)
+# ---------------------------------------------------------------------------
+
+
+def _seed_module_with_anchor(repo, module_id):
+    """Seed a module with listening_quiz at #6 and dependent lessons after."""
+    types = [
+        (1, "vocabulary"),
+        (2, "card"),
+        (3, "grammar"),
+        (4, "quiz"),
+        (5, "reading"),
+        (6, "listening_quiz"),
+        (7, "dialogue_completion_quiz"),
+        (8, "ordering_quiz"),
+        (9, "card"),
+        (10, "translation_quiz"),
+        (11, "listening_immersion"),
+        (12, "final_test"),
+    ]
+    for i, (n, t) in enumerate(types, start=1):
+        repo.lessons[i] = FakeLesson(
+            id=i,
+            module_id=module_id,
+            number=n,
+            type=t,
+            title=f"{t} #{n}",
+            description=None,
+            content={"external_key": f"seed:{t}:{n}"},
+        )
+    repo._next_id = 100
+    return repo
+
+
+def test_plan_anchor_after_targets_position_after_anchor():
+    repo = FakeRepository.with_modules({("A1", 1): 100})
+    _seed_module_with_anchor(repo, 100)
+    e = _entry()
+    plan = plan_import([e], repo, anchor_after="listening_quiz")
+    assert plan.errors == []
+    assert len(plan.changes) == 1
+    change = plan.changes[0]
+    assert change.action == "create"
+    assert change.target_number == 7
+    assert change.shift_above == 7
+    assert change.anchor_type == "listening_quiz"
+
+
+def test_apply_anchor_after_shifts_existing_lessons_and_inserts():
+    repo = FakeRepository.with_modules({("A1", 1): 100})
+    _seed_module_with_anchor(repo, 100)
+    e = _entry()
+    plan = plan_import([e], repo, anchor_after="listening_quiz")
+    apply_plan([e], plan, repo)
+    # Dictation now at #7
+    by_number = {l.number: l for l in repo.lessons.values() if l.module_id == 100}
+    assert by_number[7].type == "dictation"
+    assert by_number[7].content["external_key"] == e.external_key
+    # listening_quiz still at #6
+    assert by_number[6].type == "listening_quiz"
+    # everything below shifted by +1
+    assert by_number[8].type == "dialogue_completion_quiz"
+    assert by_number[12].type == "listening_immersion"
+    assert by_number[13].type == "final_test"
+
+
+def test_anchor_after_is_idempotent_on_rerun():
+    repo = FakeRepository.with_modules({("A1", 1): 100})
+    _seed_module_with_anchor(repo, 100)
+    e = _entry()
+    plan = plan_import([e], repo, anchor_after="listening_quiz")
+    apply_plan([e], plan, repo)
+    initial_count = len(repo.lessons)
+    plan2 = plan_import([e], repo, anchor_after="listening_quiz")
+    assert plan2.errors == []
+    assert [c.action for c in plan2.changes] == ["noop"]
+    apply_plan([e], plan2, repo)
+    assert len(repo.lessons) == initial_count
+
+
+def test_plan_anchor_after_missing_anchor_is_error():
+    repo = FakeRepository.with_modules({("A1", 1): 100})
+    # Module has lessons but no listening_quiz
+    repo.lessons[1] = FakeLesson(
+        id=1,
+        module_id=100,
+        number=1,
+        type="vocabulary",
+        title="v",
+        description=None,
+        content={"external_key": "seed:v:1"},
+    )
+    e = _entry()
+    plan = plan_import([e], repo, anchor_after="listening_quiz")
+    assert plan.errors
+    assert any("anchor lesson_type" in err for err in plan.errors)
+
+
+def test_plan_anchor_after_skips_shift_when_slot_empty():
+    repo = FakeRepository.with_modules({("A1", 1): 100})
+    # listening_quiz at #6, nothing after it
+    repo.lessons[1] = FakeLesson(
+        id=1,
+        module_id=100,
+        number=6,
+        type="listening_quiz",
+        title="lq",
+        description=None,
+        content={"external_key": "seed:lq:6"},
+    )
+    e = _entry()
+    plan = plan_import([e], repo, anchor_after="listening_quiz")
+    assert plan.errors == []
+    change = plan.changes[0]
+    assert change.action == "create"
+    assert change.target_number == 7
+    assert change.shift_above is None
+
+
+def test_entry_level_anchor_after_overrides_global():
+    repo = FakeRepository.with_modules({("A1", 1): 100})
+    _seed_module_with_anchor(repo, 100)
+    raw = make_raw()
+    raw["anchor_after"] = "listening_quiz"
+    entry, err = parse_entry(raw)
+    assert err is None
+    plan = plan_import([entry], repo, anchor_after="vocabulary")
+    # Per-entry anchor wins → still anchored after listening_quiz
+    change = plan.changes[0]
+    assert change.anchor_type == "listening_quiz"
+    assert change.target_number == 7
 
 
 def test_plan_errors_when_existing_lesson_in_other_module():
