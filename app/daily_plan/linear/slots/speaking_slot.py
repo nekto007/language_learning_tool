@@ -13,8 +13,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from datetime import datetime, timezone
-
 from app.curriculum.models import LessonProgress, Lessons
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 from app.daily_plan.linear.progression import find_next_lesson_linear
@@ -36,9 +34,8 @@ _SPEAKING_SLOT_ETA_MINUTES = 7
 
 def _speaking_done_today(user_id: int, db: Any) -> bool:
     """Return True when the user completed any speaking lesson today."""
-    today_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0, tzinfo=None
-    )
+    from app.utils.time_utils import get_user_local_day_bounds
+    today_start, _ = get_user_local_day_bounds(user_id, db)
     return (
         db.session.query(LessonProgress)
         .join(Lessons, LessonProgress.lesson_id == Lessons.id)

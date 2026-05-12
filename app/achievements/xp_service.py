@@ -53,6 +53,7 @@ LINEAR_XP: dict[str, int] = {
     'linear_curriculum_reading': 15,
     'linear_curriculum_listening_immersion': 15,
     'linear_curriculum_dictation': 20,
+    'linear_curriculum_audio_fill_blank': 18,
     'linear_curriculum_use': 25,
     'linear_listening': 18,
     'linear_writing': 25,

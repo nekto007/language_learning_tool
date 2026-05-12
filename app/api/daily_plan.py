@@ -97,7 +97,10 @@ def _compute_listening_goal(user, tz: str) -> dict:
             lesson = lessons_map.get(lesson_id)
             duration = 300
             if lesson and lesson.content and isinstance(lesson.content, dict):
-                duration = min(int(lesson.content.get('duration_seconds', 300)), 3600)
+                try:
+                    duration = min(int(float(lesson.content.get('duration_seconds') or 300)), 3600)
+                except (TypeError, ValueError):
+                    duration = 300
             total_seconds += duration
 
     listening_minutes_today = round(total_seconds / 60, 1)

@@ -27,11 +27,13 @@ _LISTENING_LESSON_TYPES: frozenset[str] = frozenset({
     'listening_immersion',
     'listening_immersion_quiz',
     'dictation',
+    'audio_fill_blank',
 })
 
 _LISTENING_XP_SOURCES: frozenset[str] = frozenset({
     'linear_curriculum_listening_immersion',
     'linear_curriculum_dictation',
+    'linear_curriculum_audio_fill_blank',
     'linear_listening',
 })
 

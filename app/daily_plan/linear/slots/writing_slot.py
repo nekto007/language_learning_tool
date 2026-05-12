@@ -12,7 +12,6 @@ today (writing_prompt) or has a completed LessonProgress for the lesson
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from typing import Any, Optional
 
 from app.curriculum.models import LessonProgress, Lessons
@@ -38,10 +37,9 @@ def _writing_done_today(user_id: int, lesson_id: int, db: Any) -> bool:
     For translation and other types: falls back to LessonProgress completed.
     """
     from app.curriculum.models import UserWritingAttempt
+    from app.utils.time_utils import get_user_local_day_bounds
 
-    today_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0, tzinfo=None
-    )
+    today_start, _ = get_user_local_day_bounds(user_id, db)
     has_attempt = (
         db.session.query(UserWritingAttempt.id)
         .filter(

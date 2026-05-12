@@ -236,8 +236,10 @@ def check_challenge_criteria(
     elif challenge.category == 'accuracy_focus':
         if score is None or score < _ACCURACY_FOCUS_MIN_SCORE:
             return 'criteria_not_met'
-        # Require a server-graded lesson attempt with qualifying score today
-        from app.curriculum.models import LessonAttempt
+        # Require a server-graded lesson attempt with qualifying score today.
+        # LessonAttempt is created by final_test/legacy flows; new lesson types
+        # (dictation, sentence_correction, etc.) write LessonProgress instead.
+        from app.curriculum.models import LessonAttempt, LessonProgress
         qualifying = (
             db.session.query(LessonAttempt.id)
             .filter(
@@ -248,6 +250,16 @@ def check_challenge_criteria(
             .first()
         )
         if qualifying is None:
+            qualifying = (
+                db.session.query(LessonProgress.id)
+                .filter(
+                    LessonProgress.user_id == user_id,
+                    LessonProgress.status == 'completed',
+                    LessonProgress.completed_at >= today_start,
+                )
+                .first()
+            )
+        if qualifying is None:
             return 'criteria_not_met'
 
     elif challenge.category == 'speed_run':
@@ -257,8 +269,10 @@ def check_challenge_criteria(
             or time_spent_seconds >= _SPEED_RUN_MAX_SECONDS
         ):
             return 'criteria_not_met'
-        # Require a server-verified lesson completion today
-        from app.curriculum.models import LessonAttempt
+        # Require a server-verified lesson completion today.
+        # LessonAttempt is created by final_test/legacy flows; new lesson types
+        # write LessonProgress instead — accept either as server verification.
+        from app.curriculum.models import LessonAttempt, LessonProgress
         completed_today = (
             db.session.query(LessonAttempt.id)
             .filter(
@@ -268,6 +282,16 @@ def check_challenge_criteria(
             )
             .first()
         )
+        if completed_today is None:
+            completed_today = (
+                db.session.query(LessonProgress.id)
+                .filter(
+                    LessonProgress.user_id == user_id,
+                    LessonProgress.status == 'completed',
+                    LessonProgress.completed_at >= today_start,
+                )
+                .first()
+            )
         if completed_today is None:
             return 'criteria_not_met'
 

@@ -52,7 +52,7 @@ LESSON_TYPE_TO_SOURCE: dict[str, str] = {
     'listening_immersion_quiz': 'linear_curriculum_listening_immersion',
     'matching': 'linear_curriculum_quiz',
     'dictation': 'linear_curriculum_dictation',
-    'audio_fill_blank': 'linear_curriculum_quiz',
+    'audio_fill_blank': 'linear_curriculum_audio_fill_blank',
     'translation': 'linear_curriculum_quiz',
     'sentence_correction': 'linear_curriculum_quiz',
     'writing_prompt': 'linear_curriculum_use',
@@ -69,7 +69,7 @@ LINEAR_XP_EVENT_TYPE = 'xp_linear'
 # Any source starting with 'linear_curriculum_' earns curriculum slot minutes (15).
 _SRS_SOURCES = {'linear_srs_global'}
 _READING_SOURCES = {'linear_book_reading'}
-_LISTENING_SOURCES = {'linear_listening', 'linear_curriculum_listening_immersion', 'linear_curriculum_dictation'}
+_LISTENING_SOURCES = {'linear_listening', 'linear_curriculum_listening_immersion', 'linear_curriculum_dictation', 'linear_curriculum_audio_fill_blank'}
 _WRITING_SOURCES = {'linear_writing', 'linear_curriculum_use'}
 _ERROR_REVIEW_SOURCES = {'linear_error_review'}
 _CURRICULUM_MINUTES = 15
@@ -79,6 +79,7 @@ _SOURCE_MINUTES: dict[str, int] = {
     'linear_listening': 10,
     'linear_curriculum_listening_immersion': 10,
     'linear_curriculum_dictation': 10,
+    'linear_curriculum_audio_fill_blank': 10,
     'linear_writing': 8,
     'linear_curriculum_use': 8,
     'linear_error_review': 12,

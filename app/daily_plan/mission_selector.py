@@ -234,7 +234,10 @@ def select_mission(
         user_today = datetime.now(tz_obj).date()
 
         yesterday_type = get_last_mission_type(user_id, before_date=user_today)
-        if yesterday_type and yesterday_type == mission_type:
+        if (
+            yesterday_type and yesterday_type == mission_type
+            and reason_code != 'listening_streak_low'
+        ):
             alternative = _find_rotation_alternative(user_id, mission_type)
             if alternative is not None:
                 rot_reason_code, rot_reason_text = _ROTATION_REASON.get(

@@ -162,15 +162,33 @@ class TestListeningMissionRotation:
     @patch(f"{MODULE}._has_book_reading", return_value=False)
     @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
     @patch(f"{MODULE}.calculate_repair_pressure")
-    def test_rotation_avoids_repeat_listening(
+    def test_listening_streak_building_suppresses_rotation(
         self, mock_pressure, _track, _books, _dictation, _streak, _last
     ):
         mock_pressure.return_value = _low_pressure()
         from app.daily_plan.mission_selector import select_mission
 
-        # Yesterday was LISTENING; today should rotate to progress
+        # Yesterday was LISTENING and streak < 3: rotation must NOT fire so
+        # the user can accumulate consecutive listening days toward the 3-day habit.
+        mission_type, reason_code, _, _ = select_mission(1)
+        assert mission_type == MissionType.listening
+        assert reason_code == 'listening_streak_low'
+
+    @patch(f"{MODULE}.get_last_mission_type", return_value=MissionType.listening)
+    @patch(f"{MODULE}._get_listening_streak_days", return_value=3)
+    @patch(f"{MODULE}._has_dictation_lessons_available", return_value=False)
+    @patch(f"{MODULE}._has_book_reading", return_value=False)
+    @patch(f"{MODULE}.detect_primary_track", return_value=SourceKind.normal_course)
+    @patch(f"{MODULE}.calculate_repair_pressure")
+    def test_rotation_applies_to_listening_when_streak_established(
+        self, mock_pressure, _track, _books, _dictation, _streak, _last
+    ):
+        mock_pressure.return_value = _low_pressure()
+        from app.daily_plan.mission_selector import select_mission
+
+        # Streak >= 3 and no dictation available → picks progress, rotation fires
         mission_type, _, _, _ = select_mission(1)
-        assert mission_type != MissionType.listening
+        assert mission_type == MissionType.progress
 
 
 class TestAssembleListeningMission:
