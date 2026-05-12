@@ -262,12 +262,12 @@
 - Output: `reports/immersion_gap_report.md`
 - Tests: `tests/scripts/test_report_immersion_gaps.py`
 
-- [ ] Report missing slot-critical lesson types per module
-- [ ] Report source/DB module mismatch from `module_completed/fixed/`
-- [ ] Report missing CEFR coverage per new lesson type
-- [ ] Report audio metadata gaps
-- [ ] Report vocabulary enrichment gaps
-- [ ] Report SRS source tagging gaps
+- [x] Report missing slot-critical lesson types per module
+- [x] Report source/DB module mismatch from `module_completed/fixed/`
+- [x] Report missing CEFR coverage per new lesson type
+- [x] Report audio metadata gaps
+- [x] Report vocabulary enrichment gaps
+- [x] Report SRS source tagging gaps
 
 ---
 ### Task 13: Add content fixture tests for every new lesson type
