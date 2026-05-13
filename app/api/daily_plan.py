@@ -1138,10 +1138,10 @@ def challenge_complete():
     if not isinstance(challenge_id, int):
         return api_error('invalid_input', 'challenge_id is required', 400)
 
-    from datetime import datetime as _datetime, timezone as _timezone
     from app.daily_plan.models import DailyChallenge
+    from app.utils.time_utils import get_user_local_date
     _challenge_check = DailyChallenge.query.filter_by(id=challenge_id).first()
-    if _challenge_check is None or _challenge_check.challenge_date != _datetime.now(_timezone.utc).date():
+    if _challenge_check is None or _challenge_check.challenge_date != get_user_local_date(current_user.id, db):
         return api_error('invalid_input', 'challenge_id does not match today\'s challenge', 400)
 
     raw_score = body.get('score')

@@ -24,6 +24,9 @@ def register_admin_routes(flask_app):
     # Import quiz decks routes (they are already added via @admin.route decorators)
     import app.admin.quiz_decks  # noqa: F401
 
+    # Import curriculum routes (cultural notes and other @admin.route decorators)
+    import app.admin.curriculum  # noqa: F401
+
     # Import and register book routes blueprint
     from app.admin.routes.book_routes import book_bp
     flask_app.register_blueprint(book_bp, url_prefix='/admin')

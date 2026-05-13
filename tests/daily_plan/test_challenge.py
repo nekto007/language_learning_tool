@@ -101,13 +101,14 @@ class TestSeedChallenge:
         while test_date.toordinal() % 3 != 2:
             test_date += timedelta(days=1)
 
-        lesson = _make_dictation_lesson(db_session)
+        _make_dictation_lesson(db_session)
 
         challenge = _seed_today_challenge(test_date, db)
         db_session.commit()
 
         assert challenge.category == 'listening_deep'
-        assert challenge.lesson_id == lesson.id
+        # listening_deep accepts any listening attempt — no specific lesson pinned
+        assert challenge.lesson_id is None
 
     def test_non_listening_category_has_no_lesson(self, db_session):
         from app.utils.db import db
@@ -281,7 +282,7 @@ class TestChallengeCardData:
             assert cat in _BONUS_XP
             assert _BONUS_XP[cat] > 0
 
-    def test_listening_deep_has_lesson_id_for_direct_link(self, db_session):
+    def test_listening_deep_has_no_lesson_id(self, db_session):
         from app.utils.db import db
         import datetime
 
@@ -296,8 +297,8 @@ class TestChallengeCardData:
         db_session.commit()
 
         assert challenge.category == 'listening_deep'
-        # lesson_id populated → template renders direct link to lesson
-        assert challenge.lesson_id is not None
+        # listening_deep accepts any listening attempt — lesson_id is None
+        assert challenge.lesson_id is None
 
     def test_non_listening_challenge_has_no_lesson_id(self, db_session):
         from app.utils.db import db

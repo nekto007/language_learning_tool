@@ -33,15 +33,7 @@ def _seed_today_challenge(challenge_date: date, db) -> 'DailyChallenge':
     bonus_xp = _BONUS_XP[category]
 
     lesson_id: Optional[int] = None
-    if category == 'listening_deep':
-        lesson = (
-            Lessons.query
-            .filter(Lessons.type.in_(_LISTENING_TYPES))
-            .order_by(Lessons.id)
-            .first()
-        )
-        if lesson:
-            lesson_id = lesson.id
+    # listening_deep accepts any listening attempt today — no specific lesson required.
 
     challenge = DailyChallenge(
         challenge_date=challenge_date,
@@ -217,14 +209,11 @@ def check_challenge_criteria(
     )
 
     if challenge.category == 'listening_deep':
-        if challenge.lesson_id is None:
-            return 'challenge_not_configured'
         from app.curriculum.models import ListeningAttempt
         has_attempt = (
             db.session.query(ListeningAttempt.id)
             .filter(
                 ListeningAttempt.user_id == user_id,
-                ListeningAttempt.lesson_id == challenge.lesson_id,
                 ListeningAttempt.created_at >= today_start,
             )
             .first()
