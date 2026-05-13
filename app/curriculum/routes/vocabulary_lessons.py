@@ -660,7 +660,7 @@ def text_lesson(lesson_id):
     """Display text lesson with sanitized content"""
     lesson = Lessons.query.get_or_404(lesson_id)
 
-    if lesson.type not in ['text', 'reading']:
+    if lesson.type not in ['text', 'reading', 'listening_immersion_quiz']:
         abort(400, "This is not a text lesson")
 
     try:
