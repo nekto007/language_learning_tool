@@ -1401,6 +1401,7 @@ def _process_listening_immersion_submission(lesson: 'Lessons', user_id: int, dat
     progress = LessonProgress.query.filter_by(
         user_id=user_id, lesson_id=lesson.id
     ).first()
+    was_already_completed = bool(progress and progress.status == 'completed')
     if progress:
         progress.status = 'completed'
         progress.score = 100.0
@@ -1423,13 +1424,14 @@ def _process_listening_immersion_submission(lesson: 'Lessons', user_id: int, dat
     except Exception:
         db.session.rollback()
 
-    try:
-        from app.curriculum.listening_service import log_listening_attempt
-        log_listening_attempt(user_id, lesson.id, 100.0, 0, db)
-        db.session.commit()
-    except Exception as log_err:
-        logger.warning(f"Listening attempt log failed for lesson {lesson.id}: {log_err}")
-        db.session.rollback()
+    if not was_already_completed:
+        try:
+            from app.curriculum.listening_service import log_listening_attempt
+            log_listening_attempt(user_id, lesson.id, 100.0, 0, db)
+            db.session.commit()
+        except Exception as log_err:
+            logger.warning(f"Listening attempt log failed for lesson {lesson.id}: {log_err}")
+            db.session.rollback()
 
     try:
         from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_listening_xp

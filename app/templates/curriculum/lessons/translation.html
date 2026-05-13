@@ -43,7 +43,7 @@
           class="chip chip--clickable translation-chip"
           type="button"
           aria-pressed="false"
-          onclick="insertChip({{ loop.index0 }}, {{ word | tojson }})"
+          onclick='insertChip({{ loop.index0 }}, {{ word | tojson }})'
           id="chip-{{ loop.index0 }}"
         >
           {{ word }}

@@ -63,7 +63,7 @@
           aria-pressed="false"
           data-index="{{ loop.index0 }}"
           data-option="{{ opt }}"
-          onclick="selectOption({{ loop.index0 }}, {{ opt | tojson }})">
+          onclick='selectOption({{ loop.index0 }}, {{ opt | tojson }})'>
           {{ opt }}
         </button>
         {% endfor %}
