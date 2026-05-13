@@ -16,6 +16,19 @@ logger = logging.getLogger(__name__)
 # Create blueprint for main routes - use curriculum name for compatibility
 main_bp = Blueprint('curriculum', __name__)
 
+_CANONICAL_LESSON_ROUTE_TYPES = frozenset({
+    'dictation',
+    'audio_fill_blank',
+    'translation',
+    'sentence_correction',
+    'writing_prompt',
+    'sentence_completion',
+    'collocation_matching',
+    'shadow_reading',
+    'pronunciation',
+    'idiom',
+})
+
 
 @main_bp.route('/')
 @login_required
@@ -35,7 +48,7 @@ def search():
     from app.words.models import CollectionWords
     from app.grammar_lab.models import GrammarTopic
 
-    q = request.args.get('q', '').strip()
+    q = request.args.get('q', '').strip()[:200]
     if not q:
         return redirect(url_for('learn.learn_index'))
 
@@ -466,6 +479,8 @@ def lesson_by_id(lesson_id):
     from app.curriculum.routes.card_lessons import render_card_lesson
 
     lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type in _CANONICAL_LESSON_ROUTE_TYPES:
+        return redirect(url_for('curriculum_lessons.lesson_detail', lesson_id=lesson.id))
 
     # Get or create user progress
     progress = LessonProgress.query.filter_by(
@@ -529,4 +544,3 @@ def lesson_by_id(lesson_id):
         return render_template('curriculum/lessons/empty_content.html', lesson=lesson)
 
     return render_func(lesson)
-

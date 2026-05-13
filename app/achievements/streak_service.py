@@ -496,7 +496,8 @@ def _grant_streak_shield(user_id: int) -> bool:
     Returns True if shield was granted, False if already active.
     """
     from app.auth.models import User
-    user = User.query.get(user_id)
+    from app import db
+    user = db.session.get(User, user_id)
     if user is None or getattr(user, 'streak_shield_active', False):
         return False
     user.streak_shield_active = True

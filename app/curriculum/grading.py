@@ -442,8 +442,6 @@ def grade_pronunciation_match(recognized_text: str, target_word: str) -> dict:
     Returns:
         dict with keys: matched (bool), recognized (str), target (str).
     """
-    recognized_norm = _normalize_answer(recognized_text)
-    target_norm = _normalize_answer(target_word)
     matched = _strict_text_match(recognized_text, [target_word])
     return {
         'matched': matched,

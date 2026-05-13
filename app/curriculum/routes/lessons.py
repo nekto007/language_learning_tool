@@ -2,6 +2,7 @@
 
 import logging
 import random
+import re
 from datetime import UTC, datetime, timezone
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
@@ -354,6 +355,114 @@ def submit_lesson(lesson_id):
 
 
 _DICTATION_MAX_REPLAYS = 3
+_DICTATION_MAX_WORD_ATTEMPTS = 3
+
+
+def _get_next_lesson_for_completion(lesson: 'Lessons') -> 'Lessons | None':
+    """Return the next lesson URL target after a lesson is completed."""
+    from app.curriculum.service import get_next_lesson
+    return get_next_lesson(lesson.id)
+
+
+def _lesson_completion_url(lesson: 'Lessons') -> str:
+    return url_for('learn.lesson_by_id', lesson_id=lesson.id)
+
+
+def _normalize_dictation_token(value: str) -> str:
+    """Normalize one dictation token the same way full dictation grading does."""
+    if value is None:
+        return ""
+    token = str(value).lower().strip()
+    token = re.sub(r"[^\w\s']", "", token)
+    token = re.sub(r'\s+', ' ', token).strip()
+    return token
+
+
+def _dictation_word_items(transcript: str, hint_chars: int = 0) -> list[dict]:
+    """Return aligned display/normalized words for interactive dictation gaps."""
+    items = []
+    for raw_word in str(transcript or "").split():
+        match = re.match(r"^([^\w']*)([\w']+)([^\w']*)$", raw_word, flags=re.UNICODE)
+        if match:
+            prefix, display_word, suffix = match.groups()
+        else:
+            prefix, display_word, suffix = "", raw_word, ""
+        normalized = _normalize_dictation_token(display_word)
+        if not normalized:
+            continue
+        hint = ""
+        if hint_chars > 0:
+            hint = normalized[:hint_chars]
+        items.append({
+            "display": display_word,
+            "normalized": normalized,
+            "prefix": prefix,
+            "suffix": suffix,
+            "hint": hint,
+        })
+    return items
+
+
+def _dictation_items_from_content(content: dict, hint_chars: int = 0) -> list[dict]:
+    """Return the checkable dictation gaps from authored content or transcript fallback."""
+    gaps = content.get('gaps') if isinstance(content, dict) else None
+    if isinstance(gaps, list) and gaps:
+        items = []
+        for gap in gaps:
+            if not isinstance(gap, dict):
+                continue
+            display_word = str(gap.get('answer') or '').strip()
+            normalized = _normalize_dictation_token(display_word)
+            if not normalized:
+                continue
+            hint = str(gap.get('hint') or '').strip()
+            if not hint and hint_chars > 0:
+                hint = normalized[:hint_chars]
+            items.append({
+                "display": display_word,
+                "normalized": normalized,
+                "prefix": "",
+                "suffix": "",
+                "hint": hint,
+            })
+        if items:
+            return items
+    return _dictation_word_items(content.get('transcript', ''), hint_chars)
+
+
+def _dictation_gap_segments(content: dict, items: list[dict]) -> list[dict]:
+    """Build render-only inline text/gap segments. Answers are not included."""
+    gap_text = content.get('gap_text') if isinstance(content, dict) else None
+    if isinstance(gap_text, str) and gap_text.strip() and items:
+        segments: list[dict] = []
+        cursor = 0
+        for match in re.finditer(r"\{(\d+)\}", gap_text):
+            if match.start() > cursor:
+                segments.append({"type": "text", "text": gap_text[cursor:match.start()]})
+            gap_index = int(match.group(1))
+            if 0 <= gap_index < len(items):
+                item = items[gap_index]
+                segments.append({
+                    "type": "gap",
+                    "index": gap_index,
+                    "hint": item.get("hint", ""),
+                })
+            else:
+                segments.append({"type": "text", "text": match.group(0)})
+            cursor = match.end()
+        if cursor < len(gap_text):
+            segments.append({"type": "text", "text": gap_text[cursor:]})
+        return segments
+
+    segments = []
+    for index, item in enumerate(items):
+        if item.get("prefix"):
+            segments.append({"type": "text", "text": item["prefix"]})
+        segments.append({"type": "gap", "index": index, "hint": item.get("hint", "")})
+        if item.get("suffix"):
+            segments.append({"type": "text", "text": item["suffix"]})
+        segments.append({"type": "text", "text": " "})
+    return segments
 
 
 def _build_hint_text(transcript: str, hint_chars: int) -> str:
@@ -367,6 +476,70 @@ def _build_hint_text(transcript: str, hint_chars: int) -> str:
         blanks = "_" * max(0, len(word) - hint_chars)
         result.append(visible + blanks)
     return " ".join(result)
+
+
+@lessons_bp.route('/api/lesson/<int:lesson_id>/dictation-word', methods=['POST'])
+@login_required
+@require_lesson_access
+def check_dictation_word(lesson_id: int):
+    """Check one dictation gap without exposing the transcript before attempts are exhausted."""
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'dictation':
+        return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
+
+    data = request.get_json(silent=True) or {}
+    try:
+        index = int(data.get('index'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Invalid word index'}), 400
+    try:
+        attempt = max(1, int(data.get('attempt') or 1))
+    except (TypeError, ValueError):
+        attempt = 1
+
+    word_items = _dictation_items_from_content(lesson.content or {})
+    if index < 0 or index >= len(word_items):
+        return jsonify({'success': False, 'error': 'Invalid word index'}), 400
+
+    user_answer = _normalize_dictation_token(data.get('answer', ''))
+    correct_item = word_items[index]
+    is_correct = user_answer == correct_item["normalized"]
+    exhausted = (not is_correct) and attempt >= _DICTATION_MAX_WORD_ATTEMPTS
+
+    if exhausted:
+        progress = LessonProgress.query.filter_by(
+            user_id=current_user.id,
+            lesson_id=lesson.id,
+        ).first()
+        if not progress:
+            progress = LessonProgress(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+                status='in_progress',
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+
+        progress_data = dict(progress.data or {})
+        failed_indices = set(progress_data.get('dictation_failed_indices') or [])
+        failed_indices.add(index)
+        progress_data['dictation_failed_indices'] = sorted(failed_indices)
+        progress.data = progress_data
+        progress.last_activity = datetime.now(UTC)
+        flag_modified(progress, 'data')
+        db.session.commit()
+
+    response = {
+        'success': True,
+        'correct': is_correct,
+        'attempt': attempt,
+        'attempts_left': max(0, _DICTATION_MAX_WORD_ATTEMPTS - attempt),
+        'exhausted': exhausted,
+    }
+    if exhausted:
+        response['correct_word'] = correct_item["display"]
+    return jsonify(response)
 
 
 @lessons_bp.route('/lesson/<int:lesson_id>/dictation')
@@ -384,13 +557,16 @@ def dictation_lesson(lesson_id: int):
     transcript = content.get('transcript', '')
     hint_chars = int(content.get('hint_chars', 0))
 
-    # Build pre-filled hint text shown in the textarea
+    word_items = _dictation_items_from_content(content, hint_chars)
+    gap_segments = _dictation_gap_segments(content, word_items)
     hint_text = _build_hint_text(transcript, hint_chars) if hint_chars > 0 else ""
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+    completed_result = None
+    completed_gap_values = []
     if not progress:
         try:
             progress = LessonProgress(
@@ -405,6 +581,23 @@ def dictation_lesson(lesson_id: int):
         except Exception as e:
             logger.error(f"Error creating dictation progress: {e}")
             db.session.rollback()
+    elif progress.status == 'completed' and isinstance(progress.data, dict):
+        completed_result = dict(progress.data)
+        completed_result.setdefault('passed', True)
+        completed_result.setdefault('score', progress.score or 100)
+        completed_result.setdefault('transcript', None)
+        next_lesson = _get_next_lesson_for_completion(lesson)
+        if next_lesson:
+            completed_result['next_lesson_url'] = _lesson_completion_url(next_lesson)
+        completed_gap_values = [item.get("display", "") for item in word_items]
+    elif isinstance(progress.data, dict):
+        if progress.data.get('dictation_failed_indices'):
+            progress_data = dict(progress.data)
+            progress_data.pop('dictation_failed_indices', None)
+            progress.data = progress_data
+            progress.last_activity = datetime.now(UTC)
+            flag_modified(progress, 'data')
+            db.session.commit()
 
     return render_template(
         'curriculum/lessons/dictation.html',
@@ -414,19 +607,25 @@ def dictation_lesson(lesson_id: int):
         transcript=transcript,
         hint_chars=hint_chars,
         hint_text=hint_text,
+        word_items=word_items,
+        gap_segments=gap_segments,
+        completed_result=completed_result,
+        completed_gap_values=completed_gap_values,
         max_replays=_DICTATION_MAX_REPLAYS,
+        max_word_attempts=_DICTATION_MAX_WORD_ATTEMPTS,
     )
 
 
 def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
     """Grade a dictation submission, update progress, award XP, and return result."""
     from app.curriculum.grading import grade_dictation
-    from app.curriculum.service import get_next_lesson
     from app.curriculum.services.progress_service import ProgressService
     from app.curriculum.listening_service import log_listening_attempt
 
     content = lesson.content or {}
     transcript = content.get('transcript', '')
+    word_items = _dictation_items_from_content(content, hint_chars=0)
+    reference_text = " ".join(item["display"] for item in word_items) if content.get('gaps') else transcript
     try:
         hint_chars = int(data.get('hint_chars') or content.get('hint_chars') or 0)
     except (TypeError, ValueError):
@@ -437,7 +636,21 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
     except (TypeError, ValueError):
         replay_count = 0
 
-    grade = grade_dictation(user_text, transcript, hint_chars)
+    grade = grade_dictation(user_text, reference_text, hint_chars)
+    grade['user_text'] = user_text
+
+    existing_progress = LessonProgress.query.filter_by(
+        user_id=user_id,
+        lesson_id=lesson.id,
+    ).first()
+    failed_indices = []
+    if existing_progress and isinstance(existing_progress.data, dict):
+        failed_indices = existing_progress.data.get('dictation_failed_indices') or []
+    if failed_indices:
+        grade['passed'] = False
+        grade['score'] = min(int(grade.get('score') or 0), 79)
+        grade['failed_by_attempt_limit'] = True
+        grade['failed_indices'] = failed_indices
 
     progress, _ = ProgressService.update_progress_with_grading(
         user_id=user_id,
@@ -469,11 +682,9 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
 
     result = {**grade, 'transcript': transcript if not grade.get('passed') else None}
 
-    next_lesson = get_next_lesson(lesson.id)
+    next_lesson = _get_next_lesson_for_completion(lesson)
     if grade.get('passed') and next_lesson:
-        result['next_lesson_url'] = url_for(
-            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
-        )
+        result['next_lesson_url'] = _lesson_completion_url(next_lesson)
 
     return result
 
@@ -523,7 +734,6 @@ def audio_fill_blank_lesson(lesson_id: int):
 def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
     """Grade an audio fill-in-blank submission, update progress, award XP, return result."""
     from app.curriculum.grading import grade_audio_fill_blank
-    from app.curriculum.service import get_next_lesson
     from app.curriculum.services.progress_service import ProgressService
     from app.curriculum.listening_service import log_listening_attempt
 
@@ -568,11 +778,9 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
             logger.warning(f"Audio fill blank XP award failed for lesson {lesson.id}: {xp_err}")
 
     result = {**grade}
-    next_lesson = get_next_lesson(lesson.id)
+    next_lesson = _get_next_lesson_for_completion(lesson)
     if grade.get('passed') and next_lesson:
-        result['next_lesson_url'] = url_for(
-            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
-        )
+        result['next_lesson_url'] = _lesson_completion_url(next_lesson)
     # Only reveal correct answers after the lesson is passed
     if grade.get('passed'):
         result['items'] = [
@@ -631,7 +839,6 @@ def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict)
     """Grade a translation submission, update progress, award XP, return result."""
     from app.curriculum.grading import grade_translation
     from app.curriculum.models import save_writing_attempt
-    from app.curriculum.service import get_next_lesson
     from app.curriculum.services.progress_service import ProgressService
 
     content = lesson.content or {}
@@ -663,8 +870,9 @@ def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict)
 
     if passed:
         try:
-            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+            from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_writing_xp
             maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=100)
+            maybe_award_writing_xp(user_id, lesson.id, db_session=db)
             db.session.commit()
         except Exception as xp_err:
             logger.warning(f"Translation XP award failed for lesson {lesson.id}: {xp_err}")
@@ -676,11 +884,9 @@ def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict)
         logger.warning(f"Writing achievements check failed for user {user_id}: {ach_err}")
 
     result = {**grade, 'passed': passed}
-    next_lesson = get_next_lesson(lesson.id)
+    next_lesson = _get_next_lesson_for_completion(lesson)
     if passed and next_lesson:
-        result['next_lesson_url'] = url_for(
-            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
-        )
+        result['next_lesson_url'] = _lesson_completion_url(next_lesson)
 
     return result
 
@@ -737,7 +943,6 @@ def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, dat
     """Grade a sentence correction submission, update progress, award XP, return result."""
     from app.curriculum.grading import grade_sentence_correction
     from app.curriculum.models import save_writing_attempt
-    from app.curriculum.service import get_next_lesson
     from app.curriculum.services.progress_service import ProgressService
 
     content = lesson.content or {}
@@ -769,8 +974,9 @@ def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, dat
 
     if passed:
         try:
-            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
+            from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_writing_xp
             maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=100)
+            maybe_award_writing_xp(user_id, lesson.id, db_session=db)
             db.session.commit()
         except Exception as xp_err:
             logger.warning(f"Sentence correction XP award failed for lesson {lesson.id}: {xp_err}")
@@ -782,11 +988,9 @@ def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, dat
         logger.warning(f"Writing achievements check failed for user {user_id}: {ach_err}")
 
     result = {**grade, 'passed': passed, 'explanation': explanation}
-    next_lesson = get_next_lesson(lesson.id)
+    next_lesson = _get_next_lesson_for_completion(lesson)
     if passed and next_lesson:
-        result['next_lesson_url'] = url_for(
-            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
-        )
+        result['next_lesson_url'] = _lesson_completion_url(next_lesson)
 
     return result
 
@@ -848,7 +1052,6 @@ def writing_prompt_lesson(lesson_id: int):
 def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
     """Save a writing prompt attempt, mark lesson complete, award XP, return result."""
     from app.curriculum.models import save_writing_attempt
-    from app.curriculum.service import get_next_lesson
 
     content = lesson.content or {}
     example_response = content.get('example_response') or None
@@ -920,11 +1123,9 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     if completed and example_response:
         result['example_response'] = example_response
 
-    next_lesson = get_next_lesson(lesson.id)
+    next_lesson = _get_next_lesson_for_completion(lesson)
     if completed and next_lesson:
-        result['next_lesson_url'] = url_for(
-            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
-        )
+        result['next_lesson_url'] = _lesson_completion_url(next_lesson)
 
     return result
 
@@ -972,7 +1173,6 @@ def sentence_completion_lesson(lesson_id: int):
 def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
     """Grade a sentence completion submission, update progress, award XP, return result."""
     from app.curriculum.grading import grade_sentence_completion
-    from app.curriculum.service import get_next_lesson
     from app.curriculum.services.progress_service import ProgressService
 
     content = lesson.content or {}
@@ -999,11 +1199,9 @@ def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, dat
             logger.warning(f"Sentence completion XP award failed for lesson {lesson.id}: {xp_err}")
 
     result = {**grade}
-    next_lesson = get_next_lesson(lesson.id)
+    next_lesson = _get_next_lesson_for_completion(lesson)
     if grade.get('passed') and next_lesson:
-        result['next_lesson_url'] = url_for(
-            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
-        )
+        result['next_lesson_url'] = _lesson_completion_url(next_lesson)
 
     return result
 
@@ -1056,7 +1254,6 @@ def collocation_matching_lesson(lesson_id: int):
 def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
     """Grade a collocation matching submission, update progress, award XP, return result."""
     from app.curriculum.grading import grade_collocation_matching
-    from app.curriculum.service import get_next_lesson
     from app.curriculum.services.progress_service import ProgressService
 
     content = lesson.content or {}
@@ -1081,11 +1278,9 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
             logger.warning(f"Collocation matching XP award failed for lesson {lesson.id}: {xp_err}")
 
     result = {**grade}
-    next_lesson = get_next_lesson(lesson.id)
+    next_lesson = _get_next_lesson_for_completion(lesson)
     if grade.get('passed') and next_lesson:
-        result['next_lesson_url'] = url_for(
-            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
-        )
+        result['next_lesson_url'] = _lesson_completion_url(next_lesson)
 
     return result
 
@@ -1138,8 +1333,6 @@ def shadow_reading_lesson(lesson_id: int):
 
 def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
     """Mark a shadow reading lesson complete on self-assessment, award XP, return result."""
-    from app.curriculum.service import get_next_lesson
-
     self_assessed = bool(data.get('self_assessed', False))
 
     if self_assessed:
@@ -1175,11 +1368,9 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
 
     result: dict = {'success': True, 'completed': self_assessed}
     if self_assessed:
-        next_lesson = get_next_lesson(lesson.id)
+        next_lesson = _get_next_lesson_for_completion(lesson)
         if next_lesson:
-            result['next_lesson_url'] = url_for(
-                'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
-            )
+            result['next_lesson_url'] = _lesson_completion_url(next_lesson)
 
     return result
 
@@ -1233,7 +1424,6 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
     - finish (finish=True): mark lesson completed, award XP
     """
     from app.curriculum.grading import grade_pronunciation_match
-    from app.curriculum.service import get_next_lesson
 
     if data.get('finish'):
         # Final submission — mark lesson completed and award XP
@@ -1274,11 +1464,9 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
             logger.warning(f"Speaking achievements check failed for user {user_id}: {ach_err}")
 
         result: dict = {'success': True, 'completed': True}
-        next_lesson = get_next_lesson(lesson.id)
+        next_lesson = _get_next_lesson_for_completion(lesson)
         if next_lesson:
-            result['next_lesson_url'] = url_for(
-                'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
-            )
+            result['next_lesson_url'] = _lesson_completion_url(next_lesson)
         return result
 
     # Single-item attempt
@@ -1369,8 +1557,6 @@ def idiom_lesson(lesson_id: int):
 
 def _process_idiom_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
     """Mark an idiom lesson complete when user finishes all items."""
-    from app.curriculum.service import get_next_lesson
-
     if not data.get('finish'):
         return {'success': True, 'completed': False}
 
@@ -1405,11 +1591,9 @@ def _process_idiom_submission(lesson: 'Lessons', user_id: int, data: dict) -> di
         logger.warning(f"Idiom XP award failed for lesson {lesson.id}: {xp_err}")
 
     result: dict = {'success': True, 'completed': True}
-    next_lesson = get_next_lesson(lesson.id)
+    next_lesson = _get_next_lesson_for_completion(lesson)
     if next_lesson:
-        result['next_lesson_url'] = url_for(
-            'curriculum_lessons.lesson_detail', lesson_id=next_lesson.id
-        )
+        result['next_lesson_url'] = _lesson_completion_url(next_lesson)
     return result
 
 

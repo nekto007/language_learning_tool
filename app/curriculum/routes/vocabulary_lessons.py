@@ -700,6 +700,9 @@ def text_lesson(lesson_id):
 @login_required
 def save_word_annotation(word_id: int):
     """Upsert a personal note on a vocabulary word for the current user."""
+    from app.words.models import CollectionWords
+    if not db.session.get(CollectionWords, word_id):
+        return jsonify({'error': 'word not found'}), 404
     data = request.get_json(silent=True) or {}
     note = data.get('note', '').strip()
     if not note:
