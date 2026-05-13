@@ -98,7 +98,7 @@ function submitCompletion() {
   submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Проверка...") }}';
 
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-  fetch(`/learn/api/lesson/${lessonId}/submit`, {
+  fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

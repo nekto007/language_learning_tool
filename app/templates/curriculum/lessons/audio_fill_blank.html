@@ -63,7 +63,7 @@
           aria-pressed="false"
           data-index="{{ loop.index0 }}"
           data-option="{{ opt }}"
-          onclick="selectOption({{ loop.index0 }}, '{{ opt | e }}')">
+          onclick="selectOption({{ loop.index0 }}, {{ opt | tojson }})">
           {{ opt }}
         </button>
         {% endfor %}
@@ -175,7 +175,7 @@ async function submitAnswers() {
 
   try {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    const resp = await fetch(`/learn/api/lesson/${lessonId}/submit`, {
+    const resp = await fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

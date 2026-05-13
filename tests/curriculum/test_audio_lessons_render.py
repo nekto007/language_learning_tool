@@ -188,7 +188,7 @@ class TestPayloadContracts:
         assert "answers:" in src
         assert "'audio_fill_blank'" in src
         assert "replay_count:" in src
-        assert "/learn/api/lesson/${lessonId}/submit" in src
+        assert "/curriculum/api/lesson/${lessonId}/submit" in src
 
     def test_pronunciation_payload_fields(self):
         src = _read_template_source("pronunciation.html")

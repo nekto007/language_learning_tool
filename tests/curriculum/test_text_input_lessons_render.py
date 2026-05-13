@@ -148,25 +148,25 @@ class TestPayloadContracts:
         assert "checklist_completed:" in src
         assert "checked_items:" in src
         assert "'writing_prompt'" in src
-        assert "/learn/api/lesson/${lessonId}/submit" in src
+        assert "/curriculum/api/lesson/${lessonId}/submit" in src
 
     def test_translation_payload_fields(self):
         src = _read_template_source("translation.html")
         assert "user_answer:" in src
         assert "'translation'" in src
-        assert "/learn/api/lesson/${lessonId}/submit" in src
+        assert "/curriculum/api/lesson/${lessonId}/submit" in src
 
     def test_sentence_completion_payload_fields(self):
         src = _read_template_source("sentence_completion.html")
         assert "answers:" in src
         assert "'sentence_completion'" in src
-        assert "/learn/api/lesson/${lessonId}/submit" in src
+        assert "/curriculum/api/lesson/${lessonId}/submit" in src
 
     def test_sentence_correction_payload_fields(self):
         src = _read_template_source("sentence_correction.html")
         assert "user_answer:" in src
         assert "'sentence_correction'" in src
-        assert "/learn/api/lesson/${lessonId}/submit" in src
+        assert "/curriculum/api/lesson/${lessonId}/submit" in src
 
 
 # ---------------------------------------------------------------------------

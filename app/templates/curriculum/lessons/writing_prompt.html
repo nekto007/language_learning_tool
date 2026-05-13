@@ -190,7 +190,7 @@ async function submitWriting() {
 
   try {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    const resp = await fetch(`/learn/api/lesson/${lessonId}/submit`, {
+    const resp = await fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

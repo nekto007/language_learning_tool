@@ -43,7 +43,7 @@
           class="chip chip--clickable translation-chip"
           type="button"
           aria-pressed="false"
-          onclick="insertChip({{ loop.index0 }}, '{{ word | e }}')"
+          onclick="insertChip({{ loop.index0 }}, {{ word | tojson }})"
           id="chip-{{ loop.index0 }}"
         >
           {{ word }}
@@ -146,7 +146,7 @@ async function submitTranslation() {
 
   try {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    const resp = await fetch(`/learn/api/lesson/${lessonId}/submit`, {
+    const resp = await fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
