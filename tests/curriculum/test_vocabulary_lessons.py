@@ -1,6 +1,7 @@
 """Tests for collocation display in vocabulary lessons.
 
 Task 30: Collocation display in vocabulary lessons.
+Task 44: Verify optional vocabulary UI sections.
 """
 from __future__ import annotations
 
@@ -11,6 +12,7 @@ import pytest
 
 from app.curriculum.models import (
     CEFRLevel,
+    CulturalNote,
     Lessons,
     Module,
     WordCollocation,
@@ -821,3 +823,208 @@ class TestAddToCustomListAPI:
         html = resp.get_data(as_text=True)
         assert 'My Own List' in html
         assert 'Secret Other List' not in html
+
+
+# ---------------------------------------------------------------------------
+# Task 44: Cultural note section tests
+# ---------------------------------------------------------------------------
+
+class TestCulturalNoteTemplate:
+    def test_cultural_note_section_in_template(self):
+        tpl = _read_vocabulary_template()
+        assert "word-cultural-note" in tpl
+
+    def test_cultural_note_conditionally_rendered(self):
+        tpl = _read_vocabulary_template()
+        assert "word.cultural_notes" in tpl
+
+    def test_cultural_note_collapsible_details(self):
+        tpl = _read_vocabulary_template()
+        assert "Культурный контекст" in tpl
+
+
+class TestCulturalNoteCSS:
+    def test_word_cultural_note_class_defined(self):
+        css = _read_design_system_css()
+        assert ".word-cultural-note" in css
+
+
+class TestCulturalNoteRoute:
+    def test_word_with_cultural_note_shows_section(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "cultword_" + _unique()
+        word = _make_collection_word(db_session, english, "культурное-слово")
+        note = CulturalNote(word_id=word.id, note="Used in formal British contexts.", context="formal")
+        db_session.add(note)
+        db_session.commit()
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "word-cultural-note" in html
+        assert "Used in formal British contexts." in html
+        assert "Культурный контекст" in html
+
+    def test_word_without_cultural_note_no_section(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "nocultword_" + _unique()
+        _make_collection_word(db_session, english, "без культурной заметки")
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert "word-cultural-note" not in html
+        assert "Культурный контекст" not in html
+
+
+# ---------------------------------------------------------------------------
+# Task 44: All optional sections shown for fully enriched word
+# ---------------------------------------------------------------------------
+
+class TestAllOptionalSections:
+    def test_fully_enriched_word_shows_all_optional_sections(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "enriched_" + _unique()
+        word = _make_collection_word(db_session, english, "обогащённое слово")
+        word.ipa_transcription = "ɪnˈrɪtʃt"
+        word.synonyms = ["enhanced", "augmented"]
+        word.antonyms = ["plain", "bare"]
+        word.etymology = "From Latin 'enrichire'."
+        word.frequency_band = 1
+        db_session.commit()
+
+        collocation = WordCollocation(
+            word_id=word.id,
+            collocation_phrase="enriched " + _unique(),
+            translation="обогащённый",
+        )
+        db_session.add(collocation)
+
+        cultural = CulturalNote(
+            word_id=word.id,
+            note="Used in scientific writing.",
+            context="academic",
+        )
+        db_session.add(cultural)
+        db_session.commit()
+
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert resp.status_code == 200
+
+        assert "word-ipa" in html
+        assert "ɪnˈrɪtʃt" in html
+        assert "freq-badge--1" in html
+        assert "word-synonyms" in html
+        assert "enhanced" in html
+        assert "word-antonyms" in html
+        assert "plain" in html
+        assert "word-etymology" in html
+        assert "Latin" in html
+        assert "word-cultural-note" in html
+        assert "Used in scientific writing." in html
+        assert "word-collocations" in html
+        assert collocation.collocation_phrase in html
+
+
+# ---------------------------------------------------------------------------
+# Task 44: No empty labels when metadata is missing
+# ---------------------------------------------------------------------------
+
+class TestNoEmptyLabels:
+    def test_word_with_no_optional_metadata_has_no_optional_sections(
+        self, app, db_session, test_user, client
+    ):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "bare_" + _unique()
+        word = _make_collection_word(db_session, english, "простое слово")
+        word.ipa_transcription = None
+        word.synonyms = None
+        word.antonyms = None
+        word.etymology = None
+        word.frequency_band = None
+        db_session.commit()
+
+        lesson = _make_vocab_lesson(db_session, module, english)
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert resp.status_code == 200
+
+        assert "word-ipa" not in html
+        assert "freq-badge--1" not in html
+        assert "freq-badge--2" not in html
+        assert "freq-badge--3" not in html
+        assert "word-synonyms" not in html
+        assert "word-antonyms" not in html
+        assert "word-etymology" not in html
+        assert "word-cultural-note" not in html
+        assert "word-collocations" not in html
+        assert "Синонимы:" not in html
+        assert "Антонимы:" not in html
+
+
+# ---------------------------------------------------------------------------
+# Task 44: Flashcard lesson type receives frequency data
+# ---------------------------------------------------------------------------
+
+class TestFlashcardFrequency:
+    def test_flashcard_lesson_shows_frequency_badge(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "flashfreq_" + _unique()
+        word = _make_collection_word(db_session, english, "флэшкарта")
+        word.frequency_band = 2
+        db_session.commit()
+
+        lesson = Lessons(
+            module_id=module.id,
+            number=2,
+            title="Flashcard Freq Test",
+            type="flashcards",
+            content={"words": [{"english": english, "russian": "флэшкарта"}]},
+        )
+        db_session.add(lesson)
+        db_session.commit()
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert resp.status_code == 200
+        assert "freq-badge--2" in html
+
+    def test_flashcard_lesson_no_badge_without_frequency(self, app, db_session, test_user, client):
+        level = _make_level(db_session)
+        module = _make_module(db_session, level)
+        english = "flashnofreq_" + _unique()
+        word = _make_collection_word(db_session, english, "без частоты")
+        word.frequency_band = None
+        db_session.commit()
+
+        lesson = Lessons(
+            module_id=module.id,
+            number=3,
+            title="Flashcard No Freq Test",
+            type="flashcards",
+            content={"words": [{"english": english, "russian": "без частоты"}]},
+        )
+        db_session.add(lesson)
+        db_session.commit()
+
+        _login(client, test_user)
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/vocabulary")
+        html = resp.get_data(as_text=True)
+        assert resp.status_code == 200
+        assert "freq-badge--1" not in html
+        assert "freq-badge--2" not in html
+        assert "freq-badge--3" not in html

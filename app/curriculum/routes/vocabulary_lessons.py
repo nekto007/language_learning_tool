@@ -433,6 +433,7 @@ def vocabulary_lesson(lesson_id):
             if word:
                 user_word = user_words_dict.get(word.id)
                 collocations = get_collocations_for_word(word.id, db)
+                cultural_notes = get_cultural_notes_for_word(word.id, db)
                 word_dict = {
                     'id': word.id,
                     'english': sanitize_html(word.english_word),
@@ -448,6 +449,10 @@ def vocabulary_lesson(lesson_id):
                     'collocations': [
                         {'phrase': c.collocation_phrase, 'translation': c.translation}
                         for c in collocations
+                    ],
+                    'cultural_notes': [
+                        {'note': n.note, 'context': n.context or ''}
+                        for n in cultural_notes
                     ],
                     'synonyms': word.synonyms or [],
                     'antonyms': word.antonyms or [],
@@ -481,6 +486,7 @@ def vocabulary_lesson(lesson_id):
                     'audio_url': None,
                     'get_download': 0,
                     'collocations': [],
+                    'cultural_notes': [],
                     'synonyms': [],
                     'antonyms': [],
                     'frequency_band': None,

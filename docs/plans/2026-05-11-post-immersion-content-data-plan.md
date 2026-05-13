@@ -675,10 +675,10 @@
 - Modify: `tests/curriculum/test_vocabulary_lessons.py`
 - Modify: `tests/study/test_vocab_map.py`
 
-- [ ] Verify enriched words show all optional sections
-- [ ] Verify missing metadata hides optional sections cleanly
-- [ ] Verify no empty labels are rendered
-- [ ] Verify flashcard session receives frequency data when present
+- [x] Verify enriched words show all optional sections
+- [x] Verify missing metadata hides optional sections cleanly
+- [x] Verify no empty labels are rendered
+- [x] Verify flashcard session receives frequency data when present
 
 ---
 ### BLOCK F: QA, Rollout, and Operations (Tasks 45-50)

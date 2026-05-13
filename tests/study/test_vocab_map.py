@@ -248,3 +248,35 @@ class TestVocabMapRoute:
     def test_requires_login(self, app, client):
         resp = client.get('/study/vocab-map')
         assert resp.status_code in (302, 401)
+
+    def test_frequency_enriched_words_counted_correctly(self, app, db_session, test_user, client):
+        """Frequency-band metadata on words does not break mastery aggregation in the map."""
+        level = _make_level(db_session, order=7)
+        module = _make_module(db_session, level)
+
+        words = [
+            _make_word(db_session, f'freq_map_word_{uuid.uuid4().hex[:6]}')
+            for _ in range(2)
+        ]
+        # Set frequency_band on both words
+        for word in words:
+            word.frequency_band = 1
+        db_session.commit()
+
+        coll = _make_collection_with_words(db_session, *words)
+        _make_vocab_lesson(db_session, module, coll)
+
+        # Mastered 1 of 2 words → partial mastery (50%)
+        uw = _make_user_word(db_session, test_user.id, words[0], status='review')
+        _make_mastered_card(db_session, uw, interval=200)
+        _make_user_word(db_session, test_user.id, words[1], status='learning')
+
+        _login(client, test_user)
+        resp = client.get('/study/vocab-map')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        # Module with 2 words should appear in map
+        assert '2 сл.' in html
+        # 1 of 2 mastered = 50% → yellow
+        assert 'vocab-map__module--yellow' in html
