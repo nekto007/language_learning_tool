@@ -201,10 +201,9 @@ def check_challenge_criteria(
     - speed_run: time_spent_seconds must be provided and < 300
     """
     from app.daily_plan.models import DailyChallenge  # noqa: F401 (used by caller annotation)
+    from app.utils.time_utils import get_user_local_day_bounds
 
-    today_start = datetime.now(timezone.utc).replace(
-        hour=0, minute=0, second=0, microsecond=0, tzinfo=None
-    )
+    today_start, _ = get_user_local_day_bounds(user_id, db)
 
     if challenge.category == 'listening_deep':
         from app.curriculum.models import ListeningAttempt

@@ -97,6 +97,14 @@ def render_vocabulary_lesson(lesson):
         user_words_dict = {uw.word_id: uw for uw in user_words}
 
     annotations = _load_annotations(current_user.id, db_word_ids)
+    collocations_by_word: dict[int, list] = {}
+    cultural_notes_by_word: dict[int, list] = {}
+    if db_word_ids:
+        for row in WordCollocation.query.filter(WordCollocation.word_id.in_(db_word_ids)).order_by(WordCollocation.id).all():
+            collocations_by_word.setdefault(row.word_id, []).append(row)
+        from app.curriculum.models import CulturalNote as _CulturalNote
+        for row in _CulturalNote.query.filter(_CulturalNote.word_id.in_(db_word_ids)).order_by(_CulturalNote.id).all():
+            cultural_notes_by_word.setdefault(row.word_id, []).append(row)
 
     for idx, word_data in enumerate(word_list):
         english_word = word_data.get('english', word_data.get('word', word_data.get('front', '')))
@@ -106,8 +114,8 @@ def render_vocabulary_lesson(lesson):
             if word:
                 user_word = user_words_dict.get(word.id)
                 audio_url = word.listening if hasattr(word, 'listening') and word.listening else word_data.get('audio', '')
-                collocations = get_collocations_for_word(word.id, db)
-                cultural_notes = get_cultural_notes_for_word(word.id, db)
+                collocations = collocations_by_word.get(word.id, [])
+                cultural_notes = cultural_notes_by_word.get(word.id, [])
                 word_dict = {
                     'id': word.id,
                     'english': sanitize_html(word.english_word),
@@ -424,6 +432,14 @@ def vocabulary_lesson(lesson_id):
         user_words_dict = {uw.word_id: uw for uw in user_words}
 
     annotations = _load_annotations(current_user.id, db_word_ids_route)
+    collocations_by_word_r: dict[int, list] = {}
+    cultural_notes_by_word_r: dict[int, list] = {}
+    if db_word_ids_route:
+        for row in WordCollocation.query.filter(WordCollocation.word_id.in_(db_word_ids_route)).order_by(WordCollocation.id).all():
+            collocations_by_word_r.setdefault(row.word_id, []).append(row)
+        from app.curriculum.models import CulturalNote as _CulturalNote2
+        for row in _CulturalNote2.query.filter(_CulturalNote2.word_id.in_(db_word_ids_route)).order_by(_CulturalNote2.id).all():
+            cultural_notes_by_word_r.setdefault(row.word_id, []).append(row)
 
     for idx, word_data in enumerate(word_list):
         english_word = word_data.get('english', word_data.get('word', word_data.get('front', '')))
@@ -432,8 +448,8 @@ def vocabulary_lesson(lesson_id):
 
             if word:
                 user_word = user_words_dict.get(word.id)
-                collocations = get_collocations_for_word(word.id, db)
-                cultural_notes = get_cultural_notes_for_word(word.id, db)
+                collocations = collocations_by_word_r.get(word.id, [])
+                cultural_notes = cultural_notes_by_word_r.get(word.id, [])
                 word_dict = {
                     'id': word.id,
                     'english': sanitize_html(word.english_word),

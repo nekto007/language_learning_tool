@@ -1,6 +1,8 @@
 import logging
 from datetime import datetime, timezone
 
+from sqlalchemy.exc import IntegrityError
+
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
@@ -1236,7 +1238,10 @@ def custom_list_study(list_id):
             ).first():
                 db.session.add(UserCardDirection(user_word.id, direction, source='custom_list'))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
 
     return redirect(url_for('study.cards', source='custom_list', list_id=list_id))
 

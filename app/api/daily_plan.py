@@ -1176,8 +1176,8 @@ def challenge_complete():
     )
     if criteria_error == 'criteria_not_met':
         return api_error('criteria_not_met', 'Challenge criteria not satisfied', 403)
-    if criteria_error == 'challenge_not_configured':
-        return api_error('challenge_not_configured', 'Challenge is not properly configured', 500)
+    if criteria_error is not None:
+        return api_error('challenge_error', 'Challenge validation failed', 500)
 
     try:
         result = complete_challenge(

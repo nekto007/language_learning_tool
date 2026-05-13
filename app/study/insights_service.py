@@ -568,7 +568,7 @@ def _compute_current_streak(user_id: int) -> int:
         return 0
 
     active_dates = {row[0] for row in rows}
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
 
     # Streak must include today or yesterday to be "current".
     if today not in active_dates and (today - timedelta(days=1)) not in active_dates:
@@ -666,7 +666,7 @@ def get_writing_stats(user_id: int) -> dict[str, Any]:
     )
     active_dates = {row.d for row in day_rows}
 
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     consecutive_days = 0
     if active_dates:
         anchor = today if today in active_dates else today - timedelta(days=1)
