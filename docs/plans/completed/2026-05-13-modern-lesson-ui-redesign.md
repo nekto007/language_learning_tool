@@ -129,6 +129,6 @@ Files:
 
 ### Task 7: Update documentation
 
-- [ ] Update CLAUDE.md "New lesson types (Block A-C)" entry: note dedicated listening_immersion.html template and lesson-shell class taxonomy
-- [ ] Cross-link docs/design/lesson-frontend-spec.md from CLAUDE.md
-- [ ] Move this plan to docs/plans/completed/
+- [x] Update CLAUDE.md "New lesson types (Block A-C)" entry: note dedicated listening_immersion.html template and lesson-shell class taxonomy
+- [x] Cross-link docs/design/lesson-frontend-spec.md from CLAUDE.md
+- [x] Move this plan to docs/plans/completed/
