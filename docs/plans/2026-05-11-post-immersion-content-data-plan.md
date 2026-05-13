@@ -703,14 +703,14 @@
 - Create: `docs/qa/daily-plan-immersion-slots.md`
 - Tests: `tests/daily_plan/linear/`
 
-- [ ] Test A1 user current module
-- [ ] Test A2 user current module
-- [ ] Test B1 user current module
-- [ ] Test B2 user current module
-- [ ] Test C1 user current module
-- [ ] Verify listening slot appears
-- [ ] Verify writing slot appears
-- [ ] Verify speaking slot appears
+- [x] Test A1 user current module
+- [x] Test A2 user current module
+- [x] Test B1 user current module
+- [x] Test B2 user current module
+- [x] Test C1 user current module
+- [x] Verify listening slot appears
+- [x] Verify writing slot appears
+- [x] Verify speaking slot appears
 
 ---
 ### Task 47: Verify analytics with real imported lessons
