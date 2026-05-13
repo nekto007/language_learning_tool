@@ -689,12 +689,12 @@
 - Create: `docs/qa/immersion-lesson-smoke.md`
 - Tests: `tests/curriculum/`
 
-- [ ] Open one imported lesson of every new type
-- [ ] Submit a passing answer for graded types
-- [ ] Submit a failing answer where applicable
-- [ ] Verify progress changes correctly
-- [ ] Verify next lesson URL works
-- [ ] Verify XP source is recorded correctly
+- [x] Open one imported lesson of every new type
+- [x] Submit a passing answer for graded types
+- [x] Submit a failing answer where applicable
+- [x] Verify progress changes correctly
+- [x] Verify next lesson URL works
+- [x] Verify XP source is recorded correctly
 
 ---
 ### Task 46: Smoke-test daily plan extension slots across levels
