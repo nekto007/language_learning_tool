@@ -497,13 +497,24 @@ class ProgressService:
             if not current_lesson:
                 return None
 
-            # Try to get next lesson in the same module
+            # Lesson.number is the canonical position inside a module. Imported
+            # extension lessons can have order=0, so using order first can jump
+            # back to the beginning of the module.
             next_lesson = None
+            if current_lesson.number is not None:
+                next_lesson = Lessons.query.filter(
+                    Lessons.module_id == current_lesson.module_id,
+                    Lessons.number > current_lesson.number
+                ).order_by(Lessons.number).first()
+
+            if next_lesson:
+                return next_lesson
+
             if current_lesson.order is not None:
                 next_lesson = Lessons.query.filter(
                     Lessons.module_id == current_lesson.module_id,
                     Lessons.order > current_lesson.order
-                ).order_by(Lessons.number).first()
+                ).order_by(Lessons.order).first()
 
             if next_lesson:
                 return next_lesson

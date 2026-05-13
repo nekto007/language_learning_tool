@@ -15,8 +15,6 @@ _BONUS_XP: dict[str, int] = {
     'listening_deep': 40,
 }
 
-_LISTENING_TYPES = ('dictation', 'listening_immersion')
-
 
 def _seed_today_challenge(challenge_date: date, db) -> 'DailyChallenge':
     """Create a deterministic daily challenge for challenge_date.

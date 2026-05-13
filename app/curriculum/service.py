@@ -148,23 +148,25 @@ def get_next_lesson(current_lesson_id: int) -> Optional[Lessons]:
     if not current_lesson:
         return None
 
-    # Находим следующий урок в порядке 'order' в рамках модуля
+    # Lesson.number is the canonical position inside a module. Imported
+    # extension lessons can have order=0, so using order first can jump back
+    # to the beginning of the module.
     next_lesson = None
-    if current_lesson.order is not None:
-        next_lesson = Lessons.query.filter(
-            Lessons.module_id == current_lesson.module_id,
-            Lessons.order > current_lesson.order
-        ).order_by(
-            Lessons.order
-        ).first()
-
-    # Если урок с большим order не найден, пробуем найти по номеру урока
-    if not next_lesson and current_lesson.number is not None:
+    if current_lesson.number is not None:
         next_lesson = Lessons.query.filter(
             Lessons.module_id == current_lesson.module_id,
             Lessons.number > current_lesson.number
         ).order_by(
             Lessons.number
+        ).first()
+
+    # Fallback for legacy rows whose number sequence is incomplete.
+    if not next_lesson and current_lesson.order is not None:
+        next_lesson = Lessons.query.filter(
+            Lessons.module_id == current_lesson.module_id,
+            Lessons.order > current_lesson.order
+        ).order_by(
+            Lessons.order
         ).first()
 
     return next_lesson

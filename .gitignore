@@ -259,6 +259,7 @@ add_grade_achievements.py
 check_achievements_structure.py
 cleanup_duplicate_achievement_tables.py
 generate_audio.py
+!scripts/generate_audio.py
 generate_reading_audio.py
 import_module.py
 import_module_simple.py

@@ -17,7 +17,41 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_01_greetings.mp3",
       "transcript": "Hello! My name is Anna. Nice to meet you.",
       "hint_chars": 1,
-      "duration_seconds": 9
+      "duration_seconds": 9,
+      "audio_text": "Hello! My name is Anna. Nice to meet you.",
+      "gap_text": "{0}! My {1} is {2}. Nice {3} meet {4}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Hello",
+          "hint": "h",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "name",
+          "hint": "n",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "Anna",
+          "hint": "a",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "to",
+          "hint": "t",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "you",
+          "hint": "y",
+          "source_word_index": 8
+        }
+      ]
     }
   },
   {
@@ -38,7 +72,41 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_02_numbers_and_colors.mp3",
       "transcript": "This is a book. That is a chair. Look at the table.",
       "hint_chars": 1,
-      "duration_seconds": 11
+      "duration_seconds": 11,
+      "audio_text": "This is a book. That is a chair. Look at the table.",
+      "gap_text": "{0} is a {1}. That {2} a chair. Look {3} the {4}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "This",
+          "hint": "t",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "book",
+          "hint": "b",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "is",
+          "hint": "i",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "at",
+          "hint": "a",
+          "source_word_index": 9
+        },
+        {
+          "index": 4,
+          "answer": "table",
+          "hint": "t",
+          "source_word_index": 11
+        }
+      ]
     }
   },
   {
@@ -59,7 +127,41 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_03_clothing.mp3",
       "transcript": "I like this shirt. She has a red dress. He wears blue jeans.",
       "hint_chars": 1,
-      "duration_seconds": 12
+      "duration_seconds": 12,
+      "audio_text": "I like this shirt. She has a red dress. He wears blue jeans.",
+      "gap_text": "I {0} this {1}. She has a {2} dress. He {3} blue {4}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "like",
+          "hint": "l",
+          "source_word_index": 1
+        },
+        {
+          "index": 1,
+          "answer": "shirt",
+          "hint": "s",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "red",
+          "hint": "r",
+          "source_word_index": 7
+        },
+        {
+          "index": 3,
+          "answer": "wears",
+          "hint": "w",
+          "source_word_index": 10
+        },
+        {
+          "index": 4,
+          "answer": "jeans",
+          "hint": "j",
+          "source_word_index": 12
+        }
+      ]
     }
   },
   {
@@ -80,7 +182,41 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_04_objects_around_us.mp3",
       "transcript": "One, two, three. Red, blue, yellow. I see five green apples.",
       "hint_chars": 1,
-      "duration_seconds": 10
+      "duration_seconds": 10,
+      "audio_text": "One, two, three. Red, blue, yellow. I see five green apples.",
+      "gap_text": "{0}, two, {1}. Red, {2}, yellow. I see {3} green {4}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "One",
+          "hint": "o",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "three",
+          "hint": "t",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "blue",
+          "hint": "b",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "five",
+          "hint": "f",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "apples",
+          "hint": "a",
+          "source_word_index": 10
+        }
+      ]
     }
   },
   {
@@ -101,7 +237,41 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_05_classroom_objects.mp3",
       "transcript": "Take a pencil. Open your book. The teacher is at the desk.",
       "hint_chars": 1,
-      "duration_seconds": 11
+      "duration_seconds": 11,
+      "audio_text": "Take a pencil. Open your book. The teacher is at the desk.",
+      "gap_text": "{0} a pencil. {1} your book. {2} teacher is {3} the {4}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Take",
+          "hint": "t",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "Open",
+          "hint": "o",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "The",
+          "hint": "t",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "at",
+          "hint": "a",
+          "source_word_index": 9
+        },
+        {
+          "index": 4,
+          "answer": "desk",
+          "hint": "d",
+          "source_word_index": 11
+        }
+      ]
     }
   },
   {
@@ -122,7 +292,47 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_06_family.mp3",
       "transcript": "This is my mother. I have one brother. My father works in a hospital.",
       "hint_chars": 1,
-      "duration_seconds": 12
+      "duration_seconds": 12,
+      "audio_text": "This is my mother. I have one brother. My father works in a hospital.",
+      "gap_text": "{0} is {1} mother. I {2} one brother. {3} father {4} in a {5}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "This",
+          "hint": "t",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "my",
+          "hint": "m",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "have",
+          "hint": "h",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "My",
+          "hint": "m",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "works",
+          "hint": "w",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "hospital",
+          "hint": "h",
+          "source_word_index": 13
+        }
+      ]
     }
   },
   {
@@ -143,7 +353,47 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_07_home_and_furniture.mp3",
       "transcript": "There is a sofa in the living room. A small table is near the window.",
       "hint_chars": 1,
-      "duration_seconds": 13
+      "duration_seconds": 13,
+      "audio_text": "There is a sofa in the living room. A small table is near the window.",
+      "gap_text": "{0} is a {1} in the {2} room. A {3} table is {4} the {5}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "There",
+          "hint": "t",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "sofa",
+          "hint": "s",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "living",
+          "hint": "l",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "small",
+          "hint": "s",
+          "source_word_index": 9
+        },
+        {
+          "index": 4,
+          "answer": "near",
+          "hint": "n",
+          "source_word_index": 12
+        },
+        {
+          "index": 5,
+          "answer": "window",
+          "hint": "w",
+          "source_word_index": 14
+        }
+      ]
     }
   },
   {
@@ -164,7 +414,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_08_days_and_time.mp3",
       "transcript": "Today is Monday. It is half past eight. We have classes on Tuesday and Thursday.",
       "hint_chars": 1,
-      "duration_seconds": 13
+      "duration_seconds": 13,
+      "audio_text": "Today is Monday. It is half past eight. We have classes on Tuesday and Thursday.",
+      "gap_text": "{0} is {1}. It is {2} past {3}. We {4} classes on {5} and {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Today",
+          "hint": "t",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "Monday",
+          "hint": "m",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "half",
+          "hint": "h",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "eight",
+          "hint": "e",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "have",
+          "hint": "h",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "Tuesday",
+          "hint": "t",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "Thursday",
+          "hint": "t",
+          "source_word_index": 14
+        }
+      ]
     }
   },
   {
@@ -185,7 +481,47 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_09_weather_and_seasons.mp3",
       "transcript": "It is hot in summer. In winter it often snows. I love spring flowers.",
       "hint_chars": 1,
-      "duration_seconds": 12
+      "duration_seconds": 12,
+      "audio_text": "It is hot in summer. In winter it often snows. I love spring flowers.",
+      "gap_text": "{0} is {1} in summer. {2} winter {3} often snows. I {4} spring {5}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "It",
+          "hint": "i",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "hot",
+          "hint": "h",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "In",
+          "hint": "i",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "it",
+          "hint": "i",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "love",
+          "hint": "l",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "flowers",
+          "hint": "f",
+          "source_word_index": 13
+        }
+      ]
     }
   },
   {
@@ -206,7 +542,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_10_daily_routine.mp3",
       "transcript": "I get up at seven. I have breakfast and go to work. I come home at six.",
       "hint_chars": 1,
-      "duration_seconds": 15
+      "duration_seconds": 15,
+      "audio_text": "I get up at seven. I have breakfast and go to work. I come home at six.",
+      "gap_text": "I {0} up {1} seven. I {2} breakfast {3} go to {4}. I come {5} at {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "get",
+          "hint": "g",
+          "source_word_index": 1
+        },
+        {
+          "index": 1,
+          "answer": "at",
+          "hint": "a",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "have",
+          "hint": "h",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "and",
+          "hint": "a",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "work",
+          "hint": "w",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "home",
+          "hint": "h",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "six",
+          "hint": "s",
+          "source_word_index": 16
+        }
+      ]
     }
   },
   {
@@ -227,7 +609,47 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_11_professions.mp3",
       "transcript": "My sister is a nurse. He works as a teacher. She wants to be a doctor.",
       "hint_chars": 1,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "My sister is a nurse. He works as a teacher. She wants to be a doctor.",
+      "gap_text": "{0} sister {1} a nurse. He {2} as a {3}. She wants {4} be a {5}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "My",
+          "hint": "m",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "is",
+          "hint": "i",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "works",
+          "hint": "w",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "teacher",
+          "hint": "t",
+          "source_word_index": 9
+        },
+        {
+          "index": 4,
+          "answer": "to",
+          "hint": "t",
+          "source_word_index": 12
+        },
+        {
+          "index": 5,
+          "answer": "doctor",
+          "hint": "d",
+          "source_word_index": 15
+        }
+      ]
     }
   },
   {
@@ -248,7 +670,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_12_daily_habits.mp3",
       "transcript": "I usually drink tea in the morning. She never watches TV. They often go for a walk.",
       "hint_chars": 1,
-      "duration_seconds": 15
+      "duration_seconds": 15,
+      "audio_text": "I usually drink tea in the morning. She never watches TV. They often go for a walk.",
+      "gap_text": "I {0} drink {1} in the {2}. She {3} watches {4}. They often {5} for a {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "usually",
+          "hint": "u",
+          "source_word_index": 1
+        },
+        {
+          "index": 1,
+          "answer": "tea",
+          "hint": "t",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "morning",
+          "hint": "m",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "never",
+          "hint": "n",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "TV",
+          "hint": "t",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "go",
+          "hint": "g",
+          "source_word_index": 13
+        },
+        {
+          "index": 6,
+          "answer": "walk",
+          "hint": "w",
+          "source_word_index": 16
+        }
+      ]
     }
   },
   {
@@ -269,7 +737,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_13_body_parts.mp3",
       "transcript": "My head hurts. He has blue eyes. She has long hair and small hands.",
       "hint_chars": 1,
-      "duration_seconds": 12
+      "duration_seconds": 12,
+      "audio_text": "My head hurts. He has blue eyes. She has long hair and small hands.",
+      "gap_text": "{0} head {1}. He {2} blue {3}. She has {4} hair {5} small {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "My",
+          "hint": "m",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "hurts",
+          "hint": "h",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "has",
+          "hint": "h",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "eyes",
+          "hint": "e",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "long",
+          "hint": "l",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "and",
+          "hint": "a",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "hands",
+          "hint": "h",
+          "source_word_index": 13
+        }
+      ]
     }
   },
   {
@@ -290,7 +804,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_14_can_abilities.mp3",
       "transcript": "I can swim and run. She can play the guitar. He can speak two languages.",
       "hint_chars": 1,
-      "duration_seconds": 13
+      "duration_seconds": 13,
+      "audio_text": "I can swim and run. She can play the guitar. He can speak two languages.",
+      "gap_text": "I {0} swim {1} run. {2} can {3} the guitar. {4} can {5} two {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "can",
+          "hint": "c",
+          "source_word_index": 1
+        },
+        {
+          "index": 1,
+          "answer": "and",
+          "hint": "a",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "She",
+          "hint": "s",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "play",
+          "hint": "p",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "He",
+          "hint": "h",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "speak",
+          "hint": "s",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "languages",
+          "hint": "l",
+          "source_word_index": 14
+        }
+      ]
     }
   },
   {
@@ -311,7 +871,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_15_food_and_drinks.mp3",
       "transcript": "I like coffee with milk. We eat bread and cheese for breakfast. She drinks water.",
       "hint_chars": 1,
-      "duration_seconds": 13
+      "duration_seconds": 13,
+      "audio_text": "I like coffee with milk. We eat bread and cheese for breakfast. She drinks water.",
+      "gap_text": "I {0} coffee {1} milk. {2} eat {3} and cheese {4} breakfast. {5} drinks {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "like",
+          "hint": "l",
+          "source_word_index": 1
+        },
+        {
+          "index": 1,
+          "answer": "with",
+          "hint": "w",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "We",
+          "hint": "w",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "bread",
+          "hint": "b",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "for",
+          "hint": "f",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "She",
+          "hint": "s",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "water",
+          "hint": "w",
+          "source_word_index": 14
+        }
+      ]
     }
   },
   {
@@ -332,7 +938,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A1_16_personal_belongings.mp3",
       "transcript": "This is my phone. Where is her bag? My keys are on the table.",
       "hint_chars": 1,
-      "duration_seconds": 12
+      "duration_seconds": 12,
+      "audio_text": "This is my phone. Where is her bag? My keys are on the table.",
+      "gap_text": "{0} is {1} phone. {2} is {3} bag? My {4} are {5} the {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "This",
+          "hint": "t",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "my",
+          "hint": "m",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "Where",
+          "hint": "w",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "her",
+          "hint": "h",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "keys",
+          "hint": "k",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "on",
+          "hint": "o",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "table",
+          "hint": "t",
+          "source_word_index": 13
+        }
+      ]
     }
   },
   {
@@ -353,7 +1005,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_01_food_articles.mp3",
       "transcript": "I bought some apples and a kilo of cheese. There isn't any milk in the fridge.",
       "hint_chars": 1,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "I bought some apples and a kilo of cheese. There isn't any milk in the fridge.",
+      "gap_text": "I {0} some {1} and a {2} of {3}. There isn't {4} milk {5} the {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "bought",
+          "hint": "b",
+          "source_word_index": 1
+        },
+        {
+          "index": 1,
+          "answer": "apples",
+          "hint": "a",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "kilo",
+          "hint": "k",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "cheese",
+          "hint": "c",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "any",
+          "hint": "a",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "in",
+          "hint": "i",
+          "source_word_index": 13
+        },
+        {
+          "index": 6,
+          "answer": "fridge",
+          "hint": "f",
+          "source_word_index": 15
+        }
+      ]
     }
   },
   {
@@ -374,7 +1072,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_02_shopping.mp3",
       "transcript": "How much is this jacket? I need a smaller size. I'll pay by card, thank you.",
       "hint_chars": 1,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "How much is this jacket? I need a smaller size. I'll pay by card, thank you.",
+      "gap_text": "{0} much {1} this {2}? I need a {3} size. I'll {4} by {5}, thank {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "How",
+          "hint": "h",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "is",
+          "hint": "i",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "jacket",
+          "hint": "j",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "smaller",
+          "hint": "s",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "pay",
+          "hint": "p",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "card",
+          "hint": "c",
+          "source_word_index": 13
+        },
+        {
+          "index": 6,
+          "answer": "you",
+          "hint": "y",
+          "source_word_index": 15
+        }
+      ]
     }
   },
   {
@@ -395,7 +1139,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_03_cafe_and_restaurant.mp3",
       "transcript": "I'd like a cup of coffee and a slice of cake. Could we have the bill, please?",
       "hint_chars": 1,
-      "duration_seconds": 15
+      "duration_seconds": 15,
+      "audio_text": "I'd like a cup of coffee and a slice of cake. Could we have the bill, please?",
+      "gap_text": "{0} like a {1} of coffee {2} a slice {3} cake. {4} we have {5} bill, {6}?",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "I'd",
+          "hint": "i",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "cup",
+          "hint": "c",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "and",
+          "hint": "a",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "of",
+          "hint": "o",
+          "source_word_index": 9
+        },
+        {
+          "index": 4,
+          "answer": "Could",
+          "hint": "c",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "the",
+          "hint": "t",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "please",
+          "hint": "p",
+          "source_word_index": 16
+        }
+      ]
     }
   },
   {
@@ -416,7 +1206,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_04_food_cooking.mp3",
       "transcript": "First, chop the onions. Then add some salt. Cook the soup for twenty minutes.",
       "hint_chars": 1,
-      "duration_seconds": 12
+      "duration_seconds": 12,
+      "audio_text": "First, chop the onions. Then add some salt. Cook the soup for twenty minutes.",
+      "gap_text": "{0}, chop {1} onions. {2} add {3} salt. Cook {4} soup {5} twenty {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "First",
+          "hint": "f",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "the",
+          "hint": "t",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "Then",
+          "hint": "t",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "some",
+          "hint": "s",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "the",
+          "hint": "t",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "for",
+          "hint": "f",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "minutes",
+          "hint": "m",
+          "source_word_index": 13
+        }
+      ]
     }
   },
   {
@@ -437,7 +1273,47 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_05_hobbies.mp3",
       "transcript": "On weekends I read books and watch films. My brother plays football twice a week.",
       "hint_chars": 1,
-      "duration_seconds": 13
+      "duration_seconds": 13,
+      "audio_text": "On weekends I read books and watch films. My brother plays football twice a week.",
+      "gap_text": "{0} weekends I {1} books and {2} films. {3} brother plays {4} twice a {5}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "On",
+          "hint": "o",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "read",
+          "hint": "r",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "watch",
+          "hint": "w",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "My",
+          "hint": "m",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "football",
+          "hint": "f",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "week",
+          "hint": "w",
+          "source_word_index": 14
+        }
+      ]
     }
   },
   {
@@ -458,7 +1334,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_06_school_life.mp3",
       "transcript": "Our first lesson starts at nine. We study English, maths, and history every Monday.",
       "hint_chars": 1,
-      "duration_seconds": 12
+      "duration_seconds": 12,
+      "audio_text": "Our first lesson starts at nine. We study English, maths, and history every Monday.",
+      "gap_text": "{0} first {1} starts {2} nine. {3} study English, {4}, and {5} every {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Our",
+          "hint": "o",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "lesson",
+          "hint": "l",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "at",
+          "hint": "a",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "We",
+          "hint": "w",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "maths",
+          "hint": "m",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "history",
+          "hint": "h",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "Monday",
+          "hint": "m",
+          "source_word_index": 13
+        }
+      ]
     }
   },
   {
@@ -479,7 +1401,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_07_healthy_lifestyle.mp3",
       "transcript": "I try to walk every day and eat more vegetables. Drinking water keeps you healthy.",
       "hint_chars": 1,
-      "duration_seconds": 13
+      "duration_seconds": 13,
+      "audio_text": "I try to walk every day and eat more vegetables. Drinking water keeps you healthy.",
+      "gap_text": "I {0} to {1} every {2} and {3} more vegetables. {4} water {5} you {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "try",
+          "hint": "t",
+          "source_word_index": 1
+        },
+        {
+          "index": 1,
+          "answer": "walk",
+          "hint": "w",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "day",
+          "hint": "d",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "eat",
+          "hint": "e",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "Drinking",
+          "hint": "d",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "keeps",
+          "hint": "k",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "healthy",
+          "hint": "h",
+          "source_word_index": 14
+        }
+      ]
     }
   },
   {
@@ -500,7 +1468,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_08_city_transport.mp3",
       "transcript": "Take the bus number ten and get off at the central square. The metro is faster.",
       "hint_chars": 1,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "Take the bus number ten and get off at the central square. The metro is faster.",
+      "gap_text": "{0} the {1} number {2} and {3} off at {4} central {5}. The {6} is {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Take",
+          "hint": "t",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "bus",
+          "hint": "b",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "ten",
+          "hint": "t",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "get",
+          "hint": "g",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "the",
+          "hint": "t",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "square",
+          "hint": "s",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "metro",
+          "hint": "m",
+          "source_word_index": 13
+        },
+        {
+          "index": 7,
+          "answer": "faster",
+          "hint": "f",
+          "source_word_index": 15
+        }
+      ]
     }
   },
   {
@@ -521,7 +1541,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_09_friends.mp3",
       "transcript": "My best friend lives in another city. We call each other every week and share news.",
       "hint_chars": 1,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "My best friend lives in another city. We call each other every week and share news.",
+      "gap_text": "{0} best {1} lives {2} another {3}. We call {4} other {5} week {6} share {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "My",
+          "hint": "m",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "friend",
+          "hint": "f",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "in",
+          "hint": "i",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "city",
+          "hint": "c",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "each",
+          "hint": "e",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "every",
+          "hint": "e",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "and",
+          "hint": "a",
+          "source_word_index": 13
+        },
+        {
+          "index": 7,
+          "answer": "news",
+          "hint": "n",
+          "source_word_index": 15
+        }
+      ]
     }
   },
   {
@@ -542,7 +1614,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_10_animals.mp3",
       "transcript": "Dogs are loyal and friendly. Cats sleep most of the day. Elephants live in Africa and Asia.",
       "hint_chars": 1,
-      "duration_seconds": 15
+      "duration_seconds": 15,
+      "audio_text": "Dogs are loyal and friendly. Cats sleep most of the day. Elephants live in Africa and Asia.",
+      "gap_text": "{0} are {1} and friendly. {2} sleep {3} of {4} day. {5} live in {6} and {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Dogs",
+          "hint": "d",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "loyal",
+          "hint": "l",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "Cats",
+          "hint": "c",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "most",
+          "hint": "m",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "the",
+          "hint": "t",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "Elephants",
+          "hint": "e",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "Africa",
+          "hint": "a",
+          "source_word_index": 14
+        },
+        {
+          "index": 7,
+          "answer": "Asia",
+          "hint": "a",
+          "source_word_index": 16
+        }
+      ]
     }
   },
   {
@@ -563,7 +1687,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_11_superlatives.mp3",
       "transcript": "This is the tallest building in the city. He is the most patient teacher I know.",
       "hint_chars": 1,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "This is the tallest building in the city. He is the most patient teacher I know.",
+      "gap_text": "{0} is {1} tallest building {2} the {3}. He {4} the most {5} teacher I {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "This",
+          "hint": "t",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "the",
+          "hint": "t",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "in",
+          "hint": "i",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "city",
+          "hint": "c",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "is",
+          "hint": "i",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "patient",
+          "hint": "p",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "know",
+          "hint": "k",
+          "source_word_index": 15
+        }
+      ]
     }
   },
   {
@@ -584,7 +1754,47 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_12_city_village.mp3",
       "transcript": "Life in the village is quiet, but cities offer more jobs and entertainment.",
       "hint_chars": 1,
-      "duration_seconds": 12
+      "duration_seconds": 12,
+      "audio_text": "Life in the village is quiet, but cities offer more jobs and entertainment.",
+      "gap_text": "{0} in {1} village is {2}, but {3} offer more {4} and {5}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Life",
+          "hint": "l",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "the",
+          "hint": "t",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "quiet",
+          "hint": "q",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "cities",
+          "hint": "c",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "jobs",
+          "hint": "j",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "entertainment",
+          "hint": "e",
+          "source_word_index": 12
+        }
+      ]
     }
   },
   {
@@ -605,7 +1815,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_13_countries.mp3",
       "transcript": "He is from Spain and speaks three languages. Many tourists visit Italy and Greece in summer.",
       "hint_chars": 1,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "He is from Spain and speaks three languages. Many tourists visit Italy and Greece in summer.",
+      "gap_text": "{0} is {1} Spain {2} speaks {3} languages. Many {4} visit {5} and {6} in {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "He",
+          "hint": "h",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "from",
+          "hint": "f",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "and",
+          "hint": "a",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "three",
+          "hint": "t",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "tourists",
+          "hint": "t",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "Italy",
+          "hint": "i",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "Greece",
+          "hint": "g",
+          "source_word_index": 13
+        },
+        {
+          "index": 7,
+          "answer": "summer",
+          "hint": "s",
+          "source_word_index": 15
+        }
+      ]
     }
   },
   {
@@ -626,7 +1888,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_14_food_and_health.mp3",
       "transcript": "Eating too much sugar is bad for your health. Try to add fresh fruit to your diet.",
       "hint_chars": 1,
-      "duration_seconds": 15
+      "duration_seconds": 15,
+      "audio_text": "Eating too much sugar is bad for your health. Try to add fresh fruit to your diet.",
+      "gap_text": "{0} too {1} sugar is {2} for {3} health. {4} to {5} fresh fruit {6} your {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Eating",
+          "hint": "e",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "much",
+          "hint": "m",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "bad",
+          "hint": "b",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "your",
+          "hint": "y",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "Try",
+          "hint": "t",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "add",
+          "hint": "a",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "to",
+          "hint": "t",
+          "source_word_index": 14
+        },
+        {
+          "index": 7,
+          "answer": "diet",
+          "hint": "d",
+          "source_word_index": 16
+        }
+      ]
     }
   },
   {
@@ -647,7 +1961,41 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_15_household_chores.mp3",
       "transcript": "I wash the dishes after dinner and clean the kitchen on Saturdays.",
       "hint_chars": 1,
-      "duration_seconds": 11
+      "duration_seconds": 11,
+      "audio_text": "I wash the dishes after dinner and clean the kitchen on Saturdays.",
+      "gap_text": "I {0} the {1} after dinner {2} clean the {3} on {4}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "wash",
+          "hint": "w",
+          "source_word_index": 1
+        },
+        {
+          "index": 1,
+          "answer": "dishes",
+          "hint": "d",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "and",
+          "hint": "a",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "kitchen",
+          "hint": "k",
+          "source_word_index": 9
+        },
+        {
+          "index": 4,
+          "answer": "Saturdays",
+          "hint": "s",
+          "source_word_index": 11
+        }
+      ]
     }
   },
   {
@@ -668,7 +2016,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_16_future_plans.mp3",
       "transcript": "I'm meeting Sarah at six tomorrow. Next weekend we're going to visit my grandparents.",
       "hint_chars": 1,
-      "duration_seconds": 12
+      "duration_seconds": 12,
+      "audio_text": "I'm meeting Sarah at six tomorrow. Next weekend we're going to visit my grandparents.",
+      "gap_text": "{0} meeting {1} at {2} tomorrow. {3} weekend we're {4} to {5} my {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "I'm",
+          "hint": "i",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "Sarah",
+          "hint": "s",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "six",
+          "hint": "s",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "Next",
+          "hint": "n",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "going",
+          "hint": "g",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "visit",
+          "hint": "v",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "grandparents",
+          "hint": "g",
+          "source_word_index": 13
+        }
+      ]
     }
   },
   {
@@ -689,7 +2083,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_17_holiday_plans.mp3",
       "transcript": "In August we're going to fly to Greece for two weeks of sun and swimming.",
       "hint_chars": 1,
-      "duration_seconds": 13
+      "duration_seconds": 13,
+      "audio_text": "In August we're going to fly to Greece for two weeks of sun and swimming.",
+      "gap_text": "{0} August {1} going to {2} to {3} for {4} weeks of {5} and {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "In",
+          "hint": "i",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "we're",
+          "hint": "w",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "fly",
+          "hint": "f",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "Greece",
+          "hint": "g",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "two",
+          "hint": "t",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "sun",
+          "hint": "s",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "swimming",
+          "hint": "s",
+          "source_word_index": 14
+        }
+      ]
     }
   },
   {
@@ -710,7 +2150,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_18_weather_and_climate.mp3",
       "transcript": "The weather has been changing rapidly. Last winter was warmer than usual in our region.",
       "hint_chars": 1,
-      "duration_seconds": 13
+      "duration_seconds": 13,
+      "audio_text": "The weather has been changing rapidly. Last winter was warmer than usual in our region.",
+      "gap_text": "{0} weather {1} been changing {2}. Last {3} was {4} than usual {5} our {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "The",
+          "hint": "t",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "has",
+          "hint": "h",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "rapidly",
+          "hint": "r",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "winter",
+          "hint": "w",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "warmer",
+          "hint": "w",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "in",
+          "hint": "i",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "region",
+          "hint": "r",
+          "source_word_index": 14
+        }
+      ]
     }
   },
   {
@@ -731,7 +2217,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_19_music_art.mp3",
       "transcript": "My favourite painter is Van Gogh. I love jazz music, especially old records from the sixties.",
       "hint_chars": 1,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "My favourite painter is Van Gogh. I love jazz music, especially old records from the sixties.",
+      "gap_text": "{0} favourite {1} is Van {2}. I love {3} music, {4} old records {5} the {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "My",
+          "hint": "m",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "painter",
+          "hint": "p",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "Gogh",
+          "hint": "g",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "jazz",
+          "hint": "j",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "especially",
+          "hint": "e",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "from",
+          "hint": "f",
+          "source_word_index": 13
+        },
+        {
+          "index": 6,
+          "answer": "sixties",
+          "hint": "s",
+          "source_word_index": 15
+        }
+      ]
     }
   },
   {
@@ -752,7 +2284,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_20_nature_animals.mp3",
       "transcript": "Forests cover a large part of our country. Many wild animals live in the mountains.",
       "hint_chars": 1,
-      "duration_seconds": 13
+      "duration_seconds": 13,
+      "audio_text": "Forests cover a large part of our country. Many wild animals live in the mountains.",
+      "gap_text": "{0} cover a {1} part {2} our {3}. Many wild {4} live {5} the {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Forests",
+          "hint": "f",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "large",
+          "hint": "l",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "of",
+          "hint": "o",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "country",
+          "hint": "c",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "animals",
+          "hint": "a",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "in",
+          "hint": "i",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "mountains",
+          "hint": "m",
+          "source_word_index": 14
+        }
+      ]
     }
   },
   {
@@ -773,7 +2351,47 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_21_environment_and_ecology.mp3",
       "transcript": "We should recycle plastic and save water. Small actions help protect the environment.",
       "hint_chars": 1,
-      "duration_seconds": 12
+      "duration_seconds": 12,
+      "audio_text": "We should recycle plastic and save water. Small actions help protect the environment.",
+      "gap_text": "{0} should {1} plastic and {2} water. {3} actions help {4} the {5}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "We",
+          "hint": "w",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "recycle",
+          "hint": "r",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "save",
+          "hint": "s",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "Small",
+          "hint": "s",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "protect",
+          "hint": "p",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "environment",
+          "hint": "e",
+          "source_word_index": 12
+        }
+      ]
     }
   },
   {
@@ -794,7 +2412,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_A2_22_holidays_traditions.mp3",
       "transcript": "On New Year's Eve, families gather around the table and share gifts and warm wishes.",
       "hint_chars": 1,
-      "duration_seconds": 13
+      "duration_seconds": 13,
+      "audio_text": "On New Year's Eve, families gather around the table and share gifts and warm wishes.",
+      "gap_text": "{0} New {1} Eve, families {2} around {3} table {4} share gifts {5} warm {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "On",
+          "hint": "o",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "Year's",
+          "hint": "y",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "gather",
+          "hint": "g",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "the",
+          "hint": "t",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "and",
+          "hint": "a",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "and",
+          "hint": "a",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "wishes",
+          "hint": "w",
+          "source_word_index": 14
+        }
+      ]
     }
   },
   {
@@ -815,7 +2479,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_01_past_irregular.mp3",
       "transcript": "When I was a child, my family lived in a small town near the sea. We often went fishing with my father.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "When I was a child, my family lived in a small town near the sea. We often went fishing with my father.",
+      "gap_text": "{0} I was a child, {1} family {2} in a small {3} near {4} sea. We {5} went {6} with my {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "When",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "my",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 2,
+          "answer": "lived",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 3,
+          "answer": "town",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 4,
+          "answer": "the",
+          "hint": "",
+          "source_word_index": 13
+        },
+        {
+          "index": 5,
+          "answer": "often",
+          "hint": "",
+          "source_word_index": 16
+        },
+        {
+          "index": 6,
+          "answer": "fishing",
+          "hint": "",
+          "source_word_index": 18
+        },
+        {
+          "index": 7,
+          "answer": "father",
+          "hint": "",
+          "source_word_index": 21
+        }
+      ]
     }
   },
   {
@@ -836,7 +2552,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_02_cinema_and_theatre.mp3",
       "transcript": "I really enjoyed the film we watched yesterday. The acting was brilliant and the story made me think.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "I really enjoyed the film we watched yesterday. The acting was brilliant and the story made me think.",
+      "gap_text": "I {0} enjoyed {1} film we {2} yesterday. {3} acting {4} brilliant {5} the story {6} me {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "really",
+          "hint": "",
+          "source_word_index": 1
+        },
+        {
+          "index": 1,
+          "answer": "the",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "watched",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "The",
+          "hint": "",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "was",
+          "hint": "",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "and",
+          "hint": "",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "made",
+          "hint": "",
+          "source_word_index": 15
+        },
+        {
+          "index": 7,
+          "answer": "think",
+          "hint": "",
+          "source_word_index": 17
+        }
+      ]
     }
   },
   {
@@ -857,7 +2625,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_03_used_to.mp3",
       "transcript": "I used to play in the yard with my cousins every summer evening. Those days were full of laughter and adventures.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "I used to play in the yard with my cousins every summer evening. Those days were full of laughter and adventures.",
+      "gap_text": "I {0} to play {1} the {2} with my {3} every summer {4}. Those days {5} full {6} laughter and {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "used",
+          "hint": "",
+          "source_word_index": 1
+        },
+        {
+          "index": 1,
+          "answer": "in",
+          "hint": "",
+          "source_word_index": 4
+        },
+        {
+          "index": 2,
+          "answer": "yard",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "cousins",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 4,
+          "answer": "evening",
+          "hint": "",
+          "source_word_index": 12
+        },
+        {
+          "index": 5,
+          "answer": "were",
+          "hint": "",
+          "source_word_index": 15
+        },
+        {
+          "index": 6,
+          "answer": "of",
+          "hint": "",
+          "source_word_index": 17
+        },
+        {
+          "index": 7,
+          "answer": "adventures",
+          "hint": "",
+          "source_word_index": 20
+        }
+      ]
     }
   },
   {
@@ -878,7 +2698,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_04_friends_and_character.mp3",
       "transcript": "My closest friend is honest, patient, and surprisingly funny. We have known each other for almost twenty years.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "My closest friend is honest, patient, and surprisingly funny. We have known each other for almost twenty years.",
+      "gap_text": "{0} closest {1} is honest, {2}, and {3} funny. We {4} known {5} other for {6} twenty {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "My",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "friend",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "patient",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "surprisingly",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "have",
+          "hint": "",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "each",
+          "hint": "",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "almost",
+          "hint": "",
+          "source_word_index": 15
+        },
+        {
+          "index": 7,
+          "answer": "years",
+          "hint": "",
+          "source_word_index": 17
+        }
+      ]
     }
   },
   {
@@ -899,7 +2771,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_05_family_relationships.mp3",
       "transcript": "Living with relatives can be both rewarding and challenging. Open communication helps avoid misunderstandings.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "Living with relatives can be both rewarding and challenging. Open communication helps avoid misunderstandings.",
+      "gap_text": "{0} with {1} can {2} both {3} and challenging. {4} communication {5} avoid {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Living",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "relatives",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "be",
+          "hint": "",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "rewarding",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "Open",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "helps",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "misunderstandings",
+          "hint": "",
+          "source_word_index": 13
+        }
+      ]
     }
   },
   {
@@ -920,7 +2838,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_06_sport_and_achievements.mp3",
       "transcript": "After months of hard training, she finally won her first marathon. Her achievement inspired the whole team.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "After months of hard training, she finally won her first marathon. Her achievement inspired the whole team.",
+      "gap_text": "{0} months {1} hard training, {2} finally {3} her {4} marathon. {5} achievement inspired {6} whole {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "After",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "of",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "she",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "won",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "first",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "Her",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "the",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 7,
+          "answer": "team",
+          "hint": "",
+          "source_word_index": 16
+        }
+      ]
     }
   },
   {
@@ -941,7 +2911,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_07_money_and_finances.mp3",
       "transcript": "Many young people struggle to save money because they spend too much on subscriptions and takeaway food.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "Many young people struggle to save money because they spend too much on subscriptions and takeaway food.",
+      "gap_text": "{0} young {1} struggle to {2} money {3} they {4} too {5} on subscriptions {6} takeaway {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Many",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "people",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "save",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "because",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "spend",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "much",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "and",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 7,
+          "answer": "food",
+          "hint": "",
+          "source_word_index": 16
+        }
+      ]
     }
   },
   {
@@ -962,7 +2984,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_08_work_and_career.mp3",
       "transcript": "He started his career as a junior developer and within five years became a team leader at a large company.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "He started his career as a junior developer and within five years became a team leader at a large company.",
+      "gap_text": "{0} started {1} career as a {2} developer {3} within {4} years {5} a team leader {6} a large {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "He",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "his",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "junior",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "and",
+          "hint": "",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "five",
+          "hint": "",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "became",
+          "hint": "",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "at",
+          "hint": "",
+          "source_word_index": 16
+        },
+        {
+          "index": 7,
+          "answer": "company",
+          "hint": "",
+          "source_word_index": 19
+        }
+      ]
     }
   },
   {
@@ -983,7 +3057,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_09_city_and_country.mp3",
       "transcript": "People who move to the countryside often appreciate the silence and the slower pace of daily life.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "People who move to the countryside often appreciate the silence and the slower pace of daily life.",
+      "gap_text": "{0} who {1} to the {2} often {3} the {4} and {5} slower pace {6} daily {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "People",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "move",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "countryside",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "appreciate",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "silence",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "the",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "of",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 7,
+          "answer": "life",
+          "hint": "",
+          "source_word_index": 16
+        }
+      ]
     }
   },
   {
@@ -1004,7 +3130,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_10_food_and_restaurants.mp3",
       "transcript": "The chef recommended the seasonal menu and explained how each dish was prepared with locally sourced ingredients.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "The chef recommended the seasonal menu and explained how each dish was prepared with locally sourced ingredients.",
+      "gap_text": "{0} chef {1} the seasonal {2} and {3} how {4} dish {5} prepared with {6} sourced {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "The",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "recommended",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "menu",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "explained",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "each",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "was",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "locally",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 7,
+          "answer": "ingredients",
+          "hint": "",
+          "source_word_index": 16
+        }
+      ]
     }
   },
   {
@@ -1025,7 +3203,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_11_internet_and_social_media.mp3",
       "transcript": "Spending hours scrolling through social media can affect your mood and reduce your ability to concentrate.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "Spending hours scrolling through social media can affect your mood and reduce your ability to concentrate.",
+      "gap_text": "{0} hours {1} through {2} media {3} affect your {4} and {5} your {6} to {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Spending",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "scrolling",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "social",
+          "hint": "",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "can",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "mood",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "reduce",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "ability",
+          "hint": "",
+          "source_word_index": 13
+        },
+        {
+          "index": 7,
+          "answer": "concentrate",
+          "hint": "",
+          "source_word_index": 15
+        }
+      ]
     }
   },
   {
@@ -1046,7 +3276,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_12_technology.mp3",
       "transcript": "New gadgets appear every few months, but most people only use a small fraction of their actual features.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "New gadgets appear every few months, but most people only use a small fraction of their actual features.",
+      "gap_text": "{0} gadgets {1} every few {2}, but {3} people {4} use a {5} fraction of {6} actual {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "New",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "appear",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "months",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "most",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "only",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "small",
+          "hint": "",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "their",
+          "hint": "",
+          "source_word_index": 15
+        },
+        {
+          "index": 7,
+          "answer": "features",
+          "hint": "",
+          "source_word_index": 17
+        }
+      ]
     }
   },
   {
@@ -1067,7 +3349,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_13_travel_and_tourism.mp3",
       "transcript": "Travelling abroad broadens your horizons and helps you understand different cultures from a personal perspective.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "Travelling abroad broadens your horizons and helps you understand different cultures from a personal perspective.",
+      "gap_text": "{0} abroad {1} your {2} and {3} you understand {4} cultures {5} a personal {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Travelling",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "broadens",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "horizons",
+          "hint": "",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "helps",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "different",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "from",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "perspective",
+          "hint": "",
+          "source_word_index": 14
+        }
+      ]
     }
   },
   {
@@ -1088,7 +3416,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B1_14_fashion_and_style.mp3",
       "transcript": "Many designers are now creating sustainable collections using recycled fabrics and ethical production processes.",
       "hint_chars": 0,
-      "duration_seconds": 14
+      "duration_seconds": 14,
+      "audio_text": "Many designers are now creating sustainable collections using recycled fabrics and ethical production processes.",
+      "gap_text": "{0} designers {1} now {2} sustainable {3} using recycled {4} and {5} production {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Many",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "are",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "creating",
+          "hint": "",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "collections",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "fabrics",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "ethical",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "processes",
+          "hint": "",
+          "source_word_index": 13
+        }
+      ]
     }
   },
   {
@@ -1109,7 +3483,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B2_01_lifestyle_and_psychology.mp3",
       "transcript": "Researchers argue that small daily habits, such as morning walks or reading, contribute significantly to long-term well-being and mental health.",
       "hint_chars": 0,
-      "duration_seconds": 20
+      "duration_seconds": 20,
+      "audio_text": "Researchers argue that small daily habits, such as morning walks or reading, contribute significantly to long-term well-being and mental health.",
+      "gap_text": "{0} argue that {1} daily {2}, such as {3} walks or {4}, contribute significantly {5} long-term {6} and mental {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Researchers",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "small",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "habits",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "morning",
+          "hint": "",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "reading",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "to",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "well-being",
+          "hint": "",
+          "source_word_index": 16
+        },
+        {
+          "index": 7,
+          "answer": "health",
+          "hint": "",
+          "source_word_index": 19
+        }
+      ]
     }
   },
   {
@@ -1130,7 +3556,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B2_02_science_and_technology.mp3",
       "transcript": "Recent breakthroughs in quantum computing are forcing scientists to rethink the limits of computational power and information security.",
       "hint_chars": 0,
-      "duration_seconds": 20
+      "duration_seconds": 20,
+      "audio_text": "Recent breakthroughs in quantum computing are forcing scientists to rethink the limits of computational power and information security.",
+      "gap_text": "{0} breakthroughs {1} quantum computing {2} forcing {3} to rethink {4} limits {5} computational power {6} information {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Recent",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "in",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "are",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "scientists",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "the",
+          "hint": "",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "of",
+          "hint": "",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "and",
+          "hint": "",
+          "source_word_index": 15
+        },
+        {
+          "index": 7,
+          "answer": "security",
+          "hint": "",
+          "source_word_index": 17
+        }
+      ]
     }
   },
   {
@@ -1151,7 +3629,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B2_03_media_and_communications.mp3",
       "transcript": "The way news spreads has changed dramatically with the rise of social platforms, blurring the line between journalism and personal opinion.",
       "hint_chars": 0,
-      "duration_seconds": 20
+      "duration_seconds": 20,
+      "audio_text": "The way news spreads has changed dramatically with the rise of social platforms, blurring the line between journalism and personal opinion.",
+      "gap_text": "{0} way news {1} has changed {2} with the {3} of {4} platforms, blurring {5} line between {6} and personal {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "The",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "spreads",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "dramatically",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "rise",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 4,
+          "answer": "social",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "the",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "journalism",
+          "hint": "",
+          "source_word_index": 17
+        },
+        {
+          "index": 7,
+          "answer": "opinion",
+          "hint": "",
+          "source_word_index": 20
+        }
+      ]
     }
   },
   {
@@ -1172,7 +3702,53 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B2_04_society_and_culture.mp3",
       "transcript": "Cultural traditions evolve over generations, often blending influences from migration, technology, and economic transformation.",
       "hint_chars": 0,
-      "duration_seconds": 20
+      "duration_seconds": 20,
+      "audio_text": "Cultural traditions evolve over generations, often blending influences from migration, technology, and economic transformation.",
+      "gap_text": "{0} traditions {1} over {2}, often {3} influences from {4}, technology, {5} economic {6}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Cultural",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "evolve",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "generations",
+          "hint": "",
+          "source_word_index": 4
+        },
+        {
+          "index": 3,
+          "answer": "blending",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 4,
+          "answer": "migration",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "and",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "transformation",
+          "hint": "",
+          "source_word_index": 13
+        }
+      ]
     }
   },
   {
@@ -1193,7 +3769,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B2_05_psychology_and_relationships.mp3",
       "transcript": "Emotional intelligence plays a crucial role in maintaining healthy relationships, both personal and professional, throughout adult life.",
       "hint_chars": 0,
-      "duration_seconds": 20
+      "duration_seconds": 20,
+      "audio_text": "Emotional intelligence plays a crucial role in maintaining healthy relationships, both personal and professional, throughout adult life.",
+      "gap_text": "{0} intelligence {1} a crucial {2} in {3} healthy relationships, {4} personal {5} professional, {6} adult {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Emotional",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "plays",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "role",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "maintaining",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "both",
+          "hint": "",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "and",
+          "hint": "",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "throughout",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 7,
+          "answer": "life",
+          "hint": "",
+          "source_word_index": 16
+        }
+      ]
     }
   },
   {
@@ -1214,7 +3842,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B2_06_science_and_technology.mp3",
       "transcript": "Advances in artificial intelligence and biotechnology raise complex ethical questions that lawmakers are only beginning to address.",
       "hint_chars": 0,
-      "duration_seconds": 20
+      "duration_seconds": 20,
+      "audio_text": "Advances in artificial intelligence and biotechnology raise complex ethical questions that lawmakers are only beginning to address.",
+      "gap_text": "{0} in {1} intelligence and {2} raise {3} ethical {4} that {5} are only {6} to {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Advances",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "artificial",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "biotechnology",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "complex",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "questions",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "lawmakers",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "beginning",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 7,
+          "answer": "address",
+          "hint": "",
+          "source_word_index": 16
+        }
+      ]
     }
   },
   {
@@ -1235,7 +3915,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B2_07_reported_questions.mp3",
       "transcript": "The journalist asked whether the government had considered the consequences of its decision before announcing the new policy.",
       "hint_chars": 0,
-      "duration_seconds": 20
+      "duration_seconds": 20,
+      "audio_text": "The journalist asked whether the government had considered the consequences of its decision before announcing the new policy.",
+      "gap_text": "{0} journalist {1} whether the {2} had {3} the consequences {4} its {5} before announcing {6} new {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "The",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "asked",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "government",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "considered",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "of",
+          "hint": "",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "decision",
+          "hint": "",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "the",
+          "hint": "",
+          "source_word_index": 15
+        },
+        {
+          "index": 7,
+          "answer": "policy",
+          "hint": "",
+          "source_word_index": 17
+        }
+      ]
     }
   },
   {
@@ -1256,7 +3988,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B2_08_passive_past.mp3",
       "transcript": "The prototype was developed by a small team of engineers and was eventually adopted by several international corporations.",
       "hint_chars": 0,
-      "duration_seconds": 20
+      "duration_seconds": 20,
+      "audio_text": "The prototype was developed by a small team of engineers and was eventually adopted by several international corporations.",
+      "gap_text": "{0} prototype {1} developed by a {2} team {3} engineers {4} was {5} adopted by {6} international {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "The",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "was",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "small",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "of",
+          "hint": "",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "and",
+          "hint": "",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "eventually",
+          "hint": "",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "several",
+          "hint": "",
+          "source_word_index": 15
+        },
+        {
+          "index": 7,
+          "answer": "corporations",
+          "hint": "",
+          "source_word_index": 17
+        }
+      ]
     }
   },
   {
@@ -1277,7 +4061,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B2_09_crime_and_law.mp3",
       "transcript": "Effective legislation requires careful consultation with experts, civil society, and the communities most affected by the proposed reforms.",
       "hint_chars": 0,
-      "duration_seconds": 20
+      "duration_seconds": 20,
+      "audio_text": "Effective legislation requires careful consultation with experts, civil society, and the communities most affected by the proposed reforms.",
+      "gap_text": "{0} legislation {1} careful consultation {2} experts, {3} society, and {4} communities {5} affected by {6} proposed {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Effective",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "requires",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "with",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "civil",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "the",
+          "hint": "",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "most",
+          "hint": "",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "the",
+          "hint": "",
+          "source_word_index": 15
+        },
+        {
+          "index": 7,
+          "answer": "reforms",
+          "hint": "",
+          "source_word_index": 17
+        }
+      ]
     }
   },
   {
@@ -1298,7 +4134,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B2_10_travel_and_tourism.mp3",
       "transcript": "Adventure travellers often face unexpected challenges, from delayed flights to language barriers and last-minute changes in accommodation.",
       "hint_chars": 0,
-      "duration_seconds": 20
+      "duration_seconds": 20,
+      "audio_text": "Adventure travellers often face unexpected challenges, from delayed flights to language barriers and last-minute changes in accommodation.",
+      "gap_text": "{0} travellers {1} face unexpected {2}, from {3} flights {4} language {5} and last-minute {6} in {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Adventure",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "often",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "challenges",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "delayed",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "to",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "barriers",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "changes",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 7,
+          "answer": "accommodation",
+          "hint": "",
+          "source_word_index": 16
+        }
+      ]
     }
   },
   {
@@ -1319,7 +4207,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B2_11_art_and_culture.mp3",
       "transcript": "Modern galleries are increasingly experimenting with immersive exhibits, inviting visitors to interact with the artworks rather than simply observe them.",
       "hint_chars": 0,
-      "duration_seconds": 20
+      "duration_seconds": 20,
+      "audio_text": "Modern galleries are increasingly experimenting with immersive exhibits, inviting visitors to interact with the artworks rather than simply observe them.",
+      "gap_text": "{0} galleries are {1} experimenting {2} immersive exhibits, {3} visitors to {4} with the {5} rather {6} simply observe {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Modern",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "increasingly",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "with",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "inviting",
+          "hint": "",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "interact",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "artworks",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "than",
+          "hint": "",
+          "source_word_index": 16
+        },
+        {
+          "index": 7,
+          "answer": "them",
+          "hint": "",
+          "source_word_index": 19
+        }
+      ]
     }
   },
   {
@@ -1340,7 +4280,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_B2_12_ecology_and_nature.mp3",
       "transcript": "Climate change is reshaping ecosystems worldwide and forcing communities to adapt to rising sea levels, droughts, and extreme weather events.",
       "hint_chars": 0,
-      "duration_seconds": 20
+      "duration_seconds": 20,
+      "audio_text": "Climate change is reshaping ecosystems worldwide and forcing communities to adapt to rising sea levels, droughts, and extreme weather events.",
+      "gap_text": "{0} change is {1} ecosystems {2} and forcing {3} to adapt {4} rising sea {5}, droughts, {6} extreme weather {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Climate",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "reshaping",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "worldwide",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "communities",
+          "hint": "",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "to",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "levels",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "and",
+          "hint": "",
+          "source_word_index": 16
+        },
+        {
+          "index": 7,
+          "answer": "events",
+          "hint": "",
+          "source_word_index": 19
+        }
+      ]
     }
   },
   {
@@ -1361,7 +4353,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_C1_01_trends_and_innovations.mp3",
       "transcript": "Emerging technologies frequently disrupt established industries, compelling traditional companies to reinvent themselves or risk becoming obsolete in a remarkably short timeframe.",
       "hint_chars": 0,
-      "duration_seconds": 24
+      "duration_seconds": 24,
+      "audio_text": "Emerging technologies frequently disrupt established industries, compelling traditional companies to reinvent themselves or risk becoming obsolete in a remarkably short timeframe.",
+      "gap_text": "{0} technologies frequently {1} established {2}, compelling traditional {3} to reinvent {4} or risk {5} obsolete {6} a remarkably short {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Emerging",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "disrupt",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "industries",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "companies",
+          "hint": "",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "themselves",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "becoming",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "in",
+          "hint": "",
+          "source_word_index": 16
+        },
+        {
+          "index": 7,
+          "answer": "timeframe",
+          "hint": "",
+          "source_word_index": 20
+        }
+      ]
     }
   },
   {
@@ -1382,7 +4426,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_C1_02_ecology_and_nature.mp3",
       "transcript": "The depletion of natural resources has become one of the most pressing issues of our time, demanding coordinated action from governments, businesses, and individuals alike.",
       "hint_chars": 0,
-      "duration_seconds": 24
+      "duration_seconds": 24,
+      "audio_text": "The depletion of natural resources has become one of the most pressing issues of our time, demanding coordinated action from governments, businesses, and individuals alike.",
+      "gap_text": "{0} depletion of {1} resources has become {2} of the {3} pressing issues of {4} time, demanding {5} action from governments, {6}, and individuals {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "The",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "natural",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "one",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 3,
+          "answer": "most",
+          "hint": "",
+          "source_word_index": 10
+        },
+        {
+          "index": 4,
+          "answer": "our",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 5,
+          "answer": "coordinated",
+          "hint": "",
+          "source_word_index": 17
+        },
+        {
+          "index": 6,
+          "answer": "businesses",
+          "hint": "",
+          "source_word_index": 21
+        },
+        {
+          "index": 7,
+          "answer": "alike",
+          "hint": "",
+          "source_word_index": 24
+        }
+      ]
     }
   },
   {
@@ -1403,7 +4499,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_C1_03_trends_and_innovations.mp3",
       "transcript": "Foresight specialists analyse weak signals across diverse fields, attempting to anticipate trends that may reshape society over the coming decades.",
       "hint_chars": 0,
-      "duration_seconds": 24
+      "duration_seconds": 24,
+      "audio_text": "Foresight specialists analyse weak signals across diverse fields, attempting to anticipate trends that may reshape society over the coming decades.",
+      "gap_text": "{0} specialists analyse {1} signals {2} diverse fields, {3} to anticipate {4} that may {5} society {6} the coming {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Foresight",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "weak",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "across",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "attempting",
+          "hint": "",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "trends",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "reshape",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "over",
+          "hint": "",
+          "source_word_index": 16
+        },
+        {
+          "index": 7,
+          "answer": "decades",
+          "hint": "",
+          "source_word_index": 19
+        }
+      ]
     }
   },
   {
@@ -1424,7 +4572,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_C1_04_fashion_and_lifestyle.mp3",
       "transcript": "Contemporary fashion is increasingly intertwined with personal identity, allowing individuals to express their values, aesthetics, and political views through everyday choices.",
       "hint_chars": 0,
-      "duration_seconds": 24
+      "duration_seconds": 24,
+      "audio_text": "Contemporary fashion is increasingly intertwined with personal identity, allowing individuals to express their values, aesthetics, and political views through everyday choices.",
+      "gap_text": "{0} fashion is {1} intertwined with {2} identity, allowing {3} to {4} their values, {5}, and political {6} through everyday {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Contemporary",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "increasingly",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "personal",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "individuals",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 4,
+          "answer": "express",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "aesthetics",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "views",
+          "hint": "",
+          "source_word_index": 17
+        },
+        {
+          "index": 7,
+          "answer": "choices",
+          "hint": "",
+          "source_word_index": 20
+        }
+      ]
     }
   },
   {
@@ -1445,7 +4645,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_C1_05_work_and_career.mp3",
       "transcript": "Successful negotiation hinges on preparation, active listening, and the ability to articulate your value without resorting to confrontation or rigid positions.",
       "hint_chars": 0,
-      "duration_seconds": 24
+      "duration_seconds": 24,
+      "audio_text": "Successful negotiation hinges on preparation, active listening, and the ability to articulate your value without resorting to confrontation or rigid positions.",
+      "gap_text": "{0} negotiation hinges {1} preparation, active {2}, and the {3} to {4} your value {5} resorting to {6} or rigid {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Successful",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "on",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "listening",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "ability",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 4,
+          "answer": "articulate",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "without",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "confrontation",
+          "hint": "",
+          "source_word_index": 17
+        },
+        {
+          "index": 7,
+          "answer": "positions",
+          "hint": "",
+          "source_word_index": 20
+        }
+      ]
     }
   },
   {
@@ -1466,7 +4718,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_C1_06_culture_and_society.mp3",
       "transcript": "Globalisation has accelerated cultural exchange to an unprecedented degree, yet it has simultaneously sparked debates about preserving local identities and traditions.",
       "hint_chars": 0,
-      "duration_seconds": 24
+      "duration_seconds": 24,
+      "audio_text": "Globalisation has accelerated cultural exchange to an unprecedented degree, yet it has simultaneously sparked debates about preserving local identities and traditions.",
+      "gap_text": "{0} has accelerated {1} exchange to {2} unprecedented degree, {3} it {4} simultaneously sparked {5} about preserving {6} identities and {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Globalisation",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "cultural",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "an",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "yet",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 4,
+          "answer": "has",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "debates",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "local",
+          "hint": "",
+          "source_word_index": 17
+        },
+        {
+          "index": 7,
+          "answer": "traditions",
+          "hint": "",
+          "source_word_index": 20
+        }
+      ]
     }
   },
   {
@@ -1487,7 +4791,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_C1_07_media_and_communications.mp3",
       "transcript": "Critical analysis of news sources has become an essential skill, particularly when misinformation can travel faster than verified reporting.",
       "hint_chars": 0,
-      "duration_seconds": 24
+      "duration_seconds": 24,
+      "audio_text": "Critical analysis of news sources has become an essential skill, particularly when misinformation can travel faster than verified reporting.",
+      "gap_text": "{0} analysis of {1} sources {2} become an {3} skill, {4} when misinformation {5} travel {6} than verified {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Critical",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "news",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "has",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "essential",
+          "hint": "",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "particularly",
+          "hint": "",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "can",
+          "hint": "",
+          "source_word_index": 13
+        },
+        {
+          "index": 6,
+          "answer": "faster",
+          "hint": "",
+          "source_word_index": 15
+        },
+        {
+          "index": 7,
+          "answer": "reporting",
+          "hint": "",
+          "source_word_index": 18
+        }
+      ]
     }
   },
   {
@@ -1508,7 +4864,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_C1_08_third_conditional.mp3",
       "transcript": "If we had booked the flights earlier, we would have visited at least three more cities during our autumn holiday.",
       "hint_chars": 0,
-      "duration_seconds": 24
+      "duration_seconds": 24,
+      "audio_text": "If we had booked the flights earlier, we would have visited at least three more cities during our autumn holiday.",
+      "gap_text": "{0} we had {1} the {2} earlier, we {3} have visited {4} least three {5} cities {6} our autumn {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "If",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "booked",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "flights",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "would",
+          "hint": "",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "at",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "more",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "during",
+          "hint": "",
+          "source_word_index": 16
+        },
+        {
+          "index": 7,
+          "answer": "holiday",
+          "hint": "",
+          "source_word_index": 19
+        }
+      ]
     }
   },
   {
@@ -1529,7 +4937,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_C1_09_money_and_finances.mp3",
       "transcript": "Long-term investors typically focus on diversified portfolios and resist the temptation to react impulsively to short-term market fluctuations.",
       "hint_chars": 0,
-      "duration_seconds": 24
+      "duration_seconds": 24,
+      "audio_text": "Long-term investors typically focus on diversified portfolios and resist the temptation to react impulsively to short-term market fluctuations.",
+      "gap_text": "{0} investors {1} focus on {2} portfolios {3} resist the {4} to {5} impulsively to {6} market {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Long-term",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "typically",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "diversified",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "and",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "temptation",
+          "hint": "",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "react",
+          "hint": "",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "short-term",
+          "hint": "",
+          "source_word_index": 15
+        },
+        {
+          "index": 7,
+          "answer": "fluctuations",
+          "hint": "",
+          "source_word_index": 17
+        }
+      ]
     }
   },
   {
@@ -1550,7 +5010,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_C1_10_social_problems.mp3",
       "transcript": "Addressing inequality requires sustained policy commitment, transparent institutions, and active civic engagement at every level of society.",
       "hint_chars": 0,
-      "duration_seconds": 24
+      "duration_seconds": 24,
+      "audio_text": "Addressing inequality requires sustained policy commitment, transparent institutions, and active civic engagement at every level of society.",
+      "gap_text": "{0} inequality {1} sustained policy {2}, transparent {3}, and {4} civic {5} at every {6} of {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Addressing",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "requires",
+          "hint": "",
+          "source_word_index": 2
+        },
+        {
+          "index": 2,
+          "answer": "commitment",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "institutions",
+          "hint": "",
+          "source_word_index": 7
+        },
+        {
+          "index": 4,
+          "answer": "active",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 5,
+          "answer": "engagement",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 6,
+          "answer": "level",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 7,
+          "answer": "society",
+          "hint": "",
+          "source_word_index": 16
+        }
+      ]
     }
   },
   {
@@ -1571,7 +5083,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_C1_11_sport_and_achievements.mp3",
       "transcript": "Elite athletes typically combine rigorous physical preparation with mental conditioning, understanding that resilience is just as important as raw talent.",
       "hint_chars": 0,
-      "duration_seconds": 24
+      "duration_seconds": 24,
+      "audio_text": "Elite athletes typically combine rigorous physical preparation with mental conditioning, understanding that resilience is just as important as raw talent.",
+      "gap_text": "{0} athletes typically {1} rigorous {2} preparation with {3} conditioning, understanding {4} resilience is {5} as {6} as raw {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Elite",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "combine",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "physical",
+          "hint": "",
+          "source_word_index": 5
+        },
+        {
+          "index": 3,
+          "answer": "mental",
+          "hint": "",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "that",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "just",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "important",
+          "hint": "",
+          "source_word_index": 16
+        },
+        {
+          "index": 7,
+          "answer": "talent",
+          "hint": "",
+          "source_word_index": 19
+        }
+      ]
     }
   },
   {
@@ -1592,7 +5156,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_C1_12_education_and_career.mp3",
       "transcript": "Doctoral candidates often discover that academic success depends as much on networking and resilience as on the originality of their research.",
       "hint_chars": 0,
-      "duration_seconds": 24
+      "duration_seconds": 24,
+      "audio_text": "Doctoral candidates often discover that academic success depends as much on networking and resilience as on the originality of their research.",
+      "gap_text": "{0} candidates often {1} that academic {2} depends as {3} on {4} and resilience {5} on the {6} of their {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "Doctoral",
+          "hint": "",
+          "source_word_index": 0
+        },
+        {
+          "index": 1,
+          "answer": "discover",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "success",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "much",
+          "hint": "",
+          "source_word_index": 9
+        },
+        {
+          "index": 4,
+          "answer": "networking",
+          "hint": "",
+          "source_word_index": 11
+        },
+        {
+          "index": 5,
+          "answer": "as",
+          "hint": "",
+          "source_word_index": 14
+        },
+        {
+          "index": 6,
+          "answer": "originality",
+          "hint": "",
+          "source_word_index": 17
+        },
+        {
+          "index": 7,
+          "answer": "research",
+          "hint": "",
+          "source_word_index": 20
+        }
+      ]
     }
   },
   {
@@ -1613,7 +5229,59 @@
       "audio_url": "/static/audio/immersion/dictation/dictation_C1_13_law_and_order.mp3",
       "transcript": "A robust legal system safeguards individual rights while ensuring that institutions remain accountable to the public they serve.",
       "hint_chars": 0,
-      "duration_seconds": 24
+      "duration_seconds": 24,
+      "audio_text": "A robust legal system safeguards individual rights while ensuring that institutions remain accountable to the public they serve.",
+      "gap_text": "A {0} legal {1} safeguards individual {2} while {3} that {4} remain {5} to the {6} they {7}.",
+      "gaps": [
+        {
+          "index": 0,
+          "answer": "robust",
+          "hint": "",
+          "source_word_index": 1
+        },
+        {
+          "index": 1,
+          "answer": "system",
+          "hint": "",
+          "source_word_index": 3
+        },
+        {
+          "index": 2,
+          "answer": "rights",
+          "hint": "",
+          "source_word_index": 6
+        },
+        {
+          "index": 3,
+          "answer": "ensuring",
+          "hint": "",
+          "source_word_index": 8
+        },
+        {
+          "index": 4,
+          "answer": "institutions",
+          "hint": "",
+          "source_word_index": 10
+        },
+        {
+          "index": 5,
+          "answer": "accountable",
+          "hint": "",
+          "source_word_index": 12
+        },
+        {
+          "index": 6,
+          "answer": "public",
+          "hint": "",
+          "source_word_index": 15
+        },
+        {
+          "index": 7,
+          "answer": "serve",
+          "hint": "",
+          "source_word_index": 17
+        }
+      ]
     }
   }
 ]

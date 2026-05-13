@@ -94,7 +94,6 @@
 
 <script>
 const lessonId = {{ lesson.id }};
-const correctSentence = {{ correct_sentence | tojson }};
 const explanation = {{ explanation | tojson }};
 const hasOptions = {{ 'true' if options else 'false' }};
 let selectedOption = null;
@@ -183,7 +182,7 @@ function showResult(data) {
       </div>`;
     correctReveal.style.display = 'flex';
     const d = document.createElement('span');
-    d.textContent = data.correct_sentence || correctSentence;
+    d.textContent = data.correct_sentence || '';
     correctText.innerHTML = '';
     correctText.appendChild(d);
   }

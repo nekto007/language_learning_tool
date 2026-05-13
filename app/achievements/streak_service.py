@@ -401,7 +401,7 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     if real_activity:
         try:
             from app.auth.models import User as _User
-            _shield_user = _User.query.get(user_id)
+            _shield_user = db.session.get(_User, user_id)
             if _shield_user and getattr(_shield_user, 'streak_shield_active', False):
                 _shield_missed = find_missed_date(user_id, tz=tz)
                 if _shield_missed:
@@ -1340,7 +1340,7 @@ def get_streak_status(user_id: int, tz: str = DEFAULT_TIMEZONE,
     coins = get_or_create_coins(user_id)
     missed = find_missed_date(user_id, tz=tz)
     required = get_required_steps(streak, steps_total)
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     shield_active = bool(getattr(user, 'streak_shield_active', False)) if user else False
 
     return {

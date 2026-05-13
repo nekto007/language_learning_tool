@@ -1366,6 +1366,15 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
         except Exception as xp_err:
             logger.warning(f"Shadow reading XP award failed for lesson {lesson.id}: {xp_err}")
 
+        try:
+            from app.curriculum.listening_service import log_pronunciation_attempt
+            from app.achievements.services import check_speaking_achievements
+            log_pronunciation_attempt(user_id, 'shadow_reading', '', True, db)
+            db.session.commit()
+            check_speaking_achievements(user_id, db_session=db.session)
+        except Exception as sp_err:
+            logger.warning(f"Shadow reading speaking signal failed for lesson {lesson.id}: {sp_err}")
+
     result: dict = {'success': True, 'completed': self_assessed}
     if self_assessed:
         next_lesson = _get_next_lesson_for_completion(lesson)
@@ -1599,6 +1608,7 @@ def _process_idiom_submission(lesson: 'Lessons', user_id: int, data: dict) -> di
 
 @lessons_bp.route('/api/lessons/<int:lesson_id>/feedback', methods=['POST'])
 @login_required
+@require_lesson_access
 def lesson_feedback(lesson_id):
     """Save or update user thumbs-up/down feedback for a completed lesson."""
     from app.api.errors import api_error

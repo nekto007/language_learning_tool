@@ -131,14 +131,17 @@ class TestDictationTemplate:
         tpl = _read_dictation_template()
         assert "max_replays" in tpl
 
-    def test_textarea_input_present(self):
+    def test_interactive_gap_inputs_present(self):
         tpl = _read_dictation_template()
-        assert "<textarea" in tpl
-        assert 'class="dictation-input"' in tpl
+        assert "dictation-gap-input" in tpl
+        assert "checkDictationWord" in tpl
+        assert "<textarea" not in tpl
 
-    def test_submit_button_present(self):
+    def test_no_manual_submit_button_present(self):
         tpl = _read_dictation_template()
-        assert "submitDictation()" in tpl
+        assert 'id="submit-btn"' not in tpl
+        assert "submissionStarted" in tpl
+        assert "lockedCount === wordCount" in tpl
 
     def test_hint_chars_condition_present(self):
         tpl = _read_dictation_template()
@@ -159,6 +162,15 @@ class TestDictationTemplate:
     def test_js_submit_function_present(self):
         tpl = _read_dictation_template()
         assert "async function submitDictation()" in tpl
+
+    def test_js_uses_curriculum_submit_endpoint(self):
+        tpl = _read_dictation_template()
+        assert "/curriculum/api/lesson/" in tpl
+        assert "/learn/api/lesson/" not in tpl
+
+    def test_js_uses_dictation_word_endpoint(self):
+        tpl = _read_dictation_template()
+        assert "/dictation-word" in tpl
 
     def test_js_show_results_function_present(self):
         tpl = _read_dictation_template()
@@ -247,6 +259,13 @@ class TestDictationLessonRoute:
         assert resp.status_code == 302
         assert "dictation" in resp.headers.get("Location", "")
 
+    def test_short_learn_url_redirects_to_canonical_dictation_route(self, app, db_session, test_user, client):
+        lesson = _make_dictation_lesson(db_session)
+        _login(client, test_user)
+        resp = client.get(f"/learn/{lesson.id}/", follow_redirects=False)
+        assert resp.status_code == 302
+        assert f"/curriculum/lesson/{lesson.id}" in resp.headers.get("Location", "")
+
     def test_get_creates_lesson_progress(self, app, db_session, test_user, client):
         lesson = _make_dictation_lesson(db_session)
         _login(client, test_user)
@@ -256,6 +275,30 @@ class TestDictationLessonRoute:
         ).first()
         assert progress is not None
         assert progress.status == "in_progress"
+
+    def test_completed_lesson_get_restores_checked_gaps(self, app, db_session, test_user, client):
+        lesson = _make_dictation_lesson(db_session, transcript="Hello world")
+        _login(client, test_user)
+        client.get(f"/curriculum/lesson/{lesson.id}/dictation")
+        client.post(
+            f"/curriculum/api/lesson/{lesson.id}/submit",
+            json={
+                "user_text": "Hello world",
+                "replay_count": 0,
+                "hint_chars": 0,
+                "lesson_type": "dictation",
+            },
+            content_type="application/json",
+        )
+
+        resp = client.get(f"/curriculum/lesson/{lesson.id}/dictation")
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'value="Hello"' in html
+        assert 'value="world"' in html
+        assert 'data-status="correct"' in html
+        assert "initialDictationResult" in html
 
 
 # ---------------------------------------------------------------------------
@@ -285,6 +328,70 @@ class TestDictationSubmitRoute:
         data = resp.get_json()
         assert data["passed"] is True
         assert data["score"] == 100
+
+    def test_inserted_dictation_next_url_uses_next_lesson_number_in_same_module(
+        self, app, db_session, test_user, client
+    ):
+        level = CEFRLevel(code=_unique_code(), name="Level", description="d", order=1)
+        db_session.add(level)
+        db_session.commit()
+        first_module = Module(
+            level_id=level.id,
+            number=1,
+            title="Module 1",
+            description="d",
+            raw_content={"module": {"id": 1}},
+        )
+        second_module = Module(
+            level_id=level.id,
+            number=2,
+            title="Module 2",
+            description="d",
+            raw_content={"module": {"id": 2}},
+        )
+        db_session.add_all([first_module, second_module])
+        db_session.commit()
+
+        current = Lessons(
+            module_id=first_module.id,
+            number=10,
+            title="Dictation One",
+            type="dictation",
+            content={
+                "audio_url": "/static/audio/one.mp3",
+                "transcript": "Hello world",
+                "external_key": "immersion:dictation:A1:01:one",
+            },
+        )
+        regular_same_module = Lessons(
+            module_id=first_module.id,
+            number=11,
+            title="Regular Lesson",
+            type="vocabulary",
+            content={},
+        )
+        next_dictation = Lessons(
+            module_id=second_module.id,
+            number=10,
+            title="Dictation Two",
+            type="dictation",
+            content={
+                "audio_url": "/static/audio/two.mp3",
+                "transcript": "Good morning",
+                "external_key": "immersion:dictation:A1:02:two",
+            },
+        )
+        db_session.add_all([current, regular_same_module, next_dictation])
+        db_session.commit()
+
+        _login(client, test_user)
+        client.get(f"/curriculum/lesson/{current.id}/dictation")
+        resp = self._submit(client, current.id, "Hello world")
+        data = resp.get_json()
+
+        assert data["passed"] is True
+        assert data["next_lesson_url"].endswith(f"/learn/{regular_same_module.id}/")
+        assert f"/learn/{next_dictation.id}/" not in data["next_lesson_url"]
 
     def test_wrong_answer_returns_passed_false_with_transcript(self, app, db_session, test_user, client):
         lesson = _make_dictation_lesson(db_session, transcript="Hello world")
@@ -332,6 +439,55 @@ class TestDictationSubmitRoute:
             content_type="application/json",
         )
         assert resp.status_code == 200
+
+    def test_word_check_correct_does_not_expose_answer(self, app, db_session, test_user, client):
+        lesson = _make_dictation_lesson(db_session, transcript="Hello world")
+        _login(client, test_user)
+        resp = client.post(
+            f"/curriculum/api/lesson/{lesson.id}/dictation-word",
+            json={"index": 0, "answer": "Hello", "attempt": 1},
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["correct"] is True
+        assert "correct_word" not in data
+
+    def test_word_check_third_wrong_reveals_answer_and_tracks_failed_index(self, app, db_session, test_user, client):
+        lesson = _make_dictation_lesson(db_session, transcript="Hello world")
+        _login(client, test_user)
+        resp = client.post(
+            f"/curriculum/api/lesson/{lesson.id}/dictation-word",
+            json={"index": 0, "answer": "Nope", "attempt": 3},
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["correct"] is False
+        assert data["exhausted"] is True
+        assert data["correct_word"] == "Hello"
+        progress = LessonProgress.query.filter_by(
+            user_id=test_user.id, lesson_id=lesson.id
+        ).first()
+        assert progress.data["dictation_failed_indices"] == [0]
+
+    def test_submit_after_exhausted_gap_does_not_complete_lesson(self, app, db_session, test_user, client):
+        lesson = _make_dictation_lesson(db_session, transcript="Hello world")
+        _login(client, test_user)
+        client.post(
+            f"/curriculum/api/lesson/{lesson.id}/dictation-word",
+            json={"index": 0, "answer": "Nope", "attempt": 3},
+            content_type="application/json",
+        )
+        resp = self._submit(client, lesson.id, "Hello world")
+        data = resp.get_json()
+        assert data["passed"] is False
+        assert data["failed_by_attempt_limit"] is True
+        assert data["score"] == 79
+        progress = LessonProgress.query.filter_by(
+            user_id=test_user.id, lesson_id=lesson.id
+        ).first()
+        assert progress.status != "completed"
 
     def test_passed_lesson_marks_progress_completed(self, app, db_session, test_user, client):
         lesson = _make_dictation_lesson(db_session, transcript="Hello world")

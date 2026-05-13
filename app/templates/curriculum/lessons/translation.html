@@ -80,7 +80,6 @@
 
 <script>
 const lessonId = {{ lesson.id }};
-const correctAnswer = {{ correct_answer | tojson }};
 
 function insertChip(idx, word) {
   const inp = document.getElementById('translation-answer');
@@ -158,7 +157,7 @@ function showResult(data) {
       </div>`;
     correctReveal.style.display = 'flex';
     const d = document.createElement('span');
-    d.textContent = data.correct_answer || correctAnswer;
+    d.textContent = data.correct_answer || '';
     correctText.innerHTML = '';
     correctText.appendChild(d);
   }
