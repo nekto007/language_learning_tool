@@ -732,10 +732,10 @@
 - Modify: `tests/admin/test_content_quality.py`
 - Output: `reports/admin_content_quality.md`
 
-- [ ] Verify content-quality dashboard counts imported lesson types
-- [ ] Verify missing-audio counts drop after imports
-- [ ] Verify vocabulary enrichment coverage is visible
-- [ ] Verify feedback aggregation handles imported lessons
+- [x] Verify content-quality dashboard counts imported lesson types
+- [x] Verify missing-audio counts drop after imports
+- [x] Verify vocabulary enrichment coverage is visible
+- [x] Verify feedback aggregation handles imported lessons
 
 ---
 ### Task 49: Execute staging rollout
