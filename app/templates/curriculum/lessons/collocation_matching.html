@@ -4,51 +4,122 @@
 {% set instruction_text = _('Сопоставьте английские фразы с их русскими значениями.') %}
 {% set block_description = _('Практика устойчивых словосочетаний') %}
 
+{% block extra_css %}
+<style>
+.cm-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 600px) {
+  .cm-board { grid-template-columns: 1fr; }
+}
+.cm-column-header {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lsn-text-muted, #64748b);
+  margin-bottom: 0.5rem;
+}
+.cm-column .option-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+.cm-column .option-btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.option-btn--paired {
+  border-color: var(--color-success, #10b981);
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--color-success, #10b981);
+}
+.cm-pair-result {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.95rem;
+}
+.cm-pair-result--correct {
+  background: rgba(16, 185, 129, 0.08);
+  color: #047857;
+}
+.cm-pair-result--wrong {
+  background: rgba(239, 68, 68, 0.08);
+  color: #b91c1c;
+}
+.cm-pair-arrow { opacity: 0.6; }
+</style>
+{% endblock %}
+
 {% block lesson_content %}
-<div class="collocation-matching-lesson">
+<section class="lesson-shell cm-lesson" aria-labelledby="cm-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="cm-title">{{ _('Коллокации') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-link"></i></span>
+      <span class="lesson-shell__progress" aria-live="polite">
+        <span id="cm-paired" data-progress-current>0</span> / <span data-progress-total>{{ pairs|length }}</span>
+      </span>
+    </div>
+    <div class="lesson-shell__progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="lesson-shell__progress-fill" id="cm-progress-fill" style="width:0%"></span>
+    </div>
+  </header>
 
-  <div class="collocation-matching-instructions">
-    <i class="fas fa-link"></i>
-    {{ _('Перетащите карточки или нажмите на фразу, затем на её перевод, чтобы создать пару.') }}
+  <div class="lesson-shell__instruction" role="note">
+    <i class="fas fa-link" aria-hidden="true"></i>
+    {{ _('Нажмите на фразу, затем на её перевод, чтобы создать пару.') }}
   </div>
 
-  <div class="collocation-matching-board" id="collocation-board">
-    <div class="collocation-column collocation-phrases-col">
-      <div class="collocation-column-header">{{ _('Фраза') }}</div>
-      {% for pair in pairs %}
-      <div
-        class="collocation-card collocation-phrase-card"
-        id="phrase-{{ loop.index0 }}"
-        data-index="{{ loop.index0 }}"
-        data-phrase="{{ pair.phrase | e }}"
-        onclick="selectPhrase({{ loop.index0 }})"
-        role="button"
-        tabindex="0"
-      >
-        {{ pair.phrase }}
+  <div class="lesson-shell__body">
+    <div class="cm-board" id="collocation-board">
+      <div class="cm-column">
+        <div class="cm-column-header">{{ _('Фраза') }}</div>
+        {% for pair in pairs %}
+        <button
+          class="option-btn collocation-card collocation-phrase-card"
+          id="phrase-{{ loop.index0 }}"
+          type="button"
+          data-index="{{ loop.index0 }}"
+          data-phrase="{{ pair.phrase | e }}"
+          aria-pressed="false"
+          onclick="selectPhrase({{ loop.index0 }})"
+        >
+          {{ pair.phrase }}
+        </button>
+        {% endfor %}
       </div>
-      {% endfor %}
-    </div>
 
-    <div class="collocation-column collocation-translations-col">
-      <div class="collocation-column-header">{{ _('Перевод') }}</div>
-      {% for pair in shuffled_pairs %}
-      <div
-        class="collocation-card collocation-translation-card"
-        id="trans-{{ loop.index0 }}"
-        data-index="{{ loop.index0 }}"
-        data-translation="{{ pair.translation | e }}"
-        onclick="selectTranslation({{ loop.index0 }})"
-        role="button"
-        tabindex="0"
-      >
-        {{ pair.translation }}
+      <div class="cm-column">
+        <div class="cm-column-header">{{ _('Перевод') }}</div>
+        {% for pair in shuffled_pairs %}
+        <button
+          class="option-btn collocation-card collocation-translation-card"
+          id="trans-{{ loop.index0 }}"
+          type="button"
+          data-index="{{ loop.index0 }}"
+          data-translation="{{ pair.translation | e }}"
+          aria-pressed="false"
+          onclick="selectTranslation({{ loop.index0 }})"
+        >
+          {{ pair.translation }}
+        </button>
+        {% endfor %}
       </div>
-      {% endfor %}
     </div>
   </div>
 
-  <div class="collocation-matching-submit-row">
+  <div class="lesson-shell__actions">
     <button
       class="btn btn-primary btn-lg"
       id="submit-btn"
@@ -70,72 +141,89 @@
     </button>
   </div>
 
-  <div class="collocation-matching-result" id="matching-result" style="display: none;">
+  <div class="lesson-shell__result" id="matching-result"
+       role="status" aria-live="polite" aria-atomic="true" hidden>
     <div id="result-summary"></div>
     <div id="pair-results-list"></div>
     <div id="matching-next-area" style="margin-top: 1rem;"></div>
   </div>
-
-</div>
+</section>
 
 <script>
 const lessonId = {{ lesson.id }};
 const totalPairs = {{ pairs | length }};
 
-// Pairs data keyed by phrase index (original order)
 const phraseData = [
   {% for pair in pairs %}
   { phrase: {{ pair.phrase | tojson }}, translation: {{ pair.translation | tojson }} }{% if not loop.last %},{% endif %}
   {% endfor %}
 ];
 
-// Shuffled translations with their original phrase index
 const translationData = [
   {% for pair in shuffled_pairs %}
   { phrase: {{ pair.phrase | tojson }}, translation: {{ pair.translation | tojson }} }{% if not loop.last %},{% endif %}
   {% endfor %}
 ];
 
-let selectedPhrase = null;   // index into phraseData
-let selectedTrans = null;    // index into translationData
-// Map: phraseIndex → translationIndex
+let selectedPhrase = null;
+let selectedTrans = null;
 const matches = {};
 
+function _resultIsOpen() {
+  return !document.getElementById('matching-result').hidden;
+}
+
+function _setBtnPressed(btn, on) {
+  btn.classList.toggle('option-btn--selected', on);
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+
+function _updateProgress() {
+  const paired = Object.keys(matches).length;
+  const counter = document.getElementById('cm-paired');
+  if (counter) counter.textContent = String(paired);
+  const fill = document.getElementById('cm-progress-fill');
+  if (fill && totalPairs > 0) {
+    const pct = Math.round((paired / totalPairs) * 100);
+    fill.style.width = pct + '%';
+    const bar = fill.parentElement;
+    if (bar) bar.setAttribute('aria-valuenow', String(pct));
+  }
+}
+
 function selectPhrase(idx) {
-  if (document.getElementById('submit-btn').disabled === false &&
-      document.getElementById('matching-result').style.display !== 'none') return;
-  // Deselect if already matched
+  if (_resultIsOpen()) return;
   if (matches[idx] !== undefined) return;
 
+  const btn = document.getElementById('phrase-' + idx);
   if (selectedPhrase === idx) {
-    // Deselect
-    document.getElementById('phrase-' + idx).classList.remove('collocation-card--selected');
+    _setBtnPressed(btn, false);
     selectedPhrase = null;
   } else {
     if (selectedPhrase !== null) {
-      document.getElementById('phrase-' + selectedPhrase).classList.remove('collocation-card--selected');
+      _setBtnPressed(document.getElementById('phrase-' + selectedPhrase), false);
     }
     selectedPhrase = idx;
-    document.getElementById('phrase-' + idx).classList.add('collocation-card--selected');
+    _setBtnPressed(btn, true);
     if (selectedTrans !== null) tryPair();
   }
 }
 
 function selectTranslation(idx) {
-  if (document.getElementById('matching-result').style.display !== 'none') return;
-  // Deselect if already matched
+  if (_resultIsOpen()) return;
   const alreadyMatched = Object.values(matches).includes(idx);
   if (alreadyMatched) return;
 
+  const btn = document.getElementById('trans-' + idx);
   if (selectedTrans === idx) {
-    document.getElementById('trans-' + idx).classList.remove('collocation-card--selected');
+    _setBtnPressed(btn, false);
     selectedTrans = null;
   } else {
     if (selectedTrans !== null) {
-      document.getElementById('trans-' + selectedTrans).classList.remove('collocation-card--selected');
+      _setBtnPressed(document.getElementById('trans-' + selectedTrans), false);
     }
     selectedTrans = idx;
-    document.getElementById('trans-' + idx).classList.add('collocation-card--selected');
+    _setBtnPressed(btn, true);
     if (selectedPhrase !== null) tryPair();
   }
 }
@@ -143,17 +231,19 @@ function selectTranslation(idx) {
 function tryPair() {
   const pi = selectedPhrase;
   const ti = selectedTrans;
-
   matches[pi] = ti;
 
-  document.getElementById('phrase-' + pi).classList.remove('collocation-card--selected');
-  document.getElementById('phrase-' + pi).classList.add('collocation-card--paired');
-  document.getElementById('trans-' + ti).classList.remove('collocation-card--selected');
-  document.getElementById('trans-' + ti).classList.add('collocation-card--paired');
+  const pBtn = document.getElementById('phrase-' + pi);
+  const tBtn = document.getElementById('trans-' + ti);
+  _setBtnPressed(pBtn, false);
+  _setBtnPressed(tBtn, false);
+  pBtn.classList.add('option-btn--paired');
+  tBtn.classList.add('option-btn--paired');
 
   selectedPhrase = null;
   selectedTrans = null;
 
+  _updateProgress();
   if (Object.keys(matches).length === totalPairs) {
     document.getElementById('submit-btn').disabled = false;
   }
@@ -166,11 +256,20 @@ function resetMatching() {
   for (let i = 0; i < totalPairs; i++) {
     const pc = document.getElementById('phrase-' + i);
     const tc = document.getElementById('trans-' + i);
-    if (pc) pc.className = 'collocation-card collocation-phrase-card';
-    if (tc) tc.className = 'collocation-card collocation-translation-card';
+    if (pc) {
+      pc.className = 'option-btn collocation-card collocation-phrase-card';
+      pc.setAttribute('aria-pressed', 'false');
+      pc.disabled = false;
+    }
+    if (tc) {
+      tc.className = 'option-btn collocation-card collocation-translation-card';
+      tc.setAttribute('aria-pressed', 'false');
+      tc.disabled = false;
+    }
   }
   document.getElementById('submit-btn').disabled = true;
-  document.getElementById('matching-result').style.display = 'none';
+  document.getElementById('matching-result').hidden = true;
+  _updateProgress();
 }
 
 async function submitMatching() {
@@ -184,13 +283,14 @@ async function submitMatching() {
   btn.classList.add('btn--loading');
 
   try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
     const resp = await fetch('/curriculum/api/lesson/' + lessonId + '/submit', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': '{{ csrf_token() }}',
+        'X-CSRFToken': csrfToken,
       },
-      body: JSON.stringify({ user_pairs: userPairs }),
+      body: JSON.stringify({ user_pairs: userPairs, lesson_type: 'collocation_matching' }),
     });
 
     const data = await resp.json();
@@ -207,54 +307,60 @@ function showResults(data, userPairs) {
   const summaryDiv = document.getElementById('result-summary');
   const listDiv = document.getElementById('pair-results-list');
 
-  // Score summary
   const passed = data.passed || false;
   const score = data.score || 0;
-  const icon = passed ? '<i class="fas fa-check-circle" style="color:var(--color-success)"></i>' :
-                         '<i class="fas fa-times-circle" style="color:var(--color-danger)"></i>';
-  summaryDiv.innerHTML = `<div class="collocation-score-badge">
-    ${icon} <strong>${score}%</strong> &mdash;
-    ${ passed ? '{{ _("Отлично! Продолжай.") }}' : '{{ _("Попробуй ещё раз.") }}' }
-    (${data.correct_items}/${ data.total_items })
-  </div>`;
 
-  // Per-pair results
-  let html = '<div class="collocation-pair-results">';
+  summaryDiv.textContent = '';
+  const badge = document.createElement('div');
+  badge.className = 'result-badge ' + (passed ? 'result-badge--correct' : 'result-badge--incorrect');
+  const iconSpan = document.createElement('span');
+  iconSpan.className = 'result-badge__icon';
+  iconSpan.innerHTML = passed
+    ? '<i class="fas fa-check-circle"></i>'
+    : '<i class="fas fa-times-circle"></i>';
+  badge.appendChild(iconSpan);
+  const label = document.createElement('span');
+  const tail = passed ? '{{ _("Отлично! Продолжай.") }}' : '{{ _("Попробуй ещё раз.") }}';
+  label.textContent = `${score}% — ${tail} (${data.correct_items}/${data.total_items})`;
+  badge.appendChild(label);
+  summaryDiv.appendChild(badge);
+
+  listDiv.textContent = '';
   (data.pair_results || []).forEach(pr => {
-    const cls = pr.correct ? 'collocation-pair--correct' : 'collocation-pair--wrong';
-    const icon2 = pr.correct ? '<i class="fas fa-check"></i>' : '<i class="fas fa-times"></i>';
-    html += `<div class="collocation-pair-result ${cls}">
-      ${icon2}
-      <span class="collocation-pair-phrase">${escHtml(pr.phrase)}</span>
-      <span class="collocation-pair-arrow">→</span>
-      <span class="collocation-pair-translation">${escHtml(pr.translation)}</span>
-    </div>`;
+    const row = document.createElement('div');
+    row.className = 'cm-pair-result ' + (pr.correct ? 'cm-pair-result--correct' : 'cm-pair-result--wrong');
+    const ic = document.createElement('i');
+    ic.className = pr.correct ? 'fas fa-check' : 'fas fa-times';
+    row.appendChild(ic);
+    const phr = document.createElement('span');
+    phr.textContent = pr.phrase;
+    row.appendChild(phr);
+    const arr = document.createElement('span');
+    arr.className = 'cm-pair-arrow';
+    arr.textContent = '→';
+    row.appendChild(arr);
+    const tr = document.createElement('span');
+    tr.textContent = pr.translation;
+    row.appendChild(tr);
+    listDiv.appendChild(row);
   });
-  html += '</div>';
-  listDiv.innerHTML = html;
 
-  // Next lesson
   const nextArea = document.getElementById('matching-next-area');
+  nextArea.textContent = '';
   if (passed && data.next_lesson_url) {
-    nextArea.innerHTML = `<a href="${data.next_lesson_url}" class="btn btn-success">
-      {{ _('Следующий урок') }} <i class="fas fa-arrow-right"></i>
-    </a>`;
+    const a = document.createElement('a');
+    a.href = data.next_lesson_url;
+    a.className = 'btn btn-success';
+    a.innerHTML = '{{ _("Следующий урок") }} <i class="fas fa-arrow-right"></i>';
+    nextArea.appendChild(a);
   }
 
-  resultDiv.style.display = 'block';
+  resultDiv.hidden = false;
   resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   if (typeof showLessonCompletion === 'function' && passed) {
     showLessonCompletion({ score });
   }
-}
-
-function escHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 </script>
 {% endblock %}

@@ -9,8 +9,13 @@ import pytest
 # ---------------------------------------------------------------------------
 
 def _read_text_template() -> str:
+    """Listening features now live in the dedicated listening_immersion.html template."""
     from pathlib import Path
-    p = Path(__file__).parent.parent.parent / "app" / "templates" / "curriculum" / "lessons" / "text.html"
+    p = (
+        Path(__file__).parent.parent.parent
+        / "app" / "templates" / "curriculum" / "lessons"
+        / "listening_immersion.html"
+    )
     return p.read_text(encoding="utf-8")
 
 

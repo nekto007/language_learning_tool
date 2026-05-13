@@ -27,6 +27,7 @@ _CANONICAL_LESSON_ROUTE_TYPES = frozenset({
     'shadow_reading',
     'pronunciation',
     'idiom',
+    'listening_immersion',
 })
 
 
@@ -517,7 +518,6 @@ def lesson_by_id(lesson_id):
         'matching': render_matching_lesson,
         'text': render_text_lesson,
         'reading': render_text_lesson,
-        'listening_immersion': render_text_lesson,
         'card': render_card_lesson,
         'final_test': render_final_test_lesson,
         # Quiz-based lessons

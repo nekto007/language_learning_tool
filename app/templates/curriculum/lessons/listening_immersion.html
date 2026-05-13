@@ -1,0 +1,356 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Аудирование') %}
+{% set instruction_text = _('Прослушайте диалог несколько раз. Постарайтесь понять содержание на слух.') %}
+{% set block_description = _('Развитие навыков восприятия речи на слух') %}
+
+{% set level_code = lesson.module.level.code if lesson.module and lesson.module.level else 'A1' %}
+{% set is_advanced = level_code in ('B1', 'B2', 'C1', 'C2') %}
+
+{% block extra_css %}
+<style>
+.li-audio-card {
+  background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  color: #fff;
+  border-radius: var(--lsn-radius, 16px);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+}
+.li-audio-card h3 {
+  margin: 0 0 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+}
+.li-audio-card audio {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+}
+.li-transcript-card {
+  background: var(--lsn-surface, #fff);
+  border: 1px solid var(--lsn-border, #e2e8f0);
+  border-radius: var(--lsn-radius, 16px);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+.li-transcript-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--lsn-text-muted, #475569);
+}
+.li-transcript-body {
+  white-space: pre-wrap;
+  line-height: 1.7;
+  color: var(--lsn-text, #0f172a);
+  font-size: 1rem;
+}
+.li-translation-card {
+  background: #f8fafc;
+  border-left: 3px solid #2563eb;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  color: #334155;
+}
+.li-self-assess {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #f1f5f9;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  user-select: none;
+}
+.li-self-assess input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--color-primary, #2563eb);
+}
+</style>
+{% endblock %}
+
+{% block lesson_content %}
+<section class="lesson-shell li-lesson" aria-labelledby="li-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="li-title">{{ _('Аудирование') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-headphones"></i></span>
+      <span class="lesson-shell__progress" aria-live="polite">
+        <span data-progress-current id="li-step">0</span> / <span data-progress-total>1</span>
+      </span>
+    </div>
+    <div class="lesson-shell__progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="lesson-shell__progress-fill" id="li-progress-fill" style="width:0%"></span>
+    </div>
+  </header>
+
+  <div class="lesson-shell__instruction" role="note">
+    <i class="fas fa-info-circle" aria-hidden="true"></i>
+    {{ instruction_text }}
+  </div>
+
+  <div class="lesson-shell__body">
+
+    {# Audio card #}
+    {% set audio_raw = text_content.audio_url or text_content.audio if text_content else '' %}
+    {% if audio_raw %}
+      {% set audio_file = audio_raw.replace('[sound:', '').replace(']', '') if '[sound:' in audio_raw else audio_raw %}
+      {% set audio_url = audio_file if audio_file.startswith('http') or audio_file.startswith('/') else url_for('static', filename='audio/' + audio_file) %}
+      <article class="lesson-shell__card li-audio-card listening-audio-player-card">
+        <h3>
+          <i class="fas fa-headphones"></i>
+          {{ text_content.title or _('Прослушайте диалог') }}
+        </h3>
+        <audio id="listening-audio" controls aria-label="{{ _('Аудиозапись урока') }}">
+          <source src="{{ audio_url }}" type="audio/mpeg">
+          <source src="{{ audio_url }}" type="audio/ogg">
+          {{ _('Ваш браузер не поддерживает аудио.') }}
+        </audio>
+        <div class="audio-speed-controls" id="audio-speed-controls" role="radiogroup" aria-label="{{ _('Скорость') }}">
+          <span class="audio-speed-label">{{ _('Скорость:') }}</span>
+          <button class="audio-speed-btn" type="button" data-speed="0.75" onclick="setAudioSpeed(0.75)">0.75×</button>
+          <button class="audio-speed-btn audio-speed-btn--active" type="button" data-speed="1" onclick="setAudioSpeed(1)">1×</button>
+          <button class="audio-speed-btn" type="button" data-speed="1.25" onclick="setAudioSpeed(1.25)">1.25×</button>
+          <button class="audio-speed-btn" type="button" data-speed="1.5" onclick="setAudioSpeed(1.5)">1.5×</button>
+        </div>
+      </article>
+    {% endif %}
+
+    {# Transcript toggle + content #}
+    {% if text_content and text_content.text %}
+      <button class="transcript-toggle" id="transcript-toggle-btn" type="button"
+              onclick="toggleTranscript()"
+              data-default-visible="{{ 'false' if is_advanced else 'true' }}"
+              aria-expanded="{{ 'false' if is_advanced else 'true' }}"
+              aria-controls="transcript-content">
+        <i class="fas fa-eye{% if not is_advanced %}-slash{% endif %}"></i>
+        <span id="transcript-toggle-label">{{ _('Скрыть текст') if not is_advanced else _('Показать текст') }}</span>
+      </button>
+
+      <article class="lesson-shell__card li-transcript-card{% if is_advanced %} transcript--hidden{% endif %}" id="transcript-content">
+        <h3><i class="fas fa-align-left"></i> {{ _('Текст') }}</h3>
+        <div class="li-transcript-body">{{ text_content.text }}</div>
+      </article>
+    {% endif %}
+
+    {# Translation #}
+    {% if text_content and text_content.translation %}
+      <article class="lesson-shell__card li-translation-card" id="translation-content">
+        <strong>{{ _('Перевод') }}:</strong>
+        {{ text_content.translation }}
+      </article>
+    {% endif %}
+
+    {# Per-sentence replay #}
+    {% if text_content.sentences %}
+      <div class="sentence-replay-list" id="sentence-replay-list">
+        <h5 class="sentence-replay-header">
+          <i class="fas fa-list-ul"></i> {{ _('Фразы') }}
+        </h5>
+        {% for sentence in text_content.sentences %}
+          <div class="sentence-replay-item">
+            <button class="sentence-replay-btn" type="button"
+                    onclick="replaySentence({{ sentence.start_time }}, {{ sentence.end_time }})"
+                    title="{{ _('Воспроизвести фразу') }}">
+              <i class="fas fa-redo-alt"></i>
+            </button>
+            <span class="sentence-replay-text">{{ sentence.text }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {# Self-assess #}
+    <label class="li-self-assess" for="li-self-cb">
+      <input type="checkbox" id="li-self-cb" onchange="onSelfAssessChange()">
+      <span>{{ _('Я прослушал(а) внимательно') }}</span>
+    </label>
+
+  </div>
+
+  <div class="lesson-shell__actions">
+    <button class="btn btn-primary btn-lg" id="li-submit-btn" type="button"
+            onclick="finishLesson()" disabled>
+      <i class="fas fa-check-circle"></i>
+      {{ _('Завершить урок') }}
+    </button>
+  </div>
+
+  <div class="lesson-shell__result" id="li-result"
+       role="status" aria-live="polite" aria-atomic="true" hidden>
+    <div id="li-score-area"></div>
+    <div id="li-next-area" style="margin-top: 1rem;"></div>
+  </div>
+</section>
+
+<script>
+const lessonId = {{ lesson.id }};
+const ALLOWED_SPEEDS = [0.75, 1, 1.25, 1.5];
+
+function setAudioSpeed(speed) {
+  if (![0.75, 1, 1.25, 1.5].includes(speed)) return;
+  const audio = document.getElementById('listening-audio');
+  if (audio) audio.playbackRate = speed;
+  document.querySelectorAll('.audio-speed-btn').forEach(btn => {
+    btn.classList.toggle('audio-speed-btn--active', parseFloat(btn.dataset.speed) === speed);
+  });
+  try { localStorage.setItem('listening_speed', String(speed)); } catch (e) {}
+}
+
+function initAudioSpeed() {
+  let stored = 1;
+  try {
+    const raw = localStorage.getItem('listening_speed');
+    if (raw) stored = parseFloat(raw);
+  } catch (e) {}
+  const speed = ALLOWED_SPEEDS.includes(stored) ? stored : 1;
+  setAudioSpeed(speed);
+}
+
+function toggleTranscript() {
+  const content = document.getElementById('transcript-content');
+  const btn = document.getElementById('transcript-toggle-btn');
+  const label = document.getElementById('transcript-toggle-label');
+  if (!content || !btn) return;
+  const willHide = !content.classList.contains('transcript--hidden') ? true : false;
+  content.classList.toggle('transcript--hidden');
+  const icon = btn.querySelector('i');
+  if (willHide) {
+    if (icon) icon.className = 'fas fa-eye';
+    if (label) label.textContent = '{{ _("Показать текст") }}';
+    btn.setAttribute('aria-expanded', 'false');
+  } else {
+    if (icon) icon.className = 'fas fa-eye-slash';
+    if (label) label.textContent = '{{ _("Скрыть текст") }}';
+    btn.setAttribute('aria-expanded', 'true');
+  }
+  try { localStorage.setItem('transcript_visible', willHide ? '0' : '1'); } catch (e) {}
+}
+
+function initTranscriptToggle() {
+  const content = document.getElementById('transcript-content');
+  const btn = document.getElementById('transcript-toggle-btn');
+  if (!content || !btn) return;
+  let stored = null;
+  try { stored = localStorage.getItem('transcript_visible'); } catch (e) {}
+  const defaultVisible = btn.dataset.defaultVisible !== 'false';
+  let visible = defaultVisible;
+  if (stored === '1') visible = true;
+  else if (stored === '0') visible = false;
+  if (visible) {
+    content.classList.remove('transcript--hidden');
+    btn.setAttribute('aria-expanded', 'true');
+    const icon = btn.querySelector('i');
+    const label = document.getElementById('transcript-toggle-label');
+    if (icon) icon.className = 'fas fa-eye-slash';
+    if (label) label.textContent = '{{ _("Скрыть текст") }}';
+  } else {
+    content.classList.add('transcript--hidden');
+    btn.setAttribute('aria-expanded', 'false');
+    const icon = btn.querySelector('i');
+    const label = document.getElementById('transcript-toggle-label');
+    if (icon) icon.className = 'fas fa-eye';
+    if (label) label.textContent = '{{ _("Показать текст") }}';
+  }
+}
+
+function replaySentence(startTime, endTime) {
+  const audio = document.getElementById('listening-audio');
+  if (!audio) return;
+  audio.currentTime = startTime;
+  audio.play().catch(() => {});
+  const stopAt = () => {
+    if (audio.currentTime >= endTime) {
+      audio.pause();
+      audio.removeEventListener('timeupdate', stopAt);
+    }
+  };
+  audio.addEventListener('timeupdate', stopAt);
+}
+
+function onSelfAssessChange() {
+  const cb = document.getElementById('li-self-cb');
+  const btn = document.getElementById('li-submit-btn');
+  btn.disabled = !cb.checked;
+  const step = document.getElementById('li-step');
+  const fill = document.getElementById('li-progress-fill');
+  if (cb.checked) {
+    if (step) step.textContent = '1';
+    if (fill) {
+      fill.style.width = '100%';
+      const bar = fill.parentElement;
+      if (bar) bar.setAttribute('aria-valuenow', '100');
+    }
+  } else {
+    if (step) step.textContent = '0';
+    if (fill) {
+      fill.style.width = '0%';
+      const bar = fill.parentElement;
+      if (bar) bar.setAttribute('aria-valuenow', '0');
+    }
+  }
+}
+
+async function finishLesson() {
+  const btn = document.getElementById('li-submit-btn');
+  btn.disabled = true;
+  btn.classList.add('btn--loading');
+
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+    const resp = await fetch('/curriculum/api/lesson/' + lessonId + '/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ self_assessed: true, lesson_type: 'listening_immersion' }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    const area = document.getElementById('li-result');
+    const scoreArea = document.getElementById('li-score-area');
+    const nextArea = document.getElementById('li-next-area');
+    scoreArea.textContent = '';
+    nextArea.textContent = '';
+    const badge = document.createElement('div');
+    badge.className = 'result-badge result-badge--correct';
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'result-badge__icon';
+    iconSpan.innerHTML = '<i class="fas fa-check-circle"></i>';
+    badge.appendChild(iconSpan);
+    const label = document.createElement('span');
+    label.textContent = '{{ _("Урок завершён!") }}';
+    badge.appendChild(label);
+    scoreArea.appendChild(badge);
+
+    if (data.next_lesson_url) {
+      const a = document.createElement('a');
+      a.href = data.next_lesson_url;
+      a.className = 'btn btn-success';
+      a.innerHTML = '<i class="fas fa-arrow-right"></i> {{ _("Следующий урок") }}';
+      nextArea.appendChild(a);
+    }
+
+    area.hidden = false;
+    area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (err) {
+    console.error('Listening immersion finish error:', err);
+    btn.disabled = false;
+    btn.classList.remove('btn--loading');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initAudioSpeed();
+  initTranscriptToggle();
+});
+</script>
+{% endblock %}

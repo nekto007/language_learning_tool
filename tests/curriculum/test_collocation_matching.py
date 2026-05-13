@@ -249,6 +249,27 @@ class TestCollocationMatchingTemplate:
         tpl = _read_template()
         assert "resetMatching()" in tpl
 
+    def test_uses_lesson_shell(self):
+        tpl = _read_template()
+        assert "lesson-shell" in tpl
+        assert "lesson-shell__header" in tpl
+        assert "lesson-shell__body" in tpl
+        assert "lesson-shell__actions" in tpl
+
+    def test_uses_option_btn(self):
+        tpl = _read_template()
+        assert "option-btn" in tpl
+
+    def test_submit_payload_includes_lesson_type(self):
+        tpl = _read_template()
+        assert "lesson_type: 'collocation_matching'" in tpl
+
+    def test_result_uses_result_badge_classes(self):
+        tpl = _read_template()
+        assert "result-badge" in tpl
+        assert "result-badge--correct" in tpl
+        assert "result-badge--incorrect" in tpl
+
 
 # ---------------------------------------------------------------------------
 # Route tests — GET

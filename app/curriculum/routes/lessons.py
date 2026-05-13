@@ -89,7 +89,7 @@ def lesson_detail(lesson_id):
         'reading': 'curriculum_lessons.text_lesson',
         'card': 'curriculum_lessons.card_lesson',
         'flashcards': 'curriculum_lessons.card_lesson',
-        'listening_immersion': 'curriculum_lessons.text_lesson',
+        'listening_immersion': 'curriculum_lessons.listening_immersion_lesson',
         'final_test': 'curriculum_lessons.final_test_lesson',
         'ordering_quiz': 'curriculum_lessons.quiz_lesson',
         'translation_quiz': 'curriculum_lessons.quiz_lesson',
@@ -316,6 +316,8 @@ def submit_lesson(lesson_id):
             result = _process_collocation_matching_submission(lesson, current_user.id, data)
         elif lesson.type == 'shadow_reading':
             result = _process_shadow_reading_submission(lesson, current_user.id, data)
+        elif lesson.type == 'listening_immersion':
+            result = _process_listening_immersion_submission(lesson, current_user.id, data)
         elif lesson.type == 'pronunciation':
             result = _process_pronunciation_submission(lesson, current_user.id, data)
         elif lesson.type == 'idiom':
@@ -1384,6 +1386,69 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
         if next_lesson:
             result['next_lesson_url'] = _lesson_completion_url(next_lesson)
 
+    return result
+
+
+def _process_listening_immersion_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
+    """Mark listening immersion lesson complete on self-assessment.
+
+    Awards curriculum + listening XP and logs a ListeningAttempt.
+    """
+    self_assessed = bool(data.get('self_assessed', False))
+    if not self_assessed:
+        return {'success': True, 'completed': False}
+
+    progress = LessonProgress.query.filter_by(
+        user_id=user_id, lesson_id=lesson.id
+    ).first()
+    if progress:
+        progress.status = 'completed'
+        progress.score = 100.0
+        if not progress.completed_at:
+            progress.completed_at = datetime.now(UTC)
+        progress.last_activity = datetime.now(UTC)
+    else:
+        progress = LessonProgress(
+            user_id=user_id,
+            lesson_id=lesson.id,
+            status='completed',
+            score=100.0,
+            started_at=datetime.now(UTC),
+            completed_at=datetime.now(UTC),
+            last_activity=datetime.now(UTC),
+        )
+        db.session.add(progress)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    try:
+        from app.curriculum.listening_service import log_listening_attempt
+        log_listening_attempt(user_id, lesson.id, 100.0, 0, db)
+        db.session.commit()
+    except Exception as log_err:
+        logger.warning(f"Listening attempt log failed for lesson {lesson.id}: {log_err}")
+        db.session.rollback()
+
+    try:
+        from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_listening_xp
+        maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
+        maybe_award_listening_xp(user_id, lesson.id, score=100.0, db_session=db)
+        db.session.commit()
+    except Exception as xp_err:
+        logger.warning(f"Listening immersion XP award failed for lesson {lesson.id}: {xp_err}")
+
+    try:
+        from app.achievements.services import check_listening_achievements
+        check_listening_achievements(user_id, db_session=db.session)
+    except Exception as ach_err:
+        logger.warning(f"Listening achievements check failed for user {user_id}: {ach_err}")
+
+    result: dict = {'success': True, 'completed': True}
+    next_lesson = _get_next_lesson_for_completion(lesson)
+    if next_lesson:
+        result['next_lesson_url'] = _lesson_completion_url(next_lesson)
     return result
 
 

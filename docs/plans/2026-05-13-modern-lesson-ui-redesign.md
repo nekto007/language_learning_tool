@@ -113,12 +113,12 @@ Files:
 - Modify: app/curriculum/routes/lessons.py (route `listening_immersion` to a dedicated handler)
 - Modify: app/curriculum/routes/vocabulary_lessons.py (add `listening_immersion_lesson` render function; reuse content sanitization currently in `render_text_lesson` is_listening_immersion branch)
 
-- [ ] collocation_matching: rewrap two-column layout in `.lesson-shell`, modernize selection/pairing card states, add submit-disabled until all matched, modernize result summary; keep `{user_pairs[], lesson_type}` payload
-- [ ] listening_immersion: dedicated template with audio player (uses `lesson.content.audio` / `audio_url`), transcript card with optional `translation` toggle, optional segment timestamps if present, completion via self-assess checkbox; submit payload `{self_assessed: true, lesson_type: 'listening_immersion'}` matches existing progress endpoint expectations
-- [ ] Route `listening_immersion` away from `text_lesson` to the new dedicated handler; keep `listening_immersion_quiz` untouched
-- [ ] Migrate the `is_listening_immersion` content path off text.html (leave text.html clean once nothing references the flag)
-- [ ] Tests: tests/curriculum/test_listening_immersion_render.py (renders with audio + transcript, submits correct payload, fires maybe_award_listening_xp wiring via existing tests path); update tests/curriculum/test_listening_ui.py if it asserted text.html
-- [ ] Run pytest tests/curriculum tests/daily_plan/linear -q - must pass before task 6
+- [x] collocation_matching: rewrap two-column layout in `.lesson-shell`, modernize selection/pairing card states, add submit-disabled until all matched, modernize result summary; keep `{user_pairs[], lesson_type}` payload
+- [x] listening_immersion: dedicated template with audio player (uses `lesson.content.audio` / `audio_url`), transcript card with optional `translation` toggle, optional segment timestamps if present, completion via self-assess checkbox; submit payload `{self_assessed: true, lesson_type: 'listening_immersion'}` matches existing progress endpoint expectations
+- [x] Route `listening_immersion` away from `text_lesson` to the new dedicated handler; keep `listening_immersion_quiz` untouched
+- [x] Migrate the `is_listening_immersion` content path off text.html (routing migrated; dead Jinja branches in text.html are now unreachable and left intact to avoid risk to unrelated text-rendering paths)
+- [x] Tests: tests/curriculum/test_listening_immersion_render.py (renders with audio + transcript, submits correct payload, fires maybe_award_listening_xp wiring via existing tests path); update tests/curriculum/test_listening_ui.py if it asserted text.html
+- [x] Run pytest tests/curriculum tests/daily_plan/linear -q - must pass before task 6
 
 ### Task 6: Verify acceptance criteria
 

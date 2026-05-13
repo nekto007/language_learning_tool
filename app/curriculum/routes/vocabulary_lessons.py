@@ -249,7 +249,7 @@ def render_matching_lesson(lesson):
 
 def render_text_lesson(lesson):
     """Рендер text урока"""
-    if lesson.type not in ['text', 'reading', 'listening_immersion']:
+    if lesson.type not in ['text', 'reading', 'listening_immersion_quiz']:
         abort(400, "This is not a text lesson")
 
     try:
@@ -276,13 +276,6 @@ def render_text_lesson(lesson):
         cleaned_content['content'] = sanitize_html(text_content)
         if 'text' not in cleaned_content and text_content:
             cleaned_content['text'] = cleaned_content['content']
-
-    if lesson.type == 'listening_immersion':
-        cleaned_content['is_listening_immersion'] = True
-        if 'translation' in cleaned_content:
-            cleaned_content['translation'] = sanitize_html(cleaned_content['translation'])
-        if 'instruction' in cleaned_content:
-            cleaned_content['instruction'] = sanitize_html(cleaned_content['instruction'])
 
     if 'title' in cleaned_content:
         cleaned_content['title'] = sanitize_html(cleaned_content['title'])
@@ -587,6 +580,79 @@ def matching_lesson(lesson_id):
     )
 
 
+@lessons_bp.route('/lesson/<int:lesson_id>/listening-immersion')
+@login_required
+@require_lesson_access
+def listening_immersion_lesson(lesson_id):
+    """Display a dedicated listening immersion lesson."""
+    lesson = Lessons.query.get_or_404(lesson_id)
+
+    if lesson.type != 'listening_immersion':
+        abort(400, "This is not a listening immersion lesson")
+
+    try:
+        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
+            'text', lesson.content
+        )
+    except ValidationError as e:
+        error_msg = str(e.messages)
+        logger.error(f"Invalid listening_immersion content for lesson {lesson.id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
+
+    if not is_valid:
+        logger.error(f"Invalid listening_immersion content for lesson {lesson.id}: {error_msg}")
+        flash('Ошибка в содержимом урока', 'error')
+        return redirect('/learn/')
+
+    text_content = cleaned_content.get('content', cleaned_content.get('text', ''))
+    if isinstance(text_content, dict):
+        if 'lines' in text_content:
+            joined = '\n'.join(
+                str(line.get('text', '')) for line in text_content['lines']
+                if isinstance(line, dict)
+            )
+            cleaned_content['text'] = joined
+        else:
+            cleaned_content['text'] = ''
+    else:
+        cleaned_content['text'] = sanitize_html(text_content)
+
+    if 'title' in cleaned_content:
+        cleaned_content['title'] = sanitize_html(cleaned_content['title'])
+    if 'translation' in cleaned_content:
+        cleaned_content['translation'] = sanitize_html(cleaned_content['translation'])
+    if 'instruction' in cleaned_content:
+        cleaned_content['instruction'] = sanitize_html(cleaned_content['instruction'])
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id,
+    ).first()
+    if not progress:
+        try:
+            from datetime import UTC, datetime
+            progress = LessonProgress(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+                status='in_progress',
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error creating listening_immersion progress: {e}")
+            db.session.rollback()
+
+    return render_template(
+        'curriculum/lessons/listening_immersion.html',
+        lesson=lesson,
+        text_content=cleaned_content,
+        progress=progress,
+    )
+
+
 @lessons_bp.route('/lesson/<int:lesson_id>/text', methods=['GET', 'POST'])
 @login_required
 @require_lesson_access
@@ -594,7 +660,7 @@ def text_lesson(lesson_id):
     """Display text lesson with sanitized content"""
     lesson = Lessons.query.get_or_404(lesson_id)
 
-    if lesson.type not in ['text', 'reading', 'listening_immersion']:
+    if lesson.type not in ['text', 'reading']:
         abort(400, "This is not a text lesson")
 
     try:
