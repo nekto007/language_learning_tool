@@ -4,225 +4,126 @@
 {% set instruction_text = _('Прослушайте аудио, затем прочитайте вслух вместе с записью.') %}
 {% set block_description = _('Тренировка произношения и интонации') %}
 
-{% block extra_css %}
-<style>
-.shadow-reading-lesson {
-  max-width: 720px;
-  margin: 0 auto;
-}
-.shadow-phase {
-  border-radius: 1rem;
-  padding: 1.5rem;
-  margin-bottom: 1.25rem;
-  border: 2px solid transparent;
-  transition: border-color 0.25s, opacity 0.25s;
-}
-.shadow-phase--locked {
-  opacity: 0.45;
-  pointer-events: none;
-}
-.shadow-phase--active {
-  border-color: var(--color-primary, #6366f1);
-}
-.shadow-phase--done {
-  border-color: var(--color-success, #10b981);
-}
-.shadow-phase-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  font-weight: 600;
-  font-size: 1rem;
-}
-.shadow-phase-number {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  background: var(--color-primary, #6366f1);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.875rem;
-  flex-shrink: 0;
-}
-.shadow-phase--done .shadow-phase-number {
-  background: var(--color-success, #10b981);
-}
-.shadow-phase-1 {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: #fff;
-}
-.shadow-phase-1 .shadow-phase-number {
-  background: rgba(255,255,255,0.25);
-}
-.shadow-phase-1 audio {
-  width: 100%;
-  border-radius: 0.5rem;
-  margin-top: 0.5rem;
-}
-.shadow-phase-2 {
-  background: #fff;
-  border: 2px solid var(--color-border, #e5e7eb);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-.shadow-text-block {
-  background: var(--color-bg-secondary, #f9fafb);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  font-size: 1.1rem;
-  line-height: 1.7;
-  color: var(--color-text, #1f2937);
-  margin-bottom: 0.75rem;
-}
-.shadow-translation-block {
-  font-size: 0.9rem;
-  color: var(--color-text-secondary, #6b7280);
-  margin-top: 0.5rem;
-  font-style: italic;
-}
-.shadow-phase-2 audio {
-  width: 100%;
-  border-radius: 0.5rem;
-  margin-top: 0.75rem;
-}
-.shadow-phase-3 {
-  background: #fff;
-  border: 2px solid var(--color-border, #e5e7eb);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-.shadow-assess-label {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1.5;
-}
-.shadow-assess-checkbox {
-  margin-top: 0.2rem;
-  width: 1.125rem;
-  height: 1.125rem;
-  flex-shrink: 0;
-  accent-color: var(--color-primary, #6366f1);
-}
-.shadow-submit-row {
-  margin-top: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-@media (max-width: 480px) {
-  .shadow-submit-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-</style>
-{% endblock %}
-
 {% block lesson_content %}
-<div class="shadow-reading-lesson">
+<section class="lesson-shell shadow-reading-lesson" aria-labelledby="shadow-reading-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="shadow-reading-title">{{ _('Теневое чтение') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-headphones"></i></span>
+      <span class="lesson-shell__progress" aria-live="polite">
+        {{ _('Шаг') }} <span id="shadow-phase-current" data-progress-current>1</span> / <span data-progress-total>3</span>
+      </span>
+    </div>
+    <div class="lesson-shell__progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="33">
+      <span class="lesson-shell__progress-fill" id="shadow-progress-fill" style="width:33%"></span>
+    </div>
+  </header>
 
-  <!-- Phase 1: Listen -->
-  <div class="shadow-phase shadow-phase-1" id="phase-1">
-    <div class="shadow-phase-header">
-      <div class="shadow-phase-number" id="phase-1-num">1</div>
-      <span><i class="fas fa-headphones"></i> {{ _('Шаг 1 — Прослушайте') }}</span>
-    </div>
-    <p style="margin:0 0 0.5rem; opacity:0.9; font-size:0.95rem;">
-      {{ _('Сначала просто слушайте — следите за ритмом и интонацией.') }}
-    </p>
-    <audio id="audio-phase1" controls onended="onPhase1End()">
-      <source src="{{ audio_url }}" type="audio/mpeg">
-      <source src="{{ audio_url }}" type="audio/ogg">
-      {{ _('Ваш браузер не поддерживает аудио.') }}
-    </audio>
-    <div style="margin-top:0.75rem; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-      <button class="btn btn-sm" id="btn-skip-phase1" onclick="goToPhase2()" type="button"
-              style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);">
-        {{ _('Перейти к чтению') }} <i class="fas fa-arrow-right"></i>
-      </button>
-      <button class="shadow-loop-btn" id="loop-toggle" onclick="toggleLoop()" type="button">
-        <i class="fas fa-redo-alt"></i> <span id="loop-label">{{ _('Повторять') }}</span>
-      </button>
-    </div>
-  </div>
+  <div class="lesson-shell__body">
 
-  <!-- Phase 2: Read-along -->
-  <div class="shadow-phase shadow-phase-2 shadow-phase--locked" id="phase-2">
-    <div class="shadow-phase-header">
-      <div class="shadow-phase-number" id="phase-2-num">2</div>
-      <span><i class="fas fa-book-open"></i> {{ _('Шаг 2 — Читайте вслух вместе с записью') }}</span>
-    </div>
-    <div class="shadow-text-block" id="shadow-text">
-      {% if words %}
-        {% for word in words %}
-          <span class="shadow-word" data-start="{{ word.start }}" data-end="{{ word.end }}">{{ word.text }} </span>
-        {% endfor %}
-      {% else %}
-        {{ text }}
+    <article class="lesson-shell__card shadow-phase" id="phase-1" data-phase="1" data-state="active"
+             aria-current="step">
+      <header class="shadow-phase__header">
+        <span class="shadow-phase__num" id="phase-1-num">1</span>
+        <span class="shadow-phase__label">
+          <i class="fas fa-headphones"></i>
+          {{ _('Шаг 1 — Прослушайте') }}
+        </span>
+      </header>
+      <p class="shadow-phase__hint">
+        {{ _('Сначала просто слушайте — следите за ритмом и интонацией.') }}
+      </p>
+      <audio class="shadow-phase__audio" id="audio-phase1" controls
+             aria-label="{{ _('Аудио для прослушивания') }}"
+             onended="onPhase1End()">
+        <source src="{{ audio_url }}" type="audio/mpeg">
+        <source src="{{ audio_url }}" type="audio/ogg">
+        {{ _('Ваш браузер не поддерживает аудио.') }}
+      </audio>
+      <div class="shadow-phase__inline-actions">
+        <button class="btn btn-outline btn-sm" id="btn-skip-phase1" type="button"
+                onclick="goToPhase2()">
+          {{ _('Перейти к чтению') }} <i class="fas fa-arrow-right"></i>
+        </button>
+        <button class="btn btn-outline btn-sm" id="loop-toggle" type="button"
+                aria-pressed="false" onclick="toggleLoop()">
+          <i class="fas fa-redo-alt"></i> <span id="loop-label">{{ _('Повторять') }}</span>
+        </button>
+      </div>
+    </article>
+
+    <article class="lesson-shell__card shadow-phase" id="phase-2" data-phase="2" data-state="locked"
+             aria-disabled="true">
+      <header class="shadow-phase__header">
+        <span class="shadow-phase__num" id="phase-2-num">2</span>
+        <span class="shadow-phase__label">
+          <i class="fas fa-book-open"></i>
+          {{ _('Шаг 2 — Читайте вслух вместе с записью') }}
+        </span>
+      </header>
+      <div class="shadow-phase__text" id="shadow-text">
+        {% if words %}
+          {% for word in words %}
+            <span class="shadow-word" data-start="{{ word.start }}" data-end="{{ word.end }}">{{ word.text }} </span>
+          {% endfor %}
+        {% else %}
+          {{ text }}
+        {% endif %}
+      </div>
+      {% if translation %}
+      <div class="shadow-phase__translation">
+        <i class="fas fa-language"></i> {{ translation }}
+      </div>
       {% endif %}
-    </div>
-    {% if translation %}
-    <div class="shadow-translation-block">
-      <i class="fas fa-language"></i> {{ translation }}
-    </div>
-    {% endif %}
-    <audio id="audio-phase2" controls onended="onPhase2End()">
-      <source src="{{ audio_url }}" type="audio/mpeg">
-      <source src="{{ audio_url }}" type="audio/ogg">
-      {{ _('Ваш браузер не поддерживает аудио.') }}
-    </audio>
-    <div style="margin-top:0.75rem;">
-      <button class="btn btn-sm btn-outline" id="btn-skip-phase2" onclick="goToPhase3()" type="button">
-        {{ _('Готов(а) к самооценке') }} <i class="fas fa-arrow-right"></i>
-      </button>
-    </div>
+      <audio class="shadow-phase__audio" id="audio-phase2" controls
+             aria-label="{{ _('Аудио для чтения вслух') }}"
+             onended="onPhase2End()">
+        <source src="{{ audio_url }}" type="audio/mpeg">
+        <source src="{{ audio_url }}" type="audio/ogg">
+        {{ _('Ваш браузер не поддерживает аудио.') }}
+      </audio>
+      <div class="shadow-phase__inline-actions">
+        <button class="btn btn-outline btn-sm" id="btn-skip-phase2" type="button"
+                onclick="goToPhase3()">
+          {{ _('Готов(а) к самооценке') }} <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </article>
+
+    <article class="lesson-shell__card shadow-phase" id="phase-3" data-phase="3" data-state="locked"
+             aria-disabled="true">
+      <header class="shadow-phase__header">
+        <span class="shadow-phase__num" id="phase-3-num">3</span>
+        <span class="shadow-phase__label">
+          <i class="fas fa-check-circle"></i>
+          {{ _('Шаг 3 — Самооценка') }}
+        </span>
+      </header>
+      <label class="shadow-phase__assess" for="self-assess-checkbox">
+        <input type="checkbox" id="self-assess-checkbox" onchange="onAssessChange()">
+        <span>{{ _('Я прочитал(а) вслух вместе с записью') }}</span>
+      </label>
+    </article>
+
   </div>
 
-  <!-- Phase 3: Self-assess -->
-  <div class="shadow-phase shadow-phase-3 shadow-phase--locked" id="phase-3">
-    <div class="shadow-phase-header">
-      <div class="shadow-phase-number" id="phase-3-num">3</div>
-      <span><i class="fas fa-check-circle"></i> {{ _('Шаг 3 — Самооценка') }}</span>
-    </div>
-    <label class="shadow-assess-label" for="self-assess-checkbox">
-      <input
-        class="shadow-assess-checkbox"
-        id="self-assess-checkbox"
-        type="checkbox"
-        onchange="onAssessChange()"
-      >
-      <span>{{ _('Я прочитал(а) вслух вместе с записью') }}</span>
-    </label>
-    <div class="shadow-submit-row">
-      <button
-        class="btn btn-primary btn-lg"
-        id="submit-btn"
-        disabled
-        onclick="submitShadowReading()"
-        type="button"
-      >
-        <i class="fas fa-check"></i> {{ _('Завершить урок') }}
-      </button>
-      <button
-        class="btn btn-outline"
-        id="retry-btn"
-        onclick="retryAssess()"
-        type="button"
-      >
-        <i class="fas fa-redo"></i> {{ _('Попробуй ещё раз') }}
-      </button>
-    </div>
+  <div class="lesson-shell__actions shadow-actions">
+    <button class="btn btn-outline" id="retry-btn" type="button" onclick="retryAssess()">
+      <i class="fas fa-redo"></i> {{ _('Попробуй ещё раз') }}
+    </button>
+    <button class="btn btn-primary btn-lg" id="submit-btn" type="button"
+            disabled onclick="submitShadowReading()">
+      <i class="fas fa-check"></i> {{ _('Завершить урок') }}
+    </button>
   </div>
 
-  <!-- Result area -->
-  <div id="shadow-result" style="display:none; margin-top:1rem;"></div>
-
-</div>
+  <div class="lesson-shell__result shadow-result" id="shadow-result"
+       role="status" aria-live="polite" aria-atomic="true" hidden>
+    <div id="result-badge"></div>
+    <div id="shadow-next-area" style="margin-top:1rem;"></div>
+  </div>
+</section>
 
 <script>
 const lessonId = {{ lesson.id }};
@@ -242,11 +143,12 @@ function _updateLoopBtn() {
   const btn = document.getElementById('loop-toggle');
   const label = document.getElementById('loop-label');
   if (!btn) return;
+  btn.setAttribute('aria-pressed', loopEnabled ? 'true' : 'false');
   if (loopEnabled) {
-    btn.classList.add('shadow-loop-btn--active');
+    btn.classList.add('option-btn--selected');
     if (label) label.textContent = '{{ _("Повтор вкл.") }}';
   } else {
-    btn.classList.remove('shadow-loop-btn--active');
+    btn.classList.remove('option-btn--selected');
     if (label) label.textContent = '{{ _("Повторять") }}';
   }
 }
@@ -257,6 +159,34 @@ function toggleLoop() {
     localStorage.setItem('shadow_loop_enabled', loopEnabled ? 'true' : 'false');
   } catch(e) {}
   _updateLoopBtn();
+}
+
+function _updateProgressBar(step) {
+  const fill = document.getElementById('shadow-progress-fill');
+  const current = document.getElementById('shadow-phase-current');
+  if (current) current.textContent = String(step);
+  if (fill) {
+    const pct = Math.round((step / 3) * 100);
+    fill.style.width = pct + '%';
+    const bar = fill.parentElement;
+    if (bar) bar.setAttribute('aria-valuenow', String(pct));
+  }
+}
+
+function _setPhaseState(id, state) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.dataset.state = state;
+  if (state === 'locked') {
+    el.setAttribute('aria-disabled', 'true');
+    el.removeAttribute('aria-current');
+  } else if (state === 'active') {
+    el.removeAttribute('aria-disabled');
+    el.setAttribute('aria-current', 'step');
+  } else if (state === 'done') {
+    el.removeAttribute('aria-disabled');
+    el.removeAttribute('aria-current');
+  }
 }
 
 function onPhase1End() {
@@ -274,12 +204,11 @@ function onPhase1End() {
 function goToPhase2() {
   if (phase2Unlocked) return;
   phase2Unlocked = true;
-  const p1 = document.getElementById('phase-1');
-  const p2 = document.getElementById('phase-2');
-  p1.classList.add('shadow-phase--done');
+  _setPhaseState('phase-1', 'done');
+  _setPhaseState('phase-2', 'active');
   document.getElementById('phase-1-num').innerHTML = '<i class="fas fa-check"></i>';
-  p2.classList.remove('shadow-phase--locked');
-  p2.classList.add('shadow-phase--active');
+  _updateProgressBar(2);
+  const p2 = document.getElementById('phase-2');
   p2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   const a2 = document.getElementById('audio-phase2');
   if (a2) {
@@ -303,13 +232,11 @@ function onPhase2End() {
 function goToPhase3() {
   if (phase3Unlocked) return;
   phase3Unlocked = true;
-  const p2 = document.getElementById('phase-2');
-  const p3 = document.getElementById('phase-3');
-  p2.classList.remove('shadow-phase--active');
-  p2.classList.add('shadow-phase--done');
+  _setPhaseState('phase-2', 'done');
+  _setPhaseState('phase-3', 'active');
   document.getElementById('phase-2-num').innerHTML = '<i class="fas fa-check"></i>';
-  p3.classList.remove('shadow-phase--locked');
-  p3.classList.add('shadow-phase--active');
+  _updateProgressBar(3);
+  const p3 = document.getElementById('phase-3');
   p3.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -325,13 +252,11 @@ function retryAssess() {
   cb.checked = false;
   btn.disabled = true;
   phase3Unlocked = false;
+  _setPhaseState('phase-3', 'locked');
+  _setPhaseState('phase-2', 'active');
+  _updateProgressBar(2);
   const a2 = document.getElementById('audio-phase2');
   const p2 = document.getElementById('phase-2');
-  const p3 = document.getElementById('phase-3');
-  p3.classList.remove('shadow-phase--active');
-  p3.classList.add('shadow-phase--locked');
-  p2.classList.remove('shadow-phase--done');
-  p2.classList.add('shadow-phase--active');
   p2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   if (a2) {
     a2.currentTime = 0;
@@ -348,13 +273,31 @@ function initWordHighlighting(audioEl) {
     wordSpans.forEach(function(span) {
       const start = parseFloat(span.dataset.start);
       const end = parseFloat(span.dataset.end);
-      if (t >= start && t < end) {
+      const active = t >= start && t < end;
+      if (active) {
         span.classList.add('shadow-word--active');
+        span.setAttribute('aria-current', 'true');
       } else {
         span.classList.remove('shadow-word--active');
+        span.removeAttribute('aria-current');
       }
     });
   });
+}
+
+function _renderBadge(kind, iconHtml, label) {
+  const badge = document.getElementById('result-badge');
+  badge.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'result-badge result-badge--' + kind;
+  const icon = document.createElement('span');
+  icon.className = 'result-badge__icon';
+  icon.innerHTML = iconHtml;
+  wrap.appendChild(icon);
+  const span = document.createElement('span');
+  span.textContent = label;
+  wrap.appendChild(span);
+  badge.appendChild(wrap);
 }
 
 async function submitShadowReading() {
@@ -363,6 +306,7 @@ async function submitShadowReading() {
 
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
+  btn.classList.add('btn--loading');
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Сохранение...") }}';
 
   try {
@@ -376,36 +320,36 @@ async function submitShadowReading() {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
 
-    const p3 = document.getElementById('phase-3');
-    p3.classList.remove('shadow-phase--active');
-    p3.classList.add('shadow-phase--done');
+    _setPhaseState('phase-3', 'done');
     document.getElementById('phase-3-num').innerHTML = '<i class="fas fa-check"></i>';
 
+    btn.classList.remove('btn--loading');
     btn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено!") }}';
 
-    const resultDiv = document.getElementById('shadow-result');
-    resultDiv.style.display = 'block';
-    let html = `<div class="shadow-phase shadow-phase--done" style="text-align:center;padding:1rem 1.5rem;">
-      <i class="fas fa-star" style="color:#f59e0b;font-size:1.5rem;"></i>
-      <p style="margin:0.5rem 0 0;font-weight:600;">{{ _("Отлично! Урок завершён.") }}</p>
-    </div>`;
+    _renderBadge('correct', '<i class="fas fa-star"></i>',
+      '{{ _("Отлично! Урок завершён.") }}');
+
+    const resultArea = document.getElementById('shadow-result');
+    const nextArea = document.getElementById('shadow-next-area');
     if (data.next_lesson_url) {
-      html += `<div style="text-align:center;margin-top:0.75rem;">
+      nextArea.innerHTML = `
         <a href="${data.next_lesson_url}" class="btn btn-success">
-          <i class="fas fa-arrow-right"></i> {{ _("Следующий урок") }}
-        </a>
-      </div>`;
+          <i class="fas fa-arrow-right"></i> {{ _('Следующий урок') }}
+        </a>`;
     }
-    resultDiv.innerHTML = html;
-    resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    resultArea.hidden = false;
+    resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
     if (typeof showSaveToast === 'function') showSaveToast();
 
   } catch (err) {
     console.error('Shadow reading submit error:', err);
     btn.disabled = false;
+    btn.classList.remove('btn--loading');
     btn.innerHTML = '<i class="fas fa-check"></i> {{ _("Завершить урок") }}';
-    alert('{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+    _renderBadge('incorrect', '<i class="fas fa-times-circle"></i>',
+      '{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+    document.getElementById('shadow-result').hidden = false;
   }
 }
 </script>

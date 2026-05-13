@@ -99,11 +99,11 @@ Files:
 - Modify: app/templates/curriculum/lessons/audio_fill_blank.html
 - Modify: app/templates/curriculum/lessons/pronunciation.html
 
-- [ ] shadow_reading: keep 3-phase Listen → Read-along → Self-assess machine but rewrap in `.lesson-shell`; modernize phase indicator; preserve word-sync highlighting using existing `words[].start/end` schema
-- [ ] audio_fill_blank: master audio player + per-item cards with optional clip + gap input or `.option-btn` group + per-item result badge; keep `{answers[], lesson_type}` payload
-- [ ] pronunciation: unified progress strip + per-item card with audio play, Web Speech API path and self-assess fallback path sharing identical card layout; preserve per-item POST and finish POST contracts
-- [ ] Tests: render smoke + payload contract for each; mock SpeechRecognition where needed; verify ListeningAttempt logging still fires for audio_fill_blank/dictation paths
-- [ ] Run pytest tests/curriculum -q tests/daily_plan/linear/test_listening_slot.py - must pass before task 5
+- [x] shadow_reading: keep 3-phase Listen → Read-along → Self-assess machine but rewrap in `.lesson-shell`; modernize phase indicator; preserve word-sync highlighting using existing `words[].start/end` schema
+- [x] audio_fill_blank: master audio player + per-item cards with optional clip + gap input or `.option-btn` group + per-item result badge; keep `{answers[], lesson_type}` payload
+- [x] pronunciation: unified progress strip + per-item card with audio play, Web Speech API path and self-assess fallback path sharing identical card layout; preserve per-item POST and finish POST contracts
+- [x] Tests: render smoke + payload contract for each; mock SpeechRecognition where needed; verify ListeningAttempt logging still fires for audio_fill_blank/dictation paths
+- [x] Run pytest tests/curriculum -q tests/daily_plan/linear/test_listening_slot.py - must pass before task 5
 
 ### Task 5: Redesign collocation_matching + create listening_immersion template
 

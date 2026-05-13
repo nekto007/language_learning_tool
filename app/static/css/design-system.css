@@ -13464,6 +13464,81 @@ footer .col-md-4 {
         transition: none;
     }
 }
+.afb-master-audio__title {
+    margin: 0 0 var(--space-3);
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.afb-master-audio audio {
+    width: 100%;
+    border-radius: var(--radius-sm);
+}
+.afb-item__header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+.afb-item__num {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: var(--radius-full);
+    background: var(--primary-500);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.afb-item__clip-btn {
+    background: none;
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-full);
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.afb-item__clip-btn:hover {
+    color: var(--primary-500);
+    border-color: var(--primary-500);
+}
+.afb-item__gap-text {
+    font-size: var(--text-base);
+    line-height: 1.6;
+}
+.afb-item__input-label {
+    display: block;
+    font-weight: var(--font-medium);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-2);
+}
+.afb-item__options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}
+.afb-item__reveal {
+    font-size: var(--text-sm);
+    color: var(--success-700, #15803d);
+    margin-top: var(--space-2);
+    display: none;
+}
+.afb-item__reveal.visible {
+    display: block;
+}
 
 /* ── Translation lesson ── */
 .translation-lesson {
@@ -14544,30 +14619,160 @@ span.vocab-word.vocab-word--active {
     border-radius: 3px;
     transition: background 0.1s;
 }
-.shadow-loop-btn {
-    background: rgba(255, 255, 255, 0.15);
+.shadow-phase {
+    transition: border-color var(--transition-fast), opacity var(--transition-fast);
+}
+.shadow-phase[data-state="locked"] {
+    opacity: 0.5;
+    pointer-events: none;
+}
+.shadow-phase[data-state="active"] {
+    border-color: var(--primary-500);
+}
+.shadow-phase[data-state="done"] {
+    border-color: var(--success-500);
+}
+.shadow-phase__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+    font-weight: var(--font-semibold);
+}
+.shadow-phase__num {
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--radius-full);
+    background: var(--primary-500);
     color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 0.375rem;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.875rem;
-    cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
-    transition: background 0.2s;
+    justify-content: center;
+    font-size: var(--text-sm);
+    flex-shrink: 0;
 }
-.shadow-loop-btn:hover {
-    background: rgba(255, 255, 255, 0.25);
+.shadow-phase[data-state="done"] .shadow-phase__num {
+    background: var(--success-500);
 }
-.shadow-loop-btn--active {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.6);
-    font-weight: 600;
+.shadow-phase__label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.shadow-phase__hint {
+    margin: 0 0 var(--space-3);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+}
+.shadow-phase__text {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: var(--text-primary);
+    margin-bottom: var(--space-3);
+}
+.shadow-phase__translation {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin-bottom: var(--space-3);
+    font-style: italic;
+}
+.shadow-phase__audio {
+    width: 100%;
+    border-radius: var(--radius-sm);
+    margin-top: var(--space-2);
+}
+.shadow-phase__inline-actions {
+    margin-top: var(--space-3);
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    align-items: center;
+}
+.shadow-phase__assess {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    cursor: pointer;
+    font-size: var(--text-base);
+    line-height: var(--leading-snug);
+}
+.shadow-phase__assess input[type="checkbox"] {
+    margin-top: 0.2rem;
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+    accent-color: var(--primary-500);
 }
 @media (prefers-reduced-motion: reduce) {
     .shadow-word--active,
-    .shadow-loop-btn {
+    .shadow-phase {
+        transition: none;
+    }
+}
+
+/* ── Pronunciation lesson card variants ── */
+.pronunciation-item {
+    transition: border-color var(--transition-fast);
+}
+.pronunciation-item--active {
+    border-color: var(--primary-500);
+}
+.pronunciation-item--matched {
+    border-color: var(--success-500);
+}
+.pronunciation-item--missed {
+    border-color: var(--warning-500, #f59e0b);
+}
+.pronunciation-item__word {
+    font-size: 2rem;
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+    margin: 0 0 var(--space-1);
+    line-height: 1.2;
+}
+.pronunciation-item__hint {
+    font-size: var(--text-base);
+    color: var(--text-secondary);
+    font-style: italic;
+    margin: 0 0 var(--space-3);
+}
+.pronunciation-item__actions {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: var(--space-3);
+}
+.pronunciation-item__result {
+    margin-top: var(--space-3);
+}
+.pronunciation-item__result:empty {
+    margin-top: 0;
+}
+.pronunciation-item__self-assess {
+    margin-top: var(--space-3);
+    display: none;
+}
+.pronunciation-item__self-assess--visible {
+    display: block;
+}
+.pronunciation-item__self-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    font-size: var(--text-sm);
+}
+.pronunciation-item__self-label input[type="checkbox"] {
+    width: 1.1rem;
+    height: 1.1rem;
+    accent-color: var(--primary-500);
+}
+@media (prefers-reduced-motion: reduce) {
+    .pronunciation-item {
         transition: none;
     }
 }

@@ -167,7 +167,10 @@ class TestShadowReadingTemplate:
 
     def test_phase2_starts_locked(self):
         tpl = _read_template()
-        assert 'shadow-phase--locked' in tpl
+        # Phase cards now carry locked state via data-state, with phase 1
+        # active and phases 2/3 locked.
+        assert 'data-state="locked"' in tpl
+        assert 'phase-2' in tpl
 
     def test_self_assess_required_before_submit(self):
         tpl = _read_template()

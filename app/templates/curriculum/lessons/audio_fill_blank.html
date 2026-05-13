@@ -4,140 +4,63 @@
 {% set instruction_text = _('Прослушайте аудио и заполните пропуски в каждом предложении.') %}
 {% set block_description = _('Тренировка восприятия речи и лексики') %}
 
-{% block extra_css %}
-<style>
-.afb-lesson {
-  max-width: 720px;
-  margin: 0 auto;
-}
-.afb-main-audio-section {
-  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  color: #fff;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.2);
-}
-.afb-main-audio-section h3 {
-  margin: 0 0 1rem;
-  font-size: 1.1rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.afb-main-audio-section audio {
-  width: 100%;
-  border-radius: 0.5rem;
-}
-.afb-items-section {
-  margin-bottom: 1.5rem;
-}
-.afb-item-header {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  margin-bottom: 0.5rem;
-}
-.afb-item-number {
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 50%;
-  background: var(--color-primary, #dc2626);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.afb-clip-btn {
-  background: none;
-  border: 1.5px solid var(--color-border, #e5e7eb);
-  border-radius: 50%;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--color-text-secondary, #6b7280);
-  transition: color 0.15s, border-color 0.15s;
-}
-.afb-clip-btn:hover {
-  color: var(--color-primary, #dc2626);
-  border-color: var(--color-primary, #dc2626);
-}
-.afb-submit-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-.afb-score-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
-  border-radius: 2rem;
-  font-weight: 700;
-  font-size: 1rem;
-  margin-bottom: 1rem;
-}
-.afb-score-badge--pass {
-  background: #dcfce7;
-  color: #14532d;
-}
-.afb-score-badge--fail {
-  background: #fee2e2;
-  color: #7f1d1d;
-}
-@media (max-width: 480px) {
-  .afb-submit-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-</style>
-{% endblock %}
-
 {% block lesson_content %}
-<div class="afb-lesson">
-  {% if audio_url %}
-  <div class="afb-main-audio-section">
-    <h3><i class="fas fa-volume-up"></i> {{ _('Основное аудио') }}</h3>
-    <audio id="afb-main-audio" controls>
-      <source src="{{ audio_url }}" type="audio/mpeg">
-      <source src="{{ audio_url }}" type="audio/ogg">
-      {{ _('Ваш браузер не поддерживает аудио.') }}
-    </audio>
-  </div>
-  {% endif %}
+<section class="lesson-shell afb-lesson" aria-labelledby="afb-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="afb-title">{{ _('Аудио: заполните пропуски') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-volume-up"></i></span>
+      <span class="lesson-shell__progress" aria-live="polite">
+        <span id="afb-filled" data-progress-current>0</span> / <span data-progress-total>{{ items|length }}</span>
+      </span>
+    </div>
+    <div class="lesson-shell__progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="lesson-shell__progress-fill" id="afb-progress-fill" style="width:0%"></span>
+    </div>
+  </header>
 
-  <div class="afb-items-section">
+  <div class="lesson-shell__body">
+
+    {% if audio_url %}
+    <article class="lesson-shell__card afb-master-audio">
+      <h3 class="afb-master-audio__title">
+        <i class="fas fa-headphones"></i>
+        {{ _('Основное аудио') }}
+      </h3>
+      <audio id="afb-main-audio" controls aria-label="{{ _('Основное аудио') }}">
+        <source src="{{ audio_url }}" type="audio/mpeg">
+        <source src="{{ audio_url }}" type="audio/ogg">
+        {{ _('Ваш браузер не поддерживает аудио.') }}
+      </audio>
+    </article>
+    {% endif %}
+
     {% for item in items %}
-    <div class="afb-item" id="afb-item-{{ loop.index0 }}" data-index="{{ loop.index0 }}">
-      <div class="afb-item-header">
-        <span class="afb-item-number">{{ loop.index }}</span>
+    <article class="lesson-shell__card afb-item" id="afb-item-{{ loop.index0 }}" data-index="{{ loop.index0 }}">
+      <header class="afb-item__header">
+        <span class="afb-item__num">{{ loop.index }}</span>
         {% if item.audio_clip_url %}
-        <button class="afb-clip-btn" type="button"
+        <button class="afb-item__clip-btn" type="button"
           onclick="playClip({{ loop.index0 }})"
+          aria-label="{{ _('Прослушать фрагмент') }}"
           title="{{ _('Прослушать фрагмент') }}">
           <i class="fas fa-play" id="clip-icon-{{ loop.index0 }}"></i>
-          <audio id="clip-audio-{{ loop.index0 }}" preload="none">
-            <source src="{{ item.audio_clip_url }}" type="audio/mpeg">
-          </audio>
         </button>
+        <audio id="clip-audio-{{ loop.index0 }}" preload="none">
+          <source src="{{ item.audio_clip_url }}" type="audio/mpeg">
+        </audio>
         {% endif %}
-        <span class="afb-gap-text">{{ item.text_with_gap }}</span>
-      </div>
+        <span class="afb-item__gap-text">{{ item.text_with_gap }}</span>
+      </header>
 
       {% if item.options %}
-      <div class="afb-options" id="afb-options-{{ loop.index0 }}">
+      <div class="afb-item__options" id="afb-options-{{ loop.index0 }}" role="group"
+           aria-label="{{ _('Варианты ответа') }}">
         {% for opt in item.options %}
-        <button class="afb-option-btn"
+        <button class="option-btn afb-option-btn"
           type="button"
+          aria-pressed="false"
           data-index="{{ loop.index0 }}"
           data-option="{{ opt }}"
           onclick="selectOption({{ loop.index0 }}, '{{ opt | e }}')">
@@ -147,32 +70,38 @@
       </div>
       <input type="hidden" id="afb-answer-{{ loop.index0 }}" value="">
       {% else %}
+      <label class="afb-item__input-label" for="afb-answer-{{ loop.index0 }}">
+        <i class="fas fa-pen"></i> {{ _('Ваш ответ:') }}
+      </label>
       <input
         class="afb-input"
         id="afb-answer-{{ loop.index0 }}"
         type="text"
         placeholder="{{ _('Введите ответ...') }}"
         autocomplete="off"
+        oninput="updateFilledCount()"
       >
       {% endif %}
 
-      <div class="afb-answer-reveal" id="afb-reveal-{{ loop.index0 }}"></div>
-    </div>
+      <div class="afb-item__reveal" id="afb-reveal-{{ loop.index0 }}" role="note"></div>
+    </article>
     {% endfor %}
+
   </div>
 
-  <div class="afb-submit-row">
+  <div class="lesson-shell__actions afb-actions">
     <button class="btn btn-primary btn-lg" id="afb-submit-btn"
       onclick="submitAnswers()" type="button">
       <i class="fas fa-check"></i> {{ _('Проверить') }}
     </button>
   </div>
 
-  <div id="afb-results" style="display: none; margin-top: 1.5rem;">
+  <div class="lesson-shell__result afb-result" id="afb-results"
+       role="status" aria-live="polite" aria-atomic="true" hidden>
     <div id="afb-score-area"></div>
-    <div id="afb-next-area"></div>
+    <div id="afb-next-area" style="margin-top: 1rem;"></div>
   </div>
-</div>
+</section>
 
 <script>
 const lessonId = {{ lesson.id }};
@@ -185,27 +114,63 @@ function playClip(idx) {
   audio.play().catch(() => {});
 }
 
+function _getAnswerValue(idx) {
+  const inp = document.getElementById('afb-answer-' + idx);
+  return inp ? String(inp.value || '').trim() : '';
+}
+
+function updateFilledCount() {
+  let filled = 0;
+  for (let i = 0; i < totalItems; i++) {
+    if (_getAnswerValue(i)) filled++;
+  }
+  const counter = document.getElementById('afb-filled');
+  const fill = document.getElementById('afb-progress-fill');
+  if (counter) counter.textContent = String(filled);
+  if (fill && totalItems > 0) {
+    const pct = Math.round((filled / totalItems) * 100);
+    fill.style.width = pct + '%';
+    const bar = fill.parentElement;
+    if (bar) bar.setAttribute('aria-valuenow', String(pct));
+  }
+}
+
 function selectOption(itemIdx, option) {
   document.getElementById('afb-answer-' + itemIdx).value = option;
   const container = document.getElementById('afb-options-' + itemIdx);
   if (!container) return;
-  container.querySelectorAll('.afb-option-btn').forEach(btn => {
-    btn.classList.remove('afb-option-btn--selected');
-    if (btn.dataset.option === option) {
-      btn.classList.add('afb-option-btn--selected');
-    }
+  container.querySelectorAll('.option-btn').forEach(btn => {
+    const isThis = btn.dataset.option === option;
+    btn.classList.toggle('option-btn--selected', isThis);
+    btn.setAttribute('aria-pressed', isThis ? 'true' : 'false');
   });
+  updateFilledCount();
+}
+
+function _renderBadge(kind, iconHtml, label) {
+  const area = document.getElementById('afb-score-area');
+  area.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'result-badge result-badge--' + kind;
+  const icon = document.createElement('span');
+  icon.className = 'result-badge__icon';
+  icon.innerHTML = iconHtml;
+  wrap.appendChild(icon);
+  const span = document.createElement('span');
+  span.textContent = label;
+  wrap.appendChild(span);
+  area.appendChild(wrap);
 }
 
 async function submitAnswers() {
   const answers = [];
   for (let i = 0; i < totalItems; i++) {
-    const inp = document.getElementById('afb-answer-' + i);
-    answers.push(inp ? inp.value.trim() : '');
+    answers.push(_getAnswerValue(i));
   }
 
   const submitBtn = document.getElementById('afb-submit-btn');
   submitBtn.disabled = true;
+  submitBtn.classList.add('btn--loading');
   submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Проверка...") }}';
 
   try {
@@ -216,13 +181,14 @@ async function submitAnswers() {
         'Content-Type': 'application/json',
         'X-CSRFToken': csrfToken,
       },
-      body: JSON.stringify({ answers, lesson_type: 'audio_fill_blank' }),
+      body: JSON.stringify({ answers: answers, lesson_type: 'audio_fill_blank', replay_count: 0 }),
     });
 
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
     showResults(data);
 
+    submitBtn.classList.remove('btn--loading');
     if (data.passed) {
       submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено") }}';
       if (typeof showSaveToast === 'function') showSaveToast();
@@ -233,8 +199,11 @@ async function submitAnswers() {
   } catch (err) {
     console.error('AFB submit error:', err);
     submitBtn.disabled = false;
+    submitBtn.classList.remove('btn--loading');
     submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Проверить") }}';
-    alert('{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+    _renderBadge('incorrect', '<i class="fas fa-times-circle"></i>',
+      '{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+    document.getElementById('afb-results').hidden = false;
   }
 }
 
@@ -248,19 +217,22 @@ function showResults(data) {
 
     const inp = document.getElementById('afb-answer-' + idx);
     if (inp && inp.type === 'text') {
-      inp.classList.remove('afb-input--correct', 'afb-input--wrong');
-      inp.classList.add(res.correct ? 'afb-input--correct' : 'afb-input--wrong');
+      inp.classList.remove('input--correct', 'input--wrong', 'afb-input--correct', 'afb-input--wrong');
+      if (res.correct) {
+        inp.classList.add('input--correct', 'afb-input--correct');
+      } else {
+        inp.classList.add('input--wrong', 'afb-input--wrong');
+      }
       inp.readOnly = true;
     }
 
-    // Options mode: mark correct/wrong buttons
     const optContainer = document.getElementById('afb-options-' + idx);
     if (optContainer) {
-      optContainer.querySelectorAll('.afb-option-btn').forEach(btn => {
+      optContainer.querySelectorAll('.option-btn').forEach(btn => {
         if (btn.dataset.option === res.answer) {
-          btn.classList.add('afb-option-btn--correct');
-        } else if (btn.classList.contains('afb-option-btn--selected') && !res.correct) {
-          btn.classList.add('afb-option-btn--wrong');
+          btn.classList.add('option-btn--correct');
+        } else if (btn.classList.contains('option-btn--selected') && !res.correct) {
+          btn.classList.add('option-btn--wrong');
         }
         btn.disabled = true;
       });
@@ -269,9 +241,14 @@ function showResults(data) {
     if (!res.correct) {
       const reveal = document.getElementById('afb-reveal-' + idx);
       if (reveal) {
-        const d = document.createElement('div');
-        d.textContent = '{{ _("Правильно:") }} ' + res.answer;
-        reveal.appendChild(d);
+        reveal.textContent = '';
+        const lbl = document.createElement('span');
+        lbl.className = 'afb-item__reveal-label';
+        lbl.textContent = '{{ _("Правильно:") }} ';
+        const ans = document.createElement('strong');
+        ans.textContent = res.answer || '';
+        reveal.appendChild(lbl);
+        reveal.appendChild(ans);
         reveal.classList.add('visible');
       }
     }
@@ -279,16 +256,14 @@ function showResults(data) {
 
   const score = data.score || 0;
   const passed = data.passed || false;
-  const badgeClass = passed ? 'afb-score-badge--pass' : 'afb-score-badge--fail';
-  const icon = passed ? 'fa-check-circle' : 'fa-times-circle';
+  const correctItems = data.correct_items || 0;
+  const totalItemsResp = data.total_items || 0;
   const label = passed ? '{{ _("Отлично!") }}' : '{{ _("Попробуйте ещё") }}';
-  const scoreArea = document.getElementById('afb-score-area');
-  scoreArea.innerHTML = `
-    <div class="afb-score-badge ${badgeClass}">
-      <i class="fas ${icon}"></i>
-      ${score}% &mdash; ${label}
-      (${data.correct_items || 0} / ${data.total_items || 0} {{ _("верно") }})
-    </div>`;
+  const iconHtml = passed
+    ? '<i class="fas fa-check-circle"></i>'
+    : '<i class="fas fa-times-circle"></i>';
+  _renderBadge(passed ? 'correct' : 'incorrect', iconHtml,
+    `${score}% — ${label} (${correctItems}/${totalItemsResp})`);
 
   if (passed && data.next_lesson_url) {
     document.getElementById('afb-next-area').innerHTML = `
@@ -297,8 +272,11 @@ function showResults(data) {
       </a>`;
   }
 
-  document.getElementById('afb-results').style.display = 'block';
-  document.getElementById('afb-results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const resultsEl = document.getElementById('afb-results');
+  resultsEl.hidden = false;
+  resultsEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+
+updateFilledCount();
 </script>
 {% endblock %}
