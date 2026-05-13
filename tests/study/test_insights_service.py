@@ -17,7 +17,7 @@ from datetime import datetime, date, timedelta, timezone
 import pytest
 
 from app.curriculum.models import CEFRLevel, Lessons, Module, UserWritingAttempt, PronunciationAttempt, ListeningAttempt, LessonProgress
-from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats, get_weak_areas, get_skills_balance, get_grammar_mastery_by_topic, get_learning_velocity, get_level_eta, get_accuracy_trend, get_comprehension_by_type
+from app.study.insights_service import get_writing_stats, get_vocabulary_growth, get_pronunciation_weaknesses, get_pronunciation_stats, get_weak_areas, get_skills_balance, get_grammar_mastery_by_topic, get_learning_velocity, get_level_eta, get_accuracy_trend, get_comprehension_by_type, get_listening_stats, get_weekly_summary
 from app.study.models import UserCardDirection, UserWord, StudySession
 from app.words.models import CollectionWords
 from app.utils.db import db
@@ -1410,3 +1410,184 @@ class TestGetStudyTimeDistribution:
         _make_lesson_progress_at_hour(db_session, other.id, hour=15, days_ago=1)
         result = get_study_time_distribution(test_user.id, tz='UTC')
         assert result['peak_hour'] is None
+
+
+# ---------------------------------------------------------------------------
+# Task 47: get_listening_stats dashboard widget
+# ---------------------------------------------------------------------------
+
+def _make_dictation_lesson(db_session) -> Lessons:
+    code = uuid.uuid4().hex[:2].upper()
+    level = CEFRLevel(code=code, name='LevelD', description='d', order=99)
+    db_session.add(level)
+    db_session.flush()
+    module = Module(
+        level_id=level.id, number=1, title='M', description='d',
+        raw_content={'module': {'id': 1}},
+    )
+    db_session.add(module)
+    db_session.flush()
+    lesson = Lessons(
+        module_id=module.id, number=1, title='Dictation Lesson', type='dictation',
+        content={'audio_url': '/test.mp3', 'transcript': 'Hello world', 'hint_chars': 1, 'duration_seconds': 5},
+    )
+    db_session.add(lesson)
+    db_session.flush()
+    return lesson
+
+
+def _make_listening_attempt_for_stats(
+    db_session,
+    user_id: int,
+    lesson_id: int,
+    score: float = 85.0,
+    replay_count: int = 1,
+    days_ago: int = 0,
+) -> ListeningAttempt:
+    attempt = ListeningAttempt(
+        user_id=user_id,
+        lesson_id=lesson_id,
+        score=score,
+        replay_count=replay_count,
+    )
+    attempt.created_at = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    db_session.add(attempt)
+    db_session.flush()
+    return attempt
+
+
+class TestGetListeningStats:
+    def test_no_attempts_returns_zeros(self, app, db_session, test_user):
+        result = get_listening_stats(test_user.id)
+        assert result['total_lessons'] == 0
+        assert result['avg_score'] == 0.0
+        assert result['total_replays'] == 0
+
+    def test_total_lessons_counts_distinct_lesson_ids(self, app, db_session, test_user):
+        lesson = _make_dictation_lesson(db_session)
+        _make_listening_attempt_for_stats(db_session, test_user.id, lesson.id, score=80.0)
+        _make_listening_attempt_for_stats(db_session, test_user.id, lesson.id, score=90.0)
+        result = get_listening_stats(test_user.id)
+        assert result['total_lessons'] == 1
+
+    def test_avg_score_computed_for_last_7_days(self, app, db_session, test_user):
+        lesson = _make_dictation_lesson(db_session)
+        _make_listening_attempt_for_stats(db_session, test_user.id, lesson.id, score=60.0, days_ago=1)
+        _make_listening_attempt_for_stats(db_session, test_user.id, lesson.id, score=80.0, days_ago=2)
+        result = get_listening_stats(test_user.id)
+        assert result['avg_score'] == 70.0
+
+    def test_old_attempts_excluded_from_avg_score(self, app, db_session, test_user):
+        lesson = _make_dictation_lesson(db_session)
+        _make_listening_attempt_for_stats(db_session, test_user.id, lesson.id, score=10.0, days_ago=10)
+        _make_listening_attempt_for_stats(db_session, test_user.id, lesson.id, score=100.0, days_ago=1)
+        result = get_listening_stats(test_user.id)
+        assert result['avg_score'] == 100.0
+
+    def test_total_replays_summed_last_7_days(self, app, db_session, test_user):
+        lesson = _make_dictation_lesson(db_session)
+        _make_listening_attempt_for_stats(db_session, test_user.id, lesson.id, replay_count=2, days_ago=0)
+        _make_listening_attempt_for_stats(db_session, test_user.id, lesson.id, replay_count=3, days_ago=1)
+        result = get_listening_stats(test_user.id)
+        assert result['total_replays'] == 5
+
+    def test_old_replays_excluded_from_total(self, app, db_session, test_user):
+        lesson = _make_dictation_lesson(db_session)
+        _make_listening_attempt_for_stats(db_session, test_user.id, lesson.id, replay_count=99, days_ago=10)
+        _make_listening_attempt_for_stats(db_session, test_user.id, lesson.id, replay_count=2, days_ago=1)
+        result = get_listening_stats(test_user.id)
+        assert result['total_replays'] == 2
+
+    def test_other_user_excluded(self, app, db_session, test_user):
+        from app.auth.models import User
+        other = User(
+            email=f'ls_{uuid.uuid4().hex[:6]}@test.com',
+            username=f'ls_{uuid.uuid4().hex[:6]}',
+            onboarding_completed=True,
+        )
+        other.set_password('pass')
+        db_session.add(other)
+        db_session.flush()
+        lesson = _make_dictation_lesson(db_session)
+        _make_listening_attempt_for_stats(db_session, other.id, lesson.id, score=90.0)
+        result = get_listening_stats(test_user.id)
+        assert result['total_lessons'] == 0
+        assert result['avg_score'] == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Task 47: weekly summary handles new activity types
+# ---------------------------------------------------------------------------
+
+class TestWeeklyReportWithImmersionAttempts:
+    """Verify get_weekly_summary and get_last_week_summary don't break when
+    ListeningAttempt, UserWritingAttempt, and PronunciationAttempt rows exist."""
+
+    def test_weekly_summary_with_listening_attempts_is_stable(self, app, db_session, test_user):
+        lesson = _make_dictation_lesson(db_session)
+        _make_listening_attempt_for_stats(db_session, test_user.id, lesson.id, score=80.0, days_ago=1)
+        result = get_weekly_summary(test_user.id)
+        assert isinstance(result['words_reviewed'], int)
+        assert isinstance(result['lessons_completed'], int)
+        assert isinstance(result['time_minutes'], int)
+        assert isinstance(result['accuracy'], int)
+
+    def test_weekly_summary_with_writing_attempts_is_stable(self, app, db_session, test_user):
+        lesson = _make_lesson(db_session)
+        _make_attempt(db_session, test_user.id, lesson.id, 'hello world today fine', days_ago=1)
+        result = get_weekly_summary(test_user.id)
+        assert isinstance(result['words_reviewed'], int)
+        assert isinstance(result['lessons_completed'], int)
+
+    def test_weekly_summary_with_pronunciation_attempts_is_stable(self, app, db_session, test_user):
+        attempt = PronunciationAttempt(
+            user_id=test_user.id,
+            word='through',
+            recognized_text='through',
+            matched=True,
+        )
+        db_session.add(attempt)
+        db_session.flush()
+        result = get_weekly_summary(test_user.id)
+        assert isinstance(result['words_reviewed'], int)
+        assert isinstance(result['accuracy'], int)
+
+    def test_all_immersion_activity_does_not_inflate_words_reviewed(self, app, db_session, test_user):
+        lesson = _make_dictation_lesson(db_session)
+        _make_listening_attempt_for_stats(db_session, test_user.id, lesson.id, score=90.0)
+        writing_lesson = _make_lesson(db_session)
+        _make_attempt(db_session, test_user.id, writing_lesson.id, 'some text here')
+        result = get_weekly_summary(test_user.id)
+        assert result['words_reviewed'] == 0
+
+    def test_listening_stats_non_empty_after_seed(self, app, db_session, test_user):
+        lesson = _make_dictation_lesson(db_session)
+        for i in range(3):
+            _make_listening_attempt_for_stats(
+                db_session, test_user.id, lesson.id, score=70.0 + i * 5, days_ago=i
+            )
+        result = get_listening_stats(test_user.id)
+        assert result['total_lessons'] > 0
+        assert result['avg_score'] > 0
+
+    def test_writing_stats_non_empty_after_seed(self, app, db_session, test_user):
+        lesson = _make_lesson(db_session)
+        for i in range(3):
+            _make_attempt(db_session, test_user.id, lesson.id, 'word ' * 20, days_ago=i)
+        result = get_writing_stats(test_user.id)
+        assert result['total_attempts'] > 0
+        assert result['avg_word_count'] > 0
+
+    def test_pronunciation_stats_non_empty_after_seed(self, app, db_session, test_user):
+        for word in ['thought', 'through', 'comfortable']:
+            attempt = PronunciationAttempt(
+                user_id=test_user.id,
+                word=word,
+                recognized_text=word,
+                matched=True,
+            )
+            db_session.add(attempt)
+        db_session.flush()
+        result = get_pronunciation_stats(test_user.id)
+        assert result['total_attempts'] > 0
+        assert result['total_words'] > 0

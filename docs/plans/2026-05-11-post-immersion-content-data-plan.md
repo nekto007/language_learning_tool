@@ -719,11 +719,11 @@
 - Create: `scripts/seed_staging_immersion_attempts.py`
 - Tests: `tests/study/test_insights_service.py`
 
-- [ ] Seed staging `ListeningAttempt` rows from imported dictation/audio lessons
-- [ ] Seed staging `UserWritingAttempt` rows from imported writing prompts
-- [ ] Seed staging `PronunciationAttempt` rows from imported pronunciation lessons
-- [ ] Verify study dashboard widgets show non-empty data
-- [ ] Verify weekly report handles new activity types
+- [x] Seed staging `ListeningAttempt` rows from imported dictation/audio lessons
+- [x] Seed staging `UserWritingAttempt` rows from imported writing prompts
+- [x] Seed staging `PronunciationAttempt` rows from imported pronunciation lessons
+- [x] Verify study dashboard widgets show non-empty data
+- [x] Verify weekly report handles new activity types
 
 ---
 ### Task 48: Verify admin content quality with real data
