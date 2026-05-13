@@ -122,10 +122,10 @@ Files:
 
 ### Task 6: Verify acceptance criteria
 
-- [ ] Run full pytest suite (`pytest -q`)
-- [ ] Run smoke subset (`pytest -m smoke`) to catch blueprint regressions
-- [ ] Verify XP wiring untouched: maybe_award_curriculum_xp / maybe_award_listening_xp / maybe_award_writing_xp still fire from the same callsites with unchanged sources
-- [ ] Lint pass (`python -m compileall app` and `python -c "import app"`)
+- [x] Run full pytest suite (`pytest -q`) — 7697 passed, 58 skipped, 6 xfailed, 3 xpassed
+- [x] Run smoke subset (`pytest -m smoke`) to catch blueprint regressions
+- [x] Verify XP wiring untouched: maybe_award_curriculum_xp / maybe_award_listening_xp / maybe_award_writing_xp still fire from the same callsites with unchanged sources
+- [x] Lint pass (`python -m compileall app` and `python -c "import app"`)
 
 ### Task 7: Update documentation
 
