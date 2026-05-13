@@ -5,11 +5,24 @@
 {% set block_description = _('Практика составления предложений') %}
 
 {% block lesson_content %}
-<div class="sentence-completion-lesson">
+<section class="lesson-shell sentence-completion-lesson" aria-labelledby="sentence-completion-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="sentence-completion-title">{{ _('Завершите предложения') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-pen"></i></span>
+      <span class="lesson-shell__progress" aria-live="polite">
+        <span data-progress-current id="sc-progress-current">0</span> / <span data-progress-total>{{ items | length }}</span>
+      </span>
+    </div>
+    <div class="lesson-shell__progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="{{ items | length }}" aria-valuenow="0">
+      <span class="lesson-shell__progress-fill" id="sc-progress-fill" style="width:0%"></span>
+    </div>
+  </header>
 
-  <div id="completion-items-list">
+  <div class="lesson-shell__body" id="completion-items-list">
     {% for item in items %}
-    <div class="sentence-completion-item" id="item-{{ loop.index0 }}" data-index="{{ loop.index0 }}">
+    <div class="lesson-shell__card sentence-completion-item" id="item-{{ loop.index0 }}" data-index="{{ loop.index0 }}">
       {% if item.context %}
       <div class="sentence-completion-context">
         <i class="fas fa-book-open"></i>
@@ -17,7 +30,7 @@
       </div>
       {% endif %}
       <div class="sentence-completion-prompt-row">
-        <span class="sentence-completion-prompt">{{ item.prompt }}</span>
+        <label class="sentence-completion-prompt" for="answer-{{ loop.index0 }}">{{ item.prompt }}</label>
         <input
           type="text"
           class="sentence-completion-input"
@@ -29,12 +42,12 @@
           data-index="{{ loop.index0 }}"
         />
       </div>
-      <div class="sentence-completion-item-feedback" id="feedback-{{ loop.index0 }}" style="display: none;"></div>
+      <div class="sentence-completion-item-feedback" id="feedback-{{ loop.index0 }}" role="status" style="display: none;"></div>
     </div>
     {% endfor %}
   </div>
 
-  <div class="sentence-completion-submit-row">
+  <div class="lesson-shell__actions sentence-completion-submit-row">
     <button
       class="btn btn-primary btn-lg"
       id="submit-btn"
@@ -46,15 +59,31 @@
     </button>
   </div>
 
-  <div class="sentence-completion-result" id="completion-result" style="display: none;">
+  <div class="lesson-shell__result sentence-completion-result" id="completion-result"
+       role="status" aria-live="polite" aria-atomic="true" hidden>
     <div id="result-summary"></div>
     <div id="completion-next-area" style="margin-top: 1rem;"></div>
   </div>
-</div>
+</section>
 
 <script>
 const lessonId = {{ lesson.id }};
 const itemCount = {{ items | length }};
+
+function _updateProgress() {
+  const filled = Array.from(document.querySelectorAll('.sentence-completion-input'))
+    .filter(el => el.value && el.value.trim().length > 0).length;
+  const current = document.getElementById('sc-progress-current');
+  const fill = document.getElementById('sc-progress-fill');
+  if (current) current.textContent = String(filled);
+  if (fill) fill.style.width = Math.round((filled / Math.max(1, itemCount)) * 100) + '%';
+}
+
+document.addEventListener('input', function(e) {
+  if (e.target.classList && e.target.classList.contains('sentence-completion-input')) {
+    _updateProgress();
+  }
+});
 
 function submitCompletion() {
   const answers = [];
@@ -65,6 +94,7 @@ function submitCompletion() {
 
   const submitBtn = document.getElementById('submit-btn');
   submitBtn.disabled = true;
+  submitBtn.classList.add('btn--loading');
   submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Проверка...") }}';
 
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -82,6 +112,7 @@ function submitCompletion() {
   })
   .then(function(data) {
     showResults(data);
+    submitBtn.classList.remove('btn--loading');
     if (data.passed) {
       submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено") }}';
       if (typeof showSaveToast === 'function') showSaveToast();
@@ -93,9 +124,33 @@ function submitCompletion() {
   .catch(function(err) {
     console.error('Sentence completion submit error:', err);
     submitBtn.disabled = false;
+    submitBtn.classList.remove('btn--loading');
     submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Проверить") }}';
-    alert('{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+    const summary = document.getElementById('result-summary');
+    summary.innerHTML = '';
+    const badge = document.createElement('div');
+    badge.className = 'result-badge result-badge--incorrect';
+    badge.textContent = '{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}';
+    summary.appendChild(badge);
+    document.getElementById('completion-result').hidden = false;
   });
+}
+
+function _itemBadge(kind, label) {
+  const wrap = document.createElement('span');
+  // Legacy class names retained for backwards-compatible styling hooks:
+  // sentence-completion-badge--correct / sentence-completion-badge--incorrect.
+  const legacyClass = kind === 'correct'
+    ? 'sentence-completion-badge sentence-completion-badge--correct'
+    : 'sentence-completion-badge sentence-completion-badge--incorrect';
+  wrap.className = 'result-badge result-badge--' + kind + ' ' + legacyClass;
+  const icon = document.createElement('i');
+  icon.className = kind === 'correct' ? 'fas fa-check-circle' : 'fas fa-times-circle';
+  wrap.appendChild(icon);
+  const text = document.createElement('span');
+  text.textContent = ' ' + label;
+  wrap.appendChild(text);
+  return wrap;
 }
 
 function showResults(data) {
@@ -106,21 +161,16 @@ function showResults(data) {
     if (!inputEl || !feedbackEl) return;
 
     inputEl.disabled = true;
-    inputEl.classList.remove('sentence-completion-input--correct', 'sentence-completion-input--incorrect');
+    inputEl.classList.remove('input--correct', 'input--wrong',
+      'sentence-completion-input--correct', 'sentence-completion-input--incorrect');
     feedbackEl.innerHTML = '';
 
     if (res.correct) {
-      inputEl.classList.add('sentence-completion-input--correct');
-      const badge = document.createElement('span');
-      badge.className = 'sentence-completion-badge sentence-completion-badge--correct';
-      badge.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Правильно!") }}';
-      feedbackEl.appendChild(badge);
+      inputEl.classList.add('input--correct', 'sentence-completion-input--correct');
+      feedbackEl.appendChild(_itemBadge('correct', '{{ _("Правильно!") }}'));
     } else {
-      inputEl.classList.add('sentence-completion-input--incorrect');
-      const badge = document.createElement('span');
-      badge.className = 'sentence-completion-badge sentence-completion-badge--incorrect';
-      badge.innerHTML = '<i class="fas fa-times-circle"></i> {{ _("Неправильно") }}';
-      feedbackEl.appendChild(badge);
+      inputEl.classList.add('input--wrong', 'sentence-completion-input--incorrect');
+      feedbackEl.appendChild(_itemBadge('incorrect', '{{ _("Неправильно") }}'));
       const answerEl = document.createElement('span');
       answerEl.className = 'sentence-completion-model-answer';
       const label = document.createElement('span');
@@ -141,9 +191,9 @@ function showResults(data) {
 
   summary.innerHTML = '';
   const scoreEl = document.createElement('div');
-  scoreEl.className = data.passed
-    ? 'sentence-completion-score-card sentence-completion-score-card--pass'
-    : 'sentence-completion-score-card sentence-completion-score-card--fail';
+  scoreEl.className = 'result-badge sentence-completion-score-card ' + (data.passed
+    ? 'result-badge--correct sentence-completion-score-card--pass'
+    : 'result-badge--incorrect sentence-completion-score-card--fail');
 
   const iconEl = document.createElement('i');
   iconEl.className = data.passed ? 'fas fa-trophy' : 'fas fa-times-circle';
@@ -159,8 +209,9 @@ function showResults(data) {
     nextArea.innerHTML = '<a href="' + data.next_lesson_url + '" class="btn btn-success"><i class="fas fa-arrow-right"></i> {{ _("Следующий урок") }}</a>';
   }
 
-  document.getElementById('completion-result').style.display = 'block';
-  document.getElementById('completion-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const resultArea = document.getElementById('completion-result');
+  resultArea.hidden = false;
+  resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 document.addEventListener('keydown', function(e) {

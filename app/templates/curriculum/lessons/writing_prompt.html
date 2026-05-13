@@ -5,66 +5,78 @@
 {% set block_description = _('Практика письменного английского') %}
 
 {% block lesson_content %}
-<div class="writing-prompt-lesson">
-
-  <div class="writing-prompt-card">
-    <div class="writing-prompt-label">
-      <i class="fas fa-pen-nib"></i>
-      {{ _('Задание:') }}
-    </div>
-    <div class="writing-prompt-text" id="prompt-text">
-      {{ prompt }}
-    </div>
-    <div class="writing-prompt-meta">
-      <span class="writing-prompt-min-words">
-        <i class="fas fa-align-left"></i>
-        {{ _('Минимум %(n)s слов', n=min_words) }}
+<section class="lesson-shell writing-prompt-lesson" aria-labelledby="writing-prompt-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="writing-prompt-title">{{ _('Письменное задание') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-pen-nib"></i></span>
+      <span class="lesson-shell__progress" aria-live="polite">
+        <span id="word-count-display" data-progress-current>0</span> / <span data-progress-total>{{ min_words }}</span> {{ _('слов') }}
       </span>
     </div>
-  </div>
-
-  <div class="writing-prompt-input-section">
-    <label class="writing-prompt-input-label" for="writing-response">
-      <i class="fas fa-keyboard"></i>
-      {{ _('Ваш ответ:') }}
-    </label>
-    <div class="writing-prompt-wordcount-bar">
-      <span id="word-count-display">0</span> / <span>{{ min_words }}</span> {{ _('слов') }}
+    <div class="lesson-shell__progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="{{ min_words }}" aria-valuenow="0" id="word-progress-bar">
+      <span class="lesson-shell__progress-fill" id="word-progress-fill" style="width:0%"></span>
     </div>
-    <textarea
-      class="writing-prompt-textarea"
-      id="writing-response"
-      rows="8"
-      placeholder="{{ _('Введите ваш ответ на английском...') }}"
-      oninput="updateWordCount()"
-    ></textarea>
-  </div>
+  </header>
 
-  <div class="writing-prompt-checklist-section" id="checklist-section">
-    <div class="writing-prompt-checklist-label">
-      <i class="fas fa-tasks"></i>
-      {{ _('Проверочный список (отметьте минимум 2):') }}
+  <div class="lesson-shell__body">
+    <div class="lesson-shell__card writing-prompt-card">
+      <div class="writing-prompt-label">
+        <i class="fas fa-pen-nib"></i>
+        {{ _('Задание:') }}
+      </div>
+      <div class="writing-prompt-text" id="prompt-text">
+        {{ prompt }}
+      </div>
+      <div class="writing-prompt-meta">
+        <span class="writing-prompt-min-words">
+          <i class="fas fa-align-left"></i>
+          {{ _('Минимум %(n)s слов', n=min_words) }}
+        </span>
+      </div>
     </div>
-    <div class="writing-prompt-checklist" id="checklist">
-      {% for item in checklist %}
-      <label class="writing-prompt-checklist-item" for="check-{{ loop.index0 }}">
-        <input
-          class="writing-prompt-checkbox"
-          id="check-{{ loop.index0 }}"
-          type="checkbox"
-          value="{{ item | e }}"
-          onchange="updateChecklistCount()"
-        >
-        <span class="writing-prompt-checklist-text">{{ item }}</span>
+
+    <div class="lesson-shell__card writing-prompt-input-section">
+      <label class="writing-prompt-input-label" for="writing-response">
+        <i class="fas fa-keyboard"></i>
+        {{ _('Ваш ответ:') }}
       </label>
-      {% endfor %}
+      <textarea
+        class="writing-prompt-textarea"
+        id="writing-response"
+        rows="8"
+        placeholder="{{ _('Введите ваш ответ на английском...') }}"
+        oninput="updateWordCount()"
+      ></textarea>
     </div>
-    <div class="writing-prompt-checklist-hint" id="checklist-hint" style="display: none;">
-      {{ _('Отметьте минимум 2 пункта, чтобы завершить урок.') }}
+
+    <div class="lesson-shell__card writing-prompt-checklist-section" id="checklist-section">
+      <div class="writing-prompt-checklist-label">
+        <i class="fas fa-tasks"></i>
+        {{ _('Проверочный список (отметьте минимум 2):') }}
+      </div>
+      <div class="writing-prompt-checklist" id="checklist">
+        {% for item in checklist %}
+        <label class="writing-prompt-checklist-item" for="check-{{ loop.index0 }}">
+          <input
+            class="writing-prompt-checkbox"
+            id="check-{{ loop.index0 }}"
+            type="checkbox"
+            value="{{ item | e }}"
+            onchange="updateChecklistCount()"
+          >
+          <span class="writing-prompt-checklist-text">{{ item }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="writing-prompt-checklist-hint" id="checklist-hint" role="note" style="display: none;">
+        {{ _('Отметьте минимум 2 пункта, чтобы завершить урок.') }}
+      </div>
     </div>
   </div>
 
-  <div class="writing-prompt-submit-row">
+  <div class="lesson-shell__actions writing-prompt-submit-row">
     <button
       class="btn btn-primary btn-lg"
       id="submit-btn"
@@ -76,7 +88,8 @@
     </button>
   </div>
 
-  <div class="writing-prompt-result" id="writing-result" style="display: none;">
+  <div class="lesson-shell__result writing-prompt-result" id="writing-result"
+       role="status" aria-live="polite" aria-atomic="true" hidden>
     <div id="result-message"></div>
     {% if example_response %}
     <div class="writing-prompt-example" id="example-section" style="display: none;">
@@ -89,7 +102,7 @@
     {% endif %}
     <div id="writing-next-area" style="margin-top: 1rem;"></div>
   </div>
-</div>
+</section>
 
 <script>
 const lessonId = {{ lesson.id }};
@@ -100,11 +113,21 @@ function countWords(text) {
 }
 
 function updateWordCount() {
-  const text = document.getElementById('writing-response').value;
+  const textarea = document.getElementById('writing-response');
+  const text = textarea.value;
   const count = countWords(text);
   const display = document.getElementById('word-count-display');
   display.textContent = count;
   display.classList.toggle('writing-prompt-wordcount--met', count >= minWords);
+  // Autosize textarea
+  textarea.style.height = 'auto';
+  textarea.style.height = Math.min(textarea.scrollHeight, 600) + 'px';
+  // Progress bar
+  const fill = document.getElementById('word-progress-fill');
+  const bar = document.getElementById('word-progress-bar');
+  const pct = Math.min(100, Math.round((count / Math.max(1, minWords)) * 100));
+  if (fill) fill.style.width = pct + '%';
+  if (bar) bar.setAttribute('aria-valuenow', String(Math.min(minWords, count)));
 }
 
 function updateChecklistCount() {
@@ -113,12 +136,38 @@ function updateChecklistCount() {
   if (hint) hint.style.display = checked < 2 ? 'block' : 'none';
 }
 
+function _setResultBadge(kind, iconHtml, message, statTextOrNull) {
+  const message_el = document.getElementById('result-message');
+  message_el.innerHTML = '';
+  const badge = document.createElement('div');
+  badge.className = 'result-badge result-badge--' + kind;
+  const icon = document.createElement('span');
+  icon.className = 'result-badge__icon';
+  icon.innerHTML = iconHtml;
+  badge.appendChild(icon);
+  const span = document.createElement('span');
+  span.textContent = message;
+  badge.appendChild(span);
+  if (statTextOrNull) {
+    const stat = document.createElement('span');
+    stat.className = 'writing-prompt-word-stat';
+    stat.textContent = ' ' + statTextOrNull;
+    badge.appendChild(stat);
+  }
+  message_el.appendChild(badge);
+}
+
 async function submitWriting() {
   const text = document.getElementById('writing-response').value.trim();
   const wordCount = countWords(text);
 
+  const submitBtn = document.getElementById('submit-btn');
+
   if (wordCount < minWords) {
-    alert('{{ _("Напишите минимум %(n)s слов.", n=min_words) }}'.replace('%(n)s', minWords));
+    _setResultBadge('neutral', '<i class="fas fa-info-circle"></i>',
+      '{{ _("Напишите минимум ") }}' + minWords + ' {{ _("слов.") }}', null);
+    const resultArea = document.getElementById('writing-result');
+    resultArea.hidden = false;
     return;
   }
 
@@ -126,13 +175,15 @@ async function submitWriting() {
   if (checkboxes.length < 2) {
     const hint = document.getElementById('checklist-hint');
     if (hint) { hint.style.display = 'block'; }
-    alert('{{ _("Отметьте минимум 2 пункта в проверочном списке.") }}');
+    _setResultBadge('neutral', '<i class="fas fa-info-circle"></i>',
+      '{{ _("Отметьте пункты проверочного списка.") }}', null);
+    const resultArea = document.getElementById('writing-result');
+    resultArea.hidden = false;
     return;
   }
 
   const checkedItems = Array.from(checkboxes).map(cb => cb.value);
 
-  const submitBtn = document.getElementById('submit-btn');
   submitBtn.disabled = true;
   submitBtn.classList.add('btn--loading');
   submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Сохранение...") }}';
@@ -164,23 +215,22 @@ async function submitWriting() {
     submitBtn.disabled = false;
     submitBtn.classList.remove('btn--loading');
     submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Завершить") }}';
-    alert('{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+    _setResultBadge('incorrect', '<i class="fas fa-times-circle"></i>',
+      '{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}', null);
+    const resultArea = document.getElementById('writing-result');
+    resultArea.hidden = false;
   }
 }
 
 function showResult(data) {
   const resultArea = document.getElementById('writing-result');
-  const message = document.getElementById('result-message');
   const nextArea = document.getElementById('writing-next-area');
   const exampleSection = document.getElementById('example-section');
 
   if (data.completed) {
-    message.innerHTML = `
-      <div class="writing-prompt-badge writing-prompt-badge--success">
-        <i class="fas fa-check-circle"></i>
-        {{ _('Отлично! Урок завершён.') }}
-        <span class="writing-prompt-word-stat">${data.word_count} {{ _('слов') }}</span>
-      </div>`;
+    _setResultBadge('correct', '<i class="fas fa-check-circle"></i>',
+      '{{ _("Отлично! Урок завершён.") }}',
+      (data.word_count || 0) + ' {{ _("слов") }}');
     if (exampleSection) {
       exampleSection.style.display = 'block';
     }
@@ -191,11 +241,7 @@ function showResult(data) {
     } else if (!data.checklist_completed) {
       hint = '{{ _("Отметьте пункты проверочного списка.") }}';
     }
-    message.innerHTML = `
-      <div class="writing-prompt-badge writing-prompt-badge--incomplete">
-        <i class="fas fa-info-circle"></i>
-        ${hint}
-      </div>`;
+    _setResultBadge('neutral', '<i class="fas fa-info-circle"></i>', hint, null);
   }
 
   if (data.next_lesson_url) {
@@ -205,7 +251,7 @@ function showResult(data) {
       </a>`;
   }
 
-  resultArea.style.display = 'block';
+  resultArea.hidden = false;
   resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 

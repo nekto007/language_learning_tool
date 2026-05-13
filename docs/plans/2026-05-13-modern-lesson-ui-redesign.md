@@ -83,14 +83,14 @@ Files:
 - Modify: app/templates/curriculum/lessons/sentence_completion.html
 - Modify: app/templates/curriculum/lessons/sentence_correction.html
 
-- [ ] Replace bespoke containers with `.lesson-shell` skeleton; keep all `lesson.content.*` reads intact
-- [ ] writing_prompt: structured task card + live word-count meter + checklist with min-checked gate + textarea with autosize
-- [ ] translation: source card + clickable hint chips + input with `.input--*` states + result badge with correct-answer reveal
-- [ ] sentence_completion: per-item card list, inline input, badge per item, summary at end
-- [ ] sentence_correction: incorrect-sentence card + either option buttons (`.option-btn`) or textarea + explanation reveal
-- [ ] Keep submission payload identical (verify by reading existing JS and matching field names exactly)
-- [ ] Tests: extend tests/curriculum/test_*_lesson.py (or add tests/curriculum/test_text_input_lessons_render.py) to assert each template renders with sample content and submits expected JSON payload via a fetched-mock harness
-- [ ] Run pytest tests/curriculum -q - must pass before task 4
+- [x] Replace bespoke containers with `.lesson-shell` skeleton; keep all `lesson.content.*` reads intact
+- [x] writing_prompt: structured task card + live word-count meter + checklist with min-checked gate + textarea with autosize
+- [x] translation: source card + clickable hint chips + input with `.input--*` states + result badge with correct-answer reveal
+- [x] sentence_completion: per-item card list, inline input, badge per item, summary at end
+- [x] sentence_correction: incorrect-sentence card + either option buttons (`.option-btn`) or textarea + explanation reveal
+- [x] Keep submission payload identical (verify by reading existing JS and matching field names exactly)
+- [x] Tests: extend tests/curriculum/test_*_lesson.py (or add tests/curriculum/test_text_input_lessons_render.py) to assert each template renders with sample content and submits expected JSON payload via a fetched-mock harness
+- [x] Run pytest tests/curriculum -q - must pass before task 4
 
 ### Task 4: Redesign audio lessons (shadow_reading, audio_fill_blank, pronunciation)
 

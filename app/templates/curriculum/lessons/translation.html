@@ -5,67 +5,85 @@
 {% set block_description = _('Практика письменного перевода') %}
 
 {% block lesson_content %}
-<div class="translation-lesson">
+<section class="lesson-shell translation-lesson" aria-labelledby="translation-lesson-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="translation-lesson-title">{{ _('Перевод предложения') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-language"></i></span>
+      <span class="lesson-shell__progress" aria-live="polite">
+        <span data-progress-current>1</span> / <span data-progress-total>1</span>
+      </span>
+    </div>
+    <div class="lesson-shell__progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="lesson-shell__progress-fill" id="translation-progress-fill" style="width:0%"></span>
+    </div>
+  </header>
 
-  <div class="translation-source-card">
-    <div class="translation-source-label">
-      <i class="fas fa-language"></i>
-      {{ _('Переведите на английский:') }}
+  <div class="lesson-shell__body">
+    <div class="lesson-shell__card translation-source-card">
+      <div class="translation-source-label">
+        <i class="fas fa-language"></i>
+        {{ _('Переведите на английский:') }}
+      </div>
+      <div class="translation-source-text" id="source-text">
+        {{ russian }}
+      </div>
     </div>
-    <div class="translation-source-text" id="source-text">
-      {{ russian }}
-    </div>
-  </div>
 
-  {% if hint_words %}
-  <div class="translation-chips-section">
-    <div class="translation-chips-label">
-      <i class="fas fa-lightbulb"></i>
-      {{ _('Слова-подсказки:') }}
+    {% if hint_words %}
+    <div class="lesson-shell__card translation-chips-section">
+      <div class="translation-chips-label">
+        <i class="fas fa-lightbulb"></i>
+        {{ _('Слова-подсказки:') }}
+      </div>
+      <div class="translation-chips" id="hint-chips">
+        {% for word in hint_words %}
+        <button
+          class="chip chip--clickable translation-chip"
+          type="button"
+          aria-pressed="false"
+          onclick="insertChip({{ loop.index0 }}, '{{ word | e }}')"
+          id="chip-{{ loop.index0 }}"
+        >
+          {{ word }}
+        </button>
+        {% endfor %}
+      </div>
     </div>
-    <div class="translation-chips" id="hint-chips">
-      {% for word in hint_words %}
-      <button
-        class="translation-chip"
-        type="button"
-        onclick="insertChip({{ loop.index0 }}, '{{ word | e }}')"
-        id="chip-{{ loop.index0 }}"
+    {% endif %}
+
+    <div class="lesson-shell__card translation-input-section">
+      <label class="translation-input-label" for="translation-answer">
+        <i class="fas fa-pen"></i>
+        {{ _('Ваш перевод:') }}
+      </label>
+      <input
+        class="translation-input"
+        id="translation-answer"
+        type="text"
+        placeholder="{{ _('Введите перевод...') }}"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
       >
-        {{ word }}
-      </button>
-      {% endfor %}
     </div>
   </div>
-  {% endif %}
 
-  <div class="translation-input-section">
-    <label class="translation-input-label" for="translation-answer">
-      <i class="fas fa-pen"></i>
-      {{ _('Ваш перевод:') }}
-    </label>
-    <input
-      class="translation-input"
-      id="translation-answer"
-      type="text"
-      placeholder="{{ _('Введите перевод...') }}"
-      autocomplete="off"
-      autocorrect="off"
-      spellcheck="false"
+  <div class="lesson-shell__actions translation-submit-row">
+    <button
+      class="btn btn-primary btn-lg"
+      id="submit-btn"
+      onclick="submitTranslation()"
+      type="button"
     >
-    <div class="translation-submit-row">
-      <button
-        class="btn btn-primary btn-lg"
-        id="submit-btn"
-        onclick="submitTranslation()"
-        type="button"
-      >
-        <i class="fas fa-check"></i>
-        {{ _('Проверить') }}
-      </button>
-    </div>
+      <i class="fas fa-check"></i>
+      {{ _('Проверить') }}
+    </button>
   </div>
 
-  <div class="translation-result" id="translation-result" style="display: none;">
+  <div class="lesson-shell__result translation-result" id="translation-result"
+       role="status" aria-live="polite" aria-atomic="true" hidden>
     <div id="result-badge"></div>
     <div class="translation-correct-answer" id="correct-answer-reveal" style="display: none;">
       <span class="translation-correct-label">
@@ -76,7 +94,7 @@
     </div>
     <div id="translation-next-area" style="margin-top: 1rem;"></div>
   </div>
-</div>
+</section>
 
 <script>
 const lessonId = {{ lesson.id }};
@@ -87,19 +105,44 @@ function insertChip(idx, word) {
   const current = inp.value;
   inp.value = current ? current.trimEnd() + ' ' + word : word;
   inp.focus();
-  if (chip) chip.classList.add('translation-chip--used');
+  if (chip) {
+    chip.classList.add('chip--used', 'translation-chip--used');
+    chip.setAttribute('aria-pressed', 'true');
+  }
+}
+
+function _renderBadge(kind, iconHtml, label) {
+  const badge = document.getElementById('result-badge');
+  badge.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'result-badge result-badge--' + kind;
+  const icon = document.createElement('span');
+  icon.className = 'result-badge__icon';
+  icon.innerHTML = iconHtml;
+  wrap.appendChild(icon);
+  const span = document.createElement('span');
+  span.textContent = label;
+  wrap.appendChild(span);
+  badge.appendChild(wrap);
 }
 
 async function submitTranslation() {
-  const answer = document.getElementById('translation-answer').value.trim();
+  const inp = document.getElementById('translation-answer');
+  const answer = inp.value.trim();
+  const resultArea = document.getElementById('translation-result');
   if (!answer) {
-    alert('{{ _("Пожалуйста, введите перевод.") }}');
+    _renderBadge('neutral', '<i class="fas fa-info-circle"></i>',
+      '{{ _("Пожалуйста, введите перевод.") }}');
+    resultArea.hidden = false;
     return;
   }
 
   const submitBtn = document.getElementById('submit-btn');
   submitBtn.disabled = true;
+  submitBtn.classList.add('btn--loading');
   submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Проверка...") }}';
+  inp.classList.remove('input--correct', 'input--wrong', 'translation-input--correct', 'translation-input--incorrect');
+  inp.classList.add('input--checking');
 
   try {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -116,6 +159,7 @@ async function submitTranslation() {
     const data = await resp.json();
     showResult(data);
 
+    submitBtn.classList.remove('btn--loading');
     if (data.is_correct) {
       submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено") }}';
       if (typeof showSaveToast === 'function') showSaveToast();
@@ -126,35 +170,31 @@ async function submitTranslation() {
   } catch (err) {
     console.error('Translation submit error:', err);
     submitBtn.disabled = false;
+    submitBtn.classList.remove('btn--loading');
     submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Проверить") }}';
-    alert('{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+    _renderBadge('incorrect', '<i class="fas fa-times-circle"></i>',
+      '{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+    resultArea.hidden = false;
   }
 }
 
 function showResult(data) {
   const inp = document.getElementById('translation-answer');
-  const badge = document.getElementById('result-badge');
   const correctReveal = document.getElementById('correct-answer-reveal');
   const correctText = document.getElementById('correct-answer-text');
   const nextArea = document.getElementById('translation-next-area');
 
-  inp.classList.remove('translation-input--correct', 'translation-input--incorrect');
+  inp.classList.remove('input--checking');
+  inp.classList.remove('input--correct', 'input--wrong',
+    'translation-input--correct', 'translation-input--incorrect');
 
   if (data.is_correct) {
-    inp.classList.add('translation-input--correct');
-    badge.innerHTML = `
-      <div class="translation-badge translation-badge--correct">
-        <i class="fas fa-check-circle"></i>
-        {{ _('Правильно!') }}
-      </div>`;
+    inp.classList.add('input--correct', 'translation-input--correct');
+    _renderBadge('correct', '<i class="fas fa-check-circle"></i>', '{{ _("Правильно!") }}');
     correctReveal.style.display = 'none';
   } else {
-    inp.classList.add('translation-input--incorrect');
-    badge.innerHTML = `
-      <div class="translation-badge translation-badge--incorrect">
-        <i class="fas fa-times-circle"></i>
-        {{ _('Неправильно') }}
-      </div>`;
+    inp.classList.add('input--wrong', 'translation-input--incorrect');
+    _renderBadge('incorrect', '<i class="fas fa-times-circle"></i>', '{{ _("Неправильно") }}');
     correctReveal.style.display = 'flex';
     const d = document.createElement('span');
     d.textContent = data.correct_answer || '';
@@ -169,8 +209,9 @@ function showResult(data) {
       </a>`;
   }
 
-  document.getElementById('translation-result').style.display = 'block';
-  document.getElementById('translation-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const resultArea = document.getElementById('translation-result');
+  resultArea.hidden = false;
+  resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 document.getElementById('translation-answer').addEventListener('keydown', function(e) {

@@ -5,76 +5,94 @@
 {% set block_description = _('Практика грамматических исправлений') %}
 
 {% block lesson_content %}
-<div class="sentence-correction-lesson">
+<section class="lesson-shell sentence-correction-lesson" aria-labelledby="sentence-correction-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="sentence-correction-title">{{ _('Исправьте ошибку') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-exclamation-triangle"></i></span>
+      <span class="lesson-shell__progress" aria-live="polite">
+        <span data-progress-current>1</span> / <span data-progress-total>1</span>
+      </span>
+    </div>
+    <div class="lesson-shell__progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="lesson-shell__progress-fill" style="width:0%"></span>
+    </div>
+  </header>
 
-  <div class="sentence-correction-source-card">
-    <div class="sentence-correction-error-type">
-      <i class="fas fa-exclamation-triangle"></i>
-      {{ _('Тип ошибки:') }} <strong>{{ error_type }}</strong>
+  <div class="lesson-shell__body">
+    <div class="lesson-shell__card sentence-correction-source-card">
+      <div class="sentence-correction-error-type">
+        <i class="fas fa-exclamation-triangle"></i>
+        {{ _('Тип ошибки:') }} <strong>{{ error_type }}</strong>
+      </div>
+      <div class="sentence-correction-label">
+        <i class="fas fa-times-circle" style="color: var(--color-danger);"></i>
+        {{ _('Неправильное предложение:') }}
+      </div>
+      <div class="sentence-correction-source-text" id="incorrect-sentence">
+        {{ incorrect_sentence }}
+      </div>
     </div>
-    <div class="sentence-correction-label">
-      <i class="fas fa-times-circle" style="color: var(--color-danger);"></i>
-      {{ _('Неправильное предложение:') }}
+
+    {% if options %}
+    <div class="lesson-shell__card sentence-correction-options-section">
+      <div class="sentence-correction-options-label">
+        <i class="fas fa-list-ul"></i>
+        {{ _('Выберите правильный вариант:') }}
+      </div>
+      <div class="sentence-correction-options" id="correction-options">
+        {% for opt in options %}
+        <button
+          class="option-btn sentence-correction-option-btn"
+          type="button"
+          aria-pressed="false"
+          onclick="selectOption({{ loop.index0 }}, {{ opt | tojson }})"
+          id="option-btn-{{ loop.index0 }}"
+          data-value="{{ opt | e }}"
+        >
+          {{ opt }}
+        </button>
+        {% endfor %}
+      </div>
+      <input type="hidden" id="correction-answer" value="">
     </div>
-    <div class="sentence-correction-source-text" id="incorrect-sentence">
-      {{ incorrect_sentence }}
+    {% else %}
+    <div class="lesson-shell__card sentence-correction-input-section">
+      <label class="sentence-correction-input-label" for="correction-answer">
+        <i class="fas fa-pen"></i>
+        {{ _('Введите исправленное предложение:') }}
+      </label>
+      <textarea
+        class="sentence-correction-input"
+        id="correction-answer"
+        rows="3"
+        placeholder="{{ _('Напишите исправленное предложение...') }}"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+      ></textarea>
     </div>
+    {% endif %}
   </div>
 
-  {% if options %}
-  <div class="sentence-correction-options-section">
-    <div class="sentence-correction-options-label">
-      <i class="fas fa-list-ul"></i>
-      {{ _('Выберите правильный вариант:') }}
-    </div>
-    <div class="sentence-correction-options" id="correction-options">
-      {% for opt in options %}
-      <button
-        class="sentence-correction-option-btn"
-        type="button"
-        onclick="selectOption({{ loop.index0 }}, {{ opt | tojson }})"
-        id="option-btn-{{ loop.index0 }}"
-        data-value="{{ opt | e }}"
-      >
-        {{ opt }}
-      </button>
-      {% endfor %}
-    </div>
-    <input type="hidden" id="correction-answer" value="">
-  </div>
-  {% else %}
-  <div class="sentence-correction-input-section">
-    <label class="sentence-correction-input-label" for="correction-answer">
-      <i class="fas fa-pen"></i>
-      {{ _('Введите исправленное предложение:') }}
-    </label>
-    <textarea
-      class="sentence-correction-input"
-      id="correction-answer"
-      rows="3"
-      placeholder="{{ _('Напишите исправленное предложение...') }}"
-      autocomplete="off"
-      autocorrect="off"
-      spellcheck="false"
-    ></textarea>
-  </div>
-  {% endif %}
-
-  <div class="sentence-correction-submit-row">
+  <div class="lesson-shell__actions sentence-correction-submit-row">
     <button
       class="btn btn-primary btn-lg"
       id="submit-btn"
       onclick="submitCorrection()"
       type="button"
+      disabled
     >
       <i class="fas fa-check"></i>
       {{ _('Проверить') }}
     </button>
   </div>
 
-  <div class="sentence-correction-result" id="correction-result" style="display: none;">
+  <div class="lesson-shell__result sentence-correction-result" id="correction-result"
+       role="status" aria-live="polite" aria-atomic="true" hidden>
     <div id="result-badge"></div>
-    <div class="sentence-correction-explanation" id="explanation-reveal" style="display: none;">
+    <div class="sentence-correction-explanation" id="explanation-reveal" role="note" style="display: none;">
       <div class="sentence-correction-explanation-label">
         <i class="fas fa-info-circle"></i>
         {{ _('Объяснение:') }}
@@ -90,7 +108,7 @@
     </div>
     <div id="correction-next-area" style="margin-top: 1rem;"></div>
   </div>
-</div>
+</section>
 
 <script>
 const lessonId = {{ lesson.id }};
@@ -98,24 +116,64 @@ const explanation = {{ explanation | tojson }};
 const hasOptions = {{ 'true' if options else 'false' }};
 let selectedOption = null;
 
+function _refreshSubmitGate() {
+  const submitBtn = document.getElementById('submit-btn');
+  if (!submitBtn) return;
+  if (hasOptions) {
+    submitBtn.disabled = !selectedOption;
+  } else {
+    const ta = document.getElementById('correction-answer');
+    submitBtn.disabled = !(ta && ta.value && ta.value.trim().length > 0);
+  }
+}
+
 function selectOption(idx, value) {
   selectedOption = value;
   document.getElementById('correction-answer').value = value;
   document.querySelectorAll('.sentence-correction-option-btn').forEach(function(btn, i) {
-    btn.classList.toggle('sentence-correction-option-btn--selected', i === idx);
+    const selected = i === idx;
+    btn.classList.toggle('option-btn--selected', selected);
+    btn.classList.toggle('sentence-correction-option-btn--selected', selected);
+    btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
   });
+  _refreshSubmitGate();
+}
+
+{% if not options %}
+document.addEventListener('input', function(e) {
+  if (e.target && e.target.id === 'correction-answer') _refreshSubmitGate();
+});
+{% endif %}
+
+function _renderBadge(kind, iconHtml, label) {
+  const badge = document.getElementById('result-badge');
+  badge.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'result-badge result-badge--' + kind;
+  const icon = document.createElement('span');
+  icon.className = 'result-badge__icon';
+  icon.innerHTML = iconHtml;
+  wrap.appendChild(icon);
+  const span = document.createElement('span');
+  span.textContent = label;
+  wrap.appendChild(span);
+  badge.appendChild(wrap);
 }
 
 async function submitCorrection() {
   const answerEl = document.getElementById('correction-answer');
   const answer = answerEl.value ? answerEl.value.trim() : (selectedOption || '');
+  const resultArea = document.getElementById('correction-result');
   if (!answer) {
-    alert('{{ _("Пожалуйста, введите или выберите исправленное предложение.") }}');
+    _renderBadge('neutral', '<i class="fas fa-info-circle"></i>',
+      '{{ _("Пожалуйста, введите или выберите исправленное предложение.") }}');
+    resultArea.hidden = false;
     return;
   }
 
   const submitBtn = document.getElementById('submit-btn');
   submitBtn.disabled = true;
+  submitBtn.classList.add('btn--loading');
   submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Проверка...") }}';
 
   try {
@@ -133,6 +191,7 @@ async function submitCorrection() {
     const data = await resp.json();
     showResult(data);
 
+    submitBtn.classList.remove('btn--loading');
     if (data.is_correct) {
       submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено") }}';
       if (typeof showSaveToast === 'function') showSaveToast();
@@ -143,13 +202,15 @@ async function submitCorrection() {
   } catch (err) {
     console.error('Sentence correction submit error:', err);
     submitBtn.disabled = false;
+    submitBtn.classList.remove('btn--loading');
     submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Проверить") }}';
-    alert('{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+    _renderBadge('incorrect', '<i class="fas fa-times-circle"></i>',
+      '{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+    resultArea.hidden = false;
   }
 }
 
 function showResult(data) {
-  const badge = document.getElementById('result-badge');
   const explanationReveal = document.getElementById('explanation-reveal');
   const explanationText = document.getElementById('explanation-text');
   const correctReveal = document.getElementById('correct-answer-reveal');
@@ -158,33 +219,39 @@ function showResult(data) {
   const answerEl = document.getElementById('correction-answer');
 
   if (!hasOptions && answerEl.tagName === 'TEXTAREA') {
-    answerEl.classList.remove('sentence-correction-input--correct', 'sentence-correction-input--incorrect');
+    answerEl.classList.remove('input--correct', 'input--wrong',
+      'sentence-correction-input--correct', 'sentence-correction-input--incorrect');
   }
 
   if (data.is_correct) {
     if (!hasOptions && answerEl.tagName === 'TEXTAREA') {
-      answerEl.classList.add('sentence-correction-input--correct');
+      answerEl.classList.add('input--correct', 'sentence-correction-input--correct');
     }
-    badge.innerHTML = `
-      <div class="sentence-correction-badge sentence-correction-badge--correct">
-        <i class="fas fa-check-circle"></i>
-        {{ _('Правильно!') }}
-      </div>`;
+    _renderBadge('correct', '<i class="fas fa-check-circle"></i>', '{{ _("Правильно!") }}');
     correctReveal.style.display = 'none';
   } else {
     if (!hasOptions && answerEl.tagName === 'TEXTAREA') {
-      answerEl.classList.add('sentence-correction-input--incorrect');
+      answerEl.classList.add('input--wrong', 'sentence-correction-input--incorrect');
     }
-    badge.innerHTML = `
-      <div class="sentence-correction-badge sentence-correction-badge--incorrect">
-        <i class="fas fa-times-circle"></i>
-        {{ _('Неправильно') }}
-      </div>`;
+    _renderBadge('incorrect', '<i class="fas fa-times-circle"></i>', '{{ _("Неправильно") }}');
     correctReveal.style.display = 'flex';
     const d = document.createElement('span');
     d.textContent = data.correct_sentence || '';
     correctText.innerHTML = '';
     correctText.appendChild(d);
+  }
+
+  if (hasOptions) {
+    document.querySelectorAll('.sentence-correction-option-btn').forEach(function(btn) {
+      const val = btn.getAttribute('data-value') || '';
+      btn.disabled = true;
+      btn.classList.remove('option-btn--correct', 'option-btn--wrong');
+      if (val === (data.correct_sentence || '')) {
+        btn.classList.add('option-btn--correct');
+      } else if (btn.classList.contains('option-btn--selected') && !data.is_correct) {
+        btn.classList.add('option-btn--wrong');
+      }
+    });
   }
 
   const expText = data.explanation || explanation;
@@ -203,8 +270,9 @@ function showResult(data) {
       </a>`;
   }
 
-  document.getElementById('correction-result').style.display = 'block';
-  document.getElementById('correction-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const resultArea = document.getElementById('correction-result');
+  resultArea.hidden = false;
+  resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 {% if not options %}
