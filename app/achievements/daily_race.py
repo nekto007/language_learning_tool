@@ -51,12 +51,31 @@ MISSION_PHASE_POINTS: Mapping[str, int] = {
     'close': 0,
 }
 
+# Points awarded per linear plan slot kind. Curriculum is the most valuable
+# since it drives the spine; SRS and reading are supporting activities.
+LINEAR_SLOT_POINTS: Mapping[str, int] = {
+    'curriculum': 22,
+    'srs': 12,
+    'reading': 16,
+    'listening': 14,
+    'speaking': 12,
+    'writing': 14,
+    'error_review': 10,
+}
+
 
 def phase_points(phase: str | None) -> int:
     """Return points awarded for a completed mission phase kind."""
     if not phase:
         return 0
     return MISSION_PHASE_POINTS.get(phase, 0)
+
+
+def linear_slot_points(kind: str | None) -> int:
+    """Return points awarded for a completed linear plan slot kind."""
+    if not kind:
+        return 0
+    return LINEAR_SLOT_POINTS.get(kind, 0)
 
 
 class DailyRace(db.Model):
@@ -391,6 +410,43 @@ def update_race_points_from_plan(
     """
     phase_list = list(phases)
     total, all_required_done = _points_from_plan(phase_list, plan_completion)
+    return update_race_points(
+        user_id,
+        race_date,
+        total + max(0, challenge_bonus),
+        finished=all_required_done,
+        now_utc=now_utc,
+    )
+
+
+def update_race_points_from_linear_plan(
+    user_id: int,
+    race_date: date_cls,
+    baseline_slots: Iterable[Mapping],
+    plan_completion: Mapping[str, bool],
+    *,
+    challenge_bonus: int = 0,
+    now_utc: datetime | None = None,
+) -> Optional[DailyRaceParticipant]:
+    """Recompute participant points from a linear plan's baseline slots.
+
+    Linear plan uses slot ``kind`` as the completion key (e.g. 'curriculum',
+    'srs', 'reading') whereas mission plan uses phase ``id``. All baseline
+    slots are treated as required — extension slots are bonus and excluded
+    from ``all_required_done`` (callers pass only baseline_slots).
+    ``challenge_bonus`` adds a flat bonus (default 0) for completing the daily
+    challenge.
+    """
+    slots = list(baseline_slots)
+    total = 0
+    all_required_done = bool(slots)
+    for slot in slots:
+        kind = slot.get('kind', '')
+        done = bool(plan_completion.get(kind, False))
+        if not done:
+            all_required_done = False
+        if done:
+            total += linear_slot_points(kind)
     return update_race_points(
         user_id,
         race_date,

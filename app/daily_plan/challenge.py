@@ -322,8 +322,9 @@ def maybe_auto_complete_challenge(
         return None
 
     from app.daily_plan.models import DailyChallenge, DailyChallengeCompletion
+    from app.utils.time_utils import get_user_local_date
 
-    today = datetime.now(timezone.utc).date()
+    today = get_user_local_date(user_id, db)
     challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
     if challenge is None:
         try:

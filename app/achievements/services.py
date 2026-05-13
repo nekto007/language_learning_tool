@@ -613,15 +613,15 @@ def check_listening_achievements(user_id: int, db_session=None) -> List[Achievem
         codes_to_award.add('listening_week')
 
     if total >= 10:
-        from sqlalchemy import select, literal_column
+        from sqlalchemy import select
         subq = (
-            select(ListeningAttempt.score)
+            select(ListeningAttempt.score.label('score'))
             .where(ListeningAttempt.user_id == user_id)
             .order_by(ListeningAttempt.created_at.desc())
             .limit(10)
-            .alias('last10')
+            .subquery()
         )
-        last_10_avg = session.query(func.avg(literal_column('score'))).select_entity_from(subq).scalar() or 0.0
+        last_10_avg = session.query(func.avg(subq.c.score)).scalar() or 0.0
         if last_10_avg >= 90.0:
             codes_to_award.add('listening_master')
 

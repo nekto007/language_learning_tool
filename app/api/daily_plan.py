@@ -504,6 +504,7 @@ def daily_race_status():
         CHALLENGE_BONUS_POINTS,
         get_race_standings,
         update_race_points_from_plan,
+        update_race_points_from_linear_plan,
     )
     from app.daily_plan.challenge import get_today_challenge
 
@@ -531,10 +532,20 @@ def daily_race_status():
         ch_bonus = 0
 
     phases = plan.get('phases') or []
+    baseline_slots = plan.get('baseline_slots') or []
     if phases:
         try:
             update_race_points_from_plan(
                 user_id, local_today, phases, plan_completion,
+                challenge_bonus=ch_bonus,
+            )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+    elif baseline_slots and plan.get('mode') == 'linear':
+        try:
+            update_race_points_from_linear_plan(
+                user_id, local_today, baseline_slots, plan_completion,
                 challenge_bonus=ch_bonus,
             )
             db.session.commit()

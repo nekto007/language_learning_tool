@@ -630,7 +630,7 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
         hint_chars = int(data.get('hint_chars') or content.get('hint_chars') or 0)
     except (TypeError, ValueError):
         hint_chars = 0
-    user_text = data.get('user_text', '')
+    user_text = (data.get('user_text') or '')[:50000]
     try:
         replay_count = min(int(data.get('replay_count') or 0), _DICTATION_MAX_REPLAYS)
     except (TypeError, ValueError):
@@ -664,6 +664,7 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
         db.session.flush()
     except Exception as log_err:
         logger.warning(f"Listening attempt log failed for lesson {lesson.id}: {log_err}")
+        db.session.rollback()
 
     try:
         from app.achievements.services import check_listening_achievements
@@ -761,6 +762,7 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
         db.session.flush()
     except Exception as log_err:
         logger.warning(f"Listening attempt log failed for lesson {lesson.id}: {log_err}")
+        db.session.rollback()
 
     try:
         from app.achievements.services import check_listening_achievements
