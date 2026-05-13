@@ -661,12 +661,12 @@
 - Output: `reports/vocabulary_enrichment.md`
 - Tests: `tests/scripts/test_report_vocabulary_enrichment.py`
 
-- [ ] Report coverage for IPA
-- [ ] Report coverage for frequency bands
-- [ ] Report coverage for synonyms/antonyms
-- [ ] Report coverage for collocations
-- [ ] Report coverage for etymology and cultural notes
-- [ ] Break down by CEFR level and priority tier
+- [x] Report coverage for IPA
+- [x] Report coverage for frequency bands
+- [x] Report coverage for synonyms/antonyms
+- [x] Report coverage for collocations
+- [x] Report coverage for etymology and cultural notes
+- [x] Break down by CEFR level and priority tier
 
 ---
 ### Task 44: Verify optional vocabulary UI behavior
