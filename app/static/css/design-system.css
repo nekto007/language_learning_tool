@@ -14958,3 +14958,280 @@ span.vocab-word.vocab-word--active {
     flex-shrink: 0;
 }
 
+/* ==========================================================================
+   Lesson shell — shared shell for modern lesson templates
+   (writing_prompt, translation, sentence_completion, sentence_correction,
+   shadow_reading, audio_fill_blank, pronunciation, collocation_matching,
+   listening_immersion). See docs/design/lesson-frontend-spec.md.
+   ========================================================================== */
+.lesson-shell {
+    max-width: 720px;
+    margin: var(--space-6) auto;
+    padding: var(--space-6);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+
+.lesson-shell__header {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    background: var(--bg-primary);
+    padding: var(--space-3) 0 var(--space-4) 0;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.lesson-shell__title {
+    margin: 0;
+    font-size: var(--text-xl);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+}
+
+.lesson-shell__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
+.lesson-shell__type-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: var(--radius-full);
+    background: var(--primary-100, rgba(99, 102, 241, 0.1));
+    color: var(--primary-500);
+    font-size: 0.9rem;
+}
+
+.lesson-shell__progress {
+    font-variant-numeric: tabular-nums;
+    font-weight: var(--font-medium);
+    color: var(--text-secondary);
+}
+
+.lesson-shell__progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.lesson-shell__progress-fill {
+    display: block;
+    height: 100%;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-full);
+    transition: width var(--transition-base);
+}
+
+.lesson-shell__instruction {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+}
+
+.lesson-shell__help-toggle {
+    background: transparent;
+    border: none;
+    color: var(--text-link);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    padding: 0;
+    margin-top: var(--space-2);
+}
+
+.lesson-shell__help-toggle:hover {
+    color: var(--text-link-hover);
+    text-decoration: underline;
+}
+
+.lesson-shell__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.lesson-shell__card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4) var(--space-5);
+    box-shadow: var(--shadow-sm);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.lesson-shell__card:hover {
+    border-color: var(--border-medium);
+}
+
+.lesson-shell__card:focus-within {
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
+}
+
+.lesson-shell__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+    justify-content: flex-end;
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-light);
+}
+
+.lesson-shell__result {
+    min-height: 1px;
+}
+
+.lesson-shell__result[hidden] {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    .lesson-shell {
+        margin: var(--space-3);
+        padding: var(--space-4);
+        border-radius: var(--radius-lg);
+    }
+    .lesson-shell__actions {
+        justify-content: stretch;
+    }
+    .lesson-shell__actions > * {
+        flex: 1 1 auto;
+    }
+}
+
+/* ==========================================================================
+   Result badge — shared feedback indicator
+   ========================================================================== */
+.result-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
+    font-weight: var(--font-medium);
+    border: 1px solid transparent;
+    line-height: var(--leading-snug);
+}
+
+.result-badge--correct {
+    background: var(--success-50);
+    border-color: var(--success-500);
+    color: var(--success-800, #166534);
+}
+
+.result-badge--incorrect {
+    background: var(--danger-50);
+    border-color: var(--danger-500);
+    color: var(--danger-800, #991b1b);
+}
+
+.result-badge--neutral {
+    background: var(--bg-secondary);
+    border-color: var(--border-medium);
+    color: var(--text-primary);
+}
+
+.result-badge__icon {
+    display: inline-flex;
+    font-size: 1.1em;
+}
+
+/* ==========================================================================
+   Input states — shared validation styling for inputs/textareas
+   ========================================================================== */
+.input--correct {
+    border-color: var(--success-500) !important;
+    background-color: var(--success-50);
+    box-shadow: 0 0 0 3px rgba(var(--success-rgb), 0.15);
+}
+
+.input--wrong {
+    border-color: var(--danger-500) !important;
+    background-color: var(--danger-50);
+    box-shadow: 0 0 0 3px rgba(var(--danger-rgb), 0.15);
+}
+
+.input--checking {
+    border-color: var(--primary-500) !important;
+    background-color: var(--bg-secondary);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
+}
+
+/* ==========================================================================
+   Option button BEM modifiers (legacy .option-btn.selected/.correct/.incorrect
+   above kept for backward compatibility; new templates use BEM modifiers)
+   ========================================================================== */
+.option-btn--selected {
+    border-color: var(--primary-500);
+    background-color: rgba(var(--primary-rgb), 0.08);
+}
+
+.option-btn--correct {
+    border-color: var(--success-500);
+    background-color: var(--success-50);
+    color: var(--success-800, #166534);
+}
+
+.option-btn--wrong {
+    border-color: var(--danger-500);
+    background-color: var(--danger-50);
+    color: var(--danger-800, #991b1b);
+}
+
+/* ==========================================================================
+   Hint chips — used by translation lesson for clickable vocabulary hints
+   ========================================================================== */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-3);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    line-height: var(--leading-snug);
+}
+
+.chip--clickable {
+    cursor: pointer;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+    user-select: none;
+}
+
+.chip--clickable:hover {
+    background: rgba(var(--primary-rgb), 0.08);
+    border-color: var(--primary-500);
+}
+
+.chip--clickable:active {
+    transform: scale(0.97);
+}
+
+.chip--used {
+    opacity: 0.5;
+    pointer-events: none;
+}
+

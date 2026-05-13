@@ -66,14 +66,14 @@ Files:
 Files:
 - Modify: app/static/css/design-system.css
 
-- [ ] Add (if missing) `.lesson-shell`, `.lesson-shell__header`, `.lesson-shell__progress`, `.lesson-shell__body`, `.lesson-shell__actions` classes
-- [ ] Add `.result-badge`, `.result-badge--correct`, `.result-badge--incorrect`, `.result-badge--neutral`
-- [ ] Add `.input--correct`, `.input--wrong`, `.input--checking`
-- [ ] Add `.option-btn`, `.option-btn--selected`, `.option-btn--correct`, `.option-btn--wrong`
-- [ ] Add `.chip`, `.chip--clickable` for hint chips (translation lesson)
-- [ ] Honor `prefers-reduced-motion` for any new transitions (rely on global guard at line ~8537)
-- [ ] Add tests/static/test_design_system_tokens.py asserting new class names are present
-- [ ] Run pytest tests/static - must pass before task 3
+- [x] Add (if missing) `.lesson-shell`, `.lesson-shell__header`, `.lesson-shell__progress`, `.lesson-shell__body`, `.lesson-shell__actions` classes
+- [x] Add `.result-badge`, `.result-badge--correct`, `.result-badge--incorrect`, `.result-badge--neutral`
+- [x] Add `.input--correct`, `.input--wrong`, `.input--checking`
+- [x] Add `.option-btn`, `.option-btn--selected`, `.option-btn--correct`, `.option-btn--wrong`
+- [x] Add `.chip`, `.chip--clickable` for hint chips (translation lesson)
+- [x] Honor `prefers-reduced-motion` for any new transitions (rely on global guard at line ~8537)
+- [x] Add tests/static/test_design_system_tokens.py asserting new class names are present
+- [x] Run pytest tests/static - must pass before task 3
 
 ### Task 3: Redesign text-input lessons (writing_prompt, translation, sentence_completion, sentence_correction)
 
