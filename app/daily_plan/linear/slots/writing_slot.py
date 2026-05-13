@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 _WRITING_LESSON_TYPES: frozenset[str] = frozenset({
     'writing_prompt',
     'translation',
+    'sentence_correction',
 })
 
 _WRITING_SLOT_ETA_MINUTES = 8

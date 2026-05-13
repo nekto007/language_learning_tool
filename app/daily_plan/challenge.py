@@ -357,7 +357,7 @@ def maybe_auto_complete_challenge(
     if criteria_error is not None:
         return None
 
-    if challenge.category == 'listening_deep' and challenge.lesson_id != lesson_id:
+    if challenge.category == 'listening_deep' and challenge.lesson_id is not None and challenge.lesson_id != lesson_id:
         return None
 
     try:

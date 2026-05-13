@@ -307,7 +307,7 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
 
     user = User.query.get(user_id)
 
-    if user and user.plan_paused_until and user.plan_paused_until >= get_user_local_date(user_id):
+    if user and user.plan_paused_until and user.plan_paused_until > get_user_local_date(user_id):
         logger.info("daily_plan_unified user=%s mode=paused until=%s", user_id, user.plan_paused_until)
         return _with_plan_meta(
             {

@@ -123,7 +123,7 @@ def update_lesson_progress(lesson_id):
     """Update lesson progress with validation"""
     try:
         if request.is_json:
-            data = request.get_json()
+            data = request.get_json(silent=True) or {}
             if 'csrf_token' in data:
                 del data['csrf_token']
         else:
@@ -278,7 +278,7 @@ def submit_lesson(lesson_id):
     """Submit lesson answers with proper validation"""
     try:
         lesson = Lessons.query.get_or_404(lesson_id)
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
         # Rate limit checks to prevent leaderboard abuse.
         # The finish=True action only marks the lesson completed; it does not
