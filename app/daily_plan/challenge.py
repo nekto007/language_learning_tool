@@ -52,8 +52,9 @@ def get_challenge_streak(user_id: int, db) -> int:
     logic used by get_listening_streak / get_writing_streak.
     """
     from app.daily_plan.models import DailyChallenge, DailyChallengeCompletion
+    from app.utils.time_utils import get_user_local_date
 
-    today = datetime.now(timezone.utc).date()
+    today = get_user_local_date(user_id, db)
     cutoff = today - timedelta(days=365)
 
     rows = (
@@ -87,8 +88,9 @@ def get_today_challenge(user_id: int, db) -> dict:
     Auto-seeds if no challenge exists for today. Safe to call multiple times.
     """
     from app.daily_plan.models import DailyChallenge, DailyChallengeCompletion
+    from app.utils.time_utils import get_user_local_date
 
-    today = datetime.now(timezone.utc).date()
+    today = get_user_local_date(user_id, db)
     challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
     if challenge is None:
         try:
@@ -197,8 +199,8 @@ def check_challenge_criteria(
 
     Validation is category-specific:
     - listening_deep: a ListeningAttempt must exist today for the challenge lesson
-    - accuracy_focus: score must be provided and >= 90
-    - speed_run: time_spent_seconds must be provided and < 300
+    - accuracy_focus: a server-recorded score >= 90 from a graded lesson today
+    - speed_run: server-recorded lesson completion within 5 min of lesson start today
     """
     from app.daily_plan.models import DailyChallenge  # noqa: F401 (used by caller annotation)
     from app.utils.time_utils import get_user_local_day_bounds
@@ -220,17 +222,21 @@ def check_challenge_criteria(
 
     elif challenge.category == 'accuracy_focus':
         # Verify server-recorded score only — do not trust client-submitted score.
-        # LessonAttempt covers final_test/legacy quiz flows (score always server-computed).
-        # New graded lesson types write LessonProgress via ProgressService — restrict
-        # the fallback to those types to prevent forged scores from the general
-        # /api/lesson/<id>/progress endpoint.
+        # LessonAttempt covers only failed final_test attempts (rate-limit gate);
+        # passed final_test and all quiz types write LessonProgress via ProgressService.
+        # Restrict the fallback to server-graded types to prevent forged scores from
+        # the general /api/lesson/<id>/progress endpoint.
         from app.curriculum.models import LessonAttempt, LessonProgress, Lessons
+        # 'grammar' intentionally excluded: grammar lessons complete via the progress
+        # endpoint (not the submit endpoint), so last_activity is updated by a
+        # client-triggered status='completed' call, not by server-side grading.
+        # A stale high score combined with today's last_activity update would
+        # otherwise let a user satisfy the challenge without a new graded attempt.
         _SERVER_GRADED_TYPES = (
             'dictation', 'audio_fill_blank', 'translation',
             'sentence_correction', 'sentence_completion', 'collocation_matching',
-            'grammar',
             'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
-            'dialogue_completion_quiz',
+            'dialogue_completion_quiz', 'final_test',
         )
         qualifying = (
             db.session.query(LessonAttempt.id)
@@ -264,34 +270,56 @@ def check_challenge_criteria(
             return 'criteria_not_met'
 
     elif challenge.category == 'speed_run':
-        if (
-            time_spent_seconds is None
-            or time_spent_seconds < _SPEED_RUN_MIN_SECONDS
-            or time_spent_seconds >= _SPEED_RUN_MAX_SECONDS
-        ):
-            return 'criteria_not_met'
-        # Require a server-verified lesson completion today.
-        # LessonAttempt is created by final_test/legacy flows; new lesson types
-        # write LessonProgress instead — accept either as server verification.
-        from app.curriculum.models import LessonAttempt, LessonProgress
+        # Verify timing server-side using LessonAttempt.started_at / completed_at
+        # (both server-set timestamps). Do NOT trust client-submitted time_spent_seconds.
+        # started_at >= today_start ensures the lesson was actually started today;
+        # the duration check prevents a slow lesson from qualifying.
+        # Restrict to server-graded types only: self-assessed types (shadow_reading,
+        # writing_prompt, idiom, pronunciation fallback) must not count because the
+        # client controls the self-assessment outcome.
+        # vocabulary, flashcards, and grammar are excluded: they allow client-set
+        # completed status via the progress endpoint (not server-graded via submit).
+        from datetime import timedelta
+        _SPEED_RUN_GRADED_TYPES = (
+            'dictation', 'audio_fill_blank', 'translation',
+            'sentence_correction', 'sentence_completion', 'collocation_matching',
+            'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
+            'dialogue_completion_quiz', 'final_test',
+        )
+        _speed_run_window = timedelta(seconds=_SPEED_RUN_MAX_SECONDS)
+        from app.curriculum.models import LessonAttempt, LessonProgress, Lessons
         completed_today = (
             db.session.query(LessonAttempt.id)
+            .join(Lessons, Lessons.id == LessonAttempt.lesson_id)
             .filter(
                 LessonAttempt.user_id == user_id,
                 LessonAttempt.completed_at >= today_start,
+                LessonAttempt.completed_at.isnot(None),
                 LessonAttempt.passed.is_(True),
+                (LessonAttempt.completed_at - LessonAttempt.started_at) < _speed_run_window,
+                Lessons.type.in_(_SPEED_RUN_GRADED_TYPES),
             )
             .first()
         )
         if completed_today is None:
-            # Use last_activity (not completed_at): completed_at is set only on first
-            # completion and won't reflect today's replay. last_activity is always updated.
+            # LessonProgress fallback for new lesson types that write directly to
+            # LessonProgress without creating a LessonAttempt. Use last_activity
+            # as the completion timestamp (always updated on submit) and started_at
+            # as the start timestamp (server-set when the progress row is created).
+            # started_at is NOT checked against today_start: LessonAttempt.started_at
+            # is always copied from progress.started_at (first-ever open), so a
+            # cross-midnight session would fail that guard even though the lesson was
+            # completed today. last_activity >= today_start already ensures the
+            # submission happened today; the timing diff rejects stale multi-day gaps.
             completed_today = (
                 db.session.query(LessonProgress.id)
+                .join(Lessons, Lessons.id == LessonProgress.lesson_id)
                 .filter(
                     LessonProgress.user_id == user_id,
                     LessonProgress.status == 'completed',
                     LessonProgress.last_activity >= today_start,
+                    (LessonProgress.last_activity - LessonProgress.started_at) < _speed_run_window,
+                    Lessons.type.in_(_SPEED_RUN_GRADED_TYPES),
                 )
                 .first()
             )

@@ -1072,15 +1072,21 @@ def get_pronunciation_stats(user_id: int) -> dict[str, Any]:
 
     seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
 
+    # Exclude the 'shadow_reading' sentinel logged by the shadow-reading route to
+    # signal speaking activity for streak/achievement purposes; it is not a real
+    # pronunciation word and would otherwise inflate attempt counts and appear in
+    # weak-word analytics.
+    _real_word = PronunciationAttempt.word != 'shadow_reading'
+
     total_attempts = (
         db.session.query(func.count(PronunciationAttempt.id))
-        .filter(PronunciationAttempt.user_id == user_id)
+        .filter(PronunciationAttempt.user_id == user_id, _real_word)
         .scalar()
     ) or 0
 
     total_words = (
         db.session.query(func.count(func.distinct(PronunciationAttempt.word)))
-        .filter(PronunciationAttempt.user_id == user_id)
+        .filter(PronunciationAttempt.user_id == user_id, _real_word)
         .scalar()
     ) or 0
 
@@ -1094,6 +1100,7 @@ def get_pronunciation_stats(user_id: int) -> dict[str, Any]:
         .filter(
             PronunciationAttempt.user_id == user_id,
             PronunciationAttempt.created_at >= seven_days_ago,
+            _real_word,
         )
         .one()
     )
@@ -1318,6 +1325,8 @@ def get_skills_balance(user_id: int) -> dict[str, int]:
     writing_score = min(100, round(int(writing_count) / 5 * 100))
 
     # --- Speaking: pronunciation match rate last 30 days (min 3 attempts) ---
+    # Exclude the shadow_reading sentinel logged by shadow-reading completion;
+    # those rows have word='shadow_reading' and are not real pronunciation attempts.
     speaking_row = (
         db.session.query(
             func.count(PronunciationAttempt.id).label('total'),
@@ -1326,6 +1335,7 @@ def get_skills_balance(user_id: int) -> dict[str, int]:
         .filter(
             PronunciationAttempt.user_id == user_id,
             PronunciationAttempt.created_at >= thirty_days_ago,
+            PronunciationAttempt.word != 'shadow_reading',
         )
         .one()
     )
@@ -1586,7 +1596,10 @@ def get_pronunciation_weaknesses(user_id: int, min_attempts: int = 3) -> list[st
                 )
             ).label('matched_count'),
         )
-        .filter(PronunciationAttempt.user_id == user_id)
+        .filter(
+            PronunciationAttempt.user_id == user_id,
+            PronunciationAttempt.word != 'shadow_reading',
+        )
         .group_by(PronunciationAttempt.word)
         .having(func.count(PronunciationAttempt.id) >= min_attempts)
         .all()

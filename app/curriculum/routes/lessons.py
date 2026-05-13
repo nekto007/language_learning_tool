@@ -77,8 +77,9 @@ def lesson_detail(lesson_id):
             flash('Ошибка при создании прогресса урока', 'error')
             return redirect('/learn/')
     else:
-        progress.last_activity = datetime.now(UTC)
-        db.session.commit()
+        if progress.status != 'completed':
+            progress.last_activity = datetime.now(UTC)
+            db.session.commit()
 
     route_map = {
         'vocabulary': 'curriculum_lessons.vocabulary_lesson',
@@ -1371,7 +1372,7 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
         try:
             from app.curriculum.listening_service import log_pronunciation_attempt
             from app.achievements.services import check_speaking_achievements
-            log_pronunciation_attempt(user_id, 'shadow_reading', '', True, db)
+            log_pronunciation_attempt(user_id, 'shadow_reading', '', False, db)
             db.session.commit()
             check_speaking_achievements(user_id, db_session=db.session)
         except Exception as sp_err:

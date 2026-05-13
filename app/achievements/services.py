@@ -852,8 +852,10 @@ def check_challenge_achievements(user_id: int, db_session=None) -> List[Achievem
     if total >= 30:
         codes_to_award.add('challenger')
 
-    # Compute challenge streak inline (walk-backward same as get_challenge_streak)
-    today = datetime.now(timezone.utc).date()
+    # Compute challenge streak inline (walk-backward same as get_challenge_streak).
+    # Use user-local date: challenges are seeded per local day by maybe_auto_complete_challenge.
+    from app.utils.time_utils import get_user_local_date
+    today = get_user_local_date(user_id, db)
     cutoff = today - _dt.timedelta(days=365)
     rows = (
         session.query(DailyChallenge.challenge_date)

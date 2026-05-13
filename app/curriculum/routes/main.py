@@ -505,9 +505,9 @@ def lesson_by_id(lesson_id):
             flash('Ошибка при создании прогресса урока', 'error')
             return redirect('/learn/')
     else:
-        # Update last activity
-        progress.last_activity = datetime.now(UTC)
-        db.session.commit()
+        if progress.status != 'completed':
+            progress.last_activity = datetime.now(UTC)
+            db.session.commit()
 
     # Маппинг типов уроков на render-функции
     render_map = {

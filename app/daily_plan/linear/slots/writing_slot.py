@@ -31,37 +31,44 @@ _WRITING_LESSON_TYPES: frozenset[str] = frozenset({
 _WRITING_SLOT_ETA_MINUTES = 8
 
 
-def _writing_done_today(user_id: int, lesson_id: int, db: Any) -> bool:
+def _writing_done_today(user_id: int, lesson_id: int, lesson_type: str, db: Any) -> bool:
     """Return True when the user has done writing activity today.
 
-    For writing_prompt lessons: any UserWritingAttempt submitted today counts.
-    For translation and other types: falls back to LessonProgress completed.
+    For writing_prompt lessons: any UserWritingAttempt submitted today counts
+    (engagement signal — the checklist is self-assessed).
+    For translation/sentence_correction: check whether any writing lesson was
+    completed today (last_activity >= today_start AND status == completed for any
+    lesson of a writing type). Checking the specific current lesson would always
+    return False because _find_next_writing_lesson only returns incomplete lessons.
+    save_writing_attempt fires on both pass and fail, so attempt count alone is
+    not a reliable signal for these graded types.
     """
     from app.curriculum.models import UserWritingAttempt
     from app.utils.time_utils import get_user_local_day_bounds
 
     today_start, _ = get_user_local_day_bounds(user_id, db)
-    has_attempt = (
-        db.session.query(UserWritingAttempt.id)
+
+    if lesson_type == 'writing_prompt':
+        return (
+            db.session.query(UserWritingAttempt.id)
+            .filter(
+                UserWritingAttempt.user_id == user_id,
+                UserWritingAttempt.created_at >= today_start,
+            )
+            .first() is not None
+        )
+
+    return (
+        db.session.query(LessonProgress.id)
+        .join(Lessons, Lessons.id == LessonProgress.lesson_id)
         .filter(
-            UserWritingAttempt.user_id == user_id,
-            UserWritingAttempt.created_at >= today_start,
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+            LessonProgress.last_activity >= today_start,
+            Lessons.type.in_(list(_WRITING_LESSON_TYPES)),
         )
         .first() is not None
     )
-    if has_attempt:
-        return True
-
-    prog = (
-        db.session.query(LessonProgress)
-        .filter(
-            LessonProgress.user_id == user_id,
-            LessonProgress.lesson_id == lesson_id,
-            LessonProgress.status == 'completed',
-        )
-        .first()
-    )
-    return prog is not None
 
 
 def _find_next_writing_lesson(user_id: int, db: Any) -> Optional[Lessons]:
@@ -107,7 +114,7 @@ def build_writing_slot(user_id: int, db: Any) -> Optional[LinearSlot]:
         logger.debug("writing_slot user=%s no_writing_lesson skipped", user_id)
         return None
 
-    completed = _writing_done_today(user_id, writing_lesson.id, db)
+    completed = _writing_done_today(user_id, writing_lesson.id, writing_lesson.type, db)
 
     module = getattr(writing_lesson, 'module', None)
     level = getattr(module, 'level', None) if module is not None else None

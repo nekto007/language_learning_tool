@@ -109,11 +109,13 @@ def _make_module_with_lessons(
 
 
 def _mark_completed(db_session, user: User, lesson: Lessons) -> None:
+    now = datetime.now(timezone.utc)
     prog = LessonProgress(
         user_id=user.id,
         lesson_id=lesson.id,
         status='completed',
-        completed_at=datetime.now(timezone.utc),
+        completed_at=now,
+        last_activity=now,
     )
     db_session.add(prog)
     db_session.commit()
@@ -238,7 +240,7 @@ class TestWritingDoneToday:
             db_session,
             lesson_types=['writing_prompt'],
         )
-        result = _writing_done_today(user.id, lessons[0].id, real_db)
+        result = _writing_done_today(user.id, lessons[0].id, 'writing_prompt', real_db)
         assert result is False
 
     def test_done_when_writing_attempt_today(self, db_session):
@@ -248,7 +250,7 @@ class TestWritingDoneToday:
             lesson_types=['writing_prompt'],
         )
         _add_writing_attempt(db_session, user, lessons[0])
-        result = _writing_done_today(user.id, lessons[0].id, real_db)
+        result = _writing_done_today(user.id, lessons[0].id, 'writing_prompt', real_db)
         assert result is True
 
     def test_done_when_lesson_progress_completed(self, db_session):
@@ -258,7 +260,7 @@ class TestWritingDoneToday:
             lesson_types=['translation'],
         )
         _mark_completed(db_session, user, lessons[0])
-        result = _writing_done_today(user.id, lessons[0].id, real_db)
+        result = _writing_done_today(user.id, lessons[0].id, 'translation', real_db)
         assert result is True
 
 
