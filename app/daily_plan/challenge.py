@@ -187,6 +187,18 @@ _SPEED_RUN_MAX_SECONDS = 300  # 5 minutes
 _SPEED_RUN_MIN_SECONDS = 30   # sanity floor — can't complete a lesson in < 30s
 _ACCURACY_FOCUS_MIN_SCORE = 90.0
 
+# Lesson types whose LessonAttempt.score reflects a real server-graded result.
+# Excludes text/reading/listening_immersion (client-driven score), writing_prompt/
+# shadow_reading/idiom (self-assessed), pronunciation (self-assess fallback),
+# vocabulary/flashcards/grammar (status set via the progress endpoint, not
+# server-graded via submit).
+_ACCURACY_FOCUS_GRADED_TYPES = (
+    'dictation', 'audio_fill_blank', 'translation',
+    'sentence_correction', 'sentence_completion', 'collocation_matching',
+    'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
+    'dialogue_completion_quiz', 'final_test',
+)
+
 
 def check_challenge_criteria(
     challenge: 'DailyChallenge',
@@ -221,51 +233,26 @@ def check_challenge_criteria(
             return 'criteria_not_met'
 
     elif challenge.category == 'accuracy_focus':
-        # Verify server-recorded score only — do not trust client-submitted score.
-        # LessonAttempt covers only failed final_test attempts (rate-limit gate);
-        # passed final_test and all quiz types write LessonProgress via ProgressService.
-        # Restrict the fallback to server-graded types to prevent forged scores from
-        # the general /api/lesson/<id>/progress endpoint.
-        from app.curriculum.models import LessonAttempt, LessonProgress, Lessons
-        # 'grammar' intentionally excluded: grammar lessons complete via the progress
-        # endpoint (not the submit endpoint), so last_activity is updated by a
-        # client-triggered status='completed' call, not by server-side grading.
-        # A stale high score combined with today's last_activity update would
-        # otherwise let a user satisfy the challenge without a new graded attempt.
-        _SERVER_GRADED_TYPES = (
-            'dictation', 'audio_fill_blank', 'translation',
-            'sentence_correction', 'sentence_completion', 'collocation_matching',
-            'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
-            'dialogue_completion_quiz', 'final_test',
-        )
+        # Verify a server-recorded grading event happened today on a server-graded
+        # lesson type. ProgressService.update_progress_with_grading writes a
+        # LessonAttempt for every POST, but text/reading/listening_immersion/
+        # writing_prompt/shadow_reading/pronunciation lessons take their score
+        # from client-side comprehension data (or default to 100 on a plain
+        # mark-read submit). Restricting to truly server-graded types prevents
+        # those from satisfying the accuracy challenge with a forged perfect
+        # score. Mirrors the speed_run filter below.
+        from app.curriculum.models import LessonAttempt, Lessons
         qualifying = (
             db.session.query(LessonAttempt.id)
+            .join(Lessons, Lessons.id == LessonAttempt.lesson_id)
             .filter(
                 LessonAttempt.user_id == user_id,
                 LessonAttempt.score >= _ACCURACY_FOCUS_MIN_SCORE,
                 LessonAttempt.completed_at >= today_start,
+                Lessons.type.in_(_ACCURACY_FOCUS_GRADED_TYPES),
             )
             .first()
         )
-        if qualifying is None:
-            # Use last_activity instead of completed_at: completed_at is only set on the
-            # first pass and is never updated on repeat attempts, so a redo today with a
-            # qualifying score would carry yesterday's completed_at and fail this check.
-            # last_activity is always written by update_progress_with_grading regardless
-            # of pass/fail, and score reflects the latest attempt, so the combined filter
-            # (score >= threshold AND status == completed AND last_activity today) is safe.
-            qualifying = (
-                db.session.query(LessonProgress.id)
-                .join(Lessons, Lessons.id == LessonProgress.lesson_id)
-                .filter(
-                    LessonProgress.user_id == user_id,
-                    LessonProgress.score >= _ACCURACY_FOCUS_MIN_SCORE,
-                    LessonProgress.status == 'completed',
-                    LessonProgress.last_activity >= today_start,
-                    Lessons.type.in_(_SERVER_GRADED_TYPES),
-                )
-                .first()
-            )
         if qualifying is None:
             return 'criteria_not_met'
 

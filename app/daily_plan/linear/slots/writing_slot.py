@@ -6,8 +6,8 @@ Returns ``None`` when no eligible lesson is available — the chain
 builder skips it silently.
 
 Completion is keyed on whether the user submitted a UserWritingAttempt
-today (writing_prompt) or has a completed LessonProgress for the lesson
-(translation).
+today (writing_prompt) or recorded a passing LessonAttempt today on a
+writing-type lesson (translation / sentence_correction).
 """
 from __future__ import annotations
 
@@ -34,37 +34,39 @@ _WRITING_SLOT_ETA_MINUTES = 8
 def _writing_done_today(user_id: int, lesson_id: int, lesson_type: str, db: Any) -> bool:
     """Return True when the user has done writing activity today.
 
-    For writing_prompt lessons: any UserWritingAttempt submitted today counts
-    (engagement signal — the checklist is self-assessed).
-    For translation/sentence_correction: check whether any writing lesson was
-    completed today (last_activity >= today_start AND status == completed for any
-    lesson of a writing type). Checking the specific current lesson would always
-    return False because _find_next_writing_lesson only returns incomplete lessons.
-    save_writing_attempt fires on both pass and fail, so attempt count alone is
-    not a reliable signal for these graded types.
+    The slot represents today's writing engagement, not a specific lesson, so
+    EITHER signal counts regardless of the next pending lesson's type:
+    - any UserWritingAttempt submitted today (writing_prompt activity, which
+      is self-assessed and never creates a LessonAttempt), OR
+    - any server-graded passing LessonAttempt today on a writing-type lesson
+      (translation / sentence_correction).
+    LessonProgress.last_activity is intentionally NOT used: update_progress_
+    with_grading bumps it on failed retries of yesterday-completed lessons,
+    which would falsely mark today's slot done.
     """
-    from app.curriculum.models import UserWritingAttempt
+    from app.curriculum.models import LessonAttempt, UserWritingAttempt
     from app.utils.time_utils import get_user_local_day_bounds
 
     today_start, _ = get_user_local_day_bounds(user_id, db)
 
-    if lesson_type == 'writing_prompt':
-        return (
-            db.session.query(UserWritingAttempt.id)
-            .filter(
-                UserWritingAttempt.user_id == user_id,
-                UserWritingAttempt.created_at >= today_start,
-            )
-            .first() is not None
+    has_writing_attempt = (
+        db.session.query(UserWritingAttempt.id)
+        .filter(
+            UserWritingAttempt.user_id == user_id,
+            UserWritingAttempt.created_at >= today_start,
         )
+        .first() is not None
+    )
+    if has_writing_attempt:
+        return True
 
     return (
-        db.session.query(LessonProgress.id)
-        .join(Lessons, Lessons.id == LessonProgress.lesson_id)
+        db.session.query(LessonAttempt.id)
+        .join(Lessons, Lessons.id == LessonAttempt.lesson_id)
         .filter(
-            LessonProgress.user_id == user_id,
-            LessonProgress.status == 'completed',
-            LessonProgress.last_activity >= today_start,
+            LessonAttempt.user_id == user_id,
+            LessonAttempt.passed.is_(True),
+            LessonAttempt.completed_at >= today_start,
             Lessons.type.in_(list(_WRITING_LESSON_TYPES)),
         )
         .first() is not None

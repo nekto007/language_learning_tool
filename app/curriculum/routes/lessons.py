@@ -152,24 +152,46 @@ def update_lesson_progress(lesson_id):
         # Server-graded lesson types must be submitted via /api/lesson/<id>/submit
         # where the score is computed server-side. Reject score and completed status
         # from this endpoint to prevent challenge score forgery.
-        # Note: 'grammar' and 'listening_immersion_quiz' complete via this endpoint
-        # (theory-only auto-complete and text-template flow respectively) so they are
-        # excluded from the full block; score is still stripped to prevent forgery.
+        # Note: 'listening_immersion_quiz' completes via this endpoint (text-template
+        # flow) so it is excluded from the full block; score is still stripped to
+        # prevent forgery. 'grammar' is dual-mode: theory-only lessons (no exercises
+        # in content) complete via this endpoint; exercise-backed grammar lessons are
+        # graded server-side via the grammar form POST and must not be completable here.
         _SERVER_GRADED_TYPES = frozenset((
             'dictation', 'audio_fill_blank', 'translation',
             'sentence_correction', 'sentence_completion', 'collocation_matching',
             'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
             'dialogue_completion_quiz',
+            'writing_prompt', 'shadow_reading', 'pronunciation',
+            'listening_immersion',
         ))
         # For these types score must come from the submit endpoint, but status
         # can be set via the progress endpoint (e.g. theory-only auto-complete).
-        _SCORE_STRIP_ONLY_TYPES = frozenset(('grammar', 'listening_immersion_quiz'))
+        _SCORE_STRIP_ONLY_TYPES = frozenset(('listening_immersion_quiz',))
         lesson_for_check = Lessons.query.get(lesson_id)
-        if lesson_for_check and lesson_for_check.type in _SERVER_GRADED_TYPES:
+        # Exercise-backed grammar lessons are server-graded; treat them as such.
+        # Theory-only grammar lessons (no exercises) still need to auto-complete
+        # via this endpoint, so we strip only score for those.
+        _is_grammar_with_exercises = bool(
+            lesson_for_check
+            and lesson_for_check.type == 'grammar'
+            and isinstance(lesson_for_check.content, dict)
+            and lesson_for_check.content.get('exercises')
+        )
+        _is_grammar_theory_only = bool(
+            lesson_for_check
+            and lesson_for_check.type == 'grammar'
+            and not _is_grammar_with_exercises
+        )
+        if lesson_for_check and (
+            lesson_for_check.type in _SERVER_GRADED_TYPES or _is_grammar_with_exercises
+        ):
             cleaned_data.pop('score', None)
             if cleaned_data.get('status') == 'completed':
                 cleaned_data.pop('status', None)
-        elif lesson_for_check and lesson_for_check.type in _SCORE_STRIP_ONLY_TYPES:
+        elif lesson_for_check and (
+            lesson_for_check.type in _SCORE_STRIP_ONLY_TYPES or _is_grammar_theory_only
+        ):
             cleaned_data.pop('score', None)
 
         progress = LessonProgress.query.filter_by(
@@ -236,7 +258,8 @@ def update_lesson_progress(lesson_id):
         # whose score is stripped above — their score defaults to 0.0, not None, so the
         # is-not-None guard alone would pass and record a spurious F-grade.
         _is_score_strip_type = bool(
-            lesson_for_check and lesson_for_check.type in _SCORE_STRIP_ONLY_TYPES
+            lesson_for_check
+            and (lesson_for_check.type in _SCORE_STRIP_ONLY_TYPES or _is_grammar_theory_only)
         )
         if progress.status == 'completed' and progress.score is not None and not _is_score_strip_type:
             try:

@@ -321,7 +321,23 @@ class WritingPromptContentSchema(Schema):
     prompt = fields.Str(required=True, validate=validate.Length(min=1))
     min_words = fields.Int(required=True, validate=validate.Range(min=1))
     example_response = fields.Str(required=False, load_default=None, allow_none=True)
-    checklist = fields.List(fields.Str(), required=False, load_default=None)
+    checklist = fields.List(
+        fields.Str(validate=validate.Length(min=1)),
+        required=False,
+        load_default=None,
+        validate=validate.Length(min=2),
+    )
+
+    @validates_schema
+    def validate_checklist_unique(self, data, **kwargs):
+        # Submission requires ≥2 distinct checked items (see
+        # _process_writing_prompt_submission, which collapses checked items to
+        # a set). A checklist with duplicate strings would render multiple
+        # checkboxes but could never satisfy the completion gate, so reject
+        # duplicates at content-validation time.
+        checklist = data.get('checklist')
+        if checklist and len(set(checklist)) != len(checklist):
+            raise ValidationError('checklist items must be unique', field_name='checklist')
 
 
 class SentenceCompletionItemSchema(Schema):

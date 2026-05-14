@@ -20,6 +20,7 @@ import pytest
 from app.auth.models import User
 from app.curriculum.models import (
     CEFRLevel,
+    LessonAttempt,
     LessonProgress,
     Lessons,
     Module,
@@ -119,6 +120,19 @@ def _mark_completed(db_session, user: User, lesson: Lessons) -> None:
     )
     db_session.add(prog)
     db_session.commit()
+
+
+def _add_passing_attempt(db_session, user: User, lesson: Lessons) -> LessonAttempt:
+    now = datetime.now(timezone.utc)
+    attempt = LessonAttempt.create_attempt(user_id=user.id, lesson_id=lesson.id)
+    attempt.started_at = now
+    attempt.completed_at = now
+    attempt.score = 95.0
+    attempt.passed = True
+    attempt.correct_answers = 0
+    attempt.total_questions = 0
+    db_session.commit()
+    return attempt
 
 
 def _add_writing_attempt(db_session, user: User, lesson: Lessons) -> UserWritingAttempt:
@@ -253,7 +267,20 @@ class TestWritingDoneToday:
         result = _writing_done_today(user.id, lessons[0].id, 'writing_prompt', real_db)
         assert result is True
 
-    def test_done_when_lesson_progress_completed(self, db_session):
+    def test_done_when_passing_attempt_today(self, db_session):
+        user = _make_user(db_session)
+        _module, lessons = _make_module_with_lessons(
+            db_session,
+            lesson_types=['translation'],
+        )
+        _add_passing_attempt(db_session, user, lessons[0])
+        result = _writing_done_today(user.id, lessons[0].id, 'translation', real_db)
+        assert result is True
+
+    def test_not_done_when_only_lesson_progress_completed(self, db_session):
+        # LessonProgress.last_activity alone must not satisfy the gate — a
+        # failed retry of a yesterday-completed translation lesson bumps
+        # last_activity without producing a new passing LessonAttempt.
         user = _make_user(db_session)
         _module, lessons = _make_module_with_lessons(
             db_session,
@@ -261,6 +288,20 @@ class TestWritingDoneToday:
         )
         _mark_completed(db_session, user, lessons[0])
         result = _writing_done_today(user.id, lessons[0].id, 'translation', real_db)
+        assert result is False
+
+    def test_writing_prompt_attempt_credits_translation_slot(self, db_session):
+        # Once today's writing_prompt is completed, the slot advances to the
+        # next incomplete writing lesson (e.g. translation). The user must
+        # still see the slot as done — today's writing engagement is recorded
+        # in UserWritingAttempt, regardless of the pending lesson type.
+        user = _make_user(db_session)
+        _module, lessons = _make_module_with_lessons(
+            db_session,
+            lesson_types=['writing_prompt', 'translation'],
+        )
+        _add_writing_attempt(db_session, user, lessons[0])
+        result = _writing_done_today(user.id, lessons[1].id, 'translation', real_db)
         assert result is True
 
 
