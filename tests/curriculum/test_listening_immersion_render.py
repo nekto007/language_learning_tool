@@ -230,6 +230,34 @@ class TestListeningImmersionSubmit:
         ).count()
         assert after == before + 1
 
+    def test_resubmit_does_not_duplicate_listening_attempt(
+        self, app, db_session, test_user, client
+    ):
+        """Re-submitting after completion must not log a second ListeningAttempt.
+
+        Verifies the `was_already_completed` idempotency guard in
+        _process_listening_immersion_submission.
+        """
+        from app.curriculum.models import ListeningAttempt
+        lesson = _make_listening_immersion_lesson(db_session)
+        _login(client, test_user)
+        client.get(f"/curriculum/lesson/{lesson.id}/listening-immersion")
+        client.post(
+            f"/curriculum/api/lesson/{lesson.id}/submit",
+            json={"self_assessed": True, "lesson_type": "listening_immersion"},
+        )
+        count_after_first = ListeningAttempt.query.filter_by(
+            user_id=test_user.id, lesson_id=lesson.id
+        ).count()
+        client.post(
+            f"/curriculum/api/lesson/{lesson.id}/submit",
+            json={"self_assessed": True, "lesson_type": "listening_immersion"},
+        )
+        count_after_second = ListeningAttempt.query.filter_by(
+            user_id=test_user.id, lesson_id=lesson.id
+        ).count()
+        assert count_after_second == count_after_first
+
 
 # ---------------------------------------------------------------------------
 # text_lesson no longer accepts listening_immersion

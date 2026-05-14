@@ -147,6 +147,36 @@ function selectOption(itemIdx, option) {
   updateFilledCount();
 }
 
+function resetForRetry() {
+  const submitBtn = document.getElementById('afb-submit-btn');
+  for (let i = 0; i < totalItems; i++) {
+    const itemEl = document.getElementById('afb-item-' + i);
+    if (itemEl) itemEl.classList.remove('afb-item--correct', 'afb-item--wrong');
+    const inp = document.getElementById('afb-answer-' + i);
+    if (inp && inp.type === 'text') {
+      inp.classList.remove('input--correct', 'input--wrong', 'afb-input--correct', 'afb-input--wrong');
+      inp.readOnly = false;
+    }
+    const optContainer = document.getElementById('afb-options-' + i);
+    if (optContainer) {
+      optContainer.querySelectorAll('.option-btn').forEach(btn => {
+        btn.classList.remove('option-btn--correct', 'option-btn--wrong');
+        btn.disabled = false;
+      });
+    }
+    const reveal = document.getElementById('afb-reveal-' + i);
+    if (reveal) {
+      reveal.textContent = '';
+      reveal.classList.remove('visible');
+    }
+  }
+  const resultsEl = document.getElementById('afb-results');
+  if (resultsEl) resultsEl.hidden = true;
+  submitBtn.onclick = function() { submitAnswers(); };
+  submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Проверить") }}';
+  updateFilledCount();
+}
+
 function _renderBadge(kind, iconHtml, label) {
   const area = document.getElementById('afb-score-area');
   area.innerHTML = '';
@@ -195,6 +225,7 @@ async function submitAnswers() {
     } else {
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="fas fa-redo"></i> {{ _("Попробовать снова") }}';
+      submitBtn.onclick = function() { resetForRetry(); };
     }
   } catch (err) {
     console.error('AFB submit error:', err);
