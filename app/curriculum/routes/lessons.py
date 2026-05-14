@@ -783,15 +783,17 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
             logger.warning(f"Audio fill blank XP award failed for lesson {lesson.id}: {xp_err}")
 
     result = {**grade}
+    # Only reveal correct answers after the lesson is passed; on failure,
+    # strip the `answer` field from per-item results so the retry attempt
+    # is still pedagogically useful.
+    if not grade.get('passed'):
+        result['item_results'] = [
+            {k: v for k, v in r.items() if k != 'answer'}
+            for r in result.get('item_results', [])
+        ]
     next_lesson = _get_next_lesson_for_completion(lesson)
     if grade.get('passed') and next_lesson:
         result['next_lesson_url'] = _lesson_completion_url(next_lesson)
-    # Only reveal correct answers after the lesson is passed
-    if grade.get('passed'):
-        result['items'] = [
-            {'answer': it.get('answer', ''), 'text_with_gap': it.get('text_with_gap', '')}
-            for it in items
-        ]
 
     return result
 

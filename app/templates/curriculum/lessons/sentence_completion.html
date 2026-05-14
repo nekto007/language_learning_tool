@@ -81,6 +81,13 @@ function _updateProgress() {
 
 document.addEventListener('input', function(e) {
   if (e.target.classList && e.target.classList.contains('sentence-completion-input')) {
+    // Clear stale validation state when the user edits after a failed attempt.
+    e.target.classList.remove('input--wrong', 'sentence-completion-input--incorrect');
+    const idx = e.target.getAttribute('data-index');
+    if (idx !== null) {
+      const fb = document.getElementById('feedback-' + idx);
+      if (fb) { fb.innerHTML = ''; fb.style.display = 'none'; }
+    }
     _updateProgress();
   }
 });
@@ -155,31 +162,37 @@ function _itemBadge(kind, label) {
 
 function showResults(data) {
   const results = data.item_results || [];
+  const passed = !!data.passed;
   results.forEach(function(res, i) {
     const inputEl = document.getElementById('answer-' + i);
     const feedbackEl = document.getElementById('feedback-' + i);
     if (!inputEl || !feedbackEl) return;
 
-    inputEl.disabled = true;
     inputEl.classList.remove('input--correct', 'input--wrong',
       'sentence-completion-input--correct', 'sentence-completion-input--incorrect');
     feedbackEl.innerHTML = '';
 
     if (res.correct) {
+      // Lock correct answers so they can't be accidentally edited on retry.
+      inputEl.disabled = true;
       inputEl.classList.add('input--correct', 'sentence-completion-input--correct');
       feedbackEl.appendChild(_itemBadge('correct', '{{ _("Правильно!") }}'));
     } else {
+      // Keep wrong inputs editable so the user can retry without reloading.
+      inputEl.disabled = passed;
       inputEl.classList.add('input--wrong', 'sentence-completion-input--incorrect');
       feedbackEl.appendChild(_itemBadge('incorrect', '{{ _("Неправильно") }}'));
-      const answerEl = document.createElement('span');
-      answerEl.className = 'sentence-completion-model-answer';
-      const label = document.createElement('span');
-      label.textContent = '{{ _("Правильный ответ:") }} ';
-      const val = document.createElement('strong');
-      val.textContent = res.answer || '';
-      answerEl.appendChild(label);
-      answerEl.appendChild(val);
-      feedbackEl.appendChild(answerEl);
+      if (passed && res.answer) {
+        const answerEl = document.createElement('span');
+        answerEl.className = 'sentence-completion-model-answer';
+        const label = document.createElement('span');
+        label.textContent = '{{ _("Правильный ответ:") }} ';
+        const val = document.createElement('strong');
+        val.textContent = res.answer;
+        answerEl.appendChild(label);
+        answerEl.appendChild(val);
+        feedbackEl.appendChild(answerEl);
+      }
     }
     feedbackEl.style.display = 'block';
   });

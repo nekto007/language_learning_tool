@@ -135,13 +135,24 @@ function selectOption(idx, value) {
     btn.classList.toggle('option-btn--selected', selected);
     btn.classList.toggle('sentence-correction-option-btn--selected', selected);
     btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    // Clear stale "wrong" highlight from a previous failed attempt.
+    btn.classList.remove('option-btn--wrong');
   });
+  // Hide stale result panel so the retry feels fresh.
+  const resultArea = document.getElementById('correction-result');
+  if (resultArea) resultArea.hidden = true;
   _refreshSubmitGate();
 }
 
 {% if not options %}
 document.addEventListener('input', function(e) {
-  if (e.target && e.target.id === 'correction-answer') _refreshSubmitGate();
+  if (e.target && e.target.id === 'correction-answer') {
+    // Clear stale validation state when the user edits after a failed attempt.
+    e.target.classList.remove('input--wrong', 'sentence-correction-input--incorrect');
+    const resultArea = document.getElementById('correction-result');
+    if (resultArea) resultArea.hidden = true;
+    _refreshSubmitGate();
+  }
 });
 {% endif %}
 
@@ -244,12 +255,20 @@ function showResult(data) {
   if (hasOptions) {
     document.querySelectorAll('.sentence-correction-option-btn').forEach(function(btn) {
       const val = btn.getAttribute('data-value') || '';
-      btn.disabled = true;
       btn.classList.remove('option-btn--correct', 'option-btn--wrong');
-      if (val === (data.correct_sentence || '')) {
-        btn.classList.add('option-btn--correct');
-      } else if (btn.classList.contains('option-btn--selected') && !data.is_correct) {
-        btn.classList.add('option-btn--wrong');
+      if (data.is_correct) {
+        // Lock options once the correct choice has been confirmed.
+        btn.disabled = true;
+        if (val === (data.correct_sentence || '')) {
+          btn.classList.add('option-btn--correct');
+        }
+      } else {
+        // Keep options clickable so the user can retry without reloading;
+        // mark only the wrong selection.
+        btn.disabled = false;
+        if (btn.classList.contains('option-btn--selected')) {
+          btn.classList.add('option-btn--wrong');
+        }
       }
     });
   }

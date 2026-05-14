@@ -269,7 +269,7 @@ function showResults(data) {
       });
     }
 
-    if (!res.correct) {
+    if (!res.correct && res.answer) {
       const reveal = document.getElementById('afb-reveal-' + idx);
       if (reveal) {
         reveal.textContent = '';
@@ -277,7 +277,7 @@ function showResults(data) {
         lbl.className = 'afb-item__reveal-label';
         lbl.textContent = '{{ _("Правильно:") }} ';
         const ans = document.createElement('strong');
-        ans.textContent = res.answer || '';
+        ans.textContent = res.answer;
         reveal.appendChild(lbl);
         reveal.appendChild(ans);
         reveal.classList.add('visible');
