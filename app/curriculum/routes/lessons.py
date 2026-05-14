@@ -1206,6 +1206,14 @@ def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, dat
             logger.warning(f"Sentence completion XP award failed for lesson {lesson.id}: {xp_err}")
 
     result = {**grade}
+    # Only reveal model answers after the lesson is passed; on failure,
+    # strip the `answer` field from per-item results so DevTools inspection
+    # can't bypass the retry attempt.
+    if not grade.get('passed'):
+        result['item_results'] = [
+            {k: v for k, v in r.items() if k != 'answer'}
+            for r in result.get('item_results', [])
+        ]
     next_lesson = _get_next_lesson_for_completion(lesson)
     if grade.get('passed') and next_lesson:
         result['next_lesson_url'] = _lesson_completion_url(next_lesson)
@@ -1550,8 +1558,18 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
             result['next_lesson_url'] = _lesson_completion_url(next_lesson)
         return result
 
-    # Single-item attempt
-    target_word = str(data.get('target_word') or '')[:200]
+    # Single-item attempt — resolve target word from the lesson content server-side
+    # so a client cannot submit a matching pair to game speaking achievements.
+    content = lesson.content or {}
+    items = content.get('items') or []
+    try:
+        item_index = int(data.get('item_index', -1))
+    except (TypeError, ValueError):
+        item_index = -1
+    if 0 <= item_index < len(items):
+        target_word = str(items[item_index].get('word') or '')[:200]
+    else:
+        target_word = ''
     recognized_text = str(data.get('recognized_text') or '')[:500]
     self_assessed = bool(data.get('self_assessed', False))
 

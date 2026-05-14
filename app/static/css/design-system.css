@@ -15169,6 +15169,12 @@ span.vocab-word.vocab-word--active {
    shadow_reading, audio_fill_blank, pronunciation, collocation_matching,
    listening_immersion). See docs/design/lesson-frontend-spec.md.
    ========================================================================== */
+.btn--loading {
+    opacity: 0.7;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .lesson-shell {
     max-width: 720px;
     margin: var(--space-6) auto;

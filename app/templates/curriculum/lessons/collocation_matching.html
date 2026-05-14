@@ -306,9 +306,14 @@ function showResults(data, userPairs) {
   const resultDiv = document.getElementById('matching-result');
   const summaryDiv = document.getElementById('result-summary');
   const listDiv = document.getElementById('pair-results-list');
+  const submitBtn = document.getElementById('submit-btn');
 
   const passed = data.passed || false;
   const score = data.score || 0;
+
+  // Always clear the loading state once the response is rendered so the
+  // submit button is interactive after a Reset → re-pair retry.
+  submitBtn.classList.remove('btn--loading');
 
   summaryDiv.textContent = '';
   const badge = document.createElement('div');
