@@ -112,7 +112,6 @@
 
 <script>
 const lessonId = {{ lesson.id }};
-const explanation = {{ explanation | tojson }};
 const hasOptions = {{ 'true' if options else 'false' }};
 let selectedOption = null;
 
@@ -273,7 +272,7 @@ function showResult(data) {
     });
   }
 
-  const expText = data.explanation || explanation;
+  const expText = data.explanation || '';
   if (expText) {
     const d = document.createElement('span');
     d.textContent = expText;

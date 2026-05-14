@@ -159,7 +159,7 @@
         {% for sentence in text_content.sentences %}
           <div class="sentence-replay-item">
             <button class="sentence-replay-btn" type="button"
-                    onclick="replaySentence({{ sentence.start_time }}, {{ sentence.end_time }})"
+                    onclick="replaySentence({{ sentence.start_time|tojson }}, {{ sentence.end_time|tojson }})"
                     title="{{ _('Воспроизвести фразу') }}">
               <i class="fas fa-redo-alt"></i>
             </button>
@@ -266,10 +266,13 @@ function initTranscriptToggle() {
 function replaySentence(startTime, endTime) {
   const audio = document.getElementById('listening-audio');
   if (!audio) return;
-  audio.currentTime = startTime;
+  const start = Number(startTime);
+  const end = Number(endTime);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+  audio.currentTime = start;
   audio.play().catch(() => {});
   const stopAt = () => {
-    if (audio.currentTime >= endTime) {
+    if (audio.currentTime >= end) {
       audio.pause();
       audio.removeEventListener('timeupdate', stopAt);
     }

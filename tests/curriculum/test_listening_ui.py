@@ -251,7 +251,9 @@ class TestSentenceReplayTemplate:
 
     def test_replaySentence_uses_currentTime(self):
         html = _read_text_template()
-        assert 'audio.currentTime = startTime' in html
+        # After hardening for XSS via numeric coercion, replaySentence sets
+        # currentTime from a validated local; verify the assignment is present.
+        assert 'audio.currentTime = start' in html
 
     def test_replaySentence_uses_play(self):
         html = _read_text_template()

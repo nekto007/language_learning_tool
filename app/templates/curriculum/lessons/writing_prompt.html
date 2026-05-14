@@ -208,8 +208,14 @@ async function submitWriting() {
     const data = await resp.json();
     showResult(data);
 
-    submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено") }}';
-    if (typeof showSaveToast === 'function') showSaveToast();
+    submitBtn.classList.remove('btn--loading');
+    if (data.completed) {
+      submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено") }}';
+      if (typeof showSaveToast === 'function') showSaveToast();
+    } else {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Завершить") }}';
+    }
   } catch (err) {
     console.error('Writing prompt submit error:', err);
     submitBtn.disabled = false;

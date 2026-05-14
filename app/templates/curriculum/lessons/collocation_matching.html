@@ -155,7 +155,7 @@ const totalPairs = {{ pairs | length }};
 
 const phraseData = [
   {% for pair in pairs %}
-  { phrase: {{ pair.phrase | tojson }}, translation: {{ pair.translation | tojson }} }{% if not loop.last %},{% endif %}
+  { phrase: {{ pair.phrase | tojson }} }{% if not loop.last %},{% endif %}
   {% endfor %}
 ];
 
