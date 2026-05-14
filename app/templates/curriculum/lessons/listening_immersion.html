@@ -263,20 +263,27 @@ function initTranscriptToggle() {
   }
 }
 
+let _replayStopHandler = null;
 function replaySentence(startTime, endTime) {
   const audio = document.getElementById('listening-audio');
   if (!audio) return;
   const start = Number(startTime);
   const end = Number(endTime);
   if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+  if (_replayStopHandler) {
+    audio.removeEventListener('timeupdate', _replayStopHandler);
+    _replayStopHandler = null;
+  }
   audio.currentTime = start;
   audio.play().catch(() => {});
   const stopAt = () => {
     if (audio.currentTime >= end) {
       audio.pause();
       audio.removeEventListener('timeupdate', stopAt);
+      if (_replayStopHandler === stopAt) _replayStopHandler = null;
     }
   };
+  _replayStopHandler = stopAt;
   audio.addEventListener('timeupdate', stopAt);
 }
 

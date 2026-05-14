@@ -161,7 +161,7 @@ const phraseData = [
 
 const translationData = [
   {% for pair in shuffled_pairs %}
-  { phrase: {{ pair.phrase | tojson }}, translation: {{ pair.translation | tojson }} }{% if not loop.last %},{% endif %}
+  { translation: {{ pair.translation | tojson }} }{% if not loop.last %},{% endif %}
   {% endfor %}
 ];
 
