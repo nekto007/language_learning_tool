@@ -495,10 +495,6 @@ def check_dictation_word(lesson_id: int):
         index = int(data.get('index'))
     except (TypeError, ValueError):
         return jsonify({'success': False, 'error': 'Invalid word index'}), 400
-    try:
-        attempt = max(1, int(data.get('attempt') or 1))
-    except (TypeError, ValueError):
-        attempt = 1
 
     word_items = _dictation_items_from_content(lesson.content or {})
     if index < 0 or index >= len(word_items):
@@ -507,27 +503,41 @@ def check_dictation_word(lesson_id: int):
     user_answer = _normalize_dictation_token(data.get('answer', ''))
     correct_item = word_items[index]
     is_correct = user_answer == correct_item["normalized"]
+
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id,
+    ).first()
+    if not progress:
+        progress = LessonProgress(
+            user_id=current_user.id,
+            lesson_id=lesson.id,
+            status='in_progress',
+            started_at=datetime.now(UTC),
+            last_activity=datetime.now(UTC),
+        )
+        db.session.add(progress)
+        db.session.flush()
+
+    progress_data = dict(progress.data or {})
+    attempts_map = dict(progress_data.get('dictation_attempts') or {})
+    key = str(index)
+    prev_attempts = int(attempts_map.get(key, 0) or 0)
+    if is_correct:
+        attempt = prev_attempts + 1
+    else:
+        attempt = min(prev_attempts + 1, _DICTATION_MAX_WORD_ATTEMPTS)
+        attempts_map[key] = attempt
+        progress_data['dictation_attempts'] = attempts_map
+
     exhausted = (not is_correct) and attempt >= _DICTATION_MAX_WORD_ATTEMPTS
 
     if exhausted:
-        progress = LessonProgress.query.filter_by(
-            user_id=current_user.id,
-            lesson_id=lesson.id,
-        ).first()
-        if not progress:
-            progress = LessonProgress(
-                user_id=current_user.id,
-                lesson_id=lesson.id,
-                status='in_progress',
-                started_at=datetime.now(UTC),
-                last_activity=datetime.now(UTC),
-            )
-            db.session.add(progress)
-
-        progress_data = dict(progress.data or {})
         failed_indices = set(progress_data.get('dictation_failed_indices') or [])
         failed_indices.add(index)
         progress_data['dictation_failed_indices'] = sorted(failed_indices)
+
+    if not is_correct:
         progress.data = progress_data
         progress.last_activity = datetime.now(UTC)
         flag_modified(progress, 'data')
@@ -594,9 +604,10 @@ def dictation_lesson(lesson_id: int):
             completed_result['next_lesson_url'] = _lesson_completion_url(next_lesson)
         completed_gap_values = [item.get("display", "") for item in word_items]
     elif isinstance(progress.data, dict):
-        if progress.data.get('dictation_failed_indices'):
+        if progress.data.get('dictation_failed_indices') or progress.data.get('dictation_attempts'):
             progress_data = dict(progress.data)
             progress_data.pop('dictation_failed_indices', None)
+            progress_data.pop('dictation_attempts', None)
             progress.data = progress_data
             progress.last_activity = datetime.now(UTC)
             flag_modified(progress, 'data')
@@ -1063,21 +1074,27 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     content = lesson.content or {}
     example_response = content.get('example_response') or None
     response_text = (data.get('response_text') or '')[:20000].strip()
-    checklist_completed = bool(data.get('checklist_completed', False))
-    checked_items = data.get('checked_items') or []
+    raw_checked_items = data.get('checked_items') or []
+    if not isinstance(raw_checked_items, list):
+        raw_checked_items = []
+    checklist = content.get('checklist') or _DEFAULT_WRITING_CHECKLIST
+    checklist_set = {str(item) for item in checklist}
+    valid_checked = {item for item in raw_checked_items if isinstance(item, str) and item in checklist_set}
+    checklist_completed = bool(data.get('checklist_completed', False)) and len(valid_checked) >= 2
     min_words = int(content.get('min_words', 50))
 
     word_count = len(response_text.split()) if response_text else 0
     meets_min = word_count >= min_words
 
-    try:
-        save_writing_attempt(user_id, lesson.id, response_text, checklist_completed, db)
-        db.session.flush()
-    except Exception as save_err:
-        logger.warning(f"Writing attempt save failed for lesson {lesson.id}: {save_err}")
-        db.session.rollback()
+    completed = meets_min and len(valid_checked) >= 2
 
-    completed = meets_min and len(checked_items) >= 2
+    if meets_min:
+        try:
+            save_writing_attempt(user_id, lesson.id, response_text, checklist_completed, db)
+            db.session.flush()
+        except Exception as save_err:
+            logger.warning(f"Writing attempt save failed for lesson {lesson.id}: {save_err}")
+            db.session.rollback()
 
     if completed:
         progress = LessonProgress.query.filter_by(

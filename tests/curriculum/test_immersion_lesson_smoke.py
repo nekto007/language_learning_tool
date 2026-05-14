@@ -380,6 +380,9 @@ class TestSentenceCorrectionSmoke:
 # writing_prompt
 # ---------------------------------------------------------------------------
 
+_WRITING_SMOKE_CHECKLIST = ["used time markers", "described actions", "checked spelling"]
+
+
 def _make_writing_lesson(db_session):
     level = _make_level(db_session)
     module = _make_module(db_session, level)
@@ -389,7 +392,11 @@ def _make_writing_lesson(db_session):
         number=1,
         title="Writing Prompt Smoke",
         type="writing_prompt",
-        content={"prompt": "Describe your morning routine.", "min_words": 3},
+        content={
+            "prompt": "Describe your morning routine.",
+            "min_words": 3,
+            "checklist": _WRITING_SMOKE_CHECKLIST,
+        },
     )
     db_session.add(lesson)
     db_session.commit()
@@ -412,7 +419,7 @@ class TestWritingPromptSmoke:
             f"/curriculum/api/lesson/{lesson.id}/submit",
             json={
                 "response_text": "I wake up at seven every morning.",
-                "checked_items": ["item1", "item2"],
+                "checked_items": _WRITING_SMOKE_CHECKLIST[:2],
                 "checklist_completed": True,
                 "lesson_type": "writing_prompt",
             },
@@ -448,7 +455,7 @@ class TestWritingPromptSmoke:
             f"/curriculum/api/lesson/{lesson.id}/submit",
             json={
                 "response_text": "I wake up early and make coffee.",
-                "checked_items": ["a", "b"],
+                "checked_items": _WRITING_SMOKE_CHECKLIST[:2],
                 "checklist_completed": True,
                 "lesson_type": "writing_prompt",
             },

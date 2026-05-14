@@ -317,12 +317,13 @@ class TestWritingPromptRoute:
 class TestWritingPromptSubmitRoute:
     def _submit(self, client, lesson_id: int, *, response_text: str,
                 checklist_completed: bool = True, checked_items: list | None = None):
+        from app.curriculum.routes.lessons import _DEFAULT_WRITING_CHECKLIST
         return client.post(
             f"/curriculum/api/lesson/{lesson_id}/submit",
             json={
                 "response_text": response_text,
                 "checklist_completed": checklist_completed,
-                "checked_items": checked_items or ["Пункт 1", "Пункт 2"],
+                "checked_items": checked_items if checked_items is not None else _DEFAULT_WRITING_CHECKLIST[:2],
                 "lesson_type": "writing_prompt",
             },
             content_type="application/json",

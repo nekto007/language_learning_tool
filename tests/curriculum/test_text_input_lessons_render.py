@@ -176,9 +176,10 @@ class TestPayloadContracts:
 
 class TestSubmissionRoundTrips:
     def test_writing_prompt_submit_completes(self, app, db_session, _module, test_user, client):
+        checklist = ["used new words", "checked tense", "added details"]
         lesson = _make_lesson(
             db_session, _module, lesson_type="writing_prompt",
-            content={"prompt": "Describe your day.", "min_words": 3},
+            content={"prompt": "Describe your day.", "min_words": 3, "checklist": checklist},
         )
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/writing-prompt")
@@ -187,13 +188,33 @@ class TestSubmissionRoundTrips:
             json={
                 "response_text": "one two three four five",
                 "checklist_completed": True,
-                "checked_items": ["a", "b"],
+                "checked_items": [checklist[0], checklist[1]],
                 "lesson_type": "writing_prompt",
             },
             content_type="application/json",
         )
         assert resp.status_code == 200
         assert resp.get_json()["completed"] is True
+
+    def test_writing_prompt_rejects_invalid_checklist_items(self, app, db_session, _module, test_user, client):
+        lesson = _make_lesson(
+            db_session, _module, lesson_type="writing_prompt",
+            content={"prompt": "Describe your day.", "min_words": 3, "checklist": ["a", "b", "c"]},
+        )
+        _login(client, test_user)
+        client.get(f"/curriculum/lesson/{lesson.id}/writing-prompt")
+        resp = client.post(
+            f"/curriculum/api/lesson/{lesson.id}/submit",
+            json={
+                "response_text": "one two three four five",
+                "checklist_completed": True,
+                "checked_items": ["fake", "values"],
+                "lesson_type": "writing_prompt",
+            },
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        assert resp.get_json()["completed"] is False
 
     def test_translation_submit_correct(self, app, db_session, _module, test_user, client):
         lesson = _make_lesson(

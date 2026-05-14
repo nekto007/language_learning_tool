@@ -456,12 +456,13 @@ class TestDictationSubmitRoute:
     def test_word_check_third_wrong_reveals_answer_and_tracks_failed_index(self, app, db_session, test_user, client):
         lesson = _make_dictation_lesson(db_session, transcript="Hello world")
         _login(client, test_user)
-        resp = client.post(
-            f"/curriculum/api/lesson/{lesson.id}/dictation-word",
-            json={"index": 0, "answer": "Nope", "attempt": 3},
-            content_type="application/json",
-        )
-        assert resp.status_code == 200
+        for _ in range(3):
+            resp = client.post(
+                f"/curriculum/api/lesson/{lesson.id}/dictation-word",
+                json={"index": 0, "answer": "Nope"},
+                content_type="application/json",
+            )
+            assert resp.status_code == 200
         data = resp.get_json()
         assert data["correct"] is False
         assert data["exhausted"] is True
@@ -471,14 +472,30 @@ class TestDictationSubmitRoute:
         ).first()
         assert progress.data["dictation_failed_indices"] == [0]
 
-    def test_submit_after_exhausted_gap_does_not_complete_lesson(self, app, db_session, test_user, client):
+    def test_word_check_ignores_client_attempt_count(self, app, db_session, test_user, client):
+        """Client cannot fake `attempt: 3` to immediately reveal the answer."""
         lesson = _make_dictation_lesson(db_session, transcript="Hello world")
         _login(client, test_user)
-        client.post(
+        resp = client.post(
             f"/curriculum/api/lesson/{lesson.id}/dictation-word",
             json={"index": 0, "answer": "Nope", "attempt": 3},
             content_type="application/json",
         )
+        data = resp.get_json()
+        assert data["correct"] is False
+        assert data["exhausted"] is False
+        assert "correct_word" not in data
+        assert data["attempts_left"] == 2
+
+    def test_submit_after_exhausted_gap_does_not_complete_lesson(self, app, db_session, test_user, client):
+        lesson = _make_dictation_lesson(db_session, transcript="Hello world")
+        _login(client, test_user)
+        for _ in range(3):
+            client.post(
+                f"/curriculum/api/lesson/{lesson.id}/dictation-word",
+                json={"index": 0, "answer": "Nope"},
+                content_type="application/json",
+            )
         resp = self._submit(client, lesson.id, "Hello world")
         data = resp.get_json()
         assert data["passed"] is False
