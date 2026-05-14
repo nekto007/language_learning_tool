@@ -107,12 +107,46 @@
 const lessonId = {{ lesson.id }};
 const totalItems = {{ items | length }};
 
+let replayCount = 0;
+let mainAudioHasPlayed = false;
+let mainAudioConsumed = false;
+
 function playClip(idx) {
   const audio = document.getElementById('clip-audio-' + idx);
   if (!audio) return;
   audio.currentTime = 0;
   audio.play().catch(() => {});
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+  const mainAudio = document.getElementById('afb-main-audio');
+  if (!mainAudio) return;
+  // Count a replay only when the clip was actually consumed (ended) or
+  // the learner seeked back to the start. Pause/resume is not a replay.
+  mainAudio.addEventListener('play', function() {
+    if (!mainAudioHasPlayed) {
+      mainAudioHasPlayed = true;
+    } else if (mainAudioConsumed) {
+      replayCount += 1;
+      mainAudioConsumed = false;
+    }
+  });
+  mainAudio.addEventListener('ended', function() {
+    mainAudioConsumed = true;
+  });
+  mainAudio.addEventListener('seeked', function() {
+    if (mainAudio.currentTime < 0.5) {
+      // If the learner scrubbed back to the start while the clip is still
+      // playing, no new 'play' event will fire — count the replay now.
+      if (mainAudioHasPlayed && !mainAudio.paused) {
+        replayCount += 1;
+        mainAudioConsumed = false;
+      } else {
+        mainAudioConsumed = true;
+      }
+    }
+  });
+});
 
 function _getAnswerValue(idx) {
   const inp = document.getElementById('afb-answer-' + idx);
@@ -149,6 +183,17 @@ function selectOption(itemIdx, option) {
 
 function resetForRetry() {
   const submitBtn = document.getElementById('afb-submit-btn');
+  replayCount = 0;
+  mainAudioHasPlayed = false;
+  mainAudioConsumed = false;
+  // Pause and rewind the master audio so any in-flight playback does not
+  // bleed into the next attempt — otherwise the first 'play' event after
+  // reset would be swallowed as "initial play" and the real replay missed.
+  const mainAudio = document.getElementById('afb-main-audio');
+  if (mainAudio) {
+    mainAudio.pause();
+    try { mainAudio.currentTime = 0; } catch (e) { /* ignore */ }
+  }
   for (let i = 0; i < totalItems; i++) {
     const itemEl = document.getElementById('afb-item-' + i);
     if (itemEl) itemEl.classList.remove('afb-item--correct', 'afb-item--wrong');
@@ -211,7 +256,7 @@ async function submitAnswers() {
         'Content-Type': 'application/json',
         'X-CSRFToken': csrfToken,
       },
-      body: JSON.stringify({ answers: answers, lesson_type: 'audio_fill_blank', replay_count: 0 }),
+      body: JSON.stringify({ answers: answers, lesson_type: 'audio_fill_blank', replay_count: replayCount }),
     });
 
     if (!resp.ok) throw new Error('HTTP ' + resp.status);

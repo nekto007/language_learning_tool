@@ -551,6 +551,30 @@ class TestModuleLessonsLockedReasons:
         html = response.data.decode()
         assert 'ml-lesson--current' in html or 'ml-lesson--available' in html
 
+    def test_admin_sees_all_lessons_available(
+        self, admin_client, admin_user, lessons_sequence, level_and_module, db_session
+    ):
+        """Admin preview should not lock later lessons on the module page."""
+        admin_user.onboarding_completed = True
+        db_session.commit()
+        with admin_client.session_transaction() as sess:
+            sess['_user_id'] = str(admin_user.id)
+            sess['_fresh'] = True
+
+        level, module = level_and_module
+        response = admin_client.get(
+            f'/learn/{level.code.lower()}/module-{module.number}/'
+        )
+
+        assert response.status_code == 200
+        html = response.data.decode()
+        for lesson in lessons_sequence:
+            assert f'/learn/{lesson.id}/' in html
+        # No lesson row should render the locked-label span (only emitted in
+        # the `is_available=false` branch). The CSS class names live in inline
+        # styles too, so we anchor on the opening HTML tag syntax.
+        assert '<span class="ml-lesson__locked-label"' not in html
+
 
 class TestContinueWhereLeftOff:
     """Test in-progress lessons show progress hints on module page."""

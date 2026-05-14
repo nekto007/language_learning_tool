@@ -345,7 +345,7 @@ function showResults(data, userPairs) {
     arr.textContent = '→';
     row.appendChild(arr);
     const tr = document.createElement('span');
-    tr.textContent = pr.translation;
+    tr.textContent = pr.correct ? pr.translation : (pr.user_translation || '—');
     row.appendChild(tr);
     listDiv.appendChild(row);
   });

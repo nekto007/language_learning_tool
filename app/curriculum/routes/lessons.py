@@ -1305,11 +1305,16 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp
             maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
-            db.session.commit()
+            db.session.flush()
         except Exception as xp_err:
             logger.warning(f"Collocation matching XP award failed for lesson {lesson.id}: {xp_err}")
+    db.session.commit()
 
     result = {**grade}
+    if not grade.get('passed'):
+        for pr in result.get('pair_results') or []:
+            if not pr.get('correct'):
+                pr['translation'] = ''
     next_lesson = _get_next_lesson_for_completion(lesson)
     if grade.get('passed') and next_lesson:
         result['next_lesson_url'] = _lesson_completion_url(next_lesson)

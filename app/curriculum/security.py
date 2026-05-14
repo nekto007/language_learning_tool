@@ -163,8 +163,9 @@ def check_lesson_access(lesson_id: int) -> bool:
     if not current_user.is_authenticated:
         return False
 
-    # Admins have access to all lessons
-    if current_user.is_admin:
+    # Temporary admin preview mode: admins can open any curriculum lesson
+    # regardless of module locks or previous lesson completion.
+    if getattr(current_user, 'is_admin', False):
         return True
 
     # Get the lesson
@@ -226,8 +227,8 @@ def check_module_access(module_id: int) -> bool:
     if not current_user.is_authenticated:
         return False
 
-    # Admins have access to all modules
-    if current_user.is_admin:
+    # Temporary admin preview mode: admins can open any curriculum module.
+    if getattr(current_user, 'is_admin', False):
         return True
 
     # Get the module
@@ -321,6 +322,12 @@ def require_lesson_access(f):
             if _is_api_request():
                 return jsonify({'success': False, 'error': 'Lesson not found'}), 404
             abort(404)
+
+        # Temporary admin preview mode: keep this explicit at the decorator
+        # boundary so every lesson route/API using @require_lesson_access is
+        # unlocked for admins without depending on progression state.
+        if getattr(current_user, 'is_admin', False):
+            return f(*args, **kwargs)
 
         if check_lesson_access(lesson_id):
             return f(*args, **kwargs)

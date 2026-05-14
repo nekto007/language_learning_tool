@@ -115,8 +115,10 @@ const totalItems = {{ items|length }};
 const itemWords = {{ items | map(attribute='word') | list | tojson }};
 
 const itemDone = new Array(totalItems).fill(false);
+const itemSubmitting = new Array(totalItems).fill(false);
 let speechSupported = false;
 let currentRecognizer = null;
+let currentRecognizerIdx = -1;
 
 function _updateProgress() {
   const done = itemDone.filter(Boolean).length;
@@ -153,11 +155,24 @@ function checkAllDone() {
 
 function markItemDone(idx) {
   itemDone[idx] = true;
+  if (currentRecognizer && currentRecognizerIdx === idx) {
+    try { currentRecognizer.abort(); } catch (_) {}
+    currentRecognizer = null;
+    currentRecognizerIdx = -1;
+  }
   const el = document.getElementById('item-' + idx);
   if (el) {
     el.classList.remove('pronunciation-item--active');
     el.removeAttribute('aria-current');
   }
+  const speakBtn = document.getElementById('speak-btn-' + idx);
+  if (speakBtn) speakBtn.disabled = true;
+  const fallbackBtn = document.getElementById('fallback-btn-' + idx);
+  if (fallbackBtn) fallbackBtn.disabled = true;
+  const selfCb = document.getElementById('self-cb-' + idx);
+  if (selfCb) selfCb.disabled = true;
+  const selfAssess = document.getElementById('self-assess-' + idx);
+  if (selfAssess) selfAssess.classList.remove('pronunciation-item__self-assess--visible');
   const nextPending = itemDone.indexOf(false);
   if (nextPending !== -1) {
     document.getElementById('current-idx').textContent = String(nextPending + 1);
@@ -183,11 +198,14 @@ function playAudio(idx) {
 }
 
 function startRecognition(idx) {
+  if (itemDone[idx] || itemSubmitting[idx]) return;
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) return;
 
   if (currentRecognizer) {
     try { currentRecognizer.abort(); } catch (_) {}
+    currentRecognizer = null;
+    currentRecognizerIdx = -1;
   }
 
   const btn = document.getElementById('speak-btn-' + idx);
@@ -196,6 +214,7 @@ function startRecognition(idx) {
 
   const recognition = new SpeechRecognition();
   currentRecognizer = recognition;
+  currentRecognizerIdx = idx;
   recognition.lang = 'en-US';
   recognition.continuous = false;
   recognition.interimResults = false;
@@ -206,6 +225,11 @@ function startRecognition(idx) {
   };
 
   recognition.onerror = function(event) {
+    if (currentRecognizer === recognition) {
+      currentRecognizer = null;
+      currentRecognizerIdx = -1;
+    }
+    if (itemDone[idx]) return;
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-microphone"></i> {{ _("Произнести") }}';
     if (event.error === 'not-allowed') {
@@ -216,6 +240,11 @@ function startRecognition(idx) {
   };
 
   recognition.onend = function() {
+    if (currentRecognizer === recognition) {
+      currentRecognizer = null;
+      currentRecognizerIdx = -1;
+    }
+    if (itemDone[idx] || itemSubmitting[idx]) return;
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-microphone"></i> {{ _("Попробовать снова") }}';
   };
@@ -224,6 +253,8 @@ function startRecognition(idx) {
 }
 
 async function sendRecognitionResult(idx, transcript) {
+  if (itemDone[idx] || itemSubmitting[idx]) return;
+  itemSubmitting[idx] = true;
   const word = itemWords[idx];
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
@@ -244,15 +275,29 @@ async function sendRecognitionResult(idx, transcript) {
     if (data.matched) {
       _renderBadge('result-' + idx, 'correct', '<i class="fas fa-check-circle"></i>',
         '{{ _("Похоже!") }} (' + transcript + ')');
-      document.getElementById('item-' + idx).classList.add('pronunciation-item--matched');
+      const itemEl = document.getElementById('item-' + idx);
+      itemEl.classList.remove('pronunciation-item--missed');
+      itemEl.classList.add('pronunciation-item--matched');
+      markItemDone(idx);
     } else {
       _renderBadge('result-' + idx, 'incorrect', '<i class="fas fa-times-circle"></i>',
-        '{{ _("Попробуй ещё раз.") }} {{ _("Распознано:") }} ' + transcript);
+        '{{ _("Попробуй ещё раз или отметь самопроверку ниже.") }} {{ _("Распознано:") }} ' + transcript);
       document.getElementById('item-' + idx).classList.add('pronunciation-item--missed');
+      showSelfAssess(idx);
     }
-    markItemDone(idx);
   } catch (err) {
     console.error('Pronunciation submit error:', err);
+    _renderBadge('result-' + idx, 'neutral', '<i class="fas fa-exclamation-triangle"></i>',
+      '{{ _("Не удалось отправить. Проверь соединение и попробуй ещё раз.") }}');
+  } finally {
+    itemSubmitting[idx] = false;
+    if (!itemDone[idx]) {
+      const retryBtn = document.getElementById('speak-btn-' + idx);
+      if (retryBtn) {
+        retryBtn.disabled = false;
+        retryBtn.innerHTML = '<i class="fas fa-microphone"></i> {{ _("Попробовать снова") }}';
+      }
+    }
   }
 }
 
@@ -263,11 +308,17 @@ function showSelfAssess(idx) {
 
 function onSelfAssessChange(idx) {
   const cb = document.getElementById('self-cb-' + idx);
+  if (itemDone[idx] || itemSubmitting[idx]) {
+    if (cb) cb.checked = false;
+    return;
+  }
   if (!cb.checked) return;
 
   _renderBadge('result-' + idx, 'neutral', '<i class="fas fa-check"></i>',
     '{{ _("Отмечено как произнесённое.") }}');
-  document.getElementById('item-' + idx).classList.add('pronunciation-item--matched');
+  const selfAssessItemEl = document.getElementById('item-' + idx);
+  selfAssessItemEl.classList.remove('pronunciation-item--missed');
+  selfAssessItemEl.classList.add('pronunciation-item--matched');
 
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   fetch(`/curriculum/api/lesson/${lessonId}/submit`, {

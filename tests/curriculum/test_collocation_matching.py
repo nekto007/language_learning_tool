@@ -343,23 +343,36 @@ class TestCollocationMatchingSubmitRoute:
         assert data["score"] == 100
         assert data["passed"] is True
 
-    def test_wrong_pairs_includes_correct_answer(self, app, db_session, test_user, client):
+    def test_wrong_pairs_hide_correct_answer(self, app, db_session, test_user, client):
+        """On failure the route must strip canonical translations from
+        pair_results so a deliberate fail does not reveal the answer key."""
         lesson = _make_collocation_matching_lesson(db_session)
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/collocation-matching")
-        wrong_pairs = [
-            {"phrase": "make a decision", "translation": "нарушать правила"},
-            {"phrase": "break the rules", "translation": "идти на риск"},
-            {"phrase": "take a risk", "translation": "принять решение"},
-        ]
+        submitted = {
+            "make a decision": "нарушать правила",
+            "break the rules": "идти на риск",
+            "take a risk": "принять решение",
+        }
+        canonical = {
+            "make a decision": "принять решение",
+            "break the rules": "нарушать правила",
+            "take a risk": "идти на риск",
+        }
+        wrong_pairs = [{"phrase": p, "translation": t} for p, t in submitted.items()]
         resp = self._submit(client, lesson.id, wrong_pairs)
         data = resp.get_json()
         assert data["passed"] is False
-        # pair_results should include correct translations
         pr = data.get("pair_results", [])
-        decision = next((p for p in pr if p["phrase"] == "make a decision"), None)
-        assert decision is not None
-        assert decision["translation"] == "принять решение"
+        assert pr, "pair_results must be populated"
+        for row in pr:
+            phrase = row["phrase"]
+            assert row.get("correct") is False
+            assert row.get("translation") == ""
+            # user_translation must echo the learner's submission, never the
+            # canonical answer — otherwise the answer key leaks via this field.
+            assert row.get("user_translation") == submitted[phrase]
+            assert row.get("user_translation") != canonical[phrase]
 
     def test_partial_score_calculated(self, app, db_session, test_user, client):
         lesson = _make_collocation_matching_lesson(db_session)
@@ -374,6 +387,29 @@ class TestCollocationMatchingSubmitRoute:
         data = resp.get_json()
         assert data["correct_items"] == 1
         assert data["total_items"] == 3
+
+    def test_partial_failure_preserves_correct_row_translation(
+        self, app, db_session, test_user, client
+    ):
+        """On a failed-but-partial submission, correct rows must keep their
+        canonical translation so the UI can show the learner's win. Only
+        wrong-row translations are masked to avoid leaking the answer key."""
+        lesson = _make_collocation_matching_lesson(db_session)
+        _login(client, test_user)
+        client.get(f"/curriculum/lesson/{lesson.id}/collocation-matching")
+        partial_pairs = [
+            {"phrase": "make a decision", "translation": "принять решение"},  # correct
+            {"phrase": "break the rules", "translation": "идти на риск"},      # wrong
+            {"phrase": "take a risk", "translation": "нарушать правила"},      # wrong
+        ]
+        resp = self._submit(client, lesson.id, partial_pairs)
+        data = resp.get_json()
+        assert data["passed"] is False
+        rows = {pr["phrase"]: pr for pr in data["pair_results"]}
+        assert rows["make a decision"]["correct"] is True
+        assert rows["make a decision"]["translation"] == "принять решение"
+        assert rows["break the rules"]["correct"] is False
+        assert rows["break the rules"]["translation"] == ""
 
     def test_correct_submission_marks_progress_completed(self, app, db_session, test_user, client):
         lesson = _make_collocation_matching_lesson(db_session)

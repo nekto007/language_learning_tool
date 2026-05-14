@@ -13,7 +13,7 @@
   {% endfor %}
   {% set progress_pct = ((counter.completed / lessons|length) * 100)|round|int if lessons|length > 0 else 0 %}
 
-  {% if module_lock_reason %}
+  {% if module_lock_reason and not admin_preview|default(false) %}
   <div style="background:#fef3c7; border:1px solid #fbbf24; border-radius:12px; padding:1rem 1.25rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.75rem;">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="#f59e0b"><path d="M12 17a2 2 0 100-4 2 2 0 000 4zm6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 1110 0v2h1zm-6-5a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/></svg>
     <div>
@@ -113,9 +113,11 @@
           {% set is_completed = lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'completed' %}
           {% set is_in_progress = lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'in_progress' %}
 
-          {# Урок доступен если: 1) это первый урок, 2) урок завершён, 3) предыдущий урок в списке завершён #}
+          {# Урок доступен если: 1) админский предпросмотр, 2) это первый урок, 3) урок завершён, 4) предыдущий урок в списке завершён #}
           {% set is_available = false %}
-          {% if loop.first %}
+          {% if admin_preview|default(false) %}
+            {% set is_available = true %}
+          {% elif loop.first %}
             {% set is_available = true %}
           {% elif is_completed %}
             {# Завершённые уроки всегда доступны для повторения #}

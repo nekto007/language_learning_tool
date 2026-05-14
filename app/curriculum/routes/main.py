@@ -463,6 +463,7 @@ def learn_by_module(level_code, module_number):
         lessons=sorted_lessons,
         user_lesson_progress=user_lesson_progress,
         module_lock_reason=module_lock_reason,
+        admin_preview=getattr(current_user, 'is_admin', False),
     )
 
 

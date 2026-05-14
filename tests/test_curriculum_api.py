@@ -178,11 +178,35 @@ class TestApiGetLessonInfo:
         p = authenticated_client.get(f'/curriculum/api/lesson/{lid}/info').get_json()['progress']
         assert p['status'] == 'not_started'
 
+    def test_admin_can_access_locked_lesson(self, app, admin_client, admin_user, curriculum_data):
+        # Lesson 2 is normally locked until lesson 1 is completed. Admins can
+        # preview any lesson temporarily.
+        admin_user.onboarding_completed = True
+        db.session.commit()
+        with admin_client.session_transaction() as sess:
+            sess['_user_id'] = str(admin_user.id)
+            sess['_fresh'] = True
+        lid = curriculum_data['quiz'].id
+        r = admin_client.get(f'/curriculum/api/lesson/{lid}/info')
+        assert r.status_code == 200, r.headers.get('Location')
+        assert r.get_json()['success'] is True
+
+    def test_non_admin_blocked_from_locked_lesson(self, authenticated_client, curriculum_data):
+        """Paired guard: non-admin must still be locked out so the admin bypass
+        above proves a real difference, not a universally-open lesson."""
+        lid = curriculum_data['quiz'].id
+        r = authenticated_client.get(f'/curriculum/api/lesson/{lid}/info')
+        assert r.status_code in (302, 403)
+
     def test_card_lesson_type(self, authenticated_client, curriculum_data):
-        """Card lesson info endpoint should respond without server error."""
+        """Card lesson info endpoint should respond without server error.
+
+        Card is order=2 with vocab unfinished, so the gating decorator must
+        redirect/403 for the non-admin authenticated client.
+        """
         lid = curriculum_data['card'].id
         r = authenticated_client.get(f'/curriculum/api/lesson/{lid}/info')
-        assert r.status_code in [200, 403]  # 200 if accessible, 403 if locked
+        assert r.status_code in (302, 403)
 
 
 class TestApiGetUserProgress:
