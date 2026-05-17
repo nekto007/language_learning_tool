@@ -90,7 +90,8 @@ class SRSService:
                         # New card
                         card_dir = UserCardDirection(
                             user_word_id=user_word.id,
-                            direction=direction
+                            direction=direction,
+                            source='lesson_vocab',
                         )
                         db.session.add(card_dir)
                         new_cards += 1

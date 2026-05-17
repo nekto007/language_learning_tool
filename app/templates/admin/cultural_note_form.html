@@ -1,0 +1,41 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}{% if note %}Изменить заметку{% else %}Добавить заметку{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <h2>{% if note %}Изменить культурную заметку{% else %}Добавить культурную заметку{% endif %}</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+  <div class="alert alert-{{ 'danger' if category == 'error' else category }}">{{ message }}</div>
+  {% endfor %}
+  {% endwith %}
+
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if not note %}
+    <div class="mb-3">
+      <label class="form-label">Word ID</label>
+      <input type="number" name="word_id" class="form-control" value="{{ word.id if word else '' }}" required>
+      {% if word %}
+      <div class="form-text">{{ word.english_word }} — {{ word.russian_word }}</div>
+      {% endif %}
+    </div>
+    {% endif %}
+    <div class="mb-3">
+      <label class="form-label">Контекст <small class="text-muted">(необязательно)</small></label>
+      <input type="text" name="context" class="form-control" maxlength="100"
+             value="{{ note.context if note and note.context else '' }}"
+             placeholder="напр. British English, Formal, Slang">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Заметка</label>
+      <textarea name="note" class="form-control" rows="4" required>{{ note.note if note else '' }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Сохранить</button>
+    <a href="{{ url_for('admin.cultural_notes_list', word_id=note.word_id if note else (word.id if word else '')) }}"
+       class="btn btn-secondary">Отмена</a>
+  </form>
+</div>
+{% endblock %}

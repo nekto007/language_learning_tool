@@ -510,6 +510,11 @@ def _handle_plan(chat_id: int, telegram_id: int) -> None:
     cards_url = get_cards_url(user_id, site_url) if site_url else ''
 
     plan = get_daily_plan_for_telegram(user_id, tz=user_tz)
+
+    if not plan:
+        _send_message(chat_id, 'Открой приложение чтобы начать')
+        return
+
     summary = get_daily_summary(user_id, tz=user_tz)
     streak = get_current_streak(user_id, tz=user_tz)
     coins = get_or_create_coins(user_id)

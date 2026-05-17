@@ -51,6 +51,8 @@ _MODE_COMPLETION_BUCKET: dict[str, str] = {
     'reading_vocab_extract': 'practice',
     'meaning_prompt': 'practice',
     'vocab_drill': 'practice',
+    'dictation_lesson': 'lesson',
+    'listening_lesson': 'lesson',
 }
 
 
@@ -393,11 +395,35 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     required_steps = streak_status.get('required_steps', 1)
     streak_repaired = False
 
+    # Shield repair: fires with any real activity regardless of steps_done.
+    # If the user has a shield and missed exactly one day, use the shield to
+    # repair the gap automatically, then deactivate the shield.
+    if real_activity:
+        try:
+            from app.auth.models import User as _User
+            _shield_user = db.session.get(_User, user_id)
+            if _shield_user and getattr(_shield_user, 'streak_shield_active', False):
+                _shield_missed = find_missed_date(user_id, tz=tz)
+                if _shield_missed:
+                    if apply_shield_repair(user_id, _shield_missed):
+                        _shield_user.streak_shield_active = False
+                        db.session.flush()
+                        from app.telegram.queries import get_current_streak
+                        streak_status = get_streak_status(
+                            user_id, tz=tz, steps_total=max(steps_total, 1)
+                        )
+                        streak_status['streak'] = get_current_streak(user_id, tz=tz)
+                        required_steps = streak_status.get('required_steps', 1)
+                        streak_repaired = True
+        except Exception:
+            logger.warning(
+                "Shield repair failed for user %s", user_id, exc_info=True
+            )
+
     # Attempt free repair if enough steps done AND user has real activity
     if steps_total > 0 and steps_done >= required_steps and real_activity:
         missed = find_missed_date(user_id, tz=tz)
-        if missed:
-            apply_free_repair(user_id, missed, steps_done, steps_total)
+        if missed and apply_free_repair(user_id, missed, steps_done, steps_total):
             db.session.commit()
             streak = get_current_streak(user_id, tz=tz)
             streak_status = get_streak_status(user_id, tz=tz, steps_total=max(steps_total, 1))
@@ -416,13 +442,23 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
                 streak_status = get_streak_status(user_id, tz=tz, steps_total=max(steps_total, 1))
                 streak_status['streak'] = streak
                 required_steps = streak_status.get('required_steps', 1)
-                streak_repaired = streak_repaired or True
+                streak_repaired = True
         except Exception:
             logger.warning("auto_heal_streak failed for user %s", user_id, exc_info=True)
 
     # Check streak milestones and award bonus coins
     milestone_reward = check_streak_milestone(
         user_id, streak_status.get('streak', 0), for_date=user_today)
+
+    # Check weekly milestone achievements (7/28/84-day streaks)
+    try:
+        from app.achievements.services import check_weekly_milestone_achievements
+        check_weekly_milestone_achievements(user_id, streak_status.get('streak', 0))
+    except Exception:
+        logger.warning(
+            "Failed to check weekly milestone achievements for user %s",
+            user_id, exc_info=True,
+        )
 
     db.session.commit()
 
@@ -454,13 +490,33 @@ STREAK_MILESTONES = {
 }
 
 
+def _grant_streak_shield(user_id: int) -> bool:
+    """Grant a streak shield to the user if they don't already have one.
+
+    Returns True if shield was granted, False if already active.
+    """
+    from app.auth.models import User
+    from app import db
+    user = db.session.get(User, user_id)
+    if user is None or getattr(user, 'streak_shield_active', False):
+        return False
+    user.streak_shield_active = True
+    return True
+
+
 def check_streak_milestone(user_id: int, current_streak: int,
                            for_date: date | None = None) -> dict | None:
     """Check if current streak hits a milestone and award bonus coins.
 
+    Also grants a streak shield at every 7-day milestone (7, 14, 21, …)
+    when the user doesn't already hold one.
+
     Returns milestone info dict if awarded, None otherwise.
     """
     if current_streak not in STREAK_MILESTONES:
+        # Grant shield at every multiple of 7 even if not a coin milestone
+        if current_streak > 0 and current_streak % 7 == 0:
+            _grant_streak_shield(user_id)
         return None
 
     reward = STREAK_MILESTONES[current_streak]
@@ -488,6 +544,9 @@ def check_streak_milestone(user_id: int, current_streak: int,
         event_date=today,
         details={'streak': current_streak, 'reward': reward},
     ))
+
+    # Grant shield at every 7-day milestone
+    _grant_streak_shield(user_id)
 
     # Send notification
     try:
@@ -554,7 +613,7 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE
     event_dates: set[date] = set()
     for ev in StreakEvent.query.filter(
         StreakEvent.user_id == user_id,
-        StreakEvent.event_type.in_(['earned_daily', 'free_repair', 'spent_repair']),
+        StreakEvent.event_type.in_(['earned_daily', 'free_repair', 'spent_repair', 'plan_pause', 'shield_repair']),
         StreakEvent.event_date >= from_date,
     ):
         event_dates.add(ev.event_date)
@@ -739,11 +798,11 @@ def earn_daily_coin(user_id: int, for_date: date | None = None,
 
 
 def has_repair_for_date(user_id: int, target_date: date) -> bool:
-    """Check if a repair (free or paid) exists for a specific date."""
+    """Check if a repair (free, paid, or shield) exists for a specific date."""
     return StreakEvent.query.filter(
         StreakEvent.user_id == user_id,
         StreakEvent.event_date == target_date,
-        StreakEvent.event_type.in_(['free_repair', 'spent_repair']),
+        StreakEvent.event_type.in_(['free_repair', 'spent_repair', 'plan_pause', 'shield_repair']),
     ).first() is not None
 
 
@@ -778,6 +837,18 @@ def apply_free_repair(user_id: int, missed_date: date,
         user_id=user_id, event_type='free_repair',
         coins_delta=0, event_date=missed_date,
         details=details,
+    ))
+    return True
+
+
+def apply_shield_repair(user_id: int, missed_date: date) -> bool:
+    """Apply a shield repair for a missed date. Returns True on success."""
+    if has_repair_for_date(user_id, missed_date):
+        return False
+    db.session.add(StreakEvent(
+        user_id=user_id, event_type='shield_repair',
+        coins_delta=0, event_date=missed_date,
+        details={'reason': 'streak_shield'},
     ))
     return True
 
@@ -1031,15 +1102,246 @@ def _check_mission_badges_for_today(
     )
 
 
+def get_listening_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZONE) -> int:
+    """Return the number of consecutive days (ending today or yesterday) with a ListeningAttempt.
+
+    Walks backward from today in the user's local timezone. If today has no
+    listening activity the chain is checked from yesterday (today isn't over).
+    """
+    import pytz
+    from sqlalchemy import cast, Date, func
+    from app.curriculum.models import ListeningAttempt
+
+    session = db_session if db_session is not None else db.session
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
+
+    local_today = datetime.now(tz_obj).date()
+    cutoff = local_today - timedelta(days=365)
+
+    def _local_date(col):
+        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+
+    try:
+        rows = (
+            session.query(_local_date(ListeningAttempt.created_at).label('d'))
+            .filter(
+                ListeningAttempt.user_id == user_id,
+                ListeningAttempt.created_at >= cutoff,
+            )
+            .distinct()
+            .all()
+        )
+        active_dates = {row[0] for row in rows if row[0] is not None}
+    except Exception:
+        return 0
+
+    streak = 0
+    for offset in range(365):
+        check_date = local_today - timedelta(days=offset)
+        if check_date in active_dates:
+            streak += 1
+        elif offset == 0:
+            # No listening today — streak alive if yesterday has activity
+            continue
+        else:
+            break
+
+    return streak
+
+
+def get_writing_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZONE) -> int:
+    """Return consecutive days (ending today or yesterday) with a UserWritingAttempt.
+
+    Same walk-backward logic as get_listening_streak.
+    """
+    import pytz
+    from sqlalchemy import cast, Date, func
+    from app.curriculum.models import UserWritingAttempt
+
+    session = db_session if db_session is not None else db.session
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
+
+    local_today = datetime.now(tz_obj).date()
+    cutoff = local_today - timedelta(days=365)
+
+    def _local_date(col):
+        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+
+    try:
+        rows = (
+            session.query(_local_date(UserWritingAttempt.created_at).label('d'))
+            .filter(
+                UserWritingAttempt.user_id == user_id,
+                UserWritingAttempt.created_at >= cutoff,
+            )
+            .distinct()
+            .all()
+        )
+        active_dates = {row[0] for row in rows if row[0] is not None}
+    except Exception:
+        return 0
+
+    streak = 0
+    for offset in range(365):
+        check_date = local_today - timedelta(days=offset)
+        if check_date in active_dates:
+            streak += 1
+        elif offset == 0:
+            continue
+        else:
+            break
+
+    return streak
+
+
+def get_speaking_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZONE) -> int:
+    """Return consecutive days (ending today or yesterday) with a PronunciationAttempt.
+
+    Same walk-backward logic as get_listening_streak.
+    """
+    import pytz
+    from sqlalchemy import cast, Date, func
+    from app.curriculum.models import PronunciationAttempt
+
+    session = db_session if db_session is not None else db.session
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
+
+    local_today = datetime.now(tz_obj).date()
+    cutoff = local_today - timedelta(days=365)
+
+    def _local_date(col):
+        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+
+    try:
+        rows = (
+            session.query(_local_date(PronunciationAttempt.created_at).label('d'))
+            .filter(
+                PronunciationAttempt.user_id == user_id,
+                PronunciationAttempt.created_at >= cutoff,
+            )
+            .distinct()
+            .all()
+        )
+        active_dates = {row[0] for row in rows if row[0] is not None}
+    except Exception:
+        return 0
+
+    streak = 0
+    for offset in range(365):
+        check_date = local_today - timedelta(days=offset)
+        if check_date in active_dates:
+            streak += 1
+        elif offset == 0:
+            continue
+        else:
+            break
+
+    return streak
+
+
+def get_immersion_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZONE) -> int:
+    """Return consecutive days where user practiced all 4 skills.
+
+    A day counts only when it has at least one row in each of:
+    ListeningAttempt, UserWritingAttempt, PronunciationAttempt, UserReadingSession.
+
+    Walk-backward logic mirrors get_listening_streak: if today has no immersion
+    activity, the chain is checked from yesterday (today isn't over).
+    """
+    import pytz
+    from sqlalchemy import cast, Date, func
+    from app.curriculum.models import ListeningAttempt, UserWritingAttempt, PronunciationAttempt
+    from app.books.reading_session import UserReadingSession
+
+    session = db_session if db_session is not None else db.session
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
+
+    local_today = datetime.now(tz_obj).date()
+    cutoff = local_today - timedelta(days=365)
+
+    def _local_date(col):
+        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+
+    def _local_date_tz(col):
+        # UserReadingSession.started_at is timezone-aware
+        return cast(func.timezone(tz_obj.zone, col), Date)
+
+    try:
+        listening_dates = {
+            row[0]
+            for row in session.query(_local_date(ListeningAttempt.created_at).label('d'))
+            .filter(ListeningAttempt.user_id == user_id, ListeningAttempt.created_at >= cutoff)
+            .distinct().all()
+            if row[0] is not None
+        }
+        writing_dates = {
+            row[0]
+            for row in session.query(_local_date(UserWritingAttempt.created_at).label('d'))
+            .filter(UserWritingAttempt.user_id == user_id, UserWritingAttempt.created_at >= cutoff)
+            .distinct().all()
+            if row[0] is not None
+        }
+        speaking_dates = {
+            row[0]
+            for row in session.query(_local_date(PronunciationAttempt.created_at).label('d'))
+            .filter(PronunciationAttempt.user_id == user_id, PronunciationAttempt.created_at >= cutoff)
+            .distinct().all()
+            if row[0] is not None
+        }
+        reading_dates = {
+            row[0]
+            for row in session.query(_local_date_tz(UserReadingSession.started_at).label('d'))
+            .filter(UserReadingSession.user_id == user_id, UserReadingSession.started_at >= cutoff)
+            .distinct().all()
+            if row[0] is not None
+        }
+    except Exception:
+        return 0
+
+    all_four_dates = listening_dates & writing_dates & speaking_dates & reading_dates
+
+    streak = 0
+    for offset in range(365):
+        check_date = local_today - timedelta(days=offset)
+        if check_date in all_four_dates:
+            streak += 1
+        elif offset == 0:
+            # No immersion today — streak alive if yesterday has activity
+            continue
+        else:
+            break
+
+    return streak
+
+
 def get_streak_status(user_id: int, tz: str = DEFAULT_TIMEZONE,
                       steps_total: int = 4) -> dict:
     """Get full streak status for dashboard display."""
     from app.telegram.queries import get_current_streak, has_activity_today
+    from app.auth.models import User
 
     streak = get_current_streak(user_id, tz=tz)
     coins = get_or_create_coins(user_id)
     missed = find_missed_date(user_id, tz=tz)
     required = get_required_steps(streak, steps_total)
+    user = db.session.get(User, user_id)
+    shield_active = bool(getattr(user, 'streak_shield_active', False)) if user else False
 
     return {
         'streak': streak,
@@ -1050,4 +1352,5 @@ def get_streak_status(user_id: int, tz: str = DEFAULT_TIMEZONE,
         'repair_cost': get_repair_cost(user_id) if missed else None,
         'required_steps': required,
         'steps_total': steps_total,
+        'streak_shield_active': shield_active,
     }

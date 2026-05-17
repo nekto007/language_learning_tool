@@ -12,6 +12,19 @@ from app.utils.db import db
 logger = logging.getLogger(__name__)
 
 
+# Lesson types whose score reflects a real server-graded result. Only these
+# get a LessonAttempt row written by update_progress_with_grading — other
+# callers (text/reading/listening_immersion_quiz from render_text_lesson)
+# submit fabricated 100.0 scores that would otherwise inflate score and
+# pass-rate analytics across LessonAttempt-based dashboards.
+_GRADED_ATTEMPT_TYPES = frozenset((
+    'dictation', 'audio_fill_blank', 'translation',
+    'sentence_correction', 'sentence_completion', 'collocation_matching',
+    'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
+    'dialogue_completion_quiz', 'grammar', 'matching', 'final_test',
+))
+
+
 def _invalidate_user_progress_cache(user_id: int) -> None:
     """Invalidate all per-user curriculum caches after progress mutation."""
     try:
@@ -250,15 +263,30 @@ class ProgressService:
             lesson_id=lesson.id
         ).first()
 
+        now = datetime.now(UTC)
+
         if progress:
-            progress.score = score
-            progress.status = 'completed' if is_completed else 'in_progress'
+            was_completed = progress.status == 'completed'
+            # Score is monotonic: keep the user's best historical score.
+            # A passing-but-lower retry must not overwrite a previous higher
+            # score (downstream consumers treat `progress.score` as the
+            # canonical achievement on this lesson).
+            if was_completed:
+                if is_completed and score > (progress.score or 0):
+                    progress.score = score
+            else:
+                progress.score = score
+                progress.status = 'completed' if is_completed else 'in_progress'
+            # last_activity / data are touched on every grading event so that
+            # activity & streak trackers credit the user for a failed retry of
+            # an already-completed lesson. The daily-challenge accuracy_focus
+            # check no longer relies on these fields — it reads today's
+            # LessonAttempt rows recorded below.
             progress.data = result
-            # Mark JSONB field as modified for SQLAlchemy
             flag_modified(progress, 'data')
-            progress.last_activity = datetime.now(UTC)
+            progress.last_activity = now
             if progress.status == 'completed' and not progress.completed_at:
-                progress.completed_at = datetime.now(UTC)
+                progress.completed_at = now
         else:
             progress = LessonProgress(
                 user_id=user_id,
@@ -266,39 +294,47 @@ class ProgressService:
                 score=score,
                 status='completed' if is_completed else 'in_progress',
                 data=result,
-                started_at=datetime.now(UTC),
-                last_activity=datetime.now(UTC)
+                started_at=now,
+                last_activity=now
             )
             if progress.status == 'completed':
-                progress.completed_at = datetime.now(UTC)
+                progress.completed_at = now
             db.session.add(progress)
 
         db.session.commit()
         _invalidate_user_progress_cache(user_id)
 
-        # Persist a LessonAttempt row for failed final_test submissions so the
-        # rate-limit gate (check_final_test_attempts_exhausted) can count them.
-        # complete_lesson() only creates attempts on pass; without this, failed
-        # attempts disappear and the per-user 24h cap never fires.
-        if not is_completed and getattr(lesson, 'type', None) == 'final_test':
+        # Persist a LessonAttempt row for every grading event on server-graded
+        # lesson types. Passing retries of an already-completed lesson would
+        # otherwise be invisible to the daily challenge `accuracy_focus` check,
+        # and failed final_test attempts must be counted by the rate-limit gate
+        # (check_final_test_attempts_exhausted). Non-graded callers (text /
+        # reading / listening_immersion_quiz via render_text_lesson) feed
+        # client-driven scores into this method and must not pollute attempt
+        # analytics. `started_at` is taken from `progress.started_at` (set when
+        # the lesson was first opened) so that `completed_at - started_at`
+        # reflects the actual time the user spent in the lesson — the daily
+        # challenge `speed_run` check relies on this duration. Date-based
+        # analytics filter on `completed_at`, so a retry days later still
+        # surfaces in today's reports.
+        if getattr(lesson, 'type', None) in _GRADED_ATTEMPT_TYPES:
             try:
                 from app.curriculum.models import LessonAttempt
-                now = datetime.now(UTC)
-                failed_attempt = LessonAttempt.create_attempt(
+                attempt = LessonAttempt.create_attempt(
                     user_id=user_id,
                     lesson_id=lesson.id,
                     lesson_progress_id=progress.id,
                 )
-                failed_attempt.started_at = progress.started_at or now
-                failed_attempt.completed_at = now
-                failed_attempt.score = score
-                failed_attempt.passed = False
-                failed_attempt.correct_answers = result.get('correct_answers', 0)
-                failed_attempt.total_questions = result.get('total_questions', 0)
+                attempt.started_at = progress.started_at or now
+                attempt.completed_at = now
+                attempt.score = score
+                attempt.passed = is_completed
+                attempt.correct_answers = result.get('correct_answers', 0)
+                attempt.total_questions = result.get('total_questions', 0)
                 db.session.commit()
             except Exception:
                 logger.warning(
-                    "Failed to record failed final_test attempt for user=%s lesson=%s",
+                    "Failed to record LessonAttempt for user=%s lesson=%s",
                     user_id, lesson.id, exc_info=True,
                 )
                 db.session.rollback()
@@ -497,13 +533,24 @@ class ProgressService:
             if not current_lesson:
                 return None
 
-            # Try to get next lesson in the same module
+            # Lesson.number is the canonical position inside a module. Imported
+            # extension lessons can have order=0, so using order first can jump
+            # back to the beginning of the module.
             next_lesson = None
+            if current_lesson.number is not None:
+                next_lesson = Lessons.query.filter(
+                    Lessons.module_id == current_lesson.module_id,
+                    Lessons.number > current_lesson.number
+                ).order_by(Lessons.number).first()
+
+            if next_lesson:
+                return next_lesson
+
             if current_lesson.order is not None:
                 next_lesson = Lessons.query.filter(
                     Lessons.module_id == current_lesson.module_id,
                     Lessons.order > current_lesson.order
-                ).order_by(Lessons.number).first()
+                ).order_by(Lessons.order).first()
 
             if next_lesson:
                 return next_lesson

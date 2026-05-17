@@ -1,0 +1,18 @@
+[
+  {
+    "external_key": "fixture:collocation_matching:B1:01",
+    "level": "B1",
+    "module_number": 1,
+    "lesson_type": "collocation_matching",
+    "title": "Сочетаемость: глаголы с make и do",
+    "title_en": "Collocations: make vs do",
+    "content": {
+      "pairs": [
+        {"phrase": "make a decision", "translation": "принять решение"},
+        {"phrase": "do homework", "translation": "делать домашнее задание"},
+        {"phrase": "make progress", "translation": "делать успехи"},
+        {"phrase": "do the dishes", "translation": "мыть посуду"}
+      ]
+    }
+  }
+]

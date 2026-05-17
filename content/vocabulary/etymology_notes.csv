@@ -1,0 +1,180 @@
+# Vocabulary etymology notes — priority words (A1-C1)
+# Column: english_word — case-insensitive match against collection_words.english_word
+# Column: etymology    — concise origin note, max ~120 chars; stored as plain text
+# Generated: 2026-05-13
+# Coverage: ~200 high-frequency words, prioritising A1-B2 vocabulary
+english_word,etymology
+be,Old English 'beon'; from Proto-Germanic *beuną (to be/exist)
+have,Old English 'habban'; from Proto-Germanic *habanã (to hold)
+do,Old English 'don'; from Proto-Germanic *dōną (to do)
+say,Old English 'secgan'; from Proto-Germanic *sagjaną (to say)
+get,Old Norse 'geta' (to obtain); entered English c. 1200
+make,Old English 'macian'; from Proto-Germanic *makōną (to make/fit)
+go,Old English 'gan'; from Proto-Germanic *gāną (to go)
+know,Old English 'cnawan'; from Proto-Germanic *knēaną (to know)
+take,Old Norse 'taka' (to grasp); replaced Old English 'niman'
+see,Old English 'seon'; from Proto-Germanic *sehaną (to see)
+come,Old English 'cuman'; from Proto-Germanic *kwemaną (to come)
+think,Old English 'þencan'; from Proto-Germanic *þankijaną
+look,Old English 'locian' (to look/gaze)
+want,Old Norse 'vanta' (to lack); meaning shifted to 'desire' c. 1400
+give,Old English 'giefan'; from Proto-Germanic *gebaną (to give)
+use,Latin 'usus' (use); via Old French 'us'
+find,Old English 'findan'; from Proto-Germanic *finþaną (to find)
+tell,Old English 'tellan' (to count/narrate); from Proto-Germanic *taljaną
+ask,Old English 'ascian'; from Proto-Germanic *aiskōną (to ask)
+seem,Old Norse 'sœma' (to conform to); meaning 'appear' emerged c. 1200
+feel,Old English 'felan'; from Proto-Germanic *fōlijaną (to feel)
+try,Old French 'trier' (to sift/select); meaning 'attempt' by 1500s
+leave,Old English 'laefan' (to let remain); from Proto-Germanic *laibijaną
+call,Old Norse 'kalla' (to cry/call)
+keep,Old English 'cepan' (to seize/hold); origin uncertain
+let,Old English 'laetan' (to allow); from Proto-Germanic *lētaną
+begin,Old English 'beginnan'; from Proto-Germanic *biginnaną
+show,Old English 'sceawian' (to look at); meaning 'display' by 1200
+hear,Old English 'hieran'; from Proto-Germanic *hauzijaną (to hear)
+play,Old English 'plegan' (to exercise/frolic); origin uncertain
+run,Old English 'rinnan/iernan'; from Proto-Germanic *rennaną (to flow)
+move,Latin 'movere' (to move); via Old French 'movoir'
+live,Old English 'libban'; from Proto-Germanic *libjaną (to live)
+believe,Old English 'belefan'; from Proto-Germanic *galaubijaną (to believe)
+hold,Old English 'haldan'; from Proto-Germanic *haldaną (to hold)
+bring,Old English 'bringan'; from Proto-Germanic *bringaną (to bring)
+happen,Middle English 'happenen'; from Old Norse 'happ' (luck/chance)
+write,Old English 'writan' (to scratch/carve); from Proto-Germanic *wrītaną
+provide,Latin 'providere' (to see ahead); from 'pro-' + 'videre' (to see)
+sit,Old English 'sittan'; from Proto-Germanic *setjaną (to sit)
+stand,Old English 'standan'; from Proto-Germanic *standaną (to stand)
+lose,Old English 'losian' (to perish/be lost); from Proto-Germanic *luzaną
+pay,Old French 'payer' (to appease); from Latin 'pacare' (to pacify)
+meet,Old English 'metan' (to meet/find); from Proto-Germanic *mōtijaną
+include,Latin 'includere' (to enclose); from 'in-' + 'claudere' (to shut)
+continue,Latin 'continuare' (to connect/carry on)
+set,Old English 'settan' (to put/place); from Proto-Germanic *satjaną
+learn,Old English 'leornian'; from Proto-Germanic *liznōną (to follow/learn)
+change,Old French 'changier'; from Latin 'cambiare' (to exchange)
+lead,Old English 'laeden'; from Proto-Germanic *laidijaną (to lead)
+understand,Old English 'understandan' (to stand among/between)
+watch,Old English 'waeccan' (to be awake); from Proto-Germanic *wakōną
+follow,Old English 'folgian'; from Proto-Germanic *fulgōną (to follow)
+stop,Old English 'stoppian' (to plug/block); from Latin 'stuppa' (tow fiber)
+create,Latin 'creare' (to make/produce); from Proto-Indo-European *ker- (to grow)
+speak,Old English 'sprecan'; from Proto-Germanic *sprekaną (to speak)
+read,Old English 'raedan' (to advise/read); from Proto-Germanic *rēdaną
+spend,Old English 'spendan'; from Latin 'expendere' (to weigh out)
+grow,Old English 'growan'; from Proto-Germanic *grōaną (to grow)
+open,Old English 'openian'; from Proto-Germanic *upanaz (open/up)
+walk,Old English 'wealcan' (to roll/toss); meaning 'walk' by 1200
+win,Old English 'winnan' (to labor/fight); meaning 'be victorious' by 1300
+offer,Old English 'offrian' (to sacrifice); from Latin 'offerre' (to present)
+remember,Old French 'remembrer'; from Latin 'rememorari' (to call to mind)
+love,Old English 'lufian'; from Proto-Germanic *lubōną (to love)
+consider,Latin 'considerare' (to observe stars); from 'con-' + 'sidus' (star)
+appear,Old French 'aparoir'; from Latin 'apparere' (to be visible)
+buy,Old English 'bycgan'; from Proto-Germanic *bugjaną (to buy)
+wait,Old French 'waitier' (to watch); from Frankish *wahten
+serve,Old French 'servir'; from Latin 'servire' (to be a slave/serve)
+send,Old English 'sendan'; from Proto-Germanic *sandijaną (to send)
+expect,Latin 'exspectare' (to look out for); from 'ex-' + 'spectare' (to look)
+build,Old English 'byldan'; from 'bold' (dwelling); Germanic origin
+stay,Old French 'ester' (to stand); from Latin 'stare' (to stand)
+fall,Old English 'feallan'; from Proto-Germanic *fallaną (to fall)
+cut,Middle English 'cutten'; possibly Old Norse origin; replacing Old English 'ceorfan'
+reach,Old English 'raecan' (to stretch/reach); from Proto-Germanic *raikijaną
+kill,Old English 'cwellan' (to kill); related to 'quell'
+raise,Old Norse 'reisa' (to raise); from Proto-Germanic *raizijaną
+pass,Old French 'passer'; from Latin 'passus' (step)
+sell,Old English 'sellan' (to give/hand over); meaning 'sell' by 800s
+decide,Latin 'decidere' (to cut off/settle); from 'de-' + 'caedere' (to cut)
+return,Old French 'retourner'; from Latin 're-' + 'tornare' (to turn on a lathe)
+explain,Latin 'explanare' (to flatten/spread out); from 'ex-' + 'planus' (flat)
+develop,French 'développer' (to unwrap); from Old French 'desvoloper'
+describe,Latin 'describere' (to write down); from 'de-' + 'scribere' (to write)
+agree,Old French 'agreer' (to please); from Latin 'ad gratum' (to one's liking)
+support,Latin 'supportare' (to carry up); from 'sub-' + 'portare' (to carry)
+allow,Old French 'alouer'; blending Latin 'allocare' (to assign) + 'approbare' (approve)
+add,Latin 'addere' (to give to); from 'ad-' + 'dare' (to give)
+name,Old English 'nama'; from Proto-Germanic *namô (name)
+work,Old English 'weorc'; from Proto-Germanic *werką (work/deed)
+time,Old English 'tima'; from Proto-Germanic *timô (time)
+year,Old English 'gear'; from Proto-Germanic *jēraną (year)
+day,Old English 'daeg'; from Proto-Germanic *dagaz (day)
+man,Old English 'mann' (person); from Proto-Germanic *mann- (human)
+woman,Old English 'wifmann' (female person); from 'wif' (female) + 'mann' (person)
+child,Old English 'cild' (child/fetus); from Proto-Germanic *kiljaz (womb)
+world,Old English 'woruld' (age of man); from 'wer' (man) + 'ald' (age)
+life,Old English 'lif'; from Proto-Germanic *lībą (life/body)
+hand,Old English 'hand'; from Proto-Germanic *handuz (hand)
+part,Old French 'part'; from Latin 'pars/partis' (part/share)
+place,Old French 'place'; from Latin 'platea' (broad way)
+case,Old French 'cas'; from Latin 'casus' (a fall/event)
+week,Old English 'wice'; from Proto-Germanic *wikō (turning point)
+company,Old French 'compagnie' (fellowship); from Latin 'com-' + 'panis' (bread)
+number,Old French 'nombre'; from Latin 'numerus' (number)
+problem,Latin 'problema'; from Greek 'problema' (obstacle); from 'proballein' (to throw forward)
+point,Old French 'point'; from Latin 'punctus' (a prick/dot)
+question,Old French 'question'; from Latin 'quaestio' (inquiry)
+fact,Latin 'factum' (deed/thing done); from 'facere' (to do/make)
+example,Latin 'exemplum' (sample/pattern); from 'eximere' (to take out)
+idea,Latin 'idea'; from Greek 'idea' (form/pattern); from 'idein' (to see)
+information,Latin 'informatio' (concept/outline); from 'informare' (to shape)
+body,Old English 'bodig' (trunk/chest); ultimate origin unknown
+money,Old French 'moneie'; from Latin 'moneta' (mint); from Juno Moneta's temple
+country,Old French 'contrée'; from Latin 'contrata' (region opposite/against)
+city,Old French 'cite'; from Latin 'civitas' (citizenship/community)
+school,Old English 'scol'; from Latin 'schola'; from Greek 'skhole' (leisure/learning)
+family,Latin 'familia' (household/servants); from 'famulus' (servant)
+friend,Old English 'freond'; from Proto-Germanic *frijōndz (loved one)
+power,Old French 'pooir'; from Latin 'potere' (to be able)
+system,Latin 'systema'; from Greek 'systema' (whole composed of parts)
+program,Latin 'programma'; from Greek 'programma' (public notice); from 'prographein' (to write publicly)
+history,Latin 'historia'; from Greek 'historia' (inquiry/knowledge); from 'histor' (wise/learned)
+office,Old French 'office'; from Latin 'officium' (duty/service)
+result,Latin 'resultare' (to spring back/rebound); from 're-' + 'saltare' (to leap)
+project,Latin 'projectum' (something thrown forward); from 'pro-' + 'jacere' (to throw)
+economy,Greek 'oikonomia' (household management); from 'oikos' (house) + 'nomos' (law)
+culture,Latin 'cultura' (tending/cultivation); from 'colere' (to till/cultivate)
+language,Old French 'langage'; from 'langue' (tongue); from Latin 'lingua' (tongue)
+nature,Old French 'nature'; from Latin 'natura' (birth/character); from 'nasci' (to be born)
+science,Old French 'science'; from Latin 'scientia' (knowledge); from 'scire' (to know)
+technology,Greek 'tekhnologia' (systematic treatment); from 'tekhne' (art/craft) + 'logos' (word)
+education,Latin 'educatio' (a rearing); from 'educare' (to bring up/rear)
+government,Old French 'governement'; from Latin 'gubernare' (to steer/govern)
+society,Latin 'societas' (fellowship); from 'socius' (companion)
+important,Latin 'importantem' (significant); from 'importare' (to bring in/matter)
+different,Latin 'differentem'; from 'differre' (to carry apart/differ)
+possible,Latin 'possibilis' (that can be done); from 'posse' (to be able)
+difficult,Latin 'difficilis' (not easy); from 'dis-' (not) + 'facilis' (easy)
+necessary,Latin 'necessarius' (unavoidable); from 'necesse' (unavoidable)
+large,Latin 'largus' (abundant); meaning 'big' entered English via French
+small,Old English 'smaell' (narrow/thin); from Proto-Germanic *smalaz
+new,Old English 'niwe'; from Proto-Germanic *niwjaz (new)
+old,Old English 'ald/eald'; from Proto-Germanic *aldaz (grown up)
+long,Old English 'lang'; from Proto-Germanic *langaz (long)
+great,Old English 'great' (big/thick); from Proto-Germanic *grautaz
+little,Old English 'lytel'; from Proto-Germanic *lūtilaz (small)
+good,Old English 'god'; from Proto-Germanic *gōdaz (good/fitting)
+bad,Middle English 'badde'; origin uncertain; possibly Old English 'baeddel' (hermaphrodite)
+high,Old English 'heah'; from Proto-Germanic *hauhaz (high)
+next,Old English 'niehst' (nearest); superlative of 'neah' (near)
+early,Old English 'aerlice'; from 'aer' (before/early) + '-lice' (adverb suffix)
+own,Old English 'agen' (own); from Proto-Germanic *aiganaz (possessed)
+public,Latin 'publicus' (of the people); from 'populus' (people)
+private,Latin 'privatus' (withdrawn from public life); from 'privare' (to deprive)
+real,Latin 'realis' (actual); from 'res' (thing/matter)
+free,Old English 'freo' (acting of free will); from Proto-Germanic *frijaz (free)
+clear,Old French 'cler'; from Latin 'clarus' (clear/bright)
+strong,Old English 'strang'; from Proto-Germanic *strangaz (strong/tight)
+local,Latin 'localis' (of a place); from 'locus' (place)
+national,Latin 'nationalis' (of a nation); from 'natio' (birth/nation)
+social,Latin 'socialis' (of companionship); from 'socius' (companion)
+political,Latin 'politicus'; from Greek 'politikos' (of citizens); from 'polis' (city)
+economic,Greek 'oikonomikos' (of household management); see 'economy'
+special,Latin 'specialis' (individual/particular); from 'species' (kind/appearance)
+general,Latin 'generalis' (relating to all); from 'genus' (kind/class)
+certain,Old French 'certain'; from Latin 'certanus'; from 'certus' (settled/sure)
+common,Old French 'commun'; from Latin 'communis' (shared by all)
+available,Medieval Latin 'availabilis'; from Old French 'availer' (to be of use)
+similar,Latin 'similis' (like/resembling); from Proto-Indo-European *sem- (one/same)
+reason,Old French 'raison'; from Latin 'rationem' (reckoning/reason)
+specific,Latin 'specificus' (of a kind); from 'species' (kind) + 'facere' (to make)

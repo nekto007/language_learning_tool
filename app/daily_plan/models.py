@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
@@ -44,6 +44,10 @@ class DailyPlanEventType(enum.Enum):
     rival_strip_shown = "rival_strip_shown"
     rival_strip_dismissed = "rival_strip_dismissed"
     steps_taken_while_rival_visible = "steps_taken_while_rival_visible"
+    # Client-callable: user explicitly skipped the current active slot.
+    slot_skipped = "slot_skipped"
+    # Client-callable: user looked up a word definition inline.
+    vocab_lookup = "vocab_lookup"
     # Server-only: idempotency marker for route step additions (one per phase_kind per day).
     route_step_added = "route_step_added"
     # Server-only: emitted when route progress crosses a checkpoint boundary (H5 measurement).
@@ -74,10 +78,11 @@ class DailyPlanEvent(db.Model):
 
 
 class MissionType(enum.Enum):
-    """progress = advance in primary course, repair = fix weak spots (SRS/grammar), reading = book-first session."""
+    """progress = advance in primary course, repair = fix weak spots (SRS/grammar), reading = book-first session, listening = dictation/listening_immersion focus."""
     progress = "progress"
     repair = "repair"
     reading = "reading"
+    listening = "listening"
 
 
 class PhaseKind(enum.Enum):
@@ -121,6 +126,8 @@ MODE_CATEGORY_MAP: dict[str, str] = {
     'fun_fact_quiz': 'bonus',
     'speed_review': 'bonus',
     'word_scramble': 'bonus',
+    'dictation_lesson': 'listening',
+    'listening_lesson': 'listening',
 }
 
 
@@ -198,6 +205,7 @@ class MissionPlan:
             frozenset({'curriculum_lesson', 'lesson_practice'}),
             frozenset({'book_course_lesson', 'book_course_practice'}),
             frozenset({'srs_review', 'micro_check'}),
+            frozenset({'dictation_lesson', 'listening_lesson'}),
         }
         seen_categories: dict[str, int] = {}
         for i, phase in enumerate(self.phases):
@@ -215,3 +223,47 @@ class MissionPlan:
                 )
             elif cat is not None:
                 seen_categories[cat] = i
+
+
+# ── Daily challenge ──────────────────────────────────────────────────────────
+
+CHALLENGE_CATEGORIES = ('speed_run', 'accuracy_focus', 'listening_deep')
+
+
+class DailyChallenge(db.Model):
+    """One challenge per calendar day, shared across all users."""
+    __tablename__ = 'daily_challenges'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    challenge_date = Column(Date, nullable=False)
+    lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='SET NULL'), nullable=True)
+    bonus_xp = Column(Integer, nullable=False, default=50)
+    category = Column(String(30), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    completions = relationship('DailyChallengeCompletion', back_populates='challenge')
+
+    __table_args__ = (
+        UniqueConstraint('challenge_date', name='uq_daily_challenge_date'),
+        Index('idx_daily_challenges_date', 'challenge_date'),
+    )
+
+
+class DailyChallengeCompletion(db.Model):
+    """Per-user completion record for the daily challenge."""
+    __tablename__ = 'daily_challenge_completions'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    challenge_id = Column(Integer, ForeignKey('daily_challenges.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    completed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    score = Column(Float, nullable=True)
+    time_spent_seconds = Column(Integer, nullable=True)
+
+    challenge = relationship('DailyChallenge', back_populates='completions')
+
+    __table_args__ = (
+        UniqueConstraint('challenge_id', 'user_id', name='uq_challenge_completion_user'),
+        Index('idx_challenge_completions_user', 'user_id'),
+        Index('idx_challenge_completions_challenge', 'challenge_id'),
+    )

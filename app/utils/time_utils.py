@@ -47,6 +47,15 @@ def get_user_local_date(
     return datetime.now(tz_obj).date()
 
 
+def get_user_local_hour(
+    user_id: int,
+    db_session: Any = None,
+) -> int:
+    """Return the current hour (0-23) in the user's timezone."""
+    tz_obj = _get_user_timezone(user_id, db_session)
+    return datetime.now(tz_obj).hour
+
+
 def get_user_local_day_bounds(
     user_id: int,
     db_session: Any = None,

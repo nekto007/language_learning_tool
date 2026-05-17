@@ -1,0 +1,14 @@
+[
+  {
+    "external_key": "fixture:audio_fill_blank:A1:99:no_audio",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "audio_fill_blank",
+    "title": "Bad: AFB without audio_url",
+    "content": {
+      "items": [
+        {"text_with_gap": "I ___ to school.", "answer": "go"}
+      ]
+    }
+  }
+]

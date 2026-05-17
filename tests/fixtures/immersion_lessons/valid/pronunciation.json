@@ -1,0 +1,23 @@
+[
+  {
+    "external_key": "fixture:pronunciation:A1:01",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "pronunciation",
+    "title": "Произношение: пары /θ/ и /s/",
+    "title_en": "Pronunciation: /θ/ vs /s/",
+    "content": {
+      "items": [
+        {
+          "word": "think",
+          "pronunciation_hint": "Stick the tongue between teeth: /θɪŋk/",
+          "audio_url": "/static/audio/fixture_pron_think.mp3"
+        },
+        {
+          "word": "sink",
+          "pronunciation_hint": "Keep the tongue behind teeth: /sɪŋk/"
+        }
+      ]
+    }
+  }
+]

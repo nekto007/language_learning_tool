@@ -171,6 +171,76 @@
     </a>
     {% endif %}
 
+    <!-- Weekly Learning Report (task 78) — Monday recap of last week -->
+    {% if weekly_report is defined and weekly_report %}
+    {% set wr = weekly_report %}
+    <div class="dash-weekly-report" id="weekly-report-card" role="region" aria-label="Итоги прошлой недели" data-dismiss-key="{{ wr.dismiss_key }}">
+        <div class="dash-weekly-report__header">
+            <div class="dash-weekly-report__title">
+                <span aria-hidden="true">&#128197;</span> Итоги прошлой недели
+                <span class="dash-weekly-report__period">{{ wr.week_label }}</span>
+            </div>
+            <button type="button" class="dash-weekly-report__close" aria-label="Закрыть" data-action="dismiss-weekly-report">&times;</button>
+        </div>
+        <div class="dash-weekly-report__grid">
+            <div class="dash-weekly-report__stat">
+                <div class="dash-weekly-report__stat-value">{{ wr.words_reviewed }}</div>
+                <div class="dash-weekly-report__stat-label">слов повторено</div>
+                {% if wr.vs_prev_week.words_diff > 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--up">+{{ wr.vs_prev_week.words_diff }}</div>
+                {% elif wr.vs_prev_week.words_diff < 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--down">{{ wr.vs_prev_week.words_diff }}</div>
+                {% endif %}
+            </div>
+            <div class="dash-weekly-report__stat">
+                <div class="dash-weekly-report__stat-value">{{ wr.lessons_completed }}</div>
+                <div class="dash-weekly-report__stat-label">уроков</div>
+                {% if wr.vs_prev_week.lessons_diff > 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--up">+{{ wr.vs_prev_week.lessons_diff }}</div>
+                {% elif wr.vs_prev_week.lessons_diff < 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--down">{{ wr.vs_prev_week.lessons_diff }}</div>
+                {% endif %}
+            </div>
+            <div class="dash-weekly-report__stat">
+                <div class="dash-weekly-report__stat-value">{{ wr.days_secured }}</div>
+                <div class="dash-weekly-report__stat-label">дней выполнено</div>
+                {% if wr.vs_prev_week.days_diff > 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--up">+{{ wr.vs_prev_week.days_diff }}</div>
+                {% elif wr.vs_prev_week.days_diff < 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--down">{{ wr.vs_prev_week.days_diff }}</div>
+                {% endif %}
+            </div>
+            <div class="dash-weekly-report__stat">
+                <div class="dash-weekly-report__stat-value">{{ wr.total_minutes }}</div>
+                <div class="dash-weekly-report__stat-label">минут</div>
+                {% if wr.vs_prev_week.minutes_diff > 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--up">+{{ wr.vs_prev_week.minutes_diff }}</div>
+                {% elif wr.vs_prev_week.minutes_diff < 0 %}
+                <div class="dash-weekly-report__diff dash-weekly-report__diff--down">{{ wr.vs_prev_week.minutes_diff }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <script>
+    (function () {
+        var card = document.getElementById('weekly-report-card');
+        if (!card) return;
+        var btn = card.querySelector('[data-action="dismiss-weekly-report"]');
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            var key = card.getAttribute('data-dismiss-key');
+            fetch('/api/weekly-report/dismiss', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('meta[name=csrf-token]') || {}).content || ''},
+                body: JSON.stringify({dismiss_key: key}),
+                credentials: 'same-origin'
+            });
+            card.style.display = 'none';
+        });
+    })();
+    </script>
+    {% endif %}
+
     <!-- Daily Plan -->
     <div id="dash-plan" class="dash-plan">
         <h2 class="dash-plan__heading">План на сегодня</h2>
@@ -183,7 +253,19 @@
         </div>
         {% endif %}
 
-    {% if linear_plan %}
+    {% if plan_paused_until %}
+        <div class="plan-paused-banner" role="status" aria-live="polite">
+            <span class="plan-paused-banner__icon" aria-hidden="true">&#9208;</span>
+            <div class="plan-paused-banner__body">
+                <p class="plan-paused-banner__title">План приостановлен</p>
+                <p class="plan-paused-banner__subtitle">Возобновится {{ plan_paused_until }}</p>
+            </div>
+            <form method="post" action="/api/plan/resume" class="plan-paused-banner__resume-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn--sm plan-paused-banner__resume-btn">Возобновить сейчас</button>
+            </form>
+        </div>
+    {% elif linear_plan %}
         {# ══════════════════════════════════════════
            LINEAR DAILY PLAN (curriculum-spine UI)
            ══════════════════════════════════════════ #}
@@ -1060,6 +1142,40 @@
         </div>
     </div>
     {% endif %}
+    {% endif %}
+
+    <!-- Listening stats compact widget (task 9) -->
+    {% if listening_stats and listening_stats.total_lessons > 0 %}
+    <div class="dash-listening-stats">
+        <span class="dash-listening-stats__icon">&#127911;</span>
+        <span class="dash-listening-stats__label">Диктанты:</span>
+        <span class="dash-listening-stats__value">{{ listening_stats.total_lessons }} {% if listening_stats.total_lessons == 1 %}урок{% elif listening_stats.total_lessons < 5 %}урока{% else %}уроков{% endif %}</span>
+        {% if listening_stats.avg_score > 0 %}
+        <span class="dash-listening-stats__sep">·</span>
+        <span class="dash-listening-stats__score">ср. {{ listening_stats.avg_score | int }}%</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Writing stats compact widget (task 26) -->
+    {% if writing_stats and writing_stats.total_attempts > 0 %}
+    <div class="dash-writing-stats">
+        <span class="dash-writing-stats__icon">&#9997;</span>
+        <span class="dash-writing-stats__label">Письмо:</span>
+        <span class="dash-writing-stats__value">{{ writing_stats.total_attempts }} {% if writing_stats.total_attempts == 1 %}попытка{% elif writing_stats.total_attempts < 5 %}попытки{% else %}попыток{% endif %}</span>
+        {% if writing_stats.avg_word_count > 0 %}
+        <span class="dash-writing-stats__sep">·</span>
+        <span class="dash-writing-stats__avg">avg {{ writing_stats.avg_word_count | int }} сл.</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Daily study minutes compact widget (task 76) -->
+    {% if minutes_studied_today and minutes_studied_today > 0 %}
+    <div class="dash-study-minutes">
+        <span class="dash-study-minutes__icon">&#128337;</span>
+        <span class="dash-study-minutes__text">Изучал{% if current_user.gender == 'female' %}а{% endif %} {{ minutes_studied_today }} мин сегодня</span>
+    </div>
     {% endif %}
 
     <!-- Telegram Banner -->
@@ -4259,6 +4375,24 @@ a.dash-hero__cta:focus {
 .dash-weekly__challenge-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
 .dash-weekly__challenge-fill { height: 100%; background: linear-gradient(90deg, #5046e5, #7c3aed); border-radius: 3px; transition: width 0.5s; }
 .dash-weekly__challenge-fill--done { background: linear-gradient(90deg, #22c55e, #16a34a); }
+
+/* ── Task 9: Listening stats compact widget ── */
+.dash-listening-stats {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--dash-card-bg);
+    border-radius: 10px;
+    border: 1px solid var(--dash-card-border, #e5e7eb);
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+}
+.dash-listening-stats__icon { font-size: 1rem; }
+.dash-listening-stats__label { color: var(--color-text-secondary, #6b7280); }
+.dash-listening-stats__value { font-weight: 600; color: var(--color-text-primary, #0f172a); }
+.dash-listening-stats__sep { color: var(--color-text-secondary, #6b7280); }
+.dash-listening-stats__score { color: var(--color-primary, #5046e5); font-weight: 600; }
 
 /* ── Task 7 (compact redesign): Mission XP widget wrapper — lives inside .dash-plan ── */
 .dash-mission__xp {

@@ -13,7 +13,7 @@
     <i class="fas fa-plus me-1"></i> {{ _('Create New Topic') }}
 </a>
 {% endset %}
-{{ page_header(_('Manage Topics'), _('Organize words by topics')) }}
+{{ page_header(_('Manage Topics'), _('Organize words by topics'), actions=actions) }}
 
     <div class="card">
       <div class="card-header bg-light">
@@ -46,8 +46,8 @@
                     <a href="{{ url_for('topic_admin.edit_topic', topic_id=topic.id) }}" class="btn btn-sm btn-primary">
                       <i class="fas fa-edit me-1"></i> {{ _('Edit') }}
                     </a>
-                    <button type="button" class="btn btn-sm btn-danger" data-toggle="modal"
-                            data-target="#deleteTopicModal{{ topic.id }}">
+                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                            data-bs-target="#deleteTopicModal{{ topic.id }}">
                       <i class="fas fa-trash me-1"></i> {{ _('Delete') }}
                     </button>
                   </div>
@@ -60,7 +60,7 @@
                         <div class="modal-header">
                           <h5 class="modal-title"
                               id="deleteTopicModalLabel{{ topic.id }}">{{ _('Confirm Delete') }}</h5>
-                          <button type="button" class="btn-close" data-dismiss="modal" aria-label="Close"></button>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body text-start">
                           {{ _('Are you sure you want to delete the topic') }} <strong>{{ topic.name }}</strong>?
@@ -71,7 +71,7 @@
                         </div>
                         <div class="modal-footer">
                           <button type="button" class="btn btn-secondary"
-                                  data-dismiss="modal">{{ _('Cancel') }}</button>
+                                  data-bs-dismiss="modal">{{ _('Cancel') }}</button>
                           <form method="POST" action="{{ url_for('topic_admin.delete_topic', topic_id=topic.id) }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-danger">{{ _('Delete') }}</button>

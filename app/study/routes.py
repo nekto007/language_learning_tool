@@ -1,6 +1,8 @@
 import logging
 from datetime import datetime, timezone
 
+from sqlalchemy.exc import IntegrityError
+
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
@@ -212,6 +214,17 @@ def index():
         if best_due <= 0:
             most_urgent_deck = None
 
+    from app.study.insights_service import get_writing_stats as _get_writing_stats, get_weak_areas as _get_weak_areas
+    try:
+        writing_stats = _get_writing_stats(current_user.id)
+    except Exception:
+        writing_stats = None
+
+    try:
+        weak_areas = _get_weak_areas(current_user.id)
+    except Exception:
+        weak_areas = []
+
     return render_template(
         'study/index.html',
         due_items_count=due_items_count,
@@ -224,7 +237,112 @@ def index():
         public_decks=public_decks,
         telegram_linked=telegram_linked,
         most_urgent_deck=most_urgent_deck,
+        writing_stats=writing_stats,
+        weak_areas=weak_areas,
     )
+
+
+@study.route('/vocab-map')
+@login_required
+@module_required('study')
+def vocab_map():
+    """Vocabulary mastery map: grid of modules with SRS state breakdown."""
+    from app.curriculum.models import CEFRLevel, Lessons, Module
+    from app.words.models import CollectionWordLink
+
+    # 1. Total words per module (from vocabulary lessons)
+    total_rows = db.session.query(
+        Lessons.module_id,
+        func.count(func.distinct(CollectionWordLink.word_id)).label('total'),
+    ).join(
+        CollectionWordLink, CollectionWordLink.collection_id == Lessons.collection_id,
+    ).filter(
+        Lessons.type == 'vocabulary',
+        Lessons.collection_id.isnot(None),
+    ).group_by(Lessons.module_id).all()
+
+    total_by_module = {row.module_id: row.total for row in total_rows}
+
+    # 2. Mastered words per module: user_word status='review' AND min(interval) >= threshold
+    mastered_subq = db.session.query(
+        UserWord.word_id,
+    ).join(
+        UserCardDirection, UserCardDirection.user_word_id == UserWord.id,
+    ).filter(
+        UserWord.user_id == current_user.id,
+        UserWord.status == 'review',
+    ).group_by(
+        UserWord.id, UserWord.word_id,
+    ).having(
+        func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS,
+    ).subquery()
+
+    mastered_rows = db.session.query(
+        Lessons.module_id,
+        func.count(func.distinct(CollectionWordLink.word_id)).label('mastered'),
+    ).join(
+        CollectionWordLink, CollectionWordLink.collection_id == Lessons.collection_id,
+    ).filter(
+        Lessons.type == 'vocabulary',
+        Lessons.collection_id.isnot(None),
+        CollectionWordLink.word_id.in_(mastered_subq),
+    ).group_by(Lessons.module_id).all()
+
+    mastered_by_module = {row.module_id: row.mastered for row in mastered_rows}
+
+    # 3. Started words per module: user has a UserWord entry (any state)
+    started_rows = db.session.query(
+        Lessons.module_id,
+        func.count(func.distinct(UserWord.word_id)).label('started'),
+    ).join(
+        CollectionWordLink, CollectionWordLink.collection_id == Lessons.collection_id,
+    ).join(
+        UserWord, and_(
+            UserWord.word_id == CollectionWordLink.word_id,
+            UserWord.user_id == current_user.id,
+        ),
+    ).filter(
+        Lessons.type == 'vocabulary',
+        Lessons.collection_id.isnot(None),
+    ).group_by(Lessons.module_id).all()
+
+    started_by_module = {row.module_id: row.started for row in started_rows}
+
+    # 4. Assemble stats per module ordered by level then module number
+    modules = Module.query.join(CEFRLevel).order_by(CEFRLevel.order, Module.number).all()
+
+    module_stats = []
+    for module in modules:
+        total = total_by_module.get(module.id, 0)
+        if total == 0:
+            continue  # Skip modules with no vocabulary words
+        started = started_by_module.get(module.id, 0)
+        mastered = mastered_by_module.get(module.id, 0)
+        in_learning = max(0, started - mastered)
+        not_started = max(0, total - started)
+        mastery_pct = round(mastered / total * 100) if total > 0 else 0
+
+        if started == 0:
+            color_class = 'vocab-map__module--gray'
+        elif mastery_pct >= 80:
+            color_class = 'vocab-map__module--green'
+        elif mastery_pct >= 50:
+            color_class = 'vocab-map__module--yellow'
+        else:
+            color_class = 'vocab-map__module--red'
+
+        module_stats.append({
+            'module': module,
+            'level_code': module.level.code if module.level else '',
+            'total': total,
+            'mastered': mastered,
+            'in_learning': in_learning,
+            'not_started': not_started,
+            'mastery_pct': mastery_pct,
+            'color_class': color_class,
+        })
+
+    return render_template('study/vocab_map.html', module_stats=module_stats)
 
 
 @study.route('/settings', methods=['GET', 'POST'])
@@ -242,8 +360,104 @@ def settings():
         return redirect(url_for('study.index'))
 
     bot_username = current_app.config.get('TELEGRAM_BOT_USERNAME', 'llt_englishbot')
+    plan_difficulty = getattr(current_user, 'plan_difficulty', 'normal') or 'normal'
+    onboarding_focus = getattr(current_user, 'onboarding_focus', None) or 'all'
+    if onboarding_focus and ',' in onboarding_focus:
+        onboarding_focus = onboarding_focus.split(',')[0].strip() or 'all'
     return render_template('study/settings.html', form=form,
-                           telegram_bot_username=bot_username)
+                           telegram_bot_username=bot_username,
+                           plan_difficulty=plan_difficulty,
+                           onboarding_focus=onboarding_focus)
+
+
+_VALID_DIFFICULTIES = {'light', 'normal', 'intensive'}
+
+
+@study.route('/settings/difficulty', methods=['POST'])
+@login_required
+@module_required('study')
+def settings_difficulty():
+    """Update plan_difficulty for the current user."""
+    from app.auth.models import User as AuthUser
+    difficulty = request.form.get('plan_difficulty', 'normal')
+    if difficulty not in _VALID_DIFFICULTIES:
+        flash(_('Неверный режим сложности'), 'danger')
+        return redirect(url_for('study.settings'))
+    user = db.session.get(AuthUser, current_user.id)
+    if user is not None:
+        user.plan_difficulty = difficulty
+        db.session.commit()
+    flash(_('Режим плана обновлён'), 'success')
+    return redirect(url_for('study.settings'))
+
+
+@study.route('/settings/goals', methods=['POST'])
+@login_required
+@module_required('study')
+def settings_goals():
+    """Update daily_word_goal and weekly_lesson_goal for the current user."""
+    from app.auth.models import User as AuthUser
+    try:
+        daily_word_goal = int(request.form.get('daily_word_goal', 10))
+        weekly_lesson_goal = int(request.form.get('weekly_lesson_goal', 5))
+    except (TypeError, ValueError):
+        flash(_('Неверные значения целей'), 'danger')
+        return redirect(url_for('study.settings'))
+
+    daily_word_goal = max(1, min(50, daily_word_goal))
+    weekly_lesson_goal = max(1, min(30, weekly_lesson_goal))
+
+    user = db.session.get(AuthUser, current_user.id)
+    if user is not None:
+        user.daily_word_goal = daily_word_goal
+        user.weekly_lesson_goal = weekly_lesson_goal
+        db.session.commit()
+    flash(_('Цели обновлены'), 'success')
+    return redirect(url_for('study.settings'))
+
+
+_VALID_FOCUSES = {'all', 'grammar', 'vocabulary', 'reading', 'speaking'}
+
+
+@study.route('/settings/focus', methods=['POST'])
+@login_required
+@module_required('study')
+def settings_focus():
+    """Update onboarding_focus for the current user without re-onboarding."""
+    from app.auth.models import User as AuthUser
+    focus = request.form.get('onboarding_focus', 'all')
+    if focus not in _VALID_FOCUSES:
+        flash(_('Неверное значение акцента обучения'), 'danger')
+        return redirect(url_for('study.settings'))
+    user = db.session.get(AuthUser, current_user.id)
+    if user is not None:
+        user.onboarding_focus = focus if focus != 'all' else None
+        db.session.commit()
+    flash(_('Акцент обучения обновлён'), 'success')
+    return redirect(url_for('study.settings'))
+
+
+def _get_custom_list_word_ids(list_id: int, user_id: int):
+    """Return CollectionWords IDs matching entries in a custom list owned by user_id.
+
+    Returns None if the list is not found or not owned by user_id.
+    Returns an empty list if the list has entries but none match CollectionWords.
+    """
+    from app.study.models import CustomWordList
+    from app.words.models import CollectionWords
+
+    word_list = CustomWordList.query.get(list_id)
+    if not word_list or word_list.user_id != user_id:
+        return None
+
+    entry_words = [e.word.lower() for e in word_list.entries.all()]
+    if not entry_words:
+        return []
+
+    matched = CollectionWords.query.filter(
+        func.lower(CollectionWords.english_word).in_(entry_words)
+    ).all()
+    return [w.id for w in matched]
 
 
 @study.route('/cards')
@@ -253,8 +467,16 @@ def cards():
     settings = StudySettings.get_settings(current_user.id)
     source = request.args.get('source', 'auto')
     from_daily_plan = request.args.get('from') == 'daily_plan'
-    deck_word_ids = get_daily_plan_mix_word_ids(current_user.id) if source == 'daily_plan_mix' else None
+    list_id_arg = request.args.get('list_id', type=int)
+    if source == 'custom_list' and list_id_arg:
+        deck_word_ids = _get_custom_list_word_ids(list_id_arg, current_user.id)
+    elif source == 'daily_plan_mix':
+        deck_word_ids = get_daily_plan_mix_word_ids(current_user.id)
+    else:
+        deck_word_ids = None
     fetch_cards_params = {'source': source}
+    if list_id_arg and source == 'custom_list':
+        fetch_cards_params['list_id'] = str(list_id_arg)
     if request.args.get('from'):
         fetch_cards_params['from'] = request.args['from']
     if request.args.get('slot'):
@@ -287,7 +509,7 @@ def cards():
         limit_reached=counts['limit_reached'],
         daily_limit=counts['new_limit'],
         new_cards_today=counts['new_today'],
-        fc_title='Дневной микс' if source == 'daily_plan_mix' else 'Карточки',
+        fc_title='Дневной микс' if source == 'daily_plan_mix' else ('Мой список' if source == 'custom_list' else 'Карточки'),
         fc_back_url=url_for('words.dashboard') if from_daily_plan else url_for('study.index'),
         fc_cards=[],
         fc_fetch_cards_url='/study/api/get-study-items',
@@ -379,6 +601,11 @@ def stats():
     accuracy_trend = StatsService.get_accuracy_trend(current_user.id)
     mastered_over_time = StatsService.get_mastered_over_time(current_user.id)
     study_heatmap = StatsService.get_study_heatmap(current_user.id)
+    try:
+        srs_by_source = StatsService.get_srs_accuracy_by_source(current_user.id)
+    except Exception:
+        logger.exception("srs_by_source failed for user %s", current_user.id)
+        srs_by_source = []
 
     from app.study.insights_service import get_best_study_time
     from app.study.services.session_service import SessionService
@@ -467,15 +694,20 @@ def stats():
         best_study_time=best_study_time,
         session_stats=session_stats,
         route_progress_state=route_progress_state,
+        srs_by_source=srs_by_source,
     )
 
 
 @study.route('/insights')
 @login_required
+@module_required('study')
 def insights():
     from app.study.insights_service import (
         get_activity_heatmap, get_best_study_time, get_words_at_risk,
-        get_grammar_weaknesses, get_reading_speed_trend, get_learning_summary
+        get_grammar_weaknesses, get_reading_speed_trend, get_learning_summary,
+        get_skills_balance, get_grammar_mastery_by_topic, get_level_eta,
+        get_accuracy_trend, get_comprehension_by_type, get_study_time_distribution,
+        get_personal_bests,
     )
     from app.achievements.streak_service import get_milestone_history
 
@@ -490,16 +722,528 @@ def insights():
     except Exception:
         logger.exception("milestone_history failed for user %s", current_user.id)
         milestone_history = []
+    try:
+        skills_balance = get_skills_balance(current_user.id)
+    except Exception:
+        logger.exception("skills_balance failed for user %s", current_user.id)
+        skills_balance = {'vocabulary': 0, 'grammar': 0, 'reading': 0, 'listening': 0, 'writing': 0, 'speaking': 0}
+    try:
+        grammar_mastery = get_grammar_mastery_by_topic(current_user.id)
+    except Exception:
+        logger.exception("grammar_mastery failed for user %s", current_user.id)
+        grammar_mastery = []
+    try:
+        level_eta = get_level_eta(current_user.id)
+    except Exception:
+        logger.exception("level_eta failed for user %s", current_user.id)
+        level_eta = None
+    try:
+        acc_trend = get_accuracy_trend(current_user.id)
+    except Exception:
+        logger.exception("accuracy_trend failed for user %s", current_user.id)
+        acc_trend = {'dates': [], 'srs_accuracy': [], 'quiz_accuracy': []}
+    try:
+        comprehension_by_type = get_comprehension_by_type(current_user.id)
+    except Exception:
+        logger.exception("comprehension_by_type failed for user %s", current_user.id)
+        comprehension_by_type = []
+    try:
+        tz = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
+        study_time_dist = get_study_time_distribution(current_user.id, tz=tz)
+    except Exception:
+        logger.exception("study_time_distribution failed for user %s", current_user.id)
+        study_time_dist = {'hours': list(range(24)), 'counts': [0] * 24, 'peak_hour': None}
+    try:
+        personal_bests = get_personal_bests(current_user.id)
+    except Exception:
+        logger.exception("personal_bests failed for user %s", current_user.id)
+        personal_bests = {'longest_streak_days': 0, 'max_words_in_day': 0, 'best_week_lessons': 0}
 
     return render_template('study/insights.html',
         heatmap=heatmap,
         best_time=best_time,
         at_risk_words=at_risk,
         grammar_weaknesses=weaknesses,
+        grammar_mastery=grammar_mastery,
         reading_trend=reading_trend,
         summary=summary,
         milestone_history=milestone_history,
+        skills_balance=skills_balance,
+        level_eta=level_eta,
+        accuracy_trend=acc_trend,
+        comprehension_by_type=comprehension_by_type,
+        study_time_dist=study_time_dist,
+        personal_bests=personal_bests,
     )
+
+
+_WRITING_TYPES = ['writing_prompt', 'translation', 'sentence_correction']
+
+
+@study.route('/writing')
+@login_required
+@module_required('study')
+def writing_history():
+    from app.curriculum.models import Lessons, UserWritingAttempt
+
+    page = request.args.get('page', 1, type=int)
+    type_filter = request.args.get('type', '')
+    per_page = 20
+
+    query = (
+        db.session.query(UserWritingAttempt, Lessons)
+        .join(Lessons, UserWritingAttempt.lesson_id == Lessons.id)
+        .filter(
+            UserWritingAttempt.user_id == current_user.id,
+            Lessons.type.in_(_WRITING_TYPES),
+        )
+    )
+
+    if type_filter in _WRITING_TYPES:
+        query = query.filter(Lessons.type == type_filter)
+
+    query = query.order_by(UserWritingAttempt.created_at.desc())
+
+    total = query.count()
+    rows = query.offset((page - 1) * per_page).limit(per_page).all()
+
+    items = []
+    for attempt, lesson in rows:
+        content = lesson.content or {}
+        if lesson.type == 'writing_prompt':
+            prompt = content.get('prompt', '')
+        elif lesson.type == 'translation':
+            prompt = content.get('russian', '')
+        elif lesson.type == 'sentence_correction':
+            prompt = content.get('incorrect_sentence', '')
+        else:
+            prompt = ''
+        items.append({
+            'attempt': attempt,
+            'lesson': lesson,
+            'prompt': prompt,
+        })
+
+    total_pages = max(1, (total + per_page - 1) // per_page)
+
+    return render_template(
+        'study/writing_history.html',
+        items=items,
+        page=page,
+        total_pages=total_pages,
+        total=total,
+        type_filter=type_filter,
+        writing_types=_WRITING_TYPES,
+    )
+
+
+@study.route('/calendar')
+@login_required
+@module_required('study')
+def plan_calendar():
+    """Plan completion heatmap: last 90 days from DailyPlanLog."""
+    from datetime import timedelta
+    from app.daily_plan.models import DailyPlanLog
+    from app.utils.time_utils import get_user_local_date
+
+    today = get_user_local_date(current_user.id, db)
+    start_date = today - timedelta(days=89)
+
+    rows = db.session.query(DailyPlanLog).filter(
+        DailyPlanLog.user_id == current_user.id,
+        DailyPlanLog.plan_date >= start_date,
+        DailyPlanLog.plan_date <= today,
+    ).all()
+
+    by_date = {row.plan_date: row for row in rows}
+
+    # Build list of 90 days: each cell has date, level (0/1/2), day_secured
+    days = []
+    current = start_date
+    while current <= today:
+        row = by_date.get(current)
+        if row is None:
+            level = 0
+            day_secured = False
+        elif row.secured_at is not None:
+            level = 2
+            day_secured = True
+        else:
+            level = 1
+            day_secured = False
+        days.append({
+            'date': current,
+            'date_str': current.strftime('%Y-%m-%d'),
+            'label': current.strftime('%-d %b'),
+            'level': level,
+            'day_secured': day_secured,
+        })
+        current += timedelta(days=1)
+
+    # Group into weeks (columns) for 13-week grid
+    # Pad to start on Monday
+    weeks = []
+    week = []
+    first_day = days[0]['date']
+    # ISO weekday: Monday=1, Sunday=7. Pad start with None
+    padding = (first_day.isoweekday() - 1) % 7
+    week = [None] * padding
+    for d in days:
+        week.append(d)
+        if len(week) == 7:
+            weeks.append(week)
+            week = []
+    if week:
+        while len(week) < 7:
+            week.append(None)
+        weeks.append(week)
+
+    total_secured = sum(1 for d in days if d['day_secured'])
+    total_active = sum(1 for d in days if d['level'] > 0)
+
+    return render_template(
+        'study/plan_calendar.html',
+        weeks=weeks,
+        days=days,
+        total_secured=total_secured,
+        total_active=total_active,
+        start_date=start_date,
+        today=today,
+    )
+
+
+@study.route('/weekly')
+@login_required
+@module_required('study')
+def weekly_plan():
+    """Weekly plan overview: current week Mon-Sun with today's actual plan and projections."""
+    from datetime import timedelta
+    from app.daily_plan.models import DailyPlanLog
+    from app.daily_plan.linear.plan import SLOT_ESTIMATED_MINUTES
+    from app.utils.time_utils import get_user_local_date
+
+    today = get_user_local_date(current_user.id, db)
+    # Always show 3 past days + today + 3 future days (7 days total)
+    start_day = today - timedelta(days=3)
+    week_days = [start_day + timedelta(days=i) for i in range(7)]
+
+    logs = db.session.query(DailyPlanLog).filter(
+        DailyPlanLog.user_id == current_user.id,
+        DailyPlanLog.plan_date >= week_days[0],
+        DailyPlanLog.plan_date <= week_days[-1],
+    ).all()
+    by_date = {row.plan_date: row for row in logs}
+
+    today_plan = None
+    if getattr(current_user, 'use_linear_plan', False):
+        try:
+            from app.daily_plan.linear.plan import get_linear_plan
+            today_plan = get_linear_plan(current_user.id, db.session)
+        except Exception:
+            pass
+
+    slot_priority = ['curriculum', 'srs', 'reading', 'listening', 'writing', 'error_review']
+    default_slot_kinds = ['curriculum', 'srs', 'reading']
+    default_estimated = sum(SLOT_ESTIMATED_MINUTES.get(k, 10) for k in default_slot_kinds)
+
+    days = []
+    for d in week_days:
+        is_today = d == today
+        is_past = d < today
+        log = by_date.get(d)
+        day_secured = log.secured_at is not None if log else False
+
+        if is_today:
+            if today_plan and today_plan.get('slots'):
+                seen = set()
+                slot_kinds = []
+                for s in today_plan['slots']:
+                    k = s['kind']
+                    if k not in seen:
+                        seen.add(k)
+                        slot_kinds.append(k)
+                slot_kinds.sort(key=lambda k: slot_priority.index(k) if k in slot_priority else 99)
+                estimated_minutes = today_plan.get('total_estimated_minutes', 0)
+                completed_count = sum(1 for s in today_plan['slots'] if s.get('completed'))
+                total_slots = len(today_plan['slots'])
+            else:
+                slot_kinds = list(default_slot_kinds)
+                estimated_minutes = default_estimated
+                completed_count = 0
+                total_slots = len(default_slot_kinds)
+            status = 'current'
+        elif is_past:
+            slot_kinds = list(default_slot_kinds) if log is not None else []
+            estimated_minutes = 0
+            completed_count = 0
+            total_slots = 0
+            status = 'past'
+        else:
+            slot_kinds = list(default_slot_kinds)
+            estimated_minutes = default_estimated
+            completed_count = 0
+            total_slots = len(default_slot_kinds)
+            status = 'future'
+
+        days.append({
+            'date': d,
+            'date_str': d.strftime('%Y-%m-%d'),
+            'label': d.strftime('%-d %b'),
+            'weekday_name': d.strftime('%a'),
+            'status': status,
+            'slot_kinds': slot_kinds,
+            'estimated_minutes': estimated_minutes,
+            'completed_count': completed_count,
+            'total_slots': total_slots,
+            'day_secured': day_secured,
+        })
+
+    return render_template('study/weekly_plan.html', days=days, today=today)
+
+
+@study.route('/plan-stats')
+@login_required
+@module_required('study')
+def plan_stats():
+    """Plan performance analytics: last 30 days from DailyPlanLog + StreakEvent."""
+    from datetime import timedelta
+    from app.daily_plan.models import DailyPlanLog
+    from app.achievements.models import StreakEvent
+    from app.utils.time_utils import get_user_local_date
+
+    today = get_user_local_date(current_user.id, db)
+    start_date = today - timedelta(days=29)
+
+    logs = db.session.query(DailyPlanLog).filter(
+        DailyPlanLog.user_id == current_user.id,
+        DailyPlanLog.plan_date >= start_date,
+        DailyPlanLog.plan_date <= today,
+    ).all()
+    by_date = {row.plan_date: row for row in logs}
+
+    # Count linear XP events per day to approximate slots completed
+    xp_events = db.session.query(StreakEvent).filter(
+        StreakEvent.user_id == current_user.id,
+        StreakEvent.event_type.like('xp_linear%'),
+        StreakEvent.event_date >= start_date,
+        StreakEvent.event_date <= today,
+    ).all()
+    slots_by_date: dict[date, set] = {}
+    for ev in xp_events:
+        slots_by_date.setdefault(ev.event_date, set()).add(ev.event_type)
+
+    # Build per-day data for last 30 days
+    chart_days = []
+    current_d = start_date
+    while current_d <= today:
+        log = by_date.get(current_d)
+        active = log is not None
+        secured = active and log.secured_at is not None
+        slots_done = len(slots_by_date.get(current_d, set()))
+        chart_days.append({
+            'date': current_d,
+            'date_str': current_d.strftime('%Y-%m-%d'),
+            'label': current_d.strftime('%-d %b'),
+            'active': active,
+            'secured': secured,
+            'slots_completed': slots_done,
+        })
+        current_d += timedelta(days=1)
+
+    total_active = sum(1 for d in chart_days if d['active'])
+    total_secured = sum(1 for d in chart_days if d['secured'])
+    total_days = 30
+
+    completion_rate = round(total_active / total_days * 100) if total_days else 0
+    day_secured_rate = round(total_secured / total_active * 100) if total_active else 0
+
+    active_slot_counts = [d['slots_completed'] for d in chart_days if d['active'] and d['slots_completed'] > 0]
+    avg_slots_completed = round(sum(active_slot_counts) / len(active_slot_counts), 1) if active_slot_counts else 0.0
+
+    # Trend: compare first 15 vs last 15 days
+    first_half = sum(1 for d in chart_days[:15] if d['active'])
+    second_half = sum(1 for d in chart_days[15:] if d['active'])
+    if first_half == 0:
+        trend = 'up' if second_half > 0 else 'flat'
+    elif second_half > first_half:
+        trend = 'up'
+    elif second_half < first_half:
+        trend = 'down'
+    else:
+        trend = 'flat'
+
+    return render_template(
+        'study/plan_stats.html',
+        chart_days=chart_days,
+        total_active=total_active,
+        total_secured=total_secured,
+        completion_rate=completion_rate,
+        day_secured_rate=day_secured_rate,
+        avg_slots_completed=avg_slots_completed,
+        trend=trend,
+        start_date=start_date,
+        today=today,
+    )
+
+
+def _parse_bulk_import(text: str) -> list[tuple[str, str]]:
+    """Parse bulk import text into (word, translation) pairs.
+
+    Accepts lines in 'word - translation' or 'word|translation' format.
+    Returns only well-formed pairs; skips blank or malformed lines.
+    """
+    pairs: list[tuple[str, str]] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if ' - ' in line:
+            parts = line.split(' - ', 1)
+        elif '|' in line:
+            parts = line.split('|', 1)
+        else:
+            continue
+        word = parts[0].strip()
+        translation = parts[1].strip()
+        if word and translation:
+            pairs.append((word, translation))
+    return pairs
+
+
+@study.route('/lists', methods=['GET', 'POST'])
+@login_required
+@module_required('study')
+def custom_lists():
+    """View and create personal vocabulary lists."""
+    from app.study.models import CustomWordList
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()[:200]
+        if not name:
+            flash(_('Введите название списка'), 'danger')
+            return redirect(url_for('study.custom_lists'))
+        word_list = CustomWordList(user_id=current_user.id, name=name)
+        db.session.add(word_list)
+        db.session.commit()
+        flash(_('Список создан'), 'success')
+        return redirect(url_for('study.custom_list_detail', list_id=word_list.id))
+
+    lists = CustomWordList.query.filter_by(user_id=current_user.id).order_by(
+        CustomWordList.created_at.desc()
+    ).all()
+    return render_template('study/custom_list.html', lists=lists, detail=None)
+
+
+@study.route('/lists/<int:list_id>', methods=['GET', 'POST'])
+@login_required
+@module_required('study')
+def custom_list_detail(list_id):
+    """View a single custom word list; add or remove words."""
+    from app.study.models import CustomWordList, CustomWordListEntry
+
+    word_list = CustomWordList.query.get_or_404(list_id)
+    if word_list.user_id != current_user.id:
+        from flask import abort
+        abort(403)
+
+    if request.method == 'POST':
+        action = request.form.get('action', 'add')
+        if action == 'add':
+            word = request.form.get('word', '').strip()[:200]
+            translation = request.form.get('translation', '').strip()[:500]
+            if not word or not translation:
+                flash(_('Укажите слово и перевод'), 'danger')
+                return redirect(url_for('study.custom_list_detail', list_id=list_id))
+            existing = CustomWordListEntry.query.filter_by(list_id=list_id, word=word).first()
+            if existing is None:
+                entry = CustomWordListEntry(list_id=list_id, word=word, translation=translation)
+                db.session.add(entry)
+                db.session.commit()
+                flash(_('Слово добавлено'), 'success')
+            else:
+                flash(_('Слово уже есть в списке'), 'info')
+        elif action == 'remove':
+            entry_id = request.form.get('entry_id', type=int)
+            if entry_id:
+                entry = CustomWordListEntry.query.get(entry_id)
+                if entry and entry.word_list.user_id == current_user.id:
+                    db.session.delete(entry)
+                    db.session.commit()
+                    flash(_('Слово удалено'), 'success')
+        elif action == 'import':
+            raw_text = request.form.get('import_text', '')[:50000]
+            pairs = _parse_bulk_import(raw_text)[:500]
+            existing_words = {e.word for e in word_list.entries.all()}
+            added = 0
+            skipped = 0
+            for word, translation in pairs:
+                if word in existing_words:
+                    skipped += 1
+                else:
+                    db.session.add(CustomWordListEntry(list_id=list_id, word=word, translation=translation))
+                    existing_words.add(word)
+                    added += 1
+            if added:
+                db.session.commit()
+            if pairs:
+                flash(_(f'Добавлено {added} слов, пропущено {skipped} дублей'), 'success' if added else 'info')
+            else:
+                flash(_('Ничего не добавлено — проверьте формат'), 'danger')
+        return redirect(url_for('study.custom_list_detail', list_id=list_id))
+
+    entries = word_list.entries.order_by(CustomWordListEntry.added_at.desc()).all()
+    all_lists = CustomWordList.query.filter_by(user_id=current_user.id).order_by(
+        CustomWordList.created_at.desc()
+    ).all()
+    return render_template('study/custom_list.html', lists=all_lists, detail=word_list, entries=entries)
+
+
+@study.route('/lists/<int:list_id>/study')
+@login_required
+@module_required('study')
+def custom_list_study(list_id):
+    """Activate SRS study session for a custom word list.
+
+    Creates UserWord and UserCardDirection rows for list entries that match
+    CollectionWords, then redirects to the standard cards session filtered
+    to those word IDs.
+    """
+    from app.study.models import CustomWordList
+    from app.words.models import CollectionWords
+    from flask import abort
+
+    word_list = CustomWordList.query.get_or_404(list_id)
+    if word_list.user_id != current_user.id:
+        abort(403)
+
+    entries = word_list.entries.all()
+    if not entries:
+        flash(_('Список пуст — добавьте слова'), 'warning')
+        return redirect(url_for('study.custom_list_detail', list_id=list_id))
+
+    entry_words = [e.word.lower() for e in entries]
+    matched_words = CollectionWords.query.filter(
+        func.lower(CollectionWords.english_word).in_(entry_words)
+    ).all()
+
+    if not matched_words:
+        flash(_('Слова из списка не найдены в базе'), 'info')
+        return redirect(url_for('study.custom_list_detail', list_id=list_id))
+
+    for word in matched_words:
+        user_word = UserWord.get_or_create(current_user.id, word.id)
+        for direction in ('eng-rus', 'rus-eng'):
+            if not UserCardDirection.query.filter_by(
+                user_word_id=user_word.id, direction=direction
+            ).first():
+                db.session.add(UserCardDirection(user_word.id, direction, source='custom_list'))
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+
+    return redirect(url_for('study.cards', source='custom_list', list_id=list_id))
 
 
 # Import sub-modules to register their routes on the blueprint

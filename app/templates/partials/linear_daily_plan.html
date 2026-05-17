@@ -31,6 +31,7 @@
         'eta_minutes': slot.get('eta_minutes', 0),
         'url': slot.get('url'),
         'completed': _completed,
+        'skipped': slot.get('skipped', False),
         'data': slot.get('data') or {},
     } %}
     {% set _ = l_slots.append(_merged) %}
@@ -50,12 +51,18 @@
     'curriculum': '&#127919;',
     'srs': '&#128170;',
     'reading': '&#128214;',
+    'listening': '&#127911;',
+    'speaking': '&#127908;',
+    'writing': '&#9999;',
     'error_review': '&#128269;',
 } %}
 {% set l_slot_labels = {
     'curriculum': 'Урок курса',
     'srs': 'Повторение слов',
     'reading': 'Чтение книги',
+    'listening': 'Аудирование',
+    'speaking': 'Произношение',
+    'writing': 'Письмо',
     'error_review': 'Разбор ошибок',
 } %}
 {% set l_lesson_type_labels = {
@@ -71,6 +78,11 @@
     'listening_immersion': 'Погружение',
     'listening_immersion_quiz': 'Аудио-квиз',
     'final_test': 'Финальный тест',
+    'writing_prompt': 'Письменное задание',
+    'translation': 'Перевод',
+    'sentence_correction': 'Исправление ошибок',
+    'pronunciation': 'Произношение',
+    'shadow_reading': 'Теневое чтение',
 } %}
 
 <div class="linear-plan" data-linear-plan="true">
@@ -120,6 +132,21 @@
             {% if _ns.estimated_minutes %}
             <span class="linear-plan__day-secured-banner-next-eta">~{{ _ns.estimated_minutes | int }} мин</span>
             {% endif %}
+        </div>
+        {% endif %}
+        {% if day_secured_banner.tomorrow_preview %}
+        {% set _tp = day_secured_banner.tomorrow_preview %}
+        <div class="linear-plan__day-secured-banner-tomorrow"
+             data-linear-tomorrow-preview="true">
+            <span class="linear-plan__day-secured-banner-tomorrow-label">Завтра</span>
+            <span class="linear-plan__day-secured-banner-tomorrow-time">≈ {{ _tp.estimated_minutes | int }} мин</span>
+            <span class="linear-plan__day-secured-banner-tomorrow-slots">
+                {% for _sk in _tp.slot_types %}
+                <span class="linear-plan__day-secured-banner-tomorrow-icon"
+                      title="{{ l_slot_labels.get(_sk, _sk) }}"
+                      aria-label="{{ l_slot_labels.get(_sk, _sk) }}">{{ l_slot_icons.get(_sk, '&#128204;')|safe }}</span>
+                {% endfor %}
+            </span>
         </div>
         {% endif %}
         <div class="linear-plan__day-secured-banner-actions">
@@ -194,6 +221,41 @@
     </div>
     {% endif %}
 
+    {# ── Plan time indicator ─────────────────────────────────────────── #}
+    {% set _total_minutes = linear_plan.get('total_estimated_minutes', 0) %}
+    {% set _plan_intensity = linear_plan.get('plan_intensity', 'normal') %}
+    {% if _total_minutes > 0 and not l_day_secured %}
+    <div class="plan-time-indicator plan-intensity--{{ _plan_intensity }}"
+         data-plan-time-indicator="true"
+         data-intensity="{{ _plan_intensity }}"
+         data-total-minutes="{{ _total_minutes }}">
+        <span class="plan-time-indicator__dot" aria-hidden="true"></span>
+        <span class="plan-time-indicator__text">≈ {{ _total_minutes }} мин на сегодня ·
+            {% if _plan_intensity == 'light' %}Лёгкий день{% elif _plan_intensity == 'normal' %}Стандартный день{% else %}Насыщенный день{% endif %}
+        </span>
+    </div>
+    {% endif %}
+
+    {# ── Streak shield badge ────────────────────────────────────────── #}
+    {% if streak_shield_active is defined and streak_shield_active %}
+    <div class="streak-shield-badge" data-streak-shield="true" role="status" aria-live="polite">
+        <span class="streak-shield-badge__icon" aria-hidden="true">&#128737;</span>
+        <span class="streak-shield-badge__text">Твоя серия защищена на 1 день</span>
+    </div>
+    {% endif %}
+
+    {# ── Learning goal context line ─────────────────────────────────── #}
+    {% set _daily_word_goal = learning_goals.daily_word_goal if learning_goals is defined and learning_goals else 0 %}
+    {% if _daily_word_goal and _daily_word_goal > 0 and not l_day_secured %}
+    <div class="linear-plan__goal-hint" data-linear-goal-hint="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Цель: {{ _daily_word_goal }} слов сегодня
+    </div>
+    {% endif %}
+
     {# ── Late-day hint: shown when slots remain and user-local hour ≥ 20:00 ── #}
     {% set _pending = l_baseline_total - l_baseline_done %}
     {% if l_baseline_total > 0 and _pending > 0 and (local_hour is defined) and (local_hour is not none) and (local_hour | int) >= 20 %}
@@ -206,9 +268,56 @@
     {% endif %}
 
     {% if l_day_secured %}
-    <div class="linear-plan__secured" data-linear-secured="true">
-        <span class="linear-plan__secured-icon">&#127881;</span>
-        <span class="linear-plan__secured-text">Сегодняшний план закрыт. Отличная работа!</span>
+    {# Task 52: Full celebration card when all baseline slots complete #}
+    {% set _lp_tomorrow = linear_plan.get('tomorrow_preview') or (day_secured_banner.tomorrow_preview if day_secured_banner else none) %}
+    {% set _cel_xp = day_secured_banner.today_xp if day_secured_banner else 0 %}
+    {% set _cel_streak = day_secured_banner.streak if day_secured_banner else 0 %}
+    {% set _cel_messages = [
+        'Отличная работа! Ты движешься вперёд.',
+        'Каждый день на счету — продолжай!',
+        'Последовательность — ключ к успеху.',
+        'Ещё один день в копилку знаний.',
+        'Так держать! Ты делаешь это.',
+    ] %}
+    {% set _msg_idx = (l_baseline_done + (_cel_streak | int)) % (_cel_messages | length) %}
+    <div class="plan-celebration"
+         data-plan-celebration="true"
+         data-day-secured="true"
+         role="status"
+         aria-live="polite">
+        <div class="plan-celebration__inner">
+            <span class="plan-celebration__icon" aria-hidden="true">&#127942;</span>
+            <p class="plan-celebration__title">День завершён!</p>
+            <div class="plan-celebration__stats">
+                {% if _cel_xp %}
+                <div class="plan-celebration__stat">
+                    <span class="plan-celebration__stat-value" data-celebration-xp="{{ _cel_xp | int }}">+{{ _cel_xp | int }} XP</span>
+                    <span class="plan-celebration__stat-label">за день</span>
+                </div>
+                {% endif %}
+                {% if _cel_streak %}
+                <div class="plan-celebration__stat">
+                    <span class="plan-celebration__stat-value" data-celebration-streak="{{ _cel_streak | int }}">{{ _cel_streak | int }}</span>
+                    <span class="plan-celebration__stat-label">
+                        {% set _cs = _cel_streak | int %}
+                        {% set _csm10 = _cs % 10 %}
+                        {% set _csm100 = _cs % 100 %}
+                        {% if _csm10 == 1 and _csm100 != 11 %}день{% elif 2 <= _csm10 <= 4 and not 12 <= _csm100 <= 14 %}дня{% else %}дней{% endif %}
+                        подряд
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+            <p class="plan-celebration__message">{{ _cel_messages[_msg_idx] }}</p>
+            {% if _lp_tomorrow %}
+            <div class="plan-celebration__tomorrow" data-linear-tomorrow-preview="true">
+                <span>Завтра ≈ {{ _lp_tomorrow.estimated_minutes | int }} мин</span>
+                {% for _sk in _lp_tomorrow.slot_types %}
+                <span aria-label="{{ l_slot_labels.get(_sk, _sk) }}">{{ l_slot_icons.get(_sk, '&#128204;')|safe }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
     </div>
     {% endif %}
 
@@ -232,8 +341,11 @@
                  role="note">Дальше необязательно, но засчитывается</div>
             {% endif %}
             {% set _completed = slot.completed %}
+            {% set _skipped = slot.get('skipped', False) %}
             {% if _completed %}
                 {% set _state = 'done' %}
+            {% elif _skipped %}
+                {% set _state = 'skipped' %}
             {% elif not lns.current_found %}
                 {% set _state = 'current' %}
                 {% set lns.current_found = true %}
@@ -273,6 +385,17 @@
                              data-weak-grammar-topic-id="{{ _data.get('weak_topic_id', '') }}"
                              role="note">
                             Слабая тема: {{ _data.weak_topic_name }}
+                        </div>
+                        {% endif %}
+                        {% if _data.get('adaptive_hint') %}
+                        <div class="linear-slot__pill linear-slot__pill--adaptive-hint"
+                             data-adaptive-hint="{{ _data.adaptive_hint }}"
+                             role="note">
+                            {% if _data.adaptive_hint == 'слишком сложно' %}
+                            Сложный материал — не торопись
+                            {% else %}
+                            Темп можно ускорить
+                            {% endif %}
                         </div>
                         {% endif %}
                         {% elif _kind == 'srs' and _data.get('mode') == 'deck_quiz' %}
@@ -344,6 +467,39 @@
                             </div>
                             {% endif %}
                         {% endif %}
+                        {% elif _kind == 'listening' %}
+                        <div class="linear-slot__meta">
+                            {% if slot.lesson_type %}
+                            <span class="linear-slot__type-badge">{{ l_lesson_type_labels.get(slot.lesson_type, slot.lesson_type) }}</span>
+                            {% endif %}
+                            {% if _eta > 0 %}~{{ _eta }} мин{% endif %}
+                        </div>
+                        {% elif _kind == 'speaking' %}
+                        <div class="linear-slot__meta">
+                            {% if slot.lesson_type %}
+                            <span class="linear-slot__type-badge">{{ l_lesson_type_labels.get(slot.lesson_type, slot.lesson_type) }}</span>
+                            {% endif %}
+                            {% if _eta > 0 %}~{{ _eta }} мин{% endif %}
+                        </div>
+                        {% if _data.get('speech_api_required') %}
+                        <div class="linear-slot__meta linear-slot__meta--speaking-hint"
+                             data-speaking-chrome-hint="true">
+                            Лучше в Chrome
+                        </div>
+                        {% endif %}
+                        {% elif _kind == 'writing' %}
+                        <div class="linear-slot__meta">
+                            {% if slot.lesson_type %}
+                            <span class="linear-slot__type-badge">{{ l_lesson_type_labels.get(slot.lesson_type, slot.lesson_type) }}</span>
+                            {% endif %}
+                            {% if _eta > 0 %}~{{ _eta }} мин{% endif %}
+                        </div>
+                        {% if _data.get('prompt_preview') %}
+                        <div class="linear-slot__meta linear-slot__meta--writing-preview"
+                             data-writing-prompt-preview="true">
+                            {{ _data.prompt_preview }}…
+                        </div>
+                        {% endif %}
                         {% elif _kind == 'error_review' %}
                         <div class="linear-slot__meta">
                             Неразобранных ошибок: {{ _data.get('unresolved_count', 0) }}
@@ -365,6 +521,8 @@
                         <span class="linear-slot__badge linear-slot__badge--muted">Нет слов</span>
                         {% elif _completed %}
                         <span class="linear-slot__badge linear-slot__badge--done">Готово &#10003;</span>
+                        {% elif _state == 'skipped' %}
+                        <span class="linear-slot__badge linear-slot__badge--skipped">Пропущено</span>
                         {% elif _state == 'locked' %}
                         <span class="linear-slot__badge linear-slot__badge--locked"
                               data-linear-locked="true"
@@ -378,12 +536,32 @@
                            data-linear-action="select-book"
                            data-linear-event="reading_slot_select_open">Выбрать книгу</a>
                         {% elif slot.url %}
-                        <a href="{{ slot.url }}"
-                           class="linear-slot__btn{% if _state == 'current' %} linear-slot__btn--primary{% endif %}"
-                           data-linear-event="slot_start"
-                           data-slot-click-kind="{{ _kind }}">
-                            {% if _state == 'current' %}Начать{% else %}Открыть{% endif %}
-                        </a>
+                        <div class="linear-slot__action-group">
+                            <a href="{{ slot.url }}"
+                               class="linear-slot__btn{% if _state == 'current' %} linear-slot__btn--primary{% endif %}"
+                               data-linear-event="slot_start"
+                               data-slot-click-kind="{{ _kind }}">
+                                {% if _state == 'current' %}Начать{% else %}Открыть{% endif %}
+                            </a>
+                            {% if _state == 'current' %}
+                            <button type="button"
+                                    class="linear-slot__skip-btn"
+                                    data-skip-kind="{{ _kind }}"
+                                    aria-label="Пропустить это задание">
+                                Пропустить
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% if _state == 'current' %}
+                        <div class="linear-slot__skip-reasons" hidden data-skip-reasons="{{ _kind }}">
+                            <div class="linear-slot__skip-reasons-label">Почему пропускаешь?</div>
+                            <div class="linear-slot__skip-reasons-btns">
+                                <button type="button" class="linear-slot__skip-reason-btn" data-reason="no_time">Нет времени</button>
+                                <button type="button" class="linear-slot__skip-reason-btn" data-reason="too_hard">Слишком сложно</button>
+                                <button type="button" class="linear-slot__skip-reason-btn" data-reason="not_today">Не сейчас</button>
+                            </div>
+                        </div>
+                        {% endif %}
                         {% else %}
                         <span class="linear-slot__badge linear-slot__badge--muted">Позже</span>
                         {% endif %}
@@ -408,6 +586,64 @@
         </div>
         {% endif %}
     </div>
+
+    {# ── Daily challenge card (Task 84) ────────────────────────────────
+         Shown below the slots. Gold border when uncompleted, greyed when done.
+         For speed_run / accuracy_focus: links to first incomplete slot.
+         For listening_deep: links to the specific challenge lesson. #}
+    {% if today_challenge is defined and today_challenge %}
+    {% set _ch_completed = today_challenge.get('is_completed', False) %}
+    {% set _ch_category = today_challenge.get('category', '') %}
+    {% set _ch_desc_map = {
+        'speed_run': 'Пройди любой урок менее чем за 5 минут',
+        'accuracy_focus': 'Набери не менее 90% правильных ответов в уроке',
+        'listening_deep': 'Пройди урок по аудированию или диктант',
+    } %}
+    {% set _ch_icon_map = {
+        'speed_run': '&#9889;',
+        'accuracy_focus': '&#127919;',
+        'listening_deep': '&#127911;',
+    } %}
+    {% set _chns = namespace(btn_url=none) %}
+    {% if today_challenge.get('lesson_id') %}
+        {% set _chns.btn_url = '/learn/' ~ today_challenge.lesson_id | int ~ '/?from=daily_challenge' %}
+    {% else %}
+        {% for slot in l_slots %}
+            {% if _chns.btn_url is none and not slot.completed and slot.url %}
+                {% set _chns.btn_url = slot.url %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    <div class="daily-challenge-card{% if _ch_completed %} daily-challenge-card--completed{% endif %}"
+         data-daily-challenge="true"
+         data-challenge-id="{{ today_challenge.get('id', '') }}"
+         data-challenge-category="{{ _ch_category }}"
+         role="complementary"
+         aria-label="Челлендж дня">
+        <div class="daily-challenge-card__header">
+            <span class="daily-challenge-card__icon" aria-hidden="true">{{ _ch_icon_map.get(_ch_category, '&#127942;') | safe }}</span>
+            <span class="daily-challenge-card__title">Челлендж дня</span>
+            {% if _ch_completed %}
+            <span class="daily-challenge-card__done-badge">&#10003; Выполнено</span>
+            {% else %}
+            <span class="daily-challenge-card__xp-badge">2x XP</span>
+            {% endif %}
+        </div>
+        <p class="daily-challenge-card__desc">{{ _ch_desc_map.get(_ch_category, _ch_category) }}</p>
+        {% set _ch_streak = today_challenge.get('challenge_streak', 0) | int %}
+        {% if _ch_streak > 0 %}
+        <p class="daily-challenge-card__streak">&#128293; Серия челленджей: {{ _ch_streak }} {{ 'день' if _ch_streak == 1 else ('дня' if _ch_streak < 5 else 'дней') }}</p>
+        {% endif %}
+        {% if _ch_completed %}
+        <p class="daily-challenge-card__completion-note">+{{ today_challenge.get('bonus_xp', 0) | int }} XP начислено</p>
+        {% elif _chns.btn_url %}
+        <a href="{{ _chns.btn_url }}"
+           class="daily-challenge-card__btn"
+           data-linear-event="daily_challenge_clicked"
+           data-challenge-category="{{ _ch_category }}">Приступить</a>
+        {% endif %}
+    </div>
+    {% endif %}
 
     {# ── Continuation CTA + preview (shown when day_secured=True) ─────
          The CTA points at the first incomplete chain slot (typically the
@@ -491,3 +727,113 @@
     {% endif %}
 
 </div>
+<script>
+(function () {
+    'use strict';
+
+    /* Task 52: Confetti animation for plan completion celebration card */
+    function initCelebrationConfetti() {
+        var cel = document.querySelector('[data-plan-celebration]');
+        if (!cel) { return; }
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return; }
+        var canvas = document.getElementById('confetti-canvas');
+        if (!canvas) { return; }
+        var ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        canvas.style.display = 'block';
+        var colors = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#8b5cf6'];
+        var particles = [];
+        for (var i = 0; i < 70; i++) {
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height - canvas.height,
+                w: Math.random() * 9 + 4,
+                h: Math.random() * 5 + 3,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                r: Math.random() * Math.PI * 2,
+                vy: Math.random() * 2.5 + 1,
+                vr: (Math.random() - 0.5) * 0.12,
+            });
+        }
+        var frame = 0;
+        var maxFrames = 140;
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (var j = 0; j < particles.length; j++) {
+                var p = particles[j];
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.r);
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = Math.max(0, 1 - frame / maxFrames);
+                ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                ctx.restore();
+                p.y += p.vy;
+                p.r += p.vr;
+                if (p.y > canvas.height) {
+                    p.y = -p.h;
+                    p.x = Math.random() * canvas.width;
+                }
+            }
+            frame++;
+            if (frame < maxFrames) {
+                requestAnimationFrame(draw);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                canvas.style.display = 'none';
+            }
+        }
+        requestAnimationFrame(draw);
+    }
+
+    function initSlotSkip() {
+        document.querySelectorAll('.linear-slot__skip-btn').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var kind = btn.dataset.skipKind;
+                var reasonsDiv = document.querySelector('[data-skip-reasons="' + kind + '"]');
+                if (reasonsDiv) {
+                    reasonsDiv.hidden = !reasonsDiv.hidden;
+                }
+            });
+        });
+        document.querySelectorAll('.linear-slot__skip-reason-btn').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var reason = btn.dataset.reason;
+                var reasonsDiv = btn.closest('[data-skip-reasons]');
+                var kind = reasonsDiv ? reasonsDiv.dataset.skipReasons : '';
+                if (!kind || !reason) { return; }
+                btn.disabled = true;
+                fetch('/api/daily-plan/events', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        event_type: 'slot_skipped',
+                        step_kind: kind,
+                        reason_text: reason
+                    })
+                }).then(function (r) {
+                    if (r.ok) {
+                        window.location.reload();
+                    } else {
+                        btn.disabled = false;
+                    }
+                }).catch(function () {
+                    btn.disabled = false;
+                });
+            });
+        });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+            initSlotSkip();
+            initCelebrationConfetti();
+        });
+    } else {
+        initSlotSkip();
+        initCelebrationConfetti();
+    }
+}());
+</script>

@@ -1,0 +1,25 @@
+[
+  {
+    "external_key": "fixture:idiom:B1:01",
+    "level": "B1",
+    "module_number": 1,
+    "lesson_type": "idiom",
+    "title": "Идиомы: повседневные выражения",
+    "title_en": "Idioms: Everyday Expressions",
+    "content": {
+      "items": [
+        {
+          "phrase": "break the ice",
+          "meaning": "начать разговор, чтобы преодолеть неловкость",
+          "example": "He told a joke to break the ice at the meeting.",
+          "audio_url": "/static/audio/fixture_idiom_break_the_ice.mp3"
+        },
+        {
+          "phrase": "hit the books",
+          "meaning": "усердно учиться",
+          "example": "Exams are next week — time to hit the books."
+        }
+      ]
+    }
+  }
+]

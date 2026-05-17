@@ -17,7 +17,7 @@ from wtforms.validators import DataRequired, Length, NumberRange, Optional
 from app.admin.main_routes import admin, admin_required
 from app.auth.models import User
 from app.books.models import Book
-from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
+from app.curriculum.models import CEFRLevel, CulturalNote, LessonProgress, Lessons, Module
 from app.utils.db import db
 from app.words.models import CollectionWordLink, CollectionWords
 
@@ -768,3 +768,77 @@ def api_get_lessons():
         {'id': lesson.id, 'number': lesson.number, 'title': lesson.title}
         for lesson in lessons
     ])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cultural notes admin CRUD
+# ─────────────────────────────────────────────────────────────────────────────
+
+@admin.route('/cultural-notes')
+@admin_required
+def cultural_notes_list():
+    """List all cultural notes, newest first."""
+    page = request.args.get('page', 1, type=int)
+    word_id = request.args.get('word_id', type=int)
+    query = db.session.query(CulturalNote)
+    if word_id:
+        query = query.filter(CulturalNote.word_id == word_id)
+    notes = query.order_by(CulturalNote.id.desc()).paginate(page=page, per_page=50, error_out=False)
+    return render_template('admin/cultural_notes_list.html', notes=notes, word_id=word_id)
+
+
+@admin.route('/cultural-notes/add', methods=['GET', 'POST'])
+@admin_required
+def cultural_note_add():
+    """Add a cultural note for a word."""
+    if request.method == 'POST':
+        word_id = request.form.get('word_id', type=int)
+        note_text = request.form.get('note', '').strip()
+        context = request.form.get('context', '').strip() or None
+        if not word_id or not note_text:
+            flash(_('Word ID and note are required.'), 'error')
+            return redirect(url_for('admin.cultural_note_add'))
+        word = CollectionWords.query.get(word_id)
+        if not word:
+            flash(_('Word not found.'), 'error')
+            return redirect(url_for('admin.cultural_note_add'))
+        note = CulturalNote(word_id=word_id, note=note_text, context=context)
+        db.session.add(note)
+        db.session.commit()
+        flash(_('Cultural note added.'), 'success')
+        return redirect(url_for('admin.cultural_notes_list', word_id=word_id))
+    word_id = request.args.get('word_id', type=int)
+    word = CollectionWords.query.get(word_id) if word_id else None
+    return render_template('admin/cultural_note_form.html', note=None, word=word)
+
+
+@admin.route('/cultural-notes/<int:note_id>/edit', methods=['GET', 'POST'])
+@admin_required
+def cultural_note_edit(note_id):
+    """Edit an existing cultural note."""
+    note = CulturalNote.query.get_or_404(note_id)
+    if request.method == 'POST':
+        note_text = request.form.get('note', '').strip()
+        context = request.form.get('context', '').strip() or None
+        if not note_text:
+            flash(_('Note cannot be empty.'), 'error')
+        else:
+            note.note = note_text
+            note.context = context
+            db.session.commit()
+            flash(_('Cultural note updated.'), 'success')
+            return redirect(url_for('admin.cultural_notes_list', word_id=note.word_id))
+    word = CollectionWords.query.get(note.word_id)
+    return render_template('admin/cultural_note_form.html', note=note, word=word)
+
+
+@admin.route('/cultural-notes/<int:note_id>/delete', methods=['POST'])
+@admin_required
+def cultural_note_delete(note_id):
+    """Delete a cultural note."""
+    note = CulturalNote.query.get_or_404(note_id)
+    word_id = note.word_id
+    db.session.delete(note)
+    db.session.commit()
+    flash(_('Cultural note deleted.'), 'success')
+    return redirect(url_for('admin.cultural_notes_list', word_id=word_id))

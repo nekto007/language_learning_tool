@@ -94,6 +94,20 @@ def get_study_items():
             return api_error('deck_not_found', 'Deck not found or access denied', 404)
     elif word_source == 'daily_plan_mix':
         deck_word_ids = get_daily_plan_mix_word_ids(current_user.id)
+    elif word_source == 'custom_list':
+        list_id_param = request.args.get('list_id', type=int)
+        if list_id_param:
+            from app.study.models import CustomWordList
+            custom_list = CustomWordList.query.get(list_id_param)
+            if custom_list and custom_list.user_id == current_user.id:
+                entry_words = [e.word.lower() for e in custom_list.entries.all()]
+                if entry_words:
+                    matched = CollectionWords.query.filter(
+                        func.lower(CollectionWords.english_word).in_(entry_words)
+                    ).all()
+                    deck_word_ids = [w.id for w in matched]
+                else:
+                    deck_word_ids = []
 
     if deck_id and deck:
         new_cards_today, reviews_today = SRSService.get_deck_stats_today(current_user.id, deck_id)
@@ -184,7 +198,9 @@ def get_study_items():
                 'step_index': direction.step_index or 0,
                 'lapses': direction.lapses or 0,
                 'is_leech': is_leech,
-                'leech_hint': leech_hint
+                'leech_hint': leech_hint,
+                'frequency_band': word.frequency_band,
+                'source': direction.source,
             }
         else:
             return {
@@ -200,7 +216,9 @@ def get_study_items():
                 'step_index': direction.step_index or 0,
                 'lapses': direction.lapses or 0,
                 'is_leech': is_leech,
-                'leech_hint': leech_hint
+                'leech_hint': leech_hint,
+                'frequency_band': word.frequency_band,
+                'source': direction.source,
             }
 
     learning_grace_period = timedelta(minutes=15)
@@ -751,3 +769,35 @@ def check_celebrations():
         'total_xp': current_total_xp,
         'celebrations': celebrations,
     })
+
+
+@study.route('/api/custom-lists/<int:list_id>/words', methods=['POST'])
+@login_required
+def add_word_to_custom_list(list_id: int):
+    """Add a word to a custom list (idempotent). Used from vocabulary lesson AJAX."""
+    from app.study.models import CustomWordList, CustomWordListEntry
+
+    word_list = CustomWordList.query.get_or_404(list_id)
+    if word_list.user_id != current_user.id:
+        return api_error('forbidden', 'Access denied', 403)
+
+    data = request.get_json(silent=True) or {}
+    word = data.get('word', '').strip()
+    translation = data.get('translation', '').strip()
+
+    if not word or not translation:
+        return api_error('invalid_input', 'word and translation are required', 400)
+
+    if len(word) > 200 or len(translation) > 500:
+        return api_error('invalid_input', 'word or translation too long', 400)
+
+    existing = CustomWordListEntry.query.filter_by(list_id=list_id, word=word).first()
+    if existing:
+        return jsonify({'ok': True, 'entry_id': existing.id, 'word': word,
+                        'translation': translation, 'already_existed': True})
+
+    entry = CustomWordListEntry(list_id=list_id, word=word, translation=translation)
+    db.session.add(entry)
+    db.session.commit()
+    return jsonify({'ok': True, 'entry_id': entry.id, 'word': word,
+                    'translation': translation, 'already_existed': False})

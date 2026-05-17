@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+
+{% block title %}Карта слов{% endblock %}
+
+{% block content %}
+<div class="vocab-map-page">
+
+    <div class="vocab-map__header">
+        <div class="vocab-map__title-row">
+            <a href="{{ url_for('study.index') }}" class="vocab-map__back">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+            </a>
+            <div>
+                <h1 class="vocab-map__title">Карта словарного запаса</h1>
+                <p class="vocab-map__subtitle">Прогресс по модулям курса</p>
+            </div>
+        </div>
+
+        <div class="vocab-map__legend">
+            <span class="vocab-map__legend-item">
+                <span class="vocab-map__legend-dot vocab-map__legend-dot--green"></span>
+                более 80% выучено
+            </span>
+            <span class="vocab-map__legend-item">
+                <span class="vocab-map__legend-dot vocab-map__legend-dot--yellow"></span>
+                более 50%
+            </span>
+            <span class="vocab-map__legend-item">
+                <span class="vocab-map__legend-dot vocab-map__legend-dot--red"></span>
+                менее 50%
+            </span>
+            <span class="vocab-map__legend-item">
+                <span class="vocab-map__legend-dot vocab-map__legend-dot--gray"></span>
+                не начато
+            </span>
+        </div>
+    </div>
+
+    {% if module_stats %}
+    {% set ns = namespace(current_level='') %}
+    <div class="vocab-map__grid">
+        {% for stat in module_stats %}
+        {% if stat.level_code != ns.current_level %}
+        {% if not loop.first %}</div>{% endif %}
+        {% set ns.current_level = stat.level_code %}
+        <div class="vocab-map__level-group">
+        <div class="vocab-map__level-label">{{ stat.level_code }}</div>
+        {% endif %}
+
+        <div class="vocab-map__module {{ stat.color_class }}">
+            <div class="vocab-map__module-header">
+                <span class="vocab-map__module-number">M{{ stat.module.number }}</span>
+                <span class="vocab-map__module-pct">{{ stat.mastery_pct }}%</span>
+            </div>
+            <div class="vocab-map__module-title">{{ stat.module.title }}</div>
+            <div class="vocab-map__module-bar">
+                {% if stat.total > 0 %}
+                {% set mastered_w = (stat.mastered / stat.total * 100)|round(1) %}
+                {% set learning_w = (stat.in_learning / stat.total * 100)|round(1) %}
+                {% if mastered_w > 0 %}
+                <div class="vocab-map__bar-seg vocab-map__bar-seg--mastered" style="width: {{ mastered_w }}%" title="Выучено: {{ stat.mastered }}"></div>
+                {% endif %}
+                {% if learning_w > 0 %}
+                <div class="vocab-map__bar-seg vocab-map__bar-seg--learning" style="width: {{ learning_w }}%" title="В изучении: {{ stat.in_learning }}"></div>
+                {% endif %}
+                {% endif %}
+            </div>
+            <div class="vocab-map__module-counts">
+                <span title="Всего слов">{{ stat.total }} сл.</span>
+                {% if stat.mastered > 0 %}
+                <span class="vocab-map__count--mastered" title="Выучено">✓{{ stat.mastered }}</span>
+                {% endif %}
+                {% if stat.in_learning > 0 %}
+                <span class="vocab-map__count--learning" title="В изучении">⟳{{ stat.in_learning }}</span>
+                {% endif %}
+                {% if stat.not_started > 0 %}
+                <span class="vocab-map__count--new" title="Не начато">○{{ stat.not_started }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if loop.last %}</div>{% endif %}
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="vocab-map__empty">
+        <div class="vocab-map__empty-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+                <rect x="9" y="3" width="6" height="4" rx="1"/>
+                <path d="M9 12h6M9 16h4"/>
+            </svg>
+        </div>
+        <p class="vocab-map__empty-text">Нет данных о словарных модулях</p>
+        <p class="vocab-map__empty-hint">Начните учить слова из курса, чтобы увидеть прогресс</p>
+    </div>
+    {% endif %}
+
+</div>
+
+<style>
+.vocab-map-page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+    font-family: var(--font-family-base, -apple-system, sans-serif);
+}
+
+.vocab-map__header {
+    margin-bottom: 1.75rem;
+}
+
+.vocab-map__title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.vocab-map__back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    color: var(--color-text-secondary, #64748b);
+    background: var(--color-surface-alt, #f8fafc);
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.vocab-map__back:hover {
+    background: var(--color-border, #e2e8f0);
+    color: var(--color-text, #0f172a);
+}
+
+.vocab-map__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 0.125rem;
+    color: var(--color-text, #0f172a);
+}
+
+.vocab-map__subtitle {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary, #64748b);
+    margin: 0;
+}
+
+.vocab-map__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary, #64748b);
+}
+
+.vocab-map__legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.vocab-map__legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.vocab-map__legend-dot--green { background: #16a34a; }
+.vocab-map__legend-dot--yellow { background: #ca8a04; }
+.vocab-map__legend-dot--red { background: #dc2626; }
+.vocab-map__legend-dot--gray { background: #94a3b8; }
+
+.vocab-map__grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.vocab-map__level-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.vocab-map__level-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary, #64748b);
+    padding: 0.25rem 0;
+    border-bottom: 1px solid var(--color-border, #e2e8f0);
+    margin-bottom: 0.25rem;
+}
+
+.vocab-map__module {
+    padding: 0.875rem 1rem;
+    border-radius: 10px;
+    background: var(--color-surface, #fff);
+    border: 1.5px solid var(--color-border, #e2e8f0);
+    transition: box-shadow 0.15s;
+}
+
+.vocab-map__module:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+
+.vocab-map__module--green { border-left: 4px solid #16a34a; }
+.vocab-map__module--yellow { border-left: 4px solid #ca8a04; }
+.vocab-map__module--red { border-left: 4px solid #dc2626; }
+.vocab-map__module--gray { border-left: 4px solid #94a3b8; }
+
+.vocab-map__module-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+}
+
+.vocab-map__module-number {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--color-text-secondary, #64748b);
+    text-transform: uppercase;
+}
+
+.vocab-map__module-pct {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--color-text, #0f172a);
+}
+
+.vocab-map__module-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-text, #0f172a);
+    margin-bottom: 0.625rem;
+    line-height: 1.3;
+}
+
+.vocab-map__module-bar {
+    height: 5px;
+    border-radius: 3px;
+    background: var(--color-surface-alt, #f1f5f9);
+    display: flex;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.vocab-map__bar-seg {
+    height: 100%;
+    transition: width 0.3s;
+}
+
+.vocab-map__bar-seg--mastered { background: #16a34a; }
+.vocab-map__bar-seg--learning { background: #3b82f6; }
+
+.vocab-map__module-counts {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--color-text-secondary, #64748b);
+    flex-wrap: wrap;
+}
+
+.vocab-map__count--mastered { color: #16a34a; font-weight: 600; }
+.vocab-map__count--learning { color: #2563eb; font-weight: 600; }
+.vocab-map__count--new { color: #94a3b8; }
+
+.vocab-map__empty {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+.vocab-map__empty-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--color-surface-alt, #f8fafc);
+    color: var(--color-text-secondary, #94a3b8);
+    margin-bottom: 1rem;
+}
+
+.vocab-map__empty-text {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text, #0f172a);
+    margin: 0 0 0.375rem;
+}
+
+.vocab-map__empty-hint {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary, #64748b);
+    margin: 0;
+}
+
+@media (min-width: 640px) {
+    .vocab-map__level-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 0.625rem;
+    }
+
+    .vocab-map__level-label {
+        grid-column: 1 / -1;
+    }
+}
+</style>
+{% endblock %}

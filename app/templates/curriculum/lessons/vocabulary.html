@@ -39,6 +39,115 @@
     border-radius: 1rem;
   }
 }
+
+/* Annotation widget */
+.word-annotation {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  text-align: left;
+}
+.word-annotation__text {
+  background: var(--color-bg-secondary, #f8f9fa);
+  border-left: 3px solid var(--color-primary, #dc2626);
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.25rem;
+  margin-bottom: 0.25rem;
+  color: var(--color-text-secondary, #555);
+  white-space: pre-wrap;
+}
+.word-annotation__toggle {
+  background: none;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary, #888);
+  font-size: 0.7rem;
+  transition: background 0.15s;
+}
+.word-annotation__toggle:hover {
+  background: var(--color-bg-hover, #f0f0f0);
+}
+.word-annotation__form {
+  margin-top: 0.3rem;
+}
+.word-annotation__input {
+  width: 100%;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 0.375rem;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.8rem;
+  resize: vertical;
+  font-family: inherit;
+}
+.word-annotation__save {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+}
+/* Add to list widget */
+.word-add-to-list {
+  position: relative;
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+.word-add-to-list__btn {
+  background: none;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 0.375rem;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #888);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: background 0.15s;
+}
+.word-add-to-list__btn:hover {
+  background: var(--color-bg-hover, #f0f0f0);
+}
+.word-add-to-list__btn--added {
+  color: var(--color-success, #16a34a) !important;
+  border-color: var(--color-success, #16a34a) !important;
+}
+.word-add-to-list__dropdown {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  background: white;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  min-width: 160px;
+  z-index: 200;
+  display: none;
+}
+.word-add-to-list__dropdown--open {
+  display: block;
+}
+.word-add-to-list__dropdown-item {
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 0.375rem;
+}
+.word-add-to-list__dropdown-item:hover {
+  background: var(--color-bg-secondary, #f8f9fa);
+}
+.word-add-to-list__dropdown-empty {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #888);
+  cursor: default;
+}
 </style>
 {% endblock %}
 
@@ -88,6 +197,16 @@
         <div class="card-face card-front">
           <div class="card-content-wrapper">
             <div class="word-english">{{ word.english }}</div>
+            {% if word.frequency_band == 1 %}
+            <span class="freq-badge freq-badge--1">{{ _('Топ 1000') }}</span>
+            {% elif word.frequency_band == 2 %}
+            <span class="freq-badge freq-badge--2">{{ _('Топ 3000') }}</span>
+            {% elif word.frequency_band == 3 %}
+            <span class="freq-badge freq-badge--3">{{ _('Редкое') }}</span>
+            {% endif %}
+            {% if word.ipa_transcription %}
+            <div class="word-ipa">/{{ word.ipa_transcription }}/</div>
+            {% endif %}
             {% if word.pronunciation %}
             <div class="word-pronunciation">{{ word.pronunciation }}</div>
             {% endif %}
@@ -108,12 +227,116 @@
         <div class="card-face card-back">
           <div class="card-content-wrapper">
             <div class="word-russian">{{ word.russian }}</div>
-            {% if word.example %}
+            {% if word.examples and word.examples|length > 2 %}
+            <div class="example-carousel" data-word-index="{{ loop.index0 }}">
+              <div class="example-carousel__slides">
+                {% for ex in word.examples %}
+                <div class="example-slide{% if loop.first %} example-slide--active{% endif %}">
+                  <div class="example-text">{{ ex.english }}</div>
+                  {% if ex.russian %}<div class="example-translation">{{ ex.russian }}</div>{% endif %}
+                </div>
+                {% endfor %}
+              </div>
+              <div class="example-carousel__controls">
+                <button class="example-carousel__btn example-carousel__btn--prev" aria-label="{{ _('Предыдущий пример') }}">&#8249;</button>
+                <div class="example-carousel__dots">
+                  {% for ex in word.examples %}
+                  <span class="example-carousel__dot{% if loop.first %} example-carousel__dot--active{% endif %}"></span>
+                  {% endfor %}
+                </div>
+                <button class="example-carousel__btn example-carousel__btn--next" aria-label="{{ _('Следующий пример') }}">&#8250;</button>
+              </div>
+            </div>
+            {% elif word.examples and word.examples|length > 0 %}
+            <div class="word-examples-static">
+              {% for ex in word.examples %}
+              <div class="word-example">
+                <div class="example-text">{{ ex.english }}</div>
+                {% if ex.russian %}<div class="example-translation">{{ ex.russian }}</div>{% endif %}
+              </div>
+              {% endfor %}
+            </div>
+            {% elif word.example %}
             <div class="word-example">
               <div class="example-text">{{ word.example }}</div>
               {% if word.usage or word.example_translation %}
               <div class="example-translation">{{ word.usage or word.example_translation }}</div>
               {% endif %}
+            </div>
+            {% endif %}
+            {% if word.collocations %}
+            <div class="word-collocations">
+              {% for col in word.collocations %}
+              <span class="collocation-pill" title="{{ col.translation }}">{{ col.phrase }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% if word.synonyms %}
+            <div class="word-synonyms">
+              <span class="word-synonyms__label">{{ _('Синонимы') }}:</span>
+              {{ word.synonyms | join(', ') }}
+            </div>
+            {% endif %}
+            {% if word.antonyms %}
+            <div class="word-antonyms">
+              <span class="word-antonyms__label">{{ _('Антонимы') }}:</span>
+              {{ word.antonyms | join(', ') }}
+            </div>
+            {% endif %}
+            {% if word.etymology %}
+            <details class="word-etymology">
+              <summary class="word-etymology__summary">{{ _('Происхождение слова') }}</summary>
+              <p class="word-etymology__text">{{ word.etymology }}</p>
+            </details>
+            {% endif %}
+            {% if word.cultural_notes %}
+            <details class="word-cultural-note">
+              <summary class="word-cultural-note__summary">{{ _('Культурный контекст') }}</summary>
+              {% for cn in word.cultural_notes %}
+              <div class="word-cultural-note__item">
+                {% if cn.context %}
+                <span class="word-cultural-note__context">{{ cn.context }}</span>
+                {% endif %}
+                <p class="word-cultural-note__text">{{ cn.note }}</p>
+              </div>
+              {% endfor %}
+            </details>
+            {% endif %}
+            <div class="word-annotation" data-word-id="{{ word.id }}">
+              {% if word.annotation %}
+              <div class="word-annotation__text">{{ word.annotation }}</div>
+              {% endif %}
+              <button class="word-annotation__toggle" type="button"
+                      aria-label="{{ _('Добавить заметку') }}"
+                      data-word-id="{{ word.id }}">
+                <i class="fas fa-plus"></i>
+              </button>
+              <div class="word-annotation__form" style="display:none;">
+                <textarea class="word-annotation__input" rows="2"
+                          placeholder="{{ _('Твоя заметка...') }}"
+                >{{ word.annotation }}</textarea>
+                <button class="word-annotation__save btn btn--sm" type="button"
+                        data-word-id="{{ word.id }}">{{ _('Сохранить') }}</button>
+              </div>
+            </div>
+            {% if user_custom_lists is defined %}
+            <div class="word-add-to-list"
+                 data-word="{{ word.english | e }}"
+                 data-translation="{{ word.russian | e }}">
+              <button class="word-add-to-list__btn" type="button"
+                      aria-label="{{ _('Добавить в список') }}">
+                <i class="fas fa-bookmark"></i>
+                <span class="word-add-to-list__label">{{ _('В список') }}</span>
+              </button>
+              <div class="word-add-to-list__dropdown">
+                {% if user_custom_lists %}
+                  {% for lst in user_custom_lists %}
+                  <div class="word-add-to-list__dropdown-item" data-list-id="{{ lst.id }}">{{ lst.name }}</div>
+                  {% endfor %}
+                {% else %}
+                <div class="word-add-to-list__dropdown-empty">{{ _('Нет списков') }}</div>
+                {% endif %}
+              </div>
             </div>
             {% endif %}
           </div>
@@ -407,5 +630,170 @@ async function completeLesson() {
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', init);
+
+// Annotation widget
+(function initAnnotations() {
+  document.querySelectorAll('.word-annotation__toggle').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const widget = btn.closest('.word-annotation');
+      const form = widget.querySelector('.word-annotation__form');
+      const isVisible = form.style.display !== 'none';
+      form.style.display = isVisible ? 'none' : 'block';
+      if (!isVisible) {
+        widget.querySelector('.word-annotation__input').focus();
+      }
+    });
+  });
+
+  document.querySelectorAll('.word-annotation__save').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const wordId = btn.getAttribute('data-word-id');
+      const widget = btn.closest('.word-annotation');
+      const input = widget.querySelector('.word-annotation__input');
+      const note = input.value.trim();
+      if (!note) return;
+
+      btn.disabled = true;
+      fetch('/curriculum/api/words/' + wordId + '/annotation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': lessonConfig.csrfToken
+        },
+        body: JSON.stringify({ note: note })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          let textEl = widget.querySelector('.word-annotation__text');
+          if (!textEl) {
+            textEl = document.createElement('div');
+            textEl.className = 'word-annotation__text';
+            widget.insertBefore(textEl, widget.querySelector('.word-annotation__toggle'));
+          }
+          textEl.textContent = data.note;
+          widget.querySelector('.word-annotation__form').style.display = 'none';
+        }
+      })
+      .catch(function() {})
+      .finally(function() { btn.disabled = false; });
+    });
+  });
+})();
+
+// Example sentence carousel
+(function initCarousels() {
+  const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  document.querySelectorAll('.example-carousel').forEach(function(carousel) {
+    const slides = carousel.querySelectorAll('.example-slide');
+    const dots = carousel.querySelectorAll('.example-carousel__dot');
+    const btnPrev = carousel.querySelector('.example-carousel__btn--prev');
+    const btnNext = carousel.querySelector('.example-carousel__btn--next');
+    let current = 0;
+    let timer = null;
+
+    function goTo(idx) {
+      slides[current].classList.remove('example-slide--active');
+      dots[current].classList.remove('example-carousel__dot--active');
+      current = (idx + slides.length) % slides.length;
+      slides[current].classList.add('example-slide--active');
+      dots[current].classList.add('example-carousel__dot--active');
+    }
+
+    function startAuto() {
+      if (noMotion) return;
+      timer = setInterval(function() {
+        if (!document.hidden) goTo(current + 1);
+      }, 5000);
+    }
+
+    function resetAuto() {
+      clearInterval(timer);
+      startAuto();
+    }
+
+    btnPrev.addEventListener('click', function(e) {
+      e.stopPropagation();
+      goTo(current - 1);
+      resetAuto();
+    });
+
+    btnNext.addEventListener('click', function(e) {
+      e.stopPropagation();
+      goTo(current + 1);
+      resetAuto();
+    });
+
+    dots.forEach(function(dot, i) {
+      dot.addEventListener('click', function(e) {
+        e.stopPropagation();
+        goTo(i);
+        resetAuto();
+      });
+    });
+
+    startAuto();
+  });
+})();
+
+// Add to custom list widget
+(function initAddToList() {
+  const csrfToken = lessonConfig.csrfToken;
+
+  document.querySelectorAll('.word-add-to-list').forEach(function(widget) {
+    const btn = widget.querySelector('.word-add-to-list__btn');
+    const dropdown = widget.querySelector('.word-add-to-list__dropdown');
+    const word = widget.getAttribute('data-word');
+    const translation = widget.getAttribute('data-translation');
+
+    if (!btn || !dropdown) return;
+
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      // Close any other open dropdowns first
+      document.querySelectorAll('.word-add-to-list__dropdown--open').forEach(function(d) {
+        if (d !== dropdown) d.classList.remove('word-add-to-list__dropdown--open');
+      });
+      dropdown.classList.toggle('word-add-to-list__dropdown--open');
+    });
+
+    dropdown.querySelectorAll('.word-add-to-list__dropdown-item').forEach(function(item) {
+      item.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const listId = item.getAttribute('data-list-id');
+        dropdown.classList.remove('word-add-to-list__dropdown--open');
+
+        fetch('/study/api/custom-lists/' + listId + '/words', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+          },
+          body: JSON.stringify({ word: word, translation: translation }),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.ok) {
+            btn.classList.add('word-add-to-list__btn--added');
+            const icon = btn.querySelector('i');
+            if (icon) icon.className = 'fas fa-check';
+            const label = btn.querySelector('.word-add-to-list__label');
+            if (label) label.textContent = '{{ _("Добавлено") }}';
+          }
+        })
+        .catch(function() {});
+      });
+    });
+  });
+
+  document.addEventListener('click', function() {
+    document.querySelectorAll('.word-add-to-list__dropdown--open').forEach(function(d) {
+      d.classList.remove('word-add-to-list__dropdown--open');
+    });
+  });
+})();
 </script>
 {% endblock %}

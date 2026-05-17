@@ -1,0 +1,715 @@
+[
+  {
+    "external_key": "immersion:idiom:B1:01:time_idioms",
+    "level": "B1",
+    "lesson_number_hint": 1,
+    "lesson_type": "idiom",
+    "title": "Идиомы: время и сроки",
+    "title_en": "Idioms: Time and Deadlines",
+    "description": "Самые практичные идиомы о времени — их используют в разговорной речи и деловых переписках каждый день.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "b1",
+      "time",
+      "everyday"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:B1:01:time_idioms",
+      "items": [
+        {
+          "phrase": "in the nick of time",
+          "meaning": "в последний момент, едва успев",
+          "example": "We caught the train in the nick of time — the doors closed right behind us."
+        },
+        {
+          "phrase": "once in a blue moon",
+          "meaning": "очень редко, раз в сто лет",
+          "example": "She calls me once in a blue moon, maybe twice a year."
+        },
+        {
+          "phrase": "kill time",
+          "meaning": "убивать время, коротать ожидание",
+          "example": "I was killing time at the airport by reading a magazine."
+        },
+        {
+          "phrase": "around the clock",
+          "meaning": "круглосуточно, без остановки",
+          "example": "The customer support team works around the clock."
+        },
+        {
+          "phrase": "beat the clock",
+          "meaning": "успеть до дедлайна, опередить время",
+          "example": "We had to beat the clock to submit the report before midnight."
+        }
+      ]
+    },
+    "module_number": 1
+  },
+  {
+    "external_key": "immersion:idiom:B1:02:work_idioms",
+    "level": "B1",
+    "lesson_number_hint": 2,
+    "lesson_type": "idiom",
+    "title": "Идиомы: работа и карьера",
+    "title_en": "Idioms: Work and Career",
+    "description": "Идиомы для рабочих ситуаций — начало проектов, неудачи, связи и обучение на новом месте.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "b1",
+      "work",
+      "career"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:B1:02:work_idioms",
+      "items": [
+        {
+          "phrase": "get the ball rolling",
+          "meaning": "начать дело, запустить процесс",
+          "example": "Let's get the ball rolling and discuss the project plan."
+        },
+        {
+          "phrase": "back to the drawing board",
+          "meaning": "начать с нуля, разработать заново",
+          "example": "The client rejected our design, so we're back to the drawing board."
+        },
+        {
+          "phrase": "hit the ground running",
+          "meaning": "с первого дня работать на полную, сразу войти в темп",
+          "example": "She hit the ground running and impressed everyone in her first week."
+        },
+        {
+          "phrase": "learn the ropes",
+          "meaning": "освоиться, разобраться как что работает",
+          "example": "Give him a few weeks to learn the ropes before you judge his performance."
+        },
+        {
+          "phrase": "burn the midnight oil",
+          "meaning": "работать допоздна, засиживаться за работой ночью",
+          "example": "I was burning the midnight oil to finish the presentation."
+        }
+      ]
+    },
+    "module_number": 2
+  },
+  {
+    "external_key": "immersion:idiom:B1:03:feelings_idioms",
+    "level": "B1",
+    "lesson_number_hint": 3,
+    "lesson_type": "idiom",
+    "title": "Идиомы: чувства и эмоции",
+    "title_en": "Idioms: Feelings and Emotions",
+    "description": "Образные выражения для описания радости, грусти, волнения и плохого самочувствия.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "b1",
+      "feelings",
+      "emotions"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:B1:03:feelings_idioms",
+      "items": [
+        {
+          "phrase": "under the weather",
+          "meaning": "неважно себя чувствовать, немного приболеть",
+          "example": "I'm feeling a bit under the weather today, so I'll work from home."
+        },
+        {
+          "phrase": "over the moon",
+          "meaning": "безумно счастливый, на седьмом небе",
+          "example": "She was over the moon when she got the job offer."
+        },
+        {
+          "phrase": "down in the dumps",
+          "meaning": "в унынии, расстроенный, подавленный",
+          "example": "He's been down in the dumps since his team lost the final."
+        },
+        {
+          "phrase": "on cloud nine",
+          "meaning": "на вершине счастья, в эйфории",
+          "example": "After proposing and hearing yes, he was on cloud nine for days."
+        },
+        {
+          "phrase": "butterflies in your stomach",
+          "meaning": "волнение, нервное ощущение в животе",
+          "example": "I always get butterflies in my stomach before a job interview."
+        }
+      ]
+    },
+    "module_number": 3
+  },
+  {
+    "external_key": "immersion:idiom:B1:04:everyday_idioms",
+    "level": "B1",
+    "lesson_number_hint": 4,
+    "lesson_type": "idiom",
+    "title": "Идиомы: повседневные ситуации",
+    "title_en": "Idioms: Everyday Life Situations",
+    "description": "Наиболее частые идиомы в неформальном общении — проблемы, решения и жизненные компромиссы.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "b1",
+      "everyday",
+      "practical"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:B1:04:everyday_idioms",
+      "items": [
+        {
+          "phrase": "hit the nail on the head",
+          "meaning": "попасть в точку, сказать именно то что нужно",
+          "example": "You hit the nail on the head — that's exactly what the problem is."
+        },
+        {
+          "phrase": "break the ice",
+          "meaning": "растопить лёд, начать разговор в неловкой ситуации",
+          "example": "He told a joke to break the ice at the beginning of the meeting."
+        },
+        {
+          "phrase": "bite off more than you can chew",
+          "meaning": "взять на себя больше, чем можешь осилить",
+          "example": "I think I've bitten off more than I can chew with four courses this semester."
+        },
+        {
+          "phrase": "sit on the fence",
+          "meaning": "занимать нейтральную позицию, не определяться",
+          "example": "You can't sit on the fence forever — you need to make a decision."
+        },
+        {
+          "phrase": "the last straw",
+          "meaning": "последняя капля, предел терпения",
+          "example": "Arriving late again was the last straw — the manager fired him."
+        }
+      ]
+    },
+    "module_number": 4
+  },
+  {
+    "external_key": "immersion:idiom:B1:05:communication_idioms",
+    "level": "B1",
+    "lesson_number_hint": 5,
+    "lesson_type": "idiom",
+    "title": "Идиомы: общение и информация",
+    "title_en": "Idioms: Communication and Information",
+    "description": "Идиомы о том, как говорят, молчат, намекают и раскрывают секреты.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "b1",
+      "communication",
+      "speaking"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:B1:05:communication_idioms",
+      "items": [
+        {
+          "phrase": "beat around the bush",
+          "meaning": "ходить вокруг да около, говорить намёками",
+          "example": "Stop beating around the bush and just tell me what you think."
+        },
+        {
+          "phrase": "straight from the horse's mouth",
+          "meaning": "из первых уст, от самого источника",
+          "example": "I heard it straight from the horse's mouth — the CEO confirmed the merger."
+        },
+        {
+          "phrase": "let the cat out of the bag",
+          "meaning": "выболтать секрет, проговориться",
+          "example": "She let the cat out of the bag about the surprise party."
+        },
+        {
+          "phrase": "cut to the chase",
+          "meaning": "перейти к сути, не тратить время на вступления",
+          "example": "Let's cut to the chase: do you want the job or not?"
+        },
+        {
+          "phrase": "read between the lines",
+          "meaning": "читать между строк, понимать скрытый смысл",
+          "example": "His email sounds polite, but if you read between the lines, he's unhappy."
+        }
+      ]
+    },
+    "module_number": 5
+  },
+  {
+    "external_key": "immersion:idiom:B2:01:problem_idioms",
+    "level": "B2",
+    "lesson_number_hint": 1,
+    "lesson_type": "idiom",
+    "title": "Идиомы: проблемы и трудные ситуации",
+    "title_en": "Idioms: Problems and Difficult Situations",
+    "description": "Образные выражения для сложных жизненных и рабочих ситуаций — когда нет хорошего выхода.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "b2",
+      "problems",
+      "decisions"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:B2:01:problem_idioms",
+      "items": [
+        {
+          "phrase": "caught between a rock and a hard place",
+          "meaning": "меж двух огней, в безвыходной ситуации",
+          "example": "I'm caught between a rock and a hard place: if I stay I lose the opportunity, if I leave I lose stability."
+        },
+        {
+          "phrase": "the tip of the iceberg",
+          "meaning": "лишь верхушка айсберга, видимая часть большой проблемы",
+          "example": "The budget overrun is just the tip of the iceberg — there are deeper organisational problems."
+        },
+        {
+          "phrase": "open a can of worms",
+          "meaning": "открыть ящик Пандоры, поднять сложную тему",
+          "example": "Bringing up the old contract will open a can of worms."
+        },
+        {
+          "phrase": "burn bridges",
+          "meaning": "сжигать мосты, необратимо портить отношения",
+          "example": "Don't burn bridges when you resign — you might need a reference later."
+        },
+        {
+          "phrase": "a blessing in disguise",
+          "meaning": "скрытое благо, то что поначалу казалось плохим",
+          "example": "Losing that job was a blessing in disguise — I found a much better one."
+        }
+      ]
+    },
+    "module_number": 1
+  },
+  {
+    "external_key": "immersion:idiom:B2:02:money_idioms",
+    "level": "B2",
+    "lesson_number_hint": 2,
+    "lesson_type": "idiom",
+    "title": "Идиомы: деньги и финансы",
+    "title_en": "Idioms: Money and Finance",
+    "description": "Идиомы о деньгах, расходах и экономии — незаменимы в разговорах о бюджете и ценах.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "b2",
+      "money",
+      "finance"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:B2:02:money_idioms",
+      "items": [
+        {
+          "phrase": "cost an arm and a leg",
+          "meaning": "стоить целое состояние, быть очень дорогим",
+          "example": "The repairs cost an arm and a leg — nearly three months' salary."
+        },
+        {
+          "phrase": "break the bank",
+          "meaning": "разорить, потратить всё до последнего",
+          "example": "We wanted a big wedding, but we didn't want to break the bank."
+        },
+        {
+          "phrase": "go Dutch",
+          "meaning": "платить каждый за себя, разделить счёт",
+          "example": "We usually go Dutch on dinner so no one feels obligated.",
+          "cultural_note": "Выражение связано со старыми стереотипами о голландцах; сейчас используется нейтрально, но некоторые собеседники могут счесть его устаревшим.",
+          "culturally_sensitive": true
+        },
+        {
+          "phrase": "make ends meet",
+          "meaning": "сводить концы с концами, едва хватать на жизнь",
+          "example": "After the pay cut it was hard to make ends meet with two kids."
+        },
+        {
+          "phrase": "a cash cow",
+          "meaning": "дойная корова, стабильный источник дохода",
+          "example": "The subscription service became a cash cow for the company."
+        }
+      ]
+    },
+    "module_number": 2
+  },
+  {
+    "external_key": "immersion:idiom:B2:03:knowledge_idioms",
+    "level": "B2",
+    "lesson_number_hint": 3,
+    "lesson_type": "idiom",
+    "title": "Идиомы: знания и понимание",
+    "title_en": "Idioms: Knowledge and Understanding",
+    "description": "Идиомы о том, что знают и чего не знают — пригодятся в учёбе, обсуждениях и объяснениях.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "b2",
+      "knowledge",
+      "learning"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:B2:03:knowledge_idioms",
+      "items": [
+        {
+          "phrase": "in the dark",
+          "meaning": "в неведении, не знать о происходящем",
+          "example": "They kept us in the dark about the restructuring until the last moment."
+        },
+        {
+          "phrase": "up to speed",
+          "meaning": "в курсе событий, полностью осведомлённый",
+          "example": "Can you bring me up to speed on what happened while I was away?"
+        },
+        {
+          "phrase": "scratch the surface",
+          "meaning": "затронуть лишь поверхностно, едва коснуться темы",
+          "example": "We've only scratched the surface of what machine learning can do."
+        },
+        {
+          "phrase": "second nature",
+          "meaning": "вторая натура, что-то усвоенное до автоматизма",
+          "example": "After years of practice, public speaking became second nature to her."
+        },
+        {
+          "phrase": "connect the dots",
+          "meaning": "сложить картину, связать разрозненные факты",
+          "example": "Once you connect the dots, the pattern becomes obvious."
+        }
+      ]
+    },
+    "module_number": 3
+  },
+  {
+    "external_key": "immersion:idiom:B2:04:relationship_idioms",
+    "level": "B2",
+    "lesson_number_hint": 4,
+    "lesson_type": "idiom",
+    "title": "Идиомы: отношения и общение",
+    "title_en": "Idioms: Relationships and Social Interaction",
+    "description": "Образные выражения для разных типов межличностного взаимодействия — конфликты, примирения, симпатии.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "b2",
+      "relationships",
+      "social"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:B2:04:relationship_idioms",
+      "items": [
+        {
+          "phrase": "see eye to eye",
+          "meaning": "быть одного мнения, соглашаться",
+          "example": "We don't always see eye to eye, but we respect each other's views."
+        },
+        {
+          "phrase": "give someone the cold shoulder",
+          "meaning": "игнорировать кого-то, демонстративно холодно",
+          "example": "After the argument she gave him the cold shoulder for a week."
+        },
+        {
+          "phrase": "bury the hatchet",
+          "meaning": "примириться, забыть старые обиды",
+          "example": "After years of rivalry, the two companies finally buried the hatchet.",
+          "cultural_note": "Выражение происходит из традиций коренных народов Северной Америки — зарыть топор войны как символ мира. Сейчас употребляется нейтрально.",
+          "culturally_sensitive": true
+        },
+        {
+          "phrase": "bend over backwards",
+          "meaning": "из кожи вон лезть, прикладывать максимум усилий",
+          "example": "The hotel staff bent over backwards to make our stay perfect."
+        },
+        {
+          "phrase": "get under someone's skin",
+          "meaning": "раздражать кого-то, действовать на нервы",
+          "example": "His constant interruptions really get under my skin."
+        }
+      ]
+    },
+    "module_number": 4
+  },
+  {
+    "external_key": "immersion:idiom:B2:05:change_idioms",
+    "level": "B2",
+    "lesson_number_hint": 5,
+    "lesson_type": "idiom",
+    "title": "Идиомы: перемены и решения",
+    "title_en": "Idioms: Change and Bold Decisions",
+    "description": "Идиомы о переменах, новых начинаниях и смелых шагах вперёд.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "b2",
+      "change",
+      "decisions"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:B2:05:change_idioms",
+      "items": [
+        {
+          "phrase": "turn over a new leaf",
+          "meaning": "начать новую жизнь, изменить поведение к лучшему",
+          "example": "After the health scare, he turned over a new leaf and started exercising."
+        },
+        {
+          "phrase": "go back to square one",
+          "meaning": "начать с нуля, вернуться к самому началу",
+          "example": "The prototype failed testing, so we had to go back to square one."
+        },
+        {
+          "phrase": "take a leap of faith",
+          "meaning": "сделать шаг в неизвестность, довериться интуиции",
+          "example": "Quitting her stable job to start a business was a huge leap of faith."
+        },
+        {
+          "phrase": "shake things up",
+          "meaning": "встряхнуть ситуацию, внести кардинальные перемены",
+          "example": "The new director came in to shake things up and modernise the department."
+        },
+        {
+          "phrase": "bite the bullet",
+          "meaning": "стиснуть зубы и сделать неприятное, перетерпеть",
+          "example": "It's going to be painful, but we just have to bite the bullet and cut costs.",
+          "cultural_note": "Происходит из военной медицины — пациент кусал пулю во время операции без анестезии. Сейчас используется нейтрально о любой болезненной но необходимой ситуации.",
+          "culturally_sensitive": false
+        }
+      ]
+    },
+    "module_number": 5
+  },
+  {
+    "external_key": "immersion:idiom:C1:01:abstract_thinking_idioms",
+    "level": "C1",
+    "lesson_number_hint": 1,
+    "lesson_type": "idiom",
+    "title": "Идиомы: абстрактное мышление",
+    "title_en": "Idioms: Abstract Thinking and Complexity",
+    "description": "Идиомы для обсуждения сложных идей, неопределённости и неоднозначных ситуаций — язык академических и деловых дискуссий.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "c1",
+      "abstract",
+      "thinking"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:C1:01:abstract_thinking_idioms",
+      "items": [
+        {
+          "phrase": "wrap one's head around",
+          "meaning": "осмыслить, понять сложную концепцию",
+          "example": "It took me a week to wrap my head around the implications of the new policy."
+        },
+        {
+          "phrase": "food for thought",
+          "meaning": "пища для размышления, повод задуматься",
+          "example": "The lecture raised questions that gave me a lot of food for thought."
+        },
+        {
+          "phrase": "a grey area",
+          "meaning": "серая зона, область неоднозначных правил или норм",
+          "example": "The legal status of that activity is a grey area — courts haven't decided."
+        },
+        {
+          "phrase": "the devil is in the details",
+          "meaning": "дьявол кроется в деталях, мелочи решают всё",
+          "example": "The plan looks solid, but the devil is in the details of implementation."
+        },
+        {
+          "phrase": "a double-edged sword",
+          "meaning": "палка о двух концах, нечто с двойными последствиями",
+          "example": "Social media is a double-edged sword: it connects people and spreads misinformation."
+        }
+      ]
+    },
+    "module_number": 1
+  },
+  {
+    "external_key": "immersion:idiom:C1:02:power_idioms",
+    "level": "C1",
+    "lesson_number_hint": 2,
+    "lesson_type": "idiom",
+    "title": "Идиомы: власть и влияние",
+    "title_en": "Idioms: Power and Influence",
+    "description": "Образные выражения о власти, контроле и скрытых механизмах влияния — незаменимы при анализе политических и корпоративных текстов.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "c1",
+      "power",
+      "influence"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:C1:02:power_idioms",
+      "items": [
+        {
+          "phrase": "pull the strings",
+          "meaning": "дёргать за ниточки, управлять из-за кулис",
+          "example": "Everyone thinks he's retired, but he's still pulling the strings."
+        },
+        {
+          "phrase": "the upper hand",
+          "meaning": "преимущество, доминирующая позиция",
+          "example": "After the merger, the larger company had the upper hand in negotiations."
+        },
+        {
+          "phrase": "behind closed doors",
+          "meaning": "за закрытыми дверями, тайно от общественности",
+          "example": "The real decision was made behind closed doors long before the vote."
+        },
+        {
+          "phrase": "set the tone",
+          "meaning": "задать тон, определить общий стиль или настрой",
+          "example": "The opening speech set the tone for the entire conference."
+        },
+        {
+          "phrase": "have clout",
+          "meaning": "иметь вес, обладать реальным влиянием",
+          "example": "She has a lot of clout in the industry — her endorsement matters."
+        }
+      ]
+    },
+    "module_number": 2
+  },
+  {
+    "external_key": "immersion:idiom:C1:03:risk_idioms",
+    "level": "C1",
+    "lesson_number_hint": 3,
+    "lesson_type": "idiom",
+    "title": "Идиомы: риск и неопределённость",
+    "title_en": "Idioms: Risk and Uncertainty",
+    "description": "Идиомы для описания рискованных ситуаций, интуитивных решений и действий без гарантий.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "c1",
+      "risk",
+      "uncertainty"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:C1:03:risk_idioms",
+      "items": [
+        {
+          "phrase": "on thin ice",
+          "meaning": "ступать по тонкому льду, быть в рискованном положении",
+          "example": "He's on thin ice with management after missing the third deadline."
+        },
+        {
+          "phrase": "play it by ear",
+          "meaning": "действовать по обстоятельствам, без жёсткого плана",
+          "example": "We don't have a set agenda — we'll play it by ear and see how things develop."
+        },
+        {
+          "phrase": "hedge your bets",
+          "meaning": "подстраховаться, не ставить всё на одно",
+          "example": "She applied to six universities, hedging her bets in case her top choice rejected her."
+        },
+        {
+          "phrase": "walk a tightrope",
+          "meaning": "балансировать на грани, действовать в условиях жёстких ограничений",
+          "example": "The government is walking a tightrope between economic growth and inflation control."
+        },
+        {
+          "phrase": "a shot in the dark",
+          "meaning": "выстрел вслепую, попытка без реальных шансов",
+          "example": "Applying without the required experience was a shot in the dark, but it worked."
+        }
+      ]
+    },
+    "module_number": 3
+  },
+  {
+    "external_key": "immersion:idiom:C1:04:effort_idioms",
+    "level": "C1",
+    "lesson_number_hint": 4,
+    "lesson_type": "idiom",
+    "title": "Идиомы: усилия и прогресс",
+    "title_en": "Idioms: Effort and Progress",
+    "description": "Образные выражения о трудоёмкой работе, препятствиях и движении вперёд — типичны в деловой и публицистической речи.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "c1",
+      "effort",
+      "progress"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:C1:04:effort_idioms",
+      "items": [
+        {
+          "phrase": "move the goalposts",
+          "meaning": "переносить цель, менять правила игры на ходу",
+          "example": "Every time we meet a target, they move the goalposts and demand more."
+        },
+        {
+          "phrase": "an uphill battle",
+          "meaning": "борьба в гору, тяжёлая борьба с препятствиями",
+          "example": "Changing public opinion on the issue is an uphill battle."
+        },
+        {
+          "phrase": "gain ground",
+          "meaning": "набирать позиции, продвигаться вперёд",
+          "example": "The opposition party is gaining ground ahead of the election."
+        },
+        {
+          "phrase": "push the envelope",
+          "meaning": "раздвигать границы, идти дальше устоявшихся норм",
+          "example": "The team is pushing the envelope with a design no one has tried before."
+        },
+        {
+          "phrase": "the law of diminishing returns",
+          "meaning": "закон убывающей отдачи, меньший эффект от тех же усилий",
+          "example": "After six hours of studying, the law of diminishing returns kicks in."
+        }
+      ]
+    },
+    "module_number": 4
+  },
+  {
+    "external_key": "immersion:idiom:C1:05:social_dynamics_idioms",
+    "level": "C1",
+    "lesson_number_hint": 5,
+    "lesson_type": "idiom",
+    "title": "Идиомы: социальная динамика",
+    "title_en": "Idioms: Social Dynamics and Conformity",
+    "description": "Идиомы о давлении группы, конформизме и стремлении выделиться — полезны для анализа социальных и культурных текстов.",
+    "tags": [
+      "immersion",
+      "idiom",
+      "c1",
+      "social",
+      "conformity"
+    ],
+    "content": {
+      "external_key": "immersion:idiom:C1:05:social_dynamics_idioms",
+      "items": [
+        {
+          "phrase": "rock the boat",
+          "meaning": "раскачивать лодку, нарушать стабильность",
+          "example": "Nobody wanted to rock the boat by questioning the director's plan."
+        },
+        {
+          "phrase": "toe the line",
+          "meaning": "следовать правилам, подчиняться принятым нормам",
+          "example": "New employees are expected to toe the line during their probation period."
+        },
+        {
+          "phrase": "go against the grain",
+          "meaning": "идти против течения, противостоять общепринятому",
+          "example": "His unconventional methods go against the grain, but they deliver results."
+        },
+        {
+          "phrase": "keep up with the Joneses",
+          "meaning": "не отставать от соседей, гнаться за статусом",
+          "example": "They bought a bigger car just to keep up with the Joneses, not because they needed it.",
+          "cultural_note": "Выражение происходит из американского комикса начала XX века; отражает критику консюмеризма и социального давления. Сейчас используется нейтрально, но несёт иронический оттенок.",
+          "culturally_sensitive": true
+        },
+        {
+          "phrase": "play the field",
+          "meaning": "не связывать себя одним выбором, пробовать разные варианты",
+          "example": "Instead of committing to one supplier, they decided to play the field for a year."
+        }
+      ]
+    },
+    "module_number": 5
+  }
+]

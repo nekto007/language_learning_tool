@@ -585,6 +585,305 @@ class AchievementService:
         }
 
 
+def check_listening_achievements(user_id: int, db_session=None) -> List[Achievement]:
+    """Award listening-related achievements after a ListeningAttempt is created.
+
+    Checks:
+    - listening_first: user has at least 1 ListeningAttempt
+    - listening_week: 7-day consecutive listening streak
+    - listening_master: avg score >= 90 over last 10 ListeningAttempt rows
+    """
+    from app.curriculum.models import ListeningAttempt
+    from app.achievements.streak_service import get_listening_streak
+    from sqlalchemy import func
+
+    session = db_session if db_session is not None else db.session
+
+    codes_to_award: set[str] = set()
+
+    total = session.query(func.count(ListeningAttempt.id)).filter(
+        ListeningAttempt.user_id == user_id,
+    ).scalar() or 0
+
+    if total >= 1:
+        codes_to_award.add('listening_first')
+
+    streak = get_listening_streak(user_id, db_session=session)
+    if streak >= 7:
+        codes_to_award.add('listening_week')
+
+    if total >= 10:
+        from sqlalchemy import select
+        subq = (
+            select(ListeningAttempt.score.label('score'))
+            .where(ListeningAttempt.user_id == user_id)
+            .order_by(ListeningAttempt.created_at.desc())
+            .limit(10)
+            .subquery()
+        )
+        last_10_avg = session.query(func.avg(subq.c.score)).scalar() or 0.0
+        if last_10_avg >= 90.0:
+            codes_to_award.add('listening_master')
+
+    return AchievementService._award_badges(user_id, codes_to_award)
+
+
+def check_writing_achievements(user_id: int, db_session=None) -> List[Achievement]:
+    """Award writing-related achievements after a UserWritingAttempt is saved.
+
+    Checks:
+    - writing_first: user has at least 1 UserWritingAttempt
+    - writing_streak_3: 3 consecutive days with writing attempts
+    - writing_fluent: any attempt with word_count >= 100
+    """
+    from app.curriculum.models import UserWritingAttempt
+    from app.achievements.streak_service import get_writing_streak
+    from sqlalchemy import func
+
+    session = db_session if db_session is not None else db.session
+
+    codes_to_award: set[str] = set()
+
+    total = session.query(func.count(UserWritingAttempt.id)).filter(
+        UserWritingAttempt.user_id == user_id,
+    ).scalar() or 0
+
+    if total >= 1:
+        codes_to_award.add('writing_first')
+
+    streak = get_writing_streak(user_id, db_session=session)
+    if streak >= 3:
+        codes_to_award.add('writing_streak_3')
+
+    fluent = session.query(UserWritingAttempt).filter(
+        UserWritingAttempt.user_id == user_id,
+        UserWritingAttempt.word_count >= 100,
+    ).first()
+    if fluent is not None:
+        codes_to_award.add('writing_fluent')
+
+    return AchievementService._award_badges(user_id, codes_to_award)
+
+
+def check_speaking_achievements(user_id: int, db_session=None) -> List[Achievement]:
+    """Award speaking-related achievements after a PronunciationAttempt is saved.
+
+    Checks:
+    - speaking_first: user has at least 1 PronunciationAttempt
+    - speaking_streak_3: 3 consecutive days with pronunciation attempts
+    - speaking_clear: 10 matched pronunciations total
+    """
+    from app.curriculum.models import PronunciationAttempt
+    from app.achievements.streak_service import get_speaking_streak
+    from sqlalchemy import func
+
+    session = db_session if db_session is not None else db.session
+
+    codes_to_award: set[str] = set()
+
+    total = session.query(func.count(PronunciationAttempt.id)).filter(
+        PronunciationAttempt.user_id == user_id,
+    ).scalar() or 0
+
+    if total >= 1:
+        codes_to_award.add('speaking_first')
+
+    streak = get_speaking_streak(user_id, db_session=session)
+    if streak >= 3:
+        codes_to_award.add('speaking_streak_3')
+
+    matched_count = session.query(func.count(PronunciationAttempt.id)).filter(
+        PronunciationAttempt.user_id == user_id,
+        PronunciationAttempt.matched.is_(True),
+    ).scalar() or 0
+    if matched_count >= 10:
+        codes_to_award.add('speaking_clear')
+
+    return AchievementService._award_badges(user_id, codes_to_award)
+
+
+def check_immersion_achievement(user_id: int, target_date, db_session=None, tz: str = 'UTC') -> List[Achievement]:
+    """Award immersion_daily / immersion_week after all 4 skills practiced on target_date.
+
+    target_date is the user's LOCAL date. tz must match the timezone used to derive it
+    so that the UTC query window aligns correctly with the user's day.
+    """
+    from datetime import timedelta
+    import pytz
+    from app.curriculum.models import ListeningAttempt, UserWritingAttempt, PronunciationAttempt
+    from app.books.reading_session import UserReadingSession
+    from sqlalchemy import func
+
+    session = db_session if db_session is not None else db.session
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.utc
+    day_start_local = tz_obj.localize(datetime(target_date.year, target_date.month, target_date.day))
+    day_start = day_start_local.astimezone(pytz.utc).replace(tzinfo=None)
+    day_end = day_start + timedelta(days=1)
+    day_start_tz = day_start.replace(tzinfo=timezone.utc)
+    day_end_tz = day_end.replace(tzinfo=timezone.utc)
+
+    has_listening = (session.query(func.count(ListeningAttempt.id)).filter(
+        ListeningAttempt.user_id == user_id,
+        ListeningAttempt.created_at >= day_start,
+        ListeningAttempt.created_at < day_end,
+    ).scalar() or 0) > 0
+
+    has_writing = (session.query(func.count(UserWritingAttempt.id)).filter(
+        UserWritingAttempt.user_id == user_id,
+        UserWritingAttempt.created_at >= day_start,
+        UserWritingAttempt.created_at < day_end,
+    ).scalar() or 0) > 0
+
+    has_speaking = (session.query(func.count(PronunciationAttempt.id)).filter(
+        PronunciationAttempt.user_id == user_id,
+        PronunciationAttempt.created_at >= day_start,
+        PronunciationAttempt.created_at < day_end,
+    ).scalar() or 0) > 0
+
+    has_reading = (session.query(func.count(UserReadingSession.id)).filter(
+        UserReadingSession.user_id == user_id,
+        UserReadingSession.started_at >= day_start_tz,
+        UserReadingSession.started_at < day_end_tz,
+    ).scalar() or 0) > 0
+
+    if not (has_listening and has_writing and has_speaking and has_reading):
+        return []
+
+    codes_to_award: set[str] = {'immersion_daily'}
+
+    from app.achievements.streak_service import get_immersion_streak
+    streak = get_immersion_streak(user_id, db_session=session, tz=tz)
+    if streak >= 7:
+        codes_to_award.add('immersion_week')
+
+    return AchievementService._award_badges(user_id, codes_to_award)
+
+
+_WEEKLY_MILESTONE_MAP: dict[int, tuple[str, int]] = {
+    7: ('week_1', 100),
+    28: ('week_4', 500),
+    84: ('week_12', 2000),
+}
+
+
+def _week_label(weeks: int) -> str:
+    """Return Russian plural for week count."""
+    if weeks % 100 in range(11, 20):
+        return 'недель'
+    mod = weeks % 10
+    if mod == 1:
+        return 'неделя'
+    if mod in (2, 3, 4):
+        return 'недели'
+    return 'недель'
+
+
+def check_weekly_milestone_achievements(user_id: int, streak_days: int, db_session=None) -> List[Achievement]:
+    """Grant weekly milestone achievement and bonus XP when streak hits 7/28/84 days.
+
+    Idempotent: re-awarding is handled by grant_achievement's unique constraint.
+    Returns list of newly granted Achievement objects.
+    Caller must commit after this call (does flush only).
+    """
+    from app.achievements.xp_service import award_xp
+
+    if streak_days not in _WEEKLY_MILESTONE_MAP:
+        return []
+
+    code, bonus_xp = _WEEKLY_MILESTONE_MAP[streak_days]
+    weeks = streak_days // 7
+
+    achievement = Achievement.query.filter_by(code=code).first()
+    if achievement is None:
+        return []
+
+    _, is_new = grant_achievement(user_id, achievement.id)
+    if not is_new:
+        return []
+
+    award_xp(user_id, bonus_xp, source=f'milestone_{code}')
+
+    try:
+        from app.notifications.services import create_notification
+        create_notification(
+            user_id, 'achievement',
+            title=f'Серия {weeks} {_week_label(weeks)}! +{bonus_xp} XP',
+            message=f'Вы занимаетесь {streak_days} дней подряд!',
+            icon=achievement.icon,
+            link='/study/stats',
+        )
+    except Exception:
+        logger.exception(
+            "Failed to send weekly milestone notification for user %s (streak=%s)",
+            user_id, streak_days,
+        )
+
+    (db_session if db_session is not None else db.session).flush()
+    return [achievement]
+
+
+def check_challenge_achievements(user_id: int, db_session=None) -> List[Achievement]:
+    """Award challenge-related achievements after a DailyChallengeCompletion is created.
+
+    Checks:
+    - challenge_first: user has at least 1 DailyChallengeCompletion
+    - challenge_streak_7: 7-day consecutive challenge completion streak
+    - challenger: 30 total challenge completions
+    """
+    from app.daily_plan.models import DailyChallenge, DailyChallengeCompletion
+    from sqlalchemy import func
+    import datetime as _dt
+
+    session = db_session if db_session is not None else db.session
+
+    codes_to_award: set[str] = set()
+
+    total = session.query(func.count(DailyChallengeCompletion.id)).filter(
+        DailyChallengeCompletion.user_id == user_id,
+    ).scalar() or 0
+
+    if total >= 1:
+        codes_to_award.add('challenge_first')
+
+    if total >= 30:
+        codes_to_award.add('challenger')
+
+    # Compute challenge streak inline (walk-backward same as get_challenge_streak).
+    # Use user-local date: challenges are seeded per local day by maybe_auto_complete_challenge.
+    from app.utils.time_utils import get_user_local_date
+    today = get_user_local_date(user_id, db)
+    cutoff = today - _dt.timedelta(days=365)
+    rows = (
+        session.query(DailyChallenge.challenge_date)
+        .join(DailyChallengeCompletion, DailyChallengeCompletion.challenge_id == DailyChallenge.id)
+        .filter(
+            DailyChallengeCompletion.user_id == user_id,
+            DailyChallenge.challenge_date >= cutoff,
+        )
+        .distinct()
+        .all()
+    )
+    active_dates = {row[0] for row in rows if row[0] is not None}
+    streak = 0
+    for offset in range(365):
+        check_date = today - _dt.timedelta(days=offset)
+        if check_date in active_dates:
+            streak += 1
+        elif offset == 0:
+            continue  # today not done yet, check yesterday
+        else:
+            break
+
+    if streak >= 7:
+        codes_to_award.add('challenge_streak_7')
+
+    return AchievementService._award_badges(user_id, codes_to_award)
+
+
 def process_lesson_completion(user_id: int, lesson_id: int, score: float) -> Dict:
     """
     Complete workflow for lesson completion: assign grade, update stats, check achievements

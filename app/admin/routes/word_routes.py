@@ -139,7 +139,7 @@ def import_translations():
                 is_valid, error_msg = validate_text_file_upload(
                     file,
                     allowed_extensions={'txt', 'csv'},
-                    max_size_mb=5
+                    max_size_mb=20
                 )
 
                 if not is_valid:
@@ -152,12 +152,26 @@ def import_translations():
                 # Парсим файл через сервис
                 existing_words, missing_words, errors = \
                     WordManagementService.parse_import_file(content)
+                has_enrichment = any(
+                    word.get('has_enrichment')
+                    for word in [*existing_words, *missing_words]
+                )
+                topic_preview = WordManagementService.prepare_topic_resolution_preview(
+                    existing_words,
+                    missing_words,
+                ) if has_enrichment else {
+                    'topic_candidates': [],
+                    'topic_candidate_keys': [],
+                    'existing_topics': [],
+                }
 
                 # Сохраняем данные во временный файл вместо сессии
                 import_id = save_import_data({
                     'existing_words': existing_words,
                     'missing_words': missing_words,
-                    'errors': errors
+                    'errors': errors,
+                    'has_enrichment': has_enrichment,
+                    'topic_candidate_keys': topic_preview['topic_candidate_keys'],
                 })
 
                 # Сохраняем только ID в сессии
@@ -167,6 +181,9 @@ def import_translations():
                                        existing_words=existing_words,
                                        missing_words=missing_words,
                                        errors=errors,
+                                       has_enrichment=has_enrichment,
+                                       topic_candidates=topic_preview['topic_candidates'],
+                                       existing_topics=topic_preview['existing_topics'],
                                        import_id=import_id)
 
             elif action == 'confirm':
@@ -187,10 +204,19 @@ def import_translations():
 
                 # Получаем выбранные для добавления отсутствующие слова
                 words_to_add = request.form.getlist('add_missing_words')
+                topic_resolutions = {}
+                for topic_key in import_data.get('topic_candidate_keys', []):
+                    topic_resolutions[topic_key] = {
+                        'action': request.form.get(f'topic_action_{topic_key}', 'skip'),
+                        'topic_id': request.form.get(f'topic_map_{topic_key}') or None,
+                    }
 
                 # Импортируем через сервис
                 updated_count, added_count = WordManagementService.import_translations(
-                    existing_words, missing_words, words_to_add
+                    existing_words,
+                    missing_words,
+                    words_to_add,
+                    topic_resolutions=topic_resolutions,
                 )
 
                 # Удаляем временный файл

@@ -4,8 +4,9 @@ Covers:
 - Streak calculation with timezone edge cases
 - Streak recovery purchase flow (paid repair)
 - Streak freeze / double-repair protection handling
+- Listening streak (get_listening_streak)
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
 import uuid
 
@@ -16,7 +17,9 @@ from app.achievements.models import StreakCoins, StreakEvent
 from app.achievements.streak_service import (
     apply_free_repair,
     apply_paid_repair,
+    apply_shield_repair,
     earn_daily_coin,
+    get_listening_streak,
     get_or_create_coins,
     get_repair_cost,
     get_required_steps,
@@ -282,3 +285,353 @@ class TestStreakFreezeProtection:
         assert event.details['steps_done'] == 3
         assert event.details['steps_total'] == 4
         assert event.details['reason'] == 'progressive_plan_complete'
+
+
+# ---------------------------------------------------------------------------
+# 5. Longest streak record and personal bests
+# ---------------------------------------------------------------------------
+
+
+class TestLongestStreakTracking:
+    """longest_streak_days is updated when current streak beats it and never decreases."""
+
+    def test_longest_streak_updated_when_beaten(self, db_session, streak_user):
+        from app.achievements.models import UserStatistics
+        from app.achievements.services import StatisticsService
+
+        stats = UserStatistics(
+            user_id=streak_user.id,
+            current_streak_days=4,
+            longest_streak_days=4,
+            last_activity_date=date.today() - timedelta(days=1),
+        )
+        db_session.add(stats)
+        db_session.flush()
+
+        updated = StatisticsService.update_on_lesson_completion(streak_user.id, 80.0, 'B')
+
+        assert updated.current_streak_days == 5
+        assert updated.longest_streak_days == 5
+
+    def test_longest_streak_never_decreases_on_reset(self, db_session, streak_user):
+        from app.achievements.models import UserStatistics
+        from app.achievements.services import StatisticsService
+
+        stats = UserStatistics(
+            user_id=streak_user.id,
+            current_streak_days=10,
+            longest_streak_days=10,
+            last_activity_date=date.today() - timedelta(days=5),
+        )
+        db_session.add(stats)
+        db_session.flush()
+
+        updated = StatisticsService.update_on_lesson_completion(streak_user.id, 80.0, 'B')
+
+        assert updated.current_streak_days == 1
+        assert updated.longest_streak_days == 10
+
+    def test_personal_bests_best_week_lessons(self, db_session, streak_user):
+        """get_personal_bests returns correct best week lessons count."""
+        from app.study.insights_service import get_personal_bests
+        from app.curriculum.models import CEFRLevel, Module, Lessons, LessonProgress
+
+        code = uuid.uuid4().hex[:2].upper()
+        level = CEFRLevel(code=code, name='L', description='d', order=1)
+        db_session.add(level)
+        db_session.flush()
+        mod = Module(
+            level_id=level.id, number=1, title='M', description='d',
+            raw_content={'module': {'id': 1}},
+        )
+        db_session.add(mod)
+        db_session.flush()
+
+        # 3 lessons completed this week, 1 lesson last week
+        this_monday = date.today() - timedelta(days=date.today().weekday())
+        this_week_ts = datetime.combine(this_monday, datetime.min.time()).replace(
+            tzinfo=None
+        ) + timedelta(hours=10)
+        last_week_ts = this_week_ts - timedelta(days=7)
+
+        for i in range(3):
+            lesson = Lessons(
+                module_id=mod.id, number=i + 1, title=f'L{i}',
+                type='text', content={},
+            )
+            db_session.add(lesson)
+            db_session.flush()
+            db_session.add(LessonProgress(
+                user_id=streak_user.id, lesson_id=lesson.id,
+                status='completed', completed_at=this_week_ts,
+            ))
+
+        # 1 lesson last week
+        lesson_old = Lessons(
+            module_id=mod.id, number=10, title='Old', type='text', content={},
+        )
+        db_session.add(lesson_old)
+        db_session.flush()
+        db_session.add(LessonProgress(
+            user_id=streak_user.id, lesson_id=lesson_old.id,
+            status='completed', completed_at=last_week_ts,
+        ))
+        db_session.flush()
+
+        result = get_personal_bests(streak_user.id)
+
+        assert result['best_week_lessons'] == 3
+        assert result['longest_streak_days'] >= 0
+        assert result['max_words_in_day'] >= 0
+
+    def test_personal_bests_empty_user(self, db_session, streak_user):
+        """get_personal_bests returns zeros for a user with no activity."""
+        from app.study.insights_service import get_personal_bests
+
+        result = get_personal_bests(streak_user.id)
+
+        assert result == {'longest_streak_days': 0, 'max_words_in_day': 0, 'best_week_lessons': 0}
+
+
+# ---------------------------------------------------------------------------
+# 6. Listening streak
+# ---------------------------------------------------------------------------
+
+
+def _make_listening_lesson_for_streak(db_session):
+    """Create minimal CEFRLevel → Module → Lessons chain for FK in ListeningAttempt."""
+    from app.curriculum.models import CEFRLevel, Module, Lessons
+
+    code = uuid.uuid4().hex[:2].upper()
+    level = CEFRLevel(code=code, name='Level', description='d', order=1)
+    db_session.add(level)
+    db_session.flush()
+    module = Module(
+        level_id=level.id,
+        number=1,
+        title='M',
+        description='d',
+        raw_content={'module': {'id': 1}},
+    )
+    db_session.add(module)
+    db_session.flush()
+    lesson = Lessons(
+        module_id=module.id,
+        number=1,
+        title='Listening',
+        type='dictation',
+        content={'audio_url': '/a.mp3', 'transcript': 'test'},
+    )
+    db_session.add(lesson)
+    db_session.flush()
+    return lesson
+
+
+class TestGetListeningStreak:
+    """get_listening_streak() counts consecutive days with ListeningAttempt rows."""
+
+    def test_no_attempts_returns_zero(self, db_session, streak_user):
+        result = get_listening_streak(streak_user.id, tz='UTC')
+        assert result == 0
+
+    def test_three_consecutive_days_returns_3(self, db_session, streak_user):
+        from app.curriculum.models import ListeningAttempt
+
+        lesson = _make_listening_lesson_for_streak(db_session)
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        for offset in range(3):  # today, yesterday, day before
+            db_session.add(ListeningAttempt(
+                user_id=streak_user.id,
+                lesson_id=lesson.id,
+                score=80.0,
+                replay_count=0,
+                created_at=now_naive - timedelta(days=offset),
+            ))
+        db_session.flush()
+
+        result = get_listening_streak(streak_user.id, tz='UTC')
+        assert result == 3
+
+    def test_gap_resets_streak_to_1(self, db_session, streak_user):
+        from app.curriculum.models import ListeningAttempt
+
+        lesson = _make_listening_lesson_for_streak(db_session)
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        # Today and 3 days ago — gap on yesterday and 2 days ago
+        for offset in (0, 3):
+            db_session.add(ListeningAttempt(
+                user_id=streak_user.id,
+                lesson_id=lesson.id,
+                score=80.0,
+                replay_count=0,
+                created_at=now_naive - timedelta(days=offset),
+            ))
+        db_session.flush()
+
+        result = get_listening_streak(streak_user.id, tz='UTC')
+        assert result == 1
+
+    def test_only_yesterday_and_before_no_today(self, db_session, streak_user):
+        from app.curriculum.models import ListeningAttempt
+
+        lesson = _make_listening_lesson_for_streak(db_session)
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        # Yesterday and 2 days ago — no today
+        for offset in (1, 2):
+            db_session.add(ListeningAttempt(
+                user_id=streak_user.id,
+                lesson_id=lesson.id,
+                score=80.0,
+                replay_count=0,
+                created_at=now_naive - timedelta(days=offset),
+            ))
+        db_session.flush()
+
+        result = get_listening_streak(streak_user.id, tz='UTC')
+        assert result == 2
+
+    def test_multiple_attempts_same_day_count_as_one(self, db_session, streak_user):
+        from app.curriculum.models import ListeningAttempt
+
+        lesson = _make_listening_lesson_for_streak(db_session)
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        # 5 attempts today — should still count as 1 day
+        for _ in range(5):
+            db_session.add(ListeningAttempt(
+                user_id=streak_user.id,
+                lesson_id=lesson.id,
+                score=90.0,
+                replay_count=1,
+                created_at=now_naive,
+            ))
+        db_session.flush()
+
+        result = get_listening_streak(streak_user.id, tz='UTC')
+        assert result == 1
+
+
+# ---------------------------------------------------------------------------
+# 7. Streak shield
+# ---------------------------------------------------------------------------
+
+
+class TestStreakShield:
+    """Shield protects against one missed day and is earned at 7-day milestones."""
+
+    def test_shield_repair_success(self, db_session, user_id):
+        """apply_shield_repair creates a shield_repair event for the missed date."""
+        missed = date.today() - timedelta(days=1)
+        result = apply_shield_repair(user_id, missed)
+        db_session.flush()
+
+        assert result is True
+        event = StreakEvent.query.filter_by(
+            user_id=user_id, event_type='shield_repair', event_date=missed
+        ).first()
+        assert event is not None
+        assert event.coins_delta == 0
+        assert (event.details or {}).get('reason') == 'streak_shield'
+
+    def test_shield_repair_prevents_duplicate(self, db_session, user_id):
+        """Shield repair is idempotent — second call for same date returns False."""
+        missed = date.today() - timedelta(days=1)
+        r1 = apply_shield_repair(user_id, missed)
+        db_session.flush()
+        r2 = apply_shield_repair(user_id, missed)
+        assert r1 is True
+        assert r2 is False
+        events = StreakEvent.query.filter_by(
+            user_id=user_id, event_type='shield_repair', event_date=missed
+        ).all()
+        assert len(events) == 1
+
+    def test_has_repair_for_date_detects_shield_repair(self, db_session, user_id):
+        """has_repair_for_date returns True after a shield_repair event."""
+        missed = date.today() - timedelta(days=1)
+        assert has_repair_for_date(user_id, missed) is False
+        apply_shield_repair(user_id, missed)
+        db_session.flush()
+        assert has_repair_for_date(user_id, missed) is True
+
+    def test_shield_blocks_paid_repair_on_same_date(self, db_session, user_id):
+        """Paid repair is blocked when a shield repair already covers the date."""
+        missed = date.today() - timedelta(days=1)
+        apply_shield_repair(user_id, missed)
+        db_session.flush()
+        coins = get_or_create_coins(user_id)
+        coins.earn(20)
+        db_session.flush()
+        result = apply_paid_repair(user_id, missed)
+        assert result['success'] is False
+        assert result['error'] == 'already_repaired'
+
+    def test_shield_granted_at_7_day_milestone(self, db_session, streak_user):
+        """check_streak_milestone grants a shield when streak hits 7."""
+        from app.achievements.streak_service import check_streak_milestone
+
+        assert streak_user.streak_shield_active is False
+
+        check_streak_milestone(streak_user.id, current_streak=7)
+        db_session.flush()
+
+        db_session.refresh(streak_user)
+        assert streak_user.streak_shield_active is True
+
+    def test_shield_not_granted_when_already_active(self, db_session, streak_user):
+        """A second 7-day milestone does not over-write an already-active shield."""
+        from app.achievements.streak_service import check_streak_milestone
+
+        streak_user.streak_shield_active = True
+        db_session.flush()
+
+        check_streak_milestone(streak_user.id, current_streak=14)
+        db_session.flush()
+
+        db_session.refresh(streak_user)
+        assert streak_user.streak_shield_active is True
+
+    def test_shield_granted_at_non_milestone_multiple_of_7(self, db_session, streak_user):
+        """Shield granted at streak=21 (multiple of 7, not in STREAK_MILESTONES)."""
+        from app.achievements.streak_service import check_streak_milestone
+
+        assert streak_user.streak_shield_active is False
+        result = check_streak_milestone(streak_user.id, current_streak=21)
+        db_session.flush()
+
+        assert result is None  # no coin reward for non-milestone
+        db_session.refresh(streak_user)
+        assert streak_user.streak_shield_active is True
+
+    def test_shield_not_restored_after_use(self, db_session, streak_user):
+        """After shield is consumed, streak_shield_active stays False."""
+        streak_user.streak_shield_active = True
+        db_session.flush()
+
+        missed = date.today() - timedelta(days=1)
+        apply_shield_repair(streak_user.id, missed)
+        streak_user.streak_shield_active = False
+        db_session.flush()
+
+        db_session.refresh(streak_user)
+        assert streak_user.streak_shield_active is False
+
+    def test_second_miss_breaks_streak_without_shield(self, db_session, streak_user):
+        """Without an active shield, missed days have no auto-repair events."""
+        from app.achievements.models import StreakEvent
+
+        assert streak_user.streak_shield_active is False
+
+        yesterday = date.today() - timedelta(days=1)
+        day_before = date.today() - timedelta(days=2)
+
+        assert has_repair_for_date(streak_user.id, yesterday) is False
+        assert has_repair_for_date(streak_user.id, day_before) is False
+
+        event_count = StreakEvent.query.filter(
+            StreakEvent.user_id == streak_user.id,
+            StreakEvent.event_type == 'shield_repair',
+        ).count()
+        assert event_count == 0
+
+        db_session.refresh(streak_user)
+        assert streak_user.streak_shield_active is False

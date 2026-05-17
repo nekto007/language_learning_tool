@@ -1,0 +1,26 @@
+[
+  {
+    "external_key": "fixture:audio_fill_blank:A1:01",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Заполни пропуск",
+    "title_en": "Audio Fill-in-the-Blank",
+    "content": {
+      "audio_url": "/static/audio/fixture_afb_a1_01.mp3",
+      "items": [
+        {
+          "audio_clip_url": "/static/audio/fixture_afb_a1_01_item1.mp3",
+          "text_with_gap": "I ___ to school every day.",
+          "answer": "go",
+          "options": ["go", "goes", "going"]
+        },
+        {
+          "audio_clip_url": "/static/audio/fixture_afb_a1_01_item2.mp3",
+          "text_with_gap": "She ___ tea in the morning.",
+          "answer": "drinks"
+        }
+      ]
+    }
+  }
+]

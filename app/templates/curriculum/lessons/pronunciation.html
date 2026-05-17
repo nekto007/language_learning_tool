@@ -1,0 +1,390 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Произношение') %}
+{% set instruction_text = _('Произнесите каждое слово вслух.') %}
+{% set block_description = _('Тренировка произношения') %}
+
+{% block lesson_content %}
+<section class="lesson-shell pronunciation-lesson" aria-labelledby="pronunciation-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="pronunciation-title">{{ _('Произношение') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-microphone"></i></span>
+      <span class="lesson-shell__progress" aria-live="polite">
+        {{ _('Слово') }} <span id="current-idx" data-progress-current>1</span> / <span data-progress-total>{{ items|length }}</span>
+      </span>
+    </div>
+    <div class="lesson-shell__progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="lesson-shell__progress-fill" id="pronunciation-progress-fill" style="width:0%"></span>
+    </div>
+  </header>
+
+  <div class="lesson-shell__body">
+
+    {% for item in items %}
+    <article
+      class="lesson-shell__card pronunciation-item{% if loop.first %} pronunciation-item--active{% endif %}"
+      id="item-{{ loop.index0 }}"
+      data-index="{{ loop.index0 }}"
+      data-word="{{ item.word }}"
+      {% if loop.first %}aria-current="step"{% endif %}
+    >
+      <div class="pronunciation-item__word">{{ item.word }}</div>
+      {% if item.get('pronunciation_hint') %}
+      <div class="pronunciation-item__hint">/{{ item.pronunciation_hint }}/</div>
+      {% endif %}
+
+      <div class="pronunciation-item__actions">
+        {% if item.get('audio_url') %}
+        <button
+          class="btn btn-sm btn-outline"
+          type="button"
+          onclick="playAudio({{ loop.index0 }})"
+          title="{{ _('Послушать') }}"
+        >
+          <i class="fas fa-volume-up"></i> {{ _('Послушать') }}
+        </button>
+        <audio id="audio-{{ loop.index0 }}" preload="none">
+          <source src="{{ item.audio_url }}" type="audio/mpeg">
+          <source src="{{ item.audio_url }}" type="audio/ogg">
+        </audio>
+        {% endif %}
+
+        <button
+          class="btn btn-sm btn-primary speech-btn"
+          id="speak-btn-{{ loop.index0 }}"
+          type="button"
+          style="display:none;"
+          onclick="startRecognition({{ loop.index0 }})"
+        >
+          <i class="fas fa-microphone"></i> {{ _('Произнести') }}
+        </button>
+
+        <button
+          class="btn btn-sm btn-primary fallback-btn"
+          id="fallback-btn-{{ loop.index0 }}"
+          type="button"
+          style="display:none;"
+          onclick="showSelfAssess({{ loop.index0 }})"
+        >
+          <i class="fas fa-check"></i> {{ _('Я сказал(а) вслух') }}
+        </button>
+      </div>
+
+      <div class="pronunciation-item__result" id="result-{{ loop.index0 }}"
+           role="status" aria-live="polite"></div>
+
+      <div class="pronunciation-item__self-assess" id="self-assess-{{ loop.index0 }}">
+        <label class="pronunciation-item__self-label" for="self-cb-{{ loop.index0 }}">
+          <input
+            type="checkbox"
+            id="self-cb-{{ loop.index0 }}"
+            onchange="onSelfAssessChange({{ loop.index0 }})"
+          >
+          <span>{{ _('Я произнёс(ла) слово вслух') }}</span>
+        </label>
+      </div>
+    </article>
+    {% endfor %}
+
+  </div>
+
+  <div class="lesson-shell__actions pronunciation-actions">
+    <button
+      class="btn btn-primary btn-lg"
+      id="finish-btn"
+      type="button"
+      style="display:none;"
+      onclick="finishLesson()"
+    >
+      <i class="fas fa-check-circle"></i> {{ _('Завершить урок') }}
+    </button>
+  </div>
+
+  <div class="lesson-shell__result pronunciation-result-area" id="pronunciation-result-area"
+       role="status" aria-live="polite" aria-atomic="true" hidden>
+    <div id="pronunciation-result-badge"></div>
+    <div id="pronunciation-next-area" style="margin-top:1rem;"></div>
+  </div>
+</section>
+
+<script>
+const lessonId = {{ lesson.id }};
+const totalItems = {{ items|length }};
+const itemWords = {{ items | map(attribute='word') | list | tojson }};
+
+const itemDone = new Array(totalItems).fill(false);
+const itemSubmitting = new Array(totalItems).fill(false);
+let speechSupported = false;
+let currentRecognizer = null;
+let currentRecognizerIdx = -1;
+
+function _updateProgress() {
+  const done = itemDone.filter(Boolean).length;
+  const fill = document.getElementById('pronunciation-progress-fill');
+  if (fill && totalItems > 0) {
+    const pct = Math.round((done / totalItems) * 100);
+    fill.style.width = pct + '%';
+    const bar = fill.parentElement;
+    if (bar) bar.setAttribute('aria-valuenow', String(pct));
+  }
+}
+
+function _renderBadge(targetId, kind, iconHtml, label) {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  el.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'result-badge result-badge--' + kind;
+  const icon = document.createElement('span');
+  icon.className = 'result-badge__icon';
+  icon.innerHTML = iconHtml;
+  wrap.appendChild(icon);
+  const span = document.createElement('span');
+  span.textContent = label;
+  wrap.appendChild(span);
+  el.appendChild(wrap);
+}
+
+function checkAllDone() {
+  if (itemDone.every(Boolean)) {
+    document.getElementById('finish-btn').style.display = 'inline-flex';
+  }
+}
+
+function markItemDone(idx) {
+  itemDone[idx] = true;
+  if (currentRecognizer && currentRecognizerIdx === idx) {
+    try { currentRecognizer.abort(); } catch (_) {}
+    currentRecognizer = null;
+    currentRecognizerIdx = -1;
+  }
+  const el = document.getElementById('item-' + idx);
+  if (el) {
+    el.classList.remove('pronunciation-item--active');
+    el.removeAttribute('aria-current');
+  }
+  const speakBtn = document.getElementById('speak-btn-' + idx);
+  if (speakBtn) speakBtn.disabled = true;
+  const fallbackBtn = document.getElementById('fallback-btn-' + idx);
+  if (fallbackBtn) fallbackBtn.disabled = true;
+  const selfCb = document.getElementById('self-cb-' + idx);
+  if (selfCb) selfCb.disabled = true;
+  const selfAssess = document.getElementById('self-assess-' + idx);
+  if (selfAssess) selfAssess.classList.remove('pronunciation-item__self-assess--visible');
+  const nextPending = itemDone.indexOf(false);
+  if (nextPending !== -1) {
+    document.getElementById('current-idx').textContent = String(nextPending + 1);
+    const next = document.getElementById('item-' + nextPending);
+    if (next) {
+      next.classList.add('pronunciation-item--active');
+      next.setAttribute('aria-current', 'step');
+      next.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  } else {
+    document.getElementById('current-idx').textContent = String(totalItems);
+  }
+  _updateProgress();
+  checkAllDone();
+}
+
+function playAudio(idx) {
+  const audio = document.getElementById('audio-' + idx);
+  if (audio) {
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  }
+}
+
+function startRecognition(idx) {
+  if (itemDone[idx] || itemSubmitting[idx]) return;
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
+
+  if (currentRecognizer) {
+    try { currentRecognizer.abort(); } catch (_) {}
+    currentRecognizer = null;
+    currentRecognizerIdx = -1;
+  }
+
+  const btn = document.getElementById('speak-btn-' + idx);
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-circle" style="color:#ef4444;"></i> {{ _("Слушаю...") }}';
+
+  const recognition = new SpeechRecognition();
+  currentRecognizer = recognition;
+  currentRecognizerIdx = idx;
+  recognition.lang = 'en-US';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    sendRecognitionResult(idx, transcript);
+  };
+
+  recognition.onerror = function(event) {
+    if (currentRecognizer === recognition) {
+      currentRecognizer = null;
+      currentRecognizerIdx = -1;
+    }
+    if (itemDone[idx]) return;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-microphone"></i> {{ _("Произнести") }}';
+    if (event.error === 'not-allowed') {
+      _renderBadge('result-' + idx, 'neutral', '<i class="fas fa-info-circle"></i>',
+        '{{ _("Микрофон недоступен. Скажи вслух и отметь ниже.") }}');
+      showSelfAssess(idx);
+    }
+  };
+
+  recognition.onend = function() {
+    if (currentRecognizer === recognition) {
+      currentRecognizer = null;
+      currentRecognizerIdx = -1;
+    }
+    if (itemDone[idx] || itemSubmitting[idx]) return;
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-microphone"></i> {{ _("Попробовать снова") }}';
+  };
+
+  recognition.start();
+}
+
+async function sendRecognitionResult(idx, transcript) {
+  if (itemDone[idx] || itemSubmitting[idx]) return;
+  itemSubmitting[idx] = true;
+  const word = itemWords[idx];
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+  try {
+    const resp = await fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({
+        lesson_type: 'pronunciation',
+        item_index: idx,
+        recognized_text: transcript,
+        target_word: word,
+      }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    if (data.matched) {
+      _renderBadge('result-' + idx, 'correct', '<i class="fas fa-check-circle"></i>',
+        '{{ _("Похоже!") }} (' + transcript + ')');
+      const itemEl = document.getElementById('item-' + idx);
+      itemEl.classList.remove('pronunciation-item--missed');
+      itemEl.classList.add('pronunciation-item--matched');
+      markItemDone(idx);
+    } else {
+      _renderBadge('result-' + idx, 'incorrect', '<i class="fas fa-times-circle"></i>',
+        '{{ _("Попробуй ещё раз или отметь самопроверку ниже.") }} {{ _("Распознано:") }} ' + transcript);
+      document.getElementById('item-' + idx).classList.add('pronunciation-item--missed');
+      showSelfAssess(idx);
+    }
+  } catch (err) {
+    console.error('Pronunciation submit error:', err);
+    _renderBadge('result-' + idx, 'neutral', '<i class="fas fa-exclamation-triangle"></i>',
+      '{{ _("Не удалось отправить. Проверь соединение и попробуй ещё раз.") }}');
+  } finally {
+    itemSubmitting[idx] = false;
+    if (!itemDone[idx]) {
+      const retryBtn = document.getElementById('speak-btn-' + idx);
+      if (retryBtn) {
+        retryBtn.disabled = false;
+        retryBtn.innerHTML = '<i class="fas fa-microphone"></i> {{ _("Попробовать снова") }}';
+      }
+    }
+  }
+}
+
+function showSelfAssess(idx) {
+  const sa = document.getElementById('self-assess-' + idx);
+  sa.classList.add('pronunciation-item__self-assess--visible');
+}
+
+function onSelfAssessChange(idx) {
+  const cb = document.getElementById('self-cb-' + idx);
+  if (itemDone[idx] || itemSubmitting[idx]) {
+    if (cb) cb.checked = false;
+    return;
+  }
+  if (!cb.checked) return;
+
+  _renderBadge('result-' + idx, 'neutral', '<i class="fas fa-check"></i>',
+    '{{ _("Отмечено как произнесённое.") }}');
+  const selfAssessItemEl = document.getElementById('item-' + idx);
+  selfAssessItemEl.classList.remove('pronunciation-item--missed');
+  selfAssessItemEl.classList.add('pronunciation-item--matched');
+
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+    body: JSON.stringify({
+      lesson_type: 'pronunciation',
+      item_index: idx,
+      recognized_text: null,
+      target_word: itemWords[idx],
+      self_assessed: true,
+    }),
+  }).catch(() => {});
+
+  markItemDone(idx);
+}
+
+async function finishLesson() {
+  const btn = document.getElementById('finish-btn');
+  btn.disabled = true;
+  btn.classList.add('btn--loading');
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    const resp = await fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ lesson_type: 'pronunciation', finish: true }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    _renderBadge('pronunciation-result-badge', 'correct',
+      '<i class="fas fa-star"></i>', '{{ _("Урок завершён!") }}');
+
+    const nextArea = document.getElementById('pronunciation-next-area');
+    if (data.next_lesson_url) {
+      nextArea.innerHTML = `
+        <a href="${data.next_lesson_url}" class="btn btn-success">
+          <i class="fas fa-arrow-right"></i> {{ _("Следующий урок") }}
+        </a>`;
+    }
+
+    const area = document.getElementById('pronunciation-result-area');
+    area.hidden = false;
+    area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    btn.style.display = 'none';
+  } catch (err) {
+    console.error('Pronunciation finish error:', err);
+    btn.disabled = false;
+    btn.classList.remove('btn--loading');
+    btn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершить урок") }}';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  speechSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const speechBtns = document.querySelectorAll('.speech-btn');
+  const fallbackBtns = document.querySelectorAll('.fallback-btn');
+
+  if (speechSupported) {
+    speechBtns.forEach(b => b.style.display = 'inline-flex');
+  } else {
+    fallbackBtns.forEach(b => b.style.display = 'inline-flex');
+  }
+});
+</script>
+{% endblock %}

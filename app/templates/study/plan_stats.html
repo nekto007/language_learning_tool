@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+
+{% block title %}Статистика плана{% endblock %}
+
+{% block content %}
+<div class="plan-stats-page">
+
+    <div class="plan-stats__header">
+        <a href="{{ url_for('study.index') }}" class="plan-stats__back">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </a>
+        <div>
+            <h1 class="plan-stats__title">Статистика плана</h1>
+            <p class="plan-stats__subtitle">Последние 30 дней · {{ start_date.strftime('%-d %b') }} — {{ today.strftime('%-d %b %Y') }}</p>
+        </div>
+    </div>
+
+    <div class="plan-stats__cards">
+        <div class="plan-stats__card">
+            <div class="plan-stats__card-value">{{ completion_rate }}%</div>
+            <div class="plan-stats__card-label">Активность</div>
+            <div class="plan-stats__card-sub">{{ total_active }} из 30 дней</div>
+        </div>
+        <div class="plan-stats__card">
+            <div class="plan-stats__card-value">{{ day_secured_rate }}%</div>
+            <div class="plan-stats__card-label">День выполнен</div>
+            <div class="plan-stats__card-sub">{{ total_secured }} из {{ total_active }} активных дней</div>
+        </div>
+        <div class="plan-stats__card">
+            <div class="plan-stats__card-value">{{ avg_slots_completed }}</div>
+            <div class="plan-stats__card-label">Слотов в день</div>
+            <div class="plan-stats__card-sub">среднее за активные дни</div>
+        </div>
+        <div class="plan-stats__card plan-stats__card--trend">
+            {% if trend == 'up' %}
+            <div class="plan-stats__card-value plan-stats__trend--up">↑</div>
+            <div class="plan-stats__card-label">Тренд</div>
+            <div class="plan-stats__card-sub">активность растёт</div>
+            {% elif trend == 'down' %}
+            <div class="plan-stats__card-value plan-stats__trend--down">↓</div>
+            <div class="plan-stats__card-label">Тренд</div>
+            <div class="plan-stats__card-sub">активность снижается</div>
+            {% else %}
+            <div class="plan-stats__card-value plan-stats__trend--flat">→</div>
+            <div class="plan-stats__card-label">Тренд</div>
+            <div class="plan-stats__card-sub">стабильно</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="plan-stats__chart-container">
+        <h2 class="plan-stats__section-title">Слоты выполнено по дням</h2>
+        {% if total_active == 0 %}
+        <div class="plan-stats__empty">
+            <p>Нет данных за последние 30 дней. Начни заниматься, чтобы увидеть статистику.</p>
+        </div>
+        {% else %}
+        <div class="plan-stats__chart-wrap">
+            <canvas id="planStatsChart" height="120" aria-label="Bar chart: slots completed per day"></canvas>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<style>
+.plan-stats-page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: var(--space-6);
+}
+
+.plan-stats__header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+}
+
+.plan-stats__back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+    margin-top: 0.25rem;
+}
+.plan-stats__back:hover { background: var(--color-surface-2); color: var(--color-text); }
+
+.plan-stats__title {
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+    color: var(--color-text);
+    margin: 0 0 var(--space-1);
+}
+.plan-stats__subtitle {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.plan-stats__cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+
+.plan-stats__card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    text-align: center;
+}
+
+.plan-stats__card-value {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-bold);
+    color: var(--color-primary);
+    margin-bottom: var(--space-1);
+}
+
+.plan-stats__card-label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--color-text);
+    margin-bottom: var(--space-1);
+}
+
+.plan-stats__card-sub {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+}
+
+.plan-stats__trend--up { color: var(--color-success, #22c55e); }
+.plan-stats__trend--down { color: var(--color-danger, #ef4444); }
+.plan-stats__trend--flat { color: var(--color-text-secondary); }
+
+.plan-stats__chart-container {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+}
+
+.plan-stats__section-title {
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    color: var(--color-text);
+    margin: 0 0 var(--space-4);
+}
+
+.plan-stats__chart-wrap {
+    position: relative;
+}
+
+.plan-stats__empty {
+    text-align: center;
+    padding: var(--space-8) 0;
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+}
+</style>
+
+{% if total_active > 0 %}
+<script>
+(function () {
+    const chartDays = {{ chart_days | tojson }};
+    const labels = chartDays.map(function (d) { return d.label; });
+    const slotData = chartDays.map(function (d) { return d.slots_completed; });
+    const colors = chartDays.map(function (d) {
+        if (d.secured) return 'rgba(34, 197, 94, 0.8)';
+        if (d.active) return 'rgba(99, 102, 241, 0.6)';
+        return 'rgba(209, 213, 219, 0.4)';
+    });
+
+    const canvas = document.getElementById('planStatsChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Слоты выполнено',
+                data: slotData,
+                backgroundColor: colors,
+                borderRadius: 3,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function (ctx) {
+                            const d = chartDays[ctx.dataIndex];
+                            let suffix = '';
+                            if (d.secured) suffix = ' (выполнен)';
+                            else if (d.active) suffix = ' (начат)';
+                            return ctx.parsed.y + ' слотов' + suffix;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: 10,
+                        font: { size: 11 }
+                    },
+                    grid: { display: false }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1, font: { size: 11 } },
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endif %}
+
+{% endblock %}

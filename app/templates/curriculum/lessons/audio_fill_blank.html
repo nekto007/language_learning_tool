@@ -1,0 +1,585 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Аудио: заполните пропуски') %}
+{% set instruction_text = _('Прослушайте аудио. Затем вставьте слова, которые вы услышали.') %}
+{% set block_description = _('Тренировка восприятия речи и лексики') %}
+
+{% block lesson_content %}
+<section class="lesson-shell afb-lesson" aria-labelledby="afb-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="afb-title">{{ _('Аудио: заполните пропуски') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-volume-up"></i></span>
+      <span class="lesson-shell__progress" aria-live="polite" id="afb-progress-label">
+        {{ _('Заполнено:') }}
+        <span id="afb-filled" data-progress-current>0</span> / <span data-progress-total>{{ items|length }}</span>
+      </span>
+    </div>
+    <div class="lesson-shell__progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="lesson-shell__progress-fill" id="afb-progress-fill" style="width:0%"></span>
+    </div>
+  </header>
+
+  <div class="lesson-shell__body">
+
+    {% if audio_url %}
+    <article class="lesson-shell__card afb-master-audio" data-audio-state="loading">
+      <h3 class="afb-master-audio__title">
+        <i class="fas fa-headphones"></i>
+        {{ _('Аудио к заданию') }}
+      </h3>
+      {# Аудио рендерится сразу, чтобы браузер тянул metadata без задержки.
+         Поверх него на время загрузки лежит лёгкий оверлей. На error/timeout
+         показываем красный alert вместо плеера. #}
+      <div class="afb-audio-wrapper">
+        <audio id="afb-main-audio" controls preload="auto"
+               aria-label="{{ _('Аудио к заданию') }}">
+          <source src="{{ audio_url }}" type="audio/mpeg">
+          <source src="{{ audio_url }}" type="audio/ogg">
+          {{ _('Ваш браузер не поддерживает аудио.') }}
+        </audio>
+        <div class="afb-audio-loading" id="afb-audio-loading">
+          <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+          {{ _('Загрузка аудио…') }}
+        </div>
+      </div>
+      <div class="afb-audio-error" id="afb-audio-error" hidden>
+        <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+        {{ _('Аудио не загрузилось. Попробуйте обновить страницу.') }}
+      </div>
+    </article>
+    {% endif %}
+
+    {% if audio_url %}
+    <div class="afb-listen-gate" id="afb-listen-gate" role="note">
+      <i class="fas fa-lock"></i>
+      {{ _('Прослушайте аудио хотя бы один раз — после этого станут доступны задания.') }}
+    </div>
+    {% endif %}
+
+    <div class="afb-items{% if audio_url %} afb-items--locked{% endif %}" id="afb-items">
+    {# Захватываем индекс родительского цикла в локальную переменную —
+       внутри вложенного {% for opt %} `loop.index0` означал бы индекс
+       опции, а не урока, и onclick дёргал бы чужой item. #}
+    {% for item in items %}
+    {% set item_idx = loop.index0 %}
+    <article class="lesson-shell__card afb-item" id="afb-item-{{ item_idx }}"
+             data-index="{{ item_idx }}"
+             data-answer="{{ item.answer }}"
+             data-mode="{{ 'options' if item.options else 'input' }}">
+      <header class="afb-item__header">
+        <span class="afb-item__num">{{ loop.index }}</span>
+        {% if item.audio_clip_url %}
+        <button class="afb-item__clip-btn" type="button"
+          onclick="playClip({{ item_idx }})"
+          aria-label="{{ _('Прослушать фрагмент') }}"
+          title="{{ _('Прослушать фрагмент') }}">
+          <i class="fas fa-play" id="clip-icon-{{ item_idx }}"></i>
+        </button>
+        <audio id="clip-audio-{{ item_idx }}" preload="none">
+          <source src="{{ item.audio_clip_url }}" type="audio/mpeg">
+        </audio>
+        {% endif %}
+        <span class="afb-item__gap-text">{{ item.text_with_gap }}</span>
+      </header>
+
+      {% if item.options %}
+      <div class="afb-item__options" id="afb-options-{{ item_idx }}" role="group"
+           aria-label="{{ _('Варианты ответа') }}">
+        {% for opt in item.options %}
+        <button class="option-btn afb-option-btn"
+          type="button"
+          aria-pressed="false"
+          data-index="{{ item_idx }}"
+          data-option="{{ opt }}"
+          onclick='selectOption({{ item_idx }}, {{ opt | tojson }})'>
+          {{ opt }}
+        </button>
+        {% endfor %}
+      </div>
+      <input type="hidden" id="afb-answer-{{ item_idx }}" value="">
+      {% else %}
+      <label class="afb-item__input-label" for="afb-answer-{{ item_idx }}">
+        <i class="fas fa-pen"></i> {{ _('Ваш ответ:') }}
+      </label>
+      <input
+        class="afb-input"
+        id="afb-answer-{{ item_idx }}"
+        type="text"
+        placeholder="{{ _('Введите ответ...') }}"
+        autocomplete="off"
+        data-index="{{ item_idx }}"
+      >
+      {% endif %}
+
+      <div class="afb-item__feedback" id="afb-feedback-{{ item_idx }}" role="status"></div>
+      <div class="afb-item__reveal" id="afb-reveal-{{ item_idx }}" role="note"></div>
+    </article>
+    {% endfor %}
+    </div>
+
+  </div>
+
+  {# Стаб-блоки для единой «lesson-shell» класс-таксономии
+     (tests/curriculum/test_audio_lessons_render.py). Кнопка «Проверить»
+     убрана — финальный submit летит автоматически когда все 5 items
+     в terminal-стейте. Result-плашка живёт в общем #lesson-completion,
+     поэтому здесь только пустой stub. #}
+  <div class="lesson-shell__actions" aria-hidden="true"></div>
+  <div class="lesson-shell__result" hidden aria-hidden="true">
+    <span class="result-badge result-badge--correct" hidden></span>
+  </div>
+</section>
+
+<script>
+const lessonId = {{ lesson.id }};
+const totalItems = {{ items | length }};
+
+let replayCount = 0;
+let mainAudioHasPlayed = false;
+let mainAudioConsumed = false;
+
+function playClip(idx) {
+  const audio = document.getElementById('clip-audio-' + idx);
+  if (!audio) return;
+  audio.currentTime = 0;
+  audio.play().catch(() => {});
+}
+
+function unlockAfbItems() {
+  const items = document.getElementById('afb-items');
+  if (items) items.classList.remove('afb-items--locked');
+  const gate = document.getElementById('afb-listen-gate');
+  if (gate) gate.hidden = true;
+}
+
+function _showAudioError() {
+  const card = document.querySelector('.afb-master-audio');
+  if (!card || card.dataset.audioState === 'ready') return;
+  card.dataset.audioState = 'error';
+  const loading = document.getElementById('afb-audio-loading');
+  if (loading) loading.hidden = true;
+  const wrap = document.querySelector('.afb-audio-wrapper');
+  if (wrap) wrap.hidden = true;
+  const err = document.getElementById('afb-audio-error');
+  if (err) err.hidden = false;
+  // Если аудио не загрузилось, не блокируем ученика навсегда — открываем
+  // задания через 1 сек, чтобы хотя бы можно было пройти урок руками.
+  setTimeout(unlockAfbItems, 1000);
+}
+
+function _showAudioReady() {
+  const card = document.querySelector('.afb-master-audio');
+  if (card) card.dataset.audioState = 'ready';
+  const loading = document.getElementById('afb-audio-loading');
+  if (loading) loading.hidden = true;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const mainAudio = document.getElementById('afb-main-audio');
+  if (!mainAudio) {
+    // Нет аудио вовсе — задания доступны сразу.
+    unlockAfbItems();
+    return;
+  }
+
+  // Состояние загрузки: показываем «Загрузка…» пока браузер не подтянул
+  // метаданные. Если событие уже отстрелило до того, как мы навесили
+  // listener — проверяем readyState напрямую.
+  function _checkAudioReady() {
+    if (Number.isFinite(mainAudio.duration) && mainAudio.duration > 0) {
+      _showAudioReady();
+      return true;
+    }
+    return false;
+  }
+  if (mainAudio.readyState >= 1 && _checkAudioReady()) {
+    // Уже готов — ничего больше делать не нужно.
+  } else {
+    mainAudio.addEventListener('loadedmetadata', _checkAudioReady);
+    mainAudio.addEventListener('canplay', _checkAudioReady);
+    mainAudio.addEventListener('error', _showAudioError);
+    // Fallback — если за 15 сек метаданные не пришли, считаем сломанным.
+    setTimeout(function() {
+      const card = document.querySelector('.afb-master-audio');
+      if (card && card.dataset.audioState === 'loading') _showAudioError();
+    }, 15000);
+  }
+
+  // Gate: разблокируем задания, как только пользователь прослушал хотя бы
+  // 30% длительности (по реально воспроизведённым сегментам — seek-баром
+  // не накрутишь).
+  const THRESHOLD = 0.3;
+  let covered = 0;
+  let lastTime = 0;
+  mainAudio.addEventListener('seeking', () => { lastTime = mainAudio.currentTime; });
+  mainAudio.addEventListener('timeupdate', () => {
+    const dur = mainAudio.duration;
+    if (!Number.isFinite(dur) || dur <= 0) return;
+    const t = mainAudio.currentTime;
+    const delta = t - lastTime;
+    if (delta > 0 && delta <= 2) covered += delta;
+    lastTime = t;
+    if (covered / dur >= THRESHOLD) unlockAfbItems();
+  });
+
+  // Replay-счётчик: считаем только реальные перезапуски (после ended или
+  // seek в начало), а не каждый pause/resume.
+  mainAudio.addEventListener('play', function() {
+    if (!mainAudioHasPlayed) {
+      mainAudioHasPlayed = true;
+    } else if (mainAudioConsumed) {
+      replayCount += 1;
+      mainAudioConsumed = false;
+    }
+  });
+  mainAudio.addEventListener('ended', function() {
+    mainAudioConsumed = true;
+    unlockAfbItems();  // дослушал полностью → точно открываем
+  });
+  mainAudio.addEventListener('seeked', function() {
+    if (mainAudio.currentTime < 0.5) {
+      if (mainAudioHasPlayed && !mainAudio.paused) {
+        replayCount += 1;
+        mainAudioConsumed = false;
+      } else {
+        mainAudioConsumed = true;
+      }
+    }
+  });
+});
+
+// === Live-flow grading ===================================================
+// Каждый ответ проверяется мгновенно после клика/blur, как в sentence_completion.
+// Когда все 5 заданий в terminal-стейте (correct / given-up), автоматически
+// отправляем финальный submit на сервер для каноничной оценки + XP.
+
+const MAX_ATTEMPTS = 3;
+const itemState = new Array(totalItems).fill('pending');  // pending | correct | given-up
+const itemAttempts = new Array(totalItems).fill(0);
+let _finalizing = false;
+
+function _normalize(s) {
+  return String(s || '').trim().toLowerCase().replace(/[.,!?;:'"„""«»]/g, '');
+}
+
+function _levenshtein(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const dp = Array.from({length: a.length + 1}, () => new Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i-1] === b[j-1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1, dp[i-1][j-1] + cost);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+function _matches(user, expected) {
+  const u = _normalize(user);
+  const e = _normalize(expected);
+  if (!u || !e) return false;
+  if (u === e) return true;
+  // Levenshtein ≤1 только для одиночных слов длиной ≥4 (typo tolerance,
+  // как в server-side _strict_text_match).
+  if (!u.includes(' ') && !e.includes(' ') && e.length >= 4) {
+    return _levenshtein(u, e) <= 1;
+  }
+  return false;
+}
+
+function _setFeedback(idx, kind, label) {
+  const el = document.getElementById('afb-feedback-' + idx);
+  if (!el) return;
+  el.className = 'afb-item__feedback afb-item__feedback--' + kind;
+  el.innerHTML = (kind === 'correct'
+    ? '<i class="fas fa-check-circle"></i> '
+    : '<i class="fas fa-times-circle"></i> ') + label;
+}
+
+function _showCorrect(idx, expected) {
+  itemState[idx] = 'correct';
+  const itemEl = document.getElementById('afb-item-' + idx);
+  if (itemEl) itemEl.classList.add('afb-item--correct');
+  const inp = document.getElementById('afb-answer-' + idx);
+  const mode = itemEl ? itemEl.dataset.mode : 'input';
+  if (mode === 'input' && inp) {
+    inp.value = expected;
+    inp.classList.add('input--correct', 'afb-input--correct');
+    inp.readOnly = true;
+  }
+  const opts = document.getElementById('afb-options-' + idx);
+  if (opts) {
+    opts.querySelectorAll('.option-btn').forEach(btn => {
+      btn.disabled = true;
+      if (_matches(btn.dataset.option, expected)) {
+        btn.classList.add('option-btn--correct');
+      }
+    });
+  }
+  _setFeedback(idx, 'correct', '{{ _("Правильно!") }}');
+  _updateProgress();
+  _maybeFinalize();
+}
+
+function _showGivenUp(idx, userAttempt, expected) {
+  itemState[idx] = 'given-up';
+  const itemEl = document.getElementById('afb-item-' + idx);
+  if (itemEl) itemEl.classList.add('afb-item--wrong');
+  const inp = document.getElementById('afb-answer-' + idx);
+  const mode = itemEl ? itemEl.dataset.mode : 'input';
+  if (mode === 'input' && inp) {
+    inp.classList.add('input--wrong', 'afb-input--wrong');
+    inp.readOnly = true;
+  }
+  const opts = document.getElementById('afb-options-' + idx);
+  if (opts) {
+    opts.querySelectorAll('.option-btn').forEach(btn => {
+      btn.disabled = true;
+      if (_matches(btn.dataset.option, expected)) {
+        btn.classList.add('option-btn--correct');
+      }
+    });
+  }
+  const reveal = document.getElementById('afb-reveal-' + idx);
+  if (reveal) {
+    reveal.textContent = '';
+    const lbl = document.createElement('span');
+    lbl.className = 'afb-item__reveal-label';
+    lbl.textContent = '{{ _("Правильно:") }} ';
+    const ans = document.createElement('strong');
+    ans.textContent = expected;
+    reveal.appendChild(lbl);
+    reveal.appendChild(ans);
+    reveal.classList.add('visible');
+  }
+  _setFeedback(idx, 'wrong', '{{ _("Неверно") }}');
+  _updateProgress();
+  _maybeFinalize();
+}
+
+function _markTryAgain(idx, remaining) {
+  const itemEl = document.getElementById('afb-item-' + idx);
+  const inp = document.getElementById('afb-answer-' + idx);
+  if (inp && itemEl && itemEl.dataset.mode === 'input') {
+    inp.classList.remove('input--correct', 'afb-input--correct');
+    inp.classList.add('input--wrong', 'afb-input--wrong');
+  }
+  _setFeedback(idx, 'wrong',
+    `{{ _("Не то слово. Послушайте ещё раз.") }} ` +
+    `<span class="afb-item__attempts">{{ _("Попыток осталось:") }} ${remaining}</span>`);
+}
+
+function checkInputAnswer(idx) {
+  if (itemState[idx] !== 'pending') return;
+  const itemEl = document.getElementById('afb-item-' + idx);
+  const inp = document.getElementById('afb-answer-' + idx);
+  if (!itemEl || !inp) return;
+  const val = String(inp.value || '').trim();
+  if (!val) return;  // ничего не введено — не дёргаемся
+  const expected = itemEl.dataset.answer || '';
+  if (_matches(val, expected)) {
+    _showCorrect(idx, expected);
+    return;
+  }
+  itemAttempts[idx] += 1;
+  if (itemAttempts[idx] >= MAX_ATTEMPTS) {
+    _showGivenUp(idx, val, expected);
+  } else {
+    _markTryAgain(idx, MAX_ATTEMPTS - itemAttempts[idx]);
+  }
+}
+
+function selectOption(itemIdx, option) {
+  if (itemState[itemIdx] !== 'pending') return;
+  const itemEl = document.getElementById('afb-item-' + itemIdx);
+  if (!itemEl) return;
+  const expected = itemEl.dataset.answer || '';
+  const inp = document.getElementById('afb-answer-' + itemIdx);
+  if (inp) inp.value = option;
+  const container = document.getElementById('afb-options-' + itemIdx);
+  if (container) {
+    container.querySelectorAll('.option-btn').forEach(btn => {
+      btn.classList.remove('option-btn--selected');
+      btn.setAttribute('aria-pressed', 'false');
+    });
+    const clicked = container.querySelector(`.option-btn[data-option="${CSS.escape(option)}"]`);
+    if (clicked) {
+      clicked.classList.add('option-btn--selected');
+      clicked.setAttribute('aria-pressed', 'true');
+    }
+  }
+  if (_matches(option, expected)) {
+    _showCorrect(itemIdx, expected);
+  } else {
+    itemAttempts[itemIdx] += 1;
+    const wrongBtn = container && container.querySelector(`.option-btn[data-option="${CSS.escape(option)}"]`);
+    if (wrongBtn) {
+      wrongBtn.classList.add('option-btn--wrong');
+      wrongBtn.disabled = true;
+    }
+    if (itemAttempts[itemIdx] >= MAX_ATTEMPTS) {
+      _showGivenUp(itemIdx, option, expected);
+    } else {
+      _setFeedback(itemIdx, 'wrong',
+        `{{ _("Не то слово. Послушайте ещё раз.") }} ` +
+        `<span class="afb-item__attempts">{{ _("Попыток осталось:") }} ${MAX_ATTEMPTS - itemAttempts[itemIdx]}</span>`);
+    }
+  }
+}
+
+function _updateProgress() {
+  let resolved = 0;
+  let correct = 0;
+  for (let i = 0; i < totalItems; i++) {
+    if (itemState[i] !== 'pending') resolved++;
+    if (itemState[i] === 'correct') correct++;
+  }
+  const counter = document.getElementById('afb-filled');
+  const fill = document.getElementById('afb-progress-fill');
+  if (counter) counter.textContent = String(resolved);
+  if (fill && totalItems > 0) {
+    const pct = Math.round((resolved / totalItems) * 100);
+    fill.style.width = pct + '%';
+    const bar = fill.parentElement;
+    if (bar) bar.setAttribute('aria-valuenow', String(pct));
+  }
+  return { resolved: resolved, correct: correct };
+}
+
+function _maybeFinalize() {
+  if (_finalizing) return;
+  let resolved = 0;
+  for (let i = 0; i < totalItems; i++) {
+    if (itemState[i] !== 'pending') resolved++;
+  }
+  if (resolved < totalItems) return;
+  _finalizing = true;
+  _submitFinal();
+}
+
+async function _submitFinal() {
+  const answers = [];
+  for (let i = 0; i < totalItems; i++) {
+    const inp = document.getElementById('afb-answer-' + i);
+    answers.push(inp ? String(inp.value || '').trim() : '');
+  }
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const resp = await fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ answers: answers, lesson_type: 'audio_fill_blank', replay_count: replayCount }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    showResults(data);
+    if (typeof showSaveToast === 'function') showSaveToast();
+  } catch (err) {
+    console.error('AFB submit error:', err);
+    _finalizing = false;  // allow retry on next item change
+    if (typeof window.showErrorToast === 'function') {
+      window.showErrorToast('{{ _("Ошибка при отправке. Перезагрузите страницу.") }}');
+    } else {
+      alert('{{ _("Ошибка при отправке. Перезагрузите страницу.") }}');
+    }
+  }
+}
+
+// Финальный итог — сервер уже посчитал score/passed. Локальный статус
+// каждого item уже отрисован живым flow; здесь только обновляем прогресс-
+// лейбл на «Правильно: X / N» и зовём общий showLessonCompletion для
+// унифицированной плашки «Урок завершён!» + CTA.
+function showResults(data) {
+  const score = data.score || 0;
+  const correctItems = data.correct_items || 0;
+  const totalItemsResp = data.total_items || totalItems;
+  const progLabel = document.getElementById('afb-progress-label');
+  if (progLabel) {
+    progLabel.innerHTML = '{{ _("Правильно:") }} ' +
+      '<span id="afb-filled" data-progress-current>' + correctItems + '</span>' +
+      ' / <span data-progress-total>' + totalItemsResp + '</span>';
+  }
+  if (typeof window.showLessonCompletion === 'function') {
+    window.showLessonCompletion({ score: score });
+  }
+}
+
+// Live-input wiring: на blur и Enter — мгновенная проверка. Edit во время
+// pending-стейта чистит подсветку wrong (как в sentence_completion).
+document.addEventListener('focusout', function(e) {
+  const el = e.target;
+  if (!el.classList || !el.classList.contains('afb-input')) return;
+  if (el.readOnly || el.disabled) return;
+  const idx = parseInt(el.getAttribute('data-index') || '-1');
+  if (idx < 0) return;
+  checkInputAnswer(idx);
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter') return;
+  const el = e.target;
+  if (!el.classList || !el.classList.contains('afb-input')) return;
+  e.preventDefault();
+  el.blur();  // вызовет focusout → checkInputAnswer
+});
+
+document.addEventListener('input', function(e) {
+  const el = e.target;
+  if (!el.classList || !el.classList.contains('afb-input')) return;
+  const idx = parseInt(el.getAttribute('data-index') || '-1');
+  if (idx < 0 || itemState[idx] !== 'pending') return;
+  el.classList.remove('input--wrong', 'afb-input--wrong');
+  const fb = document.getElementById('afb-feedback-' + idx);
+  if (fb) { fb.className = 'afb-item__feedback'; fb.innerHTML = ''; }
+});
+
+// При повторном заходе на пройденный урок — replay сохранённых результатов
+// (progress.data хранит весь grade-payload), чтобы пользователь видел свою
+// последнюю попытку и сразу глобальную плашку «Урок завершён!».
+//
+// Важно: оборачиваем в DOMContentLoaded — иначе IIFE выстреливает до того,
+// как `window.showLessonCompletion` определён в lesson_base_template
+// (lesson_content block идёт перед script-блоком helper'а).
+{% if is_completed and progress and progress.data %}
+document.addEventListener('DOMContentLoaded', function _restoreCompleted() {
+  const saved = {{ progress.data | tojson }};
+  if (!saved || !Array.isArray(saved.item_results)) return;
+  unlockAfbItems();  // снимаем lock — задания уже пройдены
+  _finalizing = true; // подавляем auto-resubmit от _maybeFinalize
+  saved.item_results.forEach(function(res, idx) {
+    if (idx >= totalItems) return;
+    const itemEl = document.getElementById('afb-item-' + idx);
+    if (!itemEl) return;
+    const expected = res.answer || itemEl.dataset.answer || '';
+    if (res.correct) {
+      _showCorrect(idx, expected);
+    } else {
+      const inp = document.getElementById('afb-answer-' + idx);
+      if (inp && itemEl.dataset.mode === 'input') {
+        inp.value = res.user_answer || '';
+      }
+      _showGivenUp(idx, res.user_answer || '', expected);
+    }
+  });
+  // Прогресс-лейбл показывает «Правильно: X / N».
+  const progLabel = document.getElementById('afb-progress-label');
+  if (progLabel) {
+    progLabel.innerHTML = '{{ _("Правильно:") }} ' +
+      '<span id="afb-filled" data-progress-current>' + (saved.correct_items || 0) + '</span>' +
+      ' / <span data-progress-total>' + (saved.total_items || totalItems) + '</span>';
+  }
+  if (typeof window.showLessonCompletion === 'function') {
+    window.showLessonCompletion({ score: saved.score || 100, silent: true });
+  }
+});
+{% endif %}
+
+_updateProgress();
+</script>
+{% endblock %}

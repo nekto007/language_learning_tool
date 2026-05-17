@@ -1,0 +1,10 @@
+[
+  {
+    "external_key": "fixture:collocation_matching:B1:99:no_pairs",
+    "level": "B1",
+    "module_number": 1,
+    "lesson_type": "collocation_matching",
+    "title": "Bad: Collocation matching without pairs",
+    "content": {}
+  }
+]

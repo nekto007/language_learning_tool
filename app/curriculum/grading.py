@@ -151,7 +151,11 @@ def _grade_matching_pairs(user_pairs, correct_pairs):
     def _key(p):
         if not isinstance(p, dict):
             return None
-        return (_normalize_answer(p.get('left')), _normalize_answer(p.get('right')))
+        # Content payloads use {english, russian}; user payloads use {left, right}.
+        # Treat both shapes as equivalent so matching grading isn't a no-op.
+        left = p.get('left') or p.get('english') or p.get('word')
+        right = p.get('right') or p.get('russian') or p.get('translation')
+        return (_normalize_answer(left), _normalize_answer(right))
 
     user_keys = [_key(p) for p in user_pairs]
     correct_keys = [_key(p) for p in correct_pairs]
@@ -160,6 +164,402 @@ def _grade_matching_pairs(user_pairs, correct_pairs):
     if any(k is None for k in correct_keys):
         return False
     return sorted(user_keys) == sorted(correct_keys)
+
+
+def _normalize_for_dictation(text: str) -> str:
+    """Normalize dictation text: strip, lower, collapse whitespace, remove punctuation except apostrophes."""
+    if not text:
+        return ""
+    s = str(text).lower().strip()
+    # Remove all punctuation except apostrophes (to preserve contractions like don't, it's)
+    s = re.sub(r"[^\w\s']", "", s)
+    # Collapse multiple spaces
+    s = re.sub(r'\s+', ' ', s).strip()
+    return s
+
+
+def grade_dictation(user_text: str, transcript: str, hint_chars: int = 0) -> dict:
+    """Grade a dictation exercise by comparing user text to the transcript word by word.
+
+    Args:
+        user_text: The text submitted by the user.
+        transcript: The correct transcript text.
+        hint_chars: Number of characters pre-filled per word on the client (server-side
+            grading is unchanged — full word comparison is used regardless).
+
+    Returns:
+        dict with keys: score (0-100), passed (bool), correct_words (int),
+        total_words (int), word_results (list of {word, user_word, correct}).
+    """
+    user_normalized = _normalize_for_dictation(user_text)
+    transcript_normalized = _normalize_for_dictation(transcript)
+
+    transcript_words = transcript_normalized.split() if transcript_normalized else []
+    user_words = user_normalized.split() if user_normalized else []
+
+    total_words = len(transcript_words)
+    if total_words == 0:
+        return {
+            "score": 0,
+            "passed": False,
+            "correct_words": 0,
+            "total_words": 0,
+            "word_results": [],
+        }
+
+    correct_words = 0
+    word_results = []
+    for i, correct_word in enumerate(transcript_words):
+        user_word = user_words[i] if i < len(user_words) else ""
+        is_correct = user_word == correct_word
+        if is_correct:
+            correct_words += 1
+        word_results.append({"word": correct_word, "user_word": user_word, "correct": is_correct})
+
+    score = round(correct_words / total_words * 100)
+    passed = score >= 80
+
+    return {
+        "score": score,
+        "passed": passed,
+        "correct_words": correct_words,
+        "total_words": total_words,
+        "word_results": word_results,
+    }
+
+
+def grade_audio_fill_blank(user_answers: list, items: list) -> dict:
+    """Grade an audio fill-in-blank exercise.
+
+    Args:
+        user_answers: List of strings, one per item (same order as items).
+        items: List of item dicts with 'answer' (and optional 'options') fields.
+
+    Returns:
+        dict with score (0-100), passed (bool), correct_items (int),
+        total_items (int), item_results (list of {answer, user_answer, correct}).
+    """
+    total = len(items)
+    if total == 0:
+        return {
+            'score': 0,
+            'passed': False,
+            'correct_items': 0,
+            'total_items': 0,
+            'item_results': [],
+        }
+
+    correct = 0
+    item_results = []
+    for i, item in enumerate(items):
+        user_answer = user_answers[i] if i < len(user_answers) else ''
+        correct_answer = item.get('answer', '')
+        options = item.get('options')
+
+        if options:
+            # Multiple-choice mode: exact match after normalization
+            is_correct = _normalize_answer(user_answer) == _normalize_answer(correct_answer)
+        else:
+            # Free-text mode: Levenshtein ≤1 for single-word, exact for multi-word
+            is_correct = _strict_text_match(user_answer, [correct_answer])
+
+        if is_correct:
+            correct += 1
+        item_results.append({
+            'answer': correct_answer,
+            'user_answer': user_answer,
+            'correct': is_correct,
+        })
+
+    score = round(correct / total * 100)
+    passed = score >= 70
+
+    return {
+        'score': score,
+        'passed': passed,
+        'correct_items': correct,
+        'total_items': total,
+        'item_results': item_results,
+    }
+
+
+def grade_translation(user_answer: str, correct_answer: str) -> dict:
+    """Grade a standalone translation exercise (Russian → English).
+
+    Delegates to ``_strict_text_match``: exact match after normalization with
+    Levenshtein ≤1 tolerance for single-word answers; multi-word requires exact.
+
+    Returns:
+        dict with keys: is_correct (bool), user_answer (str), correct_answer (str).
+    """
+    is_correct = _strict_text_match(user_answer, [correct_answer])
+    return {
+        'is_correct': is_correct,
+        'user_answer': user_answer,
+        'correct_answer': correct_answer,
+    }
+
+
+def grade_translation_multi(user_answers: list, items: list) -> dict:
+    """Grade a multi-item guided translation lesson.
+
+    Matches the audio_fill_blank / sentence_completion shape so the existing
+    completion banner + restore-on-reload flow on the client can be reused
+    unchanged.
+
+    Args:
+        user_answers: List[str], one per item in original order.
+        items: List[dict] from ``content['items']`` with at least ``english``
+            (and optional ``alternatives``).
+
+    Returns:
+        {score, passed, correct_items, total_items, item_results}.
+        Each item_result: {answer, user_answer, correct}.
+    """
+    total = len(items or [])
+    if total == 0:
+        return {
+            'score': 0,
+            'passed': False,
+            'correct_items': 0,
+            'total_items': 0,
+            'item_results': [],
+        }
+    correct = 0
+    item_results = []
+    for i, item in enumerate(items):
+        user_answer = (user_answers[i] if i < len(user_answers) else '') or ''
+        canonical = item.get('english', '') or ''
+        candidates = [canonical]
+        for alt in (item.get('alternatives') or []):
+            if isinstance(alt, str) and alt.strip():
+                candidates.append(alt)
+        is_correct = _strict_text_match(user_answer, candidates)
+        if is_correct:
+            correct += 1
+        item_results.append({
+            'answer': canonical,
+            'user_answer': user_answer,
+            'correct': is_correct,
+        })
+    score = round(correct / total * 100)
+    return {
+        'score': score,
+        'passed': score >= 70,
+        'correct_items': correct,
+        'total_items': total,
+        'item_results': item_results,
+    }
+
+
+def grade_sentence_correction(user_answer: str, correct_sentence: str) -> dict:
+    """Grade a single-item sentence correction exercise.
+
+    Compares the user's corrected sentence to the correct version using
+    normalized exact match. No Levenshtein tolerance — the user must
+    supply the exact corrected sentence (modulo punctuation/case).
+
+    Returns:
+        dict with keys: is_correct (bool), user_answer (str), correct_sentence (str).
+    """
+    is_correct = _normalize_answer(user_answer) == _normalize_answer(correct_sentence)
+    return {
+        'is_correct': is_correct,
+        'user_answer': user_answer,
+        'correct_sentence': correct_sentence,
+    }
+
+
+def grade_sentence_correction_multi(user_answers: list, items: list) -> dict:
+    """Grade a multi-item sentence-correction exercise.
+
+    Each item has its own ``correct_sentence``. The user's answer for the
+    item is compared via normalized exact match (same rule as the single-
+    item grader). Returns a sentence_completion-style summary so the
+    submit endpoint and the client showResults can stay consistent across
+    the two text-input lesson types.
+
+    Args:
+        user_answers: List of strings, one per item (same order as items).
+        items: List of item dicts with at least ``correct_sentence``.
+
+    Returns:
+        dict with score (0-100), passed (bool), correct_items (int),
+        total_items (int), item_results (list of {incorrect_sentence,
+        correct_sentence, user_answer, correct, explanation, error_type,
+        error_type_ru, translation}).
+    """
+    total = len(items)
+    if total == 0:
+        return {
+            'score': 0,
+            'passed': False,
+            'correct_items': 0,
+            'total_items': 0,
+            'item_results': [],
+        }
+    correct = 0
+    item_results = []
+    for i, item in enumerate(items):
+        user_value = user_answers[i] if i < len(user_answers) else ''
+        canonical = item.get('correct_sentence', '')
+        is_correct = _normalize_answer(user_value) == _normalize_answer(canonical)
+        if is_correct:
+            correct += 1
+        item_results.append({
+            'incorrect_sentence': item.get('incorrect_sentence', ''),
+            'correct_sentence': canonical,
+            'user_answer': user_value,
+            'correct': is_correct,
+            'explanation': item.get('explanation', ''),
+            'error_type': item.get('error_type', ''),
+            'error_type_ru': item.get('error_type_ru', ''),
+            'translation': item.get('translation', ''),
+        })
+    score = round(correct / total * 100)
+    return {
+        'score': score,
+        'passed': score >= 70,
+        'correct_items': correct,
+        'total_items': total,
+        'item_results': item_results,
+    }
+
+
+def grade_sentence_completion(user_answers: list, items: list) -> dict:
+    """Grade a sentence completion exercise.
+
+    Each item has a ``prompt`` (sentence start) and an ``answer`` (expected
+    completion). Grading uses exact match after normalization with Levenshtein
+    ≤1 tolerance for single-word answers (same rule as fill_blank).
+
+    Args:
+        user_answers: List of strings, one per item (same order as items).
+        items: List of item dicts with 'prompt' and 'answer' fields.
+
+    Returns:
+        dict with score (0-100), passed (bool), correct_items (int),
+        total_items (int), item_results (list of {prompt, answer, user_answer, correct}).
+    """
+    total = len(items)
+    if total == 0:
+        return {
+            'score': 0,
+            'passed': False,
+            'correct_items': 0,
+            'total_items': 0,
+            'item_results': [],
+        }
+
+    correct = 0
+    item_results = []
+    for i, item in enumerate(items):
+        user_answer = user_answers[i] if i < len(user_answers) else ''
+        correct_answer = item.get('answer', '')
+        is_correct = _strict_text_match(user_answer, [correct_answer])
+        if is_correct:
+            correct += 1
+        item_results.append({
+            'prompt': item.get('prompt', ''),
+            'answer': correct_answer,
+            'user_answer': user_answer,
+            'correct': is_correct,
+        })
+
+    score = round(correct / total * 100)
+    passed = score >= 70
+
+    return {
+        'score': score,
+        'passed': passed,
+        'correct_items': correct,
+        'total_items': total,
+        'item_results': item_results,
+    }
+
+
+def grade_collocation_matching(user_pairs: list, correct_pairs: list) -> dict:
+    """Grade a collocation matching exercise with partial scoring.
+
+    Args:
+        user_pairs: List of {phrase, translation} dicts submitted by the user.
+        correct_pairs: List of {phrase, translation} dicts from lesson content.
+
+    Returns:
+        dict with score (0-100), passed (bool), correct_items (int),
+        total_items (int), pair_results (list of {phrase, translation, correct}).
+    """
+    total = len(correct_pairs)
+    if total == 0:
+        return {
+            'score': 0,
+            'passed': False,
+            'correct_items': 0,
+            'total_items': 0,
+            'pair_results': [],
+        }
+
+    # Build lookup: normalized_phrase → normalized_translation from user submission
+    user_lookup: dict[str, str] = {}
+    for p in (user_pairs or []):
+        if isinstance(p, dict):
+            phrase_key = _normalize_answer(p.get('phrase', ''))
+            translation_val = _normalize_answer(p.get('translation', ''))
+            if phrase_key:
+                user_lookup[phrase_key] = translation_val
+
+    correct = 0
+    pair_results = []
+    for item in correct_pairs:
+        phrase = item.get('phrase', '')
+        translation = item.get('translation', '')
+        phrase_key = _normalize_answer(phrase)
+        correct_val = _normalize_answer(translation)
+        user_val = user_lookup.get(phrase_key, '')
+        is_correct = bool(user_val and user_val == correct_val)
+        if is_correct:
+            correct += 1
+        pair_results.append({
+            'phrase': phrase,
+            'translation': translation,
+            'user_translation': item.get('translation', '') if is_correct else (
+                next(
+                    (p.get('translation', '') for p in (user_pairs or [])
+                     if isinstance(p, dict) and _normalize_answer(p.get('phrase', '')) == phrase_key),
+                    ''
+                )
+            ),
+            'correct': is_correct,
+        })
+
+    score = round(correct / total * 100)
+    passed = score >= 70
+
+    return {
+        'score': score,
+        'passed': passed,
+        'correct_items': correct,
+        'total_items': total,
+        'pair_results': pair_results,
+    }
+
+
+def grade_pronunciation_match(recognized_text: str, target_word: str) -> dict:
+    """Check whether a Web Speech API transcript matches the target pronunciation word.
+
+    Uses the same normalization as fill_blank grading (strip/lower/punct) plus
+    Levenshtein ≤1 tolerance for single-word targets (≥4 chars). Multi-word
+    targets require exact match after normalization.
+
+    Returns:
+        dict with keys: matched (bool), recognized (str), target (str).
+    """
+    matched = _strict_text_match(recognized_text, [target_word])
+    return {
+        'matched': matched,
+        'recognized': recognized_text,
+        'target': target_word,
+    }
 
 
 def process_grammar_submission(exercises, answers):

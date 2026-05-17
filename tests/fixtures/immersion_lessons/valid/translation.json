@@ -1,0 +1,15 @@
+[
+  {
+    "external_key": "fixture:translation:A1:01",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "translation",
+    "title": "Перевод: Базовая фраза",
+    "title_en": "Translation: Basic Phrase",
+    "content": {
+      "russian": "Доброе утро! Меня зовут Анна.",
+      "english": "Good morning! My name is Anna.",
+      "hint_words": ["good", "morning", "name"]
+    }
+  }
+]

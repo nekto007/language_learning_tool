@@ -1,0 +1,16 @@
+[
+  {
+    "external_key": "fixture:shadow_reading:A2:01",
+    "level": "A2",
+    "module_number": 1,
+    "lesson_type": "shadow_reading",
+    "title": "Шэдоу-ридинг: Знакомство",
+    "title_en": "Shadow Reading: Introductions",
+    "content": {
+      "audio_url": "/static/audio/fixture_shadow_a2_01.mp3",
+      "text": "Hi, I'm Sam. I live in London and I work as a teacher.",
+      "translation": "Привет, я Сэм. Я живу в Лондоне и работаю учителем.",
+      "words": ["live", "work", "teacher"]
+    }
+  }
+]

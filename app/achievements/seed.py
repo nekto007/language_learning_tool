@@ -338,6 +338,128 @@ INITIAL_ACHIEVEMENTS = [
         'category': 'special'
     },
 
+    # Listening achievements
+    {
+        'code': 'listening_first',
+        'name': 'Первый диктант',
+        'description': 'Завершите первый диктант или аудио-упражнение',
+        'icon': '🎧',
+        'xp_reward': 25,
+        'category': 'listening'
+    },
+    {
+        'code': 'listening_week',
+        'name': 'Неделя на слух',
+        'description': 'Практикуйте слушание 7 дней подряд',
+        'icon': '🎵',
+        'xp_reward': 150,
+        'category': 'listening'
+    },
+    {
+        'code': 'listening_master',
+        'name': 'Мастер диктанта',
+        'description': 'Средний балл ≥ 90% за последние 10 диктантов',
+        'icon': '🏅',
+        'xp_reward': 200,
+        'category': 'listening'
+    },
+
+    # Writing achievements
+    {
+        'code': 'writing_first',
+        'name': 'Первая запись',
+        'description': 'Завершите первое упражнение на письмо',
+        'icon': '✍️',
+        'xp_reward': 25,
+        'category': 'writing'
+    },
+    {
+        'code': 'writing_streak_3',
+        'name': 'Серия письма',
+        'description': 'Пишите 3 дня подряд',
+        'icon': '📝',
+        'xp_reward': 75,
+        'category': 'writing'
+    },
+    {
+        'code': 'writing_fluent',
+        'name': 'Свободное письмо',
+        'description': 'Напишите 100 слов в одной попытке',
+        'icon': '🖊️',
+        'xp_reward': 100,
+        'category': 'writing'
+    },
+
+    # Speaking achievements
+    {
+        'code': 'speaking_first',
+        'name': 'Первое слово',
+        'description': 'Завершите первое упражнение на произношение',
+        'icon': '🎤',
+        'xp_reward': 25,
+        'category': 'speaking'
+    },
+    {
+        'code': 'speaking_streak_3',
+        'name': 'Три дня голоса',
+        'description': 'Практикуйте произношение 3 дня подряд',
+        'icon': '🗣️',
+        'xp_reward': 75,
+        'category': 'speaking'
+    },
+    {
+        'code': 'speaking_clear',
+        'name': 'Чёткое произношение',
+        'description': 'Получите 10 совпадений при произношении слов',
+        'icon': '✅',
+        'xp_reward': 100,
+        'category': 'speaking'
+    },
+
+    # Immersion achievements
+    {
+        'code': 'immersion_daily',
+        'name': 'Полное погружение',
+        'description': 'Практикуйте все 4 навыка в один день: слушание, письмо, говорение и чтение',
+        'icon': '🌊',
+        'xp_reward': 150,
+        'category': 'immersion'
+    },
+    {
+        'code': 'immersion_week',
+        'name': 'Неделя погружения',
+        'description': 'Практикуйте все 4 навыка 7 дней подряд',
+        'icon': '🏄',
+        'xp_reward': 500,
+        'category': 'immersion'
+    },
+
+    # Weekly streak milestones (XP bonus achievements)
+    {
+        'code': 'week_1',
+        'name': 'Первая неделя',
+        'description': 'Занимайтесь 7 дней подряд',
+        'icon': '🗓️',
+        'xp_reward': 100,
+        'category': 'streak'
+    },
+    {
+        'code': 'week_4',
+        'name': 'Первый месяц',
+        'description': 'Занимайтесь 28 дней подряд',
+        'icon': '📆',
+        'xp_reward': 500,
+        'category': 'streak'
+    },
+    {
+        'code': 'week_12',
+        'name': 'Три месяца',
+        'description': 'Занимайтесь 84 дня подряд',
+        'icon': '🏆',
+        'xp_reward': 2000,
+        'category': 'streak'
+    },
+
     # Daily plan mission badges
     {
         'code': 'mission_first',
@@ -410,6 +532,32 @@ INITIAL_ACHIEVEMENTS = [
         'icon': '⚡',
         'xp_reward': 100,
         'category': 'mission'
+    },
+
+    # Daily challenge achievements
+    {
+        'code': 'challenge_first',
+        'name': 'Первый вызов',
+        'description': 'Завершите первый ежедневный челлендж',
+        'icon': '🎯',
+        'xp_reward': 30,
+        'category': 'challenge'
+    },
+    {
+        'code': 'challenge_streak_7',
+        'name': 'Неделя вызовов',
+        'description': 'Завершайте ежедневный челлендж 7 дней подряд',
+        'icon': '🔥',
+        'xp_reward': 200,
+        'category': 'challenge'
+    },
+    {
+        'code': 'challenger',
+        'name': 'Настоящий челленджер',
+        'description': 'Завершите 30 ежедневных челленджей',
+        'icon': '🏆',
+        'xp_reward': 500,
+        'category': 'challenge'
     },
 ]
 

@@ -1,0 +1,1157 @@
+[
+  {
+    "external_key": "immersion:shadow_reading:A1:01:greetings",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Знакомство и приветствия",
+    "title_en": "Shadow Reading: Greetings and Introductions",
+    "description": "Прослушайте фразы, затем повторяйте вслух вместе с записью. Фокус — простые приветствия и представления.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_01_greetings.mp3",
+      "text": "Hello! My name is Anna. I am from Russia. Nice to meet you.",
+      "translation": "Привет! Меня зовут Анна. Я из России. Приятно познакомиться."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:02:numbers_and_colors",
+    "level": "A1",
+    "module_number": 2,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Предметы вокруг нас",
+    "title_en": "Shadow Reading: Objects Around Us",
+    "description": "Прослушайте фразы, затем повторяйте вслух. Фокус — базовые предметы и конструкции this/that.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_02_numbers_and_colors.mp3",
+      "text": "This is a book. That is a chair. I see a table and a pen.",
+      "translation": "Это книга. Это стул. Я вижу стол и ручку."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:03:clothing",
+    "level": "A1",
+    "module_number": 3,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Одежда",
+    "title_en": "Shadow Reading: Clothing",
+    "description": "Повторяйте фразы об одежде вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_03_clothing.mp3",
+      "text": "I wear a blue shirt and black jeans. I have white shoes.",
+      "translation": "Я ношу синюю рубашку и чёрные джинсы. У меня белые туфли."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:04:objects_around_us",
+    "level": "A1",
+    "module_number": 4,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Числа и цвета",
+    "title_en": "Shadow Reading: Numbers and Colors",
+    "description": "Повторяйте фразы с числами и цветами вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_04_objects_around_us.mp3",
+      "text": "There are five red apples. I see three blue books.",
+      "translation": "Здесь пять красных яблок. Я вижу три синих книги."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:05:classroom_objects",
+    "level": "A1",
+    "module_number": 5,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Предметы в классе",
+    "title_en": "Shadow Reading: Classroom Objects",
+    "description": "Повторяйте классные инструкции и фразы вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_05_classroom_objects.mp3",
+      "text": "Open your book. Look at the board. Take your pen.",
+      "translation": "Открой книгу. Посмотри на доску. Возьми ручку."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:06:family",
+    "level": "A1",
+    "module_number": 6,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Семья",
+    "title_en": "Shadow Reading: Family",
+    "description": "Повторяйте фразы о семье вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_06_family.mp3",
+      "text": "I have a big family. My mother is kind. My father is tall.",
+      "translation": "У меня большая семья. Моя мама добрая. Мой папа высокий."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:07:home_and_furniture",
+    "level": "A1",
+    "module_number": 7,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Дом и мебель",
+    "title_en": "Shadow Reading: Home and Furniture",
+    "description": "Повторяйте фразы о доме и мебели вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_07_home_and_furniture.mp3",
+      "text": "My room is small. There is a bed and a desk in my room.",
+      "translation": "Моя комната маленькая. В моей комнате есть кровать и стол."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:08:days_and_time",
+    "level": "A1",
+    "module_number": 8,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Дни недели и время",
+    "title_en": "Shadow Reading: Days and Time",
+    "description": "Повторяйте фразы о днях недели и времени вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_08_days_and_time.mp3",
+      "text": "Today is Monday. It is nine o'clock. I go to school.",
+      "translation": "Сегодня понедельник. Сейчас девять часов. Я иду в школу."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:09:weather_and_seasons",
+    "level": "A1",
+    "module_number": 9,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Погода и времена года",
+    "title_en": "Shadow Reading: Weather and Seasons",
+    "description": "Повторяйте фразы о погоде вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_09_weather_and_seasons.mp3",
+      "text": "It is sunny today. The sky is blue. I like summer.",
+      "translation": "Сегодня солнечно. Небо голубое. Я люблю лето."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:10:daily_routine",
+    "level": "A1",
+    "module_number": 10,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Повседневная жизнь",
+    "title_en": "Shadow Reading: Daily Routine",
+    "description": "Повторяйте фразы о повседневных делах вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_10_daily_routine.mp3",
+      "text": "I wake up at seven. I eat breakfast. Then I go to work.",
+      "translation": "Я просыпаюсь в семь. Я завтракаю. Потом иду на работу."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:11:professions",
+    "level": "A1",
+    "module_number": 11,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Профессии",
+    "title_en": "Shadow Reading: Professions",
+    "description": "Повторяйте фразы о профессиях вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_11_professions.mp3",
+      "text": "He is a doctor. She is a teacher. They work every day.",
+      "translation": "Он врач. Она учительница. Они работают каждый день."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:12:daily_habits",
+    "level": "A1",
+    "module_number": 12,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Повседневные привычки",
+    "title_en": "Shadow Reading: Daily Habits and Frequency",
+    "description": "Повторяйте фразы о привычках и частотности действий вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_12_daily_habits.mp3",
+      "text": "I always brush my teeth. I often read books. I sometimes watch TV.",
+      "translation": "Я всегда чищу зубы. Я часто читаю книги. Иногда смотрю телевизор."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:13:body_parts",
+    "level": "A1",
+    "module_number": 13,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Части тела",
+    "title_en": "Shadow Reading: Body Parts",
+    "description": "Повторяйте фразы о частях тела вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_13_body_parts.mp3",
+      "text": "I have two eyes and two ears. My nose is in the middle of my face.",
+      "translation": "У меня два глаза и два уха. Мой нос посередине лица."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:14:can_abilities",
+    "level": "A1",
+    "module_number": 14,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Умения и способности",
+    "title_en": "Shadow Reading: Skills and Abilities",
+    "description": "Повторяйте фразы с модальным глаголом can вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_14_can_abilities.mp3",
+      "text": "I can swim. She can sing. He cannot drive a car.",
+      "translation": "Я умею плавать. Она умеет петь. Он не умеет водить машину."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:15:food_and_drinks",
+    "level": "A1",
+    "module_number": 15,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Еда и напитки",
+    "title_en": "Shadow Reading: Food and Drinks",
+    "description": "Повторяйте фразы о еде и напитках вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_15_food_and_drinks.mp3",
+      "text": "I like tea and coffee. I eat rice and vegetables. I drink water.",
+      "translation": "Я люблю чай и кофе. Я ем рис и овощи. Я пью воду."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A1:16:personal_belongings",
+    "level": "A1",
+    "module_number": 16,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Личные вещи",
+    "title_en": "Shadow Reading: Personal Belongings",
+    "description": "Повторяйте фразы о личных вещах вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_16_personal_belongings.mp3",
+      "text": "This is my bag. I have a phone and keys. My wallet is in my pocket.",
+      "translation": "Это моя сумка. У меня есть телефон и ключи. Мой кошелёк в кармане."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:01:food_articles",
+    "level": "A2",
+    "module_number": 1,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Артикли и some/any (еда)",
+    "title_en": "Shadow Reading: Food Articles",
+    "description": "Повторяйте диалог о еде с артиклями some/any вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_01_food_articles.mp3",
+      "text": "Do you want some bread? No, thank you. I would like some fruit. There is not any milk in the fridge.",
+      "translation": "Хочешь хлеба? Нет, спасибо. Я бы хотел немного фруктов. В холодильнике нет молока."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:02:shopping",
+    "level": "A2",
+    "module_number": 2,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Магазины и покупки",
+    "title_en": "Shadow Reading: Shopping",
+    "description": "Повторяйте диалог о покупках вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_02_shopping.mp3",
+      "text": "Excuse me, how much is this jacket? It is fifty euros. That is too expensive. Do you have a cheaper one?",
+      "translation": "Извините, сколько стоит этот пиджак? Пятьдесят евро. Это слишком дорого. У вас есть подешевле?"
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:03:cafe_and_restaurant",
+    "level": "A2",
+    "module_number": 3,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Кафе и ресторан",
+    "title_en": "Shadow Reading: Cafe and Restaurant",
+    "description": "Повторяйте диалог в кафе вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_03_cafe_and_restaurant.mp3",
+      "text": "Can I have the menu, please? I would like a coffee and a sandwich. Is that everything? Yes, thank you.",
+      "translation": "Можно меню, пожалуйста? Я бы хотел кофе и сэндвич. Это всё? Да, спасибо."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:04:food_cooking",
+    "level": "A2",
+    "module_number": 4,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Еда и приготовление блюд",
+    "title_en": "Shadow Reading: Food and Cooking",
+    "description": "Повторяйте инструкции по приготовлению еды вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_04_food_cooking.mp3",
+      "text": "First, boil the pasta for ten minutes. Then add the sauce. Stir well and add some salt. Enjoy your meal!",
+      "translation": "Сначала варите пасту десять минут. Потом добавьте соус. Хорошо перемешайте и добавьте соли. Приятного аппетита!"
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:05:hobbies",
+    "level": "A2",
+    "module_number": 5,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Хобби и интересы",
+    "title_en": "Shadow Reading: Hobbies",
+    "description": "Повторяйте фразы о хобби и свободном времени вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_05_hobbies.mp3",
+      "text": "What do you do in your free time? I love reading and painting. Sometimes I go cycling on weekends.",
+      "translation": "Чем вы занимаетесь в свободное время? Я люблю читать и рисовать. Иногда езжу на велосипеде в выходные."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:06:school_life",
+    "level": "A2",
+    "module_number": 6,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Школьная жизнь",
+    "title_en": "Shadow Reading: School Life",
+    "description": "Повторяйте фразы о школьной жизни вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_06_school_life.mp3",
+      "text": "My favourite subject is science. We have classes every morning. After school I do homework and study.",
+      "translation": "Мой любимый предмет — наука. Уроки у нас каждое утро. После школы я делаю домашнее задание и учусь."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:07:healthy_lifestyle",
+    "level": "A2",
+    "module_number": 7,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Здоровый образ жизни",
+    "title_en": "Shadow Reading: Healthy Lifestyle",
+    "description": "Повторяйте фразы о здоровом образе жизни вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_07_healthy_lifestyle.mp3",
+      "text": "It is important to sleep well and eat fresh food. I try to exercise three times a week. Drinking water is also very good.",
+      "translation": "Важно хорошо спать и есть свежую еду. Я стараюсь заниматься спортом три раза в неделю. Также очень полезно пить воду."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:08:city_transport",
+    "level": "A2",
+    "module_number": 8,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Путешествия по городу",
+    "title_en": "Shadow Reading: City Transport",
+    "description": "Повторяйте диалог о городском транспорте вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_08_city_transport.mp3",
+      "text": "Excuse me, how do I get to the station? Take the bus number forty. Get off at the third stop. Thank you!",
+      "translation": "Извините, как добраться до станции? Сядьте на автобус номер сорок. Выйдите на третьей остановке. Спасибо!"
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:09:friends",
+    "level": "A2",
+    "module_number": 9,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Мои приятели",
+    "title_en": "Shadow Reading: Buddies",
+    "description": "Повторяйте фразы о друзьях и знакомствах вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_09_friends.mp3",
+      "text": "My best friend is called Maria. She is very funny and kind. We met at school and became close friends.",
+      "translation": "Мою лучшую подругу зовут Мария. Она очень смешная и добрая. Мы познакомились в школе и стали близкими друзьями."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:10:animals",
+    "level": "A2",
+    "module_number": 10,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Животные",
+    "title_en": "Shadow Reading: Animals",
+    "description": "Повторяйте фразы о домашних животных вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_10_animals.mp3",
+      "text": "I have a dog and two cats at home. My dog is brown and very playful. The cats sleep all day long.",
+      "translation": "У меня дома собака и два кота. Моя собака коричневая и очень игривая. Коты спят весь день."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:11:superlatives",
+    "level": "A2",
+    "module_number": 11,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Превосходная степень",
+    "title_en": "Shadow Reading: Superlatives",
+    "description": "Повторяйте фразы с превосходной степенью прилагательных вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_11_superlatives.mp3",
+      "text": "The Amazon is the longest river in the world. Russia is the biggest country. Mount Everest is the highest mountain.",
+      "translation": "Амазонка — самая длинная река в мире. Россия — самая большая страна. Эверест — самая высокая гора."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:12:city_village",
+    "level": "A2",
+    "module_number": 12,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Город и деревня",
+    "title_en": "Shadow Reading: City and Village",
+    "description": "Повторяйте фразы о жизни в городе и деревне вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_12_city_village.mp3",
+      "text": "I grew up in a small village near the mountains. Now I live in a busy city. Life is different but I love both places.",
+      "translation": "Я вырос в маленькой деревне у гор. Теперь я живу в шумном городе. Жизнь другая, но мне нравятся оба места."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:13:countries",
+    "level": "A2",
+    "module_number": 13,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Страны и национальности",
+    "title_en": "Shadow Reading: Countries and Nationalities",
+    "description": "Повторяйте фразы о странах и национальностях вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_13_countries.mp3",
+      "text": "She is from Spain. He is from Japan. They speak different languages but work together in the same company.",
+      "translation": "Она из Испании. Он из Японии. Они говорят на разных языках, но работают вместе в одной компании."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:14:food_and_health",
+    "level": "A2",
+    "module_number": 14,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Еда и здоровье",
+    "title_en": "Shadow Reading: Food and Health",
+    "description": "Повторяйте фразы о питании и здоровье вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_14_food_and_health.mp3",
+      "text": "Eating fresh vegetables every day keeps you healthy. Avoid too much sugar and fat. Drink plenty of water.",
+      "translation": "Ежедневное употребление свежих овощей поддерживает здоровье. Избегайте слишком много сахара и жира. Пейте много воды."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:15:household_chores",
+    "level": "A2",
+    "module_number": 15,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Домашние обязанности",
+    "title_en": "Shadow Reading: Household Chores",
+    "description": "Повторяйте фразы о домашних обязанностях вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_15_household_chores.mp3",
+      "text": "I clean the kitchen on Mondays. My sister does the laundry. We share the household chores in our family.",
+      "translation": "По понедельникам я убираю кухню. Моя сестра стирает бельё. Мы делим домашние обязанности в нашей семье."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:16:future_plans",
+    "level": "A2",
+    "module_number": 16,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Планы и договорённости",
+    "title_en": "Shadow Reading: Future Plans and Arrangements",
+    "description": "Повторяйте фразы о будущих планах вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_16_future_plans.mp3",
+      "text": "I am going to visit my parents next weekend. We are going to have dinner together. I am looking forward to it.",
+      "translation": "На следующих выходных я собираюсь навестить родителей. Мы собираемся пообедать вместе. Я жду с нетерпением."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:17:holiday_plans",
+    "level": "A2",
+    "module_number": 17,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Планы на отпуск",
+    "title_en": "Shadow Reading: Holiday Plans",
+    "description": "Повторяйте диалог о планах на отпуск вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_17_holiday_plans.mp3",
+      "text": "Where are you going on holiday this summer? We are flying to Greece. We booked the hotel last week.",
+      "translation": "Куда вы едете в отпуск этим летом? Мы летим в Грецию. Мы забронировали отель на прошлой неделе."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:18:weather_and_climate",
+    "level": "A2",
+    "module_number": 18,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Погода и климат",
+    "title_en": "Shadow Reading: Weather and Climate",
+    "description": "Повторяйте фразы о погоде и климате вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_18_weather_and_climate.mp3",
+      "text": "The weather in the north can be very cold in winter. Sometimes there are heavy snowstorms that last for days.",
+      "translation": "На севере зимой может быть очень холодно. Иногда бывают сильные снежные бури, которые длятся несколько дней."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:19:music_art",
+    "level": "A2",
+    "module_number": 19,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Музыка и искусство",
+    "title_en": "Shadow Reading: Music and Art",
+    "description": "Повторяйте фразы о музыке и искусстве вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_19_music_art.mp3",
+      "text": "I love listening to classical music on Sunday mornings. It helps me relax and feel creative for the whole day.",
+      "translation": "Я люблю слушать классическую музыку по воскресным утрам. Это помогает мне расслабиться и чувствовать вдохновение весь день."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:20:nature_animals",
+    "level": "A2",
+    "module_number": 20,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Природа и животные",
+    "title_en": "Shadow Reading: Nature and Animals",
+    "description": "Повторяйте фразы о природе и животных вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_20_nature_animals.mp3",
+      "text": "Forests are home to many animals and plants. They also produce oxygen and keep our climate stable.",
+      "translation": "Леса — дом для многих животных и растений. Они также производят кислород и поддерживают стабильность климата."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:21:environment_and_ecology",
+    "level": "A2",
+    "module_number": 21,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Окружающая среда и экология",
+    "title_en": "Shadow Reading: Environment and Ecology",
+    "description": "Повторяйте фразы об экологии вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_21_environment_and_ecology.mp3",
+      "text": "Pollution is a serious problem in many cities. We can help by using public transport and recycling our waste.",
+      "translation": "Загрязнение — серьёзная проблема во многих городах. Мы можем помочь, используя общественный транспорт и перерабатывая мусор."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:A2:22:holidays_traditions",
+    "level": "A2",
+    "module_number": 22,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Праздники и традиции",
+    "title_en": "Shadow Reading: Holidays and Traditions",
+    "description": "Повторяйте фразы о праздниках и традициях вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "a2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A2_22_holidays_traditions.mp3",
+      "text": "Christmas is celebrated on the twenty-fifth of December. Families gather together and exchange gifts. It is a time for joy.",
+      "translation": "Рождество отмечают двадцать пятого декабря. Семьи собираются вместе и обмениваются подарками. Это время радости."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:01:past_irregular",
+    "level": "B1",
+    "module_number": 1,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Истории из жизни",
+    "title_en": "Shadow Reading: Life Stories",
+    "description": "Повторяйте рассказ о жизненных переменах вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_01_past_irregular.mp3",
+      "text": "Last year, I decided to change my career. It was a difficult decision, but I found a job I really enjoy. Looking back, I have no regrets about that choice.",
+      "translation": "В прошлом году я решил сменить профессию. Это было трудное решение, но я нашёл работу, которая мне действительно нравится. Оглядываясь назад, я не жалею об этом выборе."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:02:cinema_and_theatre",
+    "level": "B1",
+    "module_number": 2,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Кино и театр",
+    "title_en": "Shadow Reading: Cinema and Theatre",
+    "description": "Повторяйте отзыв о театральном спектакле вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_02_cinema_and_theatre.mp3",
+      "text": "Last weekend we went to see a new play at the theatre. The performance was incredible — the actors were so convincing and the set design was beautiful. I would definitely recommend it.",
+      "translation": "В прошлые выходные мы ходили на новый спектакль в театр. Постановка была невероятной — актёры были очень убедительны, а декорации прекрасны. Я бы точно рекомендовал её."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:03:used_to",
+    "level": "B1",
+    "module_number": 3,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Детство и воспоминания",
+    "title_en": "Shadow Reading: Childhood and Memories",
+    "description": "Повторяйте рассказ о детстве с конструкцией used to вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_03_used_to.mp3",
+      "text": "When I was a child, I used to spend summers at my grandmother's house. We would pick berries and swim in the river. Those memories are very special to me.",
+      "translation": "Когда я был ребёнком, я проводил лето в доме бабушки. Мы собирали ягоды и купались в реке. Эти воспоминания очень дороги мне."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:04:friends_and_character",
+    "level": "B1",
+    "module_number": 4,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Друзья и характер",
+    "title_en": "Shadow Reading: Friends and Character",
+    "description": "Повторяйте текст о дружбе и личных качествах вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_04_friends_and_character.mp3",
+      "text": "A good friend is someone who listens to you and tells you the truth. Trust and honesty are the most important qualities in any friendship. I value my friends deeply.",
+      "translation": "Хороший друг — тот, кто слушает тебя и говорит правду. Доверие и честность — самые важные качества в любой дружбе. Я очень ценю своих друзей."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:05:family_relationships",
+    "level": "B1",
+    "module_number": 5,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Семейные отношения",
+    "title_en": "Shadow Reading: Family Relationships",
+    "description": "Повторяйте текст о семейном общении вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_05_family_relationships.mp3",
+      "text": "Family relationships can be complex. Sometimes we disagree with our relatives, but it is important to communicate openly. Understanding each other takes time and patience.",
+      "translation": "Семейные отношения могут быть непростыми. Иногда мы не соглашаемся с родственниками, но важно общаться открыто. Понять друг друга — это вопрос времени и терпения."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:06:sport_and_achievements",
+    "level": "B1",
+    "module_number": 6,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Спорт и достижения",
+    "title_en": "Shadow Reading: Sport and Achievements",
+    "description": "Повторяйте текст о спортивных достижениях вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_06_sport_and_achievements.mp3",
+      "text": "Winning a competition requires months of hard training and dedication. Athletes sacrifice many things to achieve their goals. However, the feeling of success makes it all worthwhile.",
+      "translation": "Победа в соревновании требует месяцев упорных тренировок и преданности делу. Спортсмены жертвуют многим ради достижения целей. Однако ощущение успеха делает всё это оправданным."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:07:money_and_finances",
+    "level": "B1",
+    "module_number": 7,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Деньги и финансы",
+    "title_en": "Shadow Reading: Money and Finances",
+    "description": "Повторяйте текст о финансовом планировании вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_07_money_and_finances.mp3",
+      "text": "It is wise to save a portion of your income every month. Creating a budget helps you track spending and avoid unnecessary debt. Financial planning is a skill that benefits everyone.",
+      "translation": "Мудро откладывать часть дохода каждый месяц. Составление бюджета помогает отслеживать расходы и избегать ненужных долгов. Финансовое планирование — навык, полезный для каждого."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:08:work_and_career",
+    "level": "B1",
+    "module_number": 8,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Работа и карьера",
+    "title_en": "Shadow Reading: Work and Career",
+    "description": "Повторяйте текст о поиске работы вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_08_work_and_career.mp3",
+      "text": "Finding the right job is not always easy. You may need to update your resume and prepare for interviews. However, with persistence and the right attitude, you will succeed.",
+      "translation": "Найти подходящую работу не всегда легко. Возможно, придётся обновить резюме и подготовиться к собеседованиям. Однако с настойчивостью и правильным настроем вы добьётесь успеха."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:09:city_and_country",
+    "level": "B1",
+    "module_number": 9,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Город и деревня (расширение)",
+    "title_en": "Shadow Reading: City and Country",
+    "description": "Повторяйте текст о сравнении города и деревни вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_09_city_and_country.mp3",
+      "text": "Life in the countryside is quieter but can feel isolated. Cities offer more opportunities and entertainment, but can be stressful. Many people dream of combining both lifestyles.",
+      "translation": "Жизнь в деревне тише, но может ощущаться изолированной. Города предлагают больше возможностей и развлечений, но могут быть стрессовыми. Многие мечтают сочетать оба образа жизни."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:10:food_and_restaurants",
+    "level": "B1",
+    "module_number": 10,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Еда и рестораны",
+    "title_en": "Shadow Reading: Food and Restaurants",
+    "description": "Повторяйте отзыв о ресторане вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_10_food_and_restaurants.mp3",
+      "text": "We tried a new Italian restaurant last week. The pasta was perfectly cooked and the service was excellent. I would definitely come back there for a special occasion.",
+      "translation": "На прошлой неделе мы попробовали новый итальянский ресторан. Паста была приготовлена идеально, а обслуживание было отличным. Я бы обязательно вернулся туда по особому случаю."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:11:internet_and_social_media",
+    "level": "B1",
+    "module_number": 11,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Интернет и соцсети",
+    "title_en": "Shadow Reading: Internet and Social Media",
+    "description": "Повторяйте текст о социальных сетях вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_11_internet_and_social_media.mp3",
+      "text": "Social media has changed the way we communicate. We can share moments and stay connected with friends around the world. However, it is important to use it responsibly and limit screen time.",
+      "translation": "Социальные сети изменили то, как мы общаемся. Мы можем делиться моментами и оставаться на связи с друзьями по всему миру. Однако важно использовать их ответственно и ограничивать экранное время."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:12:technology",
+    "level": "B1",
+    "module_number": 12,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Технологии и гаджеты",
+    "title_en": "Shadow Reading: Technology and Gadgets",
+    "description": "Повторяйте текст о роли смартфонов вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_12_technology.mp3",
+      "text": "Smartphones have become an essential part of our daily lives. We use them for communication, navigation, and entertainment. It is hard to imagine modern life without these powerful devices.",
+      "translation": "Смартфоны стали неотъемлемой частью нашей повседневной жизни. Мы используем их для общения, навигации и развлечений. Трудно представить современную жизнь без этих мощных устройств."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:13:travel_and_tourism",
+    "level": "B1",
+    "module_number": 13,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Путешествия и туризм",
+    "title_en": "Shadow Reading: Travel and Tourism",
+    "description": "Повторяйте текст о пользе путешествий вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_13_travel_and_tourism.mp3",
+      "text": "Traveling abroad broadens your mind and exposes you to different cultures. Learning a few local phrases before you go shows respect and helps you connect with people. Each journey teaches something new.",
+      "translation": "Путешествия за рубеж расширяют кругозор и знакомят с разными культурами. Выучить несколько местных фраз перед поездкой — знак уважения и помогает наладить контакт с людьми. Каждая поездка чему-то учит."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B1:14:fashion_and_style",
+    "level": "B1",
+    "module_number": 14,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Мода и стиль",
+    "title_en": "Shadow Reading: Fashion and Style",
+    "description": "Повторяйте текст о моде как самовыражении вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B1_14_fashion_and_style.mp3",
+      "text": "Fashion is more than just clothing — it is a form of self-expression. The way you dress can reflect your personality and mood. Some people follow trends closely while others prefer a timeless style.",
+      "translation": "Мода — это не просто одежда, это форма самовыражения. То, как вы одеваетесь, может отражать вашу личность и настроение. Одни люди внимательно следят за трендами, другие предпочитают вечный стиль."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B2:01:lifestyle_and_psychology",
+    "level": "B2",
+    "module_number": 1,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Образ жизни и психология",
+    "title_en": "Shadow Reading: Lifestyle and Psychology",
+    "description": "Повторяйте аналитический текст о психологии привычек вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B2_01_lifestyle_and_psychology.mp3",
+      "text": "Our daily habits shape our mental wellbeing more than we realise. Positive routines such as exercise, mindful eating, and adequate sleep can significantly reduce stress. Psychologists suggest that small consistent changes are more sustainable than dramatic lifestyle shifts.",
+      "translation": "Наши ежедневные привычки формируют психологическое благополучие больше, чем мы осознаём. Позитивные ритуалы — физическая активность, осознанное питание и достаточный сон — могут значительно снизить стресс. Психологи считают, что небольшие последовательные изменения устойчивее, чем резкая смена образа жизни."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B2:02:science_and_technology",
+    "level": "B2",
+    "module_number": 2,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Наука и технологии",
+    "title_en": "Shadow Reading: Science and Technology (Advanced)",
+    "description": "Повторяйте текст об искусственном интеллекте вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B2_02_science_and_technology.mp3",
+      "text": "Artificial intelligence is transforming industries from healthcare to finance. Algorithms can now diagnose diseases, predict market trends, and personalise education. However, ethical questions about data privacy and bias remain a significant challenge for researchers and policymakers.",
+      "translation": "Искусственный интеллект трансформирует отрасли — от здравоохранения до финансов. Алгоритмы теперь могут диагностировать болезни, прогнозировать рыночные тренды и персонализировать обучение. Однако этические вопросы конфиденциальности данных и предвзятости остаются серьёзной проблемой для исследователей и политиков."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B2:03:media_and_communications",
+    "level": "B2",
+    "module_number": 3,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: СМИ и коммуникации",
+    "title_en": "Shadow Reading: Media and Communications",
+    "description": "Повторяйте текст о медиаграмотности вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B2_03_media_and_communications.mp3",
+      "text": "In the age of digital media, the line between news and entertainment has become blurred. Audiences need to develop critical thinking skills to distinguish reliable sources from misinformation. Media literacy is now considered an essential twenty-first century skill.",
+      "translation": "В эпоху цифровых СМИ граница между новостями и развлечениями размылась. Аудитории необходимо развивать критическое мышление для различения достоверных источников от дезинформации. Медиаграмотность теперь считается важнейшим навыком двадцать первого века."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B2:04:society_and_culture",
+    "level": "B2",
+    "module_number": 4,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Общество и культура",
+    "title_en": "Shadow Reading: Society and Culture",
+    "description": "Повторяйте текст о культурном разнообразии вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B2_04_society_and_culture.mp3",
+      "text": "Cultural diversity enriches society by introducing new perspectives, traditions, and ways of thinking. When people from different backgrounds collaborate, they often produce more creative and effective solutions. Embracing diversity is not only a moral imperative but also a practical advantage.",
+      "translation": "Культурное разнообразие обогащает общество, привнося новые взгляды, традиции и способы мышления. Когда люди из разных контекстов сотрудничают, они часто находят более творческие и эффективные решения. Принятие разнообразия — не только моральный долг, но и практическое преимущество."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B2:05:psychology_and_relationships",
+    "level": "B2",
+    "module_number": 5,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Психология и отношения",
+    "title_en": "Shadow Reading: Psychology and Relationships (Advanced)",
+    "description": "Повторяйте текст о построении здоровых отношений вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B2_05_psychology_and_relationships.mp3",
+      "text": "Building healthy relationships requires emotional intelligence and self-awareness. People who understand their own needs and communicate boundaries effectively tend to form more stable partnerships. Therapy can help individuals address patterns that undermine their connections with others.",
+      "translation": "Построение здоровых отношений требует эмоционального интеллекта и самосознания. Люди, понимающие свои потребности и эффективно выстраивающие границы, как правило, создают более стабильные партнёрства. Терапия помогает людям проработать паттерны, подрывающие их связи с другими."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B2:06:science_and_technology_ai",
+    "level": "B2",
+    "module_number": 6,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Наука и технологии (биотехнологии)",
+    "title_en": "Shadow Reading: Science and Technology (AI, biotech)",
+    "description": "Повторяйте текст о биотехнологиях вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B2_06_science_and_technology_ai.mp3",
+      "text": "Biotechnology is advancing at an unprecedented pace. Scientists are now able to edit genes to prevent hereditary diseases and develop personalised medicines. These breakthroughs raise profound questions about the boundaries of human intervention in nature.",
+      "translation": "Биотехнологии развиваются беспрецедентными темпами. Учёные теперь могут редактировать гены для предотвращения наследственных заболеваний и создания персонализированных лекарств. Эти прорывы ставят глубокие вопросы о границах вмешательства человека в природу."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B2:07:reported_questions",
+    "level": "B2",
+    "module_number": 7,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: СМИ и коммуникации (репортаж)",
+    "title_en": "Shadow Reading: Media and Communications",
+    "description": "Повторяйте текст о журналистских стандартах вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B2_07_reported_questions.mp3",
+      "text": "Journalists face increasing pressure to publish stories quickly in the era of social media. Unfortunately, speed sometimes comes at the cost of accuracy. Reputable news organisations invest in fact-checking departments to maintain credibility and public trust.",
+      "translation": "Журналисты испытывают всё большее давление необходимостью быстро публиковать материалы в эпоху социальных сетей. К сожалению, скорость иногда достигается ценой точности. Авторитетные новостные организации инвестируют в отделы проверки фактов для поддержания авторитета и доверия общества."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B2:08:passive_past",
+    "level": "B2",
+    "module_number": 8,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Технологии и инновации",
+    "title_en": "Shadow Reading: Technology and Innovations",
+    "description": "Повторяйте текст об электромобилях вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B2_08_passive_past.mp3",
+      "text": "Electric vehicles are becoming increasingly mainstream as battery technology improves and charging infrastructure expands. Governments are offering incentives to accelerate adoption and reduce carbon emissions. The transition to clean transport represents both an environmental and economic transformation.",
+      "translation": "Электромобили становятся всё более массовыми по мере развития технологий аккумуляторов и расширения зарядной инфраструктуры. Правительства предлагают стимулы для ускорения распространения и сокращения выбросов углерода. Переход к чистому транспорту представляет собой экологическую и экономическую трансформацию."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B2:09:crime_and_law",
+    "level": "B2",
+    "module_number": 9,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Преступность и право",
+    "title_en": "Shadow Reading: Crime and Law",
+    "description": "Повторяйте текст о системе правосудия вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B2_09_crime_and_law.mp3",
+      "text": "The justice system faces the challenge of balancing punishment with rehabilitation. Research shows that education and skills training in prisons significantly reduce reoffending rates. Many criminologists argue that addressing root social causes of crime is more effective than punitive measures alone.",
+      "translation": "Система правосудия сталкивается с задачей балансирования наказания и реабилитации. Исследования показывают, что образование и профессиональная подготовка в тюрьмах значительно снижают уровень рецидивизма. Многие криминологи утверждают, что устранение социальных причин преступности эффективнее только карательных мер."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B2:10:travel_and_tourism",
+    "level": "B2",
+    "module_number": 10,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Путешествия и туризм",
+    "title_en": "Shadow Reading: Travel and Tourism (Complex Scenarios)",
+    "description": "Повторяйте текст об устойчивом туризме вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B2_10_travel_and_tourism.mp3",
+      "text": "Sustainable tourism is gaining popularity among travellers who want to minimise their environmental footprint. Choosing eco-friendly accommodation, supporting local businesses, and avoiding overcrowded destinations can make a real difference. Responsible travel preserves destinations for future generations.",
+      "translation": "Устойчивый туризм набирает популярность среди путешественников, стремящихся минимизировать экологический след. Выбор экологичного жилья, поддержка местного бизнеса и избегание переполненных направлений могут реально изменить ситуацию. Ответственный туризм сохраняет достопримечательности для будущих поколений."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B2:11:art_and_culture",
+    "level": "B2",
+    "module_number": 11,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Искусство и культура",
+    "title_en": "Shadow Reading: Art and Culture",
+    "description": "Повторяйте текст о современном искусстве вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B2_11_art_and_culture.mp3",
+      "text": "Contemporary art often provokes debate about meaning and value. Critics argue that some modern works lack craftsmanship, while supporters insist that concept and context are equally important. The tension between tradition and innovation has always driven artistic evolution.",
+      "translation": "Современное искусство часто вызывает дискуссии о смысле и ценности. Критики утверждают, что некоторые современные работы лишены мастерства, тогда как сторонники настаивают на равной важности концепции и контекста. Противоречие между традицией и инновациями всегда двигало художественную эволюцию."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:B2:12:ecology_and_nature",
+    "level": "B2",
+    "module_number": 12,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Экология и природа",
+    "title_en": "Shadow Reading: Ecology and Nature (Global Issues)",
+    "description": "Повторяйте текст об изменении климата вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "b2"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_B2_12_ecology_and_nature.mp3",
+      "text": "Climate change is already affecting ecosystems across the globe. Rising sea levels threaten coastal communities, while extreme weather events are becoming more frequent. International cooperation is essential to limit warming and protect biodiversity for generations to come.",
+      "translation": "Изменение климата уже влияет на экосистемы по всему миру. Повышение уровня моря угрожает прибрежным сообществам, а экстремальные погодные явления становятся более частыми. Международное сотрудничество необходимо для ограничения потепления и сохранения биоразнообразия для будущих поколений."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:C1:01:trends_and_innovations",
+    "level": "C1",
+    "module_number": 1,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Тренды и инновации",
+    "title_en": "Shadow Reading: Trends and Innovations (Introduction)",
+    "description": "Повторяйте текст о технологических трендах вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "c1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_C1_01_trends_and_innovations.mp3",
+      "text": "The pace of technological innovation shows no signs of slowing. Emerging technologies such as quantum computing and augmented reality are poised to redefine entire sectors within the next decade. Organisations that fail to adapt risk being left behind in an increasingly competitive global landscape.",
+      "translation": "Темп технологических инноваций не замедляется. Такие технологии, как квантовые вычисления и дополненная реальность, готовы переопределить целые секторы в течение следующего десятилетия. Организации, которые не адаптируются, рискуют отстать в условиях всё более конкурентного глобального пространства."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:C1:02:ecology_and_nature",
+    "level": "C1",
+    "module_number": 2,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Экология и природа (углубление)",
+    "title_en": "Shadow Reading: Ecology and Nature (Advanced)",
+    "description": "Повторяйте текст о ревайлдинге вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "c1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_C1_02_ecology_and_nature.mp3",
+      "text": "Rewilding projects are restoring ecosystems that were damaged by centuries of intensive agriculture and urbanisation. By reintroducing apex predators and allowing vegetation to return naturally, ecologists have observed remarkable recoveries in biodiversity. These initiatives challenge conventional assumptions about land use and conservation priorities.",
+      "translation": "Проекты ревайлдинга восстанавливают экосистемы, повреждённые веками интенсивного сельского хозяйства и урбанизации. Реинтродукция хищников верхнего звена и естественное восстановление растительности привели к замечательному возрождению биоразнообразия. Эти инициативы ставят под сомнение общепринятые представления об использовании земли и приоритетах охраны природы."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:C1:03:trends_and_innovations_foresight",
+    "level": "C1",
+    "module_number": 3,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Тренды и инновации (форсайт)",
+    "title_en": "Shadow Reading: Trends and Innovations (Foresight, Forecasts)",
+    "description": "Повторяйте текст о стратегическом форсайте вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "c1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_C1_03_trends_and_innovations_foresight.mp3",
+      "text": "Futurism and strategic foresight are increasingly valued tools in corporate and policy planning. Organisations commission scenario analyses to anticipate disruptions decades ahead rather than reacting to change as it occurs. This proactive mindset enables more resilient decision-making in an era of unprecedented uncertainty.",
+      "translation": "Футуризм и стратегический форсайт становятся всё более востребованными инструментами в корпоративном и государственном планировании. Организации заказывают сценарный анализ для предвидения потрясений за десятилетия вперёд, а не реагирования на изменения по факту. Такой проактивный подход обеспечивает более устойчивое принятие решений в эпоху беспрецедентной неопределённости."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:C1:04:fashion_and_lifestyle",
+    "level": "C1",
+    "module_number": 4,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Мода и образ жизни",
+    "title_en": "Shadow Reading: Fashion and Lifestyle",
+    "description": "Повторяйте текст об экологичной моде вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "c1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_C1_04_fashion_and_lifestyle.mp3",
+      "text": "The fashion industry is undergoing a significant reckoning with its environmental impact. Fast fashion contributes enormously to textile waste and carbon emissions, prompting a growing movement towards circular economy models. Consumers are increasingly demanding transparency and accountability from the brands they choose to support.",
+      "translation": "Индустрия моды переживает значительный кризис, связанный с экологическим воздействием. Быстрая мода вносит огромный вклад в образование текстильных отходов и выбросы углерода, что стимулирует растущее движение к моделям циклической экономики. Потребители всё активнее требуют прозрачности и ответственности от брендов, которые они поддерживают."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:C1:05:work_and_career",
+    "level": "C1",
+    "module_number": 5,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Работа и карьера (переговоры)",
+    "title_en": "Shadow Reading: Work and Career (Interviews, Negotiations)",
+    "description": "Повторяйте текст об автоматизации и навыках вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "c1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_C1_05_work_and_career.mp3",
+      "text": "The modern workplace is evolving faster than professional development frameworks can keep pace. Automation threatens routine tasks while simultaneously creating demand for uniquely human capabilities such as critical thinking, empathy, and adaptive learning. Professionals who invest continuously in upskilling tend to navigate these disruptions most successfully.",
+      "translation": "Современное рабочее место меняется быстрее, чем могут успевать рамки профессионального развития. Автоматизация угрожает рутинным задачам, одновременно создавая спрос на уникально человеческие способности: критическое мышление, эмпатию и адаптивное обучение. Специалисты, непрерывно инвестирующие в повышение квалификации, как правило, наиболее успешно справляются с этими потрясениями."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:C1:06:culture_and_society",
+    "level": "C1",
+    "module_number": 6,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Культура и общество",
+    "title_en": "Shadow Reading: Culture and Society",
+    "description": "Повторяйте текст о культурном наследии вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "c1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_C1_06_culture_and_society.mp3",
+      "text": "Cultural heritage is not merely an artefact of the past but a living force that shapes contemporary identity. Museums and archives play a critical role in preserving collective memory across generations. However, debates about the repatriation of colonially acquired objects reveal deep tensions between ownership, identity, and the public good.",
+      "translation": "Культурное наследие — это не просто артефакт прошлого, а живая сила, формирующая современную идентичность. Музеи и архивы играют ключевую роль в сохранении коллективной памяти между поколениями. Однако споры о репатриации колониально приобретённых объектов выявляют глубокие противоречия между собственностью, идентичностью и общественным благом."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:C1:07:media_and_communications",
+    "level": "C1",
+    "module_number": 7,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: СМИ и коммуникации (анализ новостей)",
+    "title_en": "Shadow Reading: Media and Communications (News Analysis)",
+    "description": "Повторяйте текст о цифровой демократизации информации вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "c1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_C1_07_media_and_communications.mp3",
+      "text": "The proliferation of digital platforms has fundamentally altered the relationship between news producers and their audiences. Citizens now expect to participate in public discourse rather than passively consume it. This democratisation of information carries immense potential but also significant risks when unmediated voices spread harmful content without editorial oversight.",
+      "translation": "Распространение цифровых платформ коренным образом изменило отношения между производителями новостей и их аудиторией. Граждане теперь ожидают участия в публичном дискурсе, а не пассивного потребления. Эта демократизация информации несёт огромный потенциал, но также значительные риски, когда нередактируемые голоса распространяют вредный контент без редакционного контроля."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:C1:08:third_conditional",
+    "level": "C1",
+    "module_number": 8,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Путешествия и сожаления",
+    "title_en": "Shadow Reading: Travel and Regrets",
+    "description": "Повторяйте рассказ о неожиданной ситуации в поездке вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "c1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_C1_08_third_conditional.mp3",
+      "text": "Had I planned the trip more carefully, I would have avoided the visa complications that stranded us at the border for twelve hours. Nevertheless, the unexpected delay gave us an opportunity to talk with local residents and discover a side of the country that no guidebook could have revealed.",
+      "translation": "Если бы я планировал поездку тщательнее, я бы избежал визовых осложнений, задержавших нас на границе на двенадцать часов. Тем не менее неожиданная задержка дала нам возможность поговорить с местными жителями и открыть ту сторону страны, о которой не написано ни в одном путеводителе."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:C1:09:money_and_finances",
+    "level": "C1",
+    "module_number": 9,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Деньги и финансы (инвестиции)",
+    "title_en": "Shadow Reading: Money and Finances (Investments, Economy)",
+    "description": "Повторяйте текст о глобальной финансовой системе вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "c1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_C1_09_money_and_finances.mp3",
+      "text": "The global financial system is characterised by increasing complexity and interconnectedness. Investment decisions made in one market can trigger cascading effects across the world within hours. Understanding macroeconomic indicators and geopolitical risk factors has become essential for both institutional investors and informed private individuals.",
+      "translation": "Глобальная финансовая система характеризуется нарастающей сложностью и взаимосвязанностью. Инвестиционные решения, принятые на одном рынке, могут вызвать каскадные эффекты по всему миру в течение нескольких часов. Понимание макроэкономических показателей и геополитических рисков стало необходимым как для институциональных инвесторов, так и для информированных частных лиц."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:C1:10:social_problems",
+    "level": "C1",
+    "module_number": 10,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Социальные проблемы",
+    "title_en": "Shadow Reading: Social Problems",
+    "description": "Повторяйте текст о городской бедности и системных решениях вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "c1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_C1_10_social_problems.mp3",
+      "text": "Urban poverty and social exclusion are self-reinforcing cycles that require systemic solutions rather than piecemeal charity. Access to quality education, affordable housing, and mental health support are foundational to breaking these cycles. Policy frameworks that address structural inequality demonstrate far greater long-term impact than emergency welfare provisions alone.",
+      "translation": "Городская бедность и социальная изоляция — это самовоспроизводящиеся циклы, требующие системных решений, а не частичной благотворительности. Доступ к качественному образованию, доступному жилью и психологической поддержке является основой для разрыва этих циклов. Политические рамки, решающие структурное неравенство, демонстрируют значительно большее долгосрочное воздействие, чем только экстренные меры социального обеспечения."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:C1:11:sport_and_achievements",
+    "level": "C1",
+    "module_number": 11,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Спорт и достижения (профессиональный спорт)",
+    "title_en": "Shadow Reading: Sport and Achievements (Professional Sport)",
+    "description": "Повторяйте текст о науке о результативности в спорте вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "c1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_C1_11_sport_and_achievements.mp3",
+      "text": "Elite sport has evolved into a multi-billion dollar industry in which performance science plays an increasingly decisive role. Athletes now collaborate with nutritionists, psychologists, and biomechanical analysts to achieve marginal gains that separate champions from contenders. The ethical boundaries of performance enhancement continue to be vigorously debated by sports governing bodies.",
+      "translation": "Элитный спорт превратился в многомиллиардную индустрию, в которой наука о результативности играет всё более решающую роль. Спортсмены теперь сотрудничают с диетологами, психологами и биомеханическими аналитиками, чтобы добиться предельных улучшений, отделяющих чемпионов от претендентов. Этические границы повышения производительности по-прежнему активно обсуждаются спортивными федерациями."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:C1:12:education_and_career",
+    "level": "C1",
+    "module_number": 12,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Образование и карьера (академическая среда)",
+    "title_en": "Shadow Reading: Education and Career (Academic Environment)",
+    "description": "Повторяйте текст о трансформации образования и карьеры вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "c1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_C1_12_education_and_career.mp3",
+      "text": "The traditional linear pathway from education to employment is giving way to more fluid and iterative career models. Lifelong learning, portfolio careers, and entrepreneurial thinking are becoming defining features of professional success in the knowledge economy. Universities are under pressure to redesign curricula that equip graduates with adaptive rather than purely technical skills.",
+      "translation": "Традиционный линейный путь от образования к трудоустройству уступает место более гибким и итеративным карьерным моделям. Непрерывное обучение, портфельные карьеры и предпринимательское мышление становятся определяющими чертами профессионального успеха в экономике знаний. Университеты испытывают давление необходимостью переработки учебных программ, формирующих у выпускников адаптивные, а не только технические навыки."
+    }
+  },
+  {
+    "external_key": "immersion:shadow_reading:C1:13:law_and_order",
+    "level": "C1",
+    "module_number": 13,
+    "lesson_type": "shadow_reading",
+    "title": "Теневое чтение: Право и порядок",
+    "title_en": "Shadow Reading: Law and Order",
+    "description": "Повторяйте текст о верховенстве закона вслух вместе с записью.",
+    "tags": ["immersion", "speaking", "shadow_reading", "c1"],
+    "content": {
+      "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_C1_13_law_and_order.mp3",
+      "text": "The rule of law is the cornerstone of democratic governance and individual rights. When institutions are undermined by corruption or political interference, public confidence erodes and social cohesion fragments. Strengthening judicial independence, transparency, and civic oversight mechanisms is essential for any society aspiring to genuine justice.",
+      "translation": "Верховенство закона — краеугольный камень демократического управления и прав личности. Когда институты подрываются коррупцией или политическим вмешательством, общественное доверие разрушается, а социальная сплочённость распадается. Укрепление независимости судебной власти, прозрачности и механизмов гражданского надзора необходимо для любого общества, стремящегося к подлинному правосудию."
+    }
+  }
+]

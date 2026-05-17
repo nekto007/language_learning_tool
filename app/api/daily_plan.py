@@ -28,6 +28,163 @@ def _validate_timezone(tz_name: str) -> str:
         return DEFAULT_TZ
 
 
+def _get_recovery_suggestion(user_id: int, tz: str) -> dict | None:
+    """Return recovery suggestion when yesterday's plan was not secured, else None."""
+    import pytz
+    from datetime import datetime, timedelta
+    from app.auth.models import User
+    from app.daily_plan.models import DailyPlanLog
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TZ)
+
+    yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
+    log = DailyPlanLog.query.filter_by(user_id=user_id, plan_date=yesterday).first()
+
+    if log is None or log.secured_at is not None:
+        return None
+
+    user = db.session.get(User, user_id)
+    if user is not None and user.use_linear_plan:
+        action_url = '/study?source=linear_plan'
+    else:
+        action_url = '/dashboard'
+
+    missed_kind = log.mission_type or 'srs'
+    return {'missed_kind': missed_kind, 'action_url': action_url, 'missed_date': yesterday.isoformat()}
+
+
+def _compute_listening_goal(user, tz: str) -> dict:
+    """Compute listening goal progress for today.
+
+    Returns dict with listening_goal_minutes, listening_minutes_today,
+    listening_goal_reached.
+    """
+    import pytz
+    from datetime import datetime
+    from app.curriculum.models import ListeningAttempt, Lessons
+
+    goal = (user.listening_goal_minutes or 0) if user.listening_goal_minutes is not None else 10
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TZ)
+
+    now_local = datetime.now(tz_obj)
+    today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start_utc = today_start_local.astimezone(pytz.utc).replace(tzinfo=None)
+
+    attempts = (
+        ListeningAttempt.query
+        .filter(
+            ListeningAttempt.user_id == user.id,
+            ListeningAttempt.created_at >= today_start_utc,
+        )
+        .all()
+    )
+
+    total_seconds = 0.0
+    if attempts:
+        unique_lesson_ids = list({a.lesson_id for a in attempts})
+        lessons_map = {
+            lesson.id: lesson
+            for lesson in Lessons.query.filter(Lessons.id.in_(unique_lesson_ids)).all()
+        }
+        for lesson_id in unique_lesson_ids:
+            lesson = lessons_map.get(lesson_id)
+            duration = 300
+            if lesson and lesson.content and isinstance(lesson.content, dict):
+                try:
+                    duration = min(int(float(lesson.content.get('duration_seconds') or 300)), 3600)
+                except (TypeError, ValueError):
+                    duration = 300
+            total_seconds += duration
+
+    listening_minutes_today = round(total_seconds / 60, 1)
+
+    if goal == 0:
+        reached = True
+    else:
+        reached = listening_minutes_today >= goal
+
+    return {
+        'listening_goal_minutes': goal,
+        'listening_minutes_today': listening_minutes_today,
+        'listening_goal_reached': reached,
+    }
+
+
+def _compute_study_minutes(user, tz: str) -> int:
+    """Return minutes_studied_today from DailyStudyMinutes for the user's local date."""
+    import pytz
+    from datetime import datetime
+    from app.curriculum.models import get_minutes_today
+    from app.utils.db import db
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TZ)
+
+    today = datetime.now(tz_obj).date()
+    try:
+        return get_minutes_today(user.id, today, db)
+    except Exception:
+        logger.warning("get_minutes_today failed for user %s", user.id, exc_info=True)
+        return 0
+
+
+def _compute_goal_progress(user, tz: str) -> dict:
+    """Compute daily word and weekly lesson goal progress.
+
+    Returns dict with goal_progress containing daily_words and weekly_lessons
+    sub-dicts, each with goal, actual, and reached fields.
+    """
+    import pytz
+    from datetime import datetime, timedelta
+    from app.srs.counting import count_new_cards_today
+    from app.curriculum.models import LessonProgress
+
+    daily_word_goal = user.daily_word_goal if user.daily_word_goal is not None else 10
+    weekly_lesson_goal = user.weekly_lesson_goal if user.weekly_lesson_goal is not None else 5
+
+    words_today = count_new_cards_today(user.id)
+
+    try:
+        tz_obj = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tz_obj = pytz.timezone(DEFAULT_TZ)
+
+    now_local = datetime.now(tz_obj)
+    days_since_monday = now_local.weekday()  # 0=Monday
+    monday_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
+    monday_utc = monday_local.astimezone(pytz.utc).replace(tzinfo=None)
+
+    lessons_this_week = LessonProgress.query.filter(
+        LessonProgress.user_id == user.id,
+        LessonProgress.status == 'completed',
+        LessonProgress.completed_at >= monday_utc,
+    ).count()
+
+    return {
+        'goal_progress': {
+            'daily_words': {
+                'goal': daily_word_goal,
+                'actual': words_today,
+                'reached': words_today >= daily_word_goal,
+            },
+            'weekly_lessons': {
+                'goal': weekly_lesson_goal,
+                'actual': lessons_this_week,
+                'reached': lessons_this_week >= weekly_lesson_goal,
+            },
+        }
+    }
+
+
 @api_daily_plan.route('/daily-status')
 @api_auth_required
 def daily_status():
@@ -111,6 +268,17 @@ def daily_status():
                 maybe_record_linear_plan_completion(
                     user_id, plan, plan_completion, today, db,
                 )
+            try:
+                from app.achievements.services import check_immersion_achievement
+                check_immersion_achievement(user_id, today, db.session, tz=tz)
+            except Exception:
+                logger.warning("immersion achievement check failed for user %s", user_id, exc_info=True)
+            try:
+                from app.notifications.services import check_plan_streak_milestone_notification
+                _streak = streak_result.get('streak_status', {}).get('streak', 0)
+                check_plan_streak_milestone_notification(user_id, _streak, today)
+            except Exception:
+                logger.warning("plan streak milestone notification failed for user %s", user_id, exc_info=True)
             db.session.commit()
             logger.info(
                 "daily_status user=%s day_secured=true mission_type=%s date=%s",
@@ -122,6 +290,25 @@ def daily_status():
 
     from app.study.services import SRSService
     srs_limit_reason = SRSService.get_adaptive_limit_reason(user_id)
+
+    listening_goal_data = _compute_listening_goal(current_user, tz)
+    goal_progress_data = _compute_goal_progress(current_user, tz)
+    minutes_studied_today = _compute_study_minutes(current_user, tz)
+
+    from app.achievements.streak_service import get_listening_streak, get_writing_streak, get_speaking_streak, get_immersion_streak
+    listening_streak_days = get_listening_streak(user_id, tz=tz)
+    writing_streak_days = get_writing_streak(user_id, tz=tz)
+    speaking_streak_days = get_speaking_streak(user_id, tz=tz)
+    immersion_streak_days = get_immersion_streak(user_id, tz=tz)
+
+    from app.study.insights_service import get_pronunciation_weaknesses
+    try:
+        pronunciation_weak_words = get_pronunciation_weaknesses(user_id)
+    except Exception:
+        logger.warning("get_pronunciation_weaknesses failed", exc_info=True)
+        pronunciation_weak_words = []
+
+    recovery_suggestion = _get_recovery_suggestion(user_id, tz)
 
     payload = {
         'success': True,
@@ -135,9 +322,23 @@ def daily_status():
         'required_steps': streak_result['required_steps'],
         'streak_repaired': streak_result['streak_repaired'],
         'day_secured': day_secured,
+        'listening_streak_days': listening_streak_days,
+        'writing_streak_days': writing_streak_days,
+        'speaking_streak_days': speaking_streak_days,
+        'immersion_streak_days': immersion_streak_days,
+        'pronunciation_weak_words': pronunciation_weak_words,
+        'minutes_studied_today': minutes_studied_today,
+        'streak_shield_active': bool(getattr(current_user, 'streak_shield_active', False)),
+        **listening_goal_data,
+        **goal_progress_data,
     }
     if srs_limit_reason != 'normal':
         payload['srs_limit_reason'] = srs_limit_reason
+    if recovery_suggestion is not None:
+        payload['recovery_suggestion'] = recovery_suggestion
+    if plan.get('mode') == 'paused':
+        payload['plan_paused'] = True
+        payload['paused_until'] = plan.get('paused_until')
     return jsonify(payload)
 
 
@@ -300,9 +501,12 @@ def daily_race_status():
     from app.telegram.queries import get_daily_summary
     from app.achievements.streak_service import compute_plan_steps
     from app.achievements.daily_race import (
+        CHALLENGE_BONUS_POINTS,
         get_race_standings,
         update_race_points_from_plan,
+        update_race_points_from_linear_plan,
     )
+    from app.daily_plan.challenge import get_today_challenge
 
     tz = _validate_timezone(request.args.get('tz', current_user.timezone or DEFAULT_TZ))
     user_id = current_user.id
@@ -321,11 +525,28 @@ def daily_race_status():
     summary = get_daily_summary(user_id, tz=tz)
     plan_completion, _, _, _ = compute_plan_steps(plan, summary)
 
+    try:
+        challenge_data = get_today_challenge(user_id, db)
+        ch_bonus = CHALLENGE_BONUS_POINTS if challenge_data.get('is_completed') else 0
+    except Exception:
+        ch_bonus = 0
+
     phases = plan.get('phases') or []
+    baseline_slots = plan.get('baseline_slots') or []
     if phases:
         try:
             update_race_points_from_plan(
                 user_id, local_today, phases, plan_completion,
+                challenge_bonus=ch_bonus,
+            )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+    elif baseline_slots and plan.get('mode') == 'linear':
+        try:
+            update_race_points_from_linear_plan(
+                user_id, local_today, baseline_slots, plan_completion,
+                challenge_bonus=ch_bonus,
             )
             db.session.commit()
         except Exception:
@@ -460,6 +681,18 @@ def daily_plan_next_slot():
             maybe_record_linear_plan_completion(
                 user.id, plan, plan_completion, today, db,
             )
+            try:
+                from app.achievements.services import check_immersion_achievement
+                check_immersion_achievement(user.id, today, db.session, tz=tz)
+            except Exception:
+                logger.warning("immersion achievement check failed for user %s", user.id, exc_info=True)
+            try:
+                from app.notifications.services import check_plan_streak_milestone_notification
+                from app.telegram.queries import get_current_streak as _get_streak
+                _streak = _get_streak(user.id, tz=tz)
+                check_plan_streak_milestone_notification(user.id, _streak, today)
+            except Exception:
+                logger.warning("plan streak milestone notification failed for user %s", user.id, exc_info=True)
             db.session.commit()
             secured_just_now = not was_already_secured
             if secured_just_now:
@@ -519,7 +752,12 @@ _CLIENT_EVENTS = {
     'rival_strip_shown',
     'rival_strip_dismissed',
     'steps_taken_while_rival_visible',
+    'vocab_lookup',
+    'slot_skipped',
 }
+
+_SKIP_REASONS = {'no_time', 'too_hard', 'not_today'}
+_SKIP_SLOT_KINDS = {'curriculum', 'srs', 'reading', 'listening', 'writing', 'error_review', 'speaking'}
 
 
 @api_daily_plan.route('/daily-plan/events', methods=['POST'])
@@ -572,12 +810,27 @@ def record_daily_plan_event():
     else:
         plan_date = user_today
 
-    step_kind = body.get('step_kind')
+    meta = body.get('meta') or {}
+    step_kind = body.get('step_kind') or meta.get('kind')
     if step_kind:
         step_kind = str(step_kind)[:40]
-    reason_text = body.get('reason_text')
+    reason_text = body.get('reason_text') or meta.get('reason')
     if reason_text:
         reason_text = str(reason_text)[:500]
+
+    if event_type == 'slot_skipped':
+        if not step_kind or step_kind not in _SKIP_SLOT_KINDS:
+            return api_error(
+                'invalid_slot_kind',
+                f'step_kind must be one of: {", ".join(sorted(_SKIP_SLOT_KINDS))}',
+                400,
+            )
+        if not reason_text or reason_text not in _SKIP_REASONS:
+            return api_error(
+                'invalid_reason',
+                f'reason must be one of: {", ".join(sorted(_SKIP_REASONS))}',
+                400,
+            )
 
     event = DailyPlanEvent(
         user_id=current_user.id,
@@ -760,6 +1013,96 @@ def dismiss_rival_strip():
     return jsonify({'status': 'ok'})
 
 
+@api_daily_plan.route('/plan/pause', methods=['POST'])
+@csrf.exempt
+@api_auth_required
+def plan_pause():
+    """Pause daily plan for N days (1–14).
+
+    Body JSON:
+        days (int): number of days to pause (1–14)
+
+    Inserts StreakEvent(event_type='plan_pause') for each paused day so streak
+    calculation treats those days as neutral (not a gap).
+    """
+    from datetime import date, timedelta
+    from app.auth.models import User
+    from app.achievements.models import StreakEvent
+
+    body = request.get_json(silent=True) or {}
+    days = body.get('days')
+    if isinstance(days, bool) or not isinstance(days, int) or not (1 <= days <= 14):
+        return api_error('invalid_days', 'days must be an integer between 1 and 14', 400)
+
+    user = db.session.get(User, current_user.id)
+    if user is None:
+        return api_error('not_found', 'User not found', 404)
+
+    from app.utils.time_utils import get_user_local_date
+    today = get_user_local_date(current_user.id, db)
+    paused_until = today + timedelta(days=days)
+
+    # Remove any existing plan_pause events (e.g., user extending/changing pause)
+    StreakEvent.query.filter(
+        StreakEvent.user_id == current_user.id,
+        StreakEvent.event_type == 'plan_pause',
+        StreakEvent.event_date >= today,
+    ).delete()
+
+    # Insert one StreakEvent per paused day so streak walks over them neutrally
+    for offset in range(days):
+        pause_date = today + timedelta(days=offset)
+        db.session.add(StreakEvent(
+            user_id=current_user.id,
+            event_type='plan_pause',
+            coins_delta=0,
+            event_date=pause_date,
+        ))
+
+    user.plan_paused_until = paused_until
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return api_error('db_error', 'Failed to pause plan', 500)
+
+    return jsonify({'status': 'ok', 'paused_until': paused_until.isoformat()})
+
+
+@api_daily_plan.route('/plan/resume', methods=['POST'])
+@csrf.exempt
+@api_auth_required
+def plan_resume():
+    """Resume daily plan immediately by clearing plan_paused_until.
+
+    Deletes future plan_pause StreakEvents so streak resumes normally.
+    """
+    from datetime import date
+    from app.auth.models import User
+    from app.achievements.models import StreakEvent
+
+    user = db.session.get(User, current_user.id)
+    if user is None:
+        return api_error('not_found', 'User not found', 404)
+
+    from app.utils.time_utils import get_user_local_date
+    today = get_user_local_date(current_user.id, db)
+    StreakEvent.query.filter(
+        StreakEvent.user_id == current_user.id,
+        StreakEvent.event_type == 'plan_pause',
+        StreakEvent.event_date >= today,
+    ).delete()
+
+    user.plan_paused_until = None
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return api_error('db_error', 'Failed to resume plan', 500)
+
+    return jsonify({'status': 'ok'})
+
+
 @api_daily_plan.route('/streak/repair', methods=['POST'])
 @csrf.exempt
 @api_auth_required
@@ -781,5 +1124,95 @@ def streak_repair():
         result['new_streak'] = get_current_streak(user_id, tz=tz)
     else:
         db.session.rollback()
+
+    return jsonify(result)
+
+
+@api_daily_plan.route('/daily-plan/challenge/complete', methods=['POST'])
+@csrf.exempt
+@api_auth_required
+def challenge_complete():
+    """Mark today's daily challenge as completed for the current user.
+
+    Body JSON:
+        challenge_id (int): ID of the challenge to complete
+        score (float, optional): accuracy score 0-100
+        time_spent_seconds (int, optional): total time in seconds
+
+    Returns completion status. Idempotent — repeated calls return already_completed=True.
+    """
+    from app.daily_plan.challenge import complete_challenge
+    from app.achievements.xp_service import award_xp
+
+    body = request.get_json(silent=True) or {}
+    challenge_id = body.get('challenge_id')
+    if not isinstance(challenge_id, int):
+        return api_error('invalid_input', 'challenge_id is required', 400)
+
+    from app.daily_plan.models import DailyChallenge
+    from app.utils.time_utils import get_user_local_date
+    _challenge_check = DailyChallenge.query.filter_by(id=challenge_id).first()
+    if _challenge_check is None or _challenge_check.challenge_date != get_user_local_date(current_user.id, db):
+        return api_error('invalid_input', 'challenge_id does not match today\'s challenge', 400)
+
+    raw_score = body.get('score')
+    if raw_score is not None:
+        try:
+            score = float(raw_score)
+            if not (0.0 <= score <= 100.0):
+                return api_error('invalid_input', 'score must be between 0 and 100', 400)
+        except (TypeError, ValueError):
+            return api_error('invalid_input', 'score must be a number', 400)
+    else:
+        score = None
+
+    raw_time = body.get('time_spent_seconds')
+    if raw_time is not None:
+        try:
+            time_spent_seconds = int(raw_time)
+            if time_spent_seconds < 0:
+                return api_error('invalid_input', 'time_spent_seconds must be non-negative', 400)
+        except (TypeError, ValueError):
+            return api_error('invalid_input', 'time_spent_seconds must be an integer', 400)
+    else:
+        time_spent_seconds = None
+
+    from app.daily_plan.challenge import check_challenge_criteria
+    criteria_error = check_challenge_criteria(
+        challenge=_challenge_check,
+        user_id=current_user.id,
+        score=score,
+        time_spent_seconds=time_spent_seconds,
+        db=db,
+    )
+    if criteria_error == 'criteria_not_met':
+        return api_error('criteria_not_met', 'Challenge criteria not satisfied', 403)
+    if criteria_error is not None:
+        return api_error('challenge_error', 'Challenge validation failed', 500)
+
+    try:
+        result = complete_challenge(
+            user_id=current_user.id,
+            challenge_id=challenge_id,
+            score=score,
+            time_spent_seconds=time_spent_seconds,
+            db=db,
+        )
+    except ValueError as e:
+        return api_error('not_found', str(e), 404)
+
+    if not result.get('already_completed'):
+        bonus_xp = result.get('bonus_xp', 0)
+        if bonus_xp:
+            try:
+                award_xp(current_user.id, bonus_xp, 'daily_challenge')
+            except Exception as xp_err:
+                logger.warning("Challenge XP award failed for user %s: %s", current_user.id, xp_err)
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return api_error('db_error', 'Failed to record challenge completion', 500)
 
     return jsonify(result)

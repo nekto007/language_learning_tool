@@ -1,0 +1,1502 @@
+[
+  {
+    "external_key": "immersion:audio_fill_blank:A1:01:greetings",
+    "level": "A1",
+    "lesson_number_hint": 1,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Приветствия и знакомство",
+    "title_en": "Audio Fill-in: Greetings and Introductions",
+    "description": "Прослушайте короткие диалоги о приветствиях и вставьте пропущенные слова.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "a1",
+      "greetings"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_A1_01_greetings.mp3",
+      "items": [
+        {
+          "text_with_gap": "Hello! My ___ is Tom.",
+          "answer": "name",
+          "options": [
+            "name",
+            "age",
+            "job",
+            "city"
+          ]
+        },
+        {
+          "text_with_gap": "Nice to ___ you.",
+          "answer": "meet",
+          "options": [
+            "meet",
+            "see",
+            "know",
+            "like"
+          ]
+        },
+        {
+          "text_with_gap": "I am ___ years old.",
+          "answer": "twelve",
+          "options": [
+            "twelve",
+            "twenty",
+            "two",
+            "ten"
+          ]
+        },
+        {
+          "text_with_gap": "Where are you ___?",
+          "answer": "from"
+        },
+        {
+          "text_with_gap": "I live in a small ___.",
+          "answer": "town"
+        }
+      ]
+    },
+    "module_number": 1
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:A1:02:numbers_time",
+    "level": "A1",
+    "lesson_number_hint": 2,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Числа и время",
+    "title_en": "Audio Fill-in: Numbers and Time",
+    "description": "Слушайте и вставляйте числа и временные выражения.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "a1",
+      "numbers"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_A1_02_numbers_time.mp3",
+      "items": [
+        {
+          "text_with_gap": "The class starts at ___ o'clock.",
+          "answer": "nine",
+          "options": [
+            "nine",
+            "ten",
+            "seven",
+            "five"
+          ]
+        },
+        {
+          "text_with_gap": "There are ___ days in a week.",
+          "answer": "seven",
+          "options": [
+            "seven",
+            "five",
+            "six",
+            "eight"
+          ]
+        },
+        {
+          "text_with_gap": "She is ___ years old.",
+          "answer": "eight"
+        },
+        {
+          "text_with_gap": "It is ___ past three.",
+          "answer": "half",
+          "options": [
+            "half",
+            "quarter",
+            "ten",
+            "five"
+          ]
+        },
+        {
+          "text_with_gap": "The shop opens at ___ in the morning.",
+          "answer": "eight"
+        }
+      ]
+    },
+    "module_number": 2
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:A1:03:colors_objects",
+    "level": "A1",
+    "lesson_number_hint": 3,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Цвета и предметы",
+    "title_en": "Audio Fill-in: Colors and Objects",
+    "description": "Прослушайте описания предметов и вставьте пропущенные слова.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "a1",
+      "colors"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_A1_03_colors_objects.mp3",
+      "items": [
+        {
+          "text_with_gap": "My bag is ___.",
+          "answer": "red",
+          "options": [
+            "red",
+            "blue",
+            "green",
+            "yellow"
+          ]
+        },
+        {
+          "text_with_gap": "The sky is ___.",
+          "answer": "blue",
+          "options": [
+            "blue",
+            "white",
+            "grey",
+            "pink"
+          ]
+        },
+        {
+          "text_with_gap": "I have a big ___.",
+          "answer": "table"
+        },
+        {
+          "text_with_gap": "The pen is on the ___.",
+          "answer": "desk",
+          "options": [
+            "desk",
+            "chair",
+            "floor",
+            "wall"
+          ]
+        },
+        {
+          "text_with_gap": "She has a ___ dress.",
+          "answer": "white"
+        }
+      ]
+    },
+    "module_number": 3
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:A1:04:daily_routines",
+    "level": "A1",
+    "lesson_number_hint": 4,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Распорядок дня",
+    "title_en": "Audio Fill-in: Daily Routines",
+    "description": "Слушайте рассказ о распорядке дня и вставьте пропущенные глаголы.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "a1",
+      "routines"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_A1_04_daily_routines.mp3",
+      "items": [
+        {
+          "text_with_gap": "I ___ up at seven every morning.",
+          "answer": "wake",
+          "options": [
+            "wake",
+            "get",
+            "stand",
+            "come"
+          ]
+        },
+        {
+          "text_with_gap": "She ___ breakfast at home.",
+          "answer": "eats",
+          "options": [
+            "eats",
+            "cooks",
+            "drinks",
+            "makes"
+          ]
+        },
+        {
+          "text_with_gap": "They ___ to school by bus.",
+          "answer": "go"
+        },
+        {
+          "text_with_gap": "He ___ his teeth twice a day.",
+          "answer": "brushes",
+          "options": [
+            "brushes",
+            "cleans",
+            "washes",
+            "fixes"
+          ]
+        },
+        {
+          "text_with_gap": "I ___ to bed at ten o'clock.",
+          "answer": "go"
+        }
+      ]
+    },
+    "module_number": 4
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:A1:05:food_drinks",
+    "level": "A1",
+    "lesson_number_hint": 5,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Еда и напитки",
+    "title_en": "Audio Fill-in: Food and Drinks",
+    "description": "Прослушайте разговоры в кафе и дополните фразы.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "a1",
+      "food"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_A1_05_food_drinks.mp3",
+      "items": [
+        {
+          "text_with_gap": "Can I have a cup of ___, please?",
+          "answer": "tea",
+          "options": [
+            "tea",
+            "soup",
+            "milk",
+            "rice"
+          ]
+        },
+        {
+          "text_with_gap": "I like ___ and eggs for breakfast.",
+          "answer": "toast",
+          "options": [
+            "toast",
+            "pasta",
+            "pizza",
+            "cake"
+          ]
+        },
+        {
+          "text_with_gap": "She drinks ___ every morning.",
+          "answer": "coffee"
+        },
+        {
+          "text_with_gap": "We need some ___ from the shop.",
+          "answer": "bread",
+          "options": [
+            "bread",
+            "water",
+            "juice",
+            "flour"
+          ]
+        },
+        {
+          "text_with_gap": "I don't eat ___ because I'm vegetarian.",
+          "answer": "meat"
+        }
+      ]
+    },
+    "module_number": 5
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:A2:01:shopping",
+    "level": "A2",
+    "lesson_number_hint": 1,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Покупки и цены",
+    "title_en": "Audio Fill-in: Shopping and Prices",
+    "description": "Слушайте разговоры в магазине и вставьте пропущенные слова.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "a2",
+      "shopping"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_A2_01_shopping.mp3",
+      "items": [
+        {
+          "text_with_gap": "How much does this ___ cost?",
+          "answer": "shirt",
+          "options": [
+            "shirt",
+            "bread",
+            "ticket",
+            "book"
+          ]
+        },
+        {
+          "text_with_gap": "It's on ___. You save twenty percent.",
+          "answer": "sale",
+          "options": [
+            "sale",
+            "offer",
+            "display",
+            "hold"
+          ]
+        },
+        {
+          "text_with_gap": "Do you have this in a ___ size?",
+          "answer": "larger"
+        },
+        {
+          "text_with_gap": "Can I pay by ___?",
+          "answer": "card",
+          "options": [
+            "card",
+            "cash",
+            "cheque",
+            "phone"
+          ]
+        },
+        {
+          "text_with_gap": "I'd like to ___ this item.",
+          "answer": "return"
+        }
+      ]
+    },
+    "module_number": 1
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:A2:02:weather",
+    "level": "A2",
+    "lesson_number_hint": 2,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Погода и сезоны",
+    "title_en": "Audio Fill-in: Weather and Seasons",
+    "description": "Послушайте прогноз погоды и вставьте нужные слова.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "a2",
+      "weather"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_A2_02_weather.mp3",
+      "items": [
+        {
+          "text_with_gap": "It will be ___ and warm tomorrow.",
+          "answer": "sunny",
+          "options": [
+            "sunny",
+            "cloudy",
+            "windy",
+            "foggy"
+          ]
+        },
+        {
+          "text_with_gap": "Temperatures will ___ to fifteen degrees.",
+          "answer": "rise",
+          "options": [
+            "rise",
+            "fall",
+            "drop",
+            "stay"
+          ]
+        },
+        {
+          "text_with_gap": "Bring an ___ because it will rain.",
+          "answer": "umbrella"
+        },
+        {
+          "text_with_gap": "The storm will ___ this evening.",
+          "answer": "pass",
+          "options": [
+            "pass",
+            "start",
+            "grow",
+            "stop"
+          ]
+        },
+        {
+          "text_with_gap": "It was the ___ winter in fifty years.",
+          "answer": "coldest"
+        }
+      ]
+    },
+    "module_number": 2
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:A2:03:family",
+    "level": "A2",
+    "lesson_number_hint": 3,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Семья и отношения",
+    "title_en": "Audio Fill-in: Family and Relationships",
+    "description": "Слушайте рассказ о семье и дополните предложения.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "a2",
+      "family"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_A2_03_family.mp3",
+      "items": [
+        {
+          "text_with_gap": "My ___ is a doctor. She works at the hospital.",
+          "answer": "mother",
+          "options": [
+            "mother",
+            "brother",
+            "uncle",
+            "cousin"
+          ]
+        },
+        {
+          "text_with_gap": "I have two younger ___.",
+          "answer": "sisters",
+          "options": [
+            "sisters",
+            "brothers",
+            "children",
+            "friends"
+          ]
+        },
+        {
+          "text_with_gap": "My grandparents ___ in the countryside.",
+          "answer": "live"
+        },
+        {
+          "text_with_gap": "We ___ together for Christmas every year.",
+          "answer": "meet",
+          "options": [
+            "meet",
+            "come",
+            "travel",
+            "gather"
+          ]
+        },
+        {
+          "text_with_gap": "Her ___ has a big house with a garden.",
+          "answer": "uncle"
+        }
+      ]
+    },
+    "module_number": 3
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:A2:04:travel",
+    "level": "A2",
+    "lesson_number_hint": 4,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Путешествия и транспорт",
+    "title_en": "Audio Fill-in: Travel and Transport",
+    "description": "Прослушайте диалоги о поездках и вставьте пропущенные слова.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "a2",
+      "travel"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_A2_04_travel.mp3",
+      "items": [
+        {
+          "text_with_gap": "I need a ___ to the city centre.",
+          "answer": "ticket",
+          "options": [
+            "ticket",
+            "passport",
+            "map",
+            "bag"
+          ]
+        },
+        {
+          "text_with_gap": "The train ___ at platform four.",
+          "answer": "arrives",
+          "options": [
+            "arrives",
+            "departs",
+            "stops",
+            "waits"
+          ]
+        },
+        {
+          "text_with_gap": "Can you tell me the way to the ___?",
+          "answer": "station"
+        },
+        {
+          "text_with_gap": "We need to ___ our seats in advance.",
+          "answer": "book",
+          "options": [
+            "book",
+            "find",
+            "choose",
+            "pay"
+          ]
+        },
+        {
+          "text_with_gap": "The flight was delayed by two ___.",
+          "answer": "hours"
+        }
+      ]
+    },
+    "module_number": 4
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:A2:05:health",
+    "level": "A2",
+    "lesson_number_hint": 5,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Здоровье и тело",
+    "title_en": "Audio Fill-in: Health and Body",
+    "description": "Слушайте разговор у врача и вставьте нужные слова.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "a2",
+      "health"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_A2_05_health.mp3",
+      "items": [
+        {
+          "text_with_gap": "I have a bad ___ and feel weak.",
+          "answer": "cold",
+          "options": [
+            "cold",
+            "fever",
+            "pain",
+            "cough"
+          ]
+        },
+        {
+          "text_with_gap": "The doctor told me to ___ plenty of water.",
+          "answer": "drink",
+          "options": [
+            "drink",
+            "take",
+            "eat",
+            "avoid"
+          ]
+        },
+        {
+          "text_with_gap": "My ___ hurts when I walk.",
+          "answer": "knee"
+        },
+        {
+          "text_with_gap": "You should rest for at least two ___.",
+          "answer": "days",
+          "options": [
+            "days",
+            "hours",
+            "weeks",
+            "months"
+          ]
+        },
+        {
+          "text_with_gap": "Take these ___ twice a day after meals.",
+          "answer": "tablets"
+        }
+      ]
+    },
+    "module_number": 5
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:B1:01:work_career",
+    "level": "B1",
+    "lesson_number_hint": 1,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Работа и карьера",
+    "title_en": "Audio Fill-in: Work and Career",
+    "description": "Послушайте интервью о карьере и заполните пробелы.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "b1",
+      "work"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_B1_01_work_career.mp3",
+      "items": [
+        {
+          "text_with_gap": "I applied for the ___ last Monday.",
+          "answer": "position",
+          "options": [
+            "position",
+            "vacancy",
+            "contract",
+            "salary"
+          ]
+        },
+        {
+          "text_with_gap": "She was ___ for the role after three interviews.",
+          "answer": "selected",
+          "options": [
+            "selected",
+            "rejected",
+            "invited",
+            "promoted"
+          ]
+        },
+        {
+          "text_with_gap": "The company offers excellent ___ benefits.",
+          "answer": "employee"
+        },
+        {
+          "text_with_gap": "He plans to ___ his own business next year.",
+          "answer": "start",
+          "options": [
+            "start",
+            "join",
+            "leave",
+            "run"
+          ]
+        },
+        {
+          "text_with_gap": "Working ___ has become very common since the pandemic.",
+          "answer": "remotely"
+        }
+      ]
+    },
+    "module_number": 1
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:B1:02:technology",
+    "level": "B1",
+    "lesson_number_hint": 2,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Технологии и интернет",
+    "title_en": "Audio Fill-in: Technology and the Internet",
+    "description": "Прослушайте подкаст о технологиях и вставьте пропущенные слова.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "b1",
+      "technology"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_B1_02_technology.mp3",
+      "items": [
+        {
+          "text_with_gap": "Social ___ platforms have changed how we communicate.",
+          "answer": "media",
+          "options": [
+            "media",
+            "network",
+            "content",
+            "sharing"
+          ]
+        },
+        {
+          "text_with_gap": "Make sure to ___ your software regularly.",
+          "answer": "update",
+          "options": [
+            "update",
+            "restart",
+            "install",
+            "delete"
+          ]
+        },
+        {
+          "text_with_gap": "Your ___ should contain numbers and symbols.",
+          "answer": "password"
+        },
+        {
+          "text_with_gap": "She ___ the document to the cloud before shutting down.",
+          "answer": "saved",
+          "options": [
+            "saved",
+            "sent",
+            "moved",
+            "copied"
+          ]
+        },
+        {
+          "text_with_gap": "The new ___ loads pages twice as fast.",
+          "answer": "browser"
+        }
+      ]
+    },
+    "module_number": 2
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:B1:03:environment",
+    "level": "B1",
+    "lesson_number_hint": 3,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Окружающая среда",
+    "title_en": "Audio Fill-in: The Environment",
+    "description": "Слушайте репортаж об экологии и заполните пропуски.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "b1",
+      "environment"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_B1_03_environment.mp3",
+      "items": [
+        {
+          "text_with_gap": "Global ___ is causing temperatures to rise worldwide.",
+          "answer": "warming",
+          "options": [
+            "warming",
+            "change",
+            "cooling",
+            "crisis"
+          ]
+        },
+        {
+          "text_with_gap": "We should ___ paper, glass, and plastic.",
+          "answer": "recycle",
+          "options": [
+            "recycle",
+            "reduce",
+            "reuse",
+            "remove"
+          ]
+        },
+        {
+          "text_with_gap": "The ___ of tropical forests is a serious threat.",
+          "answer": "destruction"
+        },
+        {
+          "text_with_gap": "Many species face ___ due to habitat loss.",
+          "answer": "extinction",
+          "options": [
+            "extinction",
+            "migration",
+            "evolution",
+            "adaptation"
+          ]
+        },
+        {
+          "text_with_gap": "Governments need to invest in ___ energy sources.",
+          "answer": "renewable"
+        }
+      ]
+    },
+    "module_number": 3
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:B1:04:culture",
+    "level": "B1",
+    "lesson_number_hint": 4,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Культура и развлечения",
+    "title_en": "Audio Fill-in: Culture and Entertainment",
+    "description": "Прослушайте диалог о культурном досуге и вставьте слова.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "b1",
+      "culture"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_B1_04_culture.mp3",
+      "items": [
+        {
+          "text_with_gap": "The film was ___ in over fifty countries.",
+          "answer": "released",
+          "options": [
+            "released",
+            "shown",
+            "filmed",
+            "edited"
+          ]
+        },
+        {
+          "text_with_gap": "She won the award for best ___ performance.",
+          "answer": "supporting",
+          "options": [
+            "supporting",
+            "leading",
+            "featured",
+            "guest"
+          ]
+        },
+        {
+          "text_with_gap": "The concert was ___ due to bad weather.",
+          "answer": "cancelled"
+        },
+        {
+          "text_with_gap": "This novel is considered a ___ of modern fiction.",
+          "answer": "masterpiece",
+          "options": [
+            "masterpiece",
+            "classic",
+            "bestseller",
+            "sequel"
+          ]
+        },
+        {
+          "text_with_gap": "The gallery features ___ from local artists.",
+          "answer": "works"
+        }
+      ]
+    },
+    "module_number": 4
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:B1:05:education",
+    "level": "B1",
+    "lesson_number_hint": 5,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Образование",
+    "title_en": "Audio Fill-in: Education and Learning",
+    "description": "Слушайте интервью со студентом и вставьте пропущенные слова.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "b1",
+      "education"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_B1_05_education.mp3",
+      "items": [
+        {
+          "text_with_gap": "She received a full ___ to study abroad.",
+          "answer": "scholarship",
+          "options": [
+            "scholarship",
+            "bursary",
+            "grant",
+            "loan"
+          ]
+        },
+        {
+          "text_with_gap": "The ___ requires students to submit a thesis.",
+          "answer": "programme",
+          "options": [
+            "programme",
+            "course",
+            "module",
+            "degree"
+          ]
+        },
+        {
+          "text_with_gap": "He decided to ___ his studies after a gap year.",
+          "answer": "resume"
+        },
+        {
+          "text_with_gap": "Students are expected to think ___.",
+          "answer": "critically",
+          "options": [
+            "critically",
+            "carefully",
+            "logically",
+            "actively"
+          ]
+        },
+        {
+          "text_with_gap": "The university offers both full-time and ___ programmes.",
+          "answer": "part-time"
+        }
+      ]
+    },
+    "module_number": 5
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:B2:01:economics",
+    "level": "B2",
+    "lesson_number_hint": 1,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Экономика и бизнес",
+    "title_en": "Audio Fill-in: Economics and Business",
+    "description": "Прослушайте деловой разговор и заполните пробелы.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "b2",
+      "economics"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_B2_01_economics.mp3",
+      "items": [
+        {
+          "text_with_gap": "The company reported record ___ for the third quarter.",
+          "answer": "profits",
+          "options": [
+            "profits",
+            "losses",
+            "revenues",
+            "expenses"
+          ]
+        },
+        {
+          "text_with_gap": "Interest rates have a direct ___ on mortgage costs.",
+          "answer": "impact",
+          "options": [
+            "impact",
+            "effect",
+            "influence",
+            "bearing"
+          ]
+        },
+        {
+          "text_with_gap": "Inflation has ___ purchasing power significantly.",
+          "answer": "eroded"
+        },
+        {
+          "text_with_gap": "The merger will create a ___ in the sector.",
+          "answer": "monopoly",
+          "options": [
+            "monopoly",
+            "duopoly",
+            "partnership",
+            "cartel"
+          ]
+        },
+        {
+          "text_with_gap": "Investors are concerned about ___ market volatility.",
+          "answer": "ongoing"
+        }
+      ]
+    },
+    "module_number": 1
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:B2:02:media",
+    "level": "B2",
+    "lesson_number_hint": 2,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: СМИ и коммуникации",
+    "title_en": "Audio Fill-in: Media and Communication",
+    "description": "Послушайте дискуссию о роли СМИ и вставьте нужные слова.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "b2",
+      "media"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_B2_02_media.mp3",
+      "items": [
+        {
+          "text_with_gap": "Misinformation can ___ rapidly on social platforms.",
+          "answer": "spread",
+          "options": [
+            "spread",
+            "grow",
+            "appear",
+            "circulate"
+          ]
+        },
+        {
+          "text_with_gap": "Journalists have an ethical ___ to verify their sources.",
+          "answer": "obligation",
+          "options": [
+            "obligation",
+            "right",
+            "freedom",
+            "duty"
+          ]
+        },
+        {
+          "text_with_gap": "The press plays a vital role in holding governments ___.",
+          "answer": "accountable"
+        },
+        {
+          "text_with_gap": "Subscription models are replacing ___ revenue for many outlets.",
+          "answer": "advertising",
+          "options": [
+            "advertising",
+            "editorial",
+            "commercial",
+            "digital"
+          ]
+        },
+        {
+          "text_with_gap": "Readers should develop ___ literacy skills.",
+          "answer": "media"
+        }
+      ]
+    },
+    "module_number": 2
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:B2:03:society",
+    "level": "B2",
+    "lesson_number_hint": 3,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Общество и политика",
+    "title_en": "Audio Fill-in: Society and Politics",
+    "description": "Слушайте политическую дискуссию и заполните пропуски.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "b2",
+      "society"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_B2_03_society.mp3",
+      "items": [
+        {
+          "text_with_gap": "Voter ___ has declined sharply in recent decades.",
+          "answer": "turnout",
+          "options": [
+            "turnout",
+            "registration",
+            "participation",
+            "confidence"
+          ]
+        },
+        {
+          "text_with_gap": "The policy aims to ___ inequality between regions.",
+          "answer": "reduce",
+          "options": [
+            "reduce",
+            "address",
+            "eliminate",
+            "combat"
+          ]
+        },
+        {
+          "text_with_gap": "Civil society groups are ___ for greater transparency.",
+          "answer": "pushing"
+        },
+        {
+          "text_with_gap": "The legislation was ___ by a narrow majority.",
+          "answer": "passed",
+          "options": [
+            "passed",
+            "rejected",
+            "amended",
+            "tabled"
+          ]
+        },
+        {
+          "text_with_gap": "Political ___ refers to the right to express opposing views.",
+          "answer": "dissent"
+        }
+      ]
+    },
+    "module_number": 3
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:B2:04:science",
+    "level": "B2",
+    "lesson_number_hint": 4,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Наука и исследования",
+    "title_en": "Audio Fill-in: Science and Research",
+    "description": "Прослушайте лекцию о научных открытиях и вставьте слова.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "b2",
+      "science"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_B2_04_science.mp3",
+      "items": [
+        {
+          "text_with_gap": "The research team ___ their hypothesis through repeated experiments.",
+          "answer": "confirmed",
+          "options": [
+            "confirmed",
+            "tested",
+            "challenged",
+            "revised"
+          ]
+        },
+        {
+          "text_with_gap": "Peer ___ ensures the quality of published research.",
+          "answer": "review",
+          "options": [
+            "review",
+            "assessment",
+            "feedback",
+            "editing"
+          ]
+        },
+        {
+          "text_with_gap": "The ___ was conducted over a period of five years.",
+          "answer": "study"
+        },
+        {
+          "text_with_gap": "New findings have ___ previous assumptions about the disease.",
+          "answer": "challenged",
+          "options": [
+            "challenged",
+            "supported",
+            "confirmed",
+            "dismissed"
+          ]
+        },
+        {
+          "text_with_gap": "The sample size was too small to draw ___ conclusions.",
+          "answer": "definitive"
+        }
+      ]
+    },
+    "module_number": 4
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:B2:05:arts",
+    "level": "B2",
+    "lesson_number_hint": 5,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Искусство и литература",
+    "title_en": "Audio Fill-in: Arts and Literature",
+    "description": "Слушайте арт-критику и вставьте пропущенные слова.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "b2",
+      "arts"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_B2_05_arts.mp3",
+      "items": [
+        {
+          "text_with_gap": "The painting ___ a sense of melancholy and isolation.",
+          "answer": "conveys",
+          "options": [
+            "conveys",
+            "creates",
+            "shows",
+            "expresses"
+          ]
+        },
+        {
+          "text_with_gap": "The author draws heavily on her own ___ experiences.",
+          "answer": "childhood",
+          "options": [
+            "childhood",
+            "personal",
+            "early",
+            "formative"
+          ]
+        },
+        {
+          "text_with_gap": "The novel is widely regarded as a ___ of the genre.",
+          "answer": "landmark"
+        },
+        {
+          "text_with_gap": "Critics praised the ___ use of light and shadow.",
+          "answer": "masterful",
+          "options": [
+            "masterful",
+            "subtle",
+            "dramatic",
+            "careful"
+          ]
+        },
+        {
+          "text_with_gap": "The sculptor worked in both marble and ___.",
+          "answer": "bronze"
+        }
+      ]
+    },
+    "module_number": 5
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:C1:01:philosophy",
+    "level": "C1",
+    "lesson_number_hint": 1,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Философия и этика",
+    "title_en": "Audio Fill-in: Philosophy and Ethics",
+    "description": "Прослушайте философскую лекцию и заполните пробелы в тексте.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "c1",
+      "philosophy"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_C1_01_philosophy.mp3",
+      "items": [
+        {
+          "text_with_gap": "Kant's ___ imperative demands we act only on universalisable principles.",
+          "answer": "categorical",
+          "options": [
+            "categorical",
+            "moral",
+            "practical",
+            "absolute"
+          ]
+        },
+        {
+          "text_with_gap": "Utilitarianism judges actions by their ___ rather than their intentions.",
+          "answer": "consequences",
+          "options": [
+            "consequences",
+            "outcomes",
+            "effects",
+            "results"
+          ]
+        },
+        {
+          "text_with_gap": "The concept of ___ consciousness remains deeply contested.",
+          "answer": "self"
+        },
+        {
+          "text_with_gap": "Virtue ethics focuses on ___ character rather than rule-following.",
+          "answer": "cultivating",
+          "options": [
+            "cultivating",
+            "developing",
+            "defining",
+            "assessing"
+          ]
+        },
+        {
+          "text_with_gap": "The mind-body ___ has resisted resolution for centuries.",
+          "answer": "problem"
+        }
+      ]
+    },
+    "module_number": 1
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:C1:02:global_issues",
+    "level": "C1",
+    "lesson_number_hint": 2,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Глобальные проблемы",
+    "title_en": "Audio Fill-in: Global Issues",
+    "description": "Слушайте аналитику по глобальным проблемам и вставьте слова.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "c1",
+      "global_issues"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_C1_02_global_issues.mp3",
+      "items": [
+        {
+          "text_with_gap": "Food ___ remains a persistent challenge despite technological advances.",
+          "answer": "insecurity",
+          "options": [
+            "insecurity",
+            "shortage",
+            "scarcity",
+            "poverty"
+          ]
+        },
+        {
+          "text_with_gap": "Multilateral ___ is essential to tackle cross-border problems.",
+          "answer": "cooperation",
+          "options": [
+            "cooperation",
+            "dialogue",
+            "action",
+            "governance"
+          ]
+        },
+        {
+          "text_with_gap": "Displacement of populations has reached ___ levels.",
+          "answer": "unprecedented"
+        },
+        {
+          "text_with_gap": "The pandemic ___ deep systemic inequalities.",
+          "answer": "exposed",
+          "options": [
+            "exposed",
+            "created",
+            "worsened",
+            "revealed"
+          ]
+        },
+        {
+          "text_with_gap": "Carbon neutrality targets require structural ___ of economies.",
+          "answer": "transformation"
+        }
+      ]
+    },
+    "module_number": 2
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:C1:03:academic",
+    "level": "C1",
+    "lesson_number_hint": 3,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Академический дискурс",
+    "title_en": "Audio Fill-in: Academic Discourse",
+    "description": "Прослушайте академическую лекцию и вставьте ключевые термины.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "c1",
+      "academic"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_C1_03_academic.mp3",
+      "items": [
+        {
+          "text_with_gap": "The theoretical ___ draws on poststructuralist criticism.",
+          "answer": "framework",
+          "options": [
+            "framework",
+            "approach",
+            "paradigm",
+            "model"
+          ]
+        },
+        {
+          "text_with_gap": "The data ___ reveals a statistically significant correlation.",
+          "answer": "analysis",
+          "options": [
+            "analysis",
+            "review",
+            "set",
+            "collection"
+          ]
+        },
+        {
+          "text_with_gap": "This paper seeks to ___ existing gaps in the literature.",
+          "answer": "address"
+        },
+        {
+          "text_with_gap": "The methodology is both ___ and replicable.",
+          "answer": "rigorous",
+          "options": [
+            "rigorous",
+            "robust",
+            "systematic",
+            "empirical"
+          ]
+        },
+        {
+          "text_with_gap": "Further research is needed to ___ these preliminary findings.",
+          "answer": "validate"
+        }
+      ]
+    },
+    "module_number": 3
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:C1:04:legal",
+    "level": "C1",
+    "lesson_number_hint": 4,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Юридическая и институциональная речь",
+    "title_en": "Audio Fill-in: Legal and Institutional Language",
+    "description": "Слушайте юридическую речь и вставьте профессиональные термины.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "c1",
+      "legal"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_C1_04_legal.mp3",
+      "items": [
+        {
+          "text_with_gap": "The court ruled in favour of the ___ on all counts.",
+          "answer": "defendant",
+          "options": [
+            "defendant",
+            "plaintiff",
+            "appellant",
+            "claimant"
+          ]
+        },
+        {
+          "text_with_gap": "The contract was declared ___ due to a procedural flaw.",
+          "answer": "void",
+          "options": [
+            "void",
+            "null",
+            "invalid",
+            "unenforceable"
+          ]
+        },
+        {
+          "text_with_gap": "The legislation grants ___ protection to whistleblowers.",
+          "answer": "statutory"
+        },
+        {
+          "text_with_gap": "Evidence obtained unlawfully is generally ___.",
+          "answer": "inadmissible",
+          "options": [
+            "inadmissible",
+            "unreliable",
+            "invalid",
+            "excluded"
+          ]
+        },
+        {
+          "text_with_gap": "The right to ___ counsel is enshrined in the constitution.",
+          "answer": "legal"
+        }
+      ]
+    },
+    "module_number": 4
+  },
+  {
+    "external_key": "immersion:audio_fill_blank:C1:05:literary_analysis",
+    "level": "C1",
+    "lesson_number_hint": 5,
+    "lesson_type": "audio_fill_blank",
+    "title": "Аудио: Литературный анализ",
+    "title_en": "Audio Fill-in: Literary Analysis",
+    "description": "Прослушайте разбор литературного произведения и заполните пробелы.",
+    "tags": [
+      "immersion",
+      "listening",
+      "audio_fill_blank",
+      "c1",
+      "literary_analysis"
+    ],
+    "content": {
+      "audio_url": "/static/audio/immersion/audio_fill_blank/afb_C1_05_literary_analysis.mp3",
+      "items": [
+        {
+          "text_with_gap": "The narrator is ___, deliberately withholding key information.",
+          "answer": "unreliable",
+          "options": [
+            "unreliable",
+            "omniscient",
+            "subjective",
+            "limited"
+          ]
+        },
+        {
+          "text_with_gap": "The recurring ___ of water symbolises emotional renewal.",
+          "answer": "motif",
+          "options": [
+            "motif",
+            "symbol",
+            "image",
+            "theme"
+          ]
+        },
+        {
+          "text_with_gap": "The author employs ___ to highlight the absurdity of the situation.",
+          "answer": "irony"
+        },
+        {
+          "text_with_gap": "The prose style is deliberately ___ and fragmented.",
+          "answer": "elliptical",
+          "options": [
+            "elliptical",
+            "sparse",
+            "complex",
+            "lyrical"
+          ]
+        },
+        {
+          "text_with_gap": "The climax serves to ___ the central thematic tension.",
+          "answer": "resolve"
+        }
+      ]
+    },
+    "module_number": 5
+  }
+]

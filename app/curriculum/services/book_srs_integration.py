@@ -323,7 +323,8 @@ class BookSRSIntegration:
         if not card:
             card = UserCardDirection(
                 user_word_id=user_word.id,
-                direction=direction
+                direction=direction,
+                source='book_reading',
             )
             # Set defaults (model has defaults, but set explicitly for clarity)
             card.ease_factor = 2.5

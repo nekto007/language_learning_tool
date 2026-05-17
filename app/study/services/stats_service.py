@@ -141,6 +141,51 @@ class StatsService:
         return sorted(result, key=lambda x: x['date'])
 
     @staticmethod
+    def get_srs_accuracy_by_source(user_id: int) -> List[Dict]:
+        """Return SRS accuracy grouped by card source (lesson_vocab, book_reading, etc.).
+
+        Cards with source=None are grouped under 'other'.
+        Only includes sources with at least one review attempt.
+        """
+        _SOURCE_LABELS = {
+            'lesson_vocab': 'Слова из уроков',
+            'book_reading': 'Из книг',
+            'custom_list': 'Из своих списков',
+            'manual': 'Добавленные вручную',
+            'other': 'Другие',
+        }
+
+        rows = db.session.query(
+            UserCardDirection.source,
+            func.sum(UserCardDirection.correct_count).label('correct'),
+            func.sum(UserCardDirection.incorrect_count).label('incorrect'),
+            func.count(UserCardDirection.id).label('cards'),
+        ).join(
+            UserWord, UserCardDirection.user_word_id == UserWord.id
+        ).filter(
+            UserWord.user_id == user_id,
+        ).group_by(UserCardDirection.source).all()
+
+        result = []
+        for row in rows:
+            source_key = row.source if row.source else 'other'
+            correct = int(row.correct or 0)
+            incorrect = int(row.incorrect or 0)
+            total_attempts = correct + incorrect
+            if total_attempts == 0:
+                continue
+            accuracy_pct = round(correct / total_attempts * 100)
+            result.append({
+                'source': source_key,
+                'label': _SOURCE_LABELS.get(source_key, source_key),
+                'accuracy_pct': accuracy_pct,
+                'card_count': int(row.cards),
+            })
+
+        result.sort(key=lambda x: x['accuracy_pct'], reverse=True)
+        return result
+
+    @staticmethod
     def get_study_heatmap(user_id: int, days: int = 30) -> Dict:
         """Get study session counts by day of week and hour."""
         start_date = datetime.now(timezone.utc) - timedelta(days=days)

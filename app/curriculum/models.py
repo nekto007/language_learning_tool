@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text, func
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer, JSON, SmallInteger, String, Text, func
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
@@ -368,6 +368,290 @@ class LessonAttempt(db.Model):
 
             delta = completed - started
             self.time_spent_seconds = int(delta.total_seconds())
+
+
+class ListeningAttempt(db.Model):
+    """Tracks each dictation/audio_fill_blank submission for analytics."""
+    __tablename__ = 'listening_attempts'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='CASCADE'), nullable=False)
+    score = Column(Float, nullable=False)
+    replay_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_listening_attempts_user_created', 'user_id', 'created_at'),
+        Index('idx_listening_attempts_lesson', 'lesson_id'),
+    )
+
+    def __repr__(self) -> str:
+        return f'<ListeningAttempt id={self.id} user={self.user_id} lesson={self.lesson_id} score={self.score}>'
+
+
+class PronunciationAttempt(db.Model):
+    """Tracks each pronunciation item attempt for analytics and weakness detection."""
+    __tablename__ = 'pronunciation_attempts'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    word = Column(db.String(200), nullable=False)
+    recognized_text = Column(db.String(500), nullable=False, default='')
+    matched = Column(db.Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_pronunciation_attempts_user_created', 'user_id', 'created_at'),
+        Index('idx_pronunciation_attempts_word', 'word'),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f'<PronunciationAttempt id={self.id} user={self.user_id} '
+            f'word="{self.word}" matched={self.matched}>'
+        )
+
+
+class UserWritingAttempt(db.Model):
+    """Tracks each writing_prompt submission for analytics and history."""
+    __tablename__ = 'user_writing_attempts'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='CASCADE'), nullable=False)
+    response_text = Column(db.Text, nullable=False)
+    word_count = Column(Integer, nullable=False, default=0)
+    checklist_completed = Column(db.Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_writing_attempts_user_created', 'user_id', 'created_at'),
+        Index('idx_writing_attempts_user_lesson', 'user_id', 'lesson_id'),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f'<UserWritingAttempt id={self.id} user={self.user_id} '
+            f'lesson={self.lesson_id} words={self.word_count}>'
+        )
+
+
+def save_writing_attempt(
+    user_id: int,
+    lesson_id: int,
+    text: str,
+    checklist_completed: bool,
+    db_session,
+) -> 'UserWritingAttempt':
+    """Persist a writing attempt and return the new row.
+
+    Word count is computed from the submitted text. Multiple attempts per
+    lesson are allowed — each submission creates a new row.
+    Caller owns the commit.
+    """
+    word_count = len(text.split()) if text.strip() else 0
+    attempt = UserWritingAttempt(
+        user_id=user_id,
+        lesson_id=lesson_id,
+        response_text=text,
+        word_count=word_count,
+        checklist_completed=checklist_completed,
+    )
+    db_session.session.add(attempt)
+    db_session.session.flush()
+    return attempt
+
+
+class WordCollocation(db.Model):
+    """Collocation phrases associated with a vocabulary word."""
+    __tablename__ = 'word_collocations'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    word_id = Column(Integer, ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False)
+    collocation_phrase = Column(Text, nullable=False)
+    translation = Column(Text, nullable=False)
+    example = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_word_collocations_word_id', 'word_id'),
+    )
+
+    def __repr__(self) -> str:
+        return f'<WordCollocation id={self.id} word_id={self.word_id} phrase="{self.collocation_phrase}">'
+
+
+def get_collocations_for_word(word_id: int, db_session) -> list['WordCollocation']:
+    """Return all collocations for a given word, ordered by id."""
+    return (
+        db_session.session.query(WordCollocation)
+        .filter(WordCollocation.word_id == word_id)
+        .order_by(WordCollocation.id)
+        .all()
+    )
+
+
+class VocabAnnotation(db.Model):
+    """User personal notes on vocabulary words."""
+    __tablename__ = 'vocab_annotations'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    word_id = Column(Integer, ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False)
+    note = Column(Text, nullable=False)
+    added_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_vocab_annotations_user_word', 'user_id', 'word_id', unique=True),
+        Index('idx_vocab_annotations_user_id', 'user_id'),
+    )
+
+    def __repr__(self) -> str:
+        return f'<VocabAnnotation id={self.id} user={self.user_id} word={self.word_id}>'
+
+
+def get_annotation_for_word(user_id: int, word_id: int, db_session) -> 'VocabAnnotation | None':
+    """Return the user's annotation for a word, or None."""
+    return (
+        db_session.session.query(VocabAnnotation)
+        .filter(VocabAnnotation.user_id == user_id, VocabAnnotation.word_id == word_id)
+        .first()
+    )
+
+
+def save_annotation(user_id: int, word_id: int, note: str, db_session) -> 'VocabAnnotation':
+    """Upsert a user annotation for a word. Caller owns the commit."""
+    annotation = (
+        db_session.session.query(VocabAnnotation)
+        .filter(VocabAnnotation.user_id == user_id, VocabAnnotation.word_id == word_id)
+        .first()
+    )
+    if annotation is None:
+        annotation = VocabAnnotation(user_id=user_id, word_id=word_id, note=note)
+        db_session.session.add(annotation)
+    else:
+        annotation.note = note
+        annotation.added_at = datetime.now(timezone.utc)
+    db_session.session.flush()
+    return annotation
+
+
+class DailyStudyMinutes(db.Model):
+    """Accumulates study time per user per day across all slot completions."""
+    __tablename__ = 'daily_study_minutes'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    study_date = Column(Date, nullable=False)
+    minutes = Column(SmallInteger, nullable=False, default=0)
+
+    __table_args__ = (
+        Index('idx_daily_study_minutes_user_date', 'user_id', 'study_date', unique=True),
+    )
+
+    def __repr__(self) -> str:
+        return f'<DailyStudyMinutes user={self.user_id} date={self.study_date} minutes={self.minutes}>'
+
+
+def add_study_minutes(
+    user_id: int,
+    study_date,
+    minutes: int,
+    db_session,
+) -> 'DailyStudyMinutes':
+    """Add minutes to the user's study total for study_date.
+
+    Upserts: increments existing row or creates a new one. Caller owns
+    the commit.
+    """
+    row = (
+        db_session.session.query(DailyStudyMinutes)
+        .filter(DailyStudyMinutes.user_id == user_id, DailyStudyMinutes.study_date == study_date)
+        .first()
+    )
+    if row is None:
+        row = DailyStudyMinutes(user_id=user_id, study_date=study_date, minutes=minutes)
+        db_session.session.add(row)
+    else:
+        row.minutes = (row.minutes or 0) + minutes
+    db_session.session.flush()
+    return row
+
+
+def get_minutes_today(user_id: int, study_date, db_session) -> int:
+    """Return total study minutes recorded for user on study_date."""
+    row = (
+        db_session.session.query(DailyStudyMinutes)
+        .filter(DailyStudyMinutes.user_id == user_id, DailyStudyMinutes.study_date == study_date)
+        .first()
+    )
+    return row.minutes if row else 0
+
+
+class CulturalNote(db.Model):
+    """Contextual cultural notes about word usage."""
+    __tablename__ = 'cultural_notes'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    word_id = Column(Integer, ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False)
+    note = Column(Text, nullable=False)
+    context = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_cultural_notes_word_id', 'word_id'),
+    )
+
+    def __repr__(self) -> str:
+        return f'<CulturalNote id={self.id} word_id={self.word_id} context="{self.context}">'
+
+
+def get_cultural_notes_for_word(word_id: int, db_session) -> list['CulturalNote']:
+    """Return all cultural notes for a given word, ordered by id."""
+    return (
+        db_session.session.query(CulturalNote)
+        .filter(CulturalNote.word_id == word_id)
+        .order_by(CulturalNote.id)
+        .all()
+    )
+
+
+class LessonFeedback(db.Model):
+    """User thumbs up/down feedback for a completed lesson. One row per user per lesson (upsert)."""
+    __tablename__ = 'lesson_feedback'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='CASCADE'), nullable=False)
+    rating = Column(SmallInteger, nullable=False)  # 1-5; thumbs down = 1, thumbs up = 5
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_lesson_feedback_user_lesson', 'user_id', 'lesson_id', unique=True),
+        Index('idx_lesson_feedback_lesson_id', 'lesson_id'),
+    )
+
+    def __repr__(self) -> str:
+        return f'<LessonFeedback id={self.id} user_id={self.user_id} lesson_id={self.lesson_id} rating={self.rating}>'
+
+
+def save_lesson_feedback(user_id: int, lesson_id: int, rating: int, comment: str | None, db_session) -> 'LessonFeedback':
+    """Upsert lesson feedback for a user. Rating must be 1-5."""
+    row = (
+        db_session.session.query(LessonFeedback)
+        .filter(LessonFeedback.user_id == user_id, LessonFeedback.lesson_id == lesson_id)
+        .first()
+    )
+    if row is None:
+        row = LessonFeedback(user_id=user_id, lesson_id=lesson_id, rating=rating, comment=comment)
+        db_session.session.add(row)
+    else:
+        row.rating = rating
+        row.comment = comment
+    db_session.session.flush()
+    return row
 
 
 # Import LessonGrade to register it with SQLAlchemy

@@ -1098,3 +1098,102 @@ class TestCheckAndAwardAchievements:
 
         # Should be empty (no words = no first_word achievement)
         assert isinstance(newly_earned, list)
+
+
+class TestGetSrsAccuracyBySource:
+    """Tests for StatsService.get_srs_accuracy_by_source"""
+
+    def _make_card(self, db_session, user_id, source, correct, incorrect):
+        from app.study.models import UserWord, UserCardDirection
+        from app.words.models import CollectionWords
+        import uuid
+
+        word = CollectionWords(
+            english_word=f'src_{uuid.uuid4().hex[:6]}',
+            russian_word='тест'
+        )
+        db_session.add(word)
+        db_session.flush()
+
+        user_word = UserWord(user_id=user_id, word_id=word.id)
+        db_session.add(user_word)
+        db_session.flush()
+
+        card = UserCardDirection(user_word_id=user_word.id, direction='eng-rus')
+        card.source = source
+        card.correct_count = correct
+        card.incorrect_count = incorrect
+        db_session.add(card)
+        return card
+
+    def test_per_source_aggregation(self, db_session, test_user):
+        """Correct accuracy per source calculated from correct/incorrect counts."""
+        from app.study.services.stats_service import StatsService
+
+        # lesson_vocab: 8 correct, 2 incorrect → 80%
+        self._make_card(db_session, test_user.id, 'lesson_vocab', 8, 2)
+        # book_reading: 6 correct, 4 incorrect → 60%
+        self._make_card(db_session, test_user.id, 'book_reading', 6, 4)
+        db_session.commit()
+
+        result = StatsService.get_srs_accuracy_by_source(test_user.id)
+
+        sources = {r['source']: r for r in result}
+        assert 'lesson_vocab' in sources
+        assert sources['lesson_vocab']['accuracy_pct'] == 80
+        assert sources['lesson_vocab']['label'] == 'Слова из уроков'
+        assert 'book_reading' in sources
+        assert sources['book_reading']['accuracy_pct'] == 60
+
+    def test_source_none_grouped_as_other(self, db_session, test_user):
+        """Cards with source=None are grouped under 'other'."""
+        from app.study.services.stats_service import StatsService
+
+        self._make_card(db_session, test_user.id, None, 5, 5)
+        db_session.commit()
+
+        result = StatsService.get_srs_accuracy_by_source(test_user.id)
+        sources = {r['source']: r for r in result}
+
+        assert 'other' in sources
+        assert sources['other']['accuracy_pct'] == 50
+        assert sources['other']['label'] == 'Другие'
+
+    def test_zero_attempts_excluded(self, db_session, test_user):
+        """Cards with no reviews (correct=0, incorrect=0) are excluded from results."""
+        from app.study.services.stats_service import StatsService
+
+        self._make_card(db_session, test_user.id, 'custom_list', 0, 0)
+        db_session.commit()
+
+        result = StatsService.get_srs_accuracy_by_source(test_user.id)
+        sources = {r['source']: r for r in result}
+        assert 'custom_list' not in sources
+
+    def test_empty_user_returns_empty_list(self, db_session):
+        """User with no cards returns empty list."""
+        from app.study.services.stats_service import StatsService
+        from app.auth.models import User
+        import uuid
+
+        uid = uuid.uuid4().hex[:8]
+        u = User(username=f'nosrc_{uid}', email=f'nosrc_{uid}@test.com')
+        u.set_password('x')
+        db_session.add(u)
+        db_session.commit()
+
+        result = StatsService.get_srs_accuracy_by_source(u.id)
+        assert result == []
+
+    def test_results_sorted_by_accuracy_descending(self, db_session, test_user):
+        """Results sorted highest accuracy first."""
+        from app.study.services.stats_service import StatsService
+
+        self._make_card(db_session, test_user.id, 'lesson_vocab', 9, 1)   # 90%
+        self._make_card(db_session, test_user.id, 'book_reading', 5, 5)   # 50%
+        self._make_card(db_session, test_user.id, 'custom_list', 7, 3)    # 70%
+        db_session.commit()
+
+        result = StatsService.get_srs_accuracy_by_source(test_user.id)
+        pcts = [r['accuracy_pct'] for r in result]
+        assert pcts == sorted(pcts, reverse=True)

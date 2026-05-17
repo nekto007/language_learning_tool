@@ -1,0 +1,13 @@
+[
+  {
+    "external_key": "fixture:shadow_reading:A2:99:no_translation",
+    "level": "A2",
+    "module_number": 1,
+    "lesson_type": "shadow_reading",
+    "title": "Bad: Shadow reading without translation",
+    "content": {
+      "audio_url": "/static/audio/missing.mp3",
+      "text": "Hello, I'm Sam."
+    }
+  }
+]

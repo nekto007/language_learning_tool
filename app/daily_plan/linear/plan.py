@@ -24,7 +24,29 @@ from app.daily_plan.linear.progression import (
 )
 from app.utils.db import db
 
-VALID_FOCUSES = {'grammar', 'vocabulary', 'reading', 'all'}
+VALID_FOCUSES = {'grammar', 'vocabulary', 'reading', 'speaking', 'all'}
+
+SLOT_ESTIMATED_MINUTES: dict[str, int] = {
+    'curriculum': 15,
+    'srs': 10,
+    'reading': 15,
+    'listening': 10,
+    'speaking': 8,
+    'writing': 8,
+    'error_review': 12,
+}
+
+
+def get_plan_intensity(minutes: int) -> str:
+    """Return intensity label based on total estimated minutes.
+
+    < 15 min → 'light'; 15-30 → 'normal'; > 30 → 'intensive'.
+    """
+    if minutes < 15:
+        return 'light'
+    if minutes <= 30:
+        return 'normal'
+    return 'intensive'
 
 
 def _get_user_focus(user_id: int, db_session: Any) -> Optional[str]:
@@ -51,6 +73,79 @@ def _get_user_focus(user_id: int, db_session: Any) -> Optional[str]:
     return primary
 
 logger = logging.getLogger(__name__)
+
+
+def build_tomorrow_preview(user_id: int, db_session: Any) -> dict[str, Any]:
+    """Build a brief preview of tomorrow's expected slots.
+
+    Returns ``{estimated_minutes, slot_types}`` for display in the day-secured
+    banner. Tomorrow's baseline mirrors today's structure (same slot kinds),
+    which is a valid approximation since the chain is deterministic from DB
+    state and slot types are stable day-to-day.
+    """
+    try:
+        from app.daily_plan.linear.chain import _build_baseline, _get_plan_difficulty
+        difficulty = _get_plan_difficulty(user_id, db_session)
+        baseline = _build_baseline(user_id, db_session, difficulty=difficulty)
+        slot_types = [s['kind'] for s in baseline]
+        estimated_minutes = sum(SLOT_ESTIMATED_MINUTES.get(kind, 0) for kind in slot_types)
+        return {
+            'estimated_minutes': estimated_minutes,
+            'slot_types': slot_types,
+        }
+    except Exception:
+        logger.warning("build_tomorrow_preview failed user=%s", user_id, exc_info=True)
+        default_types = ['curriculum', 'srs', 'reading']
+        return {
+            'estimated_minutes': sum(SLOT_ESTIMATED_MINUTES.get(k, 0) for k in default_types),
+            'slot_types': default_types,
+        }
+
+
+def _get_skipped_slot_kinds(
+    user_id: int,
+    plan_date: Any,
+    db_session: Any,
+) -> set[str]:
+    """Return slot kinds the user explicitly skipped today."""
+    from app.daily_plan.models import DailyPlanEvent
+    events = db_session.session.query(DailyPlanEvent).filter_by(
+        user_id=user_id,
+        event_type='slot_skipped',
+        plan_date=plan_date,
+    ).all()
+    return {e.step_kind for e in events if e.step_kind}
+
+
+def _apply_time_of_day_order(
+    all_slots: list[dict[str, Any]],
+    baseline_count: int,
+    user_local_hour: int,
+    difficulty: str,
+) -> tuple[list[dict[str, Any]], str]:
+    """Reorder baseline slots by time-of-day for 'normal' difficulty only.
+
+    Evening (>=20): SRS first (quickest habit), then curriculum.
+    Morning (<=9): curriculum first (fresh brain) — already default.
+    Otherwise: unchanged.
+    Light/intensive difficulty: always use fixed order.
+    Returns (slots_list, slot_order_reason).
+    """
+    if difficulty != 'normal' or baseline_count <= 1:
+        return all_slots, 'default'
+
+    baseline = all_slots[:baseline_count]
+    rest = all_slots[baseline_count:]
+
+    curriculum_slots = [s for s in baseline if s.get('kind') == 'curriculum']
+    srs_slots = [s for s in baseline if s.get('kind') == 'srs']
+    other_slots = [s for s in baseline if s.get('kind') not in ('curriculum', 'srs')]
+
+    if user_local_hour >= 20:
+        return srs_slots + curriculum_slots + other_slots + rest, 'evening'
+    if user_local_hour <= 9:
+        return curriculum_slots + srs_slots + other_slots + rest, 'morning'
+    return all_slots, 'default'
 
 
 def compute_linear_day_secured(baseline_slots: list[dict[str, Any]]) -> bool:
@@ -143,12 +238,27 @@ def get_linear_plan(
         level_progress.lessons_remaining_in_level,
     )
 
-    from app.daily_plan.linear.chain import build_chain
+    from app.daily_plan.linear.chain import _get_plan_difficulty, build_chain
+    from app.utils.time_utils import get_user_local_date, get_user_local_hour
 
     chain_result = build_chain(user_id, session_provider)
     all_slots = chain_result['slots']
     baseline_count = chain_result['baseline_count']
+
+    difficulty = _get_plan_difficulty(user_id, session_provider)
+    user_local_hour = get_user_local_hour(user_id, session_provider)
+    all_slots, slot_order_reason = _apply_time_of_day_order(
+        all_slots, baseline_count, user_local_hour, difficulty
+    )
+
     baseline_slots = all_slots[:baseline_count]
+
+    plan_date = get_user_local_date(user_id, session_provider)
+    skipped_kinds = _get_skipped_slot_kinds(user_id, plan_date, session_provider)
+    if skipped_kinds:
+        for slot in all_slots:
+            if slot.get('kind') in skipped_kinds and not slot.get('completed', False):
+                slot['skipped'] = True
 
     day_secured = compute_linear_day_secured(baseline_slots)
 
@@ -165,6 +275,14 @@ def get_linear_plan(
 
     remaining_new, _remaining_reviews = get_new_card_budget(user_id, session_provider)
     srs_budget_exhausted = remaining_new <= 0
+
+    total_estimated_minutes = sum(
+        SLOT_ESTIMATED_MINUTES.get(slot.get('kind', ''), 0)
+        for slot in all_slots
+        if not slot.get('completed', False)
+    )
+
+    tomorrow_preview = build_tomorrow_preview(user_id, session_provider) if day_secured else None
 
     return {
         'mode': 'linear',
@@ -183,4 +301,8 @@ def get_linear_plan(
             'srs_budget_exhausted': srs_budget_exhausted,
         },
         'day_secured': day_secured,
+        'total_estimated_minutes': total_estimated_minutes,
+        'plan_intensity': get_plan_intensity(total_estimated_minutes),
+        'tomorrow_preview': tomorrow_preview,
+        'slot_order_reason': slot_order_reason,
     }

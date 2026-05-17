@@ -1,0 +1,486 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Аудирование') %}
+{% set instruction_text = _('Сначала прослушайте диалог без текста. Затем откройте текст и послушайте ещё раз. Перевод откройте, только если что-то осталось непонятным.') %}
+{% set block_description = _('Развитие навыков восприятия речи на слух') %}
+
+{% set level_code = lesson.module.level.code if lesson.module and lesson.module.level else 'A1' %}
+{% set is_advanced = level_code in ('B1', 'B2', 'C1', 'C2') %}
+
+{% block extra_css %}
+<style>
+.li-audio-card {
+  background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  color: #fff;
+  border-radius: var(--lsn-radius, 16px);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+}
+.li-audio-card h3 {
+  margin: 0 0 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+}
+.li-audio-card audio {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+}
+/* Английский текст — синий тинт под цвет аудио-плеера. */
+.li-transcript-card {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid #2563eb;
+  border-radius: var(--lsn-radius, 16px);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+.li-transcript-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: #1d4ed8;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.li-transcript-card h3 i { color: #2563eb; }
+.li-transcript-body {
+  white-space: pre-wrap;
+  line-height: 1.7;
+  color: #0f172a;
+  font-size: 1rem;
+}
+.li-transcript-followup {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: #1d4ed8;
+  background: #dbeafe;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.li-transcript-followup i { color: #2563eb; }
+/* Перевод — янтарный, чтобы был визуально отделён от оригинала.
+   Компактнее, чем транскрипт: padding меньше, max-height со скроллом,
+   чтобы блок не доминировал над аудио-зоной. */
+.li-translation-card {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #d97706;
+  border-radius: var(--lsn-radius, 16px);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  color: #422006;
+}
+.li-translation-card h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.li-translation-card h3 i { color: #d97706; }
+.li-translation-body {
+  white-space: pre-wrap;
+  line-height: 1.5;
+  color: #422006;
+  font-size: 0.95rem;
+}
+/* Явный disabled-вид кнопки завершения, чтобы пользователь видел, что
+   кнопка ещё не активна. Bootstrap-овский «приглушённый» вариант
+   недостаточно контрастный поверх primary-градиента. */
+#li-submit-btn[disabled],
+#li-submit-btn:disabled {
+  background: #e5e7eb !important;
+  color: #9ca3af !important;
+  border-color: #e5e7eb !important;
+  box-shadow: none !important;
+  opacity: 0.7;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.li-self-assess {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #f1f5f9;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  user-select: none;
+}
+.li-self-assess input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--color-primary, #2563eb);
+}
+</style>
+{% endblock %}
+
+{% block lesson_content %}
+<section class="lesson-shell li-lesson" aria-labelledby="li-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="li-title">{{ _('Аудирование') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-headphones"></i></span>
+    </div>
+  </header>
+
+  <div class="lesson-shell__body">
+
+    {# Audio card #}
+    {% set audio_raw = text_content.audio_url or text_content.audio if text_content else '' %}
+    {% if audio_raw %}
+      {% set audio_file = audio_raw.replace('[sound:', '').replace(']', '') if '[sound:' in audio_raw else audio_raw %}
+      {% set audio_url = audio_file if audio_file.startswith('http') or audio_file.startswith('/') else url_for('static', filename='audio/' + audio_file) %}
+      <article class="lesson-shell__card li-audio-card listening-audio-player-card">
+        <h3>
+          <i class="fas fa-headphones"></i>
+          {{ text_content.title or _('Прослушайте диалог') }}
+        </h3>
+        <audio id="listening-audio" controls aria-label="{{ _('Аудиозапись урока') }}">
+          <source src="{{ audio_url }}" type="audio/mpeg">
+          <source src="{{ audio_url }}" type="audio/ogg">
+          {{ _('Ваш браузер не поддерживает аудио.') }}
+        </audio>
+        <div class="audio-speed-controls" id="audio-speed-controls" role="radiogroup" aria-label="{{ _('Скорость') }}">
+          <span class="audio-speed-label">{{ _('Скорость:') }}</span>
+          <button class="audio-speed-btn" type="button" data-speed="0.75" onclick="setAudioSpeed(0.75)">0.75×</button>
+          <button class="audio-speed-btn audio-speed-btn--active" type="button" data-speed="1" onclick="setAudioSpeed(1)">1×</button>
+          <button class="audio-speed-btn" type="button" data-speed="1.25" onclick="setAudioSpeed(1.25)">1.25×</button>
+          <button class="audio-speed-btn" type="button" data-speed="1.5" onclick="setAudioSpeed(1.5)">1.5×</button>
+        </div>
+      </article>
+    {% endif %}
+
+    {# Transcript / Translation reveal pair. Оба скрыты по умолчанию — учащийся
+       сначала слушает «вслепую», потом раскрывает текст, и только при
+       необходимости — перевод. Это превращает урок в реальное аудирование,
+       а не в чтение с аудио-фоном. #}
+    {% if text_content and (text_content.text or text_content.translation) %}
+      <div class="listening-reveal-controls">
+        {% if text_content.text %}
+        <button class="transcript-toggle" id="transcript-toggle-btn" type="button"
+                onclick="toggleTranscript()"
+                data-default-visible="false"
+                aria-expanded="false"
+                aria-controls="transcript-content">
+          <i class="fas fa-eye"></i>
+          <span id="transcript-toggle-label">{{ _('Показать текст') }}</span>
+        </button>
+        {% endif %}
+        {% if text_content.translation %}
+        <button class="transcript-toggle transcript-toggle--translation"
+                id="listening-translation-toggle-btn" type="button"
+                onclick="toggleListeningTranslation()"
+                aria-expanded="false"
+                aria-controls="translation-content">
+          <i class="fas fa-language"></i>
+          <span id="listening-translation-toggle-label">{{ _('Показать перевод') }}</span>
+        </button>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if text_content and text_content.text %}
+      <article class="lesson-shell__card li-transcript-card transcript--hidden" id="transcript-content">
+        <h3><i class="fas fa-align-left"></i> {{ _('Текст') }}</h3>
+        <p class="li-transcript-followup">
+          <i class="fas fa-lightbulb"></i>
+          {{ _('Теперь послушайте ещё раз и следите по тексту.') }}
+        </p>
+        <div class="li-transcript-body">{{ text_content.text }}</div>
+      </article>
+    {% endif %}
+
+    {% if text_content and text_content.translation %}
+      <article class="lesson-shell__card li-translation-card listening-translation-block"
+               id="translation-content" hidden>
+        <h3><i class="fas fa-language"></i> {{ _('Перевод') }}</h3>
+        <div class="li-translation-body">{{ text_content.translation }}</div>
+      </article>
+    {% endif %}
+
+    {# Per-sentence replay #}
+    {% if text_content.sentences %}
+      <div class="sentence-replay-list" id="sentence-replay-list">
+        <h5 class="sentence-replay-header">
+          <i class="fas fa-list-ul"></i> {{ _('Фразы') }}
+        </h5>
+        {% for sentence in text_content.sentences %}
+          <div class="sentence-replay-item">
+            <button class="sentence-replay-btn" type="button"
+                    onclick="replaySentence({{ sentence.start_time|tojson }}, {{ sentence.end_time|tojson }})"
+                    title="{{ _('Воспроизвести фразу') }}">
+              <i class="fas fa-redo-alt"></i>
+            </button>
+            <span class="sentence-replay-text">{{ sentence.text }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {# Gated self-assess. Чекбокс заблокирован, пока учащийся не прослушал
+       хотя бы 50 % аудио (считаем реально воспроизведённые сегменты, а не
+       прыжки по seek-бару). Если урок уже пройден — стартуем разблокированным
+       и с отметкой, чтобы повторный заход не требовал заново слушать. #}
+    <div class="listening-completion-gate{% if is_completed %} listening-completion-gate--done{% endif %}" id="listening-completion-gate">
+      <label class="li-self-assess{% if not is_completed %} listening-attentive-check--locked{% endif %}" id="li-self-label" for="li-self-cb">
+        <input type="checkbox" id="li-self-cb"
+               {% if is_completed %}checked{% else %}disabled{% endif %}
+               onchange="onSelfAssessChange()">
+        <span>{{ _('Я внимательно прослушал(а) диалог') }}</span>
+      </label>
+      <p class="listening-gate-hint{% if is_completed %} listening-gate-hint--ready{% endif %}" id="listening-gate-hint">
+        {% if is_completed %}
+          <i class="fas fa-check-circle"></i>
+          {{ _('Урок выполнен ранее. Можно прослушать ещё раз или сразу завершить.') }}
+        {% else %}
+          <i class="fas fa-lock"></i>
+          {{ _('Прослушайте хотя бы половину диалога — после этого можно будет завершить урок.') }}
+        {% endif %}
+      </p>
+    </div>
+
+  </div>
+
+  <div class="lesson-shell__actions">
+    <button class="btn btn-primary btn-lg" id="li-submit-btn" type="button"
+            onclick="finishLesson()"
+            {% if not is_completed %}disabled{% endif %}>
+      <i class="fas fa-check-circle"></i>
+      {% if is_completed %}{{ _('Завершено') }}{% else %}{{ _('Завершить урок') }}{% endif %}
+    </button>
+  </div>
+
+</section>
+
+<script>
+const lessonId = {{ lesson.id }};
+const ALLOWED_SPEEDS = [0.75, 1, 1.25, 1.5];
+
+function setAudioSpeed(speed) {
+  if (![0.75, 1, 1.25, 1.5].includes(speed)) return;
+  const audio = document.getElementById('listening-audio');
+  if (audio) audio.playbackRate = speed;
+  document.querySelectorAll('.audio-speed-btn').forEach(btn => {
+    btn.classList.toggle('audio-speed-btn--active', parseFloat(btn.dataset.speed) === speed);
+  });
+  try { localStorage.setItem('listening_speed', String(speed)); } catch (e) {}
+}
+
+function initAudioSpeed() {
+  let stored = 1;
+  try {
+    const raw = localStorage.getItem('listening_speed');
+    if (raw) stored = parseFloat(raw);
+  } catch (e) {}
+  const speed = ALLOWED_SPEEDS.includes(stored) ? stored : 1;
+  setAudioSpeed(speed);
+}
+
+function toggleTranscript() {
+  const content = document.getElementById('transcript-content');
+  const btn = document.getElementById('transcript-toggle-btn');
+  const label = document.getElementById('transcript-toggle-label');
+  if (!content || !btn) return;
+  const willHide = !content.classList.contains('transcript--hidden');
+  content.classList.toggle('transcript--hidden');
+  const icon = btn.querySelector('i');
+  if (willHide) {
+    if (icon) icon.className = 'fas fa-eye';
+    if (label) label.textContent = '{{ _("Показать текст") }}';
+    btn.setAttribute('aria-expanded', 'false');
+  } else {
+    if (icon) icon.className = 'fas fa-eye-slash';
+    if (label) label.textContent = '{{ _("Скрыть текст") }}';
+    btn.setAttribute('aria-expanded', 'true');
+  }
+  // Никакого localStorage: каждое открытие урока стартует «вслепую».
+  try { localStorage.removeItem('transcript_visible'); } catch (e) {}
+}
+
+function toggleListeningTranslation() {
+  // Перевод полностью независим от транскрипта: учащийся вправе открыть
+  // только перевод (например, проверить непонятное место) без английского
+  // текста — это валидный сценарий, мы его не блокируем.
+  const block = document.getElementById('translation-content');
+  const btn = document.getElementById('listening-translation-toggle-btn');
+  const label = document.getElementById('listening-translation-toggle-label');
+  if (!block || !btn) return;
+  const wasHidden = block.hasAttribute('hidden');
+  if (wasHidden) {
+    block.removeAttribute('hidden');
+    btn.setAttribute('aria-expanded', 'true');
+    if (label) label.textContent = '{{ _("Скрыть перевод") }}';
+    const icon = btn.querySelector('i');
+    if (icon) icon.className = 'fas fa-eye-slash';
+  } else {
+    block.setAttribute('hidden', '');
+    btn.setAttribute('aria-expanded', 'false');
+    if (label) label.textContent = '{{ _("Показать перевод") }}';
+    const icon = btn.querySelector('i');
+    if (icon) icon.className = 'fas fa-language';
+  }
+}
+
+function initTranscriptToggle() {
+  // Транскрипт и перевод всегда стартуют скрытыми. Чистим возможный
+  // легаси-ключ из localStorage, чтобы старые сессии не «открывали» текст.
+  try { localStorage.removeItem('transcript_visible'); } catch (e) {}
+  const content = document.getElementById('transcript-content');
+  const btn = document.getElementById('transcript-toggle-btn');
+  if (content) content.classList.add('transcript--hidden');
+  if (btn) {
+    btn.setAttribute('aria-expanded', 'false');
+    const icon = btn.querySelector('i');
+    const label = document.getElementById('transcript-toggle-label');
+    if (icon) icon.className = 'fas fa-eye';
+    if (label) label.textContent = '{{ _("Показать текст") }}';
+  }
+  const trBlock = document.getElementById('translation-content');
+  if (trBlock) trBlock.setAttribute('hidden', '');
+}
+
+// Listening-progress gate: чекбокс становится доступен только после того,
+// как реально воспроизведено ≥50 % длительности. Считаем по timeupdate с
+// фильтрацией прыжков по seek-бару (delta > 2 сек игнорируем).
+function initListeningGate() {
+  const audio = document.getElementById('listening-audio');
+  const cb = document.getElementById('li-self-cb');
+  const label = document.getElementById('li-self-label');
+  const hint = document.getElementById('listening-gate-hint');
+  if (!audio || !cb) return;
+  // Если урок уже завершён, чекбокс отрисован разблокированным —
+  // gate не нужен, не переписываем подсказку «Урок выполнен ранее».
+  if (!cb.disabled) return;
+  const THRESHOLD = 0.5;
+  let covered = 0;
+  let lastTime = 0;
+  let unlocked = false;
+
+  function unlock() {
+    if (unlocked) return;
+    unlocked = true;
+    cb.disabled = false;
+    if (label) label.classList.remove('listening-attentive-check--locked');
+    if (hint) {
+      hint.classList.add('listening-gate-hint--ready');
+      hint.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Готово! Отметьте чекбокс, чтобы завершить урок.") }}';
+    }
+  }
+
+  audio.addEventListener('seeking', () => { lastTime = audio.currentTime; });
+  audio.addEventListener('timeupdate', () => {
+    const dur = audio.duration;
+    if (!dur) return;
+    const t = audio.currentTime;
+    const delta = t - lastTime;
+    if (delta > 0 && delta <= 2) covered += delta;
+    lastTime = t;
+    if (covered / dur >= THRESHOLD) unlock();
+  });
+}
+
+let _replayStopHandler = null;
+function replaySentence(startTime, endTime) {
+  const audio = document.getElementById('listening-audio');
+  if (!audio) return;
+  const start = Number(startTime);
+  const end = Number(endTime);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+  if (_replayStopHandler) {
+    audio.removeEventListener('timeupdate', _replayStopHandler);
+    _replayStopHandler = null;
+  }
+  audio.currentTime = start;
+  audio.play().catch(() => {});
+  const stopAt = () => {
+    if (audio.currentTime >= end) {
+      audio.pause();
+      audio.removeEventListener('timeupdate', stopAt);
+      if (_replayStopHandler === stopAt) _replayStopHandler = null;
+    }
+  };
+  _replayStopHandler = stopAt;
+  audio.addEventListener('timeupdate', stopAt);
+}
+
+function onSelfAssessChange() {
+  const cb = document.getElementById('li-self-cb');
+  const btn = document.getElementById('li-submit-btn');
+  const hint = document.getElementById('listening-gate-hint');
+  btn.disabled = !cb.checked;
+  // Когда галка поставлена, подсказка должна вести к кнопке, а не повторять
+  // «Отметьте чекбокс». Когда снимают — возвращаемся к unlocked-копии.
+  if (!hint) return;
+  if (cb.checked) {
+    hint.classList.add('listening-gate-hint--ready');
+    hint.innerHTML = '<i class="fas fa-arrow-down"></i> {{ _("Нажмите «Завершить урок», чтобы зафиксировать прохождение.") }}';
+  } else if (!cb.disabled) {
+    hint.classList.add('listening-gate-hint--ready');
+    hint.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Готово! Отметьте чекбокс, чтобы завершить урок.") }}';
+  }
+}
+
+async function finishLesson() {
+  const btn = document.getElementById('li-submit-btn');
+  btn.disabled = true;
+  btn.classList.add('btn--loading');
+
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+    const resp = await fetch('/curriculum/api/lesson/' + lessonId + '/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ self_assessed: true, lesson_type: 'listening_immersion' }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    // Скрываем гейт + кнопку, чтобы серая disabled-кнопка не висела рядом
+    // с глобальной плашкой завершения. Используем общий showLessonCompletion()
+    // из lesson_base_template — единая UI завершения для всех типов уроков
+    // (та же иконка-галочка, заголовок «Урок завершён!», кнопки
+    // «К списку уроков» / «Следующий урок»).
+    const gate = document.getElementById('listening-completion-gate');
+    if (gate) gate.hidden = true;
+    const actions = btn.closest('.lesson-shell__actions');
+    if (actions) actions.hidden = true;
+
+    if (typeof window.showLessonCompletion === 'function') {
+      window.showLessonCompletion({ score: 100 });
+    }
+  } catch (err) {
+    console.error('Listening immersion finish error:', err);
+    btn.disabled = false;
+    btn.classList.remove('btn--loading');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initAudioSpeed();
+  initTranscriptToggle();
+  initListeningGate();
+  {% if is_completed %}
+  // Если урок открыт повторно после завершения — сразу разворачиваем
+  // глобальную плашку «Урок завершён!» (silent=true, без авто-скролла,
+  // чтобы пользователь сначала видел сам контент).
+  if (typeof window.showLessonCompletion === 'function') {
+    window.showLessonCompletion({ score: 100, silent: true });
+  }
+  {% endif %}
+});
+</script>
+{% endblock %}

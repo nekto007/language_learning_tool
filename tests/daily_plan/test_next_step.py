@@ -9,6 +9,7 @@ target the source modules (e.g. 'app.curriculum.models.LessonProgress'), not
 from __future__ import annotations
 
 import pytest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
 
 from app.daily_plan.next_step import get_next_best_step, NextStep, _apply_queue_filters
@@ -266,7 +267,150 @@ class TestCheckSrsDue:
             assert step is None
 
 
-# ── Priority 3: grammar weak ──────────────────────────────────────────────────
+# ── Priority 3: writing suggestion ───────────────────────────────────────────
+
+class TestCheckWritingSuggestion:
+    def _make_writing_db(self, attempt_created_at, writing_lesson=None):
+        """Build a db mock for _check_writing_suggestion with given attempt age and optional lesson result.
+
+        db.session.query is called up to 4 times:
+          1. UserWritingAttempt (last attempt)
+          2. LessonProgress.lesson_id (completed subquery)
+          3. Lessons (outer query)
+          4. completed_lesson_ids.c.lesson_id (inside notin_)
+        """
+        attempt = MagicMock()
+        attempt.created_at = attempt_created_at
+
+        q1 = MagicMock()
+        q1.filter.return_value.order_by.return_value.first.return_value = attempt
+
+        q2 = MagicMock()  # LessonProgress subquery
+
+        q3 = MagicMock()  # Lessons query
+        q3.filter.return_value.order_by.return_value.first.return_value = writing_lesson
+
+        q4 = MagicMock()  # inner notin_ subquery
+
+        db = MagicMock()
+        db.session.query.side_effect = [q1, q2, q3, q4]
+        return db
+
+    def test_suggests_writing_when_3_days_without_writing(self, app):
+        """Writing step suggested when last attempt is over 2 days ago."""
+        from app.daily_plan.next_step import _check_writing_suggestion
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        three_days_ago = now - timedelta(days=3)
+
+        mock_lesson = MagicMock()
+        mock_lesson.id = 55
+        mock_lesson.title = 'Write a paragraph'
+        mock_lesson.type = 'writing_prompt'
+
+        db = self._make_writing_db(three_days_ago, writing_lesson=mock_lesson)
+
+        with patch('app.curriculum.models.UserWritingAttempt') as MockUWA, \
+             patch('app.curriculum.models.LessonProgress') as MockLP, \
+             patch('app.curriculum.models.Lessons') as MockL:
+            MockUWA.user_id = MagicMock()
+            MockLP.lesson_id = MagicMock()
+            MockLP.user_id = MagicMock()
+            MockLP.status = MagicMock()
+            MockL.type = MagicMock()
+            MockL.id = MagicMock()
+
+            step = _check_writing_suggestion(1, db)
+
+        assert step is not None
+        assert step.kind == 'writing'
+        assert 'не писал' in step.reason
+        assert step.estimated_minutes == 8
+        assert step.data['lesson_id'] == 55
+
+    def test_no_writing_suggestion_when_wrote_today(self, app):
+        """No writing suggestion when user has a writing attempt from today."""
+        from app.daily_plan.next_step import _check_writing_suggestion
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        attempt = MagicMock()
+        attempt.created_at = now
+
+        q1 = MagicMock()
+        q1.filter.return_value.order_by.return_value.first.return_value = attempt
+
+        db = MagicMock()
+        db.session.query.return_value = q1
+
+        with patch('app.curriculum.models.UserWritingAttempt') as MockUWA, \
+             patch('app.curriculum.models.LessonProgress'), \
+             patch('app.curriculum.models.Lessons'):
+            MockUWA.user_id = MagicMock()
+
+            step = _check_writing_suggestion(1, db)
+
+        assert step is None
+
+    def test_no_writing_suggestion_when_no_writing_lesson_available(self, app):
+        """No writing suggestion when there are no available writing lessons."""
+        from app.daily_plan.next_step import _check_writing_suggestion
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        three_days_ago = now - timedelta(days=3)
+
+        db = self._make_writing_db(three_days_ago, writing_lesson=None)
+
+        with patch('app.curriculum.models.UserWritingAttempt') as MockUWA, \
+             patch('app.curriculum.models.LessonProgress') as MockLP, \
+             patch('app.curriculum.models.Lessons') as MockL:
+            MockUWA.user_id = MagicMock()
+            MockLP.lesson_id = MagicMock()
+            MockLP.user_id = MagicMock()
+            MockLP.status = MagicMock()
+            MockL.type = MagicMock()
+            MockL.id = MagicMock()
+
+            step = _check_writing_suggestion(1, db)
+
+        assert step is None
+
+    def test_writing_beats_grammar_in_priority(self, app):
+        """Writing priority comes before grammar in the overall pipeline."""
+        with app.app_context():
+            writing_step = NextStep(kind='writing', reason='Давно не писал', data={})
+            grammar_step = NextStep(kind='grammar', reason='Grammar', data={})
+
+            with patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=None), \
+                 patch('app.daily_plan.next_step._check_srs_due', return_value=None), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=writing_step), \
+                 patch('app.daily_plan.next_step._check_grammar_weak', return_value=grammar_step), \
+                 patch('app.daily_plan.next_step._check_reading_progress', return_value=None), \
+                 patch('app.daily_plan.next_step._check_vocab', return_value=None):
+
+                result = get_next_best_step(1, _make_mock_db())
+
+            assert result[0].kind == 'writing'
+
+    def test_srs_beats_writing(self, app):
+        """SRS priority comes before writing in the overall pipeline."""
+        with app.app_context():
+            srs_step = NextStep(kind='srs', reason='Cards due', data={})
+            writing_step = NextStep(kind='writing', reason='Давно не писал', data={})
+
+            with patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=None), \
+                 patch('app.daily_plan.next_step._check_srs_due', return_value=srs_step), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=writing_step), \
+                 patch('app.daily_plan.next_step._check_grammar_weak', return_value=None), \
+                 patch('app.daily_plan.next_step._check_reading_progress', return_value=None), \
+                 patch('app.daily_plan.next_step._check_vocab', return_value=None):
+
+                result = get_next_best_step(1, _make_mock_db())
+
+            assert result[0].kind == 'srs'
+            assert result[1].kind == 'writing'
+
+
+# ── Priority 4: grammar weak ──────────────────────────────────────────────────
 
 class TestCheckGrammarWeak:
     def test_returns_topic_with_due_exercises(self, app):
@@ -440,7 +584,8 @@ class TestGetNextBestStepPriorityOrdering:
             srs_step = NextStep(kind='srs', reason='SRS', data={})
 
             with patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=lesson_step), \
-                 patch('app.daily_plan.next_step._check_srs_due', return_value=srs_step):
+                 patch('app.daily_plan.next_step._check_srs_due', return_value=srs_step), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=None):
 
                 result = get_next_best_step(1, _make_mock_db())
 
@@ -454,6 +599,7 @@ class TestGetNextBestStepPriorityOrdering:
 
             with patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=None), \
                  patch('app.daily_plan.next_step._check_srs_due', return_value=srs_step), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=None), \
                  patch('app.daily_plan.next_step._check_grammar_weak', return_value=grammar_step):
 
                 result = get_next_best_step(1, _make_mock_db())
@@ -468,6 +614,7 @@ class TestGetNextBestStepPriorityOrdering:
 
             with patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=None), \
                  patch('app.daily_plan.next_step._check_srs_due', return_value=None), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=None), \
                  patch('app.daily_plan.next_step._check_grammar_weak', return_value=grammar_step), \
                  patch('app.daily_plan.next_step._check_reading_progress', return_value=reading_step):
 
@@ -483,6 +630,7 @@ class TestGetNextBestStepPriorityOrdering:
 
             with patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=None), \
                  patch('app.daily_plan.next_step._check_srs_due', return_value=None), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=None), \
                  patch('app.daily_plan.next_step._check_grammar_weak', return_value=None), \
                  patch('app.daily_plan.next_step._check_reading_progress', return_value=reading_step), \
                  patch('app.daily_plan.next_step._check_vocab', return_value=vocab_step):
@@ -496,6 +644,7 @@ class TestGetNextBestStepPriorityOrdering:
         with app.app_context():
             with patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=None), \
                  patch('app.daily_plan.next_step._check_srs_due', return_value=None), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=None), \
                  patch('app.daily_plan.next_step._check_grammar_weak', return_value=None), \
                  patch('app.daily_plan.next_step._check_reading_progress', return_value=None), \
                  patch('app.daily_plan.next_step._check_vocab', return_value=None):
@@ -511,6 +660,7 @@ class TestGetNextBestStepPriorityOrdering:
 
             with patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=None), \
                  patch('app.daily_plan.next_step._check_srs_due', return_value=None), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=None), \
                  patch('app.daily_plan.next_step._check_grammar_weak', return_value=None), \
                  patch('app.daily_plan.next_step._check_reading_progress', return_value=None), \
                  patch('app.daily_plan.next_step._check_vocab', return_value=vocab_step):
@@ -530,6 +680,7 @@ class TestGetNextBestStepPriorityOrdering:
 
             with patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=lesson_step), \
                  patch('app.daily_plan.next_step._check_srs_due', return_value=srs_step), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=None), \
                  patch('app.daily_plan.next_step._check_grammar_weak', return_value=grammar_step), \
                  patch('app.daily_plan.next_step._check_reading_progress', return_value=reading_step), \
                  patch('app.daily_plan.next_step._check_vocab', return_value=None):
@@ -549,6 +700,7 @@ class TestGetNextBestStepPriorityOrdering:
 
             with patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=None), \
                  patch('app.daily_plan.next_step._check_srs_due', return_value=srs_step), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=None), \
                  patch('app.daily_plan.next_step._check_grammar_weak', return_value=None), \
                  patch('app.daily_plan.next_step._check_reading_progress', return_value=None), \
                  patch('app.daily_plan.next_step._check_vocab', return_value=vocab_step):
@@ -659,3 +811,113 @@ class TestNextStepApiEndpoint:
         """Unauthenticated request to continuation endpoint returns 401."""
         response = client.get('/api/daily-plan/continuation')
         assert response.status_code == 401
+
+
+# ── Priority 0: recovery ──────────────────────────────────────────────────────
+
+class TestCheckRecovery:
+    def test_returns_recovery_when_yesterday_unsecured(self, app):
+        """Returns recovery step when yesterday's plan log exists but secured_at is None."""
+        with app.app_context():
+            from app.daily_plan.next_step import _check_recovery
+            from datetime import date, timedelta
+
+            mock_user = MagicMock()
+            mock_user.timezone = 'Europe/Moscow'
+
+            mock_log = MagicMock()
+            mock_log.secured_at = None
+            mock_log.mission_type = None
+
+            db = _make_mock_db()
+
+            with patch('app.auth.models.User') as MockUser, \
+                 patch('app.daily_plan.models.DailyPlanLog') as MockLog:
+                MockUser.query.get.return_value = mock_user
+                MockLog.query.filter_by.return_value.first.return_value = mock_log
+
+                step = _check_recovery(1, db)
+
+            assert step is not None
+            assert step.kind == 'recovery'
+            assert 'SRS' in step.reason
+            assert step.data['action_url'] == '/study?source=linear_plan'
+            assert 'missed_date' in step.data
+
+    def test_returns_none_when_yesterday_plan_secured(self, app):
+        """Returns None when yesterday's plan was secured (completed)."""
+        with app.app_context():
+            from app.daily_plan.next_step import _check_recovery
+            from datetime import datetime, timezone
+
+            mock_user = MagicMock()
+            mock_user.timezone = 'UTC'
+
+            mock_log = MagicMock()
+            mock_log.secured_at = datetime.now(timezone.utc).replace(tzinfo=None)
+
+            db = _make_mock_db()
+
+            with patch('app.auth.models.User') as MockUser, \
+                 patch('app.daily_plan.models.DailyPlanLog') as MockLog:
+                MockUser.query.get.return_value = mock_user
+                MockLog.query.filter_by.return_value.first.return_value = mock_log
+
+                step = _check_recovery(1, db)
+
+            assert step is None
+
+    def test_returns_none_when_no_yesterday_plan(self, app):
+        """Returns None when user has no DailyPlanLog for yesterday."""
+        with app.app_context():
+            from app.daily_plan.next_step import _check_recovery
+
+            mock_user = MagicMock()
+            mock_user.timezone = 'UTC'
+
+            db = _make_mock_db()
+
+            with patch('app.auth.models.User') as MockUser, \
+                 patch('app.daily_plan.models.DailyPlanLog') as MockLog:
+                MockUser.query.get.return_value = mock_user
+                MockLog.query.filter_by.return_value.first.return_value = None
+
+                step = _check_recovery(1, db)
+
+            assert step is None
+
+    def test_recovery_beats_lesson_in_priority(self, app):
+        """Recovery step comes before lesson in priority ordering."""
+        with app.app_context():
+            recovery_step = NextStep(kind='recovery', reason='Вчера не завершил(а)', data={})
+            lesson_step = NextStep(kind='lesson', reason='Continue lesson', data={})
+
+            with patch('app.daily_plan.next_step._check_recovery', return_value=recovery_step), \
+                 patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=lesson_step), \
+                 patch('app.daily_plan.next_step._check_srs_due', return_value=None), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=None), \
+                 patch('app.daily_plan.next_step._check_grammar_weak', return_value=None), \
+                 patch('app.daily_plan.next_step._check_reading_progress', return_value=None), \
+                 patch('app.daily_plan.next_step._check_vocab', return_value=None):
+
+                result = get_next_best_step(1, _make_mock_db())
+
+            assert result[0].kind == 'recovery'
+            assert result[1].kind == 'lesson'
+
+    def test_no_recovery_when_plan_done(self, app):
+        """No recovery step when yesterday's plan was completed."""
+        with app.app_context():
+            srs_step = NextStep(kind='srs', reason='Cards due', data={})
+
+            with patch('app.daily_plan.next_step._check_recovery', return_value=None), \
+                 patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=None), \
+                 patch('app.daily_plan.next_step._check_srs_due', return_value=srs_step), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=None), \
+                 patch('app.daily_plan.next_step._check_grammar_weak', return_value=None), \
+                 patch('app.daily_plan.next_step._check_reading_progress', return_value=None), \
+                 patch('app.daily_plan.next_step._check_vocab', return_value=None):
+
+                result = get_next_best_step(1, _make_mock_db())
+
+            assert all(s.kind != 'recovery' for s in result)

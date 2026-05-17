@@ -7,7 +7,7 @@ import json
 import logging
 from datetime import datetime, timedelta, timezone
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user
 from sqlalchemy import case, desc, distinct, func
 from sqlalchemy.exc import SQLAlchemyError
@@ -642,6 +642,152 @@ def get_content_quality() -> dict:
     }
 
 
+def get_content_quality_detail() -> dict:
+    """Per-lesson-type content coverage: audio, IPA, examples, completion rate. Used by /admin/content-quality."""
+    import csv
+    import io
+    from app.words.models import CollectionWordLink, CollectionWords
+    from app.utils.db_utils import chunk_ids
+    from app.curriculum.models import LessonFeedback
+
+    # Lesson types where a top-level audio_url is expected
+    AUDIO_EXPECTED = frozenset({'dictation', 'listening_immersion', 'shadow_reading', 'audio_fill_blank'})
+
+    all_lessons = Lessons.query.all()
+    total_lessons = len(all_lessons)
+
+    # Avg rating per lesson (keyed by lesson_id) from LessonFeedback
+    feedback_rows = db.session.query(
+        LessonFeedback.lesson_id,
+        func.avg(LessonFeedback.rating).label('avg_rating'),
+        func.count(LessonFeedback.id).label('feedback_count'),
+    ).group_by(LessonFeedback.lesson_id).all()
+    avg_rating_by_lesson: dict[int, float] = {r.lesson_id: float(r.avg_rating) for r in feedback_rows}
+    feedback_count_by_lesson: dict[int, int] = {r.lesson_id: r.feedback_count for r in feedback_rows}
+
+    completed_ids: set[int] = set(
+        row[0] for row in db.session.query(distinct(LessonProgress.lesson_id))
+        .filter(LessonProgress.status == 'completed').all()
+    )
+
+    # Batch-load vocabulary word stats per collection
+    vocab_collection_ids = list({l.collection_id for l in all_lessons if l.type == 'vocabulary' and l.collection_id})
+    ipa_by_col: dict[int, int] = {}
+    sentences_by_col: dict[int, int] = {}
+    word_count_by_col: dict[int, int] = {}
+
+    if vocab_collection_ids:
+        for chunk in chunk_ids(vocab_collection_ids):
+            rows = db.session.query(
+                CollectionWordLink.collection_id,
+                func.count(CollectionWords.id).label('total'),
+                func.sum(case((CollectionWords.ipa_transcription.isnot(None), 1), else_=0)).label('with_ipa'),
+                func.sum(case((CollectionWords.sentences.isnot(None), 1), else_=0)).label('with_sentences'),
+            ).join(CollectionWords, CollectionWords.id == CollectionWordLink.word_id).filter(
+                CollectionWordLink.collection_id.in_(chunk)
+            ).group_by(CollectionWordLink.collection_id).all()
+            for row in rows:
+                word_count_by_col[row.collection_id] = row.total
+                ipa_by_col[row.collection_id] = row.with_ipa
+                sentences_by_col[row.collection_id] = row.with_sentences
+
+    by_type: dict[str, dict] = {}
+    missing_audio: list[dict] = []
+    no_vocabulary: list[dict] = []
+
+    for lesson in all_lessons:
+        lt = lesson.type or 'other'
+        if lt not in by_type:
+            by_type[lt] = {'total': 0, 'with_audio': 0, 'with_ipa': 0, 'with_examples': 0, 'completed': 0, 'rating_sum': 0.0, 'rating_count': 0}
+        entry = by_type[lt]
+        entry['total'] += 1
+        if lesson.id in avg_rating_by_lesson:
+            entry['rating_sum'] += avg_rating_by_lesson[lesson.id]
+            entry['rating_count'] += 1
+
+        if lesson.id in completed_ids:
+            entry['completed'] += 1
+
+        content = lesson.content or {}
+        has_audio = bool(content.get('audio_url'))
+        if has_audio:
+            entry['with_audio'] += 1
+        elif lt in AUDIO_EXPECTED:
+            missing_audio.append({'lesson_id': lesson.id, 'title': lesson.title, 'type': lt, 'module_id': lesson.module_id})
+
+        if lt == 'vocabulary':
+            cid = lesson.collection_id
+            if cid and word_count_by_col.get(cid, 0) > 0:
+                if ipa_by_col.get(cid, 0) > 0:
+                    entry['with_ipa'] += 1
+                if sentences_by_col.get(cid, 0) > 0:
+                    entry['with_examples'] += 1
+            else:
+                no_vocabulary.append({'lesson_id': lesson.id, 'title': lesson.title, 'module_id': lesson.module_id})
+
+    # Enrich missing_audio entries with level/module info and sort by module progression
+    lesson_number_by_id = {lesson.id: lesson.number for lesson in all_lessons}
+    if missing_audio:
+        module_ids = list({m['module_id'] for m in missing_audio if m['module_id']})
+        if module_ids:
+            mod_rows_data = []
+            for chunk in chunk_ids(module_ids):
+                chunk_rows = (
+                    db.session.query(
+                        Module.id,
+                        Module.number,
+                        Module.title,
+                        CEFRLevel.order.label('level_order'),
+                        CEFRLevel.code.label('level_code'),
+                    )
+                    .join(CEFRLevel, CEFRLevel.id == Module.level_id)
+                    .filter(Module.id.in_(chunk))
+                    .all()
+                )
+                mod_rows_data.extend(chunk_rows)
+            mod_info = {r.id: r for r in mod_rows_data}
+            for m in missing_audio:
+                info = mod_info.get(m['module_id'])
+                m['level_code'] = info.level_code if info else ''
+                m['level_order'] = info.level_order if info else 0
+                m['module_number'] = info.number if info else 0
+                m['module_title'] = info.title if info else ''
+                m['lesson_number'] = lesson_number_by_id.get(m['lesson_id'], 0)
+        missing_audio.sort(key=lambda x: (
+            x.get('level_order', 0), x.get('module_number', 0), x.get('lesson_number', 0)
+        ))
+
+    type_rows = []
+    for lt, data in sorted(by_type.items()):
+        total = data['total']
+        rc = data['rating_count']
+        type_rows.append({
+            'type': lt,
+            'total': total,
+            'with_audio': data['with_audio'],
+            'with_ipa': data['with_ipa'],
+            'with_examples': data['with_examples'],
+            'completed': data['completed'],
+            'audio_pct': round(data['with_audio'] / total * 100) if total else 0,
+            'ipa_pct': round(data['with_ipa'] / total * 100) if total else 0,
+            'examples_pct': round(data['with_examples'] / total * 100) if total else 0,
+            'avg_rating': round(data['rating_sum'] / rc, 1) if rc else None,
+            'feedback_count': rc,
+            'completion_pct': round(data['completed'] / total * 100) if total else 0,
+        })
+
+    completed_lesson_count = len(completed_ids.intersection({l.id for l in all_lessons}))
+    return {
+        'by_type': type_rows,
+        'missing_audio': missing_audio[:50],
+        'missing_audio_count': len(missing_audio),
+        'no_vocabulary': no_vocabulary[:50],
+        'no_vocabulary_count': len(no_vocabulary),
+        'total_lessons': total_lessons,
+        'no_completions_count': total_lessons - completed_lesson_count,
+    }
+
+
 @cache_result('content_alerts', timeout=300)
 def get_content_alerts() -> list:
     """Generate content alerts using LessonAnalyticsService."""
@@ -739,6 +885,45 @@ def dashboard():
         **stats
     )
 
+
+
+@admin.route('/content-quality')
+@admin_required
+def content_quality_page():
+    """Detailed content quality dashboard — per lesson type coverage and missing content."""
+    detail = get_content_quality_detail()
+    return render_template('admin/content_quality.html', **detail)
+
+
+@admin.route('/content-quality/export')
+@admin_required
+def content_quality_export():
+    """Export per-lesson-type content quality metrics as CSV."""
+    import csv
+    import io
+    from app.admin.utils.export_helpers import MAX_EXPORT_ROWS, _sanitize_csv_cell
+
+    detail = get_content_quality_detail()
+    rows = detail['by_type'][:MAX_EXPORT_ROWS]
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Lesson Type', 'Total', 'With Audio', 'Audio %', 'With IPA', 'IPA %',
+                     'With Examples', 'Examples %', 'Completed', 'Completion %'])
+    for row in rows:
+        writer.writerow([
+            _sanitize_csv_cell(row['type']),
+            row['total'], row['with_audio'], row['audio_pct'],
+            row['with_ipa'], row['ipa_pct'],
+            row['with_examples'], row['examples_pct'],
+            row['completed'], row['completion_pct'],
+        ])
+
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    ts = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
+    response.headers['Content-Disposition'] = f'attachment; filename=content_quality_{ts}.csv'
+    return response
 
 
 @admin.route('/curriculum')

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
 import pytest
 
@@ -32,6 +33,16 @@ from app.study.models import QuizDeck, QuizDeckWord, StudySettings, UserCardDire
 from app.srs.constants import CardState
 from app.utils.db import db as real_db
 from app.words.models import CollectionWords
+
+
+# ── Fixtures ─────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _mock_local_hour():
+    """Force midday so time-of-day slot reordering is inactive for all assembly tests."""
+    with patch('app.utils.time_utils.get_user_local_hour', return_value=12):
+        yield
 
 
 # ── Helpers ──────────────────────────────────────────────────────────

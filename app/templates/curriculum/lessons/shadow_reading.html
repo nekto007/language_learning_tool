@@ -1,0 +1,556 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Слушай и повторяй') %}
+{% set instruction_text = _('Сначала послушайте запись. Затем прочитайте текст вслух вместе с ней — старайтесь попадать в ритм и интонацию.') %}
+{% set block_description = _('Тренировка ритма, интонации и связной речи') %}
+
+{% block extra_css %}
+<style>
+.sr-audio-wrapper { position: relative; }
+.sr-audio-wrapper audio { width: 100%; display: block; }
+.sr-audio-loading, .sr-audio-error {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.5rem; font-size: 0.9rem;
+}
+.sr-audio-loading {
+  position: absolute; inset: 0;
+  background: rgba(241,245,249,0.92); color: #475569;
+  justify-content: center; pointer-events: none;
+}
+.sr-audio-error {
+  background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;
+}
+.shadow-phase[data-audio-state="ready"] .sr-audio-loading { display: none; }
+.shadow-phase__gate-hint {
+  display: flex; align-items: center; gap: 0.4rem;
+  margin: 0.5rem 0 0; padding: 0.4rem 0.6rem;
+  background: #fffbeb; border: 1px solid #fde68a;
+  border-radius: 0.5rem; color: #92400e; font-size: 0.85rem;
+}
+.shadow-phase__gate-hint i { color: #d97706; }
+.shadow-phase__gate-hint--ready {
+  background: #f0fdf4; border-color: #bbf7d0; color: #166534;
+}
+.shadow-phase__gate-hint--ready i { color: #16a34a; }
+.sr-assess-row {
+  display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem;
+}
+.sr-assess-btn {
+  padding: 0.5rem 1rem; border-radius: 0.5rem;
+  border: 2px solid var(--border-default, #e5e7eb);
+  background: #fff; color: #1f2937; cursor: pointer;
+  font-size: 0.95rem; transition: all 0.15s;
+}
+.sr-assess-btn:hover { border-color: var(--primary-500, #6366f1); }
+.sr-assess-btn--selected {
+  border-color: var(--primary-500, #6366f1);
+  background: rgba(99,102,241,0.08);
+  color: var(--primary-700, #4338ca);
+}
+.shadow-actions .btn[disabled],
+.shadow-actions .btn:disabled {
+  background: #e5e7eb !important; color: #9ca3af !important;
+  border-color: #e5e7eb !important; box-shadow: none !important;
+  cursor: not-allowed; pointer-events: none;
+}
+/* Когда шаг помечен `data-state="done"`, его inline-actions (кнопка
+   перехода к следующему шагу + gate-hint) больше не нужны — пользователь
+   уже прошёл точку перехода. Прячем, чтобы не путали. */
+.shadow-phase[data-state="done"] .shadow-phase__inline-actions,
+.shadow-phase[data-state="done"] .shadow-phase__gate-hint {
+  display: none;
+}
+.sr-loop-toggle {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  margin: 0.5rem 0 0.25rem; font-size: 0.9rem; color: #475569;
+  cursor: pointer; user-select: none;
+}
+.sr-loop-toggle input { cursor: pointer; }
+</style>
+{% endblock %}
+
+{% block lesson_content %}
+<section class="lesson-shell shadow-reading-lesson" aria-labelledby="shadow-reading-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="shadow-reading-title">{{ _('Слушай и повторяй') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-headphones"></i></span>
+      <span class="lesson-shell__progress" aria-live="polite">
+        {{ _('Шаг') }} <span id="shadow-phase-current" data-progress-current>1</span> / <span data-progress-total>3</span>
+      </span>
+    </div>
+    <div class="lesson-shell__progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="33">
+      <span class="lesson-shell__progress-fill" id="shadow-progress-fill" style="width:33%"></span>
+    </div>
+  </header>
+
+  <div class="lesson-shell__body">
+
+    {# === Шаг 1 — Послушайте. Кнопка перехода активна только после
+       реально воспроизведённых ≥50% длительности. === #}
+    <article class="lesson-shell__card shadow-phase" id="phase-1" data-phase="1"
+             data-state="active" data-audio-state="loading" aria-current="step">
+      <header class="shadow-phase__header">
+        <span class="shadow-phase__num" id="phase-1-num">1</span>
+        <span class="shadow-phase__label">
+          <i class="fas fa-headphones"></i>
+          {{ _('Шаг 1 — Послушайте') }}
+        </span>
+      </header>
+      <p class="shadow-phase__hint">
+        {{ _('Сначала просто слушайте — следите за ритмом и интонацией.') }}
+      </p>
+      <div class="sr-audio-wrapper">
+        <audio class="shadow-phase__audio" id="audio-phase1" controls preload="auto"
+               aria-label="{{ _('Аудио для прослушивания') }}">
+          <source src="{{ audio_url }}" type="audio/mpeg">
+          <source src="{{ audio_url }}" type="audio/ogg">
+          {{ _('Ваш браузер не поддерживает аудио.') }}
+        </audio>
+        <div class="sr-audio-loading" id="audio-loading-1">
+          <i class="fas fa-spinner fa-spin"></i> {{ _('Загрузка аудио…') }}
+        </div>
+      </div>
+      {# «Повторять аудио» относится к плееру, ставим прямо под ним. #}
+      <label class="sr-loop-toggle">
+        <input type="checkbox" id="loop-toggle" onchange="toggleLoop()">
+        <span>{{ _('Повторять аудио') }}</span>
+      </label>
+      <div class="sr-audio-error" id="audio-error-1" hidden>
+        <i class="fas fa-exclamation-triangle"></i>
+        {{ _('Аудио не загрузилось. Обновите страницу или попробуйте позже.') }}
+      </div>
+      <p class="shadow-phase__gate-hint" id="phase-1-gate">
+        <i class="fas fa-lock"></i>
+        {{ _('Прослушайте хотя бы половину записи — после этого станет доступен шаг 2.') }}
+      </p>
+      <div class="shadow-phase__inline-actions">
+        <button class="btn btn-primary btn-sm" id="btn-skip-phase1" type="button"
+                onclick="goToPhase2()" disabled>
+          {{ _('Перейти к чтению') }} <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </article>
+
+    {# === Шаг 2 — Читайте вслух вместе с записью. Кнопка перехода к
+       самооценке открывается после ≥50% совместного проигрывания. === #}
+    <article class="lesson-shell__card shadow-phase" id="phase-2" data-phase="2"
+             data-state="locked" data-audio-state="loading" aria-disabled="true">
+      <header class="shadow-phase__header">
+        <span class="shadow-phase__num" id="phase-2-num">2</span>
+        <span class="shadow-phase__label">
+          <i class="fas fa-book-open"></i>
+          {{ _('Шаг 2 — Читайте вслух вместе с записью') }}
+        </span>
+      </header>
+      <div class="shadow-phase__text" id="shadow-text">
+        {% if words %}
+          {% for word in words %}
+            <span class="shadow-word" data-start="{{ word.start }}" data-end="{{ word.end }}">{{ word.text }} </span>
+          {% endfor %}
+        {% else %}
+          {{ text }}
+        {% endif %}
+      </div>
+      {% if translation %}
+      <div class="shadow-phase__translation">
+        <i class="fas fa-language"></i> {{ translation }}
+      </div>
+      {% endif %}
+      <div class="sr-audio-wrapper">
+        <audio class="shadow-phase__audio" id="audio-phase2" controls preload="auto"
+               aria-label="{{ _('Аудио для чтения вслух') }}">
+          <source src="{{ audio_url }}" type="audio/mpeg">
+          <source src="{{ audio_url }}" type="audio/ogg">
+          {{ _('Ваш браузер не поддерживает аудио.') }}
+        </audio>
+        <div class="sr-audio-loading" id="audio-loading-2">
+          <i class="fas fa-spinner fa-spin"></i> {{ _('Загрузка аудио…') }}
+        </div>
+      </div>
+      <div class="sr-audio-error" id="audio-error-2" hidden>
+        <i class="fas fa-exclamation-triangle"></i>
+        {{ _('Аудио не загрузилось. Обновите страницу или попробуйте позже.') }}
+      </div>
+      <p class="shadow-phase__gate-hint" id="phase-2-gate">
+        <i class="fas fa-lock"></i>
+        {{ _('Прочитайте вслух вместе с записью — кнопка самооценки откроется после половины аудио.') }}
+      </p>
+      <div class="shadow-phase__inline-actions">
+        <button class="btn btn-primary btn-sm" id="btn-skip-phase2" type="button"
+                onclick="goToPhase3()" disabled>
+          {{ _('Готов(а) к самооценке') }} <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </article>
+
+    {# === Шаг 3 — Самооценка. Три кнопки вместо чекбокса:
+       «Легко», «Нормально», «Сложно». Без записи голоса это
+       самостоятельная практика, не «проверка произношения». === #}
+    <article class="lesson-shell__card shadow-phase" id="phase-3" data-phase="3"
+             data-state="locked" aria-disabled="true">
+      <header class="shadow-phase__header">
+        <span class="shadow-phase__num" id="phase-3-num">3</span>
+        <span class="shadow-phase__label">
+          <i class="fas fa-check-circle"></i>
+          {{ _('Шаг 3 — Самооценка') }}
+        </span>
+      </header>
+      <p class="shadow-phase__hint">
+        {{ _('Я прочитал(а) вслух вместе с записью. Как получилось?') }}
+      </p>
+      <div class="sr-assess-row" role="radiogroup" aria-label="{{ _('Самооценка') }}">
+        <button class="sr-assess-btn" type="button" role="radio" aria-checked="false"
+                data-rating="easy" onclick="selectAssess(this)">
+          {{ _('Легко') }}
+        </button>
+        <button class="sr-assess-btn" type="button" role="radio" aria-checked="false"
+                data-rating="ok" onclick="selectAssess(this)">
+          {{ _('Нормально') }}
+        </button>
+        <button class="sr-assess-btn" type="button" role="radio" aria-checked="false"
+                data-rating="hard" onclick="selectAssess(this)">
+          {{ _('Сложно') }}
+        </button>
+      </div>
+      <input type="hidden" id="self-assess-rating" value="">
+    </article>
+
+  </div>
+
+  <div class="lesson-shell__actions shadow-actions">
+    <button class="btn btn-outline" id="retry-btn" type="button" onclick="retryAssess()">
+      <i class="fas fa-redo"></i> {{ _('Повторить упражнение') }}
+    </button>
+    <button class="btn btn-primary btn-lg" id="submit-btn" type="button"
+            disabled onclick="submitShadowReading()">
+      <i class="fas fa-check"></i> {{ _('Завершить урок') }}
+    </button>
+  </div>
+
+  <div class="lesson-shell__result" hidden aria-hidden="true">
+    <span class="result-badge result-badge--correct" hidden></span>
+  </div>
+</section>
+
+<script>
+const lessonId = {{ lesson.id }};
+const wordTimestamps = {{ words | tojson }};
+const PHASE_THRESHOLD = 0.5;  // доля длительности для разблокировки
+
+let phase2Unlocked = false;
+let phase3Unlocked = false;
+let loopEnabled = false;
+let assessRating = '';
+
+(function initLoop() {
+  try {
+    loopEnabled = localStorage.getItem('shadow_loop_enabled') === 'true';
+    const cb = document.getElementById('loop-toggle');
+    if (cb) cb.checked = loopEnabled;
+  } catch(e) {}
+})();
+
+function toggleLoop() {
+  const cb = document.getElementById('loop-toggle');
+  loopEnabled = !!(cb && cb.checked);
+  try {
+    localStorage.setItem('shadow_loop_enabled', loopEnabled ? 'true' : 'false');
+  } catch(e) {}
+}
+
+function _updateProgressBar(step) {
+  const fill = document.getElementById('shadow-progress-fill');
+  const current = document.getElementById('shadow-phase-current');
+  if (current) current.textContent = String(step);
+  if (fill) {
+    const pct = Math.round((step / 3) * 100);
+    fill.style.width = pct + '%';
+    const bar = fill.parentElement;
+    if (bar) bar.setAttribute('aria-valuenow', String(pct));
+  }
+}
+
+function _setPhaseState(id, state) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.dataset.state = state;
+  if (state === 'locked') {
+    el.setAttribute('aria-disabled', 'true');
+    el.removeAttribute('aria-current');
+  } else if (state === 'active') {
+    el.removeAttribute('aria-disabled');
+    el.setAttribute('aria-current', 'step');
+  } else if (state === 'done') {
+    el.removeAttribute('aria-disabled');
+    el.removeAttribute('aria-current');
+  }
+}
+
+// Универсальная инициализация аудио в шаге: показывает loading-оверлей,
+// прячет на loadedmetadata/canplay, фейлит на error/таймаут. Возвращает
+// функцию `wireGate(onThreshold)`, которая считает реально воспроизведённые
+// сегменты (без накрутки seek-баром) и вызывает onThreshold когда
+// прослушано ≥PHASE_THRESHOLD длительности.
+function _initPhaseAudio(phaseId, audioId, loadingId, errorId) {
+  const card = document.getElementById(phaseId);
+  const audio = document.getElementById(audioId);
+  const loading = document.getElementById(loadingId);
+  const errorEl = document.getElementById(errorId);
+  if (!audio) return {wireGate: function() {}};
+
+  function _showReady() {
+    if (card) card.dataset.audioState = 'ready';
+    if (loading) loading.hidden = true;
+  }
+  function _showError() {
+    if (!card || card.dataset.audioState === 'ready') return;
+    card.dataset.audioState = 'error';
+    if (loading) loading.hidden = true;
+    const wrap = audio.parentElement;
+    if (wrap) wrap.hidden = true;
+    if (errorEl) errorEl.hidden = false;
+  }
+  function _check() {
+    if (Number.isFinite(audio.duration) && audio.duration > 0) {
+      _showReady();
+      return true;
+    }
+    return false;
+  }
+  if (audio.readyState >= 1 && _check()) {
+    // уже готово
+  } else {
+    audio.addEventListener('loadedmetadata', _check);
+    audio.addEventListener('canplay', _check);
+    audio.addEventListener('error', _showError);
+    setTimeout(function() {
+      if (card && card.dataset.audioState === 'loading') _showError();
+    }, 15000);
+  }
+
+  // Loop: вместо нативного `loop` attribute (который умолкает между
+  // итерациями), мы делаем явный рестарт на ended.
+  audio.addEventListener('ended', function() {
+    if (loopEnabled) {
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+    }
+  });
+
+  // Gate-API: считаем реальные воспроизведённые сегменты.
+  function wireGate(onThreshold) {
+    let covered = 0;
+    let lastTime = 0;
+    let fired = false;
+    audio.addEventListener('seeking', () => { lastTime = audio.currentTime; });
+    audio.addEventListener('timeupdate', () => {
+      const dur = audio.duration;
+      if (!Number.isFinite(dur) || dur <= 0) return;
+      const t = audio.currentTime;
+      const delta = t - lastTime;
+      if (delta > 0 && delta <= 2) covered += delta;
+      lastTime = t;
+      if (!fired && covered / dur >= PHASE_THRESHOLD) {
+        fired = true;
+        onThreshold();
+      }
+    });
+    audio.addEventListener('ended', () => {
+      if (!fired) { fired = true; onThreshold(); }
+    });
+  }
+  return {wireGate: wireGate, audio: audio};
+}
+
+function _unlockPhase2Button() {
+  const btn = document.getElementById('btn-skip-phase1');
+  const hint = document.getElementById('phase-1-gate');
+  if (btn) btn.disabled = false;
+  if (hint) {
+    hint.classList.add('shadow-phase__gate-hint--ready');
+    hint.innerHTML = '<i class="fas fa-check-circle"></i> ' +
+      '{{ _("Готово! Нажмите «Перейти к чтению».") }}';
+  }
+}
+
+function _unlockPhase3Button() {
+  const btn = document.getElementById('btn-skip-phase2');
+  const hint = document.getElementById('phase-2-gate');
+  if (btn) btn.disabled = false;
+  if (hint) {
+    hint.classList.add('shadow-phase__gate-hint--ready');
+    hint.innerHTML = '<i class="fas fa-check-circle"></i> ' +
+      '{{ _("Готово! Можно перейти к самооценке.") }}';
+  }
+}
+
+let _phase2GateBound = false;
+function goToPhase2() {
+  if (phase2Unlocked) return;
+  phase2Unlocked = true;
+  _setPhaseState('phase-1', 'done');
+  _setPhaseState('phase-2', 'active');
+  document.getElementById('phase-1-num').innerHTML = '<i class="fas fa-check"></i>';
+  _updateProgressBar(2);
+  const p2 = document.getElementById('phase-2');
+  p2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (!_phase2GateBound) {
+    _phase2GateBound = true;
+    _phase2Ctrl.wireGate(_unlockPhase3Button);
+  }
+  if (_phase2Ctrl.audio) {
+    initWordHighlighting(_phase2Ctrl.audio);
+    _phase2Ctrl.audio.play().catch(() => {});
+  }
+}
+
+function goToPhase3() {
+  if (phase3Unlocked) return;
+  phase3Unlocked = true;
+  _setPhaseState('phase-2', 'done');
+  _setPhaseState('phase-3', 'active');
+  document.getElementById('phase-2-num').innerHTML = '<i class="fas fa-check"></i>';
+  _updateProgressBar(3);
+  const p3 = document.getElementById('phase-3');
+  p3.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function selectAssess(btn) {
+  assessRating = btn.dataset.rating || '';
+  const row = btn.parentElement;
+  if (row) {
+    row.querySelectorAll('.sr-assess-btn').forEach(b => {
+      b.classList.remove('sr-assess-btn--selected');
+      b.setAttribute('aria-checked', 'false');
+    });
+  }
+  btn.classList.add('sr-assess-btn--selected');
+  btn.setAttribute('aria-checked', 'true');
+  const hidden = document.getElementById('self-assess-rating');
+  if (hidden) hidden.value = assessRating;
+  const submitBtn = document.getElementById('submit-btn');
+  if (submitBtn) submitBtn.disabled = !assessRating;
+}
+
+function retryAssess() {
+  assessRating = '';
+  document.querySelectorAll('.sr-assess-btn').forEach(b => {
+    b.classList.remove('sr-assess-btn--selected');
+    b.setAttribute('aria-checked', 'false');
+  });
+  const hidden = document.getElementById('self-assess-rating');
+  if (hidden) hidden.value = '';
+  const submitBtn = document.getElementById('submit-btn');
+  if (submitBtn) submitBtn.disabled = true;
+  phase3Unlocked = false;
+  _setPhaseState('phase-3', 'locked');
+  _setPhaseState('phase-2', 'active');
+  _updateProgressBar(2);
+  const p2 = document.getElementById('phase-2');
+  p2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (_phase2Ctrl.audio) {
+    _phase2Ctrl.audio.currentTime = 0;
+    _phase2Ctrl.audio.play().catch(() => {});
+  }
+}
+
+function initWordHighlighting(audioEl) {
+  if (!wordTimestamps || wordTimestamps.length === 0) return;
+  const wordSpans = document.querySelectorAll('#shadow-text .shadow-word');
+  if (wordSpans.length === 0) return;
+  audioEl.addEventListener('timeupdate', function() {
+    const t = audioEl.currentTime;
+    wordSpans.forEach(function(span) {
+      const start = parseFloat(span.dataset.start);
+      const end = parseFloat(span.dataset.end);
+      const active = t >= start && t < end;
+      if (active) {
+        span.classList.add('shadow-word--active');
+        span.setAttribute('aria-current', 'true');
+      } else {
+        span.classList.remove('shadow-word--active');
+        span.removeAttribute('aria-current');
+      }
+    });
+  });
+}
+
+// Инициализация аудио + gate на DOMContentLoaded.
+let _phase1Ctrl, _phase2Ctrl;
+document.addEventListener('DOMContentLoaded', function() {
+  _phase1Ctrl = _initPhaseAudio('phase-1', 'audio-phase1', 'audio-loading-1', 'audio-error-1');
+  _phase2Ctrl = _initPhaseAudio('phase-2', 'audio-phase2', 'audio-loading-2', 'audio-error-2');
+  // Шаг 1 → 2: открывает кнопку перехода, когда прослушано ≥50%.
+  _phase1Ctrl.wireGate(_unlockPhase2Button);
+});
+
+async function submitShadowReading() {
+  if (!assessRating) return;
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.classList.add('btn--loading');
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Сохранение...") }}';
+
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const resp = await fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ self_assessed: true, rating: assessRating, lesson_type: 'shadow_reading' }),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    await resp.json();
+
+    _setPhaseState('phase-3', 'done');
+    document.getElementById('phase-3-num').innerHTML = '<i class="fas fa-check"></i>';
+    btn.classList.remove('btn--loading');
+    btn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено") }}';
+
+    // Прячем actions, чтобы серая disabled-кнопка не висела рядом с
+    // общей плашкой «Урок завершён!».
+    const actions = btn.closest('.lesson-shell__actions');
+    if (actions) actions.hidden = true;
+
+    if (typeof window.showLessonCompletion === 'function') {
+      window.showLessonCompletion({ score: 100 });
+    }
+    if (typeof showSaveToast === 'function') showSaveToast();
+  } catch (err) {
+    console.error('Shadow reading submit error:', err);
+    btn.disabled = false;
+    btn.classList.remove('btn--loading');
+    btn.innerHTML = '<i class="fas fa-check"></i> {{ _("Завершить урок") }}';
+    if (typeof window.showErrorToast === 'function') {
+      window.showErrorToast('{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+    } else {
+      alert('{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+    }
+  }
+}
+
+// При повторном заходе на пройденный урок — сразу разворачиваем плашку
+// «Урок завершён!» (silent: true). DOMContentLoaded гарантирует, что
+// showLessonCompletion определён (объявлен ниже в lesson_base_template).
+{% if is_completed %}
+document.addEventListener('DOMContentLoaded', function _restoreCompleted() {
+  // Все 3 шага помечаем как done и снимаем lock с кнопок.
+  _setPhaseState('phase-1', 'done');
+  _setPhaseState('phase-2', 'done');
+  _setPhaseState('phase-3', 'done');
+  document.getElementById('phase-1-num').innerHTML = '<i class="fas fa-check"></i>';
+  document.getElementById('phase-2-num').innerHTML = '<i class="fas fa-check"></i>';
+  document.getElementById('phase-3-num').innerHTML = '<i class="fas fa-check"></i>';
+  _updateProgressBar(3);
+  const actions = document.querySelector('.lesson-shell__actions');
+  if (actions) actions.hidden = true;
+  if (typeof window.showLessonCompletion === 'function') {
+    window.showLessonCompletion({ score: 100, silent: true });
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

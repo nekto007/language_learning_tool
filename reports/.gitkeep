@@ -1,0 +1,9 @@
+# reports/
+
+Output directory for audit, gap, and rollout reports produced by
+scripts under `scripts/`. Reports are regenerated on every run — they
+are committed when they document a verified state (audit baselines,
+rollout records). Working artifacts that change with every run should
+be regenerated locally, not checked in.
+
+See `docs/content/README.md` for the report generation conventions.

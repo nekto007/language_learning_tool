@@ -54,6 +54,38 @@ def _is_reading_track(track: Optional[SourceKind]) -> bool:
     return track == SourceKind.books
 
 
+def _has_dictation_lessons_available(user_id: int) -> bool:
+    """Return True when user has at least one incomplete dictation lesson."""
+    from app.curriculum.models import LessonProgress, Lessons
+
+    completed_ids_subq = (
+        db.session.query(LessonProgress.lesson_id)
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+        )
+        .subquery()
+    )
+    exists_q = (
+        db.session.query(Lessons)
+        .filter(
+            Lessons.type == 'dictation',
+            Lessons.id.notin_(db.session.query(completed_ids_subq.c.lesson_id)),
+        )
+        .exists()
+    )
+    return db.session.query(exists_q).scalar() or False
+
+
+def _get_listening_streak_days(user_id: int) -> int:
+    """Return the user's current listening streak (consecutive days with a ListeningAttempt)."""
+    try:
+        from app.achievements.streak_service import get_listening_streak
+        return get_listening_streak(user_id)
+    except Exception:
+        return 0
+
+
 def get_last_mission_type(user_id: int, before_date: date) -> Optional[MissionType]:
     """Return the mission type used on the most recent day before *before_date*.
 
@@ -109,7 +141,7 @@ def _pick_non_repair_mission(
     user_id: int,
     tz: Optional[str],
 ) -> tuple[MissionType, str, str, None]:
-    """Pick between reading and progress based on primary track."""
+    """Pick between reading, listening, and progress based on primary track and listening habit."""
     track = detect_primary_track(user_id)
 
     if _is_reading_track(track):
@@ -118,6 +150,21 @@ def _pick_non_repair_mission(
             "primary_track_reading",
             "Продолжим чтение — это твой основной трек",
             None,
+        )
+
+    # Offer LISTENING when habit not yet established (streak < 3) and content is available.
+    try:
+        if _has_dictation_lessons_available(user_id) and _get_listening_streak_days(user_id) < 3:
+            return (
+                MissionType.listening,
+                "listening_streak_low",
+                "Потренируй слух — нужно больше аудирования",
+                None,
+            )
+    except Exception:
+        logger.warning(
+            "Listening check failed for user %s, skipping LISTENING mission",
+            user_id, exc_info=True,
         )
 
     if track is not None:
@@ -145,6 +192,10 @@ _ROTATION_REASON: dict[MissionType, tuple[str, str]] = {
     MissionType.progress: (
         "rotation_progress",
         "Сегодня двигаемся вперёд — для баланса",
+    ),
+    MissionType.listening: (
+        "rotation_listening",
+        "Сегодня тренируем слух для разнообразия",
     ),
 }
 
@@ -183,7 +234,10 @@ def select_mission(
         user_today = datetime.now(tz_obj).date()
 
         yesterday_type = get_last_mission_type(user_id, before_date=user_today)
-        if yesterday_type and yesterday_type == mission_type:
+        if (
+            yesterday_type and yesterday_type == mission_type
+            and reason_code != 'listening_streak_low'
+        ):
             alternative = _find_rotation_alternative(user_id, mission_type)
             if alternative is not None:
                 rot_reason_code, rot_reason_text = _ROTATION_REASON.get(
@@ -211,14 +265,22 @@ def _find_rotation_alternative(
 ) -> Optional[MissionType]:
     """Return a viable alternative mission type, or None if none available.
 
-    Only swaps between progress ↔ reading. If the alternative track
-    isn't available for this user, returns None (keep current).
+    Swaps between progress, reading, and listening. Returns None (keep current)
+    if no viable alternative exists for this user.
     """
     if current_type == MissionType.progress:
         if _has_book_reading(user_id):
             return MissionType.reading
+        if _has_dictation_lessons_available(user_id):
+            return MissionType.listening
     elif current_type == MissionType.reading:
         track = detect_primary_track(user_id)
         if track in (SourceKind.normal_course, SourceKind.book_course):
             return MissionType.progress
+    elif current_type == MissionType.listening:
+        track = detect_primary_track(user_id)
+        if track in (SourceKind.normal_course, SourceKind.book_course):
+            return MissionType.progress
+        if _has_book_reading(user_id):
+            return MissionType.reading
     return None

@@ -6,7 +6,7 @@ Topic Management Routes для административной панели
 """
 import logging
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
 from flask_login import login_required
 
@@ -124,6 +124,58 @@ def add_word_to_topic(topic_id, word_id):
         return jsonify({'success': True})
 
     return jsonify({'success': False, 'message': _('Word already in topic')})
+
+
+@topic_bp.route('/topics/<int:topic_id>/bulk_add_words', methods=['POST'])
+@login_required
+@admin_required
+def bulk_add_words_to_topic(topic_id):
+    """API для массового добавления слов в тему только по точному совпадению."""
+    topic = Topic.query.get_or_404(topic_id)
+    data = request.get_json(silent=True) or {}
+    words = data.get('words', [])
+
+    if not isinstance(words, list):
+        return jsonify({'success': False, 'message': 'words must be a list'}), 400
+
+    existing_word_ids = {word.id for word in topic.words}
+    results = {
+        'added': [],
+        'existing': [],
+        'not_found': [],
+    }
+
+    for raw_word in words:
+        word_text = str(raw_word).strip()
+        normalized_word = word_text.lower()
+        if not normalized_word:
+            continue
+
+        word = CollectionWords.query.filter(
+            db.func.lower(CollectionWords.english_word) == normalized_word
+        ).first()
+
+        if word is None:
+            results['not_found'].append(word_text)
+            continue
+
+        if word.id in existing_word_ids:
+            results['existing'].append(word.english_word)
+            continue
+
+        db.session.add(TopicWord(topic_id=topic_id, word_id=word.id))
+        existing_word_ids.add(word.id)
+        results['added'].append(word.english_word)
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'added': len(results['added']),
+        'existing': len(results['existing']),
+        'not_found': len(results['not_found']),
+        'details': results,
+    })
 
 
 @topic_bp.route('/topics/<int:topic_id>/remove_word/<int:word_id>', methods=['POST'])

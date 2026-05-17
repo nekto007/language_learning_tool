@@ -257,6 +257,360 @@ class TextContentSchema(Schema):
             raise ValidationError('Either "content" or "text" field is required')
 
 
+class DictationContentSchema(Schema):
+    """Schema for dictation lesson content.
+
+    Difficulty ladder (single lesson type, four modes — A1→C2):
+      * ``cloze`` — A1/A2: visible text with key-word gaps via ``gap_text`` +
+        ``gaps[]``. Current default when ``gaps`` is present.
+      * ``phrase_cloze`` — B1: multi-word phrase gaps (``gaps[].span_words``).
+      * ``sentence_reconstruction`` — B2: numbered prompts, learner writes
+        each sentence into its own textarea.
+      * ``full_dictation`` — C1/C2: single textarea, exact word-by-word
+        comparison with the transcript.
+
+    ``mode`` is optional and auto-derived when absent: presence of ``gaps``
+    implies ``cloze``, otherwise ``full_dictation``. Future B1+/C-modules
+    can set it explicitly without touching the schema again.
+    """
+    class Meta:
+        unknown = INCLUDE
+
+    audio_url = fields.Str(required=True, validate=validate.Length(min=1))
+    transcript = fields.Str(required=True, validate=validate.Length(min=1))
+    hint_chars = fields.Int(required=False, load_default=0, validate=validate.Range(min=0))
+    mode = fields.Str(
+        required=False,
+        load_default=None,
+        validate=validate.OneOf([
+            'cloze', 'phrase_cloze', 'sentence_reconstruction', 'full_dictation',
+        ]),
+    )
+
+
+class AudioFillBlankItemSchema(Schema):
+    """Schema for a single audio fill-in-blank item"""
+    class Meta:
+        unknown = INCLUDE
+
+    audio_clip_url = fields.Str(required=False, allow_none=True)
+    text_with_gap = fields.Str(required=True, validate=validate.Length(min=1))
+    answer = fields.Str(required=True, validate=validate.Length(min=1))
+    options = fields.List(fields.Str(), required=False, validate=validate.Length(min=2, max=6))
+
+
+class AudioFillBlankContentSchema(Schema):
+    """Schema for audio fill-in-blank lesson content"""
+    class Meta:
+        unknown = INCLUDE
+
+    audio_url = fields.Str(required=True, validate=validate.Length(min=1))
+    items = fields.List(
+        fields.Nested(AudioFillBlankItemSchema),
+        required=True,
+        validate=validate.Length(min=1),
+    )
+
+
+class TranslationItemSchema(Schema):
+    """One item in a multi-item translation lesson (guided practice mode)."""
+    class Meta:
+        unknown = INCLUDE
+
+    russian = fields.Str(required=True, validate=validate.Length(min=1))
+    english = fields.Str(required=True, validate=validate.Length(min=1))
+    hint_words = fields.List(fields.Str(), required=False, load_default=None)
+    alternatives = fields.List(fields.Str(), required=False, load_default=None)
+
+
+class TranslationContentSchema(Schema):
+    """Schema for standalone translation lesson content (Russian → English).
+
+    Two valid shapes:
+      * **Single-item (legacy)**: top-level ``russian``/``english``/``hint_words``.
+      * **Multi-item (guided practice)**: ``items: [{russian, english, hint_words}, ...]``.
+
+    Multi-item is the preferred shape for new content — it lets translation
+    play the «training with hints» role before the translation_quiz «check
+    without hints» step. The route always normalises to multi-item internally,
+    so the template branches on a single ``items`` list either way.
+
+    Difficulty ladder (single lesson type — `mode` selects support level):
+
+      * ``guided`` — **A1–A2**. Слова-подсказки видны сразу, можно кликать
+        для вставки. Короткие предложения. Мягкая проверка с Levenshtein-
+        толерантностью на одиночных словах. Цель: научить собирать фразы
+        по шаблону.
+      * ``open`` — **B1–B2**. Подсказки спрятаны за кнопкой «Показать
+        подсказки» и используются как safety-net. Принимаются несколько
+        правильных вариантов (``alternatives``). Цель: передавать смысл,
+        не цепляясь за слово-в-слово.
+      * ``rubric`` — **C1–C2**. Без подсказок, рубричная оценка
+        (смысл / грамматика / естественность / стиль), несколько эталонных
+        переводов. Цель: переводить как переводческое решение. Требует
+        более гибкого грейдера (semantic similarity / AI feedback) —
+        ставится поэтапно по мере появления C-уровневого контента.
+
+    ``mode`` опциональный — авто-вывод: если у любого item есть
+    ``hint_words`` (или top-level ``hint_words`` в legacy-shape) → ``guided``,
+    иначе → ``open``. Авто-вывод позволяет существующему A1-контенту
+    работать без миграции, новые модули B1+ просто выставляют ``mode``
+    явно или просто не дают ``hint_words``.
+    """
+    class Meta:
+        unknown = INCLUDE
+
+    russian = fields.Str(required=False, load_default=None, allow_none=True)
+    english = fields.Str(required=False, load_default=None, allow_none=True)
+    hint_words = fields.List(fields.Str(), required=False, load_default=None)
+    items = fields.List(
+        fields.Nested(TranslationItemSchema),
+        required=False,
+        load_default=None,
+    )
+    mode = fields.Str(
+        required=False,
+        load_default=None,
+        validate=validate.OneOf(['guided', 'open', 'rubric']),
+    )
+
+    @validates_schema
+    def validate_has_payload(self, data, **kwargs):
+        items = data.get('items')
+        russian = (data.get('russian') or '').strip() if data.get('russian') else ''
+        english = (data.get('english') or '').strip() if data.get('english') else ''
+        if items:
+            return  # multi-item ok
+        if russian and english:
+            return  # legacy single-item ok
+        raise ValidationError(
+            'translation content must have either `items[]` or top-level `russian`+`english`'
+        )
+
+
+class SentenceCorrectionItemSchema(Schema):
+    """A single sentence-correction item for the multi-item flow."""
+    class Meta:
+        unknown = INCLUDE
+
+    incorrect_sentence = fields.Str(required=True, validate=validate.Length(min=1))
+    correct_sentence = fields.Str(required=True, validate=validate.Length(min=1))
+    error_type = fields.Str(required=False, load_default='', allow_none=True)
+    error_type_ru = fields.Str(required=False, load_default='', allow_none=True)
+    translation = fields.Str(required=False, load_default='', allow_none=True)
+    explanation = fields.Str(required=False, load_default='', allow_none=True)
+    options = fields.List(fields.Str(), required=False, validate=validate.Length(min=2, max=6))
+
+
+class SentenceCorrectionContentSchema(Schema):
+    """Schema for sentence correction lesson content.
+
+    Two supported shapes:
+    - Single-item legacy: top-level fields (incorrect_sentence,
+      correct_sentence, error_type, explanation, options).
+    - Multi-item: `items` array of SentenceCorrectionItemSchema. Used when
+      the lesson contains several errors to fix (e.g. five BE-form
+      corrections after the BE grammar lesson).
+    """
+    class Meta:
+        unknown = INCLUDE
+
+    # Single-item fields (legacy) — now optional so the multi-item shape
+    # can omit them entirely.
+    incorrect_sentence = fields.Str(required=False, validate=validate.Length(min=1))
+    correct_sentence = fields.Str(required=False, validate=validate.Length(min=1))
+    error_type = fields.Str(required=False, validate=validate.Length(min=1))
+    explanation = fields.Str(required=False, validate=validate.Length(min=1))
+    options = fields.List(fields.Str(), required=False, validate=validate.Length(min=2, max=6))
+    # Multi-item flow.
+    items = fields.List(
+        fields.Nested(SentenceCorrectionItemSchema),
+        required=False,
+        validate=validate.Length(min=1),
+    )
+
+    @validates_schema
+    def validate_has_payload(self, data, **kwargs):
+        items = data.get('items')
+        has_single = bool(data.get('incorrect_sentence')) and bool(data.get('correct_sentence'))
+        if not items and not has_single:
+            raise ValidationError(
+                'sentence_correction needs either an `items` array or both '
+                '`incorrect_sentence` and `correct_sentence` at the top level.'
+            )
+
+
+class WritingPromptContentSchema(Schema):
+    """Schema for writing prompt lesson content — user writes free-form response.
+
+    A1 → C2 ladder (single lesson type, varying support level via mode):
+
+      * ``guided`` — **A1**. Russian task copy, template/example revealable,
+        clickable hint chips that insert into textarea, count by sentences
+        (``min_sentences``) rather than raw word count. Auto-tick checklist
+        items via target-phrase detection. Goal: «собрать 4-5 простых
+        предложений по шаблону».
+      * ``structured`` — **A2**. Plan/useful phrases, example behind toggle,
+        word target ≈ 50-70. Goal: «связный короткий текст на бытовую тему».
+      * ``paragraph`` — **B1**. Less scaffolding, accept multiple structures,
+        80-120 words. Goal: «абзац с причиной/мнением».
+      * ``opinion`` — **B2**. Argument-oriented, linking-word hints, 150-220.
+      * ``style`` — **C1**. Task context + audience + tone, rubric grading.
+      * ``rhetoric`` — **C2**. Nuance, register, adaptation. Minimal
+        scaffolding, rubric only.
+
+    All new fields are optional — legacy content (``prompt`` + ``min_words``
+    + ``checklist``) keeps working unchanged. Default mode derives from
+    presence: ``min_sentences`` or ``hint_words`` → ``guided``, otherwise
+    ``structured``.
+    """
+    class Meta:
+        unknown = INCLUDE
+
+    prompt = fields.Str(required=True, validate=validate.Length(min=1))
+    prompt_ru = fields.Str(required=False, load_default=None, allow_none=True)
+    min_words = fields.Int(required=False, load_default=None, allow_none=True,
+                            validate=validate.Range(min=1))
+    min_sentences = fields.Int(required=False, load_default=None, allow_none=True,
+                                validate=validate.Range(min=1, max=20))
+    example_response = fields.Str(required=False, load_default=None, allow_none=True)
+    template = fields.Str(required=False, load_default=None, allow_none=True)
+    hint_words = fields.List(fields.Str(), required=False, load_default=None)
+    target_phrases = fields.List(fields.Str(), required=False, load_default=None)
+    # Минимум отмеченных пунктов чек-листа для завершения. Default зависит
+    # от mode: guided → 3 (структурный контроль), остальные → 2.
+    min_checklist = fields.Int(required=False, load_default=None, allow_none=True,
+                                validate=validate.Range(min=1))
+    mode = fields.Str(
+        required=False, load_default=None,
+        validate=validate.OneOf(['guided', 'structured', 'paragraph', 'opinion', 'style', 'rhetoric']),
+    )
+    checklist = fields.List(
+        fields.Str(validate=validate.Length(min=1)),
+        required=False,
+        load_default=None,
+        validate=validate.Length(min=2),
+    )
+
+    @validates_schema
+    def validate_min_target(self, data, **kwargs):
+        # Need at least one length target — words OR sentences. Otherwise
+        # we can't gate completion.
+        if not data.get('min_words') and not data.get('min_sentences'):
+            raise ValidationError(
+                'writing_prompt requires `min_words` or `min_sentences`',
+            )
+
+    @validates_schema
+    def validate_checklist_unique(self, data, **kwargs):
+        # Submission requires ≥2 distinct checked items (see
+        # _process_writing_prompt_submission, which collapses checked items to
+        # a set). A checklist with duplicate strings would render multiple
+        # checkboxes but could never satisfy the completion gate, so reject
+        # duplicates at content-validation time.
+        checklist = data.get('checklist')
+        if checklist and len(set(checklist)) != len(checklist):
+            raise ValidationError('checklist items must be unique', field_name='checklist')
+
+
+class SentenceCompletionItemSchema(Schema):
+    """Schema for a single sentence completion item."""
+    class Meta:
+        unknown = INCLUDE
+
+    prompt = fields.Str(required=True, validate=validate.Length(min=1))
+    answer = fields.Str(required=True, validate=validate.Length(min=1))
+    context = fields.Str(required=False, load_default=None, allow_none=True)
+
+
+class SentenceCompletionContentSchema(Schema):
+    """Schema for sentence completion lesson content — user fills in the second half."""
+    class Meta:
+        unknown = INCLUDE
+
+    items = fields.List(
+        fields.Nested(SentenceCompletionItemSchema),
+        required=True,
+        validate=validate.Length(min=1),
+    )
+
+
+class CollocationPairSchema(Schema):
+    """Schema for a single collocation matching pair."""
+    class Meta:
+        unknown = INCLUDE
+
+    phrase = fields.Str(required=True, validate=validate.Length(min=1))
+    translation = fields.Str(required=True, validate=validate.Length(min=1))
+
+
+class CollocationMatchingContentSchema(Schema):
+    """Schema for collocation matching lesson — match English phrases to Russian translations."""
+    class Meta:
+        unknown = INCLUDE
+
+    pairs = fields.List(
+        fields.Nested(CollocationPairSchema),
+        required=True,
+        validate=validate.Length(min=1),
+    )
+
+
+class ShadowReadingContentSchema(Schema):
+    """Schema for shadow reading lesson — listen then read aloud (honor system)."""
+    class Meta:
+        unknown = INCLUDE
+
+    audio_url = fields.Str(required=True, validate=validate.Length(min=1))
+    text = fields.Str(required=True, validate=validate.Length(min=1))
+    translation = fields.Str(required=True, validate=validate.Length(min=1))
+
+
+class PronunciationItemSchema(Schema):
+    """Schema for a single pronunciation practice item."""
+    class Meta:
+        unknown = INCLUDE
+
+    word = fields.Str(required=True, validate=validate.Length(min=1))
+    pronunciation_hint = fields.Str(required=False, load_default=None, allow_none=True)
+    audio_url = fields.Str(required=False, load_default=None, allow_none=True)
+
+
+class PronunciationContentSchema(Schema):
+    """Schema for pronunciation exercise — user listens then speaks each word."""
+    class Meta:
+        unknown = INCLUDE
+
+    items = fields.List(
+        fields.Nested(PronunciationItemSchema),
+        required=True,
+        validate=validate.Length(min=1),
+    )
+
+
+class IdiomItemSchema(Schema):
+    """Schema for a single idiom item."""
+    class Meta:
+        unknown = INCLUDE
+
+    phrase = fields.Str(required=True, validate=validate.Length(min=1))
+    meaning = fields.Str(required=True, validate=validate.Length(min=1))
+    example = fields.Str(required=True, validate=validate.Length(min=1))
+    audio_url = fields.Str(required=False, load_default=None, allow_none=True)
+
+
+class IdiomContentSchema(Schema):
+    """Schema for idiom lesson — present phrase, reveal meaning, example, self-assess."""
+    class Meta:
+        unknown = INCLUDE
+
+    items = fields.List(
+        fields.Nested(IdiomItemSchema),
+        required=True,
+        validate=validate.Length(min=1),
+    )
+
+
 class CardContentSchema(Schema):
     """Schema for card/SRS lesson content"""
     class Meta:
@@ -315,6 +669,16 @@ class LessonContentValidator:
         'reading': TextContentSchema,  # alias
         'listening_immersion': TextContentSchema,  # alias
         'card': CardContentSchema,
+        'dictation': DictationContentSchema,
+        'audio_fill_blank': AudioFillBlankContentSchema,
+        'translation': TranslationContentSchema,
+        'sentence_correction': SentenceCorrectionContentSchema,
+        'writing_prompt': WritingPromptContentSchema,
+        'sentence_completion': SentenceCompletionContentSchema,
+        'collocation_matching': CollocationMatchingContentSchema,
+        'shadow_reading': ShadowReadingContentSchema,
+        'pronunciation': PronunciationContentSchema,
+        'idiom': IdiomContentSchema,
         'final_test': FinalTestContentSchema,
     }
 

@@ -1,7 +1,7 @@
 """Canonical learning-activity check.
 
 Single source of truth for "did this user do any learning between A and B?".
-Used by streak service, telegram queries, admin DAU computation. Checks 7
+Used by streak service, telegram queries, admin DAU computation. Checks 8
 activity sources so all callers count the same set of users.
 
 Sources:
@@ -13,10 +13,11 @@ Sources:
 - StudySession.start_time (flashcard study sessions)
 - StreakEvent.created_at where event_type LIKE 'xp_linear%' (linear-only
   /api/* activity that doesn't touch any of the legacy tables above)
+- ListeningAttempt.created_at (dictation/audio_fill_blank submissions)
 
 Note on DAU/WAU/MAU: admin metrics in `_active_user_ids_for_date()` keep the
 6-source UNION (legacy + lesson_attempts) to preserve historical comparability.
-The 7th source here (xp_linear StreakEvent) is intentionally streak-only —
+Sources 7 (xp_linear StreakEvent) and 8 (ListeningAttempt) are streak-only —
 linear users may complete a day entirely through /api/* without any row in
 the legacy activity tables, which would otherwise break their streak.
 """
@@ -58,7 +59,7 @@ def has_learning_activity(user_id: int, start_utc: datetime,
         True on first activity match; False if no source matches.
     """
     from app.utils.db import db
-    from app.curriculum.models import LessonProgress
+    from app.curriculum.models import LessonProgress, ListeningAttempt
     from app.curriculum.daily_lessons import UserLessonProgress
     from app.grammar_lab.models import UserGrammarExercise
     from app.study.models import UserWord, UserCardDirection, StudySession
@@ -131,6 +132,15 @@ def has_learning_activity(user_id: int, start_utc: datetime,
         StreakEvent.event_type.like('xp_linear%'),
         StreakEvent.created_at >= start_naive,
         StreakEvent.created_at < end_naive,
+    ).first():
+        return True
+
+    # 8. Listening attempts (naive). Dictation/audio_fill_blank submissions
+    # count as learning activity for streak purposes.
+    if session.query(ListeningAttempt.id).filter(
+        ListeningAttempt.user_id == user_id,
+        ListeningAttempt.created_at >= start_naive,
+        ListeningAttempt.created_at < end_naive,
     ).first():
         return True
 

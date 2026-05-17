@@ -1,0 +1,566 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Диктант') %}
+{% set instruction_text = _('Прослушайте аудио и заполните пропуски. Можно прослушать запись до 3 раз. На каждое слово даётся 3 попытки.') %}
+{% set block_description = _('Тренировка восприятия речи на слух') %}
+
+{% block extra_css %}
+<style>
+.dictation-lesson {
+  max-width: 720px;
+  margin: 0 auto;
+  color: var(--lsn-text, #0f172a);
+}
+.dictation-audio-section {
+  background: var(--lsn-gradient, linear-gradient(135deg, #10b981 0%, #0ea5e9 100%));
+  border-radius: var(--lsn-radius, 16px);
+  padding: 1.5rem;
+  color: #fff;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 12px 28px rgba(14, 165, 233, 0.16);
+}
+.dictation-audio-section h3 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.dictation-audio-section audio {
+  width: 100%;
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.dictation-replay-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+.dictation-audio-section .dictation-replay-btn {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  backdrop-filter: blur(6px);
+}
+.dictation-audio-section .dictation-replay-btn:hover:not(:disabled) {
+  background: #fff;
+  color: #047857;
+  border-color: #fff;
+}
+.dictation-audio-section .dictation-replay-btn:disabled {
+  color: rgba(255, 255, 255, 0.72);
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+}
+.dictation-audio-section .dictation-replay-count {
+  color: currentColor;
+  opacity: 0.86;
+}
+.dictation-input-section {
+  background: var(--lsn-surface, #fff);
+  border-radius: var(--lsn-radius, 16px);
+  padding: 1.5rem;
+  border: 1px solid var(--lsn-border, #e2e8f0);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  margin-bottom: 1.5rem;
+}
+.dictation-input-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.625rem;
+  color: var(--lsn-text, #0f172a);
+}
+.dictation-hint-note {
+  font-size: 0.8125rem;
+  color: var(--lsn-text-muted, #64748b);
+  margin-bottom: 0.75rem;
+}
+.dictation-gap-panel {
+  margin: 0.75rem 0 1rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--lsn-border, #e2e8f0);
+  border-radius: var(--lsn-radius-sm, 10px);
+  background: #fff;
+}
+.dictation-gap-list {
+  color: var(--lsn-text, #0f172a);
+  font-size: 1rem;
+  line-height: 2.25;
+}
+.dictation-gap {
+  display: inline-flex;
+  position: relative;
+  align-items: center;
+  margin: 0 0.04rem 0.45rem 0;
+  vertical-align: baseline;
+}
+.dictation-gap-punctuation {
+  display: inline;
+  white-space: pre-wrap;
+}
+.dictation-gap-input {
+  min-width: 3.6rem;
+  max-width: 12rem;
+  height: 2rem;
+  padding: 0 0.42rem;
+  border: 2px solid #34d399;
+  border-radius: 0.38rem;
+  color: var(--lsn-text, #0f172a);
+  font: 700 0.95rem var(--lsn-font, inherit);
+  background: #f0fdf4;
+  line-height: 1;
+  text-align: center;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+}
+.dictation-gap-input::placeholder {
+  color: #94a3b8;
+  font-weight: 600;
+}
+.dictation-gap-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+}
+.dictation-gap-input:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.dictation-gap--correct .dictation-gap-input {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #065f46;
+}
+.dictation-gap--failed .dictation-gap-input {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #991b1b;
+}
+.dictation-gap--checking .dictation-gap-input {
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+}
+.dictation-gap-feedback {
+  position: absolute;
+  right: 0;
+  bottom: -0.72rem;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  letter-spacing: 0.06em;
+}
+/* Pip-индикатор оставшихся попыток: ●●● = 3, ●●○ = 2, ●○○ = 1.
+   Визуально честнее, чем голая цифра «3», и не требует подписи. */
+.dictation-gap-feedback .pip-on { color: #0ea5e9; }
+.dictation-gap-feedback .pip-off { color: #cbd5e1; }
+.dictation-gap-feedback--correct {
+  color: #047857;
+  font-weight: 700;
+}
+.dictation-gap-feedback--wrong {
+  color: #b45309;
+  font-weight: 700;
+}
+.dictation-gap-feedback--failed {
+  color: #991b1b;
+  font-weight: 700;
+}
+.dictation-input-meta {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+  color: var(--lsn-text-muted, #64748b);
+  font-size: 0.8125rem;
+}
+@media (max-width: 480px) {
+  .dictation-replay-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+</style>
+{% endblock %}
+
+{% block lesson_content %}
+<div class="dictation-lesson">
+  <div class="dictation-audio-section">
+    <h3><i class="fas fa-headphones"></i> {{ _('Прослушайте аудио') }}</h3>
+    <audio id="dictation-audio" controls>
+      <source src="{{ audio_url }}" type="audio/mpeg">
+      <source src="{{ audio_url }}" type="audio/ogg">
+      {{ _('Ваш браузер не поддерживает аудио.') }}
+    </audio>
+    <div class="dictation-replay-row">
+      <button class="dictation-replay-btn" id="replay-btn" onclick="replayAudio()" type="button">
+        <i class="fas fa-redo" id="replay-btn-icon"></i>
+        <span id="replay-btn-text">{{ _('Воспроизвести') }}</span>
+        <span class="dictation-replay-count" id="replay-count-label" hidden>
+          ({{ _('осталось') }} <span id="replays-left">{{ max_replays }}</span>)
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <div class="dictation-input-section">
+    <div class="dictation-input-label">
+      <i class="fas fa-pen"></i> {{ _('Запишите услышанное') }}
+    </div>
+    {% if hint_chars > 0 %}
+    <p class="dictation-hint-note">
+      <i class="fas fa-info-circle"></i>
+      {{ _('Слушайте аудио и заполняйте пропуски. На каждое слово — 3 попытки (точки под полем показывают, сколько осталось). Если слово откроется как подсказка, урок не будет засчитан как пройденный — но можно попробовать ещё раз.') }}
+    </p>
+    {% endif %}
+    <div class="dictation-gap-panel" aria-label="{{ _('Пропуски диктанта') }}">
+      <div class="dictation-gap-list" id="dictation-gap-list">
+        {% for segment in gap_segments %}
+        {% if segment.type == 'text' %}
+        <span class="dictation-gap-punctuation">{{ segment.text }}</span>
+        {% elif segment.type == 'gap' %}
+        {% set completed_value = completed_gap_values[segment.index] if completed_result and segment.index < (completed_gap_values|length) else '' %}
+        <span
+          class="dictation-gap{% if completed_value %} dictation-gap--correct{% endif %}"
+          data-index="{{ segment.index }}"
+          data-attempts="{{ max_word_attempts if completed_value else 0 }}"
+          data-status="{{ 'correct' if completed_value else 'pending' }}"
+        >
+          <input
+            class="dictation-gap-input"
+            data-index="{{ segment.index }}"
+            type="text"
+            autocomplete="off"
+            autocapitalize="none"
+            spellcheck="false"
+            placeholder="{{ _('...') }}"
+            style="width: 4ch"
+            value="{{ completed_value }}"
+            {% if completed_value %}disabled{% endif %}
+            oninput="updateDictationInputState(); syncGapWidth(this)"
+            onkeydown="handleDictationGapKey(event, {{ segment.index }})"
+            onblur="checkDictationWord({{ segment.index }})"
+          >
+          <span
+            class="dictation-gap-feedback{% if completed_value %} dictation-gap-feedback--correct{% endif %}"
+            data-index="{{ segment.index }}"
+            title="{{ _('Осталось попыток') }}: {{ max_word_attempts }}"
+            aria-label="{{ _('Осталось попыток') }}: {{ max_word_attempts }}"
+          >{% if completed_value %}✓{% else %}<span class="pip-on">●</span><span class="pip-on">●</span><span class="pip-on">●</span>{% endif %}</span>
+        </span>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    <div class="dictation-input-meta">
+      <span id="dictation-progress-label-wrap">
+        <span id="dictation-progress-label">{{ _('Заполнено:') }}</span>
+        <strong id="dictation-word-count">0</strong> / <span id="dictation-target-word-count">{{ word_items|length }}</span>
+      </span>
+    </div>
+
+  </div>
+
+  <div class="dictation-results" id="dictation-results" style="display: none;">
+    <div id="dictation-score-area"></div>
+    <div class="dictation-word-results" id="dictation-word-results"></div>
+    <div id="dictation-transcript-reveal"></div>
+    <div id="dictation-next-area" style="margin-top:1rem;"></div>
+  </div>
+</div>
+
+<script>
+const lessonId = {{ lesson.id }};
+const maxReplays = {{ max_replays }};
+const hintChars = {{ hint_chars }};
+const maxWordAttempts = {{ max_word_attempts }};
+const wordCount = {{ word_items|length }};
+const initialDictationResult = {{ completed_result|tojson if completed_result else 'null' }};
+let replayCount = 0;
+let failedByAttemptLimit = false;
+let submissionStarted = Boolean(initialDictationResult);
+
+function replayAudio() {
+  if (replayCount >= maxReplays) return;
+  const audio = document.getElementById('dictation-audio');
+  audio.currentTime = 0;
+  audio.play().catch(() => {});
+  replayCount++;
+  const left = maxReplays - replayCount;
+  // После первого запуска кнопка переименовывается в «Воспроизвести ещё раз»
+  // и показывается счётчик (осталось N). До первого запуска — просто «Воспроизвести».
+  const textEl = document.getElementById('replay-btn-text');
+  if (textEl) textEl.textContent = '{{ _("Воспроизвести ещё раз") }}';
+  const countEl = document.getElementById('replay-count-label');
+  if (countEl) countEl.hidden = false;
+  document.getElementById('replays-left').textContent = left;
+  if (left === 0) {
+    const btn = document.getElementById('replay-btn');
+    btn.disabled = true;
+  }
+}
+
+function getGapCard(index) {
+  return document.querySelector(`.dictation-gap[data-index="${index}"]`);
+}
+
+function getGapInput(index) {
+  return document.querySelector(`.dictation-gap-input[data-index="${index}"]`);
+}
+
+function getGapFeedback(index) {
+  return document.querySelector(`.dictation-gap-feedback[data-index="${index}"]`);
+}
+
+function setGapFeedback(index, text, state) {
+  const feedback = getGapFeedback(index);
+  if (!feedback) return;
+  feedback.textContent = text;
+  feedback.className = 'dictation-gap-feedback' + (state ? ` dictation-gap-feedback--${state}` : '');
+}
+
+// Specialised renderer for the «attempts left» pip-indicator. Replaces
+// numeric «3 / 2 / 1» with «●●● / ●●○ / ●○○» — instantly readable.
+function setGapAttemptsPips(index, attemptsLeft) {
+  const feedback = getGapFeedback(index);
+  if (!feedback) return;
+  const total = maxWordAttempts;
+  const on = Math.max(0, Math.min(total, attemptsLeft));
+  let html = '';
+  for (let i = 0; i < total; i++) {
+    html += i < on
+      ? '<span class="pip-on">●</span>'
+      : '<span class="pip-off">○</span>';
+  }
+  feedback.innerHTML = html;
+  feedback.className = 'dictation-gap-feedback dictation-gap-feedback--wrong';
+  feedback.title = '{{ _("Осталось попыток") }}: ' + on;
+  feedback.setAttribute('aria-label', '{{ _("Осталось попыток") }}: ' + on);
+}
+
+function updateDictationInputState() {
+  document.querySelectorAll('.dictation-gap-input').forEach(syncGapWidth);
+  const lockedCount = document.querySelectorAll('.dictation-gap[data-status="correct"], .dictation-gap[data-status="failed"]').length;
+  const counter = document.getElementById('dictation-word-count');
+  if (counter) counter.textContent = lockedCount;
+  if (wordCount > 0 && lockedCount === wordCount && !submissionStarted) {
+    submitDictation();
+  }
+}
+
+function syncGapWidth(input) {
+  if (!input) return;
+  const len = Math.max(input.value.length, input.placeholder.length, 3);
+  input.style.width = Math.min(Math.max(len + 1, 4), 16) + 'ch';
+}
+
+function handleDictationGapKey(event, index) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    checkDictationWord(index);
+  }
+}
+
+async function checkDictationWord(index) {
+  const card = getGapCard(index);
+  const input = getGapInput(index);
+  if (!card || !input || input.disabled) return;
+
+  const answer = input.value.trim();
+  if (!answer) {
+    setGapFeedback(index, '!', 'wrong');
+    input.focus();
+    return;
+  }
+
+  const attempt = Number(card.dataset.attempts || '0') + 1;
+  card.classList.add('dictation-gap--checking');
+
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const response = await fetch(`/curriculum/api/lesson/${lessonId}/dictation-word`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({ index, answer, attempt })
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    card.dataset.attempts = String(attempt);
+
+    if (data.correct) {
+      card.dataset.status = 'correct';
+      card.classList.add('dictation-gap--correct');
+      input.disabled = true;
+      setGapFeedback(index, '✓', 'correct');
+    } else if (data.exhausted) {
+      failedByAttemptLimit = true;
+      card.dataset.status = 'failed';
+      card.classList.add('dictation-gap--failed');
+      input.value = data.correct_word || input.value;
+      syncGapWidth(input);
+      input.disabled = true;
+      setGapFeedback(index, '×', 'failed');
+    } else {
+      card.dataset.status = 'pending';
+      setGapAttemptsPips(index, Number(data.attempts_left));
+      input.focus();
+      input.select();
+    }
+  } catch (err) {
+    console.error('Dictation word check error:', err);
+    setGapFeedback(index, '!', 'wrong');
+  } finally {
+    card.classList.remove('dictation-gap--checking');
+    updateDictationInputState();
+  }
+}
+
+async function submitDictation() {
+  if (submissionStarted) return;
+  const inputs = Array.from(document.querySelectorAll('.dictation-gap-input'));
+  const incomplete = inputs.some(input => !input.disabled || !input.value.trim());
+  if (incomplete) {
+    return;
+  }
+  const answer = inputs.map(input => input.value.trim()).join(' ');
+  submissionStarted = true;
+
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const response = await fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({
+        user_text: answer,
+        replay_count: replayCount,
+        hint_chars: hintChars,
+        lesson_type: 'dictation'
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    showResults(data);
+
+    if (data.passed) {
+      if (typeof showSaveToast === 'function') showSaveToast();
+    }
+
+  } catch (err) {
+    console.error('Dictation submit error:', err);
+    submissionStarted = false;
+    alert('{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
+  }
+}
+
+function showResults(data) {
+  const resultsDiv = document.getElementById('dictation-results');
+  const scoreArea = document.getElementById('dictation-score-area');
+  const wordArea = document.getElementById('dictation-word-results');
+  const transcriptArea = document.getElementById('dictation-transcript-reveal');
+  const nextArea = document.getElementById('dictation-next-area');
+
+  resultsDiv.style.display = 'block';
+
+  // Score badge
+  const score = data.score || 0;
+  const passed = data.passed || false;
+  // Progress-лейбл переключается на «Правильно: X / N» — после проверки
+  // показываем фактический результат, а не количество заполненных полей.
+  const progLabel = document.getElementById('dictation-progress-label');
+  const wordCounter = document.getElementById('dictation-word-count');
+  if (progLabel) progLabel.textContent = '{{ _("Правильно:") }}';
+  if (wordCounter) wordCounter.textContent = String(data.correct_words || 0);
+  const badgeClass = passed ? 'dictation-score-badge--pass' : 'dictation-score-badge--fail';
+  const icon = passed ? 'fa-check-circle' : 'fa-times-circle';
+  const label = data.failed_by_attempt_limit
+    ? '{{ _("Есть раскрытые слова") }}'
+    : (passed ? '{{ _("Отлично!") }}' : '{{ _("Попробуйте ещё") }}');
+  scoreArea.innerHTML = `
+    <div class="dictation-score-badge ${badgeClass}">
+      <i class="fas ${icon}"></i>
+      ${score}% &mdash; ${label}
+      (${data.correct_words || 0} / ${data.total_words || 0} {{ _("слов") }})
+    </div>`;
+
+  // Word-level results
+  wordArea.innerHTML = '';
+  const wordResults = data.word_results || [];
+  wordResults.forEach(wr => {
+    const span = document.createElement('span');
+    span.className = 'dictation-word-result ' +
+      (wr.correct ? 'dictation-word-result--correct' : 'dictation-word-result--wrong');
+    span.title = wr.correct ? wr.word : `{{ _("Правильно:") }} ${wr.word}`;
+    span.textContent = wr.user_word || wr.word;
+    wordArea.appendChild(span);
+  });
+
+  // Correct transcript on completion or failure
+  if (!passed && data.transcript) {
+    transcriptArea.innerHTML = `
+      <div class="dictation-transcript-reveal">
+        <strong><i class="fas fa-spell-check"></i> {{ _("Правильный текст:") }}</strong><br>
+        ${escapeHtml(data.transcript)}
+      </div>`;
+  } else {
+    transcriptArea.innerHTML = '';
+  }
+
+  nextArea.innerHTML = '';
+  if (passed) {
+    // На passed используем общую плашку «Урок завершён!» из lesson_base —
+    // те же CTA «К списку уроков» / «Следующий урок», что и в других уроках.
+    if (typeof window.showLessonCompletion === 'function') {
+      window.showLessonCompletion({ score: score, silent: data._silent === true });
+    }
+  } else {
+    nextArea.innerHTML = `
+      <button class="btn btn-primary" type="button" onclick="window.location.reload()">
+        <i class="fas fa-redo"></i> {{ _("Начать заново") }}
+      </button>`;
+  }
+
+  if (!passed) resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.appendChild(document.createTextNode(str));
+  return d.innerHTML;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  updateDictationInputState();
+  if (initialDictationResult) {
+    // Restore on reload: silent=true чтобы не дёргать страницу авто-скроллом
+    // в случае уже пройденного урока.
+    showResults(Object.assign({}, initialDictationResult, {_silent: true}));
+  }
+  const audio = document.getElementById('dictation-audio');
+  if (audio) {
+    // Первый запуск (хоть нативной play-кнопкой, хоть нашей) переключает
+    // кнопку с «Воспроизвести» на «Воспроизвести ещё раз».
+    let firstPlayDetected = false;
+    audio.addEventListener('play', function() {
+      if (firstPlayDetected) return;
+      firstPlayDetected = true;
+      const textEl = document.getElementById('replay-btn-text');
+      if (textEl) textEl.textContent = '{{ _("Воспроизвести ещё раз") }}';
+      const countEl = document.getElementById('replay-count-label');
+      if (countEl) countEl.hidden = false;
+    });
+  }
+});
+</script>
+{% endblock %}

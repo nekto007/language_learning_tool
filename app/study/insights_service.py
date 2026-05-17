@@ -299,6 +299,73 @@ def get_grammar_weaknesses(user_id: int, limit: int = 5) -> list[dict[str, Any]]
 
 
 # ---------------------------------------------------------------------------
+# 4b. Grammar mastery by topic
+# ---------------------------------------------------------------------------
+
+def get_grammar_mastery_by_topic(user_id: int) -> list[dict[str, Any]]:
+    """
+    For each GrammarTopic the user has attempted: accuracy %, mastered count, total count.
+
+    Mastered = state='review' AND interval >= 30 days.
+    Topics with 0 attempts are excluded.
+    Results sorted by accuracy ascending (worst topics first).
+    """
+    from sqlalchemy import Integer, cast, case
+    from app.grammar_lab.models import UserGrammarExercise, GrammarExercise, GrammarTopic
+
+    MASTERED_THRESHOLD = 30
+
+    total_attempts_expr = func.sum(
+        UserGrammarExercise.correct_count + UserGrammarExercise.incorrect_count
+    )
+    accuracy_expr = (
+        func.sum(UserGrammarExercise.correct_count) * 100.0
+        / func.nullif(total_attempts_expr, 0)
+    )
+    mastered_expr = func.sum(
+        cast(
+            case(
+                (
+                    (UserGrammarExercise.state == 'review')
+                    & (UserGrammarExercise.interval >= MASTERED_THRESHOLD),
+                    1,
+                ),
+                else_=0,
+            ),
+            Integer,
+        )
+    )
+
+    rows = (
+        db.session.query(
+            GrammarTopic.id.label('topic_id'),
+            GrammarTopic.title,
+            accuracy_expr.label('accuracy'),
+            mastered_expr.label('mastered_count'),
+            func.count(UserGrammarExercise.exercise_id).label('total_count'),
+        )
+        .join(GrammarExercise, GrammarExercise.topic_id == GrammarTopic.id)
+        .join(UserGrammarExercise, UserGrammarExercise.exercise_id == GrammarExercise.id)
+        .filter(UserGrammarExercise.user_id == user_id)
+        .group_by(GrammarTopic.id, GrammarTopic.title)
+        .having(func.count(UserGrammarExercise.exercise_id) > 0)
+        .order_by(accuracy_expr.asc())
+        .all()
+    )
+
+    return [
+        {
+            'topic_id': row.topic_id,
+            'title': row.title,
+            'accuracy': round(float(row.accuracy), 1) if row.accuracy is not None else 0.0,
+            'mastered_count': int(row.mastered_count) if row.mastered_count is not None else 0,
+            'total_count': int(row.total_count),
+        }
+        for row in rows
+    ]
+
+
+# ---------------------------------------------------------------------------
 # 5. Reading speed trend
 # ---------------------------------------------------------------------------
 
@@ -501,7 +568,7 @@ def _compute_current_streak(user_id: int) -> int:
         return 0
 
     active_dates = {row[0] for row in rows}
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
 
     # Streak must include today or yesterday to be "current".
     if today not in active_dates and (today - timedelta(days=1)) not in active_dates:
@@ -514,6 +581,272 @@ def _compute_current_streak(user_id: int) -> int:
         check -= timedelta(days=1)
 
     return streak
+
+
+# ---------------------------------------------------------------------------
+# Listening stats (last 7 days)
+# ---------------------------------------------------------------------------
+
+def get_listening_stats(user_id: int) -> dict[str, Any]:
+    """Return listening analytics for the last 7 days.
+
+    Keys:
+      - total_lessons: distinct lesson_ids with at least one attempt (all time)
+      - avg_score: average score across all attempts in the last 7 days (0 if none)
+      - total_replays: sum of replay_count in the last 7 days
+    """
+    from app.curriculum.models import ListeningAttempt
+
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+
+    # All-time distinct lesson count for this user.
+    total_lessons = (
+        db.session.query(func.count(func.distinct(ListeningAttempt.lesson_id)))
+        .filter(ListeningAttempt.user_id == user_id)
+        .scalar()
+    ) or 0
+
+    # Last-7-days aggregates.
+    row = (
+        db.session.query(
+            func.avg(ListeningAttempt.score).label('avg_score'),
+            func.coalesce(func.sum(ListeningAttempt.replay_count), 0).label('total_replays'),
+        )
+        .filter(
+            ListeningAttempt.user_id == user_id,
+            ListeningAttempt.created_at >= seven_days_ago,
+        )
+        .one()
+    )
+
+    avg_score = round(float(row.avg_score), 1) if row.avg_score is not None else 0.0
+    total_replays = int(row.total_replays)
+
+    return {
+        'total_lessons': int(total_lessons),
+        'avg_score': avg_score,
+        'total_replays': total_replays,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Writing stats
+# ---------------------------------------------------------------------------
+
+def get_writing_stats(user_id: int) -> dict[str, Any]:
+    """Return writing analytics for the user.
+
+    Keys:
+      - total_attempts: all-time count of UserWritingAttempt rows
+      - avg_word_count: average word_count across all attempts (0 if none)
+      - consecutive_days: streak of consecutive calendar days with at least one attempt
+    """
+    from app.curriculum.models import UserWritingAttempt
+
+    agg = (
+        db.session.query(
+            func.count(UserWritingAttempt.id).label('total'),
+            func.avg(UserWritingAttempt.word_count).label('avg_words'),
+        )
+        .filter(UserWritingAttempt.user_id == user_id)
+        .one()
+    )
+
+    total_attempts = int(agg.total) if agg.total else 0
+    avg_word_count = round(float(agg.avg_words), 1) if agg.avg_words is not None else 0.0
+
+    # Consecutive days streak (most recent run ending today or yesterday).
+    day_rows = (
+        db.session.query(
+            cast(UserWritingAttempt.created_at, Date).label('d'),
+        )
+        .filter(UserWritingAttempt.user_id == user_id)
+        .distinct()
+        .all()
+    )
+    active_dates = {row.d for row in day_rows}
+
+    today = datetime.now(timezone.utc).date()
+    consecutive_days = 0
+    if active_dates:
+        anchor = today if today in active_dates else today - timedelta(days=1)
+        if anchor in active_dates:
+            check = anchor
+            while check in active_dates:
+                consecutive_days += 1
+                check -= timedelta(days=1)
+
+    return {
+        'total_attempts': total_attempts,
+        'avg_word_count': avg_word_count,
+        'consecutive_days': consecutive_days,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Vocabulary growth (new cards added per day)
+# ---------------------------------------------------------------------------
+
+def get_vocabulary_growth(user_id: int, days: int = 30) -> dict[str, Any]:
+    """Count new UserWord rows added per day over the last *days* days.
+
+    Returns:
+      - dates: list of ISO date strings (oldest first, length == days)
+      - counts: list of int counts aligned with dates
+      - total_active: total UserCardDirection rows with state != 'new'
+      - words_this_week: sum of counts over the last 7 entries
+    """
+    from app.study.models import UserWord, UserCardDirection
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Count new UserWord rows per UTC calendar day.
+    rows = (
+        db.session.query(
+            cast(UserWord.created_at, Date).label('d'),
+            func.count(UserWord.id).label('cnt'),
+        )
+        .filter(
+            UserWord.user_id == user_id,
+            UserWord.created_at >= cutoff,
+        )
+        .group_by(cast(UserWord.created_at, Date))
+        .all()
+    )
+
+    counts_by_date: dict[date, int] = {row.d: int(row.cnt) for row in rows}
+
+    today = datetime.now(timezone.utc).date()
+    dates: list[str] = []
+    counts: list[int] = []
+    for offset in range(days):
+        d = today - timedelta(days=days - 1 - offset)
+        dates.append(d.isoformat())
+        counts.append(counts_by_date.get(d, 0))
+
+    # Active cards: state is not 'new' (has been reviewed at least once).
+    total_active = (
+        db.session.query(func.count(UserCardDirection.id))
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(
+            UserWord.user_id == user_id,
+            UserCardDirection.state != 'new',
+        )
+        .scalar()
+    ) or 0
+
+    words_this_week = sum(counts[-7:])
+
+    return {
+        'dates': dates,
+        'counts': counts,
+        'total_active': int(total_active),
+        'words_this_week': words_this_week,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Learning velocity trend (last N weeks)
+# ---------------------------------------------------------------------------
+
+def get_learning_velocity(user_id: int, weeks: int = 4) -> dict[str, Any]:
+    """Weekly word count + lesson count for the last *weeks* weeks.
+
+    Returns:
+      - week_labels: list of ISO date strings for the Monday of each week (oldest first)
+      - word_counts: new UserWord rows per week
+      - lesson_counts: LessonProgress completions per week
+      - trend: 'increasing' | 'stable' | 'declining' based on last 2 weeks
+      - words_last_week: int
+      - lessons_last_week: int
+    """
+    from app.study.models import UserWord
+    from app.curriculum.models import LessonProgress
+
+    today = datetime.now(timezone.utc).date()
+    # Anchor on Monday of the current week.
+    days_since_monday = today.weekday()
+    current_monday = today - timedelta(days=days_since_monday)
+    start_monday = current_monday - timedelta(weeks=weeks - 1)
+    cutoff = datetime(start_monday.year, start_monday.month, start_monday.day, tzinfo=timezone.utc)
+
+    # Words per week bucket (UTC date).
+    word_rows = (
+        db.session.query(
+            cast(UserWord.created_at, Date).label('d'),
+            func.count(UserWord.id).label('cnt'),
+        )
+        .filter(
+            UserWord.user_id == user_id,
+            UserWord.created_at >= cutoff,
+        )
+        .group_by(cast(UserWord.created_at, Date))
+        .all()
+    )
+
+    # Lessons per week bucket.
+    lesson_rows = (
+        db.session.query(
+            cast(LessonProgress.completed_at, Date).label('d'),
+            func.count(LessonProgress.id).label('cnt'),
+        )
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.completed_at >= cutoff,
+            LessonProgress.completed_at.isnot(None),
+        )
+        .group_by(cast(LessonProgress.completed_at, Date))
+        .all()
+    )
+
+    def _bucket(d: date) -> date:
+        """Monday of the week containing *d*."""
+        return d - timedelta(days=d.weekday())
+
+    words_by_week: dict[date, int] = {}
+    for row in word_rows:
+        w = _bucket(row.d)
+        words_by_week[w] = words_by_week.get(w, 0) + int(row.cnt)
+
+    lessons_by_week: dict[date, int] = {}
+    for row in lesson_rows:
+        w = _bucket(row.d)
+        lessons_by_week[w] = lessons_by_week.get(w, 0) + int(row.cnt)
+
+    week_labels: list[str] = []
+    word_counts: list[int] = []
+    lesson_counts: list[int] = []
+    for i in range(weeks):
+        monday = start_monday + timedelta(weeks=i)
+        week_labels.append(monday.isoformat())
+        word_counts.append(words_by_week.get(monday, 0))
+        lesson_counts.append(lessons_by_week.get(monday, 0))
+
+    # Trend: compare last full week (index -2) vs current partial week (index -1).
+    # Only consider trend reliable when we have at least 2 data points.
+    words_prev = word_counts[-2] if len(word_counts) >= 2 else 0
+    words_curr = word_counts[-1]
+    diff = words_curr - words_prev
+
+    if weeks < 2 or (words_prev == 0 and words_curr == 0):
+        trend = 'stable'
+    elif diff > 2:
+        trend = 'increasing'
+    elif diff < -2:
+        trend = 'declining'
+    else:
+        trend = 'stable'
+
+    return {
+        'week_labels': week_labels,
+        'word_counts': word_counts,
+        'lesson_counts': lesson_counts,
+        'trend': trend,
+        'words_last_week': word_counts[-2] if len(word_counts) >= 2 else 0,
+        'lessons_last_week': lesson_counts[-2] if len(lesson_counts) >= 2 else 0,
+        'words_this_week': word_counts[-1],
+        'lessons_this_week': lesson_counts[-1],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -583,4 +916,844 @@ def get_weekly_summary(user_id: int) -> dict[str, Any]:
         'lessons_completed': lessons_completed,
         'time_minutes': time_minutes,
         'accuracy': accuracy,
+    }
+
+
+def get_last_week_summary(user_id: int, tz: str = DEFAULT_TIMEZONE) -> dict[str, Any]:
+    """Return last calendar week (Mon–Sun) stats for the Monday weekly recap card.
+
+    Keys:
+      - words_reviewed: SRS words reviewed last week
+      - lessons_completed: lessons finished last week
+      - days_secured: days where DailyPlanLog.secured_at is set last week
+      - total_minutes: estimated study minutes last week
+      - has_activity: True if any stat > 0
+      - vs_prev_week: {words_diff, lessons_diff, days_diff, minutes_diff}
+        (positive = better than two weeks ago)
+    """
+    import pytz as _pytz
+    from app.study.models import StudySession
+    from app.curriculum.models import LessonProgress, LessonAttempt
+    from app.daily_plan.models import DailyPlanLog
+
+    try:
+        _tz_obj = _pytz.timezone(tz)
+    except Exception:
+        _tz_obj = _pytz.timezone(DEFAULT_TIMEZONE)
+
+    today_local = datetime.now(_tz_obj).date()
+    # Last completed Mon–Sun week
+    days_since_monday = today_local.weekday()  # 0=Mon
+    last_monday = today_local - timedelta(days=days_since_monday + 7)
+    last_sunday = last_monday + timedelta(days=6)
+    prev_monday = last_monday - timedelta(days=7)
+    prev_sunday = last_monday - timedelta(days=1)
+
+    def _utc_start(d):
+        return _tz_obj.localize(datetime(d.year, d.month, d.day, 0, 0, 0)).astimezone(
+            _pytz.utc
+        ).replace(tzinfo=None)
+
+    def _utc_end(d):
+        return _tz_obj.localize(datetime(d.year, d.month, d.day, 23, 59, 59)).astimezone(
+            _pytz.utc
+        ).replace(tzinfo=None)
+
+    def _words_in_range(start_utc, end_utc):
+        row = (
+            db.session.query(func.coalesce(func.sum(StudySession.words_studied), 0))
+            .filter(
+                StudySession.user_id == user_id,
+                StudySession.start_time >= start_utc,
+                StudySession.start_time <= end_utc,
+            )
+            .scalar()
+        )
+        return int(row or 0)
+
+    def _lessons_in_range(start_utc, end_utc):
+        return (
+            LessonProgress.query
+            .filter(
+                LessonProgress.user_id == user_id,
+                LessonProgress.status == 'completed',
+                LessonProgress.completed_at >= start_utc,
+                LessonProgress.completed_at <= end_utc,
+            )
+            .count()
+        )
+
+    def _days_secured_in_range(start_date, end_date):
+        return (
+            DailyPlanLog.query
+            .filter(
+                DailyPlanLog.user_id == user_id,
+                DailyPlanLog.plan_date >= start_date,
+                DailyPlanLog.plan_date <= end_date,
+                DailyPlanLog.secured_at.isnot(None),
+            )
+            .count()
+        )
+
+    def _minutes_in_range(start_utc, end_utc):
+        lesson_time = (
+            db.session.query(func.coalesce(func.sum(LessonAttempt.time_spent_seconds), 0))
+            .filter(
+                LessonAttempt.user_id == user_id,
+                LessonAttempt.started_at >= start_utc,
+                LessonAttempt.started_at <= end_utc,
+            )
+            .scalar()
+        )
+        study_time = (
+            db.session.query(
+                func.coalesce(
+                    func.sum(
+                        func.extract('epoch', StudySession.end_time)
+                        - func.extract('epoch', StudySession.start_time)
+                    ),
+                    0,
+                )
+            )
+            .filter(
+                StudySession.user_id == user_id,
+                StudySession.start_time >= start_utc,
+                StudySession.start_time <= end_utc,
+                StudySession.end_time.isnot(None),
+            )
+            .scalar()
+        )
+        return round((int(lesson_time or 0) + int(study_time or 0)) / 60)
+
+    lw_start = _utc_start(last_monday)
+    lw_end = _utc_end(last_sunday)
+    pw_start = _utc_start(prev_monday)
+    pw_end = _utc_end(prev_sunday)
+
+    words = _words_in_range(lw_start, lw_end)
+    lessons = _lessons_in_range(lw_start, lw_end)
+    days = _days_secured_in_range(last_monday, last_sunday)
+    minutes = _minutes_in_range(lw_start, lw_end)
+
+    prev_words = _words_in_range(pw_start, pw_end)
+    prev_lessons = _lessons_in_range(pw_start, pw_end)
+    prev_days = _days_secured_in_range(prev_monday, prev_sunday)
+    prev_minutes = _minutes_in_range(pw_start, pw_end)
+
+    return {
+        'words_reviewed': words,
+        'lessons_completed': lessons,
+        'days_secured': days,
+        'total_minutes': minutes,
+        'has_activity': (words + lessons + days + minutes) > 0,
+        'week_label': f"{last_monday.strftime('%d.%m')}–{last_sunday.strftime('%d.%m')}",
+        'vs_prev_week': {
+            'words_diff': words - prev_words,
+            'lessons_diff': lessons - prev_lessons,
+            'days_diff': days - prev_days,
+            'minutes_diff': minutes - prev_minutes,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Pronunciation weaknesses
+# ---------------------------------------------------------------------------
+
+def get_pronunciation_stats(user_id: int) -> dict[str, Any]:
+    """Return pronunciation analytics.
+
+    Keys:
+      - total_attempts: all-time count of PronunciationAttempt rows
+      - total_words: distinct words practiced (all time)
+      - match_rate_7d: percentage of matched attempts in the last 7 days (0.0 if none)
+    """
+    from app.curriculum.models import PronunciationAttempt
+
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+
+    # Exclude the 'shadow_reading' sentinel logged by the shadow-reading route to
+    # signal speaking activity for streak/achievement purposes; it is not a real
+    # pronunciation word and would otherwise inflate attempt counts and appear in
+    # weak-word analytics.
+    _real_word = PronunciationAttempt.word != 'shadow_reading'
+
+    total_attempts = (
+        db.session.query(func.count(PronunciationAttempt.id))
+        .filter(PronunciationAttempt.user_id == user_id, _real_word)
+        .scalar()
+    ) or 0
+
+    total_words = (
+        db.session.query(func.count(func.distinct(PronunciationAttempt.word)))
+        .filter(PronunciationAttempt.user_id == user_id, _real_word)
+        .scalar()
+    ) or 0
+
+    row_7d = (
+        db.session.query(
+            func.count(PronunciationAttempt.id).label('total'),
+            func.sum(
+                func.cast(PronunciationAttempt.matched, db.Integer)
+            ).label('matched'),
+        )
+        .filter(
+            PronunciationAttempt.user_id == user_id,
+            PronunciationAttempt.created_at >= seven_days_ago,
+            _real_word,
+        )
+        .one()
+    )
+
+    total_7d = int(row_7d.total) if row_7d.total else 0
+    matched_7d = int(row_7d.matched) if row_7d.matched else 0
+    match_rate_7d = round(matched_7d / total_7d * 100, 1) if total_7d > 0 else 0.0
+
+    return {
+        'total_attempts': int(total_attempts),
+        'total_words': int(total_words),
+        'match_rate_7d': match_rate_7d,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Weak area detection (cross-skill)
+# ---------------------------------------------------------------------------
+
+def get_weak_areas(user_id: int, top_n: int = 3) -> list[dict[str, Any]]:
+    """Combine SRS accuracy, grammar weakness, listening score, and writing
+    frequency into the top-N weak areas (worst first).
+
+    Each area dict:
+      kind:     'vocabulary' | 'grammar' | 'listening' | 'writing'
+      title:    display name
+      detail:   subtitle with specific info (e.g. topic name and accuracy)
+      score:    float 0-100 (lower = weaker)
+      topic_id: grammar topic id (only for 'grammar' kind, else None)
+
+    Only areas with score < 70 are returned.  Sorted by score ascending.
+    Requires ≥ 10 SRS reviews for vocabulary, ≥ 3 grammar attempts, ≥ 3
+    listening attempts (all-time) before flagging that skill as weak, so cold-
+    start users don't see spurious alerts.
+    """
+    from app.study.models import UserWord, UserCardDirection
+    from app.grammar_lab.models import UserGrammarExercise, GrammarExercise, GrammarTopic
+    from app.curriculum.models import ListeningAttempt, UserWritingAttempt
+
+    areas: list[dict[str, Any]] = []
+
+    # --- Vocabulary (SRS card accuracy) ---
+    srs_row = (
+        db.session.query(
+            func.coalesce(func.sum(UserCardDirection.correct_count), 0).label('correct'),
+            func.coalesce(
+                func.sum(UserCardDirection.correct_count + UserCardDirection.incorrect_count), 0
+            ).label('total'),
+        )
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(UserWord.user_id == user_id)
+        .one()
+    )
+    srs_total = int(srs_row.total)
+    if srs_total >= 10:
+        srs_accuracy = float(srs_row.correct) / srs_total * 100
+        if srs_accuracy < 70:
+            areas.append({
+                'kind': 'vocabulary',
+                'title': 'Словарный запас',
+                'detail': f'{round(srs_accuracy)}% правильно',
+                'score': round(srs_accuracy, 1),
+                'topic_id': None,
+            })
+
+    # --- Grammar (worst topic accuracy) ---
+    total_expr = func.sum(UserGrammarExercise.correct_count + UserGrammarExercise.incorrect_count)
+    accuracy_expr = func.sum(UserGrammarExercise.correct_count) * 100.0 / total_expr
+
+    worst_grammar = (
+        db.session.query(
+            GrammarTopic.id,
+            GrammarTopic.title,
+            accuracy_expr.label('accuracy'),
+            total_expr.label('attempts'),
+        )
+        .join(GrammarExercise, GrammarExercise.topic_id == GrammarTopic.id)
+        .join(UserGrammarExercise, UserGrammarExercise.exercise_id == GrammarExercise.id)
+        .filter(UserGrammarExercise.user_id == user_id)
+        .group_by(GrammarTopic.id, GrammarTopic.title)
+        .having(total_expr >= 3)
+        .order_by(accuracy_expr.asc())
+        .first()
+    )
+    if worst_grammar is not None and float(worst_grammar.accuracy) < 70:
+        areas.append({
+            'kind': 'grammar',
+            'title': 'Грамматика',
+            'detail': f'{worst_grammar.title} · {round(float(worst_grammar.accuracy))}%',
+            'score': round(float(worst_grammar.accuracy), 1),
+            'topic_id': worst_grammar.id,
+        })
+
+    # --- Listening (avg dictation score, last 30 days) ---
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    listening_row = (
+        db.session.query(
+            func.count(ListeningAttempt.id).label('total'),
+            func.avg(ListeningAttempt.score).label('avg_score'),
+        )
+        .filter(
+            ListeningAttempt.user_id == user_id,
+            ListeningAttempt.created_at >= thirty_days_ago,
+        )
+        .one()
+    )
+    if listening_row.total and int(listening_row.total) >= 3:
+        listening_avg = float(listening_row.avg_score)
+        if listening_avg < 70:
+            areas.append({
+                'kind': 'listening',
+                'title': 'Аудирование',
+                'detail': f'avg {round(listening_avg)}% за 30 дней',
+                'score': round(listening_avg, 1),
+                'topic_id': None,
+            })
+
+    # --- Writing (frequency — flagged if user has past attempts but none in 7 days) ---
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    total_writing = (
+        db.session.query(func.count(UserWritingAttempt.id))
+        .filter(UserWritingAttempt.user_id == user_id)
+        .scalar()
+    ) or 0
+    recent_writing = (
+        db.session.query(func.count(UserWritingAttempt.id))
+        .filter(
+            UserWritingAttempt.user_id == user_id,
+            UserWritingAttempt.created_at >= seven_days_ago,
+        )
+        .scalar()
+    ) or 0
+    if total_writing > 0 and recent_writing == 0:
+        areas.append({
+            'kind': 'writing',
+            'title': 'Письмо',
+            'detail': 'Давно не практиковал(а)',
+            'score': 30.0,
+            'topic_id': None,
+        })
+
+    areas.sort(key=lambda a: a['score'])
+    return areas[:top_n]
+
+
+def get_skills_balance(user_id: int) -> dict[str, int]:
+    """Return skills balance scores (0-100) for all 6 skill areas.
+
+    Keys: vocabulary, grammar, reading, listening, writing, speaking.
+    Scores scale from 0 (no activity / poor accuracy) to 100 (excellent).
+    Returns 0 for a skill when the user has insufficient data.
+    """
+    from app.study.models import UserWord, UserCardDirection
+    from app.grammar_lab.models import UserGrammarExercise
+    from app.books.reading_session import UserReadingSession
+    from app.curriculum.models import ListeningAttempt, UserWritingAttempt, PronunciationAttempt
+
+    now = datetime.now(timezone.utc)
+    seven_days_ago = now - timedelta(days=7)
+    thirty_days_ago = now - timedelta(days=30)
+
+    # --- Vocabulary: SRS card accuracy (all-time, min 10 reviews) ---
+    srs_row = (
+        db.session.query(
+            func.coalesce(func.sum(UserCardDirection.correct_count), 0).label('correct'),
+            func.coalesce(
+                func.sum(UserCardDirection.correct_count + UserCardDirection.incorrect_count), 0
+            ).label('total'),
+        )
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(UserWord.user_id == user_id)
+        .one()
+    )
+    srs_total = int(srs_row.total)
+    vocabulary_score = round(float(srs_row.correct) / srs_total * 100) if srs_total >= 10 else 0
+
+    # --- Grammar: overall accuracy across all exercises (min 3 attempts) ---
+    grammar_row = (
+        db.session.query(
+            func.coalesce(func.sum(UserGrammarExercise.correct_count), 0).label('correct'),
+            func.coalesce(
+                func.sum(UserGrammarExercise.correct_count + UserGrammarExercise.incorrect_count), 0
+            ).label('total'),
+        )
+        .filter(UserGrammarExercise.user_id == user_id)
+        .one()
+    )
+    grammar_total = int(grammar_row.total)
+    grammar_score = round(float(grammar_row.correct) / grammar_total * 100) if grammar_total >= 3 else 0
+
+    # --- Reading: sessions last 7 days; 5+ sessions/week → 100 ---
+    reading_count = (
+        db.session.query(func.count(UserReadingSession.id))
+        .filter(
+            UserReadingSession.user_id == user_id,
+            UserReadingSession.started_at >= seven_days_ago,
+        )
+        .scalar()
+    ) or 0
+    reading_score = min(100, round(int(reading_count) / 5 * 100))
+
+    # --- Listening: attempts last 7 days; 5+ per week → 100 ---
+    listening_count = (
+        db.session.query(func.count(ListeningAttempt.id))
+        .filter(
+            ListeningAttempt.user_id == user_id,
+            ListeningAttempt.created_at >= seven_days_ago,
+        )
+        .scalar()
+    ) or 0
+    listening_score = min(100, round(int(listening_count) / 5 * 100))
+
+    # --- Writing: attempts last 7 days; 5+ per week → 100 ---
+    writing_count = (
+        db.session.query(func.count(UserWritingAttempt.id))
+        .filter(
+            UserWritingAttempt.user_id == user_id,
+            UserWritingAttempt.created_at >= seven_days_ago,
+        )
+        .scalar()
+    ) or 0
+    writing_score = min(100, round(int(writing_count) / 5 * 100))
+
+    # --- Speaking: pronunciation match rate last 30 days (min 3 attempts) ---
+    # Exclude the shadow_reading sentinel logged by shadow-reading completion;
+    # those rows have word='shadow_reading' and are not real pronunciation attempts.
+    speaking_row = (
+        db.session.query(
+            func.count(PronunciationAttempt.id).label('total'),
+            func.sum(func.cast(PronunciationAttempt.matched, db.Integer)).label('matched'),
+        )
+        .filter(
+            PronunciationAttempt.user_id == user_id,
+            PronunciationAttempt.created_at >= thirty_days_ago,
+            PronunciationAttempt.word != 'shadow_reading',
+        )
+        .one()
+    )
+    speaking_total = int(speaking_row.total) if speaking_row.total else 0
+    speaking_matched = int(speaking_row.matched) if speaking_row.matched else 0
+    speaking_score = round(speaking_matched / speaking_total * 100) if speaking_total >= 3 else 0
+
+    return {
+        'vocabulary': vocabulary_score,
+        'grammar': grammar_score,
+        'reading': reading_score,
+        'listening': listening_score,
+        'writing': writing_score,
+        'speaking': speaking_score,
+    }
+
+
+def get_level_eta(user_id: int) -> dict[str, Any]:
+    """Estimate weeks until user reaches the next CEFR level.
+
+    Uses remaining modules at current level, average lessons/week from recent
+    velocity, and average lessons/module from curriculum data.
+
+    Returns:
+      - current_level: str
+      - next_level: str | None
+      - weeks_estimate: int | None (None when velocity is zero/unknown)
+      - confidence: 'low' | 'medium' | 'high'
+    """
+    import math
+    from app.curriculum.models import CEFRLevel, Module, Lessons, LessonProgress
+    from app.daily_plan.level_utils import get_user_current_cefr_level
+
+    current_code = get_user_current_cefr_level(user_id, db)
+
+    current_level = (
+        db.session.query(CEFRLevel)
+        .filter(CEFRLevel.code == current_code)
+        .first()
+    )
+    if current_level is None:
+        return {'current_level': current_code, 'next_level': None, 'weeks_estimate': None, 'confidence': 'low'}
+
+    next_level_row = (
+        db.session.query(CEFRLevel)
+        .filter(CEFRLevel.order > current_level.order)
+        .order_by(CEFRLevel.order)
+        .first()
+    )
+    next_level_code = next_level_row.code if next_level_row else None
+
+    modules_at_level = (
+        db.session.query(Module)
+        .filter(Module.level_id == current_level.id)
+        .all()
+    )
+
+    remaining_module_count = 0
+    remaining_lesson_counts: list[int] = []
+
+    for module in modules_at_level:
+        total = (
+            db.session.query(func.count(Lessons.id))
+            .filter(Lessons.module_id == module.id)
+            .scalar()
+        ) or 0
+
+        completed = (
+            db.session.query(func.count(LessonProgress.id))
+            .filter(
+                LessonProgress.user_id == user_id,
+                LessonProgress.status == 'completed',
+                LessonProgress.lesson_id.in_(
+                    db.session.query(Lessons.id).filter(Lessons.module_id == module.id)
+                ),
+            )
+            .scalar()
+        ) or 0
+
+        if completed < total:
+            remaining_module_count += 1
+            remaining_lesson_counts.append(total)
+
+    if remaining_module_count == 0:
+        return {
+            'current_level': current_code,
+            'next_level': next_level_code,
+            'weeks_estimate': 0,
+            'confidence': 'high',
+        }
+
+    avg_lessons_per_module = sum(remaining_lesson_counts) / len(remaining_lesson_counts)
+
+    velocity = get_learning_velocity(user_id, weeks=4)
+    lesson_counts_per_week = velocity['lesson_counts']
+    non_zero_weeks = sum(1 for c in lesson_counts_per_week if c > 0)
+
+    if non_zero_weeks >= 3:
+        confidence = 'high'
+    elif non_zero_weeks >= 2:
+        confidence = 'medium'
+    else:
+        confidence = 'low'
+
+    avg_lessons_per_week = (
+        sum(lesson_counts_per_week) / len(lesson_counts_per_week)
+        if lesson_counts_per_week else 0.0
+    )
+
+    if avg_lessons_per_week <= 0 or avg_lessons_per_module <= 0:
+        return {
+            'current_level': current_code,
+            'next_level': next_level_code,
+            'weeks_estimate': None,
+            'confidence': confidence,
+        }
+
+    modules_per_week = avg_lessons_per_week / avg_lessons_per_module
+    weeks_estimate = max(1, math.ceil(remaining_module_count / modules_per_week))
+
+    return {
+        'current_level': current_code,
+        'next_level': next_level_code,
+        'weeks_estimate': weeks_estimate,
+        'confidence': confidence,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Comprehension score by lesson type (last 30 days)
+# ---------------------------------------------------------------------------
+
+def get_comprehension_by_type(user_id: int, days: int = 30) -> list[dict[str, Any]]:
+    """Return average score per graded lesson type over the last *days* days.
+
+    Only includes types with at least one attempt in the period.
+    Returns list of dicts sorted by avg_score descending::
+
+        [{"lesson_type": "quiz", "label": "Тест", "avg_score": 82.0, "attempt_count": 5}, ...]
+    """
+    from app.curriculum.models import LessonAttempt, Lessons
+
+    GRADED_TYPES = (
+        'quiz', 'grammar', 'dictation', 'final_test', 'audio_fill_blank',
+        'sentence_correction', 'sentence_completion', 'translation',
+    )
+    TYPE_LABELS: dict[str, str] = {
+        'quiz': 'Тест',
+        'grammar': 'Грамматика',
+        'dictation': 'Диктант',
+        'final_test': 'Итог. тест',
+        'audio_fill_blank': 'Аудио-пробел',
+        'sentence_correction': 'Исправление',
+        'sentence_completion': 'Дополнение',
+        'translation': 'Перевод',
+    }
+
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
+
+    rows = (
+        db.session.query(
+            Lessons.type.label('lesson_type'),
+            func.avg(LessonAttempt.score).label('avg_score'),
+            func.count(LessonAttempt.id).label('attempt_count'),
+        )
+        .join(Lessons, LessonAttempt.lesson_id == Lessons.id)
+        .filter(
+            LessonAttempt.user_id == user_id,
+            LessonAttempt.score.isnot(None),
+            LessonAttempt.started_at >= cutoff,
+            Lessons.type.in_(GRADED_TYPES),
+        )
+        .group_by(Lessons.type)
+        .order_by(func.avg(LessonAttempt.score).desc())
+        .all()
+    )
+
+    return [
+        {
+            'lesson_type': row.lesson_type,
+            'label': TYPE_LABELS.get(row.lesson_type, row.lesson_type),
+            'avg_score': round(float(row.avg_score), 1),
+            'attempt_count': int(row.attempt_count),
+        }
+        for row in rows
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Time-of-day learning patterns (Task 81)
+# ---------------------------------------------------------------------------
+
+def get_study_time_distribution(user_id: int, tz: str = DEFAULT_TIMEZONE) -> dict[str, Any]:
+    """Count lesson completions by hour-of-day (user local time) over last 30 days.
+
+    Returns::
+
+        {
+            "hours": [0, 1, ..., 23],
+            "counts": [0, 0, ..., 5, 3, ...],   # count per hour, aligned with hours
+            "peak_hour": 19,                       # hour with max count; None if no data
+        }
+    """
+    from app.curriculum.models import LessonProgress
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+
+    # Convert UTC timestamp to local timezone before extracting hour (same pattern as get_best_study_time)
+    local_completed = func.timezone(tz, func.timezone('UTC', LessonProgress.completed_at))
+
+    rows = (
+        db.session.query(
+            extract('hour', local_completed).label('hour'),
+            func.count(LessonProgress.id).label('cnt'),
+        )
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.completed_at.isnot(None),
+            LessonProgress.completed_at >= cutoff,
+        )
+        .group_by(extract('hour', local_completed))
+        .all()
+    )
+
+    counts_by_hour: dict[int, int] = {int(row.hour): int(row.cnt) for row in rows}
+
+    hours = list(range(24))
+    counts = [counts_by_hour.get(h, 0) for h in hours]
+
+    peak_hour: int | None = None
+    if any(c > 0 for c in counts):
+        peak_hour = counts.index(max(counts))
+
+    return {
+        'hours': hours,
+        'counts': counts,
+        'peak_hour': peak_hour,
+    }
+
+
+def get_pronunciation_weaknesses(user_id: int, min_attempts: int = 3) -> list[str]:
+    """Return words where match_rate < 50% across all pronunciation attempts.
+
+    Only includes words with at least *min_attempts* total attempts.
+    Returns a sorted list of word strings.
+    """
+    from sqlalchemy import Integer, cast, case
+    from app.curriculum.models import PronunciationAttempt
+
+    rows = (
+        db.session.query(
+            PronunciationAttempt.word,
+            func.count(PronunciationAttempt.id).label('total'),
+            func.sum(
+                cast(
+                    case((PronunciationAttempt.matched == True, 1), else_=0),
+                    Integer,
+                )
+            ).label('matched_count'),
+        )
+        .filter(
+            PronunciationAttempt.user_id == user_id,
+            PronunciationAttempt.word != 'shadow_reading',
+        )
+        .group_by(PronunciationAttempt.word)
+        .having(func.count(PronunciationAttempt.id) >= min_attempts)
+        .all()
+    )
+
+    weak_words = []
+    for row in rows:
+        total = int(row.total)
+        matched = int(row.matched_count) if row.matched_count is not None else 0
+        match_rate = matched / total if total > 0 else 0.0
+        if match_rate < 0.5:
+            weak_words.append(row.word)
+
+    return sorted(weak_words)[:20]
+
+
+# ---------------------------------------------------------------------------
+# Accuracy improvement trend (SRS + quiz, weekly)
+# ---------------------------------------------------------------------------
+
+def get_accuracy_trend(user_id: int, days: int = 30) -> dict[str, Any]:
+    """Return weekly SRS and quiz accuracy averages over the last *days* days.
+
+    Returns::
+
+        {
+            "dates": ["2026-04-14", "2026-04-21", ...],   # Monday of each ISO week
+            "srs_accuracy": [82.0, null, 78.5, ...],      # null when no data that week
+            "quiz_accuracy": [null, 75.0, 80.0, ...],
+        }
+
+    Missing weeks produce ``null`` entries (not 0) so Chart.js skips the gap.
+    """
+    from app.study.models import StudySession
+    from app.curriculum.models import LessonAttempt, Lessons
+
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    start_dt = now_utc - timedelta(days=days)
+
+    # --- SRS accuracy: from StudySession rows (session_type='cards') ---
+    srs_rows = (
+        db.session.query(
+            func.date_trunc('week', StudySession.start_time).label('week'),
+            func.sum(StudySession.correct_answers).label('correct'),
+            func.sum(StudySession.incorrect_answers).label('incorrect'),
+        )
+        .filter(
+            StudySession.user_id == user_id,
+            StudySession.start_time >= start_dt,
+            StudySession.session_type == 'cards',
+        )
+        .group_by(func.date_trunc('week', StudySession.start_time))
+        .all()
+    )
+    srs_by_week: dict[str, float] = {}
+    for row in srs_rows:
+        total = (row.correct or 0) + (row.incorrect or 0)
+        if total > 0:
+            week_key = row.week.strftime('%Y-%m-%d') if hasattr(row.week, 'strftime') else str(row.week)[:10]
+            srs_by_week[week_key] = round((row.correct or 0) / total * 100, 1)
+
+    # --- Quiz accuracy: from LessonAttempt rows with a score ---
+    GRADED_TYPES = ('quiz', 'grammar', 'dictation', 'final_test', 'audio_fill_blank',
+                    'sentence_correction', 'sentence_completion', 'translation')
+    quiz_rows = (
+        db.session.query(
+            func.date_trunc('week', LessonAttempt.started_at).label('week'),
+            func.avg(LessonAttempt.score).label('avg_score'),
+        )
+        .join(Lessons, LessonAttempt.lesson_id == Lessons.id)
+        .filter(
+            LessonAttempt.user_id == user_id,
+            LessonAttempt.started_at >= start_dt,
+            LessonAttempt.score.isnot(None),
+            Lessons.type.in_(GRADED_TYPES),
+        )
+        .group_by(func.date_trunc('week', LessonAttempt.started_at))
+        .all()
+    )
+    quiz_by_week: dict[str, float] = {}
+    for row in quiz_rows:
+        if row.avg_score is not None:
+            week_key = row.week.strftime('%Y-%m-%d') if hasattr(row.week, 'strftime') else str(row.week)[:10]
+            quiz_by_week[week_key] = round(float(row.avg_score), 1)
+
+    # If no data at all, return empty structure
+    if not srs_by_week and not quiz_by_week:
+        return {'dates': [], 'srs_accuracy': [], 'quiz_accuracy': []}
+
+    # Enumerate every ISO week from start_dt to now so gap weeks appear as null.
+    all_weeks: list[str] = []
+    # Align start_dt to its Monday (ISO week start)
+    week_cursor = start_dt - timedelta(days=start_dt.weekday())
+    while week_cursor <= now_utc:
+        all_weeks.append(week_cursor.strftime('%Y-%m-%d'))
+        week_cursor += timedelta(weeks=1)
+
+    dates = all_weeks
+    srs_accuracy = [srs_by_week.get(w) for w in dates]
+    quiz_accuracy = [quiz_by_week.get(w) for w in dates]
+
+    return {
+        'dates': dates,
+        'srs_accuracy': srs_accuracy,
+        'quiz_accuracy': quiz_accuracy,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Personal bests
+# ---------------------------------------------------------------------------
+
+def get_personal_bests(user_id: int) -> dict[str, Any]:
+    """Return all-time personal bests for the user.
+
+    Returns::
+
+        {
+            "longest_streak_days": N,    # all-time best streak from UserStatistics
+            "max_words_in_day": M,       # most new vocabulary words added in one day
+            "best_week_lessons": K,      # most lessons completed in one calendar week
+        }
+    """
+    from app.achievements.models import UserStatistics
+    from app.curriculum.models import LessonProgress
+    from app.study.models import UserWord
+
+    stats = UserStatistics.query.filter_by(user_id=user_id).first()
+    longest_streak = stats.longest_streak_days if stats else 0
+
+    word_day_row = (
+        db.session.query(func.count(UserWord.id).label('cnt'))
+        .filter(UserWord.user_id == user_id, UserWord.created_at.isnot(None))
+        .group_by(cast(UserWord.created_at, Date))
+        .order_by(func.count(UserWord.id).desc())
+        .first()
+    )
+    max_words_in_day: int = word_day_row.cnt if word_day_row else 0
+
+    week_row = (
+        db.session.query(func.count(LessonProgress.id).label('cnt'))
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+            LessonProgress.completed_at.isnot(None),
+        )
+        .group_by(func.date_trunc('week', LessonProgress.completed_at))
+        .order_by(func.count(LessonProgress.id).desc())
+        .first()
+    )
+    best_week_lessons: int = week_row.cnt if week_row else 0
+
+    return {
+        'longest_streak_days': longest_streak,
+        'max_words_in_day': max_words_in_day,
+        'best_week_lessons': best_week_lessons,
     }

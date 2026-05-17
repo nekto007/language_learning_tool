@@ -150,12 +150,18 @@ def render_grammar_lesson(lesson):
     grammar_explanation = cleaned_content.get('grammar_explanation')
 
     if not grammar_explanation and cleaned_content.get('sections'):
+        # Admin importer (curriculum_import_service.py) flattens
+        # grammar_explanation.{title, sections, important_notes, summary,
+        # tldr} onto lesson.content's top level. Reconstruct the wrapper
+        # for the template, including `tldr` so the "Главное за 20 секунд"
+        # TL;DR card renders correctly after an admin re-import.
         grammar_explanation = {
             'title': cleaned_content.get('title', ''),
             'introduction': cleaned_content.get('description', ''),
             'sections': cleaned_content.get('sections', []),
             'important_notes': cleaned_content.get('important_notes', []),
-            'summary': cleaned_content.get('summary', {})
+            'summary': cleaned_content.get('summary', {}),
+            'tldr': cleaned_content.get('tldr', []),
         }
 
     if grammar_explanation:
@@ -371,11 +377,27 @@ def render_quiz_lesson(lesson):
     _sanitize_quiz_questions(cleaned_content)
 
     reset_progress = request.args.get('reset') == 'true'
+    retry_errors = request.args.get('retry_errors') == 'true'
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+
+    # «Повторить ошибки» — фильтруем `questions` до проваленных, потом
+    # сбрасываем progress. Пользователь получает мини-quiz из своих
+    # ошибок; результат после submit перезапишет старый. Применяется
+    # только к quiz_lesson (не к final_test — у того attempt-limit).
+    if retry_errors and progress and isinstance(progress.data, dict):
+        feedback = progress.data.get('feedback') or {}
+        all_qs = cleaned_content.get('questions') or []
+        failed_indices = [
+            i for i in range(len(all_qs))
+            if (feedback.get(str(i)) or {}).get('status') != 'correct'
+        ]
+        if failed_indices:
+            cleaned_content['questions'] = [all_qs[i] for i in failed_indices]
+            reset_progress = True
 
     if reset_progress and progress:
         progress.status = 'in_progress'
@@ -691,6 +713,21 @@ def grammar_lesson(lesson_id):
     exercises = cleaned_content.get('exercises', [])
     grammar_explanation = cleaned_content.get('grammar_explanation')
 
+    if not grammar_explanation and cleaned_content.get('sections'):
+        # Mirror the fallback in render_grammar_lesson(): rebuild the wrapper
+        # from the flat keys that admin importer leaves on lesson.content.
+        # Without this the template never sees ``grammar_explanation`` and
+        # cannot render the TL;DR / sections / important notes / summary
+        # blocks for grammar lessons imported via /admin.
+        grammar_explanation = {
+            'title': cleaned_content.get('title', ''),
+            'introduction': cleaned_content.get('description', ''),
+            'sections': cleaned_content.get('sections', []),
+            'important_notes': cleaned_content.get('important_notes', []),
+            'summary': cleaned_content.get('summary', {}),
+            'tldr': cleaned_content.get('tldr', []),
+        }
+
     if grammar_explanation:
         def decode_html_in_dict(obj):
             if isinstance(obj, dict):
@@ -979,6 +1016,7 @@ def final_test_lesson(lesson_id):
             return redirect(url_for('curriculum_lessons.final_test_lesson', lesson_id=lesson.id))
 
         answers = {}
+        pairs_by_idx = {}
         for key in request.form:
             if key.startswith('answer_'):
                 question_idx = key.replace('answer_', '')
@@ -987,6 +1025,26 @@ def final_test_lesson(lesson_id):
                     answers[idx] = request.form[key]
                 except ValueError:
                     logger.error(f"Invalid question index: {question_idx}")
+            elif key.startswith('pairs_'):
+                # Optional sidecar for matching questions — JSON list of
+                # {left, right, correct} the user actually matched.
+                question_idx = key.replace('pairs_', '')
+                try:
+                    idx = int(question_idx)
+                    import json as _json
+                    raw = request.form[key]
+                    parsed = _json.loads(raw) if raw else None
+                    if isinstance(parsed, list):
+                        pairs_by_idx[idx] = [
+                            {
+                                'left': str(p.get('left', ''))[:200],
+                                'right': str(p.get('right', ''))[:200],
+                                'correct': bool(p.get('correct', True)),
+                            }
+                            for p in parsed if isinstance(p, dict)
+                        ]
+                except (ValueError, TypeError) as _pe:
+                    logger.warning(f"Invalid pairs payload for {question_idx}: {_pe}")
 
         all_questions = []
         if 'test_sections' in cleaned_content:
@@ -996,7 +1054,25 @@ def final_test_lesson(lesson_id):
             questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
             all_questions = cleaned_content.get(questions_field, [])
 
+        # For matching questions: if we collected pairs_<i> sidecar, package
+        # them in the JSON shape the grader's matching branch expects so it
+        # can actually validate (instead of marking everything wrong).
+        if pairs_by_idx:
+            import json as _json
+            for idx, pair_list in pairs_by_idx.items():
+                answers[idx] = _json.dumps({'pairs': pair_list})
+
         result = process_quiz_submission(all_questions, answers)
+
+        # Persist user-assembled matching pairs into feedback so the results
+        # page can render «Friend → Друг» instead of "completed".
+        if pairs_by_idx and isinstance(result, dict):
+            feedback = result.get('feedback') or {}
+            for idx, pair_list in pairs_by_idx.items():
+                fb_key = str(idx)
+                if fb_key in feedback and isinstance(feedback[fb_key], dict):
+                    feedback[fb_key]['user_pairs'] = pair_list
+            result['feedback'] = feedback
 
         passing_score = cleaned_content.get('passing_score_percent', cleaned_content.get('passing_score', 70))
 

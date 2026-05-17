@@ -1,0 +1,16 @@
+[
+  {
+    "external_key": "fixture:dictation:A1:01",
+    "level": "A1",
+    "module_number": 1,
+    "lesson_type": "dictation",
+    "title": "Диктант: Приветствия",
+    "title_en": "Dictation: Greetings",
+    "content": {
+      "audio_url": "/static/audio/fixture_dictation_a1_01.mp3",
+      "transcript": "Hello, how are you today?",
+      "hint_chars": 1,
+      "duration_seconds": 8
+    }
+  }
+]

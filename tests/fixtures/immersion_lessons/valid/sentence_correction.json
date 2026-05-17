@@ -1,0 +1,17 @@
+[
+  {
+    "external_key": "fixture:sentence_correction:A2:01",
+    "level": "A2",
+    "module_number": 1,
+    "lesson_type": "sentence_correction",
+    "title": "Найди ошибку: артикли",
+    "title_en": "Find the Error: Articles",
+    "content": {
+      "incorrect_sentence": "She is a engineer.",
+      "correct_sentence": "She is an engineer.",
+      "error_type": "article",
+      "explanation": "Use 'an' before a vowel sound.",
+      "options": ["She is an engineer.", "She is the engineer.", "She is engineer."]
+    }
+  }
+]

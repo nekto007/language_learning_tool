@@ -1,0 +1,646 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Завершение предложений') %}
+{# Per-lesson instruction. If content.instruction is set in the source JSON
+   (e.g. "Вставьте недостающую форму глагола BE: am, is или are.") it wins;
+   otherwise we fall back to a neutral generic prompt. The old text spoke
+   about "правильное окончание", which is misleading for the typical
+   blank-inside-sentence use case. #}
+{% set instruction_text = (lesson.content.instruction if lesson.content and lesson.content.instruction else _('Заполните пропуск в каждом предложении.')) %}
+{% set block_description = _('Практика составления предложений') %}
+
+{% block lesson_content %}
+<section class="lesson-shell sentence-completion-lesson" aria-labelledby="sentence-completion-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="sentence-completion-title">{{ _('Завершите предложения') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-pen"></i></span>
+      <span class="lesson-shell__progress" aria-live="polite" id="sc-progress-label">
+        {{ _('Заполнено:') }}
+        <span data-progress-current id="sc-progress-current">0</span> / <span data-progress-total>{{ items | length }}</span>
+      </span>
+    </div>
+    <div class="lesson-shell__progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="{{ items | length }}" aria-valuenow="0">
+      <span class="lesson-shell__progress-fill" id="sc-progress-fill" style="width:0%"></span>
+    </div>
+  </header>
+
+  <div class="lesson-shell__body" id="completion-items-list">
+    {% for item in items %}
+    <div class="lesson-shell__card sentence-completion-item" id="item-{{ loop.index0 }}" data-index="{{ loop.index0 }}">
+      {% if item.context %}
+      <div class="sentence-completion-context">
+        <i class="fas fa-book-open"></i>
+        <span>{{ item.context }}</span>
+      </div>
+      {% endif %}
+      <div class="sentence-completion-prompt-row">
+        <label class="sentence-completion-prompt" for="answer-{{ loop.index0 }}">{{ item.prompt }}</label>
+        {# Free-text input. The expected answer is exposed via data-answer
+           so the client can validate every blur/Enter without a network
+           roundtrip. For a teaching exercise this answer-leak is
+           acceptable — the goal is feedback latency, not testing
+           rigour. #}
+        <input
+          type="text"
+          class="sentence-completion-input{% if item.prompt_after %} sentence-completion-input--short{% endif %}"
+          id="answer-{{ loop.index0 }}"
+          placeholder="{{ item.hint or _('ответ') }}"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+          data-index="{{ loop.index0 }}"
+          data-answer="{{ item.answer }}"
+        />
+        {% if item.prompt_after %}
+          <span class="sentence-completion-prompt-after">{{ item.prompt_after }}</span>
+        {% endif %}
+        {# Error dots column removed — it confused learners (looked like a
+           separate validation indicator next to a correct row). The
+           correction block below the row is the canonical error surface. #}
+      </div>
+      <div class="sentence-completion-item-feedback" id="feedback-{{ loop.index0 }}" role="status" style="display: none;"></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# No "Проверить" button — each item is graded the moment the learner
+     blurs the input or presses Enter. submission to the server happens
+     automatically once every item is in a terminal state (correct or
+     given-up after MAX_ATTEMPTS failed tries). The empty actions slot
+     is kept for shell-consistency with other lesson types. #}
+  <div class="lesson-shell__actions sentence-completion-submit-row" aria-hidden="true"></div>
+
+  <div class="lesson-shell__result sentence-completion-result" id="completion-result"
+       role="status" aria-live="polite" aria-atomic="true" hidden>
+    <div id="result-summary"></div>
+    <div id="completion-next-area" style="margin-top: 1rem;"></div>
+  </div>
+</section>
+
+<script>
+const lessonId = {{ lesson.id }};
+const itemCount = {{ items | length }};
+const MAX_ATTEMPTS = 3;
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+// Module URL is used by the final action row (secondary "К списку уроков"
+// button). Falls back to the global lessons index when route did not
+// resolve a module.
+window.__moduleUrl = {{ module_url | tojson if module_url else '"/learn/"' }};
+
+// Saved per-item state from LessonProgress.data. Two possible shapes:
+// - live state (mid-lesson):  {items: [{state, attempts, value}, ...]}
+// - grading result (completed): {item_results: [{prompt, answer,
+//   user_answer, correct}, ...], score, correct_items, total_items,
+//   passed} — written by ProgressService.update_progress_with_grading.
+// Restoration detects the shape and replays accordingly.
+const SAVED_STATE = {{ (progress.data | tojson) if (progress and progress.data) else '{}' }};
+const IS_COMPLETED = {{ 'true' if is_completed else 'false' }};
+const CACHED_NEXT_LESSON_URL = {{ next_lesson_url | tojson if next_lesson_url else 'null' }};
+
+// Per-item state. Pending → terminal (correct or given-up after MAX_ATTEMPTS
+// failed tries). Wrong-attempts are tracked for the error-dots column.
+const itemState = {};   // {idx: 'pending'|'correct'|'given-up'}
+const itemAttempts = {}; // {idx: [wrong_value, ...]}
+
+function _normalize(s) {
+  return (s || '').trim().toLowerCase()
+    .replace(/[\u2019']/g, "'")  // unify curly + straight apostrophes
+    .replace(/\s+/g, ' ');
+}
+
+// Cheap Levenshtein for single-word typo tolerance (≤1 distance).
+function _editDistance(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const prev = new Array(b.length + 1).fill(0);
+  for (let j = 0; j <= b.length; j++) prev[j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    let curr = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr.push(Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost));
+    }
+    for (let k = 0; k <= b.length; k++) prev[k] = curr[k];
+  }
+  return prev[b.length];
+}
+
+function _matches(userValue, expected) {
+  const u = _normalize(userValue);
+  const e = _normalize(expected);
+  if (u === e) return true;
+  // Levenshtein ≤1 for short single-token answers (typo tolerance).
+  if (e.indexOf(' ') === -1 && u.indexOf(' ') === -1 && e.length >= 3) {
+    return _editDistance(u, e) <= 1;
+  }
+  return false;
+}
+
+function _allAnswers() {
+  const out = [];
+  for (let i = 0; i < itemCount; i++) {
+    const el = document.getElementById('answer-' + i);
+    out.push(el ? (el.value || '').trim() : '');
+  }
+  return out;
+}
+
+function _terminalCount() {
+  let n = 0;
+  for (let i = 0; i < itemCount; i++) {
+    if (itemState[i] === 'correct' || itemState[i] === 'given-up') n++;
+  }
+  return n;
+}
+function _correctCount() {
+  let n = 0;
+  for (let i = 0; i < itemCount; i++) {
+    if (itemState[i] === 'correct') n++;
+  }
+  return n;
+}
+
+function _updateProgress() {
+  const filled = _allAnswers().filter(v => v.length > 0).length;
+  const fill = document.getElementById('sc-progress-fill');
+  const current = document.getElementById('sc-progress-current');
+  if (current) current.textContent = String(filled);
+  if (fill) fill.style.width = Math.round((filled / Math.max(1, itemCount)) * 100) + '%';
+}
+
+// Wrong-attempt history is still tracked in `itemAttempts[idx]` and
+// surfaced through the correction block + retries-left counter, but no
+// per-item dot indicators are rendered — they read as a parallel
+// validation signal and confused correct rows that had earlier misses.
+function _addErrorDot() { /* noop — error dots removed */ }
+
+function _showItemFeedback(idx, kind, message) {
+  const feedbackEl = document.getElementById('feedback-' + idx);
+  if (!feedbackEl) return;
+  feedbackEl.innerHTML = '';
+  feedbackEl.style.display = 'block';
+  const span = document.createElement('span');
+  span.className = 'result-badge result-badge--' + kind;
+  const icon = document.createElement('i');
+  icon.className = kind === 'correct' ? 'fas fa-check-circle' : 'fas fa-info-circle';
+  span.appendChild(icon);
+  const text = document.createElement('span');
+  text.textContent = ' ' + message;
+  span.appendChild(text);
+  feedbackEl.appendChild(span);
+}
+
+function _shake(el) {
+  el.classList.add('sentence-completion-input--wrong-flash');
+  setTimeout(() => el.classList.remove('sentence-completion-input--wrong-flash'), 500);
+}
+
+function _lockCorrect(idx, expected) {
+  const input = document.getElementById('answer-' + idx);
+  if (!input) return;
+  input.value = expected;
+  input.disabled = true;
+  input.classList.remove(
+    'input--wrong', 'sentence-completion-input--incorrect',
+    'sentence-completion-input--wrong-flash',
+  );
+  input.classList.add('input--correct', 'sentence-completion-input--correct');
+}
+
+function _lockGivenUp(idx) {
+  // Keep what the learner typed in the input — auto-filling the canonical
+  // answer made the UI argue with itself ("is wrong, correct is is").
+  // Below the field we render a corrective block (см. _showCorrection).
+  const input = document.getElementById('answer-' + idx);
+  if (!input) return;
+  input.disabled = true;
+  input.classList.remove(
+    'input--wrong', 'sentence-completion-input--incorrect',
+    'sentence-completion-input--wrong-flash',
+  );
+  input.classList.add('sentence-completion-input--given');
+}
+
+function _showCorrection(idx, userValue, expected) {
+  const feedbackEl = document.getElementById('feedback-' + idx);
+  if (!feedbackEl) return;
+  feedbackEl.innerHTML = '';
+  feedbackEl.style.display = 'block';
+  const wrap = document.createElement('div');
+  wrap.className = 'sentence-completion-correction';
+  // Line 1: what the learner typed (last wrong attempt).
+  const yours = document.createElement('div');
+  yours.className = 'sentence-completion-correction__yours';
+  yours.innerHTML = '<span class="sentence-completion-correction__label">{{ _("Ваш ответ:") }}</span> <span class="sentence-completion-correction__value">' +
+    (userValue || '—') + '</span>';
+  wrap.appendChild(yours);
+  // Line 2: the canonical correct value.
+  const right = document.createElement('div');
+  right.className = 'sentence-completion-correction__right';
+  right.innerHTML = '<span class="sentence-completion-correction__label">{{ _("Правильно:") }}</span> <span class="sentence-completion-correction__value">' +
+    expected + '</span>';
+  wrap.appendChild(right);
+  feedbackEl.appendChild(wrap);
+}
+
+function checkItem(idx) {
+  if (itemState[idx] === 'correct' || itemState[idx] === 'given-up') return;
+  const input = document.getElementById('answer-' + idx);
+  if (!input) return;
+  const value = (input.value || '').trim();
+  if (!value) return;
+  const expected = input.getAttribute('data-answer') || '';
+  if (_matches(value, expected)) {
+    itemState[idx] = 'correct';
+    _lockCorrect(idx, expected);
+    _showItemFeedback(idx, 'correct', '{{ _("Правильно!") }}');
+  } else {
+    if (!itemAttempts[idx]) itemAttempts[idx] = [];
+    itemAttempts[idx].push(value);
+    _addErrorDot(idx, value);
+    if (itemAttempts[idx].length >= MAX_ATTEMPTS) {
+      itemState[idx] = 'given-up';
+      _lockGivenUp(idx);
+      _showCorrection(idx, value, expected);
+    } else {
+      const remaining = MAX_ATTEMPTS - itemAttempts[idx].length;
+      _shake(input);
+      input.classList.add('input--wrong', 'sentence-completion-input--incorrect');
+      _showItemFeedback(idx, 'incorrect',
+        '{{ _("Попробуй ещё. Осталось попыток:") }} ' + remaining);
+      input.select();
+    }
+  }
+  _updateProgress();
+  _updateProgressLabel();
+  _saveState();
+  _maybeFinalize();
+}
+
+function _updateProgressLabel() {
+  const progressLabelEl = document.getElementById('sc-progress-label');
+  if (!progressLabelEl) return;
+  const terminal = _terminalCount();
+  if (terminal === 0) return; // keep "Заполнено: 0/N" pristine
+  const correct = _correctCount();
+  const labelTail = (terminal === itemCount && correct === itemCount)
+    ? '{{ _("Отлично:") }}'
+    : '{{ _("Правильно:") }}';
+  progressLabelEl.innerHTML =
+    labelTail + ' <span data-progress-current id="sc-progress-current">' +
+    correct + '</span> / <span data-progress-total>' + itemCount + '</span>';
+  const fill = document.getElementById('sc-progress-fill');
+  if (fill) fill.style.width = Math.round((correct / Math.max(1, itemCount)) * 100) + '%';
+}
+
+// Reset every given-up item back to pending so the learner can retry it.
+// Clears the input, drops the prior attempt history, removes the
+// correction block, hides the summary, and re-enables the input.
+// Correct items stay locked — only the items that hit MAX_ATTEMPTS get
+// a fresh try.
+function _retryGivenUp() {
+  let resetAny = false;
+  for (let i = 0; i < itemCount; i++) {
+    if (itemState[i] !== 'given-up') continue;
+    itemState[i] = 'pending';
+    itemAttempts[i] = [];
+    const input = document.getElementById('answer-' + i);
+    if (input) {
+      input.disabled = false;
+      input.value = '';
+      input.classList.remove(
+        'input--wrong', 'sentence-completion-input--incorrect',
+        'sentence-completion-input--given', 'sentence-completion-input--wrong-flash',
+      );
+    }
+    const feedbackEl = document.getElementById('feedback-' + i);
+    if (feedbackEl) { feedbackEl.innerHTML = ''; feedbackEl.style.display = 'none'; }
+    resetAny = true;
+  }
+  if (!resetAny) return;
+  _finalizing = false;
+  // Hide the summary panel so the field-level state is the focus again.
+  const resultArea = document.getElementById('completion-result');
+  if (resultArea) resultArea.hidden = true;
+  // Bring focus to the first reset input.
+  for (let i = 0; i < itemCount; i++) {
+    if (itemState[i] === 'pending') {
+      const input = document.getElementById('answer-' + i);
+      if (input) { input.focus(); break; }
+    }
+  }
+  _updateProgress();
+  _updateProgressLabel();
+  _saveState();
+}
+
+let _finalizing = false;
+function _maybeFinalize() {
+  if (_finalizing) return;
+  if (_terminalCount() < itemCount) return;
+  _finalizing = true;
+  submitCompletion();
+}
+
+// Persist mid-lesson progress: per-item state + wrong attempts + current
+// input value. Stored in LessonProgress.data so a page reload can replay
+// every locked item without losing what the learner has done. Sent as a
+// fire-and-forget POST after every check.
+async function _saveState() {
+  const snapshot = {items: []};
+  for (let i = 0; i < itemCount; i++) {
+    const el = document.getElementById('answer-' + i);
+    snapshot.items.push({
+      state: itemState[i] || 'pending',
+      attempts: itemAttempts[i] ? itemAttempts[i].slice() : [],
+      value: el ? (el.value || '') : '',
+    });
+  }
+  try {
+    await fetch('/curriculum/api/lesson/' + lessonId + '/progress', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN},
+      body: JSON.stringify({data: snapshot}),
+    });
+  } catch (e) {
+    // Non-fatal — next save will retry.
+    console.warn('sentence_completion: state save failed', e);
+  }
+}
+
+// Replay saved state on page load. Handles two shapes:
+//  - completed: progress.data is the grading result. Every item gets locked
+//    in its terminal state (correct / given-up) based on `item_results`,
+//    and the final summary panel is shown immediately.
+//  - mid-lesson live state: progress.data.items carries per-item state +
+//    attempt history saved by _saveState() during the live flow.
+function _restoreState() {
+  if (!SAVED_STATE) return;
+
+  if (IS_COMPLETED && Array.isArray(SAVED_STATE.item_results)) {
+    _restoreCompleted(SAVED_STATE);
+    return;
+  }
+
+  if (Array.isArray(SAVED_STATE.items)) {
+    SAVED_STATE.items.forEach(function(saved, i) {
+      if (i >= itemCount) return;
+      const input = document.getElementById('answer-' + i);
+      if (!input) return;
+      if (Array.isArray(saved.attempts)) {
+        itemAttempts[i] = saved.attempts.slice();
+      }
+      if (saved.state === 'correct') {
+        itemState[i] = 'correct';
+        const expected = input.getAttribute('data-answer') || '';
+        _lockCorrect(i, expected);
+        _showItemFeedback(i, 'correct', '{{ _("Правильно!") }}');
+      } else if (saved.state === 'given-up') {
+        itemState[i] = 'given-up';
+        input.value = saved.value || '';
+        _lockGivenUp(i);
+        const expected = input.getAttribute('data-answer') || '';
+        _showCorrection(i, saved.value || '', expected);
+      } else if (saved.value) {
+        input.value = saved.value;
+      }
+    });
+    _updateProgress();
+    _updateProgressLabel();
+    _maybeFinalize();
+  }
+}
+
+// Completed-lesson replay. Marks every item as either correct (locked
+// green, "Правильно!" feedback) or given-up (locked red, correction
+// block). Then renders the final summary panel via a synthetic
+// grading-shaped payload so the existing showResults() branch can be
+// reused for "К списку уроков" + "Следующий урок" actions.
+function _restoreCompleted(grading) {
+  (grading.item_results || []).forEach(function(res, i) {
+    if (i >= itemCount) return;
+    const input = document.getElementById('answer-' + i);
+    if (!input) return;
+    const expected = res.answer || input.getAttribute('data-answer') || '';
+    if (res.correct) {
+      itemState[i] = 'correct';
+      _lockCorrect(i, expected);
+      _showItemFeedback(i, 'correct', '{{ _("Правильно!") }}');
+    } else {
+      // Server marked this item wrong at completion time — display it
+      // as a given-up item: keep the learner's last wrong answer in the
+      // input + show the corrective block.
+      itemState[i] = 'given-up';
+      input.value = res.user_answer || '';
+      _lockGivenUp(i);
+      _showCorrection(i, res.user_answer || '', expected);
+    }
+  });
+  _updateProgress();
+  _updateProgressLabel();
+  // Render the final summary panel right away.
+  _finalizing = true; // suppress auto-resubmit from _maybeFinalize
+  showResults({
+    item_results: grading.item_results || [],
+    correct_items: grading.correct_items || _correctCount(),
+    total_items: grading.total_items || itemCount,
+    score: grading.score || 0,
+    passed: !!grading.passed,
+    next_lesson_url: CACHED_NEXT_LESSON_URL,
+  });
+}
+
+// Free-text input edits — clear stale validation state and refresh progress.
+document.addEventListener('input', function(e) {
+  if (e.target.classList && e.target.classList.contains('sentence-completion-input')) {
+    e.target.classList.remove('input--wrong', 'sentence-completion-input--incorrect');
+    const idx = parseInt(e.target.getAttribute('data-index') || '-1');
+    const fb = document.getElementById('feedback-' + idx);
+    if (fb) { fb.innerHTML = ''; fb.style.display = 'none'; }
+    _updateProgress();
+  }
+});
+
+// Trigger instant check on blur (user moves to next field) or Enter.
+document.addEventListener('focusout', function(e) {
+  const el = e.target;
+  if (!el.classList || !el.classList.contains('sentence-completion-input')) return;
+  if (el.disabled) return;
+  const idx = parseInt(el.getAttribute('data-index') || '-1');
+  if (idx < 0) return;
+  checkItem(idx);
+});
+
+// Initial state restoration + progress paint. Replays correct/given-up
+// items from LessonProgress.data so the learner picks up where they left.
+document.addEventListener('DOMContentLoaded', function() {
+  _restoreState();
+  _updateProgress();
+});
+
+function submitCompletion() {
+  // Called automatically by _maybeFinalize() once every item is in a
+  // terminal state. Sends final answers to the server for canonical
+  // grading + XP + lesson completion bookkeeping.
+  const answers = _allAnswers();
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken,
+    },
+    body: JSON.stringify({ answers: answers, lesson_type: 'sentence_completion' }),
+  })
+  .then(function(resp) {
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    return resp.json();
+  })
+  .then(function(data) {
+    showResults(data);
+    if (typeof showSaveToast === 'function') showSaveToast();
+  })
+  .catch(function(err) {
+    console.error('Sentence completion submit error:', err);
+    _finalizing = false; // allow re-submit if API failed
+    const summary = document.getElementById('result-summary');
+    summary.innerHTML = '';
+    const badge = document.createElement('div');
+    badge.className = 'result-badge result-badge--incorrect';
+    badge.textContent = '{{ _("Ошибка при отправке. Перезагрузи страницу.") }}';
+    summary.appendChild(badge);
+    document.getElementById('completion-result').hidden = false;
+  });
+}
+
+function _itemBadge(kind, label) {
+  const wrap = document.createElement('span');
+  // Legacy class names retained for backwards-compatible styling hooks:
+  // sentence-completion-badge--correct / sentence-completion-badge--incorrect.
+  const legacyClass = kind === 'correct'
+    ? 'sentence-completion-badge sentence-completion-badge--correct'
+    : 'sentence-completion-badge sentence-completion-badge--incorrect';
+  wrap.className = 'result-badge result-badge--' + kind + ' ' + legacyClass;
+  const icon = document.createElement('i');
+  icon.className = kind === 'correct' ? 'fas fa-check-circle' : 'fas fa-times-circle';
+  wrap.appendChild(icon);
+  const text = document.createElement('span');
+  text.textContent = ' ' + label;
+  wrap.appendChild(text);
+  return wrap;
+}
+
+function showResults(data) {
+  // Per-item state was already set by checkItem() during the live flow —
+  // no need to re-paint here. We only render the final summary card and
+  // the "next lesson" CTA. ``correct_items`` from the server is the
+  // authoritative count of items the user solved without giving up.
+  const summary = document.getElementById('result-summary');
+  const total = data.total_items || itemCount;
+  // Prefer our client-side _correctCount over server score because the
+  // server treats "given-up answers" as correct (we auto-filled the
+  // canonical value into the input). The user-facing count should reflect
+  // their actual performance.
+  const correct = _correctCount();
+  const score = total ? Math.round(correct / total * 100) : 0;
+
+  // Final header label.
+  const progressLabelEl = document.getElementById('sc-progress-label');
+  if (progressLabelEl) {
+    const labelTail = (correct === total)
+      ? '{{ _("Отлично:") }}'
+      : '{{ _("Правильно:") }}';
+    progressLabelEl.innerHTML =
+      labelTail +
+      ' <span data-progress-current id="sc-progress-current">' + correct + '</span> / ' +
+      '<span data-progress-total>' + total + '</span>';
+  }
+  const fill = document.getElementById('sc-progress-fill');
+  if (fill) fill.style.width = Math.round((correct / Math.max(1, total)) * 100) + '%';
+
+  summary.innerHTML = '';
+  // Score-card colour: pure green ONLY for 5/5 perfect run. Anything less
+  // — even 4/5 — gets amber "Почти". For a five-item drill where the
+  // answer choices are am/is/are, "good enough" green undermines the
+  // teaching goal: every miss is exactly the form the learner needs to
+  // close on.
+  const isPerfect = correct === total;
+  const scoreEl = document.createElement('div');
+  scoreEl.className = 'result-badge sentence-completion-score-card ' + (isPerfect
+    ? 'result-badge--correct sentence-completion-score-card--pass'
+    : 'result-badge--almost sentence-completion-score-card--fail');
+  const iconEl = document.createElement('i');
+  iconEl.className = isPerfect ? 'fas fa-trophy' : 'fas fa-exclamation-circle';
+  scoreEl.appendChild(iconEl);
+  const textEl = document.createElement('span');
+  textEl.textContent = ' ' + (isPerfect
+    ? correct + '/' + total + ' (' + score + '%)'
+    : '{{ _("Почти:") }} ' + correct + '/' + total + ' (' + score + '%)');
+  scoreEl.appendChild(textEl);
+  summary.appendChild(scoreEl);
+
+  // Action row depends on whether the learner aced every item. With a
+  // miss we push them back into the lesson instead of forward — for a
+  // five-item drill any miss is the form they need to close on.
+  const nextArea = document.getElementById('completion-next-area');
+  nextArea.innerHTML = '';
+  nextArea.style.display = 'flex';
+  nextArea.style.gap = '0.75rem';
+  nextArea.style.marginTop = '1rem';
+
+  if (isPerfect && data.next_lesson_url) {
+    // Perfect run — usual pair: К списку уроков (outline) + Следующий урок (primary).
+    const secondary = document.createElement('a');
+    secondary.href = window.__moduleUrl || '/learn/';
+    secondary.className = 'lsn-btn lsn-btn--outline';
+    secondary.textContent = '{{ _("К списку уроков") }}';
+    nextArea.appendChild(secondary);
+    const primary = document.createElement('a');
+    primary.href = data.next_lesson_url;
+    primary.className = 'lsn-btn lsn-btn--primary';
+    primary.innerHTML = '{{ _("Следующий урок") }} <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+    nextArea.appendChild(primary);
+  } else {
+    // Has at least one given-up item — offer a retry path that unlocks
+    // those rows and lets the learner have another go. К списку уроков
+    // remains as the secondary escape hatch.
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'lsn-btn lsn-btn--primary';
+    retry.innerHTML = '<i class="fas fa-redo"></i> {{ _("Исправить ошибку") }}';
+    retry.addEventListener('click', _retryGivenUp);
+    nextArea.appendChild(retry);
+    const secondary = document.createElement('a');
+    secondary.href = window.__moduleUrl || '/learn/';
+    secondary.className = 'lsn-btn lsn-btn--outline';
+    secondary.textContent = '{{ _("К списку уроков") }}';
+    nextArea.appendChild(secondary);
+  }
+
+  const resultArea = document.getElementById('completion-result');
+  resultArea.hidden = false;
+  resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter' || !e.target.classList.contains('sentence-completion-input')) return;
+  e.preventDefault();
+  const idx = parseInt(e.target.getAttribute('data-index') || '-1');
+  if (idx < 0) return;
+  // Run the instant check synchronously so the state of the current item
+  // is settled before we jump focus. _maybeFinalize() handles auto-submit
+  // when every item is in a terminal state.
+  checkItem(idx);
+  // Move focus to the next still-pending input (skip those already locked).
+  for (let i = idx + 1; i < itemCount; i++) {
+    if (itemState[i] !== 'correct' && itemState[i] !== 'given-up') {
+      const next = document.getElementById('answer-' + i);
+      if (next) { next.focus(); break; }
+    }
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,137 @@
+# Vocabulary synonyms and antonyms — priority words (A1-C1)
+# Column: english_word — case-insensitive match against collection_words.english_word
+# Column: synonyms    — semicolon-separated list; stored as JSON list
+# Column: antonyms    — semicolon-separated list; stored as JSON list (leave blank if none)
+# Generated: 2026-05-13
+# Coverage: ~200 high-frequency words sorted by CEFR level then alpha
+english_word,synonyms,antonyms
+big,large;huge;great,small;tiny;little
+small,little;tiny;slight,big;large;huge
+good,great;fine;excellent,bad;poor;awful
+bad,poor;awful;terrible,good;great;excellent
+fast,quick;rapid;speedy,slow;sluggish
+slow,sluggish;gradual,fast;quick;rapid
+old,aged;ancient;elderly,young;new;modern
+young,youthful;juvenile,old;aged;elderly
+hot,warm;burning;scorching,cold;cool;chilly
+cold,cool;chilly;icy;freezing,hot;warm
+happy,glad;joyful;content;cheerful,sad;unhappy;miserable
+sad,unhappy;miserable;sorrowful,happy;glad;joyful
+open,unlock;uncover,close;shut;lock
+close,shut;seal;lock,open;unlock
+come,arrive;approach,go;leave;depart
+go,leave;depart;travel,come;arrive;stay
+give,provide;offer;donate,take;receive;withhold
+take,receive;grab;get,give;provide
+find,discover;locate;detect,lose;misplace
+lose,misplace;drop;fail,find;discover;win
+start,begin;commence;launch,stop;finish;end
+stop,halt;cease;finish;end,start;begin;continue
+love,adore;cherish;like,hate;dislike;detest
+hate,dislike;detest;loathe,love;adore;like
+buy,purchase;acquire,sell
+sell,trade;offer,buy;purchase
+walk,stroll;march;stride,run;sprint
+run,sprint;dash;jog,walk
+speak,talk;communicate;say,listen
+listen,hear;attend;pay attention,ignore;talk
+help,assist;aid;support,hinder;obstruct;harm
+need,require;want;demand,offer;provide
+learn,study;understand;absorb,forget;ignore
+work,labor;toil;operate,rest;relax
+eat,consume;devour;dine,fast;starve
+think,consider;believe;suppose;reflect,ignore
+remember,recall;recollect;retain,forget
+understand,comprehend;grasp;follow,misunderstand;confuse
+answer,reply;respond;react,ask;question
+beautiful,pretty;lovely;attractive,ugly;unattractive;plain
+hard,difficult;tough;challenging,easy;simple;effortless
+easy,simple;effortless;straightforward,hard;difficult;challenging
+wrong,incorrect;mistaken;false,right;correct;true
+right,correct;accurate;true,wrong;incorrect;false
+early,prompt;ahead of time,late;delayed
+late,delayed;overdue,early;prompt;on time
+begin,start;commence;initiate,end;finish;stop;conclude
+finish,complete;end;conclude,begin;start
+change,alter;modify;transform,maintain;keep;preserve
+improve,enhance;better;develop,worsen;deteriorate
+create,make;produce;develop;build,destroy;demolish
+destroy,demolish;ruin;wreck,create;build;construct
+build,construct;develop;erect,destroy;demolish
+allow,permit;enable;let,forbid;ban;prevent
+forbid,ban;prohibit;block,allow;permit;enable
+agree,consent;accept;approve,disagree;refuse;reject
+disagree,differ;dispute;oppose,agree;consent
+reduce,decrease;diminish;lower;cut,increase;raise;boost
+increase,raise;boost;grow;expand,reduce;decrease;lower
+solve,resolve;fix;settle;answer
+choose,select;pick;opt;decide
+explain,describe;clarify;illustrate,confuse
+discuss,talk about;debate;consider
+support,help;assist;back;encourage,oppose;resist;hinder
+oppose,resist;challenge;counter;dispute,support;agree;back
+achieve,accomplish;attain;succeed,fail;struggle
+succeed,accomplish;triumph;complete,fail;lose
+fail,struggle;lose;fall short,succeed;achieve;win
+suggest,propose;recommend;advise
+consider,think about;weigh;reflect;evaluate
+develop,grow;advance;improve;build,decline;deteriorate
+contribute,add;give;provide;donate,withhold;take
+communicate,convey;express;share;inform
+compete,contest;rival;vie,cooperate;collaborate
+complete,finish;accomplish;conclude,begin;start
+concentrate,focus;attend;pay attention,distract;lose focus
+emphasize,stress;highlight;underline;accentuate,minimize;downplay
+establish,create;set up;found;build,dismantle;abolish;dissolve
+evaluate,assess;judge;measure;review
+identify,recognize;spot;find;detect
+implement,apply;execute;carry out;put into practice
+indicate,show;suggest;signal;point to
+influence,affect;impact;shape;affect
+investigate,examine;study;probe;explore
+manage,control;handle;oversee;run
+obtain,get;acquire;receive,lose;give up;relinquish
+promote,support;advance;encourage;boost,hinder;discourage;oppose
+propose,suggest;recommend;put forward,reject;refuse
+protect,defend;guard;preserve,harm;endanger;attack
+reflect,consider;think about;ponder;contemplate
+represent,stand for;symbolize;depict;embody
+require,need;demand;call for,offer;provide
+respond,reply;answer;react,ignore
+reveal,show;disclose;expose;uncover,hide;conceal;cover
+benefit,advantage;gain;profit,disadvantage;loss;harm
+acquire,obtain;gain;get;earn,lose;relinquish;give up
+anticipate,expect;foresee;predict;prepare for
+collaborate,cooperate;work together;partner,compete;oppose
+construct,build;create;develop;erect,destroy;demolish;tear down
+distinguish,differentiate;separate;tell apart,confuse;mix up
+enhance,improve;boost;strengthen;increase,weaken;diminish;reduce
+enormous,huge;vast;immense;gigantic,tiny;small;insignificant;minute
+facilitate,enable;help;assist;ease,hinder;impede;obstruct
+fundamental,basic;essential;core;primary,secondary;peripheral;trivial
+maintain,keep;preserve;sustain,change;abandon;neglect
+manipulate,control;influence;shape;direct
+advocate,support;promote;champion,oppose;resist;challenge
+comprehensive,thorough;complete;extensive;detailed,limited;narrow;partial
+analyze,examine;investigate;study;assess
+approach,method;strategy;technique;way
+argue,debate;contend;dispute;reason
+assume,presume;suppose;believe,know;verify;confirm
+challenge,difficulty;obstacle;test,opportunity;advantage
+elaborate,detailed;complex;intricate;thorough,simple;basic;brief
+hypothesis,theory;assumption;supposition;conjecture
+innovation,invention;novelty;advancement;breakthrough
+capacity,ability;potential;capability,inability;limitation
+circumstance,situation;condition;context;factor
+consequence,result;outcome;effect;impact,cause
+criterion,standard;measure;benchmark;requirement
+crucial,vital;essential;critical;important,unimportant;trivial;minor
+explicit,clear;direct;specific;definite,implicit;vague;indirect
+implicit,implied;indirect;unstated,explicit;clear;direct
+significant,important;major;considerable;notable,insignificant;minor;trivial
+potential,possible;likely;probable,certain;actual;definite
+perspective,viewpoint;outlook;standpoint;angle
+sustainable,viable;enduring;long-lasting,unsustainable;temporary
+theoretical,academic;abstract;conceptual,practical;applied
+preliminary,initial;early;preparatory;introductory,final;conclusive
+underlying,fundamental;basic;root;core

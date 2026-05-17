@@ -3,7 +3,7 @@ import time
 import threading
 from datetime import datetime
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import case, func, or_
@@ -877,8 +877,85 @@ def dashboard():
     )
 
     # === WEEKLY ANALYTICS (via insights_service — week-to-date, not lifetime) ===
-    from app.study.insights_service import get_weekly_summary
+    from app.study.insights_service import get_weekly_summary, get_listening_stats, get_writing_stats, get_vocabulary_growth, get_pronunciation_stats, get_weak_areas, get_learning_velocity
     weekly_analytics = get_weekly_summary(current_user.id)
+
+    # === LISTENING STATS (last 7 days dictation/audio_fill_blank) ===
+    listening_stats = _safe_widget_call(
+        'listening_stats', get_listening_stats, current_user.id, default=None)
+
+    # === WRITING STATS (all-time attempts, avg word count) ===
+    writing_stats = _safe_widget_call(
+        'writing_stats', get_writing_stats, current_user.id, default=None)
+
+    # === VOCABULARY GROWTH (new words per day, last 30 days) ===
+    vocab_growth = _safe_widget_call(
+        'vocab_growth', get_vocabulary_growth, current_user.id, default=None)
+
+    # === PRONUNCIATION STATS (total words, match rate last 7 days) ===
+    pronunciation_stats = _safe_widget_call(
+        'pronunciation_stats', get_pronunciation_stats, current_user.id, default=None)
+
+    # === WEAK AREAS (cross-skill analysis) ===
+    weak_areas = _safe_widget_call(
+        'weak_areas', get_weak_areas, current_user.id, default=[])
+
+    # === LEARNING VELOCITY (task 75) ===
+    learning_velocity = _safe_widget_call(
+        'learning_velocity', get_learning_velocity, current_user.id, default=None)
+
+    # === STUDY MINUTES TODAY (task 76) ===
+    from app.curriculum.models import get_minutes_today
+    _study_tz = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
+    try:
+        import pytz as _pytz_sm
+        _tz_sm = _pytz_sm.timezone(_study_tz)
+    except Exception:
+        from config.settings import DEFAULT_TIMEZONE as _DEF_TZ
+        import pytz as _pytz_sm
+        _tz_sm = _pytz_sm.timezone(_DEF_TZ)
+    _study_today = datetime.now(_tz_sm).date()
+    minutes_studied_today = _safe_widget_call(
+        'study_minutes', get_minutes_today, current_user.id, _study_today, db, default=0)
+
+    # === WEEKLY REPORT (task 78) — Monday-only recap of last week ===
+    weekly_report = None
+    try:
+        import pytz as _pytz_wr
+        _tz_wr_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
+        try:
+            _tz_wr = _pytz_wr.timezone(_tz_wr_name)
+        except Exception:
+            _tz_wr = _pytz_wr.timezone(DEFAULT_TIMEZONE)
+        _today_wr = datetime.now(_tz_wr).date()
+        _is_monday = _today_wr.weekday() == 0
+        if _is_monday:
+            # ISO week key e.g. "2026-W19" — dismissed once per Monday session
+            _week_key = _today_wr.strftime('%G-W%V')
+            _dismissed_key = f'weekly_report_dismissed_{_week_key}'
+            if not session.get(_dismissed_key):
+                from app.study.insights_service import get_last_week_summary
+                _lw = _safe_widget_call(
+                    'last_week_summary',
+                    get_last_week_summary,
+                    current_user.id,
+                    _tz_wr_name,
+                    default=None,
+                )
+                if _lw and _lw.get('has_activity'):
+                    weekly_report = _lw
+                    weekly_report['dismiss_key'] = _dismissed_key
+    except Exception:
+        logger.warning('weekly_report build failed', exc_info=True)
+        weekly_report = None
+
+    # === DAILY CHALLENGE (task 84) ===
+    today_challenge = None
+    try:
+        from app.daily_plan.challenge import get_today_challenge
+        today_challenge = get_today_challenge(current_user.id, db)
+    except Exception:
+        logger.warning('today_challenge build failed', exc_info=True)
 
     # === WEEKLY CHALLENGE ===
     from app.achievements.weekly_challenge import get_weekly_challenge, get_weekly_digest
@@ -987,6 +1064,7 @@ def dashboard():
         except Exception:
             db.session.rollback()
 
+    plan_paused_until = daily_plan.get('paused_until') if daily_plan.get('mode') == 'paused' else None
     linear_plan = daily_plan if daily_plan.get('mode') == 'linear' else None
     mission_plan = daily_plan if daily_plan.get('mission') else None
     plan_meta = daily_plan.get('_plan_meta', {})
@@ -1110,6 +1188,8 @@ def dashboard():
                 )
                 if next_best:
                     day_secured_banner['next_step'] = next_best
+
+                day_secured_banner['tomorrow_preview'] = linear_plan.get('tomorrow_preview')
         except Exception:
             logger.warning("day_secured_banner build failed", exc_info=True)
             day_secured_banner = None
@@ -1140,8 +1220,14 @@ def dashboard():
         plan_steps=daily_plan.get('steps', {}),
         mission_plan=mission_plan,
         linear_plan=linear_plan,
+        plan_paused_until=plan_paused_until,
         use_linear_plan=bool(getattr(current_user, 'use_linear_plan', False)),
+        learning_goals={
+            'daily_word_goal': getattr(current_user, 'daily_word_goal', 10) or 10,
+            'weekly_lesson_goal': getattr(current_user, 'weekly_lesson_goal', 5) or 5,
+        },
         day_secured_banner=day_secured_banner,
+        streak_shield_active=bool(getattr(current_user, 'streak_shield_active', False)),
         local_hour=local_hour,
         plan_meta=plan_meta,
         phase_urls=phase_urls,
@@ -1206,6 +1292,22 @@ def dashboard():
         completion_summary=completion_summary,
         # Weekly progress digest (task 30)
         weekly_digest=weekly_digest,
+        # Listening stats widget (task 9)
+        listening_stats=listening_stats,
+        # Writing stats widget (task 26)
+        writing_stats=writing_stats,
+        # Vocabulary growth widget (task 39)
+        vocab_growth=vocab_growth,
+        # Pronunciation stats widget (task 60)
+        pronunciation_stats=pronunciation_stats,
+        # Weak areas widget (task 66)
+        weak_areas=weak_areas,
+        # Learning velocity widget (task 75)
+        learning_velocity=learning_velocity,
+        # Daily study minutes (task 76)
+        minutes_studied_today=minutes_studied_today,
+        # Weekly learning report (task 78)
+        weekly_report=weekly_report,
         # Route board metadata (task 33)
         route_metadata=route_metadata,
         # Route progress state for task 14 route board UI
@@ -1214,6 +1316,8 @@ def dashboard():
         plan_today=plan_today,
         # Single hero CTA resolved from mission phases + review budget
         hero_cta=hero_cta,
+        # Daily challenge (task 84)
+        today_challenge=today_challenge,
         # Fullscreen zero-state is only for truly empty dashboards: no activity
         # counters, no mission/linear plan, and no meaningful widget content.
         # Keep zero-state off for the linear plan: first-run users must still
@@ -1853,6 +1957,17 @@ def _next_step_from_legacy(daily_plan: dict, daily_summary: dict) -> tuple:
         'steps_done': steps_done,
         'steps_total': steps_total,
     })
+
+
+@words.route('/api/weekly-report/dismiss', methods=['POST'])
+@login_required
+def weekly_report_dismiss():
+    """Mark the current week's Monday report card as dismissed (session-only)."""
+    data = request.get_json(silent=True) or {}
+    dismiss_key = data.get('dismiss_key', '')
+    if dismiss_key and dismiss_key.startswith('weekly_report_dismissed_'):
+        session[dismiss_key] = True
+    return jsonify({'ok': True})
 
 
 @words.route('/api/streak/repair-web', methods=['POST'])

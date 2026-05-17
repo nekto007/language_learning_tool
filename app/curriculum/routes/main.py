@@ -16,12 +16,103 @@ logger = logging.getLogger(__name__)
 # Create blueprint for main routes - use curriculum name for compatibility
 main_bp = Blueprint('curriculum', __name__)
 
+_CANONICAL_LESSON_ROUTE_TYPES = frozenset({
+    'dictation',
+    'audio_fill_blank',
+    'translation',
+    'sentence_correction',
+    'writing_prompt',
+    'sentence_completion',
+    'collocation_matching',
+    'shadow_reading',
+    'pronunciation',
+    'idiom',
+    'listening_immersion',
+})
+
 
 @main_bp.route('/')
 @login_required
 def index():
     """Главная страница учебной программы - редирект на /learn/"""
     return redirect('/learn/', code=302)
+
+
+@main_bp.route('/search')
+@login_required
+def search():
+    """Full-text search over lesson titles and vocabulary words.
+
+    GET /curriculum/search?q=<query>
+    Empty query redirects to /learn/.
+    """
+    from app.words.models import CollectionWords
+    from app.grammar_lab.models import GrammarTopic
+
+    q = request.args.get('q', '').strip()[:200]
+    if not q:
+        return redirect(url_for('learn.learn_index'))
+
+    pattern = f'%{q}%'
+
+    # Search lessons by title (joined with module and level for context)
+    lesson_results = (
+        Lessons.query
+        .join(Module, Lessons.module_id == Module.id)
+        .join(CEFRLevel, Module.level_id == CEFRLevel.id)
+        .filter(Lessons.title.ilike(pattern))
+        .options(
+            joinedload(Lessons.module).joinedload(Module.level)
+        )
+        .order_by(CEFRLevel.order, Module.number, Lessons.number)
+        .limit(50)
+        .all()
+    )
+
+    # Group lessons by module
+    modules_map: dict = {}
+    for lesson in lesson_results:
+        mod = lesson.module
+        key = mod.id
+        if key not in modules_map:
+            modules_map[key] = {
+                'module': mod,
+                'level_code': mod.level.code,
+                'lessons': [],
+            }
+        modules_map[key]['lessons'].append(lesson)
+    lesson_groups = list(modules_map.values())
+
+    # Search vocabulary words by English term
+    word_results = (
+        CollectionWords.query
+        .filter(CollectionWords.english_word.ilike(pattern))
+        .order_by(CollectionWords.frequency_rank)
+        .limit(30)
+        .all()
+    )
+
+    # Search grammar topics by title or Russian title
+    topic_results = (
+        GrammarTopic.query
+        .filter(
+            GrammarTopic.title.ilike(pattern) | GrammarTopic.title_ru.ilike(pattern)
+        )
+        .order_by(GrammarTopic.level, GrammarTopic.order)
+        .limit(20)
+        .all()
+    )
+
+    total = len(lesson_results) + len(word_results) + len(topic_results)
+
+    return render_template(
+        'curriculum/search.html',
+        query=q,
+        lesson_groups=lesson_groups,
+        word_results=word_results,
+        topic_results=topic_results,
+        total=total,
+    )
 
 
 # =============================================================================
@@ -372,6 +463,7 @@ def learn_by_module(level_code, module_number):
         lessons=sorted_lessons,
         user_lesson_progress=user_lesson_progress,
         module_lock_reason=module_lock_reason,
+        admin_preview=getattr(current_user, 'is_admin', False),
     )
 
 
@@ -389,6 +481,8 @@ def lesson_by_id(lesson_id):
     from app.curriculum.routes.card_lessons import render_card_lesson
 
     lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type in _CANONICAL_LESSON_ROUTE_TYPES:
+        return redirect(url_for('curriculum_lessons.lesson_detail', lesson_id=lesson.id))
 
     # Get or create user progress
     progress = LessonProgress.query.filter_by(
@@ -413,9 +507,9 @@ def lesson_by_id(lesson_id):
             flash('Ошибка при создании прогресса урока', 'error')
             return redirect('/learn/')
     else:
-        # Update last activity
-        progress.last_activity = datetime.now(UTC)
-        db.session.commit()
+        if progress.status != 'completed':
+            progress.last_activity = datetime.now(UTC)
+            db.session.commit()
 
     # Маппинг типов уроков на render-функции
     render_map = {
@@ -425,7 +519,6 @@ def lesson_by_id(lesson_id):
         'matching': render_matching_lesson,
         'text': render_text_lesson,
         'reading': render_text_lesson,
-        'listening_immersion': render_text_lesson,
         'card': render_card_lesson,
         'final_test': render_final_test_lesson,
         # Quiz-based lessons
@@ -452,4 +545,3 @@ def lesson_by_id(lesson_id):
         return render_template('curriculum/lessons/empty_content.html', lesson=lesson)
 
     return render_func(lesson)
-

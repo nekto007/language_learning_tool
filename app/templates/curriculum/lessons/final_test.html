@@ -92,7 +92,8 @@
 
 .info-item i {
   font-size: 2rem;
-  color: #dc2626;
+  /* Indigo вместо red — info-карточки не warning. */
+  color: #6366f1;
   flex-shrink: 0;
 }
 
@@ -143,13 +144,14 @@
   line-height: 1.5;
 }
 
-/* Start button */
+/* Start button — раньше был красным «алармистским». Делаем брендовым,
+   чтобы старт теста не выглядел как «жми и беги», а как обычное CTA. */
 #start-final-test-btn {
   margin-top: 2rem;
   padding: 1rem 2rem;
   font-size: 1.1rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
   border: none;
   border-radius: 0.75rem;
   color: white;
@@ -162,7 +164,7 @@
 
 #start-final-test-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(220, 38, 38, 0.3);
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
 }
 
 /* Progress bar */
@@ -188,41 +190,29 @@
 
 .final-test-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #dc2626, #ef4444);
+  /* Брендовый gradient вместо красного — это прогресс, а не тревога. */
+  background: linear-gradient(90deg, #10b981, #0ea5e9);
   border-radius: 6px;
   transition: width 0.4s ease;
 }
 
-/* Question cards */
+/* Question cards — нейтральная карточка без красной подсветки.
+   Padding снижен с 2.5rem до 1.5rem 1.75rem — на 2.5rem карточка
+   выглядела «полупустой» с большим зазором сверху/снизу до контента,
+   особенно на transformation/text-вопросах с короткими предложениями. */
 .question-card {
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-  border-radius: 1.5rem;
-  padding: 2.5rem;
-  box-shadow: 0 10px 40px rgba(220, 38, 38, 0.12),
-              0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 1.25rem;
+  padding: 1.5rem 1.75rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08),
+              0 2px 6px rgba(15, 23, 42, 0.05);
   max-width: 900px;
-  border: 2px solid transparent;
+  border: 1px solid #e2e8f0;
   background-clip: padding-box;
   position: relative;
   animation: cardSlideIn 0.5s ease-out;
 }
-
-.question-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 1.5rem;
-  padding: 2px;
-  background: linear-gradient(135deg, #dc2626, #ef4444, #f87171);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0.3;
-  pointer-events: none;
-}
+.question-card::before { content: none; }
 
 /* cardSlideIn animation moved to design-system.css */
 
@@ -255,8 +245,9 @@
 }
 
 .answer-option:hover:not(:disabled) {
-  border-color: #dc2626;
-  background: #fef2f2;
+  /* Брендовый hover, не алярм-красный. */
+  border-color: #6366f1;
+  background: #eef2ff;
   transform: translateX(5px);
 }
 
@@ -285,7 +276,9 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: #dc2626;
+  /* Indigo вместо красного — кружки A/B/C не должны выглядеть как
+     «неправильные ответы» до того, как пользователь сделает выбор. */
+  background: #6366f1;
   color: white;
   border-radius: 50%;
   font-weight: 700;
@@ -310,13 +303,15 @@
 }
 
 .question-feedback.correct {
-  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-  border: 2px solid #10b981;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-left: 3px solid #16a34a;
 }
 
 .question-feedback.incorrect {
-  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-  border: 2px solid #ef4444;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 3px solid #dc2626;
 }
 
 .feedback-content {
@@ -362,21 +357,29 @@
 
 .text-answer .form-control:focus {
   outline: none;
-  border-color: #dc2626;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
-.text-submit-btn {
+.text-submit-btn,
+.matching-submit-btn,
+.reorder-submit-btn {
   margin-top: 1rem !important;
   padding: 0.75rem 1.5rem !important;
   font-size: 1rem !important;
-  background: #dc2626 !important;
+  /* Брендовый gradient вместо красного: «Отправить ответ» — действие,
+     а не предупреждение. */
+  background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%) !important;
   border: none !important;
   border-radius: 0.5rem !important;
+  color: white !important;
 }
 
-.text-submit-btn:hover {
-  background: #991b1b !important;
+.text-submit-btn:hover,
+.matching-submit-btn:hover,
+.reorder-submit-btn:hover {
+  opacity: 0.92;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 /* Reorder questions */
@@ -405,10 +408,10 @@
 }
 
 .word-button:hover:not(:disabled) {
-  border-color: #dc2626;
-  background: #fef2f2;
+  border-color: #6366f1;
+  background: #eef2ff;
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(220, 38, 38, 0.2);
+  box-shadow: 0 4px 8px rgba(99, 102, 241, 0.2);
 }
 
 .word-button:disabled,
@@ -422,7 +425,9 @@
   min-height: 80px;
   padding: 1.5rem;
   background: white;
-  border: 2px solid #dc2626;
+  /* Нейтральная брендовая рамка для собираемого предложения — раньше
+     была красная, читалась как «здесь ошибка». */
+  border: 2px solid #6366f1;
   border-radius: 0.75rem;
   display: flex;
   flex-wrap: wrap;
@@ -445,7 +450,8 @@
 
 .sentence-word {
   padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  /* Indigo gradient — нейтрально-брендово, не «алертно». */
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   color: white;
   border-radius: 0.375rem;
   font-weight: 500;
@@ -455,23 +461,23 @@
 
 .sentence-word:hover {
   transform: scale(1.05);
-  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.4);
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.4);
 }
 
 /* Matching game styles */
 .final-test-matching-btn:hover:not(:disabled):not(.matched) {
-  border-color: #dc2626 !important;
-  background: #fef2f2 !important;
+  border-color: #6366f1 !important;
+  background: #eef2ff !important;
   transform: translateX(5px);
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
 }
 
 .final-test-matching-btn.selected {
-  border-color: #dc2626 !important;
-  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%) !important;
+  border-color: #6366f1 !important;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
   color: white !important;
   transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
 }
 
 .final-test-matching-btn.matched {
@@ -482,9 +488,14 @@
 }
 
 .final-test-matching-btn.correct-match {
+  /* opacity=1 нужен явно: `.matched` ставит opacity 0.4, и correct-match
+     должен это перетереть, иначе зелёные пары после завершения выглядят
+     «выцветшими» — текст почти не читается. */
+  opacity: 1 !important;
   border-color: #10b981 !important;
   background: #d1fae5 !important;
   color: #065f46 !important;
+  font-weight: 600;
   animation: matchPulse 0.5s ease;
 }
 
@@ -708,7 +719,7 @@
                        id="text-answer-{{ question_index }}"
                        placeholder="{{ _('Введите ваш ответ...') }}">
                 <button type="button"
-                        class="btn btn-danger text-submit-btn"
+                        class="btn btn-primary text-submit-btn"
                         data-question="{{ question_index }}">
                   {{ _('Отправить ответ') }}
                 </button>
@@ -747,7 +758,7 @@
                      id="text-answer-{{ question_index }}"
                      placeholder="{{ _('Введите преобразованное предложение...') }}">
               <button type="button"
-                      class="btn btn-danger mt-3 text-submit-btn"
+                      class="btn btn-primary mt-3 text-submit-btn"
                       data-question="{{ question_index }}">
                 {{ _('Отправить ответ') }}
               </button>
@@ -798,7 +809,7 @@
               </div>
 
               <button type="button"
-                      class="btn btn-danger mt-3 matching-submit-btn"
+                      class="btn btn-primary mt-3 matching-submit-btn"
                       id="matching-submit-{{ question_index }}"
                       data-question="{{ question_index }}"
                       onclick="submitMatchingAnswer({{ question_index }})"
@@ -835,7 +846,7 @@
                 </div>
               </div>
               <button type="button"
-                      class="btn btn-danger mt-3 reorder-submit-btn"
+                      class="btn btn-primary mt-3 reorder-submit-btn"
                       data-question="{{ question_index }}"
                       onclick="submitReorderAnswer({{ question_index }})">
                 {{ _('Отправить ответ') }}
@@ -849,7 +860,7 @@
               <div class="feedback-icon"></div>
               <div class="feedback-text"></div>
             </div>
-            <button type="button" class="btn btn-danger mt-2 quiz-next-btn-full" onclick="FinalTestApp.nextQuestion()">
+            <button type="button" class="btn btn-primary mt-2 quiz-next-btn-full" onclick="FinalTestApp.nextQuestion()">
               <span class="btn-text">{{ _('Следующий вопрос') }}</span>
               <i class="fas fa-arrow-right ms-1"></i>
             </button>
@@ -968,7 +979,7 @@ function submitReorderAnswer(questionIndex) {
 }
 
 // Matching game state
-const matchingState = {};
+const matchingState = window.matchingState = (window.matchingState || {});
 
 function selectLeftWord(questionIndex, pairId, button) {
   if (button.classList.contains('matched')) return;
@@ -1084,11 +1095,23 @@ function checkMatch(questionIndex) {
 }
 
 function submitMatchingAnswer(questionIndex) {
-  // For matching questions, we just mark them as correct (they're educational, not test)
+  // For matching questions, we just mark them as correct (they're educational, not test).
+  // But we DO collect the pairs the user actually assembled so the results page
+  // can render «Friend → Друг» instead of a useless "completed" token.
+  const state = (window.matchingState && window.matchingState[questionIndex]) || null;
+  const pairs = state && Array.isArray(state.matchedPairs) ? state.matchedPairs.map(p => ({
+    left: p.left, right: p.right, correct: true
+  })) : [];
+
+  // Form-friendly compact string so server stores something meaningful even
+  // without separate pairs handling: "left1 → right1; left2 → right2".
+  const pairsText = pairs.map(p => `${p.left} → ${p.right}`).join('; ');
+
   FinalTestApp.state.answers[questionIndex] = {
-    value: 'completed',
-    text: 'Соответствия найдены',
-    correct: true
+    value: pairsText || 'completed',
+    text: pairsText || 'Соответствия найдены',
+    correct: true,
+    pairs: pairs
   };
 
   FinalTestApp.state.correctCount++;
@@ -1496,6 +1519,15 @@ window.FinalTestApp = {
         input.name = `answer_${i}`;
         input.value = answer.value;
         form.appendChild(input);
+        // For matching: also ship raw pairs so server-side can persist them
+        // into feedback.user_pairs for the results page.
+        if (Array.isArray(answer.pairs) && answer.pairs.length) {
+          const pairsInput = document.createElement('input');
+          pairsInput.type = 'hidden';
+          pairsInput.name = `pairs_${i}`;
+          pairsInput.value = JSON.stringify(answer.pairs);
+          form.appendChild(pairsInput);
+        }
       }
     }
 

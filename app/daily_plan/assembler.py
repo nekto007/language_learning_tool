@@ -699,6 +699,158 @@ def assemble_repair_mission(
     )
 
 
+_DICTATION_TYPES = ('dictation',)
+_LISTENING_IMMERSION_TYPES = ('listening_immersion', 'listening_immersion_quiz')
+
+
+def _find_next_lesson_of_types(user_id: int, lesson_types: tuple) -> Optional[dict[str, Any]]:
+    """Return the next incomplete lesson of the given types ordered by curriculum progression."""
+    from app.auth.models import User
+    current_level_code = get_user_current_cefr_level(user_id, db)
+    current_level = db.session.query(CEFRLevel).filter_by(code=current_level_code).first()
+    if not current_level:
+        return None
+
+    user = db.session.get(User, user_id)
+    onboarding_order = 0
+    if user and user.onboarding_level:
+        ob = db.session.query(CEFRLevel).filter_by(code=user.onboarding_level).first()
+        if ob:
+            onboarding_order = ob.order
+
+    completed_ids_subq = (
+        db.session.query(LessonProgress.lesson_id)
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+        )
+        .subquery()
+    )
+
+    lesson = (
+        db.session.query(Lessons)
+        .join(Module, Module.id == Lessons.module_id)
+        .join(CEFRLevel, CEFRLevel.id == Module.level_id)
+        .filter(
+            Lessons.type.in_(lesson_types),
+            Lessons.id.notin_(db.session.query(completed_ids_subq.c.lesson_id)),
+            CEFRLevel.order >= onboarding_order,
+            CEFRLevel.order <= current_level.order,
+        )
+        .order_by(CEFRLevel.order, Module.number, Lessons.number, Lessons.id)
+        .first()
+    )
+    if lesson is None:
+        return None
+    return {
+        'lesson_id': lesson.id,
+        'lesson_title': lesson.title,
+        'lesson_type': lesson.type,
+        'module_id': lesson.module_id,
+    }
+
+
+def assemble_listening_mission(
+    user_id: int,
+    reason_code: str = "listening_streak_low",
+    reason_text: str = "Потренируй слух — нужно больше аудирования",
+    tz: Optional[str] = None,
+) -> Optional[MissionPlan]:
+    """Build Listening mission: Recall (SRS) → Dictation lesson → Listening immersion → optional Check."""
+    dictation = _find_next_lesson_of_types(user_id, _DICTATION_TYPES)
+    if dictation is None:
+        logger.warning("assemble_listening_mission: no dictation lesson for user_id=%s", user_id)
+        return None
+
+    listening = _find_next_lesson_of_types(user_id, _LISTENING_IMMERSION_TYPES)
+
+    srs_due = _count_srs_due(user_id)
+    _, remaining_reviews = _get_remaining_card_budget(user_id)
+    recall_count, check_count = _allocate_srs_budget(srs_due, remaining_reviews)
+    has_srs_recall = recall_count > 0
+
+    phases: list[MissionPhase] = []
+    if has_srs_recall or _has_guided_recall_content(user_id):
+        phases.append(
+            _make_recall_phase(SourceKind.srs, has_srs_recall, recall_count)
+        )
+
+    phases.append(MissionPhase(
+        phase=PhaseKind.learn,
+        title="Диктант: тренируем слух",
+        source_kind=SourceKind.normal_course,
+        mode="dictation_lesson",
+        preview=PhasePreview(
+            content_title=dictation['lesson_title'],
+            estimated_minutes=10,
+        ),
+    ))
+
+    if listening:
+        phases.append(MissionPhase(
+            phase=PhaseKind.use,
+            title="Погружаемся в живой английский",
+            source_kind=SourceKind.normal_course,
+            mode="listening_lesson",
+            preview=PhasePreview(
+                content_title=listening['lesson_title'],
+                estimated_minutes=10,
+            ),
+        ))
+    else:
+        # No listening_immersion available — use a vocabulary check instead
+        phases.append(MissionPhase(
+            phase=PhaseKind.use,
+            title="Закрепляем после диктанта",
+            source_kind=SourceKind.vocab,
+            mode="meaning_prompt",
+            preview=PhasePreview(
+                content_title="Проверка слов",
+                estimated_minutes=5,
+            ),
+        ))
+
+    if check_count > 0:
+        phases.append(MissionPhase(
+            phase=PhaseKind.check,
+            title="Быстрая проверка памяти",
+            source_kind=SourceKind.srs,
+            mode="micro_check",
+            required=False,
+            preview=PhasePreview(
+                item_count=check_count,
+                content_title="Мини-проверка",
+                estimated_minutes=3,
+            ),
+        ))
+
+    if len(phases) < 3:
+        phases.append(_make_close_phase())
+
+    phases = _maybe_add_bonus_phase(phases)
+    return MissionPlan(
+        plan_version="1",
+        mission=Mission(
+            type=MissionType.listening,
+            title="Тренируем слух",
+            reason_code=reason_code,
+            reason_text=reason_text,
+        ),
+        primary_goal=PrimaryGoal(
+            type="listen",
+            title="Завершить диктант и аудирование",
+            success_criterion="listening_completed",
+        ),
+        primary_source=PrimarySource(
+            kind=SourceKind.normal_course,
+            id=str(dictation['lesson_id']),
+            label=dictation['lesson_title'],
+        ),
+        phases=phases,
+        legacy={'dictation': dictation, 'listening': listening},
+    )
+
+
 def assemble_reading_mission(
     user_id: int,
     reason_code: str = "primary_track_reading",

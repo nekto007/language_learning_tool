@@ -1,0 +1,23 @@
+[
+  {
+    "external_key": "fixture:sentence_completion:A2:01",
+    "level": "A2",
+    "module_number": 1,
+    "lesson_type": "sentence_completion",
+    "title": "Закончи предложение",
+    "title_en": "Complete the Sentence",
+    "content": {
+      "items": [
+        {
+          "prompt": "If it rains tomorrow, we ___",
+          "answer": "will stay at home",
+          "context": "First conditional with future result."
+        },
+        {
+          "prompt": "She has been studying English ___",
+          "answer": "for three years"
+        }
+      ]
+    }
+  }
+]

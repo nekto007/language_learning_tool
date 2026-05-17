@@ -78,3 +78,88 @@ def test_single_head(chain):
 def test_user_lesson_progress_migration_present(chain):
     assert "d35366cf95ab" in chain, "d35366cf95ab migration missing"
     assert chain["d35366cf95ab"] == ["51563928c8a8"]
+
+
+# ---------------------------------------------------------------------------
+# Migration readiness audit (Task 2 of post-immersion content-data plan):
+# verify (statically, without a live DB) that the migrations that introduce
+# new tables and user default columns are present in the migration tree.
+# This guarantees that an `alembic upgrade head` against an empty DB will
+# produce the schema the immersion features depend on.
+# ---------------------------------------------------------------------------
+
+
+_REQUIRED_TABLE_TO_MIGRATION_HINT = {
+    # table_name : substring that must appear in the migration file body
+    "listening_attempts": "listening_attempts",
+    "user_writing_attempts": "user_writing_attempts",
+    "pronunciation_attempts": "pronunciation_attempts",
+    "user_reading_sessions": "user_reading_sessions",
+    "user_reading_preference": "user_reading_preference",
+    "quiz_error_log": "quiz_error_log",
+    "grammar_theory_view": "grammar_theory_view",
+    "word_collocations": "word_collocations",
+    "vocab_annotations": "vocab_annotations",
+    "cultural_notes": "cultural_notes",
+    "daily_challenges": "daily_challenges",
+    "custom_word_lists": "custom_word_lists",
+    "lesson_feedback": "lesson_feedback",
+    "user_route_progress": "user_route_progress",
+    "daily_plan_logs": "daily_plan_log",
+    "daily_plan_events": "daily_plan_events",
+    "daily_study_minutes": "daily_study_minutes",
+}
+
+_REQUIRED_USER_COLUMN_DEFAULTS = {
+    # column_name : default literal that must appear in some migration
+    "daily_word_goal": "10",
+    "weekly_lesson_goal": "5",
+    "plan_difficulty": "normal",
+    "streak_shield_active": "false",
+}
+
+
+def _read_all_migrations() -> dict[str, str]:
+    bodies: dict[str, str] = {}
+    for path in MIGRATIONS_DIR.glob("*.py"):
+        if path.name.startswith("__"):
+            continue
+        bodies[path.name] = path.read_text()
+    return bodies
+
+
+def test_new_immersion_tables_have_migrations():
+    bodies = _read_all_migrations()
+    joined = "\n".join(bodies.values())
+    missing = [
+        table
+        for table, hint in _REQUIRED_TABLE_TO_MIGRATION_HINT.items()
+        if hint not in joined
+    ]
+    assert not missing, f"no migration creates these tables: {missing}"
+
+
+def test_user_default_columns_have_migrations():
+    bodies = _read_all_migrations()
+    joined = "\n".join(bodies.values())
+    missing = []
+    for column, default_literal in _REQUIRED_USER_COLUMN_DEFAULTS.items():
+        if column not in joined:
+            missing.append((column, "column not declared"))
+            continue
+        # Find a line that mentions both the column and its server_default.
+        if default_literal not in joined.lower():
+            missing.append((column, f"default literal '{default_literal}' missing"))
+    assert not missing, f"user-defaults drift detected: {missing}"
+
+
+def test_no_duplicate_revisions(chain):
+    """Sanity: every revision id appears in only one file."""
+    counts: dict[str, int] = {}
+    for path in MIGRATIONS_DIR.glob("*.py"):
+        if path.name.startswith("__"):
+            continue
+        for match in _REV_RE.finditer(path.read_text()):
+            counts[match.group(1)] = counts.get(match.group(1), 0) + 1
+    duplicates = [rev for rev, c in counts.items() if c > 1]
+    assert not duplicates, f"duplicate revision ids: {duplicates}"

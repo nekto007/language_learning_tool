@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text, desc
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, desc
 from sqlalchemy.orm import relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -45,6 +45,7 @@ class User(db.Model, UserMixin):
     # Profile settings
     timezone = Column(String(50), nullable=True, default='Europe/Moscow')
     daily_goal_minutes = Column(Integer, nullable=True, default=15)
+    listening_goal_minutes = Column(Integer, nullable=True, default=10)
 
     # Notification preferences
     notify_email_reminders = Column(Boolean, default=True, nullable=False, server_default='true')
@@ -64,6 +65,21 @@ class User(db.Model, UserMixin):
 
     # Phase 3: permanently dismiss the rival strip per user.
     rival_strip_dismissed = Column(Boolean, default=False, nullable=False, server_default='false')
+
+    # Plan pause / vacation mode: when set and >= today, plan returns paused mode.
+    plan_paused_until = Column(Date, nullable=True)
+
+    # Plan difficulty: controls how many baseline slots are built each day.
+    # 'light' = 2 slots (curriculum + SRS); 'normal' = standard 3-4; 'intensive' = standard + 2 extra always shown.
+    plan_difficulty = Column(String(20), nullable=False, default='normal', server_default='normal')
+
+    # Learning goals displayed as context in plan header.
+    daily_word_goal = Column(Integer, nullable=False, default=10, server_default='10')
+    weekly_lesson_goal = Column(Integer, nullable=False, default=5, server_default='5')
+
+    # Streak shield: use-once protection against a single missed day.
+    # Earned at each 7-day streak milestone (7, 14, 21, …). Max 1 active at a time.
+    streak_shield_active = Column(Boolean, default=False, nullable=False, server_default='false')
 
     referred_by = relationship('User', remote_side='User.id', foreign_keys=[referred_by_id])
 

@@ -1,0 +1,1159 @@
+[
+  {
+    "external_key": "immersion:sentence_completion:A1:01:to_be",
+    "level": "A1",
+    "lesson_number_hint": 1,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: глагол to be",
+    "title_en": "Sentence Completion: Verb To Be",
+    "description": "Завершите каждое предложение, используя правильную форму глагола to be.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a1",
+      "to_be",
+      "verb"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "My name is Anna. I",
+          "answer": "am from Moscow.",
+          "context": "Introducing yourself"
+        },
+        {
+          "prompt": "This is my brother. He",
+          "answer": "is ten years old.",
+          "context": "Talking about family"
+        },
+        {
+          "prompt": "My parents work a lot. They",
+          "answer": "are very busy.",
+          "context": "Describing family"
+        },
+        {
+          "prompt": "The book is on the table. It",
+          "answer": "is not mine.",
+          "context": "Objects and possession"
+        },
+        {
+          "prompt": "We are at school now. The lesson",
+          "answer": "is very interesting.",
+          "context": "Classroom"
+        }
+      ]
+    },
+    "module_number": 1
+  },
+  {
+    "external_key": "immersion:sentence_completion:A1:02:have_got",
+    "level": "A1",
+    "lesson_number_hint": 2,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: have/has got",
+    "title_en": "Sentence Completion: Have/Has Got",
+    "description": "Завершите каждое предложение, используя have got или has got.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a1",
+      "have_got",
+      "possession"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "I want a pet. I",
+          "answer": "have got a cat.",
+          "context": "Pets and possessions"
+        },
+        {
+          "prompt": "She needs a pen to write. She",
+          "answer": "has got one in her bag.",
+          "context": "School supplies"
+        },
+        {
+          "prompt": "We are hungry. We",
+          "answer": "have not got any food.",
+          "context": "At home"
+        },
+        {
+          "prompt": "He lives alone. He",
+          "answer": "has got a small flat.",
+          "context": "Accommodation"
+        },
+        {
+          "prompt": "The children play outside every day. They",
+          "answer": "have got a lot of energy.",
+          "context": "Children"
+        }
+      ]
+    },
+    "module_number": 2
+  },
+  {
+    "external_key": "immersion:sentence_completion:A1:03:daily_routine",
+    "level": "A1",
+    "lesson_number_hint": 3,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: распорядок дня",
+    "title_en": "Sentence Completion: Daily Routine",
+    "description": "Завершите предложения о ежедневных действиях.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a1",
+      "present_simple",
+      "daily_routine"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "I wake up at seven o'clock. Then I",
+          "answer": "have breakfast.",
+          "context": "Morning routine"
+        },
+        {
+          "prompt": "She goes to school at eight. She",
+          "answer": "comes home at three.",
+          "context": "School day"
+        },
+        {
+          "prompt": "My father works in an office. He",
+          "answer": "drives to work every day.",
+          "context": "Work routine"
+        },
+        {
+          "prompt": "In the evening, we watch TV. We",
+          "answer": "go to bed at ten.",
+          "context": "Evening routine"
+        },
+        {
+          "prompt": "On Saturdays, I do not go to school. I",
+          "answer": "stay at home with my family.",
+          "context": "Weekend"
+        }
+      ]
+    },
+    "module_number": 3
+  },
+  {
+    "external_key": "immersion:sentence_completion:A1:04:prepositions_place",
+    "level": "A1",
+    "lesson_number_hint": 4,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: предлоги места",
+    "title_en": "Sentence Completion: Prepositions of Place",
+    "description": "Завершите предложения, используя предлоги места.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a1",
+      "prepositions",
+      "place"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "I cannot find my keys. They are",
+          "answer": "on the table.",
+          "context": "At home"
+        },
+        {
+          "prompt": "The cat is not outside. It is",
+          "answer": "under the bed.",
+          "context": "Inside the house"
+        },
+        {
+          "prompt": "She is looking for the supermarket. It is",
+          "answer": "next to the bank.",
+          "context": "In the city"
+        },
+        {
+          "prompt": "The children are not in the classroom. They are",
+          "answer": "in the garden.",
+          "context": "At school"
+        },
+        {
+          "prompt": "My flat is on the third floor. It is",
+          "answer": "above the second floor.",
+          "context": "Building"
+        }
+      ]
+    },
+    "module_number": 4
+  },
+  {
+    "external_key": "immersion:sentence_completion:A1:05:basic_adjectives",
+    "level": "A1",
+    "lesson_number_hint": 5,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: прилагательные",
+    "title_en": "Sentence Completion: Basic Adjectives",
+    "description": "Завершите предложения, используя подходящие прилагательные.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a1",
+      "adjectives",
+      "description"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "It is summer and the sun is shining. The weather is",
+          "answer": "hot and sunny.",
+          "context": "Weather"
+        },
+        {
+          "prompt": "This bag is very heavy. It is",
+          "answer": "full of books.",
+          "context": "School bag"
+        },
+        {
+          "prompt": "She smiled when she opened the present. She was",
+          "answer": "very happy.",
+          "context": "Feelings"
+        },
+        {
+          "prompt": "The film was three hours long. It was",
+          "answer": "quite long.",
+          "context": "Cinema"
+        },
+        {
+          "prompt": "I did not sleep well last night. I am",
+          "answer": "very tired today.",
+          "context": "Feeling tired"
+        }
+      ]
+    },
+    "module_number": 5
+  },
+  {
+    "external_key": "immersion:sentence_completion:A2:01:past_simple",
+    "level": "A2",
+    "lesson_number_hint": 1,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: прошедшее простое время",
+    "title_en": "Sentence Completion: Past Simple",
+    "description": "Завершите предложения о действиях в прошлом.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a2",
+      "past_simple",
+      "past"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "Yesterday was a long day. I woke up early and",
+          "answer": "went to work by bus.",
+          "context": "Past day"
+        },
+        {
+          "prompt": "Last weekend we visited my grandparents. We",
+          "answer": "had lunch together.",
+          "context": "Family visit"
+        },
+        {
+          "prompt": "She lost her phone last week. She",
+          "answer": "found it under the sofa.",
+          "context": "Lost item"
+        },
+        {
+          "prompt": "We arrived at the hotel late. The receptionist",
+          "answer": "gave us a room key.",
+          "context": "Hotel"
+        },
+        {
+          "prompt": "It rained all morning, so we",
+          "answer": "stayed inside and read books.",
+          "context": "Rainy day"
+        }
+      ]
+    },
+    "module_number": 1
+  },
+  {
+    "external_key": "immersion:sentence_completion:A2:02:present_continuous",
+    "level": "A2",
+    "lesson_number_hint": 2,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: настоящее длительное время",
+    "title_en": "Sentence Completion: Present Continuous",
+    "description": "Завершите предложения о действиях, происходящих прямо сейчас.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a2",
+      "present_continuous",
+      "now"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "Look out of the window! It",
+          "answer": "is snowing outside.",
+          "context": "Weather right now"
+        },
+        {
+          "prompt": "Can you be quiet? The baby",
+          "answer": "is sleeping in the next room.",
+          "context": "At home"
+        },
+        {
+          "prompt": "I can't talk right now. I",
+          "answer": "am having a meeting.",
+          "context": "Busy at work"
+        },
+        {
+          "prompt": "She's not at her desk. She",
+          "answer": "is talking to a client.",
+          "context": "At the office"
+        },
+        {
+          "prompt": "We are at the park. The children",
+          "answer": "are playing football.",
+          "context": "Park"
+        }
+      ]
+    },
+    "module_number": 2
+  },
+  {
+    "external_key": "immersion:sentence_completion:A2:03:comparatives",
+    "level": "A2",
+    "lesson_number_hint": 3,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: сравнительные прилагательные",
+    "title_en": "Sentence Completion: Comparative Adjectives",
+    "description": "Завершите предложения, используя сравнительную форму прилагательных.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a2",
+      "comparatives",
+      "adjectives"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "Summer is warm, but spring is",
+          "answer": "cooler than summer.",
+          "context": "Seasons"
+        },
+        {
+          "prompt": "My old phone was slow, but my new one is",
+          "answer": "much faster.",
+          "context": "Technology"
+        },
+        {
+          "prompt": "The city centre is busy, but the suburbs are",
+          "answer": "quieter and calmer.",
+          "context": "City life"
+        },
+        {
+          "prompt": "A car is convenient, but a bicycle is",
+          "answer": "cheaper and healthier.",
+          "context": "Transport"
+        },
+        {
+          "prompt": "The hotel was expensive, but the hostel was",
+          "answer": "much cheaper.",
+          "context": "Accommodation"
+        }
+      ]
+    },
+    "module_number": 3
+  },
+  {
+    "external_key": "immersion:sentence_completion:A2:04:frequency_adverbs",
+    "level": "A2",
+    "lesson_number_hint": 4,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: наречия частотности",
+    "title_en": "Sentence Completion: Frequency Adverbs",
+    "description": "Завершите предложения, используя наречия частотности.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a2",
+      "frequency",
+      "adverbs"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "I love coffee. I drink it",
+          "answer": "every morning.",
+          "context": "Morning habits"
+        },
+        {
+          "prompt": "She is very active. She goes to the gym",
+          "answer": "three times a week.",
+          "context": "Exercise"
+        },
+        {
+          "prompt": "He rarely cooks at home. He",
+          "answer": "usually eats at a restaurant.",
+          "context": "Food habits"
+        },
+        {
+          "prompt": "We don't see them often. We meet",
+          "answer": "only once a month.",
+          "context": "Social life"
+        },
+        {
+          "prompt": "She never forgets her keys. She",
+          "answer": "always checks before leaving.",
+          "context": "Daily habit"
+        }
+      ]
+    },
+    "module_number": 4
+  },
+  {
+    "external_key": "immersion:sentence_completion:A2:05:can_modal",
+    "level": "A2",
+    "lesson_number_hint": 5,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: модальный глагол can",
+    "title_en": "Sentence Completion: Modal Verb Can",
+    "description": "Завершите предложения, используя can или can't.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "a2",
+      "can",
+      "modals",
+      "ability"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "She learned to swim at five. Now she",
+          "answer": "can swim very well.",
+          "context": "Swimming ability"
+        },
+        {
+          "prompt": "I don't understand this word. I",
+          "answer": "can't explain it in English.",
+          "context": "Language learning"
+        },
+        {
+          "prompt": "He plays guitar and piano. He",
+          "answer": "can play two instruments.",
+          "context": "Music"
+        },
+        {
+          "prompt": "The door is locked. We",
+          "answer": "can't go inside.",
+          "context": "Access"
+        },
+        {
+          "prompt": "She speaks French and Spanish. She",
+          "answer": "can help you translate.",
+          "context": "Languages"
+        }
+      ]
+    },
+    "module_number": 5
+  },
+  {
+    "external_key": "immersion:sentence_completion:B1:01:present_perfect",
+    "level": "B1",
+    "lesson_number_hint": 1,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: настоящее совершённое время",
+    "title_en": "Sentence Completion: Present Perfect",
+    "description": "Завершите предложения, используя Present Perfect.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b1",
+      "present_perfect",
+      "experience"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "I want to see New York. I",
+          "answer": "have never been there.",
+          "context": "Travel experience"
+        },
+        {
+          "prompt": "She looks tired. She",
+          "answer": "has been working all day.",
+          "context": "Work"
+        },
+        {
+          "prompt": "We cannot find the file. Someone",
+          "answer": "has deleted it.",
+          "context": "Office problem"
+        },
+        {
+          "prompt": "He knows London very well. He",
+          "answer": "has lived there for years.",
+          "context": "Living abroad"
+        },
+        {
+          "prompt": "The exam results are ready. The teacher",
+          "answer": "has already marked them.",
+          "context": "School"
+        }
+      ]
+    },
+    "module_number": 1
+  },
+  {
+    "external_key": "immersion:sentence_completion:B1:02:first_conditional",
+    "level": "B1",
+    "lesson_number_hint": 2,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: первый тип условных предложений",
+    "title_en": "Sentence Completion: First Conditional",
+    "description": "Завершите условные предложения о реальных ситуациях.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b1",
+      "first_conditional",
+      "conditions"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "If it rains tomorrow,",
+          "answer": "we will stay at home.",
+          "context": "Weather plans"
+        },
+        {
+          "prompt": "She will pass the exam if",
+          "answer": "she studies hard enough.",
+          "context": "Study advice"
+        },
+        {
+          "prompt": "If you feel tired,",
+          "answer": "you should take a break.",
+          "context": "Work advice"
+        },
+        {
+          "prompt": "He will lose his job if",
+          "answer": "he keeps coming in late.",
+          "context": "Work warning"
+        },
+        {
+          "prompt": "If we miss the train,",
+          "answer": "we will have to take a taxi.",
+          "context": "Travel"
+        }
+      ]
+    },
+    "module_number": 2
+  },
+  {
+    "external_key": "immersion:sentence_completion:B1:03:verb_patterns",
+    "level": "B1",
+    "lesson_number_hint": 3,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: глагольные конструкции",
+    "title_en": "Sentence Completion: Verb Patterns",
+    "description": "Завершите предложения, выбрав правильную глагольную конструкцию.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b1",
+      "verb_patterns",
+      "gerund",
+      "infinitive"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "I enjoy long walks. I don't mind",
+          "answer": "walking in the rain.",
+          "context": "Hobbies"
+        },
+        {
+          "prompt": "She needs to finish the report. She promised",
+          "answer": "to send it by Friday.",
+          "context": "Work deadline"
+        },
+        {
+          "prompt": "He stopped eating fast food. He started",
+          "answer": "cooking healthy meals at home.",
+          "context": "Healthy lifestyle"
+        },
+        {
+          "prompt": "They keep making the same mistake. They need",
+          "answer": "to practise more carefully.",
+          "context": "Learning"
+        },
+        {
+          "prompt": "I can't afford a new laptop. I considered",
+          "answer": "buying a second-hand one.",
+          "context": "Shopping decision"
+        }
+      ]
+    },
+    "module_number": 3
+  },
+  {
+    "external_key": "immersion:sentence_completion:B1:04:used_to",
+    "level": "B1",
+    "lesson_number_hint": 4,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: used to",
+    "title_en": "Sentence Completion: Used To",
+    "description": "Завершите предложения о прошлых привычках и состояниях.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b1",
+      "used_to",
+      "past_habits"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "When I was a child, I used to",
+          "answer": "spend all day playing outside.",
+          "context": "Childhood memories"
+        },
+        {
+          "prompt": "She didn't use to like vegetables, but now she",
+          "answer": "eats them every day.",
+          "context": "Changed habits"
+        },
+        {
+          "prompt": "They used to travel a lot, but these days they",
+          "answer": "prefer staying closer to home.",
+          "context": "Changed lifestyle"
+        },
+        {
+          "prompt": "He used to be very shy. He didn't use to",
+          "answer": "speak in public at all.",
+          "context": "Personality change"
+        },
+        {
+          "prompt": "We used to live in a small flat. Now we",
+          "answer": "have a bigger house.",
+          "context": "Housing change"
+        }
+      ]
+    },
+    "module_number": 4
+  },
+  {
+    "external_key": "immersion:sentence_completion:B1:05:advice_should",
+    "level": "B1",
+    "lesson_number_hint": 5,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: советы с should",
+    "title_en": "Sentence Completion: Advice with Should",
+    "description": "Завершите предложения, давая советы.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b1",
+      "should",
+      "advice",
+      "modals"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "You look pale and tired. You should",
+          "answer": "see a doctor soon.",
+          "context": "Health advice"
+        },
+        {
+          "prompt": "The exam is next week. She should",
+          "answer": "start revising now.",
+          "context": "Study advice"
+        },
+        {
+          "prompt": "He spends too much money. He shouldn't",
+          "answer": "buy things he doesn't need.",
+          "context": "Financial advice"
+        },
+        {
+          "prompt": "If you want to improve your English, you should",
+          "answer": "practise speaking every day.",
+          "context": "Language learning"
+        },
+        {
+          "prompt": "The traffic is very bad in the morning. You should",
+          "answer": "leave earlier to avoid it.",
+          "context": "Commuting"
+        }
+      ]
+    },
+    "module_number": 5
+  },
+  {
+    "external_key": "immersion:sentence_completion:B2:01:second_conditional",
+    "level": "B2",
+    "lesson_number_hint": 1,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: второй тип условных предложений",
+    "title_en": "Sentence Completion: Second Conditional",
+    "description": "Завершите гипотетические условные предложения.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b2",
+      "second_conditional",
+      "hypothetical"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "If I had more free time,",
+          "answer": "I would learn a new language.",
+          "context": "Hypothetical plans"
+        },
+        {
+          "prompt": "She would travel more if",
+          "answer": "she didn't have so many responsibilities.",
+          "context": "Life constraints"
+        },
+        {
+          "prompt": "If he were more organised,",
+          "answer": "he wouldn't miss so many deadlines.",
+          "context": "Work habits"
+        },
+        {
+          "prompt": "We would move to the countryside if",
+          "answer": "we could work from home.",
+          "context": "Lifestyle change"
+        },
+        {
+          "prompt": "If you spoke Spanish,",
+          "answer": "you could find work in Latin America.",
+          "context": "Language and career"
+        }
+      ]
+    },
+    "module_number": 1
+  },
+  {
+    "external_key": "immersion:sentence_completion:B2:02:passive_voice",
+    "level": "B2",
+    "lesson_number_hint": 2,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: страдательный залог",
+    "title_en": "Sentence Completion: Passive Voice",
+    "description": "Завершите предложения в страдательном залоге.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b2",
+      "passive",
+      "formal"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "The new hospital was built",
+          "answer": "by a team of international architects.",
+          "context": "News report"
+        },
+        {
+          "prompt": "All applications must be submitted",
+          "answer": "before the deadline on Friday.",
+          "context": "Official instruction"
+        },
+        {
+          "prompt": "The meeting has been postponed",
+          "answer": "until further notice.",
+          "context": "Work email"
+        },
+        {
+          "prompt": "The stolen painting was eventually found",
+          "answer": "in a private collection in Vienna.",
+          "context": "News story"
+        },
+        {
+          "prompt": "Passengers are reminded that luggage",
+          "answer": "must not be left unattended.",
+          "context": "Airport announcement"
+        }
+      ]
+    },
+    "module_number": 2
+  },
+  {
+    "external_key": "immersion:sentence_completion:B2:03:reported_speech",
+    "level": "B2",
+    "lesson_number_hint": 3,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: косвенная речь",
+    "title_en": "Sentence Completion: Reported Speech",
+    "description": "Завершите предложения с косвенной речью.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b2",
+      "reported_speech",
+      "indirect_speech"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "He said that he",
+          "answer": "would call back the next day.",
+          "context": "Phone message"
+        },
+        {
+          "prompt": "She told me that the meeting",
+          "answer": "had already started without us.",
+          "context": "Office situation"
+        },
+        {
+          "prompt": "The doctor advised me",
+          "answer": "to rest for at least a week.",
+          "context": "Medical advice"
+        },
+        {
+          "prompt": "They asked whether",
+          "answer": "we had booked the tickets in advance.",
+          "context": "Travel plans"
+        },
+        {
+          "prompt": "The manager explained that the delay",
+          "answer": "was caused by a technical problem.",
+          "context": "Customer service"
+        }
+      ]
+    },
+    "module_number": 3
+  },
+  {
+    "external_key": "immersion:sentence_completion:B2:04:relative_clauses",
+    "level": "B2",
+    "lesson_number_hint": 4,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: придаточные определительные",
+    "title_en": "Sentence Completion: Relative Clauses",
+    "description": "Завершите предложения, добавив определительные придаточные.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b2",
+      "relative_clauses",
+      "complex_sentences"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "The colleague who",
+          "answer": "trained me left the company last month.",
+          "context": "Workplace"
+        },
+        {
+          "prompt": "The book that I recommended",
+          "answer": "was translated into twenty languages.",
+          "context": "Literature"
+        },
+        {
+          "prompt": "The city where I grew up",
+          "answer": "has changed a great deal since then.",
+          "context": "Home town"
+        },
+        {
+          "prompt": "The reason why she left",
+          "answer": "was never fully explained.",
+          "context": "Workplace situation"
+        },
+        {
+          "prompt": "The moment when I realised the truth",
+          "answer": "was quite difficult to accept.",
+          "context": "Personal experience"
+        }
+      ]
+    },
+    "module_number": 4
+  },
+  {
+    "external_key": "immersion:sentence_completion:B2:05:past_perfect",
+    "level": "B2",
+    "lesson_number_hint": 5,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: прошедшее совершённое время",
+    "title_en": "Sentence Completion: Past Perfect",
+    "description": "Завершите предложения, используя Past Perfect для описания последовательности событий.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "b2",
+      "past_perfect",
+      "sequence"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "By the time we arrived,",
+          "answer": "the show had already finished.",
+          "context": "Arriving late"
+        },
+        {
+          "prompt": "She got the job because she",
+          "answer": "had worked in the industry for five years.",
+          "context": "Job interview"
+        },
+        {
+          "prompt": "He was upset because he",
+          "answer": "had forgotten to bring his wallet.",
+          "context": "Forgetfulness"
+        },
+        {
+          "prompt": "When I checked my bag,",
+          "answer": "I realised I had left my passport at home.",
+          "context": "Travel problem"
+        },
+        {
+          "prompt": "They could not find the file because",
+          "answer": "someone had accidentally deleted it.",
+          "context": "Office problem"
+        }
+      ]
+    },
+    "module_number": 5
+  },
+  {
+    "external_key": "immersion:sentence_completion:C1:01:third_conditional",
+    "level": "C1",
+    "lesson_number_hint": 1,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: третий тип условных предложений",
+    "title_en": "Sentence Completion: Third Conditional",
+    "description": "Завершите условные предложения о нереализованных возможностях в прошлом.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "c1",
+      "third_conditional",
+      "hypothetical_past"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "If she had accepted the offer,",
+          "answer": "she would have become a partner by now.",
+          "context": "Career decision"
+        },
+        {
+          "prompt": "He would not have missed the flight if",
+          "answer": "he had checked the departure time.",
+          "context": "Travel mistake"
+        },
+        {
+          "prompt": "Had they invested earlier,",
+          "answer": "they would have made a significant profit.",
+          "context": "Financial decision"
+        },
+        {
+          "prompt": "If the warning signs had been taken seriously,",
+          "answer": "the crisis could have been avoided.",
+          "context": "Crisis management"
+        },
+        {
+          "prompt": "She might have stayed if",
+          "answer": "the conditions had been more favourable.",
+          "context": "Workplace context"
+        }
+      ]
+    },
+    "module_number": 1
+  },
+  {
+    "external_key": "immersion:sentence_completion:C1:02:inversion",
+    "level": "C1",
+    "lesson_number_hint": 2,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: инверсия",
+    "title_en": "Sentence Completion: Inversion for Emphasis",
+    "description": "Завершите предложения с инверсионными конструкциями.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "c1",
+      "inversion",
+      "formal",
+      "emphasis"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "Not only did she complete the project on time,",
+          "answer": "but she also exceeded every expectation.",
+          "context": "Achievement"
+        },
+        {
+          "prompt": "Rarely",
+          "answer": "have I seen such a remarkable performance.",
+          "context": "Formal praise"
+        },
+        {
+          "prompt": "Had I known about the risks,",
+          "answer": "I would never have agreed to participate.",
+          "context": "Regret"
+        },
+        {
+          "prompt": "Only after reading the full report",
+          "answer": "did we understand the scale of the problem.",
+          "context": "Analysis"
+        },
+        {
+          "prompt": "No sooner had she left the building",
+          "answer": "than the alarm went off.",
+          "context": "Timing coincidence"
+        }
+      ]
+    },
+    "module_number": 2
+  },
+  {
+    "external_key": "immersion:sentence_completion:C1:03:complex_modals",
+    "level": "C1",
+    "lesson_number_hint": 3,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: сложные модальные глаголы",
+    "title_en": "Sentence Completion: Complex Modals",
+    "description": "Завершите предложения, используя сложные модальные конструкции для рассуждений и предположений.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "c1",
+      "modals",
+      "deduction",
+      "speculation"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "She wasn't at the meeting. She must",
+          "answer": "have been dealing with an urgent issue.",
+          "context": "Deduction"
+        },
+        {
+          "prompt": "The results are better than expected. The new approach",
+          "answer": "may well have contributed to this success.",
+          "context": "Analysis"
+        },
+        {
+          "prompt": "He seems confident about the outcome. He could",
+          "answer": "have had access to inside information.",
+          "context": "Speculation"
+        },
+        {
+          "prompt": "They should have finished by now. Something",
+          "answer": "must have delayed them.",
+          "context": "Expectation vs reality"
+        },
+        {
+          "prompt": "The error might",
+          "answer": "have been introduced during the last update.",
+          "context": "Technical problem"
+        }
+      ]
+    },
+    "module_number": 3
+  },
+  {
+    "external_key": "immersion:sentence_completion:C1:04:wish_patterns",
+    "level": "C1",
+    "lesson_number_hint": 4,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: конструкции с wish",
+    "title_en": "Sentence Completion: Wish Patterns",
+    "description": "Завершите предложения, выражая сожаление или желание.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "c1",
+      "wish",
+      "regret",
+      "subjunctive"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "She regrets moving abroad. She wishes she",
+          "answer": "had stayed closer to her family.",
+          "context": "Life decision regret"
+        },
+        {
+          "prompt": "I find the commute exhausting. If only",
+          "answer": "I could work from home permanently.",
+          "context": "Work-life balance"
+        },
+        {
+          "prompt": "He wishes his colleagues",
+          "answer": "would communicate more openly.",
+          "context": "Workplace frustration"
+        },
+        {
+          "prompt": "I wish I",
+          "answer": "had taken the opportunity when I had the chance.",
+          "context": "Missed opportunity"
+        },
+        {
+          "prompt": "They wish the project",
+          "answer": "had been planned more carefully from the start.",
+          "context": "Project retrospective"
+        }
+      ]
+    },
+    "module_number": 4
+  },
+  {
+    "external_key": "immersion:sentence_completion:C1:05:discourse_markers",
+    "level": "C1",
+    "lesson_number_hint": 5,
+    "lesson_type": "sentence_completion",
+    "title": "Завершение предложений: дискурсивные маркеры",
+    "title_en": "Sentence Completion: Discourse Markers",
+    "description": "Завершите предложения с академическими и формальными дискурсивными маркерами.",
+    "tags": [
+      "immersion",
+      "sentence_completion",
+      "c1",
+      "discourse_markers",
+      "academic",
+      "formal"
+    ],
+    "content": {
+      "items": [
+        {
+          "prompt": "The initial findings were promising; however,",
+          "answer": "further research is required before drawing conclusions.",
+          "context": "Academic writing"
+        },
+        {
+          "prompt": "Despite the challenges involved,",
+          "answer": "the team managed to deliver results on schedule.",
+          "context": "Project report"
+        },
+        {
+          "prompt": "The policy was well-intentioned; nevertheless,",
+          "answer": "it failed to address the underlying issues.",
+          "context": "Policy analysis"
+        },
+        {
+          "prompt": "In light of the evidence presented,",
+          "answer": "we propose revising the current approach.",
+          "context": "Formal recommendation"
+        },
+        {
+          "prompt": "Notwithstanding the budget constraints,",
+          "answer": "the project was completed within the agreed timeframe.",
+          "context": "Project summary"
+        }
+      ]
+    },
+    "module_number": 5
+  }
+]

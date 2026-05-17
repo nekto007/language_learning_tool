@@ -1,0 +1,500 @@
+{% extends "lesson_base_template.html" %}
+
+{% set component_name = _('Письменная практика') %}
+{% set _mode = mode | default('structured') %}
+{% if _mode == 'guided' %}
+  {% set instruction_text = _('Напишите короткое знакомство на английском по подсказкам. Подсказки можно вставлять кликом. Шаблон и пример доступны под кнопками.') %}
+{% else %}
+  {% set instruction_text = _('Напишите ответ на задание, затем отметьте выполненные пункты.') %}
+{% endif %}
+{% set block_description = _('Практика письменного английского') %}
+
+{% block lesson_content %}
+{% set _use_sentences = min_sentences is defined and min_sentences %}
+{% set _total = (min_sentences if _use_sentences else min_words) | default(0) %}
+<section class="lesson-shell writing-prompt-lesson" aria-labelledby="writing-prompt-title">
+  <header class="lesson-shell__header">
+    <h2 class="lesson-shell__title" id="writing-prompt-title">{{ _('Письменное задание') }}</h2>
+    <div class="lesson-shell__meta">
+      <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-pen-nib"></i></span>
+      <span class="lesson-shell__progress" aria-live="polite">
+        <span id="wp-count-display" data-progress-current>0</span> / <span data-progress-total>{{ _total }}</span>
+        {% if _use_sentences %}{{ _('предложений') }}{% else %}{{ _('слов') }}{% endif %}
+      </span>
+    </div>
+    <div class="lesson-shell__progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="{{ _total }}" aria-valuenow="0" id="wp-progress-bar">
+      <span class="lesson-shell__progress-fill" id="wp-progress-fill" style="width:0%"></span>
+    </div>
+  </header>
+
+  <div class="lesson-shell__body">
+    <div class="lesson-shell__card writing-prompt-card">
+      <div class="writing-prompt-label">
+        <i class="fas fa-pen-nib"></i>
+        {{ _('Задание:') }}
+      </div>
+      {% if prompt_ru %}
+      <div class="writing-prompt-text" id="prompt-text-ru">{{ prompt_ru }}</div>
+      <details class="writing-prompt-original">
+        <summary>{{ _('Показать на английском') }}</summary>
+        <div class="writing-prompt-text-en">{{ prompt }}</div>
+      </details>
+      {% else %}
+      <div class="writing-prompt-text" id="prompt-text">{{ prompt }}</div>
+      {% endif %}
+      <div class="writing-prompt-meta">
+        {% if _use_sentences %}
+        <span class="writing-prompt-min-words">
+          <i class="fas fa-align-left"></i>
+          {{ _('Минимум %(n)s предложений', n=_total) }}
+        </span>
+        {% else %}
+        <span class="writing-prompt-min-words">
+          <i class="fas fa-align-left"></i>
+          {{ _('Минимум %(n)s слов', n=_total) }}
+        </span>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if hint_words %}
+    <div class="lesson-shell__card writing-prompt-hints">
+      <div class="writing-prompt-hints__label">
+        <i class="fas fa-lightbulb"></i> {{ _('Подсказки (кликните, чтобы вставить):') }}
+      </div>
+      <div class="writing-prompt-hints__chips">
+        {% for word in hint_words %}
+        <button type="button" class="chip chip--clickable wp-hint-chip"
+                onclick='insertWritingChip({{ word | tojson }})'>{{ word }}</button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if template_text or example_response %}
+    <div class="lesson-shell__card writing-prompt-helpers">
+      {% if template_text %}
+      <details class="writing-prompt-helper">
+        <summary><i class="fas fa-file-alt"></i> {{ _('Показать шаблон') }}</summary>
+        <pre class="writing-prompt-helper__body">{{ template_text }}</pre>
+        <button type="button" class="lsn-btn lsn-btn--outline writing-prompt-helper__insert"
+                onclick='insertTemplate({{ template_text | tojson }})'>
+          {{ _('Вставить шаблон в поле') }}
+        </button>
+      </details>
+      {% endif %}
+      {% if example_response %}
+      <details class="writing-prompt-helper">
+        <summary><i class="fas fa-eye"></i> {{ _('Показать пример') }}</summary>
+        <pre class="writing-prompt-helper__body">{{ example_response }}</pre>
+        <p class="writing-prompt-helper__caption">
+          <i class="fas fa-info-circle"></i>
+          {{ _('Используйте как образец, но напишите о себе — замените имя, возраст и страну на свои.') }}
+        </p>
+      </details>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="lesson-shell__card writing-prompt-input-section">
+      <label class="writing-prompt-input-label" for="writing-response">
+        <i class="fas fa-keyboard"></i>
+        {{ _('Ваш ответ:') }}
+      </label>
+      <textarea
+        class="writing-prompt-textarea"
+        id="writing-response"
+        rows="8"
+        placeholder="{{ _('Введите ваш ответ на английском…') }}"
+        oninput="updateWritingProgress()"
+      ></textarea>
+    </div>
+
+    <div class="lesson-shell__card writing-prompt-checklist-section" id="checklist-section">
+      <div class="writing-prompt-checklist-label">
+        <i class="fas fa-tasks"></i>
+        {{ _('Проверочный список') }}
+        <span class="writing-prompt-checklist-target">
+          — {{ _('выполните минимум') }} {{ min_checklist }} {{ _('пункта') }}.
+          <span class="writing-prompt-checklist-auto-note">
+            {{ _('Часть пунктов отмечается автоматически по тексту.') }}
+          </span>
+        </span>
+      </div>
+      <div class="writing-prompt-checklist" id="checklist">
+        {% for item in checklist %}
+        <label class="writing-prompt-checklist-item" for="check-{{ loop.index0 }}">
+          <input
+            class="writing-prompt-checkbox"
+            id="check-{{ loop.index0 }}"
+            type="checkbox"
+            value="{{ item | e }}"
+            data-index="{{ loop.index0 }}"
+            onchange="updateWritingProgress()"
+          >
+          <span class="writing-prompt-checklist-text">{{ item }}</span>
+          <span class="writing-prompt-checklist-auto" data-auto-for="{{ loop.index0 }}" hidden>
+            <i class="fas fa-check-circle"></i> {{ _('авто') }}
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {# Inline-диагностика «что не хватает». Перерисовывается на каждое
+     изменение текста или галок. Кнопка завершить блокируется до тех пор,
+     пока все условия не выполнены. #}
+  <div class="lesson-shell__card writing-prompt-readiness" id="wp-readiness">
+    <div class="writing-prompt-readiness__title" id="wp-readiness-title">
+      <i class="fas fa-lock"></i> {{ _('Чтобы завершить урок:') }}
+    </div>
+    <ul class="writing-prompt-readiness__list" id="wp-readiness-list"></ul>
+  </div>
+
+  <div class="lesson-shell__actions writing-prompt-submit-row">
+    <button
+      class="btn btn-primary btn-lg"
+      id="submit-btn"
+      onclick="submitWriting()"
+      type="button"
+      disabled
+    >
+      <i class="fas fa-check"></i>
+      {{ _('Завершить') }}
+    </button>
+  </div>
+
+  <div class="lesson-shell__result writing-prompt-result" id="writing-result"
+       role="status" aria-live="polite" aria-atomic="true" hidden>
+    <div id="result-message"></div>
+    <div id="writing-next-area" style="margin-top: 1rem;"></div>
+  </div>
+</section>
+
+<script>
+const lessonId = {{ lesson.id }};
+const minWords = {{ min_words | default(0) | int }};
+const minSentences = {{ min_sentences | default(0) | int }};
+const useSentences = minSentences > 0;
+const targetTotal = useSentences ? minSentences : minWords;
+const MIN_CHECKLIST = {{ min_checklist | default(2) | int }};
+const TARGET_PHRASES = {{ target_phrases | tojson }};
+
+function countWords(text) {
+  return text.trim() ? text.trim().split(/\s+/).length : 0;
+}
+function countSentences(text) {
+  // Считаем не пустые сегменты, разделённые .!? с любым количеством
+  // окружающего whitespace.
+  const parts = String(text || '').split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+  return parts.length;
+}
+
+function insertWritingChip(word) {
+  const ta = document.getElementById('writing-response');
+  if (!ta) return;
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  const before = ta.value.substring(0, start);
+  const after = ta.value.substring(end);
+  // Добавляем пробел перед словом, если перед курсором уже есть текст
+  // без trailing whitespace.
+  const prefix = (before && !/\s$/.test(before)) ? ' ' : '';
+  ta.value = before + prefix + word + ' ' + after;
+  const pos = (before + prefix + word + ' ').length;
+  ta.focus();
+  ta.setSelectionRange(pos, pos);
+  updateWritingProgress();
+}
+
+function insertTemplate(tpl) {
+  const ta = document.getElementById('writing-response');
+  if (!ta) return;
+  if (ta.value.trim() && !confirm('{{ _("Заменить текущий текст шаблоном?") }}')) return;
+  ta.value = tpl;
+  ta.focus();
+  updateWritingProgress();
+}
+
+// Auto-check checklist items based on phrase detection.
+// `data-auto-for` элементы соответствуют индексу checklist. Простая
+// эвристика: «greeting» — содержит hello/hi; «name» — есть «my name is»
+// или «I'm»/«I am»; и т.д. Если text-based match найден, чекбокс
+// автоматически отмечается и помечается «авто»-меткой. Пользователь
+// может потом снять галку вручную, если решит, что она неверная.
+function _autoCheckChecklist(text) {
+  const t = text.toLowerCase();
+  const rules = [
+    {keys: ['greeting', 'приветствие'], re: /\b(hello|hi|hey|good (morning|afternoon|evening))\b/},
+    {keys: ['name', 'имя'], re: /\b(my name is|i am [a-z]+\b|i'm [a-z]+\b)/},
+    {keys: ['age', 'возраст', 'years old'], re: /\b\d{1,3}\s*(years?\s*old)\b/},
+    {keys: ['country', 'city', 'страна', 'город', 'where'], re: /\b(from|live in)\s+[a-z]+/i},
+    {keys: ['like', 'нравится'], re: /\b(i like|i love|i enjoy)\b/},
+    {keys: ['4 sentences', 'sentences', 'предложений'], re: null, sentenceMin: 4},
+  ];
+  const checkboxes = Array.from(document.querySelectorAll('.writing-prompt-checkbox'));
+  checkboxes.forEach((cb) => {
+    const item = String(cb.value || '').toLowerCase();
+    let rule = null;
+    for (const r of rules) {
+      if (r.keys.some(k => item.includes(k))) { rule = r; break; }
+    }
+    if (!rule) return;
+    let pass = false;
+    if (rule.re) pass = rule.re.test(t);
+    if (!pass && rule.sentenceMin) pass = countSentences(text) >= rule.sentenceMin;
+    const idx = cb.getAttribute('data-index');
+    const badge = document.querySelector('[data-auto-for="' + idx + '"]');
+    if (pass && !cb.checked) {
+      cb.checked = true;
+      if (badge) badge.hidden = false;
+    } else if (!pass && cb.checked && badge && !badge.hidden) {
+      // Auto-уверенно сняли, если authoritative-rule стала false.
+      cb.checked = false;
+      badge.hidden = true;
+    }
+  });
+}
+
+function updateWritingProgress() {
+  const ta = document.getElementById('writing-response');
+  const text = ta.value;
+  const count = useSentences ? countSentences(text) : countWords(text);
+  const display = document.getElementById('wp-count-display');
+  display.textContent = count;
+  display.classList.toggle('writing-prompt-wordcount--met', count >= targetTotal);
+  // Autosize textarea
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 600) + 'px';
+  // Progress bar
+  const fill = document.getElementById('wp-progress-fill');
+  const bar = document.getElementById('wp-progress-bar');
+  const pct = Math.min(100, Math.round((count / Math.max(1, targetTotal)) * 100));
+  if (fill) fill.style.width = pct + '%';
+  if (bar) bar.setAttribute('aria-valuenow', String(Math.min(targetTotal, count)));
+  _autoCheckChecklist(text);
+  _renderReadiness(text, count);
+}
+
+// Считает, чего не хватает для завершения. Возвращает массив сообщений;
+// пустой массив = всё готово, можно завершать.
+function _writingReadiness(text, count) {
+  const missing = [];
+  if (count < targetTotal) {
+    const remaining = targetTotal - count;
+    if (useSentences) {
+      missing.push('{{ _("Добавьте ещё ") }}' + remaining + ' '
+        + (remaining === 1 ? '{{ _("предложение") }}' : '{{ _("предложения") }}'));
+    } else {
+      missing.push('{{ _("Напишите ещё ") }}' + remaining + ' {{ _("слов") }}');
+    }
+  }
+  const checked = document.querySelectorAll('.writing-prompt-checkbox:checked').length;
+  if (checked < MIN_CHECKLIST) {
+    const remaining = MIN_CHECKLIST - checked;
+    missing.push('{{ _("Отметьте ещё ") }}' + remaining + ' '
+      + (remaining === 1 ? '{{ _("пункт чек-листа") }}' : '{{ _("пункта чек-листа") }}'));
+  }
+  // Подсказки по конкретным пропущенным пунктам — берём первые непомеченные
+  // и формулируем человечески: «Добавьте, что вам нравится (I like…)».
+  if (checked < MIN_CHECKLIST) {
+    const unchecked = Array.from(document.querySelectorAll('.writing-prompt-checkbox:not(:checked)'));
+    const hints = [];
+    for (const cb of unchecked) {
+      const label = String(cb.value || '').toLowerCase();
+      if (/(имя|name)/.test(label)) hints.push('{{ _("Добавьте имя (My name is …)") }}');
+      else if (/(возраст|age|years)/.test(label)) hints.push('{{ _("Добавьте возраст (I am … years old)") }}');
+      else if (/(страна|город|country|city|from)/.test(label)) hints.push('{{ _("Добавьте страну или город (I am from …)") }}');
+      else if (/(нравится|like|love)/.test(label)) hints.push('{{ _("Добавьте, что вам нравится (I like …)") }}');
+      else if (/(приветствие|greeting|hello|hi)/.test(label)) hints.push('{{ _("Начните с приветствия (Hello / Hi)") }}');
+      if (hints.length >= 2) break; // не перегружаем подсказками
+    }
+    for (const h of hints) missing.push(h);
+  }
+  return missing;
+}
+
+function _renderReadiness(text, count) {
+  const list = document.getElementById('wp-readiness-list');
+  const title = document.getElementById('wp-readiness-title');
+  const wrap = document.getElementById('wp-readiness');
+  const submitBtn = document.getElementById('submit-btn');
+  if (!list || !title || !wrap || !submitBtn) return;
+  const missing = _writingReadiness(text, count);
+  list.innerHTML = '';
+  if (missing.length === 0) {
+    wrap.classList.add('writing-prompt-readiness--ready');
+    title.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Готово! Можно завершить урок.") }}';
+    submitBtn.disabled = false;
+  } else {
+    wrap.classList.remove('writing-prompt-readiness--ready');
+    title.innerHTML = '<i class="fas fa-lock"></i> {{ _("Чтобы завершить урок:") }}';
+    for (const m of missing) {
+      const li = document.createElement('li');
+      li.textContent = m;
+      list.appendChild(li);
+    }
+    submitBtn.disabled = true;
+  }
+}
+
+function _setResultBadge(kind, iconHtml, message, statTextOrNull) {
+  const message_el = document.getElementById('result-message');
+  message_el.innerHTML = '';
+  const badge = document.createElement('div');
+  badge.className = 'result-badge result-badge--' + kind;
+  const icon = document.createElement('span');
+  icon.className = 'result-badge__icon';
+  icon.innerHTML = iconHtml;
+  badge.appendChild(icon);
+  const span = document.createElement('span');
+  span.textContent = message;
+  badge.appendChild(span);
+  if (statTextOrNull) {
+    const stat = document.createElement('span');
+    stat.className = 'writing-prompt-word-stat';
+    stat.textContent = ' ' + statTextOrNull;
+    badge.appendChild(stat);
+  }
+  message_el.appendChild(badge);
+}
+
+async function submitWriting() {
+  const text = document.getElementById('writing-response').value.trim();
+  const count = useSentences ? countSentences(text) : countWords(text);
+  const submitBtn = document.getElementById('submit-btn');
+
+  // Submit-кнопка заблокирована до тех пор, пока все условия не выполнены
+  // (см. _renderReadiness). Дополнительный server-side check на всякий случай.
+  const checkboxes = document.querySelectorAll('.writing-prompt-checkbox:checked');
+  if (count < targetTotal || checkboxes.length < MIN_CHECKLIST) {
+    return;
+  }
+  const checkedItems = Array.from(checkboxes).map(cb => cb.value);
+
+  submitBtn.disabled = true;
+  submitBtn.classList.add('btn--loading');
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Сохранение...") }}';
+
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const resp = await fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      body: JSON.stringify({
+        response_text: text,
+        checklist_completed: true,
+        checked_items: checkedItems,
+        lesson_type: 'writing_prompt',
+      }),
+    });
+
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    showResult(data);
+
+    submitBtn.classList.remove('btn--loading');
+    if (data.completed) {
+      submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено") }}';
+      if (typeof showSaveToast === 'function') showSaveToast();
+    } else {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Завершить") }}';
+    }
+  } catch (err) {
+    console.error('Writing prompt submit error:', err);
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('btn--loading');
+    submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Завершить") }}';
+    _setResultBadge('incorrect', '<i class="fas fa-times-circle"></i>',
+      '{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}', null);
+    const resultArea = document.getElementById('writing-result');
+    resultArea.hidden = false;
+  }
+}
+
+function showResult(data) {
+  const resultArea = document.getElementById('writing-result');
+  const nextArea = document.getElementById('writing-next-area');
+
+  if (data.completed) {
+    const stat = useSentences
+      ? ((data.sentence_count || countSentences(document.getElementById('writing-response').value)) + ' {{ _("предложений") }}')
+      : ((data.word_count || 0) + ' {{ _("слов") }}');
+    _setResultBadge('correct', '<i class="fas fa-check-circle"></i>',
+      '{{ _("Отлично! Письменная практика выполнена.") }}', stat);
+    // Прячем actions-row с серой disabled-кнопкой «Завершено» и
+    // диагностику readiness, чтобы рядом с зелёной плашкой не висели
+    // легаси-элементы из in-progress состояния.
+    const submitBtn = document.getElementById('submit-btn');
+    const actions = submitBtn ? submitBtn.closest('.lesson-shell__actions') : null;
+    if (actions) actions.hidden = true;
+    const readiness = document.getElementById('wp-readiness');
+    if (readiness) readiness.hidden = true;
+    // Делегируем финальное завершение общему showLessonCompletion()
+    // из lesson_base_template — единая плашка «Урок завершён!» + CTA
+    // «К списку уроков» / «Следующий урок», как у всех остальных уроков.
+    if (typeof window.showLessonCompletion === 'function') {
+      window.showLessonCompletion({ score: 100 });
+    }
+  } else {
+    let hint = '';
+    if (!data.meets_min_words && !data.meets_min_sentences) {
+      const unit = useSentences ? '{{ _("предложений") }}' : '{{ _("слов") }}';
+      hint = '{{ _("Добавьте ещё — минимум ") }}' + targetTotal + ' ' + unit + '.';
+    } else if (!data.checklist_completed) {
+      hint = '{{ _("Отметьте пункты проверочного списка.") }}';
+    }
+    _setResultBadge('neutral', '<i class="fas fa-info-circle"></i>', hint, null);
+  }
+
+  resultArea.hidden = false;
+  resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+updateWritingProgress();
+
+{% if is_completed %}
+// На reload пройденного урока сразу:
+//   1) восстанавливаем response_text + отмеченные пункты чек-листа
+//      из progress.data, чтобы пользователь видел свою работу;
+//   2) прячем actions-row + readiness-блок (in-progress UI);
+//   3) разворачиваем глобальную плашку «Урок завершён!» (silent).
+document.addEventListener('DOMContentLoaded', function _restoreCompleted() {
+  {% if progress and progress.data %}
+  const saved = {{ progress.data | tojson }};
+  if (saved) {
+    const ta = document.getElementById('writing-response');
+    if (ta && saved.response_text) {
+      ta.value = saved.response_text;
+      ta.readOnly = true;
+      updateWritingProgress();  // пересчёт счётчика и progress-bar'а
+    }
+    if (Array.isArray(saved.checked_items)) {
+      const checkedSet = new Set(saved.checked_items);
+      document.querySelectorAll('.writing-prompt-checkbox').forEach(function(cb) {
+        if (checkedSet.has(cb.value)) cb.checked = true;
+        cb.disabled = true; // нельзя менять чек-лист после прохождения
+      });
+    }
+    // Подсказки-чипы и шаблон-кнопка не нужны на завершённом уроке.
+    const hints = document.querySelector('.writing-prompt-hints');
+    if (hints) hints.hidden = true;
+  }
+  {% endif %}
+  const submitBtn = document.getElementById('submit-btn');
+  const actions = submitBtn ? submitBtn.closest('.lesson-shell__actions') : null;
+  if (actions) actions.hidden = true;
+  const readiness = document.getElementById('wp-readiness');
+  if (readiness) readiness.hidden = true;
+  if (typeof window.showLessonCompletion === 'function') {
+    window.showLessonCompletion({ score: 100, silent: true });
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

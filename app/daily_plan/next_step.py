@@ -1,21 +1,24 @@
 """Next-best-step recommender for post-minimum continuation.
 
 Returns up to 3 continuation tasks with human-readable reason strings.
-Priority: unfinished lesson > SRS due > grammar weak > reading > vocab.
+Priority: unfinished lesson > SRS due > writing > grammar weak > reading > vocab.
 Quality filters: no same category back-to-back.
 """
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 
-_STEP_KINDS = ('lesson', 'srs', 'grammar', 'reading', 'vocab')
+_STEP_KINDS = ('recovery', 'lesson', 'srs', 'writing', 'grammar', 'reading', 'vocab')
+
+_WRITING_LESSON_TYPES = frozenset({'writing_prompt', 'translation', 'sentence_correction'})
+_WRITING_SUGGEST_AFTER_DAYS = 2
 
 
 @dataclass
@@ -34,8 +37,10 @@ def get_next_best_step(user_id: int, db, max_steps: int = 3) -> list[NextStep]:
     Returns an empty list when all sources are genuinely exhausted.
     """
     candidates = [s for s in [
+        _check_recovery(user_id, db),
         _check_unfinished_lesson(user_id, db),
         _check_srs_due(user_id, db),
+        _check_writing_suggestion(user_id, db),
         _check_grammar_weak(user_id, db),
         _check_reading_progress(user_id, db),
         _check_vocab(user_id, db),
@@ -54,6 +59,38 @@ def _apply_queue_filters(candidates: list[NextStep], max_steps: int) -> list[Nex
             continue
         queue.append(step)
     return queue
+
+
+# ── Priority 0: yesterday's missed plan recovery ───────────────────────────
+
+def _check_recovery(user_id: int, db) -> Optional[NextStep]:
+    """Suggest recovery when yesterday's plan was not secured."""
+    from datetime import date, timedelta
+    from app.auth.models import User
+    from app.daily_plan.models import DailyPlanLog
+    import pytz
+
+    try:
+        user = User.query.get(user_id)
+        tz_name = (user.timezone if user else None) or 'UTC'
+        try:
+            tz_obj = pytz.timezone(tz_name)
+        except pytz.UnknownTimeZoneError:
+            tz_obj = pytz.utc
+        yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
+        log = DailyPlanLog.query.filter_by(user_id=user_id, plan_date=yesterday).first()
+    except Exception:
+        return None
+
+    if log is None or log.secured_at is not None:
+        return None
+
+    return NextStep(
+        kind='recovery',
+        reason='Вчера не завершил(а) — продолжи с SRS',
+        data={'action_url': '/study?source=linear_plan', 'missed_date': yesterday.isoformat()},
+        estimated_minutes=10,
+    )
 
 
 # ── Priority 1: unfinished lesson ──────────────────────────────────────────
@@ -212,7 +249,56 @@ def _check_srs_due(user_id: int, db) -> Optional[NextStep]:
     )
 
 
-# ── Priority 3: grammar weak ────────────────────────────────────────────────
+# ── Priority 3: writing suggestion ─────────────────────────────────────────
+
+def _check_writing_suggestion(user_id: int, db) -> Optional[NextStep]:
+    """Suggest writing practice when the user hasn't written in over 2 days."""
+    from app.curriculum.models import LessonProgress, Lessons, UserWritingAttempt
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    threshold = now - timedelta(days=_WRITING_SUGGEST_AFTER_DAYS)
+
+    last_attempt = (
+        db.session.query(UserWritingAttempt)
+        .filter(UserWritingAttempt.user_id == user_id)
+        .order_by(UserWritingAttempt.created_at.desc())
+        .first()
+    )
+
+    if last_attempt is not None and last_attempt.created_at >= threshold:
+        return None
+
+    completed_lesson_ids = db.session.query(LessonProgress.lesson_id).filter(
+        LessonProgress.user_id == user_id,
+        LessonProgress.status == 'completed',
+    ).subquery()
+
+    writing_lesson = (
+        db.session.query(Lessons)
+        .filter(
+            Lessons.type.in_(list(_WRITING_LESSON_TYPES)),
+            Lessons.id.notin_(db.session.query(completed_lesson_ids.c.lesson_id)),
+        )
+        .order_by(Lessons.id.asc())
+        .first()
+    )
+
+    if writing_lesson is None:
+        return None
+
+    return NextStep(
+        kind='writing',
+        reason='Давно не писал — попробуй продолжить',
+        data={
+            'lesson_id': writing_lesson.id,
+            'lesson_title': writing_lesson.title,
+            'lesson_type': writing_lesson.type,
+        },
+        estimated_minutes=8,
+    )
+
+
+# ── Priority 4: grammar weak ────────────────────────────────────────────────
 
 def _check_grammar_weak(user_id: int, db) -> Optional[NextStep]:
     from app.grammar_lab.models import (
@@ -270,7 +356,7 @@ def _check_grammar_weak(user_id: int, db) -> Optional[NextStep]:
     return None
 
 
-# ── Priority 4: reading progress ────────────────────────────────────────────
+# ── Priority 5: reading progress ────────────────────────────────────────────
 
 def _check_reading_progress(user_id: int, db) -> Optional[NextStep]:
     from app.books.models import Book, Chapter, UserChapterProgress
@@ -304,7 +390,7 @@ def _check_reading_progress(user_id: int, db) -> Optional[NextStep]:
     )
 
 
-# ── Priority 5: vocab ───────────────────────────────────────────────────────
+# ── Priority 6: vocab ───────────────────────────────────────────────────────
 
 def _check_vocab(user_id: int, db) -> Optional[NextStep]:
     from app.study.models import UserWord

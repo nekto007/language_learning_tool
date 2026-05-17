@@ -143,6 +143,14 @@
                     <i class="fas fa-pencil-ruler"></i>
                     <span>Grammar Lab</span>
                 </a>
+                <a href="{{ url_for('admin.cultural_notes_list') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.cultural_notes_list' or request.endpoint == 'admin.cultural_note_add' or request.endpoint == 'admin.cultural_note_edit' }}">
+                    <i class="fas fa-globe"></i>
+                    <span>Культурные заметки</span>
+                </a>
+                <a href="{{ url_for('admin.content_quality_page') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.content_quality_page' or request.endpoint == 'admin.content_quality_export' }}">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Качество контента</span>
+                </a>
                 </div>
             </div>
 

@@ -194,7 +194,7 @@ def _mark_baseline_completed(db_session, user: User, lesson: Lessons, book: Book
 
 class TestExtensionPriority:
     def test_priority_order_is_stable(self):
-        assert EXTENSION_PRIORITY == ('curriculum', 'srs', 'reading', 'error_review')
+        assert EXTENSION_PRIORITY == ('curriculum', 'srs', 'reading', 'listening', 'speaking', 'writing', 'error_review')
 
 
 # ── build_chain: baseline-only paths ─────────────────────────────────

@@ -153,6 +153,14 @@
     </div>
     {% endif %}
 
+    <!-- Vocab Map Link -->
+    <div class="decks-vocab-map-link slideUp" style="animation-delay: .16s">
+        <a href="{{ url_for('study.vocab_map') }}" class="decks-vocab-map-link__btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Карта словарного запаса
+        </a>
+    </div>
+
     <!-- Study Now - Most Urgent Deck -->
     {% if most_urgent_deck %}
     <div class="decks-study-now slideUp" style="animation-delay: .17s">
@@ -401,8 +409,127 @@
                     <div class="decks-mode__desc">Игра на сопоставление</div>
                 </div>
             </a>
+            <a href="{{ url_for('study.writing_history') }}" class="decks-mode">
+                <div class="decks-mode__icon decks-mode__icon--green">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </div>
+                <div class="decks-mode__text">
+                    <div class="decks-mode__name">Письмо</div>
+                    <div class="decks-mode__desc">{% if writing_stats and writing_stats.total_attempts > 0 %}{{ writing_stats.total_attempts }} попыток · avg {{ writing_stats.avg_word_count | int }} сл.{% else %}История заданий{% endif %}</div>
+                </div>
+            </a>
+            <a href="{{ url_for('study.plan_calendar') }}" class="decks-mode">
+                <div class="decks-mode__icon decks-mode__icon--blue">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+                <div class="decks-mode__text">
+                    <div class="decks-mode__name">Календарь</div>
+                    <div class="decks-mode__desc">История занятий за 90 дней</div>
+                </div>
+            </a>
+            <a href="{{ url_for('study.weekly_plan') }}" class="decks-mode">
+                <div class="decks-mode__icon decks-mode__icon--blue">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+                </div>
+                <div class="decks-mode__text">
+                    <div class="decks-mode__name">Неделя</div>
+                    <div class="decks-mode__desc">Обзор плана на текущую неделю</div>
+                </div>
+            </a>
+            <a href="{{ url_for('study.plan_stats') }}" class="decks-mode">
+                <div class="decks-mode__icon decks-mode__icon--blue">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                </div>
+                <div class="decks-mode__text">
+                    <div class="decks-mode__name">Статистика плана</div>
+                    <div class="decks-mode__desc">Активность за 30 дней</div>
+                </div>
+            </a>
         </div>
     </div>
+
+    <!-- Writing stats compact widget (task 26) -->
+    {% if writing_stats and writing_stats.total_attempts > 0 %}
+    <div class="dash-writing-stats" style="margin-top: 1rem;">
+        <span class="dash-writing-stats__icon">&#9997;</span>
+        <span class="dash-writing-stats__label">Письмо:</span>
+        <span class="dash-writing-stats__value">{{ writing_stats.total_attempts }} {% if writing_stats.total_attempts == 1 %}попытка{% elif writing_stats.total_attempts < 5 %}попытки{% else %}попыток{% endif %}</span>
+        {% if writing_stats.avg_word_count > 0 %}
+        <span class="dash-writing-stats__sep">·</span>
+        <span class="dash-writing-stats__avg">avg {{ writing_stats.avg_word_count | int }} сл.</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Vocabulary growth widget (task 39) -->
+    {% if vocab_growth and vocab_growth.total_active > 0 %}
+    <div class="dash-vocab-growth" style="margin-top: 1rem;">
+        <span class="dash-vocab-growth__icon">&#128218;</span>
+        <span class="dash-vocab-growth__label">Словарный запас растёт:</span>
+        <span class="dash-vocab-growth__value">+{{ vocab_growth.words_this_week }} слов за неделю</span>
+        <span class="dash-vocab-growth__sep">·</span>
+        <span class="dash-vocab-growth__total">{{ vocab_growth.total_active }} активных</span>
+        {% if vocab_growth.counts and vocab_growth.counts | sum > 0 %}
+        <canvas class="dash-vocab-growth__sparkline" id="vocabGrowthChart" width="80" height="28" aria-label="График роста словаря" role="img"></canvas>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Pronunciation stats compact widget (task 60) -->
+    {% if pronunciation_stats and pronunciation_stats.total_words > 0 %}
+    <div class="dash-pronunciation-stats" style="margin-top: 1rem;">
+        <span class="dash-pronunciation-stats__icon">&#127908;</span>
+        <span class="dash-pronunciation-stats__label">Произношение:</span>
+        <span class="dash-pronunciation-stats__value">{{ pronunciation_stats.total_words }} {% if pronunciation_stats.total_words == 1 %}слово{% elif pronunciation_stats.total_words < 5 %}слова{% else %}слов{% endif %}</span>
+        {% if pronunciation_stats.match_rate_7d > 0 %}
+        <span class="dash-pronunciation-stats__sep">·</span>
+        <span class="dash-pronunciation-stats__rate">{{ pronunciation_stats.match_rate_7d | int }}% совпадений</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Weak areas widget (task 66) -->
+    {% if weak_areas %}
+    <div class="dash-weak-areas" style="margin-top: 1.25rem;">
+        <span class="dash-weak-areas__label">Слабые места:</span>
+        {% for area in weak_areas %}
+        {% if area.kind == 'grammar' and area.topic_id %}
+        <a href="{{ url_for('grammar_lab.practice', topic_id=area.topic_id) }}" class="dash-weak-areas__chip dash-weak-areas__chip--{{ area.kind }}">
+            {{ area.title }}: {{ area.detail }}
+        </a>
+        {% elif area.kind == 'vocabulary' %}
+        <a href="{{ url_for('study.cards') }}" class="dash-weak-areas__chip dash-weak-areas__chip--{{ area.kind }}">
+            {{ area.title }}: {{ area.detail }}
+        </a>
+        {% elif area.kind == 'listening' %}
+        <a href="{{ url_for('curriculum.index') }}" class="dash-weak-areas__chip dash-weak-areas__chip--{{ area.kind }}">
+            {{ area.title }}: {{ area.detail }}
+        </a>
+        {% elif area.kind == 'writing' %}
+        <a href="{{ url_for('study.writing_history') }}" class="dash-weak-areas__chip dash-weak-areas__chip--{{ area.kind }}">
+            {{ area.title }}: {{ area.detail }}
+        </a>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Learning velocity widget (task 75) -->
+    {% if learning_velocity and (learning_velocity.words_this_week > 0 or learning_velocity.words_last_week > 0) %}
+    <div class="dash-learning-velocity" style="margin-top: 1rem;">
+        <span class="dash-learning-velocity__icon">&#9889;</span>
+        <span class="dash-learning-velocity__label">Темп:</span>
+        <span class="dash-learning-velocity__value">+{{ learning_velocity.words_this_week }} слов/нед</span>
+        <span class="dash-learning-velocity__sep">·</span>
+        {% if learning_velocity.trend == 'increasing' %}
+        <span class="dash-learning-velocity__trend dash-learning-velocity__trend--up">&#8593; растёт</span>
+        {% elif learning_velocity.trend == 'declining' %}
+        <span class="dash-learning-velocity__trend dash-learning-velocity__trend--down">&#8595; снизился</span>
+        {% else %}
+        <span class="dash-learning-velocity__trend dash-learning-velocity__trend--stable">&#8212; стабильно</span>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <!-- Quiz Modal -->
     <div class="modal fade" id="quizLimitModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="quizLimitModalTitle">
@@ -1958,5 +2085,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 });
+
+// Vocabulary growth sparkline (task 39)
+(function () {
+    var canvas = document.getElementById('vocabGrowthChart');
+    if (!canvas) return;
+    var counts = {{ vocab_growth.counts | tojson if vocab_growth else '[]' }};
+    if (!counts.length) return;
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    var w = canvas.width, h = canvas.height;
+    var max = Math.max.apply(null, counts) || 1;
+    var step = w / (counts.length - 1 || 1);
+    ctx.clearRect(0, 0, w, h);
+    ctx.beginPath();
+    counts.forEach(function (v, i) {
+        var x = i * step;
+        var y = h - (v / max) * (h - 2) - 1;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-primary') || '#6366f1';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+}());
 </script>
 {% endblock %}

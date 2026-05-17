@@ -355,6 +355,9 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
     correct_count = db.Column(db.Integer, default=0)
     incorrect_count = db.Column(db.Integer, default=0)
 
+    # Source of this card: 'lesson_vocab', 'book_reading', 'custom_list', 'manual', or None
+    source = db.Column(db.String(50), nullable=True)
+
     __table_args__ = (
         db.UniqueConstraint('user_word_id', 'direction', name='uix_user_word_direction'),
         Index('idx_card_direction_user_word_id', 'user_word_id'),
@@ -367,9 +370,10 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
     def __repr__(self):
         return f"<UserCardDirection {self.id}: word={self.user_word_id} {self.direction} state={self.state}>"
 
-    def __init__(self, user_word_id, direction):
+    def __init__(self, user_word_id, direction, source=None, **kwargs):
         self.user_word_id = user_word_id
         self.direction = direction
+        self.source = source
         self.state = 'new'
         self.step_index = 0
         self.lapses = 0
@@ -380,6 +384,8 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         self.incorrect_count = 0
         self.next_review = datetime.now(timezone.utc)
         self.buried_until = None
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     def bury(self, hours: int = 24):
         """
@@ -993,3 +999,44 @@ class UserAchievement(db.Model):
 
     def __repr__(self):
         return f'<UserAchievement user={self.user_id} achievement={self.achievement_id}>'
+
+
+class CustomWordList(db.Model):
+    """User-created personal vocabulary list."""
+    __tablename__ = 'custom_word_lists'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    name = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship('User', backref=db.backref('custom_word_lists', lazy='dynamic', cascade='all, delete-orphan'))
+    entries = db.relationship('CustomWordListEntry', back_populates='word_list', cascade='all, delete-orphan', lazy='dynamic')
+
+    __table_args__ = (
+        Index('idx_custom_word_list_user_id', 'user_id'),
+    )
+
+    def __repr__(self):
+        return f'<CustomWordList {self.id}: user={self.user_id} name={self.name!r}>'
+
+
+class CustomWordListEntry(db.Model):
+    """A word entry in a user's custom vocabulary list."""
+    __tablename__ = 'custom_word_list_entries'
+
+    id = db.Column(db.Integer, primary_key=True)
+    list_id = db.Column(db.Integer, db.ForeignKey('custom_word_lists.id', ondelete='CASCADE'), nullable=False)
+    word = db.Column(db.Text, nullable=False)
+    translation = db.Column(db.Text, nullable=False)
+    added_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    word_list = db.relationship('CustomWordList', back_populates='entries')
+
+    __table_args__ = (
+        db.UniqueConstraint('list_id', 'word', name='uix_custom_list_word'),
+        Index('idx_custom_word_list_entry_list_id', 'list_id'),
+    )
+
+    def __repr__(self):
+        return f'<CustomWordListEntry {self.id}: list={self.list_id} word={self.word!r}>'

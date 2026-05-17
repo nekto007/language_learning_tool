@@ -1,5 +1,6 @@
 """Notification creation service."""
 import logging
+from datetime import datetime
 from app.notifications.models import Notification
 from app.utils.db import db
 
@@ -11,9 +12,12 @@ _PREF_MAP = {
     'level_up': 'notify_in_app_achievements',
     'rank_up': 'notify_in_app_achievements',
     'streak_milestone': 'notify_in_app_streaks',
+    'plan_streak_milestone': 'notify_in_app_achievements',
     'weekly_challenge': 'notify_in_app_weekly',
     'referral': None,  # always send referral notifications
 }
+
+PLAN_STREAK_MILESTONE_DAYS = {7, 30, 100}
 
 
 def _user_allows(user_id: int, notif_type: str) -> bool:
@@ -87,6 +91,39 @@ def notify_streak_milestone(user_id: int, streak: int, reward: int) -> Notificat
         icon='🔥',
         link='/dashboard',
     )
+
+
+def notify_plan_streak_milestone(user_id: int, streak: int) -> Notification | None:
+    return create_notification(
+        user_id, 'plan_streak_milestone',
+        title=f'Серия {streak} дней!',
+        message='День завершён — серия продолжается',
+        icon='🔥',
+        link='/dashboard',
+    )
+
+
+def check_plan_streak_milestone_notification(
+    user_id: int, current_streak: int, plan_date,
+) -> None:
+    """Create a plan_streak_milestone notification if streak hits 7/30/100 days.
+
+    Deduplicates per calendar day — safe to call from multiple day-secured paths.
+    Respects user's notify_in_app_achievements preference via create_notification.
+    """
+    if current_streak not in PLAN_STREAK_MILESTONE_DAYS:
+        return
+    # Notification.created_at stores naive UTC; dedup against UTC midnight.
+    from datetime import timezone as _tz
+    day_start = datetime.now(_tz.utc).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
+    existing = Notification.query.filter(
+        Notification.user_id == user_id,
+        Notification.type == 'plan_streak_milestone',
+        Notification.created_at >= day_start,
+    ).first()
+    if existing:
+        return
+    notify_plan_streak_milestone(user_id, current_streak)
 
 
 def notify_referral(user_id: int, referred_username: str) -> Notification:

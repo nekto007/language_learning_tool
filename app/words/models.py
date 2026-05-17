@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, func, select
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, JSON, SmallInteger, String, Text, func, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 
@@ -26,6 +26,12 @@ class CollectionWords(db.Model):
     item_type = Column(String(20), default='word')  # 'word' | 'phrasal_verb'
     base_word_id = Column(Integer, ForeignKey('collection_words.id', ondelete='SET NULL'), nullable=True)
     usage_context = Column(Text, nullable=True)  # "using" field from PhrasalVerb
+
+    ipa_transcription = Column(Text, nullable=True)  # IPA phonetic transcription, e.g. /wɜːrd/
+    synonyms = Column(JSON, nullable=True)   # list of synonym strings
+    antonyms = Column(JSON, nullable=True)   # list of antonym strings
+    frequency_band = Column(SmallInteger, nullable=True)  # 1=top 1000, 2=top 3000, 3=top 10000, NULL=unknown
+    etymology = Column(Text, nullable=True)  # word origin note, e.g. "From Latin 'verbum'"
 
     books = relationship("Book", secondary="word_book_link", back_populates="words")
     # Self-referential relationship for phrasal verbs -> base word

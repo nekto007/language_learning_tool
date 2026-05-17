@@ -3,6 +3,8 @@ Tests for app/admin/routes/word_routes.py
 5 routes, 246 lines, currently 22% coverage
 Quick tests to boost coverage to 50%+
 """
+from io import BytesIO
+
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -126,6 +128,123 @@ class TestImportTranslations:
         response = admin_client.get('/admin/words/import-translations')
 
         assert response.status_code == 200
+
+    @patch('app.admin.routes.word_routes.save_import_data')
+    @patch('app.admin.routes.word_routes.WordManagementService.prepare_topic_resolution_preview')
+    @patch('app.admin.routes.word_routes.WordManagementService.parse_import_file')
+    def test_import_translations_preview_with_topic_resolution(
+        self,
+        mock_parse,
+        mock_topic_preview,
+        mock_save,
+        admin_client,
+        mock_admin_user,
+    ):
+        """Test preview renders topic resolution choices for enriched import."""
+        mock_parse.return_value = (
+            [
+                {
+                    'line_num': 1,
+                    'english_word': 'pour',
+                    'russian_translate': 'лить',
+                    'english_sentence': 'Please pour water.',
+                    'russian_sentence': 'Пожалуйста, налей воды.',
+                    'level': 'A2',
+                    'topic': 'Действия (Actions)',
+                    'ipa_transcription': 'pɔːr',
+                    'synonyms': ['spill', 'stream'],
+                    'antonyms': ['collect'],
+                    'frequency_band': 1,
+                    'etymology': 'from Old French purer',
+                    'has_enrichment': True,
+                    'topic_status': 'needs_resolution',
+                    'topic_resolution_key': 'topic_1',
+                }
+            ],
+            [],
+            [],
+        )
+        mock_topic_preview.return_value = {
+            'topic_candidates': [
+                {
+                    'key': 'topic_1',
+                    'topic': 'Действия (Actions)',
+                    'suggestion': {
+                        'id': 1,
+                        'name': 'Действия (Actions/Verbs)',
+                        'score': 0.86,
+                    },
+                    'default_action': 'map',
+                }
+            ],
+            'topic_candidate_keys': ['topic_1'],
+            'existing_topics': [
+                {'id': 1, 'name': 'Действия (Actions/Verbs)'}
+            ],
+        }
+        mock_save.return_value = 'import-1'
+
+        response = admin_client.post(
+            '/admin/words/import-translations',
+            data={
+                'action': 'preview',
+                'translation_file': (
+                    BytesIO(b'pour;test;Test;Test;A2'),
+                    'words.csv',
+                ),
+            },
+            content_type='multipart/form-data',
+        )
+
+        assert response.status_code == 200
+        body = response.get_data(as_text=True)
+        assert 'Новые или неоднозначные темы' in body
+        assert 'Действия (Actions/Verbs)' in body
+        mock_save.assert_called_once()
+
+    @patch('app.admin.routes.word_routes.delete_import_data')
+    @patch('app.admin.routes.word_routes.load_import_data')
+    @patch('app.admin.routes.word_routes.WordManagementService.import_translations')
+    def test_import_translations_confirm_passes_topic_resolutions(
+        self,
+        mock_import,
+        mock_load,
+        mock_delete,
+        admin_client,
+        mock_admin_user,
+    ):
+        """Test confirm submits topic resolution choices to import service."""
+        mock_load.return_value = {
+            'existing_words': [],
+            'missing_words': [],
+            'topic_candidate_keys': ['topic_1'],
+        }
+        mock_import.return_value = (0, 0)
+
+        response = admin_client.post(
+            '/admin/words/import-translations',
+            data={
+                'action': 'confirm',
+                'import_id': 'import-1',
+                'topic_action_topic_1': 'create',
+                'topic_map_topic_1': '',
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 200
+        mock_import.assert_called_once_with(
+            [],
+            [],
+            [],
+            topic_resolutions={
+                'topic_1': {
+                    'action': 'create',
+                    'topic_id': None,
+                }
+            },
+        )
+        mock_delete.assert_called_once_with('import-1')
 
     @patch('app.admin.routes.word_routes.save_import_data')
     @patch('app.admin.routes.word_routes.WordManagementService.import_translations')

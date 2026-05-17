@@ -5,7 +5,7 @@
 
 {% if text_content and text_content.is_listening_immersion %}
   {% set component_name = _('Аудирование') %}
-  {% set instruction_text = _('Прослушайте диалог несколько раз. Постарайтесь понять содержание на слух. Можете читать текст и перевод во время прослушивания.') %}
+  {% set instruction_text = _('Сначала прослушайте диалог без текста. Затем откройте текст и послушайте ещё раз. Перевод откройте, только если что-то осталось непонятным.') %}
   {% set block_description = _('Развитие навыков восприятия речи на слух') %}
 {% else %}
   {% set component_name = _('Чтение') %}
@@ -22,6 +22,17 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/word-translator.css') }}">
 {% endif %}
 <style>
+/* Hide the global "Урок завершён!" icon + title for reading lessons.
+   Reading has its own inline summary ("Текст прочитан! Понимание 7/7,
+   Отлично!"), so the duplicate finalisation banner above the navigation
+   buttons is redundant. We keep the action row + feedback widget. */
+#lesson-completion .lsn-completion__icon,
+#lesson-completion .lsn-completion__title,
+#lesson-completion .lsn-completion__grade,
+#lesson-completion .lsn-completion__score {
+  display: none;
+}
+
 /* Modern Text Card Styles */
 .text-content-box, .text-block {
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
@@ -110,6 +121,13 @@
         <source src="{{ url_for('static', filename='audio/' + audio_file) }}" type="audio/mpeg">
         Ваш браузер не поддерживает аудио элемент.
       </audio>
+      <div class="audio-speed-controls" id="audio-speed-controls">
+        <span class="audio-speed-label">{{ _('Скорость:') }}</span>
+        <button class="audio-speed-btn" data-speed="0.75" onclick="setAudioSpeed(0.75)">0.75×</button>
+        <button class="audio-speed-btn audio-speed-btn--active" data-speed="1" onclick="setAudioSpeed(1)">1×</button>
+        <button class="audio-speed-btn" data-speed="1.25" onclick="setAudioSpeed(1.25)">1.25×</button>
+        <button class="audio-speed-btn" data-speed="1.5" onclick="setAudioSpeed(1.5)">1.5×</button>
+      </div>
       <p>
         <i class="fas fa-info-circle"></i> Прослушайте несколько раз для лучшего запоминания
       </p>
@@ -160,10 +178,28 @@
 
       {% if is_reading_lines %}
         <!-- Reading with lines structure -->
-        <div class="reading-lines-container">
+        <div class="reading-lines-container" id="reading-lines-container" data-show-all-translations="false">
           {% if text_content.text.title %}
             <h3 class="reading-title">{{ text_content.text.title }}</h3>
           {% endif %}
+
+          {# Global translations toggle. Hidden by default: A1 learners should
+             try to decode English first, then check themselves. The reveal
+             can be either per-line (click the «Перевод» chip on a row) or
+             whole-text via this switch. #}
+          {% set _has_any_translation = false %}
+          {% for line in text_content.text.lines %}{% if line.translation %}{% set _has_any_translation = true %}{% endif %}{% endfor %}
+          {% if _has_any_translation and not is_advanced %}
+          <div class="reading-translations-toggle-row">
+            <button class="reading-translations-toggle-all" id="reading-translations-toggle-all"
+                    type="button" onclick="toggleAllTranslations(this)"
+                    aria-pressed="false">
+              <i class="fas fa-language" aria-hidden="true"></i>
+              <span class="reading-translations-toggle-all__label">{{ _('Показать переводы') }}</span>
+            </button>
+          </div>
+          {% endif %}
+
           {% for line in text_content.text.lines %}
             <div class="reading-line">
               <div class="reading-line-text">
@@ -174,9 +210,19 @@
                     <i class="fas fa-volume-up"></i>
                   </button>
                 {% endif %}
+                {% if line.translation and not is_advanced %}
+                  <button class="reading-line-translation-btn"
+                          type="button"
+                          onclick="toggleLineTranslation(this)"
+                          aria-expanded="false"
+                          title="{{ _('Показать перевод') }}">
+                    <i class="fas fa-language" aria-hidden="true"></i>
+                    <span>{{ _('Перевод') }}</span>
+                  </button>
+                {% endif %}
               </div>
               {% if line.translation and not is_advanced %}
-                <div class="reading-line-translation">
+                <div class="reading-line-translation" hidden>
                   {{ line.translation }}
                 </div>
               {% endif %}
@@ -190,8 +236,28 @@
           {{ text_content.text|tojson }}
         </script>
       {% elif text_content.is_listening_immersion %}
-        <!-- Listening Immersion: прогрессивное отображение текста -->
-        <div class="listening-immersion-content mx-auto">
+        <!-- Listening Immersion: текст и перевод скрыты по умолчанию,
+             чтобы аудирование не превращалось в чтение. Учащийся
+             сначала слушает «вслепую», затем открывает текст. -->
+        <div class="listening-reveal-controls">
+          <button class="transcript-toggle" id="transcript-toggle-btn"
+                  onclick="toggleTranscript()"
+                  data-default-visible="false">
+            <i class="fas fa-eye"></i>
+            <span id="transcript-toggle-label">{{ _('Показать текст') }}</span>
+          </button>
+          {% if text_content.translation %}
+          <button class="transcript-toggle transcript-toggle--translation"
+                  id="listening-translation-toggle-btn"
+                  type="button"
+                  onclick="toggleListeningTranslation()"
+                  data-default-visible="false">
+            <i class="fas fa-language"></i>
+            <span id="listening-translation-toggle-label">{{ _('Показать перевод') }}</span>
+          </button>
+          {% endif %}
+        </div>
+        <div class="listening-immersion-content mx-auto transcript--hidden" id="transcript-content">
           {% set text_str = text_content.text if text_content.text is string else '' %}
           {% set has_dialogue_format = ':' in text_str and '\n' in text_str %}
 
@@ -208,19 +274,12 @@
             </div>
 
             {% if text_content.translation and not is_advanced %}
-              <!-- Русский перевод -->
-              <div class="listening-content-block translation mt-4">
+              <!-- Русский перевод — скрыт по умолчанию, открывается отдельной кнопкой -->
+              <div class="listening-content-block translation mt-4 listening-translation-block" id="listening-translation-block" hidden>
                 <h4 class="listening-section-header translation">
                   <i class="fas fa-language"></i> Перевод
                 </h4>
                 <div class="listening-content-text">{{ text_content.translation }}</div>
-              </div>
-
-              <!-- Инструкция для начального уровня -->
-              <div class="listening-instruction-box info">
-                <p>
-                  <i class="fas fa-info-circle"></i> <strong>Для начального уровня:</strong> Сначала прослушайте диалог несколько раз. Попробуйте понять содержание, глядя на английский текст, затем сверьтесь с переводом.
-                </p>
               </div>
             {% elif is_advanced %}
               <!-- Инструкция для продвинутого уровня -->
@@ -242,19 +301,12 @@
                 <div class="listening-content-text">{{ text_content.text }}</div>
               </div>
 
-              <!-- Русский перевод -->
-              <div class="listening-content-block translation">
+              <!-- Русский перевод — скрыт по умолчанию -->
+              <div class="listening-content-block translation listening-translation-block" id="listening-translation-block" hidden>
                 <h4 class="listening-section-header translation">
                   <i class="fas fa-language"></i> Перевод
                 </h4>
                 <div class="listening-content-text">{{ text_content.translation }}</div>
-              </div>
-
-              <!-- Инструкция для начального уровня -->
-              <div class="listening-instruction-box info">
-                <p>
-                  <i class="fas fa-info-circle"></i> <strong>Для начального уровня:</strong> Сначала прослушайте диалог несколько раз, читая русский текст. Постарайтесь уловить английские слова и фразы на слух.
-                </p>
               </div>
             {% else %}
               <!-- Английский текст (для продвинутого уровня или без перевода) -->
@@ -284,6 +336,25 @@
               <p>
                 <i class="fas fa-lightbulb"></i> <strong>Совет:</strong> {{ text_content.instruction }}
               </p>
+            </div>
+          {% endif %}
+
+          <!-- Per-sentence replay icons (shown only when timestamps are provided) -->
+          {% if text_content.sentences %}
+            <div class="sentence-replay-list" id="sentence-replay-list">
+              <h5 class="sentence-replay-header">
+                <i class="fas fa-list-ul"></i> {{ _('Фразы') }}
+              </h5>
+              {% for sentence in text_content.sentences %}
+                <div class="sentence-replay-item">
+                  <button class="sentence-replay-btn"
+                          onclick="replaySentence({{ sentence.start_time }}, {{ sentence.end_time }})"
+                          title="{{ _('Воспроизвести фразу') }}">
+                    <i class="fas fa-redo-alt"></i>
+                  </button>
+                  <span class="sentence-replay-text">{{ sentence.text }}</span>
+                </div>
+              {% endfor %}
             </div>
           {% endif %}
         </div>
@@ -389,9 +460,12 @@
               </div>
 
             {% elif question.type == 'ordering' %}
-              {# Ordering question - build sentence from words #}
+              {# Ordering question - build sentence from words. The
+                 server renders words in source order; shuffleOrderingWords()
+                 reshuffles them client-side on DOMContentLoaded so the
+                 exercise is not trivially solvable by "click in order". #}
               <div class="reorder-answer">
-                <div class="words-container" id="words-container-{{ question_index }}">
+                <div class="words-container" data-needs-shuffle="true" id="words-container-{{ question_index }}">
                   {% for word in question.words %}
                     <button type="button" class="word-button" data-word="{{ word }}" onclick="addWordToSentence({{ question_index }}, '{{ word }}', this)">
                       {{ word }}
@@ -437,9 +511,26 @@
 
   <!-- Отметка о прочтении -->
   <div class="reading-complete">
+    {% if text_content and text_content.is_listening_immersion %}
+      <div class="listening-completion-gate" id="listening-completion-gate">
+        <label class="listening-attentive-check listening-attentive-check--locked" id="listening-attentive-label">
+          <input type="checkbox" id="listening-attentive-checkbox" disabled>
+          <span>{{ _('Я прослушал(а) диалог минимум 2 раза') }}</span>
+        </label>
+        <p class="listening-gate-hint" id="listening-gate-hint">
+          <i class="fas fa-lock"></i>
+          {{ _('Запустите плеер и прослушайте не меньше половины диалога — после этого чекбокс станет доступен.') }}
+        </p>
+      </div>
+    {% endif %}
+
     <div class="completion-hint" id="completion-hint" style="display: none;">
       <i class="fas fa-info-circle"></i>
-      {{ _('Прокрутите до конца текста, чтобы отметить урок как прочитанный') }}
+      {% if text_content and text_content.is_listening_immersion %}
+        {{ _('Завершите чекпоинты выше, чтобы отметить урок как завершённый') }}
+      {% else %}
+        {{ _('Прокрутите до конца текста, чтобы отметить урок как прочитанный') }}
+      {% endif %}
     </div>
 
     <form method="POST" action="{{ url_for('curriculum_lessons.update_lesson_progress', lesson_id=lesson.id) }}" id="text-completion-form">
@@ -448,7 +539,12 @@
       <input type="hidden" name="score" value="100" id="completion-score">
       <input type="hidden" name="comprehension_results" value="" id="comprehension-results">
       <button type="submit" class="btn btn-success btn-lg" id="mark-read-btn" disabled>
-        <i class="fas fa-check-circle"></i> {{ _('Отметить как прочитано') }}
+        <i class="fas fa-check-circle"></i>
+        {% if text_content and text_content.is_listening_immersion %}
+          {{ _('Завершить урок') }}
+        {% else %}
+          {{ _('Отметить как прочитано') }}
+        {% endif %}
       </button>
     </form>
   </div>
@@ -457,10 +553,116 @@
 <!-- Аудио элемент для словаря -->
 <audio id="vocab-audio" class="audio-hidden"></audio>
 
+<!-- Click-to-define tooltip for inline vocab words -->
+<div class="vocab-tooltip" id="vocabTooltip" role="tooltip" aria-live="polite">
+  <div class="vocab-tooltip__inner">
+    <div class="vocab-tooltip__header">
+      <span class="vocab-tooltip__word" id="vocabTooltipWord"></span>
+      <button class="vocab-tooltip__close" id="vocabTooltipClose" aria-label="{{ _('Закрыть') }}">&times;</button>
+    </div>
+    <div class="vocab-tooltip__translation" id="vocabTooltipTranslation"></div>
+  </div>
+</div>
+
+{% if vocab_js_data %}
+<script type="application/json" id="lessonVocabData">{{ vocab_js_data | tojson }}</script>
+{% endif %}
+
 <script>
 let startTime = Date.now();
 let readingTime = 0;
 let hasScrolledToBottom = false;
+
+// =========================================================================
+// Reading-quiz answer persistence
+// Each answered comprehension question (true/false, fill_blank, multiple_
+// choice, ordering) is saved to LessonProgress.data via the existing
+// /progress endpoint. On page reload, _restoreReadingAnswers replays the
+// visual state so users don't lose work.
+// =========================================================================
+const READING_LESSON_ID = {{ lesson.id }};
+const READING_SAVED_STATE = {{ (progress.data | tojson) if (progress and progress.data) else '{}' }};
+// In-memory map: {questionIndex: {value, type, correct}}.
+const _readingAnswers = (READING_SAVED_STATE && READING_SAVED_STATE.reading_answers) || {};
+
+async function _saveReadingAnswers() {
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    await fetch('/curriculum/api/lesson/' + READING_LESSON_ID + '/progress', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+      body: JSON.stringify({data: {reading_answers: _readingAnswers}}),
+    });
+  } catch (e) {
+    console.warn('reading answers save failed', e);
+  }
+}
+
+let _readingRestoring = false;
+
+function _recordReadingAnswer(questionIndex, value, type, correct) {
+  _readingAnswers[questionIndex] = {value: value, type: type, correct: !!correct};
+  // Skip the API roundtrip during the replay pass — saved state already
+  // reflects what's about to be re-rendered.
+  if (!_readingRestoring) _saveReadingAnswers();
+}
+
+function _restoreReadingAnswers() {
+  if (!_readingAnswers || typeof _readingAnswers !== 'object') return;
+  const entries = Object.entries(_readingAnswers);
+  if (entries.length === 0) return;
+  _readingRestoring = true;
+  entries.forEach(function(entry) {
+    const qIdx = parseInt(entry[0]);
+    const saved = entry[1] || {};
+    if (isNaN(qIdx) || !saved.type) return;
+    const block = document.querySelector('[data-question-index="' + qIdx + '"]');
+    if (!block) return;
+
+    if (saved.type === 'true_false') {
+      const want = (saved.value === true || saved.value === 'true');
+      const btn = block.querySelector('.answer-option-btn[data-value="' + (want ? 'true' : 'false') + '"]');
+      if (btn) {
+        try { checkTrueFalseAnswer(qIdx, want); } catch (_) {}
+      }
+    } else if (saved.type === 'fill_blank') {
+      const sel = '.answer-option-btn[data-value="' + String(saved.value).replace(/"/g, '\\"') + '"]';
+      const btn = block.querySelector(sel);
+      if (btn) {
+        try { checkFillBlankAnswer(qIdx, saved.value); } catch (_) {}
+      }
+    } else if (saved.type === 'text') {
+      const input = block.querySelector('.answer-input');
+      if (input) {
+        input.value = saved.value || '';
+        try { checkAnswer(qIdx); } catch (_) {}
+      }
+    } else if (saved.type === 'ordering') {
+      // Replay each word click in the saved sentence order, then submit.
+      const wordsContainer = document.getElementById('words-container-' + qIdx);
+      const sentenceDiv = document.getElementById('sentence-' + qIdx);
+      if (!wordsContainer || !sentenceDiv) return;
+      const tokens = (saved.value || '').split(/\s+/).filter(Boolean);
+      tokens.forEach(function(token) {
+        const btn = Array.from(wordsContainer.querySelectorAll('.word-button:not([disabled])'))
+          .find(function(b) {
+            const w = (b.getAttribute('data-word') || b.textContent || '').trim();
+            return w === token;
+          });
+        if (btn) {
+          try { addWordToSentence(qIdx, token, btn); } catch (_) {}
+        }
+      });
+      try { submitOrderingAnswer(qIdx); } catch (_) {}
+    }
+  });
+  _readingRestoring = false;
+}
+document.addEventListener('DOMContentLoaded', function() {
+  // Shuffle runs first, then we replay saved answers so re-rendered
+  // word buttons are already in the right place.
+  setTimeout(_restoreReadingAnswers, 0);
+});
 
 // Обработка диалога
 document.addEventListener('DOMContentLoaded', function() {
@@ -660,6 +862,7 @@ function checkAnswer(questionIndex) {
     feedback.className = 'answer-feedback correct';
     checkBtn.disabled = true;
     input.disabled = true;
+    questionBlock.classList.add('answered-correct');
   } else {
     input.classList.add('incorrect');
     input.classList.remove('correct');
@@ -667,6 +870,7 @@ function checkAnswer(questionIndex) {
     feedback.className = 'answer-feedback incorrect';
   }
 
+  _recordReadingAnswer(questionIndex, input.value, 'text', isCorrect);
   updateComprehensionResults();
 }
 
@@ -701,6 +905,7 @@ function checkTrueFalseAnswer(questionIndex, userAnswer) {
     feedback.className = 'answer-feedback incorrect';
   }
 
+  _recordReadingAnswer(questionIndex, userAnswer, 'true_false', isCorrect);
   updateComprehensionResults();
 }
 
@@ -736,6 +941,7 @@ function checkFillBlankAnswer(questionIndex, userAnswer) {
     feedback.className = 'answer-feedback incorrect';
   }
 
+  _recordReadingAnswer(questionIndex, userAnswer, 'fill_blank', isCorrect);
   updateComprehensionResults();
 }
 
@@ -791,6 +997,7 @@ function submitOrderingAnswer(questionIndex) {
     sentenceDiv.style.borderColor = '#ef4444';
   }
 
+  _recordReadingAnswer(questionIndex, sentence, 'ordering', isCorrect);
   updateComprehensionResults();
 }
 
@@ -809,7 +1016,13 @@ function addWordToSentence(questionIndex, word, button) {
   wordElement.className = 'sentence-word';
   wordElement.textContent = word;
   wordElement.style.cssText = 'padding: 0.5rem 1rem; background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%); color: white; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: all 0.2s;';
-  wordElement.onclick = () => removeWordFromSentence(wordElement, button);
+  // stopPropagation: иначе клик по слову уходит на .sentence-display
+  // (onclick="clearSentence(...)") и одиночное удаление превращается в
+  // полный сброс предложения.
+  wordElement.onclick = (e) => {
+    e.stopPropagation();
+    removeWordFromSentence(wordElement, button);
+  };
 
   // Add word to sentence
   sentenceDiv.appendChild(wordElement);
@@ -934,6 +1147,61 @@ function initReadingProgress() {
   const progressBar = document.getElementById('reading-progress-bar');
   const completionHint = document.getElementById('completion-hint');
   const markReadBtn = document.getElementById('mark-read-btn');
+  const listeningGate = document.getElementById('listening-completion-gate');
+  const isListeningImmersion = !!listeningGate;
+  const listeningCheckbox = document.getElementById('listening-attentive-checkbox');
+  const listeningLabel = document.getElementById('listening-attentive-label');
+  const listeningHint = document.getElementById('listening-gate-hint');
+  const listeningAudio = document.getElementById('listening-audio');
+  const LISTEN_THRESHOLD = 0.5;
+  let listeningPlayed = false;
+  let listeningProgressOk = false;
+  // Покрытие максимума по таймлайну — пользователь может прыгать seek-баром
+  // вперёд, чтобы накрутить процент. Считаем не currentTime, а реально
+  // воспроизведённые сегменты: timeupdate отслеживает прирост ≤2 сек
+  // (нормальное проигрывание) и игнорирует скачки.
+  let coveredSeconds = 0;
+  let lastTime = 0;
+
+  function unlockListeningCheckbox() {
+    if (!listeningCheckbox || !listeningCheckbox.disabled) return;
+    listeningCheckbox.disabled = false;
+    if (listeningLabel) listeningLabel.classList.remove('listening-attentive-check--locked');
+    if (listeningHint) {
+      listeningHint.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Готово! Отметьте чекбокс, чтобы завершить урок.") }}';
+      listeningHint.classList.add('listening-gate-hint--ready');
+    }
+  }
+
+  if (isListeningImmersion && listeningAudio) {
+    listeningAudio.addEventListener('play', () => {
+      listeningPlayed = true;
+      checkCompletionStatus();
+    });
+    listeningAudio.addEventListener('seeking', () => {
+      lastTime = listeningAudio.currentTime;
+    });
+    listeningAudio.addEventListener('timeupdate', () => {
+      const dur = listeningAudio.duration;
+      if (!dur) return;
+      const t = listeningAudio.currentTime;
+      const delta = t - lastTime;
+      // ≤2 сек прироста — это нормальное проигрывание; больше — seek, не считаем.
+      if (delta > 0 && delta <= 2) {
+        coveredSeconds += delta;
+      }
+      lastTime = t;
+      const pct = coveredSeconds / dur;
+      if (pct >= LISTEN_THRESHOLD && !listeningProgressOk) {
+        listeningProgressOk = true;
+        unlockListeningCheckbox();
+        checkCompletionStatus();
+      }
+    });
+  }
+  if (isListeningImmersion && listeningCheckbox) {
+    listeningCheckbox.addEventListener('change', checkCompletionStatus);
+  }
 
   function checkCompletionStatus() {
     const hasQuestions = document.querySelectorAll('.question-block').length > 0;
@@ -942,12 +1210,19 @@ function initReadingProgress() {
     const correctQuestions = document.querySelectorAll('.question-block.answered-correct').length;
     const allQuestionsAnswered = hasQuestions && (correctQuestions === totalQuestions);
 
-    // Если есть вопросы — требуем ответить на все; если нет — достаточно прокрутки
-    const canComplete = hasQuestions ? allQuestionsAnswered : hasScrolledToBottom;
+    let canComplete;
+    if (isListeningImmersion) {
+      const checked = listeningCheckbox && listeningCheckbox.checked;
+      canComplete = listeningPlayed && listeningProgressOk && checked &&
+        (!hasQuestions || allQuestionsAnswered);
+    } else {
+      // Если есть вопросы — требуем ответить на все; если нет — достаточно прокрутки
+      canComplete = hasQuestions ? allQuestionsAnswered : hasScrolledToBottom;
+    }
 
     if (canComplete) {
       markReadBtn.disabled = false;
-      completionHint.style.display = 'none';
+      if (completionHint) completionHint.style.display = 'none';
 
       if (!markReadBtn.classList.contains('pulse-animation')) {
         markReadBtn.classList.add('pulse-animation');
@@ -955,6 +1230,8 @@ function initReadingProgress() {
           markReadBtn.classList.remove('pulse-animation');
         }, 1000);
       }
+    } else if (isListeningImmersion) {
+      markReadBtn.disabled = true;
     }
   }
 
@@ -1071,13 +1348,21 @@ function showCompletionResults() {
       </div>
       
       <div class="completion-stats">
+  `;
+  // "Время чтения" is the wall-clock seconds between page load and clicking
+  // "Отметить как прочитано". On a return visit (when the learner is just
+  // confirming) it's typically ~5 sec, which reads as a fake metric. Only
+  // show it when it's plausibly real — at least 30 seconds spent on page.
+  if (readingTime >= 30) {
+    resultsHtml += `
         <div class="stat-item">
           <i class="fas fa-clock"></i>
           <span>{{ _('Время чтения:') }}</span>
           <strong>${minutes > 0 ? minutes + ' {{ _("мин") }} ' : ''}${seconds} {{ _("сек") }}</strong>
         </div>
-  `;
-  
+    `;
+  }
+
   if (hasQuestions) {
     const percentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
     resultsHtml += `
@@ -1376,6 +1661,205 @@ function playNextAudio() {
   });
 }
 
+// Audio speed control
+function setAudioSpeed(speed) {
+  const audio = document.getElementById('listening-audio');
+  if (audio) {
+    audio.playbackRate = speed;
+  }
+  document.querySelectorAll('.audio-speed-btn').forEach(btn => {
+    btn.classList.toggle('audio-speed-btn--active', parseFloat(btn.dataset.speed) === speed);
+  });
+  try {
+    localStorage.setItem('listening_speed', String(speed));
+  } catch (_) {}
+}
+
+function initAudioSpeed() {
+  let speed = 1;
+  try {
+    const saved = localStorage.getItem('listening_speed');
+    if (saved) speed = parseFloat(saved);
+  } catch (_) {}
+  if (![0.75, 1, 1.25, 1.5].includes(speed)) speed = 1;
+  setAudioSpeed(speed);
+}
+
+// Transcript toggle
+function toggleTranscript() {
+  const content = document.getElementById('transcript-content');
+  const label = document.getElementById('transcript-toggle-label');
+  const btn = document.getElementById('transcript-toggle-btn');
+  if (!content) return;
+  const nowHidden = content.classList.toggle('transcript--hidden');
+  if (label) label.textContent = nowHidden ? 'Показать текст' : 'Скрыть текст';
+  const icon = btn ? btn.querySelector('i') : null;
+  if (icon) icon.className = nowHidden ? 'fas fa-eye' : 'fas fa-eye-slash';
+  // Скрытие транскрипта прячет и блок перевода — он не должен жить отдельно.
+  if (nowHidden) {
+    const trBlock = document.getElementById('listening-translation-block');
+    if (trBlock && !trBlock.hasAttribute('hidden')) {
+      trBlock.setAttribute('hidden', '');
+      const trLabel = document.getElementById('listening-translation-toggle-label');
+      const trBtn = document.getElementById('listening-translation-toggle-btn');
+      if (trLabel) trLabel.textContent = 'Показать перевод';
+      const trIcon = trBtn ? trBtn.querySelector('i') : null;
+      if (trIcon) trIcon.className = 'fas fa-language';
+    }
+  }
+  try { localStorage.removeItem('transcript_visible'); } catch (_) {}
+}
+
+// Translation toggle for listening_immersion. Перевод живёт под транскриптом,
+// но открывается отдельной кнопкой, чтобы учащийся сначала тренировал
+// аудирование, а потом — пересказ/проверку понимания.
+function toggleListeningTranslation() {
+  const block = document.getElementById('listening-translation-block');
+  const btn = document.getElementById('listening-translation-toggle-btn');
+  const label = document.getElementById('listening-translation-toggle-label');
+  if (!block) return;
+  const wasHidden = block.hasAttribute('hidden');
+  if (wasHidden) {
+    block.removeAttribute('hidden');
+    if (label) label.textContent = 'Скрыть перевод';
+    const icon = btn ? btn.querySelector('i') : null;
+    if (icon) icon.className = 'fas fa-eye-slash';
+    // Если транскрипт скрыт — открываем его заодно, иначе перевод повис в воздухе.
+    const content = document.getElementById('transcript-content');
+    if (content && content.classList.contains('transcript--hidden')) {
+      toggleTranscript();
+    }
+  } else {
+    block.setAttribute('hidden', '');
+    if (label) label.textContent = 'Показать перевод';
+    const icon = btn ? btn.querySelector('i') : null;
+    if (icon) icon.className = 'fas fa-language';
+  }
+}
+
+// Shuffle the word buttons inside every ordering exercise so the
+// "build the sentence" task is not trivially solved by clicking in
+// source order. Runs once on DOMContentLoaded; if the shuffled order
+// happens to match the source order, we re-shuffle once to avoid the
+// degenerate case on short word lists.
+function shuffleOrderingWords() {
+  document.querySelectorAll('.words-container[data-needs-shuffle="true"]').forEach(function(container) {
+    const buttons = Array.from(container.querySelectorAll('.word-button'));
+    if (buttons.length <= 1) return;
+    const original = buttons.map(function(b) { return b.getAttribute('data-word') || b.textContent.trim(); });
+    let shuffled;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      shuffled = buttons.slice();
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp;
+      }
+      const newOrder = shuffled.map(function(b) { return b.getAttribute('data-word') || b.textContent.trim(); });
+      if (newOrder.some(function(w, idx) { return w !== original[idx]; })) break;
+    }
+    shuffled.forEach(function(b) { container.appendChild(b); });
+    container.setAttribute('data-needs-shuffle', 'done');
+  });
+}
+document.addEventListener('DOMContentLoaded', shuffleOrderingWords);
+
+// Per-line translation reveal — clicked on the small "Перевод" chip next
+// to an English row. Toggles the sibling .reading-line-translation block.
+function toggleLineTranslation(btn) {
+  if (!btn) return;
+  const line = btn.closest('.reading-line');
+  if (!line) return;
+  const tr = line.querySelector('.reading-line-translation');
+  if (!tr) return;
+  const wasHidden = tr.hasAttribute('hidden');
+  if (wasHidden) {
+    tr.removeAttribute('hidden');
+    btn.setAttribute('aria-expanded', 'true');
+    btn.title = '{{ _("Скрыть перевод") }}';
+  } else {
+    tr.setAttribute('hidden', '');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.title = '{{ _("Показать перевод") }}';
+  }
+}
+
+// Global show/hide all translations. Flips every per-line chip + its
+// translation block, keeps the global toggle's aria-pressed in sync.
+function toggleAllTranslations(toggleBtn) {
+  const container = document.getElementById('reading-lines-container');
+  if (!container) return;
+  const showAllNow = container.getAttribute('data-show-all-translations') !== 'true';
+  container.setAttribute('data-show-all-translations', showAllNow ? 'true' : 'false');
+  toggleBtn.setAttribute('aria-pressed', showAllNow ? 'true' : 'false');
+  const lbl = toggleBtn.querySelector('.reading-translations-toggle-all__label');
+  if (lbl) lbl.textContent = showAllNow
+    ? '{{ _("Скрыть переводы") }}'
+    : '{{ _("Показать переводы") }}';
+  container.querySelectorAll('.reading-line').forEach(function(line) {
+    const tr = line.querySelector('.reading-line-translation');
+    const chip = line.querySelector('.reading-line-translation-btn');
+    if (!tr) return;
+    if (showAllNow) {
+      tr.removeAttribute('hidden');
+      if (chip) {
+        chip.setAttribute('aria-expanded', 'true');
+        chip.title = '{{ _("Скрыть перевод") }}';
+      }
+    } else {
+      tr.setAttribute('hidden', '');
+      if (chip) {
+        chip.setAttribute('aria-expanded', 'false');
+        chip.title = '{{ _("Показать перевод") }}';
+      }
+    }
+  });
+}
+
+// Replay a single sentence segment in the listening audio
+function replaySentence(startTime, endTime) {
+  const audio = document.getElementById('listening-audio');
+  if (!audio) return;
+  // Remove any previously attached timeupdate listener
+  if (audio._replayStop) {
+    audio.removeEventListener('timeupdate', audio._replayStop);
+    audio._replayStop = null;
+  }
+  audio.currentTime = startTime;
+  audio.play().catch(function() {});
+  function stopAtEnd() {
+    if (audio.currentTime >= endTime) {
+      audio.pause();
+      audio.removeEventListener('timeupdate', stopAtEnd);
+      audio._replayStop = null;
+    }
+  }
+  audio._replayStop = stopAtEnd;
+  audio.addEventListener('timeupdate', stopAtEnd);
+}
+
+function initTranscriptToggle() {
+  const btn = document.getElementById('transcript-toggle-btn');
+  const content = document.getElementById('transcript-content');
+  if (!btn || !content) return;
+  // Транскрипт всегда стартует в состоянии из data-default-visible.
+  // Никакого localStorage: для аудирования это педагогический выбор,
+  // а не пользовательская преференция. Каждое открытие урока начинается
+  // «вслепую», чтобы learner сначала слушал, и только потом сверялся.
+  const defaultVisible = btn.dataset.defaultVisible === 'true';
+  try { localStorage.removeItem('transcript_visible'); } catch (_) {}
+  const label = document.getElementById('transcript-toggle-label');
+  const icon = btn.querySelector('i');
+  if (defaultVisible) {
+    content.classList.remove('transcript--hidden');
+    if (label) label.textContent = 'Скрыть текст';
+    if (icon) icon.className = 'fas fa-eye-slash';
+  } else {
+    content.classList.add('transcript--hidden');
+    if (label) label.textContent = 'Показать текст';
+    if (icon) icon.className = 'fas fa-eye';
+  }
+}
+
 // Вызываем при загрузке
 document.addEventListener('DOMContentLoaded', function() {
   // Даём время на загрузку DOM
@@ -1384,6 +1868,16 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize auto-play if controller exists
   if (document.getElementById('play-all-btn')) {
     initAutoPlay();
+  }
+
+  // Initialize audio speed control
+  if (document.getElementById('audio-speed-controls')) {
+    initAudioSpeed();
+  }
+
+  // Initialize transcript toggle
+  if (document.getElementById('transcript-toggle-btn')) {
+    initTranscriptToggle();
   }
 
   // Mobile responsive adjustments
@@ -1593,5 +2087,165 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+
+<script>
+(function() {
+  var vocabDataEl = document.getElementById('lessonVocabData');
+  if (!vocabDataEl) return;
+
+  var vocabItems;
+  try { vocabItems = JSON.parse(vocabDataEl.textContent); } catch(e) { return; }
+  if (!vocabItems || !vocabItems.length) return;
+
+  // Build lookup: lowercase word → {word_id, translation}
+  var vocabMap = {};
+  vocabItems.forEach(function(item) {
+    if (item.word) {
+      vocabMap[item.word.toLowerCase()] = {
+        word_id: item.word_id,
+        translation: item.translation || '',
+        original: item.word
+      };
+    }
+  });
+
+  var escapedRe = Object.keys(vocabMap).map(function(w) {
+    return w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  });
+  if (!escapedRe.length) return;
+  // Match whole words only, case-insensitive
+  var pattern = new RegExp('\\b(' + escapedRe.join('|') + ')\\b', 'gi');
+
+  // Process text nodes in prose containers (avoid scripts/styles/already-processed)
+  var containers = document.querySelectorAll(
+    '.prose-container, .listening-content-text, .reading-line-text'
+  );
+
+  containers.forEach(function(container) {
+    if (container.getAttribute('data-vocab-processed')) return;
+    container.setAttribute('data-vocab-processed', 'true');
+    _wrapVocabInNode(container, pattern, vocabMap);
+  });
+
+  function _wrapVocabInNode(node, re, map) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      var text = node.textContent;
+      if (!re.test(text)) return;
+      re.lastIndex = 0;
+      var frag = document.createDocumentFragment();
+      var last = 0;
+      var m;
+      re.lastIndex = 0;
+      while ((m = re.exec(text)) !== null) {
+        if (m.index > last) {
+          frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        }
+        var key = m[0].toLowerCase();
+        var info = map[key];
+        var span = document.createElement('span');
+        span.className = 'vocab-word';
+        if (info && info.word_id) span.setAttribute('data-word-id', String(info.word_id));
+        span.setAttribute('data-vocab-key', key);
+        span.textContent = m[0];
+        frag.appendChild(span);
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) {
+        frag.appendChild(document.createTextNode(text.slice(last)));
+      }
+      node.parentNode.replaceChild(frag, node);
+    } else if (
+      node.nodeType === Node.ELEMENT_NODE &&
+      node.nodeName !== 'SCRIPT' &&
+      node.nodeName !== 'STYLE' &&
+      !node.classList.contains('vocab-word')
+    ) {
+      Array.from(node.childNodes).forEach(function(child) {
+        _wrapVocabInNode(child, re, map);
+        re.lastIndex = 0;
+      });
+    }
+  }
+
+  // Tooltip logic
+  var tooltip = document.getElementById('vocabTooltip');
+  var tooltipWord = document.getElementById('vocabTooltipWord');
+  var tooltipTranslation = document.getElementById('vocabTooltipTranslation');
+  var tooltipClose = document.getElementById('vocabTooltipClose');
+  if (!tooltip) return;
+
+  document.addEventListener('click', function(e) {
+    var span = e.target.closest ? e.target.closest('span.vocab-word') : null;
+    if (span) {
+      e.preventDefault();
+      var key = span.getAttribute('data-vocab-key') || span.textContent.toLowerCase();
+      var info = vocabMap[key];
+      if (!info) return;
+
+      // Highlight
+      document.querySelectorAll('span.vocab-word.vocab-word--active').forEach(function(s) {
+        s.classList.remove('vocab-word--active');
+      });
+      span.classList.add('vocab-word--active');
+
+      tooltipWord.textContent = info.original || span.textContent;
+      tooltipTranslation.textContent = info.translation || '';
+      _positionTooltip(span);
+      tooltip.classList.add('vocab-tooltip--visible');
+
+      // Track event
+      _trackVocabLookup(info.word_id);
+    } else if (!tooltip.contains(e.target)) {
+      _hideTooltip();
+    }
+  });
+
+  if (tooltipClose) {
+    tooltipClose.addEventListener('click', function() { _hideTooltip(); });
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') _hideTooltip();
+  });
+
+  function _hideTooltip() {
+    tooltip.classList.remove('vocab-tooltip--visible');
+    document.querySelectorAll('span.vocab-word.vocab-word--active').forEach(function(s) {
+      s.classList.remove('vocab-word--active');
+    });
+  }
+
+  function _positionTooltip(el) {
+    if (window.innerWidth <= 768) return;
+    var rect = el.getBoundingClientRect();
+    var w = 320, h = 150;
+    var top = rect.bottom + 6;
+    var left = rect.left;
+    if (left + w > window.innerWidth) left = window.innerWidth - w - 10;
+    if (left < 10) left = 10;
+    if (top + h > window.innerHeight) top = rect.top - h - 6;
+    if (top < 10) top = 10;
+    tooltip.style.top = top + 'px';
+    tooltip.style.left = left + 'px';
+  }
+
+  function _trackVocabLookup(wordId) {
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    var csrf = csrfMeta ? csrfMeta.getAttribute('content') : '';
+    var body = { event_type: 'vocab_lookup' };
+    if (wordId) body.step_kind = String(wordId);
+    fetch('/api/daily-plan/events', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf,
+        'Accept': 'application/json'
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(body)
+    }).catch(function() {});
+  }
+})();
+</script>
 {% endblock %}
 

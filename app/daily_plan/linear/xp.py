@@ -51,9 +51,39 @@ LESSON_TYPE_TO_SOURCE: dict[str, str] = {
     'listening_immersion': 'linear_curriculum_listening_immersion',
     'listening_immersion_quiz': 'linear_curriculum_listening_immersion',
     'matching': 'linear_curriculum_quiz',
+    'dictation': 'linear_curriculum_dictation',
+    'audio_fill_blank': 'linear_curriculum_audio_fill_blank',
+    'translation': 'linear_curriculum_quiz',
+    'sentence_correction': 'linear_curriculum_quiz',
+    'writing_prompt': 'linear_curriculum_use',
+    'sentence_completion': 'linear_curriculum_quiz',
+    'collocation_matching': 'linear_curriculum_quiz',
+    'shadow_reading': 'linear_curriculum_use',
+    'pronunciation': 'linear_curriculum_use',
+    'idiom': 'linear_curriculum_vocabulary',
 }
 
 LINEAR_XP_EVENT_TYPE = 'xp_linear'
+
+# Minutes credited per slot source when XP is first awarded for the day.
+# Any source starting with 'linear_curriculum_' earns curriculum slot minutes (15).
+_SRS_SOURCES = {'linear_srs_global'}
+_READING_SOURCES = {'linear_book_reading'}
+_LISTENING_SOURCES = {'linear_listening', 'linear_curriculum_listening_immersion', 'linear_curriculum_dictation', 'linear_curriculum_audio_fill_blank'}
+_WRITING_SOURCES = {'linear_writing', 'linear_curriculum_use'}
+_ERROR_REVIEW_SOURCES = {'linear_error_review'}
+_CURRICULUM_MINUTES = 15
+_SOURCE_MINUTES: dict[str, int] = {
+    'linear_srs_global': 10,
+    'linear_book_reading': 15,
+    'linear_listening': 10,
+    'linear_curriculum_listening_immersion': 10,
+    'linear_curriculum_dictation': 10,
+    'linear_curriculum_audio_fill_blank': 10,
+    'linear_writing': 8,
+    'linear_curriculum_use': 8,
+    'linear_error_review': 12,
+}
 
 
 def _get_user_timezone(user_id: int, db_session: Any = None) -> str:
@@ -162,6 +192,18 @@ def award_linear_slot_xp_idempotent(
         plan_date=when,
         step_kind=step_kind,
     ))
+
+    # Accumulate study minutes for the day.
+    minutes = _SOURCE_MINUTES.get(source)
+    if minutes is None and source.startswith('linear_curriculum_'):
+        minutes = _CURRICULUM_MINUTES
+    if minutes:
+        try:
+            from app.curriculum.models import add_study_minutes
+            add_study_minutes(user_id, when, minutes, db_obj)
+        except Exception:
+            logger.warning('add_study_minutes failed for user=%s source=%s', user_id, source, exc_info=True)
+
     db_obj.session.flush()
     return result
 
@@ -233,6 +275,49 @@ def maybe_award_error_review_xp(
         return None
     return award_linear_slot_xp_idempotent(
         user_id, 'linear_error_review', for_date, db_session,
+    )
+
+
+def maybe_award_listening_xp(
+    user_id: int,
+    lesson_id: Optional[int] = None,
+    score: Optional[float] = None,
+    for_date: Optional[date_cls] = None,
+    db_session: Any = None,
+) -> Optional[XPAward]:
+    """Award linear XP for completing a listening extension slot.
+
+    Idempotent per (user, date) via StreakEvent source='linear_listening'.
+    Complements the lesson-level ``maybe_award_curriculum_xp`` award —
+    this slot-level award is once per day regardless of which listening
+    lesson the user completed. Returns None for non-linear users or if
+    already awarded today. Caller owns the commit.
+    """
+    if not is_linear_user(user_id):
+        return None
+    return award_linear_slot_xp_idempotent(
+        user_id, 'linear_listening', for_date, db_session, score=score,
+    )
+
+
+def maybe_award_writing_xp(
+    user_id: int,
+    lesson_id: Optional[int] = None,
+    for_date: Optional[date_cls] = None,
+    db_session: Any = None,
+) -> Optional[XPAward]:
+    """Award linear XP for completing a writing extension slot.
+
+    Idempotent per (user, date) via StreakEvent source='linear_writing'.
+    Complements the lesson-level ``maybe_award_curriculum_xp`` award —
+    this slot-level award fires once per day regardless of which writing
+    lesson the user completed. Returns None for non-linear users or if
+    already awarded today. Caller owns the commit.
+    """
+    if not is_linear_user(user_id):
+        return None
+    return award_linear_slot_xp_idempotent(
+        user_id, 'linear_writing', for_date, db_session,
     )
 
 

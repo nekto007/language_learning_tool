@@ -95,30 +95,21 @@
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
   border-radius: 1.5rem;
   padding: 2.5rem;
-  box-shadow: 0 10px 40px rgba(220, 38, 38, 0.12),
-              0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 2px solid transparent;
+  /* Нейтральная мягкая тень вместо красноватой — раньше карта смотрелась
+     как «ошибка» даже когда ответ был правильный. Цветной сигнал теперь
+     отдаём только feedback-блоку под инпутом. */
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08),
+              0 2px 6px rgba(15, 23, 42, 0.05);
+  border: 1px solid #e2e8f0;
   position: relative;
   animation: cardSlideIn 0.5s ease-out;
   width: 100%;
 }
 
-.question-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 1.5rem;
-  padding: 2px;
-  background: linear-gradient(135deg, #dc2626, #ef4444, #f87171);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0.3;
-  pointer-events: none;
-}
+/* Красная градиентная подсветка ::before убрана: psychологически
+   давила и конфликтовала с зелёным feedback-блоком при правильных
+   ответах. См. фидбек по UX translation_quiz. */
+.question-card::before { content: none; }
 
 /* cardSlideIn animation moved to design-system.css */
 
@@ -197,22 +188,102 @@
 /* Question feedback */
 .question-feedback {
   margin-top: 1rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
+  padding: 0.875rem 1.125rem;
+  border-radius: 0.625rem;
   animation: slideIn 0.3s ease;
-  max-width: 400px;
-  margin-left: auto;
-  margin-right: auto;
+  /* Раньше было 400px и centered — для длинных объяснений в translation_quiz
+     блок становился клаустрофобным с переносами в каждой строке. Растягиваем
+     на доступную ширину карточки. */
+  width: 100%;
+}
+.feedback-content {
+  text-align: left;
+  justify-content: flex-start;
+}
+
+/* Финальный action-row для quiz-результата. Главное CTA — primary,
+   secondary — outline, ещё ниже — text-link «Пройти викторину заново». */
+.quiz-final-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+.quiz-final-actions .lsn-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.quiz-final-actions .lsn-btn__icon { width: 16px; height: 16px; }
+.quiz-final-actions .lsn-btn--primary,
+.quiz-final-actions .lsn-btn--primary:link,
+.quiz-final-actions .lsn-btn--primary:visited,
+.quiz-final-actions .lsn-btn--primary:hover {
+  background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
+  color: #fff;
+}
+.quiz-final-actions .lsn-btn--primary:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+.quiz-final-actions .lsn-btn--outline,
+.quiz-final-actions .lsn-btn--outline:link,
+.quiz-final-actions .lsn-btn--outline:visited {
+  background: #fff;
+  color: #475569;
+  border: 1.5px solid #e2e8f0;
+}
+.quiz-final-actions .lsn-btn--outline:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+.quiz-final-secondary {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+.quiz-secondary-link {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 0.875rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0.4rem;
+}
+.quiz-secondary-link:hover { color: #1f2937; }
+.quiz-secondary-link i { margin-right: 0.25rem; }
+
+/* Двойной финал убран: при наличии локального quiz-результата
+   глобальная плашка #lesson-completion скрывается полностью.
+   Используем :has() — оба блока далеко друг от друга в дереве,
+   sibling-комбинатор не подходит. JS-fallback ниже для совсем
+   старых браузеров (~2022). */
+body:has(.quiz-results-compact) #lesson-completion {
+  display: none !important;
 }
 
 .question-feedback.correct {
-  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-  border: 2px solid #10b981;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-left: 3px solid #16a34a;
 }
 
 .question-feedback.incorrect {
-  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-  border: 2px solid #ef4444;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 3px solid #dc2626;
 }
 
 .feedback-content {
@@ -943,6 +1014,56 @@
     margin: 0 auto;
   }
 }
+
+/* Reset-confirm модалка для «Пройти викторину заново». */
+.quiz-reset-modal[hidden] { display: none; }
+.quiz-reset-modal {
+  position: fixed; inset: 0;
+  z-index: 1050;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+}
+.quiz-reset-modal__backdrop {
+  position: absolute; inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+}
+.quiz-reset-modal__dialog {
+  position: relative; z-index: 1;
+  background: #fff; border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.22);
+  max-width: 460px; width: 100%;
+  padding: 1.5rem 1.5rem 1.25rem;
+  animation: quizResetIn 0.18s ease-out;
+}
+@keyframes quizResetIn {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quiz-reset-modal__dialog { animation: none; }
+}
+.quiz-reset-modal__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem; font-weight: 700;
+  color: #b45309;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.quiz-reset-modal__title i { color: #d97706; }
+.quiz-reset-modal__body {
+  margin: 0 0 1.25rem;
+  color: #334155; line-height: 1.5;
+}
+.quiz-reset-modal__actions {
+  display: flex; justify-content: flex-end;
+  gap: 0.5rem; flex-wrap: wrap;
+}
+.quiz-reset-modal__actions .btn-danger {
+  background: #dc2626; color: #fff; border-color: #dc2626;
+}
+.quiz-reset-modal__actions .btn-danger:hover {
+  background: #b91c1c; border-color: #b91c1c;
+}
 </style>
 {% endblock %}
 
@@ -1003,8 +1124,8 @@
       <div class="quiz-stats-cards">
         <div class="stat-card points">
           <div class="stat-icon">⭐</div>
-          <div class="stat-value">{{ previous_data.get('points_earned', ((previous_data.get('correct_answers') or previous_data.get('correct_count') or 0) * 10))|int }}</div>
-          <div class="stat-label">очков</div>
+          <div class="stat-value">+{{ previous_data.get('points_earned', ((previous_data.get('correct_answers') or previous_data.get('correct_count') or 0) * 10))|int }}</div>
+          <div class="stat-label">{{ _('XP получено') }}</div>
         </div>
 
         <div class="stat-card percentage">
@@ -1091,11 +1212,55 @@
         </div>
       </details>
 
-      <!-- Retry button -->
-      <div class="retry-section">
-        <button type="button" class="btn btn-outline-primary" onclick="retryQuiz()">
+      {# Action row для quiz-результата.
+         Главное CTA — «Следующий урок» (если есть), на passed-result это
+         основная цель. «Повторить ошибки» появляется только когда есть
+         ошибки. «Пройти заново» — вторичная outline-ссылка. #}
+      <div class="quiz-final-actions">
+        {% if errors|length > 0 %}
+        <button type="button" class="lsn-btn lsn-btn--outline" onclick="retryErrorsOnly()">
+          <i class="fas fa-redo"></i> {{ _('Повторить ошибки') }} ({{ errors|length }})
+        </button>
+        {% endif %}
+        <a href="{% if lesson and lesson.module and lesson.module.level %}{{ url_for('learn.learn_by_module', level_code=lesson.module.level.code|lower, module_number=lesson.module.number) }}{% else %}/learn/{% endif %}"
+           class="lsn-btn lsn-btn--outline">
+          {{ _('К списку уроков') }}
+        </a>
+        {% if next_lesson %}
+        <a href="/learn/{{ next_lesson.id }}/" class="lsn-btn lsn-btn--primary">
+          {{ _('Следующий урок') }}
+          <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        {% endif %}
+      </div>
+      <div class="quiz-final-secondary">
+        <button type="button" class="quiz-secondary-link" onclick="retryQuiz()">
           <i class="fas fa-redo"></i> {{ _('Пройти викторину заново') }}
         </button>
+      </div>
+    </div>
+
+    <!-- Reset-confirm модалка. Заменяет нативный confirm(), который у части
+         пользователей подавляется браузером или встроенной средой. -->
+    <div class="quiz-reset-modal" id="quiz-reset-modal" hidden role="dialog"
+         aria-modal="true" aria-labelledby="quiz-reset-title">
+      <div class="quiz-reset-modal__backdrop" data-quiz-reset-cancel></div>
+      <div class="quiz-reset-modal__dialog" role="document">
+        <h3 class="quiz-reset-modal__title" id="quiz-reset-title">
+          <i class="fas fa-exclamation-triangle"></i>
+          {{ _('Начать викторину заново?') }}
+        </h3>
+        <p class="quiz-reset-modal__body">
+          {{ _('Ваши текущие ответы и результат будут сброшены. Викторина начнётся с первого вопроса.') }}
+        </p>
+        <div class="quiz-reset-modal__actions">
+          <button type="button" class="btn btn-outline" data-quiz-reset-cancel>
+            {{ _('Отмена') }}
+          </button>
+          <button type="button" class="btn btn-danger" id="quiz-reset-confirm-btn">
+            <i class="fas fa-redo"></i> {{ _('Начать заново') }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1484,11 +1649,62 @@ window.quizData = {
 
 // Quiz data is loaded
 
-function retryQuiz() {
-  if (confirm('{{ _("Вы уверены, что хотите пройти викторину заново? Текущие результаты будут сброшены.") }}')) {
-    window.location.href = '{{ url_for("curriculum_lessons.quiz_lesson", lesson_id=lesson.id, reset="true") }}';
+// In-page модалка вместо native confirm() — нативный диалог в некоторых
+// браузерах/контекстах подавляется и сброс происходит молча. Используется
+// и кнопкой «Пройти викторину заново» внутри результатов, и общим footer-
+// retry-button из lesson_base_template (через retryLesson alias).
+function _openQuizResetModal() {
+  const modal = document.getElementById('quiz-reset-modal');
+  if (!modal) {
+    // Fallback — если модалка вдруг отсутствует в DOM (не пройденный quiz),
+    // оставляем нативный confirm.
+    if (confirm('{{ _("Вы уверены, что хотите пройти викторину заново? Текущие результаты будут сброшены.") }}')) {
+      window.location.href = '{{ url_for("curriculum_lessons.quiz_lesson", lesson_id=lesson.id, reset="true") }}';
+    }
+    return;
   }
+  modal.hidden = false;
+  document.body.style.overflow = 'hidden';
+  const confirmBtn = document.getElementById('quiz-reset-confirm-btn');
+  if (confirmBtn) confirmBtn.focus();
 }
+
+function _closeQuizResetModal() {
+  const modal = document.getElementById('quiz-reset-modal');
+  if (modal) modal.hidden = true;
+  document.body.style.overflow = '';
+}
+
+function retryQuiz() { _openQuizResetModal(); }
+
+// «Повторить ошибки» — точечный retry только проваленных вопросов.
+// Серверный роут читает ?retry_errors=true, фильтрует cleaned_content
+// до failed_indices, сбрасывает progress, и пользователь проходит мини-quiz.
+function retryErrorsOnly() {
+  window.location.href = '{{ url_for("curriculum_lessons.quiz_lesson", lesson_id=lesson.id, retry_errors="true") }}';
+}
+// Alias for the footer retry button (data-action="retry-lesson" in
+// lesson_base_template). Без него клик по сноуборду внизу был бы no-op.
+function retryLesson() { _openQuizResetModal(); }
+
+document.addEventListener('DOMContentLoaded', function() {
+  const modal = document.getElementById('quiz-reset-modal');
+  if (!modal) return;
+  // Подтверждение — переход на reset=true url.
+  const confirmBtn = document.getElementById('quiz-reset-confirm-btn');
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', function() {
+      window.location.href = '{{ url_for("curriculum_lessons.quiz_lesson", lesson_id=lesson.id, reset="true") }}';
+    });
+  }
+  // Cancel — клик по backdrop, по любым [data-quiz-reset-cancel] и Esc.
+  modal.querySelectorAll('[data-quiz-reset-cancel]').forEach(function(el) {
+    el.addEventListener('click', _closeQuizResetModal);
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !modal.hidden) _closeQuizResetModal();
+  });
+});
 
 // Reorder question functions
 function addWordToSentence(questionIndex, word, button) {
@@ -1504,7 +1720,13 @@ function addWordToSentence(questionIndex, word, button) {
   const wordElement = document.createElement('span');
   wordElement.className = 'sentence-word';
   wordElement.textContent = word;
-  wordElement.onclick = () => removeWordFromSentence(wordElement, button);
+  // Останавливаем bubbling, иначе клик уходит выше на .sentence-display
+  // (с onclick="clearSentence(...)") и удаление слова превращается в
+  // сброс всего предложения.
+  wordElement.onclick = (e) => {
+    e.stopPropagation();
+    removeWordFromSentence(wordElement, button);
+  };
   
   // Add word to sentence
   sentenceDiv.appendChild(wordElement);
@@ -2631,8 +2853,10 @@ document.addEventListener('DOMContentLoaded', () => {
       completeModuleBtn.style.display = 'inline-flex';
       completeModuleBtn.disabled = false;
     }
+    // silent=true — lesson was already completed before this page load, so
+    // show the completion block in place without auto-scrolling to it.
     if (typeof showLessonCompletion === 'function') {
-      showLessonCompletion({ score: completionScore });
+      showLessonCompletion({ score: completionScore, silent: true });
     }
   {% endif %}
 });

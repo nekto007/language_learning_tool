@@ -71,6 +71,88 @@
         </div>
     </div>
 
+    <!-- Skills Balance Radar Chart -->
+    <div class="insights-section">
+        <div class="insights-section__header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <h2>Баланс навыков</h2>
+        </div>
+        <p class="insights-subtitle">Оценка по шести областям (0–100)</p>
+        <div class="skills-radar-wrap">
+            <canvas id="skillsRadarChart" width="300" height="300" aria-label="Radar chart of skill scores"></canvas>
+        </div>
+        <div class="skills-radar-legend">
+            {% set skill_labels = [
+                ('vocabulary', 'Словарный запас'),
+                ('grammar', 'Грамматика'),
+                ('reading', 'Чтение'),
+                ('listening', 'Аудирование'),
+                ('writing', 'Письмо'),
+                ('speaking', 'Речь'),
+            ] %}
+            {% for key, label in skill_labels %}
+            <div class="skills-radar-legend__item">
+                <span class="skills-radar-legend__dot"></span>
+                <span class="skills-radar-legend__label">{{ label }}</span>
+                <span class="skills-radar-legend__score">{{ skills_balance[key] }}%</span>
+            </div>
+            {% endfor %}
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+        <script>
+        (function () {
+            var ctx = document.getElementById('skillsRadarChart');
+            if (!ctx) return;
+            var scores = [
+                {{ skills_balance.vocabulary }},
+                {{ skills_balance.grammar }},
+                {{ skills_balance.reading }},
+                {{ skills_balance.listening }},
+                {{ skills_balance.writing }},
+                {{ skills_balance.speaking }}
+            ];
+            var labels = [
+                'Словарный запас',
+                'Грамматика',
+                'Чтение',
+                'Аудирование',
+                'Письмо',
+                'Речь'
+            ];
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: scores,
+                        backgroundColor: 'rgba(124,58,237,0.15)',
+                        borderColor: '#7c3aed',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#7c3aed',
+                        pointRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    scales: {
+                        r: {
+                            min: 0,
+                            max: 100,
+                            ticks: { stepSize: 25, font: { size: 10 }, color: '#64748b' },
+                            grid: { color: '#e2e8f0' },
+                            angleLines: { color: '#e2e8f0' },
+                            pointLabels: { font: { size: 11 }, color: '#0f172a' },
+                        }
+                    },
+                    plugins: { legend: { display: false } },
+                }
+            });
+        })();
+        </script>
+    </div>
+
     <!-- Activity Heatmap -->
     <div class="insights-section">
         <div class="insights-section__header">
@@ -169,6 +251,74 @@
     </div>
     {% endif %}
 
+    <!-- Grammar Mastery by Topic -->
+    {% if grammar_mastery %}
+    <div class="insights-section">
+        <div class="insights-section__header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <h2>Освоение грамматики по темам</h2>
+        </div>
+        <div class="grammar-mastery-chart" id="grammarMasteryChart" style="position:relative;height:{{ [grammar_mastery|length * 44, 200]|max }}px;">
+            <canvas id="grammarMasteryCanvas"></canvas>
+        </div>
+        <script>
+        (function() {
+            var ctx = document.getElementById('grammarMasteryCanvas');
+            if (!ctx) return;
+            var labels = [{% for t in grammar_mastery %}"{{ t.title }}"{% if not loop.last %},{% endif %}{% endfor %}];
+            var accuracies = [{% for t in grammar_mastery %}{{ t.accuracy }}{% if not loop.last %},{% endif %}{% endfor %}];
+            var masteredCounts = [{% for t in grammar_mastery %}{{ t.mastered_count }}{% if not loop.last %},{% endif %}{% endfor %}];
+            var totalCounts = [{% for t in grammar_mastery %}{{ t.total_count }}{% if not loop.last %},{% endif %}{% endfor %}];
+            var colors = accuracies.map(function(a) {
+                return a < 60 ? 'rgba(239,68,68,0.75)' : a < 80 ? 'rgba(245,158,11,0.75)' : 'rgba(16,185,129,0.75)';
+            });
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Точность %',
+                        data: accuracies,
+                        backgroundColor: colors,
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(ctx2) {
+                                    var i = ctx2.dataIndex;
+                                    return 'Освоено: ' + masteredCounts[i] + ' / ' + totalCounts[i];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            min: 0,
+                            max: 100,
+                            ticks: { callback: function(v) { return v + '%'; } },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        y: {
+                            ticks: { font: { size: 12 } }
+                        }
+                    }
+                }
+            });
+        })();
+        </script>
+        <p class="insights-subtitle" style="margin-top:0.5rem">Красный — ниже 60%&nbsp;· Жёлтый — 60-79%&nbsp;· Зелёный — 80%+</p>
+    </div>
+    {% endif %}
+
     <!-- Reading Speed Trend -->
     {% if reading_trend %}
     <div class="insights-section">
@@ -236,6 +386,250 @@
         {% if not milestone_history %}
         <p class="insights-subtitle" style="text-align:center">Занимайтесь каждый день для достижения вех серии</p>
         {% endif %}
+    </div>
+
+    <!-- Level ETA -->
+    {% if level_eta and level_eta.next_level %}
+    <div class="insights-section">
+        <div class="insights-section__header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <h2>До следующего уровня</h2>
+        </div>
+        {% if level_eta.weeks_estimate is not none and level_eta.weeks_estimate > 0 %}
+        <p class="insights-highlight">
+            До уровня <strong>{{ level_eta.next_level }}</strong>:
+            <strong>~{{ level_eta.weeks_estimate }} {{ 'неделя' if level_eta.weeks_estimate == 1 else 'недели' if level_eta.weeks_estimate <= 4 else 'недель' }}</strong>
+            при текущем темпе
+        </p>
+        {% elif level_eta.weeks_estimate == 0 %}
+        <p class="insights-highlight">Уровень <strong>{{ level_eta.current_level }}</strong> завершён — переходи к <strong>{{ level_eta.next_level }}</strong>!</p>
+        {% else %}
+        <p class="insights-subtitle">Начни заниматься регулярно, чтобы увидеть прогноз</p>
+        {% endif %}
+        <div class="level-eta-meta">
+            <span class="level-eta__current">Текущий уровень: <strong>{{ level_eta.current_level }}</strong></span>
+            <span class="level-eta__confidence level-eta__confidence--{{ level_eta.confidence }}">
+                {% if level_eta.confidence == 'high' %}Высокая точность{% elif level_eta.confidence == 'medium' %}Средняя точность{% else %}Мало данных{% endif %}
+            </span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Accuracy Improvement Chart -->
+    {% if accuracy_trend and accuracy_trend.dates %}
+    <div class="insights-section">
+        <div class="insights-section__header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <h2>Динамика точности</h2>
+        </div>
+        <p class="insights-subtitle">Средняя точность по неделям: карточки и тесты</p>
+        <div style="position:relative;height:200px;">
+            <canvas id="accuracyTrendCanvas"></canvas>
+        </div>
+        <script>
+        (function() {
+            var ctx = document.getElementById('accuracyTrendCanvas');
+            if (!ctx) return;
+            var labels = {{ accuracy_trend.dates | tojson }};
+            var srsData = {{ accuracy_trend.srs_accuracy | tojson }};
+            var quizData = {{ accuracy_trend.quiz_accuracy | tojson }};
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Карточки (SRS)',
+                            data: srsData,
+                            borderColor: 'rgba(124,58,237,0.85)',
+                            backgroundColor: 'rgba(124,58,237,0.12)',
+                            tension: 0.35,
+                            fill: false,
+                            spanGaps: false,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                        },
+                        {
+                            label: 'Тесты',
+                            data: quizData,
+                            borderColor: 'rgba(16,185,129,0.85)',
+                            backgroundColor: 'rgba(16,185,129,0.12)',
+                            tension: 0.35,
+                            fill: false,
+                            spanGaps: false,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 12 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx2) {
+                                    return ctx2.dataset.label + ': ' + (ctx2.raw !== null ? ctx2.raw + '%' : 'нет данных');
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            ticks: { callback: function(v) { return v + '%'; }, stepSize: 20 },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        })();
+        </script>
+    </div>
+    {% endif %}
+
+    <!-- Comprehension by lesson type -->
+    {% if comprehension_by_type %}
+    <div class="insights-section">
+        <div class="insights-section__header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="3" y1="9" x2="21" y2="9"/>
+                <line x1="3" y1="15" x2="21" y2="15"/>
+                <line x1="9" y1="3" x2="9" y2="21"/>
+            </svg>
+            <h2>Понимание по типам уроков</h2>
+        </div>
+        <p class="insights-subtitle">Средний балл за последние 30 дней</p>
+        <div class="comprehension-table">
+            {% for item in comprehension_by_type %}
+            <div class="comprehension-row">
+                <span class="comprehension-row__label">{{ item.label }}</span>
+                <div class="comprehension-row__bar-wrap">
+                    <div class="comprehension-row__bar" style="width:{{ item.avg_score }}%; background: {{ '#ef4444' if item.avg_score < 60 else '#f59e0b' if item.avg_score < 80 else '#10b981' }}"></div>
+                </div>
+                <span class="comprehension-row__score {% if item.avg_score < 60 %}comprehension-row__score--low{% elif item.avg_score < 80 %}comprehension-row__score--mid{% else %}comprehension-row__score--high{% endif %}">{{ item.avg_score }}%</span>
+                <span class="comprehension-row__count">{{ item.attempt_count }} поп.</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Time-of-day learning patterns -->
+    {% if study_time_dist and study_time_dist.peak_hour is not none %}
+    <div class="insights-section">
+        <div class="insights-section__header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <h2>Время занятий</h2>
+        </div>
+        <p class="insights-highlight">Ты обычно учишься в <strong>{{ study_time_dist.peak_hour }}:00</strong></p>
+        <p class="insights-subtitle">Распределение по часам за последние 30 дней</p>
+        <div style="position:relative;height:150px;">
+            <canvas id="studyTimeDistCanvas"></canvas>
+        </div>
+        <script>
+        (function() {
+            var ctx = document.getElementById('studyTimeDistCanvas');
+            if (!ctx) return;
+            var hours = {{ study_time_dist.hours | tojson }};
+            var counts = {{ study_time_dist.counts | tojson }};
+            var peakHour = {{ study_time_dist.peak_hour }};
+            var labels = hours.map(function(h) { return h + ':00'; });
+            var colors = counts.map(function(c, i) {
+                return hours[i] === peakHour ? 'rgba(124,58,237,0.85)' : 'rgba(124,58,237,0.35)';
+            });
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: counts,
+                        backgroundColor: colors,
+                        borderRadius: 3,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            ticks: {
+                                maxTicksLimit: 12,
+                                font: { size: 10 },
+                                color: '#64748b',
+                            },
+                            grid: { display: false },
+                        },
+                        y: {
+                            ticks: {
+                                stepSize: 1,
+                                font: { size: 10 },
+                                color: '#64748b',
+                            },
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                        }
+                    }
+                }
+            });
+        })();
+        </script>
+    </div>
+    {% endif %}
+
+    <!-- Personal bests -->
+    <div class="insights-section">
+        <div class="insights-section__header">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="6"/>
+                <path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>
+            </svg>
+            <h2>Рекорды</h2>
+        </div>
+        <p class="insights-subtitle">Лучшие результаты за всё время</p>
+        <div class="personal-bests-grid">
+            <div class="personal-best-card">
+                <div class="personal-best-card__icon personal-best-card__icon--streak">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    </svg>
+                </div>
+                <div class="personal-best-card__value">{{ personal_bests.longest_streak_days }}</div>
+                <div class="personal-best-card__label">Лучшая серия (дней)</div>
+            </div>
+            <div class="personal-best-card">
+                <div class="personal-best-card__icon personal-best-card__icon--words">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                    </svg>
+                </div>
+                <div class="personal-best-card__value">{{ personal_bests.max_words_in_day }}</div>
+                <div class="personal-best-card__label">Слов за один день</div>
+            </div>
+            <div class="personal-best-card">
+                <div class="personal-best-card__icon personal-best-card__icon--lessons">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 11 12 14 22 4"/>
+                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                    </svg>
+                </div>
+                <div class="personal-best-card__value">{{ personal_bests.best_week_lessons }}</div>
+                <div class="personal-best-card__label">Лучшая неделя (уроков)</div>
+            </div>
+        </div>
     </div>
 
     <!-- Extra summary row -->
@@ -800,6 +1194,191 @@
 .insights-milestones__pending {
     font-size: 0.75rem;
     color: var(--ins-text-muted);
+}
+
+/* ---- Skills Radar ---- */
+.skills-radar-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 0.5rem 0 1rem;
+}
+
+.skills-radar-legend {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem 1rem;
+}
+
+.skills-radar-legend__item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--ins-text);
+}
+
+.skills-radar-legend__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #7c3aed;
+    flex-shrink: 0;
+}
+
+.skills-radar-legend__label {
+    flex: 1;
+    color: var(--ins-text-muted);
+}
+
+.skills-radar-legend__score {
+    font-weight: 700;
+    color: var(--ins-primary);
+}
+
+/* ---- Level ETA ---- */
+.level-eta-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    font-size: 0.8125rem;
+}
+
+.level-eta__current {
+    color: var(--ins-text-muted);
+}
+
+.level-eta__confidence {
+    padding: 0.125rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.level-eta__confidence--high {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.level-eta__confidence--medium {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+}
+
+.level-eta__confidence--low {
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--ins-text-muted);
+}
+
+/* ---- Comprehension Table ---- */
+.comprehension-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.comprehension-row {
+    display: grid;
+    grid-template-columns: 7rem 1fr 3.5rem 3rem;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.comprehension-row__label {
+    font-size: 0.85rem;
+    color: var(--ins-text);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.comprehension-row__bar-wrap {
+    height: 8px;
+    background: var(--ins-border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.comprehension-row__bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+
+.comprehension-row__score {
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: right;
+}
+
+.comprehension-row__score--low { color: #ef4444; }
+.comprehension-row__score--mid { color: #d97706; }
+.comprehension-row__score--high { color: #059669; }
+
+.comprehension-row__count {
+    font-size: 0.75rem;
+    color: var(--ins-text-muted);
+    text-align: right;
+}
+
+/* ---- Personal Bests ---- */
+.personal-bests-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.personal-best-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 1rem 0.75rem;
+    background: var(--ins-surface-alt);
+    border-radius: var(--ins-radius-sm);
+    border: 1px solid var(--ins-border);
+    gap: 0.375rem;
+}
+
+.personal-best-card__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.25rem;
+}
+
+.personal-best-card__icon--streak {
+    background: rgba(245, 158, 11, 0.12);
+    color: #d97706;
+}
+
+.personal-best-card__icon--words {
+    background: rgba(99, 102, 241, 0.12);
+    color: #6366f1;
+}
+
+.personal-best-card__icon--lessons {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+}
+
+.personal-best-card__value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--ins-text);
+    line-height: 1;
+}
+
+.personal-best-card__label {
+    font-size: 0.75rem;
+    color: var(--ins-text-muted);
+    line-height: 1.3;
 }
 
 /* ---- Extra Summary ---- */

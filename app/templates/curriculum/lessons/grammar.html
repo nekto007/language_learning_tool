@@ -12,10 +12,13 @@
   margin-bottom: 1.5rem !important;
 }
 
+/* Legacy intro card — only rendered when grammar_explanation.tldr is
+   missing. Indigo left-border keeps it consistent with the TL;DR aside
+   pattern (used to be alarming red). */
 .grammar-intro {
   background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%) !important;
   border-radius: 1rem !important;
-  border-left: 4px solid #dc2626 !important;
+  border-left: 4px solid #6366f1 !important;
   padding: 1.5rem !important;
   margin: 1.5rem 0 !important;
 }
@@ -134,16 +137,19 @@
   font-size: 0.95rem;
 }
 
+/* "Запомни" callout — amber/yellow tone replaces the previous red theme.
+   Red read as "ошибка/опасность" for autonomous A1 learners. Amber
+   communicates "study tip" without alarm. */
 .grammar-lesson .important-notes {
   margin: 2rem 0;
   padding: 1.5rem;
-  background: #fef2f2;
-  border: 2px solid #fca5a5;
+  background: #fffbeb;
+  border: 1.5px solid #fcd34d;
   border-radius: 0.75rem;
 }
 
 .grammar-lesson .important-notes h4 {
-  color: #dc2626;
+  color: #92400e;
   margin-bottom: 1rem;
   display: flex;
   align-items: center;
@@ -157,7 +163,7 @@
 
 .grammar-lesson .important-notes li {
   margin: 0.75rem 0;
-  color: #991b1b;
+  color: #78350f;
   line-height: 1.6;
 }
 
@@ -191,6 +197,129 @@
   background: white;
 }
 
+/* TL;DR — "Главное за 20 секунд" indigo callout at the top of the lesson.
+   Optional: rendered only when `content.grammar_explanation.tldr` is a
+   non-empty list. Helps scan-readers grasp the rule before the full
+   theory walkthrough. */
+.grammar-lesson .grammar-tldr {
+  margin: 1.5rem 0;
+  padding: 1.25rem 1.5rem;
+  background: rgba(99, 102, 241, 0.06);
+  border-left: 4px solid #6366f1;
+  border-radius: 0.5rem;
+}
+.grammar-lesson .grammar-tldr__lead {
+  margin: 0 0 1rem 0;
+  color: #334155;
+  line-height: 1.55;
+  font-size: 0.97rem;
+}
+.grammar-lesson .grammar-tldr__heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #4338ca;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.75rem;
+}
+.grammar-lesson .grammar-tldr ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+.grammar-lesson .grammar-tldr li {
+  margin: 0.35rem 0;
+  color: #1e293b;
+  line-height: 1.55;
+}
+
+/* Compact "Когда используется BE" chips — replaces the heavy card layout
+   for `section.usage` entries. Each use-case becomes an inline-block
+   chip with case label + the first example. Reduces vertical weight
+   without removing content. */
+.grammar-lesson .usage-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+}
+.grammar-lesson .usage-chip {
+  flex: 1 1 220px;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.6rem;
+  font-size: 0.95rem;
+}
+.grammar-lesson .usage-chip__case {
+  display: block;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.25rem;
+}
+.grammar-lesson .usage-chip__example {
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+/* `<details>` accordion wrapping the full conjugation summary table.
+   Keeps the heavy reference available without dominating first-read. */
+.grammar-lesson .grammar-full-table {
+  margin: 1.5rem 0;
+  border: 1px dashed #cbd5e1;
+  border-radius: 0.6rem;
+  padding: 0;
+  background: white;
+}
+.grammar-lesson .grammar-full-table > summary {
+  list-style: none;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  user-select: none;
+}
+.grammar-lesson .grammar-full-table > summary::-webkit-details-marker { display: none; }
+.grammar-lesson .grammar-full-table > summary::before {
+  content: '▸';
+  display: inline-block;
+  transition: transform 0.15s;
+  color: #64748b;
+}
+.grammar-lesson .grammar-full-table[open] > summary::before {
+  transform: rotate(90deg);
+}
+.grammar-lesson .grammar-full-table > summary:hover {
+  background: #f8fafc;
+}
+.grammar-lesson .grammar-full-table > .summary-section {
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Muted "Также возможно" note below the summary table. */
+.grammar-lesson .summary-section__note {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+  color: #64748b;
+  background: #f8fafc;
+  border-radius: 0.4rem;
+  line-height: 1.5;
+}
+.grammar-lesson .summary-section__note strong {
+  color: #475569;
+  font-weight: 600;
+}
+
 .grammar-lesson .theory-completion-message {
   margin: 3rem 0;
   padding: 2rem;
@@ -215,6 +344,21 @@
 .grammar-lesson .theory-completion-message p {
   color: #6b7280;
   margin: 0;
+}
+
+/* Pre-completion prompt for theory-only lessons. Neutral indigo styling
+   (not success-green) makes it clear the lesson is not yet finished. */
+.grammar-lesson .theory-completion-prompt {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  text-align: center;
+  background: rgba(99, 102, 241, 0.04);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  border-radius: 0.75rem;
+}
+.grammar-lesson .theory-completion-prompt p {
+  color: #475569;
+  margin: 0 0 1rem 0;
 }
 
 .grammar-lesson .theory-topic-pull {
@@ -283,7 +427,11 @@
 {% endblock %}
 
 {% set component_name = _('Грамматика') %}
-{% set instruction_text = _('Изучите грамматическое правило и выполните упражнения для его закрепления.') %}
+{# Hide the generic "Изучите грамматическое правило..." instruction when the
+   lesson carries a TL;DR — the TL;DR aside already orients the user about
+   what they will learn. Showing both side-by-side is noise. #}
+{% set _has_tldr = (lesson.content and (lesson.content.tldr or (lesson.content.grammar_explanation and lesson.content.grammar_explanation.tldr))) %}
+{% set instruction_text = '' if _has_tldr else _('Изучите грамматическое правило и выполните упражнения для его закрепления.') %}
 {% set block_description = _('Изучение грамматических правил с примерами и упражнениями') %}
 
 {% block lesson_content %}
@@ -326,7 +474,28 @@
       <!-- Отображаем сложную структуру grammar_explanation -->
       <h3 class="section-title">{{ grammar_explanation.title }}</h3>
 
-      {% if grammar_explanation.introduction %}
+      {# Unified intro + TL;DR. When the lesson carries a `tldr` array, the
+         introduction text becomes the lead paragraph of the TL;DR aside —
+         one cohesive "about this rule" block instead of two stacked cards
+         (red-bordered intro + indigo TL;DR). For lessons without a tldr we
+         fall back to the legacy `.grammar-intro` card so unmigrated modules
+         still render their introduction. #}
+      {% if grammar_explanation.tldr %}
+        <aside class="grammar-tldr" aria-label="{{ _('Главное за 20 секунд') }}">
+          {% if grammar_explanation.introduction %}
+            <p class="grammar-tldr__lead">{{ grammar_explanation.introduction }}</p>
+          {% endif %}
+          <div class="grammar-tldr__heading">
+            <i class="fas fa-bolt" aria-hidden="true"></i>
+            {{ _('Главное за 20 секунд') }}
+          </div>
+          <ul>
+            {% for item in grammar_explanation.tldr %}
+              <li>{{ item|sanitize }}</li>
+            {% endfor %}
+          </ul>
+        </aside>
+      {% elif grammar_explanation.introduction %}
         <div class="grammar-intro">
           <p>{{ grammar_explanation.introduction }}</p>
         </div>
@@ -378,16 +547,15 @@
             {% endif %}
 
             {% if section.usage %}
-              <div class="usage-list">
+              {# Compact chip layout: case label + first example per chip.
+                 Reduces visual weight while preserving the methodological
+                 link "grammar -> real-world situation". #}
+              <div class="usage-chips">
                 {% for use_case in section.usage %}
-                  <div class="use-case">
-                    <p><strong>{{ use_case.case }}</strong></p>
+                  <div class="usage-chip">
+                    <span class="usage-chip__case">{{ use_case.case }}</span>
                     {% if use_case.examples %}
-                      <ul class="examples-list">
-                        {% for ex in use_case.examples %}
-                          <li>{{ ex }}</li>
-                        {% endfor %}
-                      </ul>
+                      <span class="usage-chip__example">{{ use_case.examples[0] }}</span>
                     {% endif %}
                   </div>
                 {% endfor %}
@@ -398,8 +566,10 @@
       {% endif %}
 
       {% if grammar_explanation.important_notes %}
+        {# Heading: "Запомни" + bookmark icon. Amber theme styled via
+           .important-notes CSS — neutral study-tip tone, not alarm. #}
         <div class="important-notes">
-          <h4><i class="fas fa-exclamation-triangle"></i> {{ _('Важно') }}</h4>
+          <h4><i class="fas fa-bookmark" aria-hidden="true"></i> {{ _('Запомни') }}</h4>
           <ul>
             {% for note in grammar_explanation.important_notes %}
               <li>{{ note }}</li>
@@ -409,31 +579,39 @@
       {% endif %}
 
       {% if grammar_explanation.summary is mapping and grammar_explanation.summary.table %}
-        <div class="summary-section">
-          <h4>{{ grammar_explanation.summary.title }}</h4>
-          <table class="grammar-table summary">
-            <thead>
-              <tr>
-                {% for key in grammar_explanation.summary.table[0] if key != 'audio' %}
-                  <th>{{ key|replace('_', ' ')|capitalize }}</th>
+        {# Full conjugation table — heavy reference, kept available but
+           collapsed by default via native HTML <details>. Scan-readers
+           skip past; reference-mode users expand on demand. No JS. #}
+        <details class="grammar-full-table">
+          <summary>{{ grammar_explanation.summary.title or _('Полная таблица всех форм') }}</summary>
+          <div class="summary-section">
+            <table class="grammar-table summary">
+              <thead>
+                <tr>
+                  {% for key in grammar_explanation.summary.table[0] if key != 'audio' %}
+                    <th>{{ key|replace('_', ' ')|capitalize }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in grammar_explanation.summary.table %}
+                  {% if row is mapping %}
+                    <tr>
+                      {% for key, val in row.items() if key != 'audio' %}
+                        <td{% if 'translation' in key %} class="text-muted"{% endif %}>
+                          {% if loop.first %}<strong>{{ val|sanitize }}</strong>{% else %}{{ val|sanitize }}{% endif %}
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  {% endif %}
                 {% endfor %}
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in grammar_explanation.summary.table %}
-                {% if row is mapping %}
-                  <tr>
-                    {% for key, val in row.items() if key != 'audio' %}
-                      <td{% if 'translation' in key %} class="text-muted"{% endif %}>
-                        {% if loop.first %}<strong>{{ val|sanitize }}</strong>{% else %}{{ val|sanitize }}{% endif %}
-                      </td>
-                    {% endfor %}
-                  </tr>
-                {% endif %}
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+            {% if grammar_explanation.summary.note %}
+              <div class="summary-section__note">{{ grammar_explanation.summary.note|sanitize }}</div>
+            {% endif %}
+          </div>
+        </details>
       {% endif %}
 
     {% else %}
@@ -460,14 +638,26 @@
     {% endif %}
   </div>
 
-  <!-- Автоматически завершаем урок без упражнений -->
+  {# Theory-only lesson — no exercises. We never auto-complete on page open
+     (used to fire on DOMContentLoaded and inserted a LessonProgress row
+     before the user read anything). Show an explicit affordance instead:
+     "Я изучил(а) теорию" — clicking it calls autoCompleteTheoryLesson()
+     which marks the lesson completed. After completion the green "Теория
+     изучена!" banner appears in its place. #}
+  {# Theory-only lesson — show the explicit completion prompt only when the
+     lesson is NOT yet completed. Once completed, we deliberately render
+     nothing in-place: the global "Урок завершён!" block (lsn-completion
+     in lesson_base_template.html) is the single finalisation surface.
+     A separate green "Теория изучена!" plate here would just stack
+     redundant feedback under the global block. #}
   {% if not exercises and not is_completed %}
-    <div class="theory-completion-message">
-      <div class="completion-icon">
-        <i class="fas fa-check-circle"></i>
-      </div>
-      <h3>{{ _('Теория изучена!') }}</h3>
-      <p>{{ _('Отличная работа! Переходите к следующему уроку') }}</p>
+    <div class="theory-completion-prompt">
+      <p>{{ _('Готово? Отметь, что разобрался с правилом. Дальше будут упражнения, чтобы его закрепить.') }}</p>
+      <button type="button" id="mark-theory-studied"
+              class="lsn-btn lsn-btn--primary" onclick="autoCompleteTheoryLesson()">
+        <i class="fas fa-check" aria-hidden="true"></i>
+        {{ _('Я понял(а) правило') }}
+      </button>
     </div>
   {% endif %}
 
@@ -1100,6 +1290,11 @@ async function autoCompleteTheoryLesson() {
     const data = await response.json();
 
     if (data.success) {
+      // The prompt + button block belongs to the "ещё не завершено" state.
+      // Once the lesson is marked completed, remove it so the global
+      // "Урок завершён!" block below it is the only finalisation surface.
+      const prompt = document.querySelector('.theory-completion-prompt');
+      if (prompt) prompt.remove();
       if (typeof showSaveToast === 'function') showSaveToast();
       if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: 100 });
     }
@@ -1113,31 +1308,40 @@ document.addEventListener('DOMContentLoaded', function() {
   // Инициализируем reorder упражнения
   initializeReorderExercises();
 
-  // Для уроков без упражнений автоматически завершаем урок и показываем кнопки
-  {% if not exercises and not is_completed %}
-    autoCompleteTheoryLesson();
-  {% endif %}
+  // Theory-only lessons are no longer auto-completed on page load. The
+  // user must click the explicit "Я изучил(а) теорию" button rendered
+  // above, which calls autoCompleteTheoryLesson() manually. Opening the
+  // page should not silently insert a LessonProgress row.
 
   // Для завершенных уроков показываем кнопки навигации сразу
   {% if is_completed %}
-    const retryBtn = document.getElementById('retry-button');
-    const nextBtn = document.getElementById('complete-exercise');
-    const completeModuleBtn = document.getElementById('complete-module');
+    {% if exercises %}
+      // Exercise-backed grammar lesson: reveal footer "Заново" + "Следующий
+      // урок" buttons so the user can re-attempt the exercises.
+      const retryBtn = document.getElementById('retry-button');
+      const nextBtn = document.getElementById('complete-exercise');
+      const completeModuleBtn = document.getElementById('complete-module');
 
-    if (retryBtn) {
-      retryBtn.style.display = 'inline-flex';
-    }
+      if (retryBtn) {
+        retryBtn.style.display = 'inline-flex';
+      }
 
-    if (nextBtn) {
-      nextBtn.style.display = 'inline-flex';
-      nextBtn.disabled = false;
-    } else if (completeModuleBtn) {
-      completeModuleBtn.style.display = 'inline-flex';
-      completeModuleBtn.disabled = false;
-    }
+      if (nextBtn) {
+        nextBtn.style.display = 'inline-flex';
+        nextBtn.disabled = false;
+      } else if (completeModuleBtn) {
+        completeModuleBtn.style.display = 'inline-flex';
+        completeModuleBtn.disabled = false;
+      }
+    {% endif %}
+    // Theory-only grammar lesson: the footer "Заново / Следующий урок"
+    // pair is redundant — the global lsn-completion block already shows
+    // the same navigation. Skip the footer reveal entirely.
 
+    // silent=true — lesson was already completed before this page load, so
+    // show the completion block in place without auto-scrolling to it.
     if (typeof showLessonCompletion === 'function') {
-      showLessonCompletion({ score: 100 });
+      showLessonCompletion({ score: 100, silent: true });
     }
   {% endif %}
 });
