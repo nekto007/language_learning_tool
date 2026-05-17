@@ -241,12 +241,12 @@ Files:
 - Create: `scripts/audit_listening_quiz_inline_audio.py`
 - Create: `reports/listening_quiz_inline_audio.md`
 
-- [ ] listening_quiz uses inline `[sound:filename.mp3]` per item — verify each
+- [x] listening_quiz uses inline `[sound:filename.mp3]` per item — verify each
       referenced filename exists in `app/static/audio/` (any subdir)
-- [ ] If missing, generate via `generate_audio.py`
-- [ ] Document expected design (per CLAUDE.md: lesson-level audit shows 0
+- [x] If missing, generate via `generate_audio.py`
+- [x] Document expected design (per CLAUDE.md: lesson-level audit shows 0
       because it's intentionally item-level)
-- [ ] Run `pytest tests/curriculum -q -k listening_quiz` — must pass before task 10
+- [x] Run `pytest tests/curriculum -q -k listening_quiz` — must pass before task 10
 
 ### Task 10: dialogue_completion_quiz + ordering_quiz quality audit
 
