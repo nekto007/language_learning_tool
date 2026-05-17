@@ -169,17 +169,17 @@ Files:
 - Create: `scripts/migrate_writing_prompt_lessons.py`
 - Modify: `Lessons.content` where `type == 'writing_prompt'`
 
-- [ ] If lesson has `prompt_ru` and `mode`, skip
-- [ ] Else: set `mode` per CEFR level (same ladder as Task 3),
+- [x] If lesson has `prompt_ru` and `mode`, skip
+- [x] Else: set `mode` per CEFR level (same ladder as Task 3),
       generate `prompt_ru` from existing `prompt` via a small lookup table
       (curated by hand for each module; falls back to "Напишите ответ:" if no
       hand-curated translation)
-- [ ] Set `min_sentences` (A1: 3, A2: 4, B1: 5, B2: 6, C1: 7), `min_checklist`
+- [x] Set `min_sentences` (A1: 3, A2: 4, B1: 5, B2: 6, C1: 7), `min_checklist`
       (guided: 3, open: 2), default `template` / `hint_words` /
       `target_phrases` to empty list if absent (template renders the
       collapsible block only when these are non-empty)
-- [ ] Tests: render path + readiness gate assertion
-- [ ] Run `pytest tests/curriculum -q -k writing_prompt` — must pass before task 5
+- [x] Tests: render path + readiness gate assertion
+- [x] Run `pytest tests/curriculum -q -k writing_prompt` — must pass before task 5
 
 ### Task 5: dictation TTS audio — generate missing 76 of 77
 
