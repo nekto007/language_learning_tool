@@ -216,10 +216,10 @@ Files:
   blank with the correct answer to read the full sentence aloud)
 - Create: `reports/audio_fill_blank_audio_generation.md`
 
-- [ ] For each audio_fill_blank lesson, iterate `items[]` and generate
+- [x] For each audio_fill_blank lesson, iterate `items[]` and generate
       `<slug>_<item_idx>.mp3` after replacing `___` with `correct`
-- [ ] Update lesson content to point each item to its generated audio path
-- [ ] Run `pytest tests/curriculum -q -k audio_fill_blank` — must pass before task 8
+- [x] Update lesson content to point each item to its generated audio path
+- [x] Run `pytest tests/curriculum -q -k audio_fill_blank` — must pass before task 8
 
 ### Task 8: listening_immersion audio + metadata import
 
