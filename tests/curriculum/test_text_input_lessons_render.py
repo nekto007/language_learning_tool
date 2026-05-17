@@ -151,8 +151,10 @@ class TestPayloadContracts:
         assert "/curriculum/api/lesson/${lessonId}/submit" in src
 
     def test_translation_payload_fields(self):
+        """Translation is now a multi-item guided flow with auto-finalize —
+        same payload shape as audio_fill_blank / sentence_completion."""
         src = _read_template_source("translation.html")
-        assert "user_answer:" in src
+        assert "answers:" in src
         assert "'translation'" in src
         assert "/curriculum/api/lesson/${lessonId}/submit" in src
 
@@ -217,6 +219,8 @@ class TestSubmissionRoundTrips:
         assert resp.get_json()["completed"] is False
 
     def test_translation_submit_correct(self, app, db_session, _module, test_user, client):
+        """Legacy single-item content still accepted; response uses the new
+        multi-item contract (passed / correct_items / total_items)."""
         lesson = _make_lesson(
             db_session, _module, lesson_type="translation",
             content={"russian": "Я люблю кошек", "english": "I love cats"},
@@ -229,7 +233,9 @@ class TestSubmissionRoundTrips:
             content_type="application/json",
         )
         assert resp.status_code == 200
-        assert resp.get_json()["is_correct"] is True
+        data = resp.get_json()
+        assert data["passed"] is True
+        assert data["correct_items"] == 1
 
     def test_sentence_completion_submit(self, app, db_session, _module, test_user, client):
         items = [{"prompt": "She is", "answer": "happy"}]

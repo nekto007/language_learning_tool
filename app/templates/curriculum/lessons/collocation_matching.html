@@ -1,7 +1,7 @@
 {% extends "lesson_base_template.html" %}
 
-{% set component_name = _('Коллокации — сопоставление') %}
-{% set instruction_text = _('Сопоставьте английские фразы с их русскими значениями.') %}
+{% set component_name = _('Сочетания слов') %}
+{% set instruction_text = _('Соедини английскую фразу с переводом. Такие готовые сочетания помогают говорить естественнее.') %}
 {% set block_description = _('Практика устойчивых словосочетаний') %}
 
 {% block extra_css %}
@@ -24,7 +24,9 @@
   margin-bottom: 0.5rem;
 }
 .cm-column .option-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   width: 100%;
   text-align: left;
   margin-bottom: 0.5rem;
@@ -34,11 +36,161 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
-.option-btn--paired {
-  border-color: var(--color-success, #10b981);
-  background: rgba(16, 185, 129, 0.08);
-  color: var(--color-success, #10b981);
+.cm-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
+.cm-row .option-btn { flex: 1; margin-bottom: 0; }
+.cm-row .cm-speak-btn { flex: 0 0 auto; }
+
+/* Live-feedback flash states (animate then auto-clear) */
+.option-btn--correct-flash {
+  border-color: var(--color-success, #10b981);
+  background: rgba(16, 185, 129, 0.18);
+  color: #047857;
+  animation: cm-correct-pulse 0.5s ease-in-out;
+}
+.option-btn--wrong-flash {
+  border-color: var(--color-danger, #ef4444);
+  background: rgba(239, 68, 68, 0.18);
+  color: #b91c1c;
+  animation: cm-shake 0.4s;
+}
+@keyframes cm-correct-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+@keyframes cm-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+/* Matched pair stripped from the columns by removal; preserved in the
+   "Готовые пары" zone below. */
+.option-btn--vanish {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease-out, max-height 0.25s ease-out,
+              margin 0.25s ease-out, padding 0.25s ease-out;
+  max-height: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border-width: 0 !important;
+  overflow: hidden;
+}
+.cm-row--vanish { max-height: 0; overflow: hidden; transition: max-height 0.25s ease-out; }
+.cm-matched-zone {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--lsn-border, #e2e8f0);
+}
+.cm-matched-zone__header {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lsn-text-muted, #64748b);
+  margin-bottom: 0.5rem;
+}
+.cm-matched-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.4rem;
+  border-radius: 0.5rem;
+  /* Very light green tint + light border — confirmation cue without
+     drowning the row in success-green. Body text remains normal slate so
+     the perceived contrast (and therefore readability) stays high. */
+  background: rgba(16, 185, 129, 0.04);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  color: #1e293b;
+  font-size: 0.95rem;
+  animation: cm-matched-in 0.3s ease-out;
+}
+.cm-matched-row .fa-check { color: #10b981; flex-shrink: 0; }
+.cm-matched-row__phrase { color: #047857; font-weight: 500; }
+.cm-matched-row__translation { color: #334155; }
+@keyframes cm-matched-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.cm-matched-row .cm-pair-arrow { opacity: 0.6; }
+
+/* Completed state: hide the empty working area (columns and active-state
+   instruction) so the matched-pairs list moves to the top and the screen
+   no longer looks "broken" with dead vertical space. */
+.cm-lesson--completed .cm-board,
+.cm-lesson--completed .lesson-shell__instruction { display: none; }
+.cm-lesson--completed .cm-matched-zone {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+.cm-completed-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin: 0 0 1rem 0;
+  background: rgba(99, 102, 241, 0.06);
+  border-radius: 0.5rem;
+  color: var(--lsn-text-muted, #475569);
+  font-size: 0.95rem;
+}
+.cm-completed-banner__icon { color: #047857; flex-shrink: 0; }
+/* Final summary block (badge + buttons) gets extra breathing room so the
+   green badge no longer sits flush against the action row. */
+#matching-result { margin-top: 1.25rem; }
+.cm-final-actions { margin-top: 1.5rem; }
+/* No icon-margin override needed: .lsn-btn__icon ships its own margin. */
+/* Before "Проверить" — paired pairs are neutral (indigo), not success-green. */
+.option-btn--paired {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.08);
+  color: #4338ca;
+}
+/* After "Проверить" — split into correct/wrong on the buttons themselves. */
+.option-btn--correct {
+  border-color: var(--color-success, #10b981);
+  background: rgba(16, 185, 129, 0.10);
+  color: #047857;
+}
+.option-btn--wrong {
+  border-color: var(--color-danger, #ef4444);
+  background: rgba(239, 68, 68, 0.10);
+  color: #b91c1c;
+}
+.cm-phrase-text { flex: 1; }
+.cm-speak-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--lsn-text-muted, #64748b);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+}
+.cm-speak-btn:hover {
+  color: #4338ca;
+  background: rgba(99, 102, 241, 0.10);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+.cm-speak-btn:active { transform: scale(0.94); }
+.cm-speak-btn:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+.cm-speak-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .cm-pair-result {
   display: flex;
   align-items: center;
@@ -56,17 +208,40 @@
   background: rgba(239, 68, 68, 0.08);
   color: #b91c1c;
 }
+.cm-pair-result__correction {
+  margin-left: 1.75rem;
+  font-size: 0.85rem;
+  color: #047857;
+  opacity: 0.85;
+}
 .cm-pair-arrow { opacity: 0.6; }
+/* Final completion actions: primary "Следующий урок →" + secondary
+   "К списку уроков" sit in one horizontal row so they read as a coherent
+   pair of choices, not a button with a stray text link under it. */
+.cm-final-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+@media (max-width: 480px) {
+  .cm-final-actions { flex-direction: column; align-items: stretch; }
+}
+/* Buttons inside the final-action row inherit .lsn-btn / .lsn-btn--primary
+   / .lsn-btn--outline from lesson_base_template.html so all lesson types
+   share one button look. No local overrides needed. */
 </style>
 {% endblock %}
 
 {% block lesson_content %}
-<section class="lesson-shell cm-lesson" aria-labelledby="cm-title">
+<section class="lesson-shell cm-lesson{% if is_completed %} cm-lesson--completed{% endif %}" id="cm-section" aria-labelledby="cm-title">
   <header class="lesson-shell__header">
-    <h2 class="lesson-shell__title" id="cm-title">{{ _('Коллокации') }}</h2>
+    <h2 class="lesson-shell__title" id="cm-title">{{ _('Сочетания слов') }}</h2>
     <div class="lesson-shell__meta">
       <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-link"></i></span>
-      <span class="lesson-shell__progress" aria-live="polite">
+      <span class="lesson-shell__progress" aria-live="polite" id="cm-progress-label">
+        {{ _('Пар составлено:') }}
         <span id="cm-paired" data-progress-current>0</span> / <span data-progress-total>{{ pairs|length }}</span>
       </span>
     </div>
@@ -78,7 +253,12 @@
 
   <div class="lesson-shell__instruction" role="note">
     <i class="fas fa-link" aria-hidden="true"></i>
-    {{ _('Нажмите на фразу, затем на её перевод, чтобы создать пару.') }}
+    {{ _('Нажми на фразу и её перевод — пара проверится сразу. Иконка 🔊 проиграет фразу.') }}
+  </div>
+
+  <div class="cm-completed-banner" id="cm-completed-banner" hidden>
+    <i class="fas fa-check-circle cm-completed-banner__icon" aria-hidden="true"></i>
+    <span>{{ _('Все фразы сопоставлены. Прослушай их ещё раз или переходи к следующему уроку.') }}</span>
   </div>
 
   <div class="lesson-shell__body">
@@ -86,17 +266,27 @@
       <div class="cm-column">
         <div class="cm-column-header">{{ _('Фраза') }}</div>
         {% for pair in pairs %}
-        <button
-          class="option-btn collocation-card collocation-phrase-card"
-          id="phrase-{{ loop.index0 }}"
-          type="button"
-          data-index="{{ loop.index0 }}"
-          data-phrase="{{ pair.phrase | e }}"
-          aria-pressed="false"
-          onclick="selectPhrase({{ loop.index0 }})"
-        >
-          {{ pair.phrase }}
-        </button>
+        <div class="cm-row" id="phrase-row-{{ loop.index0 }}">
+          <button
+            class="option-btn collocation-card collocation-phrase-card"
+            id="phrase-{{ loop.index0 }}"
+            type="button"
+            data-index="{{ loop.index0 }}"
+            data-phrase="{{ pair.phrase | e }}"
+            aria-pressed="false"
+            onclick="selectPhrase({{ loop.index0 }})"
+          >
+            <span class="cm-phrase-text">{{ pair.phrase }}</span>
+          </button>
+          <button
+            type="button"
+            class="cm-speak-btn"
+            id="speak-{{ loop.index0 }}"
+            onclick="speakPhrase({{ loop.index0 }})"
+            aria-label="{{ _('Послушать') }}"
+            title="{{ _('Послушать') }}"
+          ><i class="fas fa-volume-up" aria-hidden="true"></i></button>
+        </div>
         {% endfor %}
       </div>
 
@@ -117,35 +307,17 @@
         {% endfor %}
       </div>
     </div>
-  </div>
 
-  <div class="lesson-shell__actions">
-    <button
-      class="btn btn-primary btn-lg"
-      id="submit-btn"
-      onclick="submitMatching()"
-      type="button"
-      disabled
-    >
-      <i class="fas fa-check"></i>
-      {{ _('Проверить') }}
-    </button>
-    <button
-      class="btn btn-outline-secondary"
-      id="reset-btn"
-      onclick="resetMatching()"
-      type="button"
-    >
-      <i class="fas fa-undo"></i>
-      {{ _('Сбросить') }}
-    </button>
+    <div class="cm-matched-zone" id="cm-matched-zone" hidden>
+      <div class="cm-matched-zone__header">{{ _('Готовые пары') }}</div>
+      <div id="cm-matched-list"></div>
+    </div>
   </div>
 
   <div class="lesson-shell__result" id="matching-result"
        role="status" aria-live="polite" aria-atomic="true" hidden>
     <div id="result-summary"></div>
-    <div id="pair-results-list"></div>
-    <div id="matching-next-area" style="margin-top: 1rem;"></div>
+    <div class="cm-final-actions" id="matching-final-actions"></div>
   </div>
 </section>
 
@@ -153,9 +325,24 @@
 const lessonId = {{ lesson.id }};
 const totalPairs = {{ pairs | length }};
 
+// Set by the server when LessonProgress.status == 'completed' — the page
+// auto-replays the matched state and shows the final actions row without
+// re-submitting to the API.
+const isAlreadyCompleted = {{ 'true' if is_completed else 'false' }};
+const cachedNextLessonUrl = {{ next_lesson_url | tojson if next_lesson_url else 'null' }};
+// URL of the parent module's lessons page — destination for "К списку уроков"
+// (kept distinct from the global /learn/ index).
+const moduleUrl = {{ module_url | tojson }};
+
+// phraseData carries the correct translation alongside the phrase so the
+// client can validate every (phrase, translation) click instantly without
+// a network round-trip. The answer key already lives in the rendered DOM
+// (the translation column is built from the same pairs list, just shuffled);
+// embedding it on the phrase side does not weaken honesty further but makes
+// the live matching loop much snappier.
 const phraseData = [
   {% for pair in pairs %}
-  { phrase: {{ pair.phrase | tojson }} }{% if not loop.last %},{% endif %}
+  { phrase: {{ pair.phrase | tojson }}, correctTranslation: {{ pair.translation | tojson }} }{% if not loop.last %},{% endif %}
   {% endfor %}
 ];
 
@@ -165,207 +352,301 @@ const translationData = [
   {% endfor %}
 ];
 
+// matched[phraseIdx] = transIdx — only correct matches end up here.
+const matched = {};
 let selectedPhrase = null;
 let selectedTrans = null;
-const matches = {};
-
-function _resultIsOpen() {
-  return !document.getElementById('matching-result').hidden;
-}
+let interactionLocked = false;
 
 function _setBtnPressed(btn, on) {
+  if (!btn) return;
   btn.classList.toggle('option-btn--selected', on);
   btn.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
 
 function _updateProgress() {
-  const paired = Object.keys(matches).length;
+  const done = Object.keys(matched).length;
   const counter = document.getElementById('cm-paired');
-  if (counter) counter.textContent = String(paired);
+  if (counter) counter.textContent = String(done);
   const fill = document.getElementById('cm-progress-fill');
   if (fill && totalPairs > 0) {
-    const pct = Math.round((paired / totalPairs) * 100);
+    const pct = Math.round((done / totalPairs) * 100);
     fill.style.width = pct + '%';
     const bar = fill.parentElement;
     if (bar) bar.setAttribute('aria-valuenow', String(pct));
   }
 }
 
-function selectPhrase(idx) {
-  if (_resultIsOpen()) return;
-  if (matches[idx] !== undefined) return;
+// Web Speech Synthesis is supported in all modern desktop & mobile browsers
+// (Chrome, Firefox, Safari, Edge). If the API is missing the button stays
+// inert and no audio plays — the rest of the lesson still works.
+function speakPhrase(idx) {
+  const data = phraseData[idx];
+  if (!data || !data.phrase) return;
+  if (!('speechSynthesis' in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(data.phrase);
+    u.lang = 'en-US';
+    u.rate = 0.9;
+    window.speechSynthesis.speak(u);
+  } catch (_) { /* best-effort */ }
+}
 
+function selectPhrase(idx) {
+  if (interactionLocked) return;
+  if (matched[idx] !== undefined) return;
   const btn = document.getElementById('phrase-' + idx);
   if (selectedPhrase === idx) {
     _setBtnPressed(btn, false);
     selectedPhrase = null;
-  } else {
-    if (selectedPhrase !== null) {
-      _setBtnPressed(document.getElementById('phrase-' + selectedPhrase), false);
-    }
-    selectedPhrase = idx;
-    _setBtnPressed(btn, true);
-    if (selectedTrans !== null) tryPair();
+    return;
   }
+  if (selectedPhrase !== null) {
+    _setBtnPressed(document.getElementById('phrase-' + selectedPhrase), false);
+  }
+  selectedPhrase = idx;
+  _setBtnPressed(btn, true);
+  if (selectedTrans !== null) tryPair();
 }
 
 function selectTranslation(idx) {
-  if (_resultIsOpen()) return;
-  const alreadyMatched = Object.values(matches).includes(idx);
-  if (alreadyMatched) return;
-
+  if (interactionLocked) return;
+  if (Object.values(matched).includes(idx)) return;
   const btn = document.getElementById('trans-' + idx);
   if (selectedTrans === idx) {
     _setBtnPressed(btn, false);
     selectedTrans = null;
-  } else {
-    if (selectedTrans !== null) {
-      _setBtnPressed(document.getElementById('trans-' + selectedTrans), false);
-    }
-    selectedTrans = idx;
-    _setBtnPressed(btn, true);
-    if (selectedPhrase !== null) tryPair();
+    return;
   }
+  if (selectedTrans !== null) {
+    _setBtnPressed(document.getElementById('trans-' + selectedTrans), false);
+  }
+  selectedTrans = idx;
+  _setBtnPressed(btn, true);
+  if (selectedPhrase !== null) tryPair();
 }
 
 function tryPair() {
   const pi = selectedPhrase;
   const ti = selectedTrans;
-  matches[pi] = ti;
+  const phrase = phraseData[pi];
+  const trans = translationData[ti];
+  if (!phrase || !trans) return;
+  const isCorrect = trans.translation === phrase.correctTranslation;
+
+  if (isCorrect) {
+    handleCorrect(pi, ti);
+  } else {
+    handleWrong(pi, ti);
+  }
+}
+
+function handleCorrect(pi, ti) {
+  matched[pi] = ti;
+  selectedPhrase = null;
+  selectedTrans = null;
+  interactionLocked = true;
 
   const pBtn = document.getElementById('phrase-' + pi);
   const tBtn = document.getElementById('trans-' + ti);
   _setBtnPressed(pBtn, false);
   _setBtnPressed(tBtn, false);
-  pBtn.classList.add('option-btn--paired');
-  tBtn.classList.add('option-btn--paired');
+  if (pBtn) pBtn.classList.add('option-btn--correct-flash');
+  if (tBtn) tBtn.classList.add('option-btn--correct-flash');
 
-  selectedPhrase = null;
-  selectedTrans = null;
-
-  _updateProgress();
-  if (Object.keys(matches).length === totalPairs) {
-    document.getElementById('submit-btn').disabled = false;
-  }
-}
-
-function resetMatching() {
-  Object.keys(matches).forEach(k => delete matches[k]);
-  selectedPhrase = null;
-  selectedTrans = null;
-  for (let i = 0; i < totalPairs; i++) {
-    const pc = document.getElementById('phrase-' + i);
-    const tc = document.getElementById('trans-' + i);
-    if (pc) {
-      pc.className = 'option-btn collocation-card collocation-phrase-card';
-      pc.setAttribute('aria-pressed', 'false');
-      pc.disabled = false;
+  setTimeout(() => {
+    appendMatchedRow(phraseData[pi].phrase, translationData[ti].translation);
+    const pRow = document.getElementById('phrase-row-' + pi);
+    if (pRow) pRow.classList.add('cm-row--vanish');
+    if (pBtn) pBtn.classList.add('option-btn--vanish');
+    if (tBtn) tBtn.classList.add('option-btn--vanish');
+    setTimeout(() => {
+      if (pRow) pRow.style.display = 'none';
+      if (tBtn) tBtn.style.display = 'none';
+      interactionLocked = false;
+    }, 280);
+    _updateProgress();
+    if (Object.keys(matched).length === totalPairs) {
+      finalizeLesson();
     }
-    if (tc) {
-      tc.className = 'option-btn collocation-card collocation-translation-card';
-      tc.setAttribute('aria-pressed', 'false');
-      tc.disabled = false;
-    }
-  }
-  document.getElementById('submit-btn').disabled = true;
-  document.getElementById('matching-result').hidden = true;
-  _updateProgress();
+  }, 480);
 }
 
-async function submitMatching() {
-  const userPairs = Object.entries(matches).map(([pi, ti]) => ({
-    phrase: phraseData[pi].phrase,
-    translation: translationData[ti].translation,
-  }));
-
-  const btn = document.getElementById('submit-btn');
-  btn.disabled = true;
-  btn.classList.add('btn--loading');
-
-  try {
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
-    const resp = await fetch('/curriculum/api/lesson/' + lessonId + '/submit', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken,
-      },
-      body: JSON.stringify({ user_pairs: userPairs, lesson_type: 'collocation_matching' }),
-    });
-
-    const data = await resp.json();
-    showResults(data, userPairs);
-  } catch (err) {
-    btn.disabled = false;
-    btn.classList.remove('btn--loading');
-    console.error('Submit error:', err);
-  }
+function handleWrong(pi, ti) {
+  interactionLocked = true;
+  const pBtn = document.getElementById('phrase-' + pi);
+  const tBtn = document.getElementById('trans-' + ti);
+  if (pBtn) pBtn.classList.add('option-btn--wrong-flash');
+  if (tBtn) tBtn.classList.add('option-btn--wrong-flash');
+  setTimeout(() => {
+    if (pBtn) pBtn.classList.remove('option-btn--wrong-flash');
+    if (tBtn) tBtn.classList.remove('option-btn--wrong-flash');
+    _setBtnPressed(pBtn, false);
+    _setBtnPressed(tBtn, false);
+    selectedPhrase = null;
+    selectedTrans = null;
+    interactionLocked = false;
+  }, 500);
 }
 
-function showResults(data, userPairs) {
+function appendMatchedRow(phrase, translation) {
+  const zone = document.getElementById('cm-matched-zone');
+  const list = document.getElementById('cm-matched-list');
+  if (!list || !zone) return;
+  zone.hidden = false;
+  const row = document.createElement('div');
+  row.className = 'cm-matched-row';
+  const ic = document.createElement('i');
+  ic.className = 'fas fa-check';
+  ic.setAttribute('aria-hidden', 'true');
+  row.appendChild(ic);
+  const phr = document.createElement('span');
+  phr.className = 'cm-matched-row__phrase';
+  phr.textContent = phrase;
+  row.appendChild(phr);
+  const arr = document.createElement('span');
+  arr.className = 'cm-pair-arrow';
+  arr.setAttribute('aria-hidden', 'true');
+  arr.textContent = '→';
+  row.appendChild(arr);
+  const tr = document.createElement('span');
+  tr.className = 'cm-matched-row__translation';
+  tr.textContent = translation;
+  tr.style.flex = '1';
+  row.appendChild(tr);
+  // Replay button — keeps phrase audio available after the columns vanish.
+  const speak = document.createElement('button');
+  speak.type = 'button';
+  speak.className = 'cm-speak-btn';
+  // Phrase-specific label aids screen readers and makes the button feel
+  // tied to its row rather than a generic decoration.
+  const speakLabel = '{{ _("Прослушать фразу:") }} ' + phrase;
+  speak.setAttribute('aria-label', speakLabel);
+  speak.setAttribute('title', speakLabel);
+  speak.innerHTML = '<i class="fas fa-volume-up" aria-hidden="true"></i>';
+  speak.addEventListener('click', function() {
+    if (!('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(phrase);
+      u.lang = 'en-US';
+      u.rate = 0.9;
+      window.speechSynthesis.speak(u);
+    } catch (_) { /* best-effort */ }
+  });
+  row.appendChild(speak);
+  list.appendChild(row);
+}
+
+function renderFinalState(nextLessonUrl) {
+  // Switch the section into the compact completed-state: empty columns and
+  // the active-state instruction are hidden via CSS so the matched-pairs
+  // list moves to the top of the working area.
+  const section = document.getElementById('cm-section');
+  if (section) section.classList.add('cm-lesson--completed');
+  const banner = document.getElementById('cm-completed-banner');
+  if (banner) banner.hidden = false;
+
+  // Neutral top progress label — reserve celebratory "Отлично!" for the
+  // summary block below so the same praise is not shown twice.
+  const progressLabelEl = document.getElementById('cm-progress-label');
+  if (progressLabelEl) {
+    progressLabelEl.innerHTML =
+      '{{ _("Собрано:") }} <span id="cm-paired" data-progress-current>' +
+      totalPairs + '</span> / <span data-progress-total>' + totalPairs + '</span>';
+  }
+
   const resultDiv = document.getElementById('matching-result');
   const summaryDiv = document.getElementById('result-summary');
-  const listDiv = document.getElementById('pair-results-list');
-  const submitBtn = document.getElementById('submit-btn');
-
-  const passed = data.passed || false;
-  const score = data.score || 0;
-
-  // Always clear the loading state once the response is rendered so the
-  // submit button is interactive after a Reset → re-pair retry.
-  submitBtn.classList.remove('btn--loading');
-
   summaryDiv.textContent = '';
   const badge = document.createElement('div');
-  badge.className = 'result-badge ' + (passed ? 'result-badge--correct' : 'result-badge--incorrect');
+  badge.className = 'result-badge result-badge--correct';
   const iconSpan = document.createElement('span');
   iconSpan.className = 'result-badge__icon';
-  iconSpan.innerHTML = passed
-    ? '<i class="fas fa-check-circle"></i>'
-    : '<i class="fas fa-times-circle"></i>';
+  iconSpan.innerHTML = '<i class="fas fa-check-circle"></i>';
   badge.appendChild(iconSpan);
   const label = document.createElement('span');
-  const tail = passed ? '{{ _("Отлично! Продолжай.") }}' : '{{ _("Попробуй ещё раз.") }}';
-  label.textContent = `${score}% — ${tail} (${data.correct_items}/${data.total_items})`;
+  // Natural-language summary: "Отлично! 6 из 6 пар собраны." replaces the
+  // earlier "Все пары собраны. (6/6)" — the parenthesised count read like
+  // a debug artefact next to the celebratory praise.
+  label.textContent = '{{ _("Отлично!") }} ' + totalPairs + ' {{ _("из") }} ' + totalPairs + ' {{ _("пар собраны.") }}';
   badge.appendChild(label);
   summaryDiv.appendChild(badge);
 
-  listDiv.textContent = '';
-  (data.pair_results || []).forEach(pr => {
-    const row = document.createElement('div');
-    row.className = 'cm-pair-result ' + (pr.correct ? 'cm-pair-result--correct' : 'cm-pair-result--wrong');
-    const ic = document.createElement('i');
-    ic.className = pr.correct ? 'fas fa-check' : 'fas fa-times';
-    row.appendChild(ic);
-    const phr = document.createElement('span');
-    phr.textContent = pr.phrase;
-    row.appendChild(phr);
-    const arr = document.createElement('span');
-    arr.className = 'cm-pair-arrow';
-    arr.textContent = '→';
-    row.appendChild(arr);
-    const tr = document.createElement('span');
-    tr.textContent = pr.correct ? pr.translation : (pr.user_translation || '—');
-    row.appendChild(tr);
-    listDiv.appendChild(row);
-  });
-
-  const nextArea = document.getElementById('matching-next-area');
-  nextArea.textContent = '';
-  if (passed && data.next_lesson_url) {
-    const a = document.createElement('a');
-    a.href = data.next_lesson_url;
-    a.className = 'btn btn-success';
-    a.innerHTML = '{{ _("Следующий урок") }} <i class="fas fa-arrow-right"></i>';
-    nextArea.appendChild(a);
+  // Final action row mirrors the global lsn-completion block in
+  // lesson_base_template.html: secondary outline "К списку уроков" on the
+  // left, primary "Следующий урок →" on the right. Using the same lsn-btn
+  // classes keeps the look identical across every lesson type.
+  const finalActions = document.getElementById('matching-final-actions');
+  if (finalActions) {
+    finalActions.innerHTML = '';
+    const secondary = document.createElement('a');
+    secondary.href = moduleUrl;
+    secondary.className = 'lsn-btn lsn-btn--outline';
+    secondary.textContent = '{{ _("К списку уроков") }}';
+    finalActions.appendChild(secondary);
+    if (nextLessonUrl) {
+      const primary = document.createElement('a');
+      primary.href = nextLessonUrl;
+      primary.className = 'lsn-btn lsn-btn--primary';
+      primary.innerHTML = '{{ _("Следующий урок") }} <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+      finalActions.appendChild(primary);
+    }
   }
 
   resultDiv.hidden = false;
-  resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-  if (typeof showLessonCompletion === 'function' && passed) {
-    showLessonCompletion({ score });
-  }
+  // Intentionally do NOT call showLessonCompletion() — the inline result above
+  // is the canonical "lesson finished" surface; the base template's global
+  // "Урок завершён!" block would otherwise stack a duplicate finalisation.
 }
+
+async function finalizeLesson() {
+  // The user assembled all 6 correct pairs through live matching. Submit the
+  // full set to the server so progress is marked completed, XP is awarded,
+  // and we get the canonical next_lesson_url back.
+  const userPairs = Object.entries(matched).map(([pi, ti]) => ({
+    phrase: phraseData[pi].phrase,
+    translation: translationData[ti].translation,
+  }));
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+  let data = {};
+  try {
+    const resp = await fetch('/curriculum/api/lesson/' + lessonId + '/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ user_pairs: userPairs, lesson_type: 'collocation_matching' }),
+    });
+    data = await resp.json();
+  } catch (err) {
+    console.error('Submit error:', err);
+  }
+
+  renderFinalState(data.next_lesson_url);
+  document.getElementById('matching-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// If the user previously finished this lesson, replay the matched state on
+// page load: collapse every phrase/translation in the columns into a single
+// "Готовые пары" list and show the final actions row. No re-submit happens —
+// LessonProgress already carries status='completed' from the original run.
+function restoreCompletedState() {
+  phraseData.forEach((p, pi) => {
+    const ti = translationData.findIndex(t => t.translation === p.correctTranslation);
+    if (ti === -1) return;
+    matched[pi] = ti;
+    appendMatchedRow(p.phrase, p.correctTranslation);
+    const pRow = document.getElementById('phrase-row-' + pi);
+    if (pRow) pRow.style.display = 'none';
+    const tBtn = document.getElementById('trans-' + ti);
+    if (tBtn) tBtn.style.display = 'none';
+  });
+  _updateProgress();
+  renderFinalState(cachedNextLessonUrl);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (isAlreadyCompleted) restoreCompletedState();
+});
 </script>
 {% endblock %}

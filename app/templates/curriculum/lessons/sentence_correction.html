@@ -4,75 +4,182 @@
 {% set instruction_text = _('Найдите и исправьте ошибку в предложении.') %}
 {% set block_description = _('Практика грамматических исправлений') %}
 
+{% block extra_css %}
+<style>
+.sentence-correction-error-type {
+  font-size: 0.88rem;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  background: #f1f5f9;
+  border-radius: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+.sentence-correction-error-type i { color: #6366f1; }
+.sentence-correction-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0.5rem 0 0.4rem;
+}
+.sentence-correction-source-text {
+  font-size: 1.15rem;
+  line-height: 1.5;
+  color: #1e293b;
+  padding: 0.75rem 1rem;
+  background: #fff1f2;
+  border-left: 3px solid #ef4444;
+  border-radius: 0.4rem;
+}
+.sentence-correction-translation {
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  color: #64748b;
+  font-style: italic;
+}
+</style>
+{% endblock %}
+
 {% block lesson_content %}
 <section class="lesson-shell sentence-correction-lesson" aria-labelledby="sentence-correction-title">
   <header class="lesson-shell__header">
     <h2 class="lesson-shell__title" id="sentence-correction-title">{{ _('Исправьте ошибку') }}</h2>
     <div class="lesson-shell__meta">
       <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-exclamation-triangle"></i></span>
-      <span class="lesson-shell__progress" aria-live="polite">
-        <span data-progress-current>1</span> / <span data-progress-total>1</span>
-      </span>
-    </div>
-    <div class="lesson-shell__progress-bar" role="progressbar"
-         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <span class="lesson-shell__progress-fill" style="width:0%"></span>
+      {# X/Y counter removed — sentence_correction is a single-error
+         exercise, the pinned "1/1" read as broken UI. #}
     </div>
   </header>
 
-  <div class="lesson-shell__body">
-    <div class="lesson-shell__card sentence-correction-source-card">
-      <div class="sentence-correction-error-type">
-        <i class="fas fa-exclamation-triangle"></i>
-        {{ _('Тип ошибки:') }} <strong>{{ error_type }}</strong>
-      </div>
-      <div class="sentence-correction-label">
-        <i class="fas fa-times-circle" style="color: var(--color-danger);"></i>
-        {{ _('Неправильное предложение:') }}
-      </div>
-      <div class="sentence-correction-source-text" id="incorrect-sentence">
-        {{ incorrect_sentence }}
-      </div>
-    </div>
+  {# Map raw English error-type codes to a learner-friendly Russian label.
+     If the lesson author already passes a Russian string, use it as-is. #}
+  {% set _err_type_map = {
+    'article': 'артикль',
+    'verb': 'форма глагола',
+    'verb_form': 'форма глагола',
+    'tense': 'время',
+    'subject_verb_agreement': 'согласование подлежащего и сказуемого',
+    'word_order': 'порядок слов',
+    'preposition': 'предлог',
+    'plural': 'множественное число',
+    'pronoun': 'местоимение',
+    'capitalization': 'заглавная буква',
+    'punctuation': 'пунктуация',
+  } %}
+  {% set _err_type_ru = error_type_ru or _err_type_map.get(error_type, error_type) %}
 
-    {% if options %}
-    <div class="lesson-shell__card sentence-correction-options-section">
-      <div class="sentence-correction-options-label">
-        <i class="fas fa-list-ul"></i>
-        {{ _('Выберите правильный вариант:') }}
-      </div>
-      <div class="sentence-correction-options" id="correction-options">
-        {% for opt in options %}
-        <button
-          class="option-btn sentence-correction-option-btn"
-          type="button"
-          aria-pressed="false"
-          onclick='selectOption({{ loop.index0 }}, {{ opt | tojson }})'
-          id="option-btn-{{ loop.index0 }}"
-          data-value="{{ opt | e }}"
-        >
-          {{ opt }}
-        </button>
-        {% endfor %}
-      </div>
-      <input type="hidden" id="correction-answer" value="">
-    </div>
+  <div class="lesson-shell__body">
+    {% if items %}
+      {# Multi-item flow: each item is a small card with incorrect sentence
+         + 4 option buttons. Clicking an option triggers instant check;
+         every item supports up to MAX_ATTEMPTS picks before it locks
+         with the canonical answer highlighted. #}
+      {% for item in items %}
+        {% set _i = loop.index0 %}
+        {% set _it_err_ru = item.error_type_ru or _err_type_map.get(item.error_type, item.error_type or '') %}
+        <div class="lesson-shell__card sentence-correction-source-card" id="sc-card-{{ _i }}" data-index="{{ _i }}">
+          {% if _it_err_ru %}
+          <div class="sentence-correction-error-type">
+            <i class="fas fa-bookmark" aria-hidden="true"></i>
+            {{ _('Тип ошибки:') }} <strong>{{ _it_err_ru }}</strong>
+          </div>
+          {% endif %}
+          <div class="sentence-correction-label">
+            <i class="fas fa-times-circle" style="color: var(--color-danger);"></i>
+            {{ _('Неправильное предложение:') }}
+          </div>
+          <div class="sentence-correction-source-text">
+            {{ item.incorrect_sentence }}
+          </div>
+          {% if item.translation %}
+          <div class="sentence-correction-translation">{{ item.translation }}</div>
+          {% endif %}
+
+          <div class="sentence-correction-options-label" style="margin-top:0.75rem;">
+            <i class="fas fa-list-ul"></i>
+            {{ _('Выберите правильный вариант:') }}
+          </div>
+          <div class="sentence-correction-options"
+               id="sc-options-{{ _i }}" data-index="{{ _i }}"
+               data-correct="{{ item.correct_sentence | e }}"
+               data-explanation="{{ item.explanation | e }}">
+            {% for opt in (item.options or []) %}
+              <button type="button"
+                      class="option-btn sentence-correction-option-btn"
+                      data-index="{{ _i }}"
+                      data-value="{{ opt | e }}"
+                      aria-pressed="false">{{ opt }}</button>
+            {% endfor %}
+          </div>
+          <input type="hidden" id="sc-answer-{{ _i }}" data-index="{{ _i }}" />
+          <div class="sentence-correction-item-feedback" id="sc-feedback-{{ _i }}" style="display:none;" role="status" aria-live="polite"></div>
+        </div>
+      {% endfor %}
     {% else %}
-    <div class="lesson-shell__card sentence-correction-input-section">
-      <label class="sentence-correction-input-label" for="correction-answer">
-        <i class="fas fa-pen"></i>
-        {{ _('Введите исправленное предложение:') }}
-      </label>
-      <textarea
-        class="sentence-correction-input"
-        id="correction-answer"
-        rows="3"
-        placeholder="{{ _('Напишите исправленное предложение...') }}"
-        autocomplete="off"
-        autocorrect="off"
-        spellcheck="false"
-      ></textarea>
-    </div>
+      {# Single-item legacy mode (kept for backwards-compat with lessons
+         that haven't been migrated to the items array). #}
+      <div class="lesson-shell__card sentence-correction-source-card">
+        {% if _err_type_ru %}
+        <div class="sentence-correction-error-type">
+          <i class="fas fa-bookmark" aria-hidden="true"></i>
+          {{ _('Тип ошибки:') }} <strong>{{ _err_type_ru }}</strong>
+        </div>
+        {% endif %}
+        <div class="sentence-correction-label">
+          <i class="fas fa-times-circle" style="color: var(--color-danger);"></i>
+          {{ _('Неправильное предложение:') }}
+        </div>
+        <div class="sentence-correction-source-text" id="incorrect-sentence">
+          {{ incorrect_sentence }}
+        </div>
+        {% if translation %}
+        <div class="sentence-correction-translation" id="incorrect-translation">{{ translation }}</div>
+        {% endif %}
+      </div>
+
+      {% if options %}
+      <div class="lesson-shell__card sentence-correction-options-section">
+        <div class="sentence-correction-options-label">
+          <i class="fas fa-list-ul"></i>
+          {{ _('Выберите правильный вариант:') }}
+        </div>
+        <div class="sentence-correction-options" id="correction-options">
+          {% for opt in options %}
+          <button
+            class="option-btn sentence-correction-option-btn"
+            type="button"
+            aria-pressed="false"
+            onclick='selectOption({{ loop.index0 }}, {{ opt | tojson }})'
+            id="option-btn-{{ loop.index0 }}"
+            data-value="{{ opt | e }}"
+          >
+            {{ opt }}
+          </button>
+          {% endfor %}
+        </div>
+        <input type="hidden" id="correction-answer" value="">
+      </div>
+      {% else %}
+      <div class="lesson-shell__card sentence-correction-input-section">
+        <label class="sentence-correction-input-label" for="correction-answer">
+          <i class="fas fa-pen"></i>
+          {{ _('Введите исправленное предложение:') }}
+        </label>
+        <textarea
+          class="sentence-correction-input"
+          id="correction-answer"
+          rows="3"
+          placeholder="{{ _('Напишите исправленное предложение...') }}"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        ></textarea>
+      </div>
+      {% endif %}
     {% endif %}
   </div>
 
@@ -112,8 +219,10 @@
 
 <script>
 const lessonId = {{ lesson.id }};
+const hasItems = {{ 'true' if items else 'false' }};
 const hasOptions = {{ 'true' if options else 'false' }};
 let selectedOption = null;
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
 function _refreshSubmitGate() {
   const submitBtn = document.getElementById('submit-btn');
@@ -294,12 +403,378 @@ function showResult(data) {
 }
 
 {% if not options %}
-document.getElementById('correction-answer').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    submitCorrection();
-  }
+const _legacyTextarea = document.getElementById('correction-answer');
+if (_legacyTextarea) {
+  _legacyTextarea.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      submitCorrection();
+    }
+  });
+}
+{% endif %}
+
+// =========================================================================
+// Multi-item flow (when content.items is provided)
+// =========================================================================
+{% if items %}
+const ITEM_COUNT = {{ items | length }};
+const MAX_ATTEMPTS = 3;
+const SAVED_STATE = {{ (progress.data | tojson) if (progress and progress.data) else '{}' }};
+const IS_COMPLETED = {{ 'true' if is_completed else 'false' }};
+const CACHED_NEXT_LESSON_URL = {{ next_lesson_url | tojson if next_lesson_url else 'null' }};
+window.__moduleUrl = {{ module_url | tojson if module_url else '"/learn/"' }};
+
+// Hide the legacy single-item submit row + result area — multi-item flow
+// renders its own per-item feedback and a separate summary panel below.
+document.addEventListener('DOMContentLoaded', function() {
+  const submitRow = document.querySelector('.sentence-correction-submit-row');
+  if (submitRow) submitRow.style.display = 'none';
+  _scRestoreState();
 });
+
+const _scItemState = {};   // {idx: 'pending'|'correct'|'given-up'}
+const _scItemAttempts = {}; // {idx: [wrongValue, ...]}
+
+function _scNormalize(s) {
+  return (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function _scCorrectCount() {
+  let n = 0;
+  for (let i = 0; i < ITEM_COUNT; i++) if (_scItemState[i] === 'correct') n++;
+  return n;
+}
+function _scTerminalCount() {
+  let n = 0;
+  for (let i = 0; i < ITEM_COUNT; i++) {
+    if (_scItemState[i] === 'correct' || _scItemState[i] === 'given-up') n++;
+  }
+  return n;
+}
+
+function _scShowFeedback(idx, kind, label) {
+  const fb = document.getElementById('sc-feedback-' + idx);
+  if (!fb) return;
+  fb.innerHTML = '';
+  fb.style.display = 'block';
+  const span = document.createElement('span');
+  span.className = 'result-badge result-badge--' + kind;
+  const ic = document.createElement('i');
+  ic.className = kind === 'correct' ? 'fas fa-check-circle' : 'fas fa-times-circle';
+  span.appendChild(ic);
+  const t = document.createElement('span');
+  t.textContent = ' ' + label;
+  span.appendChild(t);
+  fb.appendChild(span);
+}
+
+function _scShowCorrection(idx, expected, explanation) {
+  const fb = document.getElementById('sc-feedback-' + idx);
+  if (!fb) return;
+  fb.innerHTML = '';
+  fb.style.display = 'block';
+  const wrap = document.createElement('div');
+  wrap.className = 'sentence-completion-correction';
+  const right = document.createElement('div');
+  right.className = 'sentence-completion-correction__right';
+  right.innerHTML = '<span class="sentence-completion-correction__label">{{ _("Правильно:") }}</span> ' +
+    '<span class="sentence-completion-correction__value">' + expected + '</span>';
+  wrap.appendChild(right);
+  if (explanation) {
+    const exp = document.createElement('div');
+    exp.className = 'sentence-correction-explanation-text';
+    exp.style.marginTop = '0.4rem';
+    exp.style.color = '#475569';
+    exp.style.fontSize = '0.9rem';
+    exp.textContent = explanation;
+    wrap.appendChild(exp);
+  }
+  fb.appendChild(wrap);
+}
+
+function _scLockCorrect(idx, expected) {
+  document.querySelectorAll('.sentence-correction-option-btn[data-index="' + idx + '"]').forEach(function(b) {
+    b.disabled = true;
+    if (b.getAttribute('data-value') === expected) {
+      b.classList.add('option-btn--correct', 'sentence-correction-option-btn--correct');
+    } else {
+      b.classList.remove('option-btn--selected', 'option-btn--wrong');
+    }
+  });
+}
+
+function _scLockGivenUp(idx, expected, lastWrong) {
+  document.querySelectorAll('.sentence-correction-option-btn[data-index="' + idx + '"]').forEach(function(b) {
+    b.disabled = true;
+    b.classList.remove('option-btn--selected');
+    const v = b.getAttribute('data-value');
+    if (v === expected) {
+      b.classList.add('option-btn--correct', 'sentence-correction-option-btn--correct');
+    } else if (v === lastWrong) {
+      b.classList.add('option-btn--wrong', 'sentence-correction-option-btn--wrong');
+    }
+  });
+}
+
+async function _scSaveState() {
+  const snapshot = {items: []};
+  for (let i = 0; i < ITEM_COUNT; i++) {
+    const el = document.getElementById('sc-answer-' + i);
+    snapshot.items.push({
+      state: _scItemState[i] || 'pending',
+      attempts: _scItemAttempts[i] ? _scItemAttempts[i].slice() : [],
+      value: el ? (el.value || '') : '',
+    });
+  }
+  try {
+    await fetch('/curriculum/api/lesson/' + lessonId + '/progress', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN},
+      body: JSON.stringify({data: snapshot}),
+    });
+  } catch (e) { console.warn('sentence_correction: state save failed', e); }
+}
+
+function _scCheckItem(idx, chosenValue) {
+  if (_scItemState[idx] === 'correct' || _scItemState[idx] === 'given-up') return;
+  const optionsEl = document.getElementById('sc-options-' + idx);
+  if (!optionsEl) return;
+  const expected = optionsEl.getAttribute('data-correct') || '';
+  const explanation = optionsEl.getAttribute('data-explanation') || '';
+  const isCorrect = _scNormalize(chosenValue) === _scNormalize(expected);
+
+  // Reset wrong-flash on every button before applying new state.
+  optionsEl.querySelectorAll('.sentence-correction-option-btn').forEach(function(b) {
+    b.classList.remove('option-btn--selected', 'option-btn--wrong');
+  });
+
+  const hidden = document.getElementById('sc-answer-' + idx);
+  if (hidden) hidden.value = chosenValue;
+
+  if (isCorrect) {
+    _scItemState[idx] = 'correct';
+    _scLockCorrect(idx, expected);
+    _scShowFeedback(idx, 'correct', '{{ _("Правильно!") }}');
+  } else {
+    if (!_scItemAttempts[idx]) _scItemAttempts[idx] = [];
+    _scItemAttempts[idx].push(chosenValue);
+    // Mark only the just-clicked option as wrong; others stay clickable.
+    optionsEl.querySelectorAll('.sentence-correction-option-btn').forEach(function(b) {
+      if (b.getAttribute('data-value') === chosenValue) {
+        b.classList.add('option-btn--wrong', 'sentence-correction-option-btn--wrong');
+        b.disabled = true; // can't pick the same wrong option twice
+      }
+    });
+    if (_scItemAttempts[idx].length >= MAX_ATTEMPTS) {
+      _scItemState[idx] = 'given-up';
+      _scLockGivenUp(idx, expected, chosenValue);
+      _scShowCorrection(idx, expected, explanation);
+    } else {
+      const remaining = MAX_ATTEMPTS - _scItemAttempts[idx].length;
+      _scShowFeedback(idx, 'incorrect',
+        '{{ _("Попробуй ещё. Осталось попыток:") }} ' + remaining);
+    }
+  }
+  _scSaveState();
+  _scMaybeFinalize();
+}
+
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest && e.target.closest('.sentence-correction-option-btn');
+  if (!btn) return;
+  if (btn.disabled) return;
+  const idx = parseInt(btn.getAttribute('data-index') || '-1');
+  const value = btn.getAttribute('data-value') || '';
+  if (idx < 0) return;
+  // Defensive: if event came from the legacy single-item flow (which uses
+  // the same class), don't run the multi-item check.
+  if (!hasItems) return;
+  _scCheckItem(idx, value);
+});
+
+let _scFinalizing = false;
+function _scMaybeFinalize() {
+  if (_scFinalizing) return;
+  if (_scTerminalCount() < ITEM_COUNT) return;
+  _scFinalizing = true;
+  _scSubmit();
+}
+
+async function _scSubmit() {
+  const answers = [];
+  for (let i = 0; i < ITEM_COUNT; i++) {
+    // Server-side grading expects the LEARNER's last submitted answer.
+    // For correct items, we send the canonical correct sentence (last
+    // value in the hidden input). For given-up items, we send the last
+    // wrong value so the server's score truly reflects learner choices.
+    const el = document.getElementById('sc-answer-' + i);
+    answers.push(el ? (el.value || '') : '');
+  }
+  let data = {};
+  try {
+    const resp = await fetch('/curriculum/api/lesson/' + lessonId + '/submit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN},
+      body: JSON.stringify({answers: answers, lesson_type: 'sentence_correction'}),
+    });
+    if (resp.ok) data = await resp.json();
+  } catch (e) {
+    console.error('sentence_correction multi submit error', e);
+    _scFinalizing = false;
+  }
+  _scShowSummary(data);
+}
+
+function _scShowSummary(data) {
+  const resultArea = document.getElementById('correction-result');
+  if (!resultArea) return;
+  // Wipe legacy single-item bits — multi-item summary is its own panel.
+  const expReveal = document.getElementById('explanation-reveal');
+  if (expReveal) expReveal.style.display = 'none';
+  const corrReveal = document.getElementById('correct-answer-reveal');
+  if (corrReveal) corrReveal.style.display = 'none';
+  const resultBadge = document.getElementById('result-badge');
+  if (resultBadge) resultBadge.innerHTML = '';
+
+  const correct = _scCorrectCount();
+  const total = ITEM_COUNT;
+  const score = Math.round(correct / Math.max(1, total) * 100);
+  const isPerfect = correct === total;
+
+  const scoreEl = document.createElement('div');
+  scoreEl.className = 'result-badge ' + (isPerfect ? 'result-badge--correct' : 'result-badge--almost');
+  const ic = document.createElement('i');
+  ic.className = isPerfect ? 'fas fa-trophy' : 'fas fa-exclamation-circle';
+  scoreEl.appendChild(ic);
+  const txt = document.createElement('span');
+  txt.textContent = ' ' + (isPerfect
+    ? correct + '/' + total + ' (' + score + '%)'
+    : '{{ _("Почти:") }} ' + correct + '/' + total + ' (' + score + '%)');
+  scoreEl.appendChild(txt);
+  if (resultBadge) resultBadge.appendChild(scoreEl);
+
+  const nextArea = document.getElementById('correction-next-area');
+  nextArea.innerHTML = '';
+  nextArea.style.display = 'flex';
+  nextArea.style.gap = '0.75rem';
+  nextArea.style.marginTop = '1rem';
+
+  if (isPerfect && (data.next_lesson_url || CACHED_NEXT_LESSON_URL)) {
+    const secondary = document.createElement('a');
+    secondary.href = window.__moduleUrl || '/learn/';
+    secondary.className = 'lsn-btn lsn-btn--outline';
+    secondary.textContent = '{{ _("К списку уроков") }}';
+    nextArea.appendChild(secondary);
+    const primary = document.createElement('a');
+    primary.href = data.next_lesson_url || CACHED_NEXT_LESSON_URL;
+    primary.className = 'lsn-btn lsn-btn--primary';
+    primary.innerHTML = '{{ _("Следующий урок") }} <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+    nextArea.appendChild(primary);
+  } else {
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'lsn-btn lsn-btn--primary';
+    retry.innerHTML = '<i class="fas fa-redo"></i> {{ _("Исправить ошибку") }}';
+    retry.addEventListener('click', _scRetryGivenUp);
+    nextArea.appendChild(retry);
+    const secondary = document.createElement('a');
+    secondary.href = window.__moduleUrl || '/learn/';
+    secondary.className = 'lsn-btn lsn-btn--outline';
+    secondary.textContent = '{{ _("К списку уроков") }}';
+    nextArea.appendChild(secondary);
+  }
+  resultArea.hidden = false;
+  resultArea.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
+function _scRetryGivenUp() {
+  let resetAny = false;
+  for (let i = 0; i < ITEM_COUNT; i++) {
+    if (_scItemState[i] !== 'given-up') continue;
+    _scItemState[i] = 'pending';
+    _scItemAttempts[i] = [];
+    document.querySelectorAll('.sentence-correction-option-btn[data-index="' + i + '"]').forEach(function(b) {
+      b.disabled = false;
+      b.classList.remove(
+        'option-btn--selected', 'option-btn--wrong', 'option-btn--correct',
+        'sentence-correction-option-btn--correct', 'sentence-correction-option-btn--wrong',
+        'sentence-correction-option-btn--selected',
+      );
+    });
+    const fb = document.getElementById('sc-feedback-' + i);
+    if (fb) { fb.innerHTML = ''; fb.style.display = 'none'; }
+    const hidden = document.getElementById('sc-answer-' + i);
+    if (hidden) hidden.value = '';
+    resetAny = true;
+  }
+  if (!resetAny) return;
+  _scFinalizing = false;
+  const resultArea = document.getElementById('correction-result');
+  if (resultArea) resultArea.hidden = true;
+  _scSaveState();
+}
+
+function _scRestoreState() {
+  if (!SAVED_STATE) return;
+  // Completed: progress.data holds grading result (item_results array).
+  if (IS_COMPLETED && Array.isArray(SAVED_STATE.item_results)) {
+    SAVED_STATE.item_results.forEach(function(res, i) {
+      if (i >= ITEM_COUNT) return;
+      const optionsEl = document.getElementById('sc-options-' + i);
+      const expected = (optionsEl && optionsEl.getAttribute('data-correct')) || res.correct_sentence || '';
+      const explanation = (optionsEl && optionsEl.getAttribute('data-explanation')) || res.explanation || '';
+      const hidden = document.getElementById('sc-answer-' + i);
+      if (hidden) hidden.value = res.user_answer || '';
+      if (res.correct) {
+        _scItemState[i] = 'correct';
+        _scLockCorrect(i, expected);
+        _scShowFeedback(i, 'correct', '{{ _("Правильно!") }}');
+      } else {
+        _scItemState[i] = 'given-up';
+        _scLockGivenUp(i, expected, res.user_answer || '');
+        _scShowCorrection(i, expected, explanation);
+      }
+    });
+    _scFinalizing = true;
+    _scShowSummary({next_lesson_url: CACHED_NEXT_LESSON_URL});
+    return;
+  }
+  // Mid-lesson live-state replay.
+  if (Array.isArray(SAVED_STATE.items)) {
+    SAVED_STATE.items.forEach(function(saved, i) {
+      if (i >= ITEM_COUNT) return;
+      if (Array.isArray(saved.attempts)) _scItemAttempts[i] = saved.attempts.slice();
+      const optionsEl = document.getElementById('sc-options-' + i);
+      const expected = optionsEl ? (optionsEl.getAttribute('data-correct') || '') : '';
+      const explanation = optionsEl ? (optionsEl.getAttribute('data-explanation') || '') : '';
+      const hidden = document.getElementById('sc-answer-' + i);
+      if (saved.state === 'correct') {
+        _scItemState[i] = 'correct';
+        if (hidden) hidden.value = expected;
+        _scLockCorrect(i, expected);
+        _scShowFeedback(i, 'correct', '{{ _("Правильно!") }}');
+      } else if (saved.state === 'given-up') {
+        _scItemState[i] = 'given-up';
+        if (hidden) hidden.value = saved.value || '';
+        _scLockGivenUp(i, expected, saved.value || '');
+        _scShowCorrection(i, expected, explanation);
+      } else if (Array.isArray(saved.attempts) && saved.attempts.length > 0) {
+        // Mark previously-tried wrong options as wrong (still clickable
+        // would allow picking the same wrong one again; lock them).
+        saved.attempts.forEach(function(wv) {
+          document.querySelectorAll('.sentence-correction-option-btn[data-index="' + i + '"]').forEach(function(b) {
+            if (b.getAttribute('data-value') === wv) {
+              b.classList.add('option-btn--wrong', 'sentence-correction-option-btn--wrong');
+              b.disabled = true;
+            }
+          });
+        });
+      }
+    });
+    _scMaybeFinalize();
+  }
+}
 {% endif %}
 </script>
 {% endblock %}

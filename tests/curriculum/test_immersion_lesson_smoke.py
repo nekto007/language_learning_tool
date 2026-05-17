@@ -272,8 +272,9 @@ class TestTranslationSmoke:
         )
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["is_correct"] is True
+        # Translation now uses multi-item contract — see grade_translation_multi.
         assert data["passed"] is True
+        assert data["correct_items"] == 1
         assert _get_progress(test_user.id, lesson.id).status == "completed"
 
     def test_wrong_answer_does_not_complete(self, app, db_session, test_user, client):
@@ -286,7 +287,7 @@ class TestTranslationSmoke:
             content_type="application/json",
         )
         data = resp.get_json()
-        assert data["is_correct"] is False
+        assert data["passed"] is False
         assert _get_progress(test_user.id, lesson.id).status != "completed"
 
     def test_passing_includes_next_lesson_url(self, app, db_session, test_user, client):

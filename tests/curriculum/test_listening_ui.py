@@ -189,17 +189,26 @@ class TestTranscriptToggleTemplate:
         html = _read_text_template()
         assert 'initTranscriptToggle()' in html
 
-    def test_localStorage_transcript_visible_key(self):
-        html = _read_text_template()
-        assert 'transcript_visible' in html
+    def test_transcript_visible_localstorage_key_purged(self):
+        """Legacy `transcript_visible` localStorage flag must be actively cleared.
 
-    def test_localStorage_setItem_transcript(self):
+        Listening immersion is a pedagogical exercise — the transcript should
+        be hidden on every fresh page load, never «restored» from a previous
+        session. We explicitly removeItem so users with stale localStorage
+        don't get the transcript pre-opened.
+        """
         html = _read_text_template()
-        assert "localStorage.setItem('transcript_visible'" in html
+        assert "localStorage.removeItem('transcript_visible')" in html
 
-    def test_localStorage_getItem_transcript(self):
+    def test_transcript_not_persisted_to_localstorage(self):
+        """Transcript visibility must not be written to localStorage on toggle."""
         html = _read_text_template()
-        assert "localStorage.getItem('transcript_visible')" in html
+        assert "localStorage.setItem('transcript_visible'" not in html
+
+    def test_transcript_not_read_from_localstorage(self):
+        """Transcript visibility must not be read from localStorage on init."""
+        html = _read_text_template()
+        assert "localStorage.getItem('transcript_visible')" not in html
 
 
 class TestTranscriptToggleCSS:

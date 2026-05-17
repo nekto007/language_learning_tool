@@ -420,9 +420,13 @@ class TestAudioFillBlankTemplate:
         tpl = _read_afb_template()
         assert "<audio" in tpl
 
-    def test_submit_function_present(self):
+    def test_live_grading_submits_to_api(self):
+        """Audio fill-blank uses live per-item grading; the final canonical
+        submit fires automatically once every item is in a terminal state.
+        We just assert the submit endpoint is hit from the template."""
         tpl = _read_afb_template()
-        assert "submitAnswers()" in tpl
+        assert "/curriculum/api/lesson/" in tpl
+        assert "/submit" in tpl
 
     def test_afb_item_class_present(self):
         tpl = _read_afb_template()

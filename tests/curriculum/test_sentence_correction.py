@@ -126,17 +126,19 @@ class TestSentenceCorrectionValidator:
                 }
             )
 
-    def test_missing_explanation_fails(self):
-        from marshmallow import ValidationError
-        with pytest.raises((ValidationError, Exception)):
-            LessonContentValidator.validate(
-                'sentence_correction',
-                {
-                    "incorrect_sentence": "He go to work.",
-                    "correct_sentence": "He goes to work.",
-                    "error_type": "verb",
-                }
-            )
+    def test_missing_explanation_passes(self):
+        # explanation is now optional at the top level — multi-item flow
+        # carries explanation per item, and even single-item lessons may
+        # legitimately omit it (the template hides the block when empty).
+        is_valid, error_msg, _ = LessonContentValidator.validate(
+            'sentence_correction',
+            {
+                "incorrect_sentence": "He go to work.",
+                "correct_sentence": "He goes to work.",
+                "error_type": "verb",
+            }
+        )
+        assert is_valid, f"expected valid, got error: {error_msg}"
 
 
 # ---------------------------------------------------------------------------

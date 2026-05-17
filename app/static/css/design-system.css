@@ -3051,35 +3051,36 @@ body.dark-theme #translationPopup {
     background-color: var(--gray-50);
 }
 
+/* Audio button — smaller (28px) and subtler (no big shadow) so the row
+   stays readable. Hover still pops a bit so it's discoverable. */
 .reading-audio-btn {
-    background: var(--gradient-purple);
-    border: none;
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.25);
     border-radius: 50%;
-    width: 36px;
-    height: 36px;
-    color: var(--text-inverse);
+    width: 28px;
+    height: 28px;
+    color: #4338ca;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
-    transition: var(--transition-base);
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    font-size: 12px;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
     margin-left: 8px;
     vertical-align: middle;
 }
 
 .reading-audio-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    background: rgba(99, 102, 241, 0.18);
+    border-color: #6366f1;
 }
 
 .reading-audio-btn:active {
-    transform: scale(0.95);
+    transform: scale(0.94);
 }
 
 .reading-audio-btn i {
-    font-size: 14px;
+    font-size: 12px;
 }
 
 .hint-container {
@@ -6155,9 +6156,19 @@ button.module-header-main:disabled {
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
 }
 
+/* Answered-correct keeps a subtle green tint but doesn't repaint the
+   whole card — at 7 questions the old "every card is bright green"
+   look made the page feel screamy. Just a thin green border + light
+   tint accent is enough. */
 .question-block.answered-correct {
-    border-color: var(--success-400);
-    background: var(--success-50);
+    border-color: rgba(16, 185, 129, 0.45);
+    background: rgba(240, 253, 244, 0.45);
+}
+/* Per-question "Правильно!" feedback under each card is redundant —
+   the green border + correct-option pill already say the same thing.
+   Hide it on correct answers so the page doesn't get 7 green plates. */
+.question-block.answered-correct .answer-feedback.correct {
+    display: none !important;
 }
 
 .question-text {
@@ -9110,6 +9121,77 @@ textarea:focus-visible,
     display: none !important;
 }
 
+/* Listening immersion: пара кнопок «Показать текст / Показать перевод».
+   Текст и перевод скрыты по умолчанию, чтобы слушатель сначала тренировал
+   восприятие на слух, а только потом сверялся с письменной опорой. */
+.listening-reveal-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.listening-reveal-controls .transcript-toggle {
+    margin-bottom: 0;
+}
+
+.transcript-toggle--translation {
+    background: var(--color-surface, #fff);
+    border-color: var(--color-border, #e5e7eb);
+}
+
+/* Чекпоинт перед завершением аудирования: учащийся должен подтвердить, что
+   действительно прослушал диалог, а не пролистал. JS дополнительно проверяет
+   факт запуска плеера и долю прослушанного времени. */
+.listening-completion-gate {
+    background: var(--color-surface-raised, #f9fafb);
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: var(--radius-md, 0.5rem);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.listening-attentive-check {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-weight: 500;
+    color: var(--color-text, #1f2937);
+    cursor: pointer;
+}
+
+.listening-attentive-check input[type="checkbox"] {
+    width: 1.125rem;
+    height: 1.125rem;
+    cursor: pointer;
+}
+
+/* Пока аудио не прослушано на 50 % — чекбокс заблокирован, чтобы нельзя было
+   «галкой» закрыть урок, фактически не послушав. */
+.listening-attentive-check--locked {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.listening-attentive-check--locked input[type="checkbox"] {
+    cursor: not-allowed;
+}
+
+.listening-gate-hint {
+    margin: 0.5rem 0 0;
+    color: var(--color-text-secondary, #6b7280);
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.listening-gate-hint--ready {
+    color: var(--color-success, #16a34a);
+}
+
+.listening-translation-block[hidden] {
+    display: none;
+}
+
 /* Audio Controller Bar */
 .audio-controller-bar {
     background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-700) 100%);
@@ -9239,6 +9321,67 @@ textarea:focus-visible,
     color: var(--gray-500);
     font-size: 0.95rem;
     font-style: italic;
+    margin-top: 0.35rem;
+}
+
+/* Per-line "Перевод" toggle — styled as a quiet text-link rather than a
+   button. Сидит инлайн рядом с аудио-иконкой; визуально неприметная,
+   пока не нужна. Раскрывает sibling .reading-line-translation. */
+.reading-line-translation-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: 0.5rem;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+.reading-line-translation-btn:hover,
+.reading-line-translation-btn:focus-visible {
+    color: #4338ca;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    outline: none;
+}
+.reading-line-translation-btn[aria-expanded="true"] {
+    color: #4338ca;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.reading-line-translation-btn i { font-size: 0.85em; opacity: 0.75; }
+
+/* Global "Показать переводы" toggle above the reading lines. */
+.reading-translations-toggle-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+}
+.reading-translations-toggle-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.85rem;
+    background: #fff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 0.45rem;
+    color: #334155;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.reading-translations-toggle-all:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+}
+.reading-translations-toggle-all[aria-pressed="true"] {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.10);
+    color: #4338ca;
 }
 
 /* Listening Section Headers */
@@ -10303,46 +10446,51 @@ textarea:focus-visible,
     text-align: center;
 }
 
-/* Final Test Transformation Instruction */
+/* Final Test Transformation Instruction.
+   Раньше использовала `var(--gray-50)` / `var(--error-600)` — переменные
+   нигде в файле не определены, поэтому border-left не рендерился, а
+   фон был прозрачным. Заменяем на явные цвета + индиго-акцент. */
 .final-test-transform-instruction {
-    font-size: 1rem;
-    color: var(--gray-500);
-    margin-bottom: 1rem;
-    padding: 1rem;
-    background: var(--gray-50);
-    border-left: 4px solid var(--error-600);
-    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    color: #64748b;
+    margin-bottom: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    background: #f8fafc;
+    border-left: 3px solid #6366f1;
+    border-radius: 0.5rem;
 }
 
 /* Final Test Source Sentence */
 .final-test-source-sentence {
-    font-size: 1.2rem;
-    font-weight: var(--font-semibold);
-    padding: 1.5rem;
-    background: linear-gradient(135deg, var(--amber-100) 0%, var(--amber-200) 100%);
-    color: var(--amber-800);
-    border-radius: 0.75rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    padding: 1rem 1.25rem;
+    /* Замена `var(--amber-100..800)` (которые не определены): мягкий
+       янтарный плашка-кадр для предложения, которое нужно преобразовать. */
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+    border-radius: 0.5rem;
     text-align: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 /* Final Test Matching Instruction */
 .final-test-matching-instruction {
-    font-size: 1rem;
-    color: var(--gray-500);
-    margin-bottom: 1.5rem;
-    padding: 1rem;
-    background: var(--gray-50);
-    border-left: 4px solid var(--error-600);
-    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    color: #64748b;
+    margin-bottom: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    background: #f8fafc;
+    border-left: 3px solid #6366f1;
+    border-radius: 0.5rem;
 }
 
 /* Final Test Matching Hint */
 .final-test-matching-hint {
-    font-size: 0.95rem;
-    color: var(--gray-500);
+    font-size: 0.9rem;
+    color: #64748b;
     text-align: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 /* Final Test Matching Game Grid */
@@ -13383,6 +13531,93 @@ footer .col-md-4 {
     border-color: #bbf7d0;
     background: #f0fdf4;
 }
+
+/* Audio loading / error states. Плеер всегда виден (чтобы браузер тянул
+   metadata), но на время загрузки сверху лежит лёгкий оверлей. При
+   error/timeout — красный alert вместо плеера. */
+.afb-audio-wrapper {
+    position: relative;
+}
+.afb-audio-wrapper audio {
+    width: 100%;
+    display: block;
+}
+.afb-audio-loading,
+.afb-audio-error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+}
+.afb-audio-loading {
+    position: absolute;
+    inset: 0;
+    background: rgba(241, 245, 249, 0.92);
+    color: #475569;
+    justify-content: center;
+    pointer-events: none;
+}
+.afb-master-audio[data-audio-state="ready"] .afb-audio-loading { display: none; }
+.afb-audio-error {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+/* Lock-overlay для заданий: пока аудио не прослушано хотя бы на 30%,
+   карточки задач полупрозрачные и не реагируют на клики/ввод. */
+.afb-items--locked {
+    pointer-events: none;
+    opacity: 0.45;
+    filter: grayscale(0.3);
+}
+.afb-listen-gate {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    margin-bottom: 0.75rem;
+    color: #92400e;
+    font-size: 0.9rem;
+}
+.afb-listen-gate i {
+    color: #d97706;
+}
+
+/* Live-feedback per item: появляется сразу после клика/blur, без ожидания
+   глобальной проверки. */
+.afb-item__feedback {
+    display: none;
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.35;
+    align-items: center;
+    gap: 0.4rem;
+}
+.afb-item__feedback--correct {
+    display: flex;
+    background: #f0fdf4;
+    color: #166534;
+}
+.afb-item__feedback--correct i { color: #16a34a; }
+.afb-item__feedback--wrong {
+    display: flex;
+    background: #fef2f2;
+    color: #b91c1c;
+}
+.afb-item__feedback--wrong i { color: #dc2626; }
+.afb-item__attempts {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: #92400e;
+}
 .afb-item--wrong {
     border-color: #fecaca;
     background: #fff1f2;
@@ -13545,13 +13780,167 @@ footer .col-md-4 {
     max-width: 680px;
     margin: 0 auto;
 }
+/* Двойной класс для специфичности: `.lesson-shell__card` определён ниже
+   в файле и без этого селектора перетирает background/color у source-card
+   → белый текст «Меня зовут Анна» на белом фоне = пустой блок. */
+.lesson-shell__card.translation-source-card,
 .translation-source-card {
     background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
     border-radius: 1rem;
-    padding: 1.5rem;
+    padding: 1.25rem;
     color: #fff;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     box-shadow: 0 6px 20px rgba(29, 78, 216, 0.2);
+    border: none;
+}
+.translation-item {
+    margin-bottom: 1.25rem;
+}
+.translation-item__head {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin-bottom: 0.625rem;
+}
+.translation-item__num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #6366f1;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.875rem;
+}
+.translation-item__label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.translation-item--correct .translation-item__num {
+    background: #16a34a;
+}
+.translation-item--wrong .translation-item__num {
+    background: #dc2626;
+}
+.translation-item__feedback {
+    display: none;
+    margin-top: 0.5rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    align-items: center;
+    gap: 0.4rem;
+}
+.translation-item__feedback--correct {
+    display: flex;
+    background: #f0fdf4;
+    color: #166534;
+}
+.translation-item__feedback--correct i { color: #16a34a; }
+.translation-item__feedback--wrong {
+    display: flex;
+    background: #fef2f2;
+    color: #b91c1c;
+}
+.translation-item__feedback--wrong i { color: #dc2626; }
+.translation-item__attempts {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: #92400e;
+}
+.translation-item__reveal {
+    display: none;
+    margin-top: 0.4rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 0.5rem;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+    font-size: 0.9rem;
+}
+.translation-item__reveal.visible { display: block; }
+.translation-item__reveal-label {
+    font-weight: 600;
+    margin-right: 0.2rem;
+}
+.translation-item__reveal-full {
+    margin-top: 0.35rem;
+    font-size: 0.85rem;
+    color: #78350f;
+    opacity: 0.85;
+}
+/* Tip-вариант reveal: ответ принят, но мелкая стилистика хромает
+   (заглавная I, имена собственные). Жёлтый, не красный — это не ошибка. */
+.translation-item__reveal--tip {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+}
+.translation-item__reveal--tip i { color: #d97706; margin-right: 0.25rem; }
+.translation-item__reveal--tip .translation-item__reveal-full {
+    color: #92400e;
+    opacity: 0.85;
+}
+
+/* Toggle-кнопка «Показать подсказки» для open/rubric-режимов translation.
+   В guided-режиме (A1/A2) этот блок не рендерится — подсказки видны сразу. */
+.translation-chips-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    color: #475569;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.translation-chips-toggle:hover {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+.translation-chips-toggle i { color: #d97706; }
+.translation-chips-section--collapsed .translation-chips-body[hidden] {
+    display: none;
+}
+
+/* Partial-pass banner: «Почти! Исправь N предложений…» с кнопкой retry. */
+.translation-partial-banner {
+    margin: 1.25rem 0 0;
+    padding: 1rem 1.25rem;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-left: 4px solid #d97706;
+    border-radius: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.translation-partial-banner__title {
+    font-weight: 700;
+    color: #92400e;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.translation-partial-banner__title i { color: #d97706; }
+.translation-partial-banner__body {
+    color: #78350f;
+    line-height: 1.4;
+}
+.translation-partial-banner__actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
 }
 .translation-source-label {
     font-size: 0.85rem;
@@ -13821,11 +14210,206 @@ footer .col-md-4 {
 .writing-prompt-checklist-text {
     font-size: 0.9rem;
     color: var(--color-text-primary, #1e293b);
+    flex: 1;
 }
 .writing-prompt-checklist-hint {
     font-size: 0.82rem;
     color: var(--color-warning, #d97706);
     padding: 0.35rem 0.5rem;
+}
+/* «Авто»-метка для чекбоксов, которые отметили автоматически на основе
+   текстового анализа. Сигнал «система помогла» — пользователь может
+   снять галку, если не согласен. */
+.writing-prompt-checklist-auto {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #16a34a;
+    background: #ecfdf5;
+    padding: 0.15rem 0.4rem;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+    margin-left: auto;
+}
+.writing-prompt-checklist-auto i {
+    color: #16a34a;
+    margin-right: 0.15rem;
+}
+
+/* Russian-prompt + collapsed English original */
+.writing-prompt-original {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+}
+.writing-prompt-original summary {
+    cursor: pointer;
+    color: #475569;
+    user-select: none;
+}
+.writing-prompt-original summary:hover { color: #0f172a; }
+.writing-prompt-text-en {
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: #f8fafc;
+    border-left: 3px solid #cbd5e1;
+    border-radius: 0.4rem;
+    color: #475569;
+    font-style: italic;
+}
+
+/* Кликабельные подсказки-слова под заданием. */
+.writing-prompt-hints {
+    background: #f8fafc;
+}
+.writing-prompt-hints__label {
+    font-size: 0.85rem;
+    color: #475569;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.writing-prompt-hints__label i { color: #d97706; }
+.writing-prompt-hints__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+.wp-hint-chip {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.85rem;
+    color: #1f2937;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.wp-hint-chip:hover {
+    background: #fef3c7;
+    border-color: #fde68a;
+}
+
+/* Раскрываемые helper-блоки: шаблон, пример. */
+.writing-prompt-helpers {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: #fff;
+}
+.writing-prompt-helper {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+}
+.writing-prompt-helper summary {
+    cursor: pointer;
+    color: #1f2937;
+    font-weight: 500;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.writing-prompt-helper summary i { color: #6366f1; }
+.writing-prompt-helper__body {
+    margin: 0.5rem 0 0.5rem;
+    padding: 0.6rem 0.8rem;
+    background: #f8fafc;
+    border-radius: 0.4rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: #334155;
+    white-space: pre-wrap;
+}
+.writing-prompt-helper__insert {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.875rem;
+    border-radius: 0.5rem;
+    background: #fff;
+    color: #475569;
+    border: 1.5px solid #e2e8f0;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.writing-prompt-helper__insert:hover {
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: #cbd5e1;
+}
+/* Caption под примером — мягкая подсказка «не копируй дословно». */
+.writing-prompt-helper__caption {
+    margin: 0.5rem 0 0;
+    padding: 0.4rem 0.6rem;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 0.4rem;
+    color: #92400e;
+    font-size: 0.825rem;
+    line-height: 1.4;
+}
+.writing-prompt-helper__caption i { color: #d97706; margin-right: 0.25rem; }
+.writing-prompt-checklist-auto-note {
+    display: block;
+    margin-top: 0.1rem;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-style: italic;
+}
+
+/* Inline-диагностика «Чтобы завершить урок: …» — гейтит submit-кнопку.
+   Жёлтый pending → зелёный ready. */
+.writing-prompt-readiness {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-left: 4px solid #d97706;
+    border-radius: 0.6rem;
+    padding: 0.75rem 1rem;
+    margin-top: 0.5rem;
+}
+.writing-prompt-readiness__title {
+    font-weight: 600;
+    color: #92400e;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.writing-prompt-readiness__title i { color: #d97706; }
+.writing-prompt-readiness__list {
+    margin: 0.5rem 0 0;
+    padding-left: 1.25rem;
+    color: #78350f;
+    line-height: 1.5;
+}
+.writing-prompt-readiness__list:empty { display: none; }
+.writing-prompt-readiness--ready {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    border-left-color: #16a34a;
+}
+.writing-prompt-readiness--ready .writing-prompt-readiness__title { color: #166534; }
+.writing-prompt-readiness--ready .writing-prompt-readiness__title i { color: #16a34a; }
+.writing-prompt-readiness--ready .writing-prompt-readiness__list { display: none; }
+
+.writing-prompt-checklist-target {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-left: 0.4rem;
+    font-weight: 400;
+}
+
+/* Submit disabled — заметно неактивный, как у других уроков. */
+.writing-prompt-submit-row .btn[disabled],
+.writing-prompt-submit-row .btn:disabled {
+    background: #e5e7eb !important;
+    color: #9ca3af !important;
+    border-color: #e5e7eb !important;
+    box-shadow: none !important;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 .writing-prompt-submit-row {
     display: flex;
@@ -13929,10 +14513,13 @@ footer .col-md-4 {
     background: #fff;
     transition: border-color 0.2s;
 }
+/* Focus state — neutral indigo, NOT the danger-red of the legacy
+   --color-primary fallback. Red on a clean (un-checked) input read as
+   "already wrong" before the user had typed anything. */
 .sentence-completion-input:focus {
     outline: none;
-    border-color: var(--color-primary, #dc2626);
-    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 .sentence-completion-input--correct {
     border-color: #16a34a;
@@ -13940,6 +14527,81 @@ footer .col-md-4 {
 }
 .sentence-completion-input--incorrect {
     border-color: #dc2626;
+    background: #fff1f2;
+}
+/* "Short" input variant — used when the lesson has a `prompt_after` field,
+   which signals that the blank sits inside a sentence and the expected
+   answer is typically short (e.g. am/is/are). A 180px-min input made
+   short answers look like they should be longer phrases. */
+.sentence-completion-input--short {
+    flex: 0 0 auto;
+    min-width: 90px;
+    max-width: 140px;
+    text-align: center;
+}
+/* Tail of the sentence after the blank. Visually balanced with the prompt
+   label so the row reads as one continuous sentence. */
+.sentence-completion-prompt-after {
+    font-size: 1rem;
+    color: var(--color-text-primary, #1e293b);
+    font-weight: 500;
+}
+/* Error-dots column removed by design — left as a comment marker so the
+   class name can be safely searched/grepped if it crops up in older
+   snapshots. The correction block + retries-left feedback now carry the
+   error signal. */
+/* Given-up state — red, не amber. "Не решил это" должно выглядеть как
+   ошибка (для короткого упражнения с пятью базовыми формами амбер был
+   слишком мягок). Текст зачёркнут, чтобы было видно: это не финальный
+   ответ. */
+.sentence-completion-input--given {
+    border-color: #ef4444;
+    background: #fff1f2;
+    color: #b91c1c;
+    text-decoration: line-through;
+    text-decoration-color: rgba(185, 28, 28, 0.4);
+}
+/* Two-line correction block: "Ваш ответ: m" / "Правильно: is". Тон —
+   light-red, чтобы блок согласовывался с red-border неправильного input. */
+.sentence-completion-correction {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.6rem 0.85rem;
+    background: #fff1f2;
+    border-left: 3px solid #ef4444;
+    border-radius: 0.4rem;
+    font-size: 0.93rem;
+}
+.sentence-completion-correction__label {
+    color: #7f1d1d;
+    margin-right: 0.35rem;
+    opacity: 0.85;
+}
+.sentence-completion-correction__yours .sentence-completion-correction__value {
+    color: #b91c1c;
+    text-decoration: line-through;
+}
+.sentence-completion-correction__right .sentence-completion-correction__value {
+    color: #047857;
+    font-weight: 600;
+}
+/* Score-card "Почти" state — amber tone for partial pass (≥70% but <100%).
+   Pure green reserved for 5/5 perfect. */
+.result-badge--almost {
+    background: rgba(245, 158, 11, 0.10);
+    color: #92400e;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+}
+/* Shake-flash on a wrong attempt (still has retries left). */
+@keyframes sc-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+.sentence-completion-input--wrong-flash {
+    animation: sc-shake 0.4s;
+    border-color: #ef4444;
     background: #fff1f2;
 }
 .sentence-completion-item-feedback {

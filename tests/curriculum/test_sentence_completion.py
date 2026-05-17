@@ -261,9 +261,16 @@ class TestSentenceCompletionTemplate:
         tpl = _read_template()
         assert 'sentence-completion-item-feedback' in tpl
 
-    def test_model_answer_reveal_present(self):
+    def test_given_up_state_present(self):
+        # Live-flow given-up surface: the learner's last wrong value stays
+        # in the input (red --given class), the correction block below
+        # shows "Ваш ответ / Правильно", and the action row offers
+        # _retryGivenUp to unlock items for another try.
         tpl = _read_template()
-        assert 'sentence-completion-model-answer' in tpl
+        assert 'sentence-completion-input--given' in tpl
+        assert 'sentence-completion-correction' in tpl
+        assert '_retryGivenUp' in tpl
+        assert 'MAX_ATTEMPTS' in tpl
 
     def test_score_card_present(self):
         tpl = _read_template()

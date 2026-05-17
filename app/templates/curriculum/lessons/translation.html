@@ -1,224 +1,648 @@
 {% extends "lesson_base_template.html" %}
 
 {% set component_name = _('Перевод') %}
-{% set instruction_text = _('Переведите предложение с русского на английский.') %}
-{% set block_description = _('Практика письменного перевода') %}
+{% set _mode = mode | default('guided') %}
+{% if _mode == 'guided' %}
+  {% set instruction_text = _('Переведите предложения с русского на английский. На каждое — 3 попытки. Подсказки помогут собрать правильный вариант.') %}
+  {% set block_description = _('Тренировка письменного перевода с подсказками') %}
+{% elif _mode == 'open' %}
+  {% set instruction_text = _('Переведите предложения с русского на английский. Подсказки скрыты — нажмите «Показать подсказки», если нужна поддержка. На каждое — 3 попытки.') %}
+  {% set block_description = _('Перевод с минимальной опорой — для B1+') %}
+{% else %}
+  {% set instruction_text = _('Переведите тексты с русского на английский. Учитывайте стиль и регистр; принимаются разные правильные варианты.') %}
+  {% set block_description = _('Аналитический перевод — для C1+') %}
+{% endif %}
 
 {% block lesson_content %}
 <section class="lesson-shell translation-lesson" aria-labelledby="translation-lesson-title">
   <header class="lesson-shell__header">
-    <h2 class="lesson-shell__title" id="translation-lesson-title">{{ _('Перевод предложения') }}</h2>
+    <h2 class="lesson-shell__title" id="translation-lesson-title">{{ _('Перевод предложений') }}</h2>
     <div class="lesson-shell__meta">
       <span class="lesson-shell__type-icon" aria-hidden="true"><i class="fas fa-language"></i></span>
-      <span class="lesson-shell__progress" aria-live="polite">
-        <span data-progress-current>1</span> / <span data-progress-total>1</span>
+      <span class="lesson-shell__progress" aria-live="polite" id="tr-progress-label">
+        {{ _('Заполнено:') }}
+        <span id="tr-filled" data-progress-current>0</span> /
+        <span data-progress-total>{{ items|length }}</span>
       </span>
     </div>
     <div class="lesson-shell__progress-bar" role="progressbar"
          aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <span class="lesson-shell__progress-fill" id="translation-progress-fill" style="width:0%"></span>
+      <span class="lesson-shell__progress-fill" id="tr-progress-fill" style="width:0%"></span>
     </div>
   </header>
 
   <div class="lesson-shell__body">
-    <div class="lesson-shell__card translation-source-card">
-      <div class="translation-source-label">
-        <i class="fas fa-language"></i>
-        {{ _('Переведите на английский:') }}
-      </div>
-      <div class="translation-source-text" id="source-text">
-        {{ russian }}
-      </div>
-    </div>
+    <div class="tr-items" id="tr-items">
+      {% for item in items %}
+      {% set item_idx = loop.index0 %}
+      <article class="lesson-shell__card translation-item" id="tr-item-{{ item_idx }}"
+               data-index="{{ item_idx }}"
+               data-answer="{{ item.english }}"
+               data-alternatives="{{ (item.alternatives or [])|tojson }}">
+        <header class="translation-item__head">
+          <span class="translation-item__num">{{ loop.index }}</span>
+          <span class="translation-item__label">{{ _('Переведите на английский') }}</span>
+        </header>
+        <div class="translation-source-card">
+          <div class="translation-source-text">{{ item.russian }}</div>
+        </div>
 
-    {% if hint_words %}
-    <div class="lesson-shell__card translation-chips-section">
-      <div class="translation-chips-label">
-        <i class="fas fa-lightbulb"></i>
-        {{ _('Слова-подсказки:') }}
-      </div>
-      <div class="translation-chips" id="hint-chips">
-        {% for word in hint_words %}
-        <button
-          class="chip chip--clickable translation-chip"
-          type="button"
-          aria-pressed="false"
-          onclick='insertChip({{ loop.index0 }}, {{ word | tojson }})'
-          id="chip-{{ loop.index0 }}"
-        >
-          {{ word }}
-        </button>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
+        {% if item.hint_words %}
+        {# В `open`-режиме (B1+) подсказки скрыты за toggle-кнопкой.
+           В `guided` (A1/A2) — открыты сразу. `rubric` (C1+) обычно идёт
+           без hint_words в контенте, но если они есть — тоже за toggle. #}
+        <div class="translation-chips-section{% if _mode != 'guided' %} translation-chips-section--collapsed{% endif %}"
+             data-item="{{ item_idx }}">
+          {% if _mode != 'guided' %}
+          <button class="translation-chips-toggle" type="button"
+                  aria-expanded="false"
+                  onclick="toggleHints({{ item_idx }}, this)">
+            <i class="fas fa-lightbulb"></i>
+            <span>{{ _('Показать подсказки') }}</span>
+          </button>
+          {% endif %}
+          <div class="translation-chips-body" {% if _mode != 'guided' %}hidden{% endif %}>
+            <div class="translation-chips-label">
+              <i class="fas fa-lightbulb"></i> {{ _('Слова-подсказки:') }}
+            </div>
+            <div class="translation-chips">
+              {% for word in item.hint_words %}
+              <button
+                class="chip chip--clickable translation-chip"
+                type="button"
+                aria-pressed="false"
+                data-item="{{ item_idx }}"
+                data-word="{{ word }}"
+                onclick='insertChip({{ item_idx }}, {{ word | tojson }}, this)'>
+                {{ word }}
+              </button>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
 
-    <div class="lesson-shell__card translation-input-section">
-      <label class="translation-input-label" for="translation-answer">
-        <i class="fas fa-pen"></i>
-        {{ _('Ваш перевод:') }}
-      </label>
-      <input
-        class="translation-input"
-        id="translation-answer"
-        type="text"
-        placeholder="{{ _('Введите перевод...') }}"
-        autocomplete="off"
-        autocorrect="off"
-        spellcheck="false"
-      >
+        <div class="translation-input-section">
+          <label class="translation-input-label" for="tr-answer-{{ item_idx }}">
+            <i class="fas fa-pen"></i> {{ _('Ваш перевод:') }}
+          </label>
+          <input
+            class="translation-input"
+            id="tr-answer-{{ item_idx }}"
+            data-index="{{ item_idx }}"
+            type="text"
+            placeholder="{{ _('Введите перевод…') }}"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false">
+        </div>
+
+        <div class="translation-item__feedback" id="tr-feedback-{{ item_idx }}" role="status"></div>
+        <div class="translation-item__reveal" id="tr-reveal-{{ item_idx }}" role="note"></div>
+      </article>
+      {% endfor %}
     </div>
   </div>
 
-  <div class="lesson-shell__actions translation-submit-row">
-    <button
-      class="btn btn-primary btn-lg"
-      id="submit-btn"
-      onclick="submitTranslation()"
-      type="button"
-    >
-      <i class="fas fa-check"></i>
-      {{ _('Проверить') }}
-    </button>
-  </div>
-
-  <div class="lesson-shell__result translation-result" id="translation-result"
-       role="status" aria-live="polite" aria-atomic="true" hidden>
-    <div id="result-badge"></div>
-    <div class="translation-correct-answer" id="correct-answer-reveal" style="display: none;">
-      <span class="translation-correct-label">
-        <i class="fas fa-spell-check"></i>
-        {{ _('Правильный перевод:') }}
-      </span>
-      <span id="correct-answer-text" class="translation-correct-text"></span>
-    </div>
-    <div id="translation-next-area" style="margin-top: 1rem;"></div>
+  {# Stub-блоки ради единой shell-таксономии
+     (см. tests/curriculum/test_audio_lessons_render.py). Финальная плашка
+     завершения — в общем lesson_base_template через showLessonCompletion. #}
+  <div class="lesson-shell__actions" aria-hidden="true"></div>
+  <div class="lesson-shell__result" hidden aria-hidden="true">
+    <span class="result-badge result-badge--correct" hidden></span>
   </div>
 </section>
 
 <script>
 const lessonId = {{ lesson.id }};
+const totalItems = {{ items|length }};
+const MAX_ATTEMPTS = 3;
+const itemState = new Array(totalItems).fill('pending');
+const itemAttempts = new Array(totalItems).fill(0);
+let _finalizing = false;
 
-function insertChip(idx, word) {
-  const inp = document.getElementById('translation-answer');
-  const chip = document.getElementById('chip-' + idx);
+function _normalize(s) {
+  return String(s || '').trim().toLowerCase().replace(/[.,!?;:'"„""«»]/g, '').replace(/\s+/g, ' ');
+}
+function _levenshtein(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const dp = Array.from({length: a.length + 1}, () => new Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i-1] === b[j-1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1, dp[i-1][j-1] + cost);
+    }
+  }
+  return dp[a.length][b.length];
+}
+function _matchesOne(user, expected) {
+  const u = _normalize(user);
+  const e = _normalize(expected);
+  if (!u || !e) return false;
+  if (u === e) return true;
+  // Levenshtein ≤1 только для одиночных слов длиной ≥4 — same policy
+  // as server-side _strict_text_match. Multi-word требует exact.
+  if (!u.includes(' ') && !e.includes(' ') && e.length >= 4) {
+    return _levenshtein(u, e) <= 1;
+  }
+  return false;
+}
+function _matches(user, expected, alternatives) {
+  if (_matchesOne(user, expected)) return true;
+  for (const alt of (alternatives || [])) {
+    if (typeof alt === 'string' && _matchesOne(user, alt)) return true;
+  }
+  return false;
+}
+
+// Раскрытие/скрытие блока подсказок (используется в open/rubric-режимах).
+// В guided-режиме подсказки видны сразу и toggle не рендерится.
+function toggleHints(itemIdx, btn) {
+  const section = document.querySelector('.translation-chips-section[data-item="' + itemIdx + '"]');
+  if (!section) return;
+  const body = section.querySelector('.translation-chips-body');
+  if (!body) return;
+  const open = body.hasAttribute('hidden');
+  if (open) {
+    body.removeAttribute('hidden');
+    section.classList.remove('translation-chips-section--collapsed');
+    btn.setAttribute('aria-expanded', 'true');
+    const lbl = btn.querySelector('span');
+    if (lbl) lbl.textContent = '{{ _("Скрыть подсказки") }}';
+  } else {
+    body.setAttribute('hidden', '');
+    section.classList.add('translation-chips-section--collapsed');
+    btn.setAttribute('aria-expanded', 'false');
+    const lbl = btn.querySelector('span');
+    if (lbl) lbl.textContent = '{{ _("Показать подсказки") }}';
+  }
+}
+
+function insertChip(itemIdx, word, btn) {
+  if (itemState[itemIdx] !== 'pending') return;
+  const inp = document.getElementById('tr-answer-' + itemIdx);
+  if (!inp) return;
   const current = inp.value;
   inp.value = current ? current.trimEnd() + ' ' + word : word;
   inp.focus();
-  if (chip) {
-    chip.classList.add('chip--used', 'translation-chip--used');
-    chip.setAttribute('aria-pressed', 'true');
+  if (btn) {
+    btn.classList.add('chip--used', 'translation-chip--used');
+    btn.setAttribute('aria-pressed', 'true');
   }
 }
 
-function _renderBadge(kind, iconHtml, label) {
-  const badge = document.getElementById('result-badge');
-  badge.innerHTML = '';
-  const wrap = document.createElement('div');
-  wrap.className = 'result-badge result-badge--' + kind;
-  const icon = document.createElement('span');
-  icon.className = 'result-badge__icon';
-  icon.innerHTML = iconHtml;
-  wrap.appendChild(icon);
-  const span = document.createElement('span');
-  span.textContent = label;
-  wrap.appendChild(span);
-  badge.appendChild(wrap);
+function _setFeedback(idx, kind, label) {
+  const el = document.getElementById('tr-feedback-' + idx);
+  if (!el) return;
+  el.className = 'translation-item__feedback translation-item__feedback--' + kind;
+  el.innerHTML = (kind === 'correct'
+    ? '<i class="fas fa-check-circle"></i> '
+    : '<i class="fas fa-times-circle"></i> ') + label;
 }
 
-async function submitTranslation() {
-  const inp = document.getElementById('translation-answer');
-  const answer = inp.value.trim();
-  const resultArea = document.getElementById('translation-result');
-  if (!answer) {
-    _renderBadge('neutral', '<i class="fas fa-info-circle"></i>',
-      '{{ _("Пожалуйста, введите перевод.") }}');
-    resultArea.hidden = false;
+function _showCorrect(idx, canonical) {
+  itemState[idx] = 'correct';
+  const itemEl = document.getElementById('tr-item-' + idx);
+  if (itemEl) {
+    itemEl.classList.remove('translation-item--wrong');
+    itemEl.classList.add('translation-item--correct');
+  }
+  const inp = document.getElementById('tr-answer-' + idx);
+  if (inp) {
+    // Сбросить состояние «неверно» от предыдущих попыток, иначе
+    // зелёная плашка «Правильно!» соседствует с красной рамкой инпута.
+    inp.classList.remove('input--wrong', 'translation-input--incorrect');
+    inp.classList.add('input--correct', 'translation-input--correct');
+    inp.readOnly = true;
+  }
+  // Мягкая стилистическая подсказка: если ответ принят, но у пользователя
+  // в исходнике есть отличия по регистру для I/proper nouns — показываем
+  // жёлтую заметку, не валим за это.
+  const userVal = inp ? String(inp.value || '').trim() : '';
+  const styleTip = _styleHint(userVal, canonical);
+  const reveal = document.getElementById('tr-reveal-' + idx);
+  if (reveal) {
+    // Снимаем wrong-reveal (мог остаться от предыдущей given-up попытки).
+    reveal.innerHTML = '';
+    reveal.classList.remove('visible', 'translation-item__reveal--tip');
+    if (styleTip) {
+      reveal.classList.add('visible', 'translation-item__reveal--tip');
+      const head = document.createElement('span');
+      head.className = 'translation-item__reveal-label';
+      head.innerHTML = '<i class="fas fa-lightbulb"></i> {{ _("Совет:") }} ';
+      reveal.appendChild(head);
+      reveal.appendChild(document.createTextNode(styleTip));
+      const full = document.createElement('div');
+      full.className = 'translation-item__reveal-full';
+      full.textContent = '{{ _("Лучше:") }} ' + canonical;
+      reveal.appendChild(full);
+    }
+  }
+  _setFeedback(idx, 'correct', '{{ _("Правильно!") }}');
+  _updateProgress();
+  _maybeFinalize();
+}
+
+// Возвращает короткую подсказку для accepted-ответа с мелкой стилистикой.
+// Сейчас покрывает два частых случая для A1:
+//   * местоимение I написано со строчной буквы;
+//   * имя собственное в ответе со строчной (если в эталоне с заглавной).
+// Если стилистика чистая — возвращает ''.
+function _styleHint(userVal, canonical) {
+  if (!userVal || !canonical) return '';
+  // I как pronoun в нижнем регистре.
+  // Ищем " i " или начало строки "i " или "i," etc.
+  if (/(^|\s|[^a-z])i(\s|[,.!?])/.test(' ' + userVal + ' ')) {
+    return '{{ _("В английском местоимение I всегда пишется с большой буквы.") }}';
+  }
+  // Имена собственные: токен в canonical начинается с заглавной (и это
+  // не первое слово), а у пользователя — со строчной. Берём первый такой.
+  const userTokens = userVal.split(/\s+/);
+  const canonTokens = canonical.replace(/[.,!?;:]$/g, '').split(/\s+/);
+  for (let i = 1; i < canonTokens.length && i < userTokens.length; i++) {
+    const c = canonTokens[i].replace(/[.,!?;:]/g, '');
+    const u = userTokens[i].replace(/[.,!?;:]/g, '');
+    if (!c || !u) continue;
+    if (c[0] === c[0].toUpperCase() && c[0] !== c[0].toLowerCase()
+        && u[0] === u[0].toLowerCase() && u.toLowerCase() === c.toLowerCase()) {
+      return '{{ _("Имена и названия пишутся с большой буквы:") }} «' + c + '».';
+    }
+  }
+  return '';
+}
+
+function _tokenize(s) {
+  return _normalize(s).split(' ').filter(Boolean);
+}
+
+function _diffWords(userVal, canonical) {
+  // Возвращает {missing: [...], extra: [...]} — что отсутствует в ответе
+  // пользователя из эталона, и что лишнее. Считаем без регистра, без
+  // пунктуации. Сохраняем порядок и оригинальное написание из canonical.
+  const userTokens = _tokenize(userVal);
+  const userBag = new Set(userTokens);
+  const canonTokensNorm = _tokenize(canonical);
+  const canonTokensOriginal = String(canonical || '')
+    .replace(/[.,!?;:'"„""«»]/g, '')
+    .split(/\s+/)
+    .filter(Boolean);
+  const canonBag = new Set(canonTokensNorm);
+  const missing = [];
+  for (let i = 0; i < canonTokensNorm.length; i++) {
+    if (!userBag.has(canonTokensNorm[i])) {
+      const orig = canonTokensOriginal[i] || canonTokensNorm[i];
+      if (!missing.includes(orig)) missing.push(orig);
+    }
+  }
+  const extra = [];
+  for (const t of userTokens) {
+    if (!canonBag.has(t) && !extra.includes(t)) extra.push(t);
+  }
+  return { missing, extra };
+}
+
+function _showGivenUp(idx, userVal, canonical) {
+  itemState[idx] = 'given-up';
+  const itemEl = document.getElementById('tr-item-' + idx);
+  if (itemEl) itemEl.classList.add('translation-item--wrong');
+  const inp = document.getElementById('tr-answer-' + idx);
+  if (inp) {
+    inp.classList.add('input--wrong');
+    inp.readOnly = true;
+  }
+  const reveal = document.getElementById('tr-reveal-' + idx);
+  if (reveal) {
+    reveal.innerHTML = '';
+    // 1) Diff-подсказка: что именно не хватает / лишнее. Для A1 это
+    // полезнее, чем просто «Правильно: X», потому что подсвечивает
+    // конкретные слова. Если ответ слишком далёк от эталона (≥2 missing
+    // + extra), показываем стандартный reveal «Правильно: …».
+    const diff = _diffWords(userVal || '', canonical || '');
+    const minor = (diff.missing.length <= 2 && diff.extra.length <= 1 && (diff.missing.length + diff.extra.length) > 0);
+    if (minor) {
+      if (diff.missing.length) {
+        const lbl = document.createElement('span');
+        lbl.className = 'translation-item__reveal-label';
+        lbl.textContent = '{{ _("Не хватает:") }} ';
+        reveal.appendChild(lbl);
+        const ans = document.createElement('strong');
+        ans.textContent = diff.missing.map(w => '«' + w + '»').join(', ');
+        reveal.appendChild(ans);
+      }
+      if (diff.extra.length) {
+        if (diff.missing.length) reveal.appendChild(document.createTextNode(' · '));
+        const lbl2 = document.createElement('span');
+        lbl2.className = 'translation-item__reveal-label';
+        lbl2.textContent = '{{ _("Лишнее:") }} ';
+        reveal.appendChild(lbl2);
+        const extra = document.createElement('strong');
+        extra.textContent = diff.extra.map(w => '«' + w + '»').join(', ');
+        reveal.appendChild(extra);
+      }
+      // Дополнительно полный эталон мелким шрифтом — чтобы был на виду.
+      const full = document.createElement('div');
+      full.className = 'translation-item__reveal-full';
+      full.textContent = '{{ _("Правильно:") }} ' + canonical;
+      reveal.appendChild(full);
+    } else {
+      const lbl = document.createElement('span');
+      lbl.className = 'translation-item__reveal-label';
+      lbl.textContent = '{{ _("Правильно:") }} ';
+      const ans = document.createElement('strong');
+      ans.textContent = canonical;
+      reveal.appendChild(lbl);
+      reveal.appendChild(ans);
+    }
+    reveal.classList.add('visible');
+  }
+  _setFeedback(idx, 'wrong', '{{ _("Неверно") }}');
+  _updateProgress();
+  _maybeFinalize();
+}
+
+function _markTryAgain(idx, remaining) {
+  _setFeedback(idx, 'wrong',
+    `{{ _("Не то, попробуйте ещё.") }} <span class="translation-item__attempts">{{ _("Попыток осталось:") }} ${remaining}</span>`);
+}
+
+function checkTranslationItem(idx) {
+  if (itemState[idx] !== 'pending') return;
+  const itemEl = document.getElementById('tr-item-' + idx);
+  const inp = document.getElementById('tr-answer-' + idx);
+  if (!itemEl || !inp) return;
+  const val = String(inp.value || '').trim();
+  if (!val) return;
+  const expected = itemEl.dataset.answer || '';
+  let alternatives = [];
+  try { alternatives = JSON.parse(itemEl.dataset.alternatives || '[]'); } catch (e) {}
+  if (_matches(val, expected, alternatives)) {
+    _showCorrect(idx, expected);
     return;
   }
+  itemAttempts[idx] += 1;
+  if (itemAttempts[idx] >= MAX_ATTEMPTS) {
+    _showGivenUp(idx, val, expected);
+  } else {
+    inp.classList.add('input--wrong');
+    _markTryAgain(idx, MAX_ATTEMPTS - itemAttempts[idx]);
+  }
+}
 
-  const submitBtn = document.getElementById('submit-btn');
-  submitBtn.disabled = true;
-  submitBtn.classList.add('btn--loading');
-  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Проверка...") }}';
-  inp.classList.remove('input--correct', 'input--wrong', 'translation-input--correct', 'translation-input--incorrect');
-  inp.classList.add('input--checking');
+function _updateProgress() {
+  let resolved = 0;
+  for (let i = 0; i < totalItems; i++) {
+    if (itemState[i] !== 'pending') resolved++;
+  }
+  const counter = document.getElementById('tr-filled');
+  const fill = document.getElementById('tr-progress-fill');
+  if (counter) counter.textContent = String(resolved);
+  if (fill && totalItems > 0) {
+    const pct = Math.round((resolved / totalItems) * 100);
+    fill.style.width = pct + '%';
+    const bar = fill.parentElement;
+    if (bar) bar.setAttribute('aria-valuenow', String(pct));
+  }
+}
 
+function _maybeFinalize() {
+  if (_finalizing) return;
+  let resolved = 0;
+  for (let i = 0; i < totalItems; i++) {
+    if (itemState[i] !== 'pending') resolved++;
+  }
+  if (resolved < totalItems) return;
+  _finalizing = true;
+  _submitFinal();
+}
+
+async function _submitFinal() {
+  const answers = [];
+  for (let i = 0; i < totalItems; i++) {
+    const inp = document.getElementById('tr-answer-' + i);
+    answers.push(inp ? String(inp.value || '').trim() : '');
+  }
   try {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const resp = await fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken,
-      },
-      body: JSON.stringify({ user_answer: answer, lesson_type: 'translation' }),
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+      body: JSON.stringify({answers: answers, lesson_type: 'translation'}),
     });
-
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
-    showResult(data);
-
-    submitBtn.classList.remove('btn--loading');
-    if (data.is_correct) {
-      submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено") }}';
-      if (typeof showSaveToast === 'function') showSaveToast();
-    } else {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<i class="fas fa-redo"></i> {{ _("Попробовать снова") }}';
-    }
+    showResults(data);
+    if (typeof showSaveToast === 'function') showSaveToast();
   } catch (err) {
     console.error('Translation submit error:', err);
-    submitBtn.disabled = false;
-    submitBtn.classList.remove('btn--loading');
-    submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Проверить") }}';
-    _renderBadge('incorrect', '<i class="fas fa-times-circle"></i>',
-      '{{ _("Ошибка при отправке. Попробуйте ещё раз.") }}');
-    resultArea.hidden = false;
+    _finalizing = false;
+    alert('{{ _("Ошибка при отправке. Перезагрузите страницу.") }}');
   }
 }
 
-function showResult(data) {
-  const inp = document.getElementById('translation-answer');
-  const correctReveal = document.getElementById('correct-answer-reveal');
-  const correctText = document.getElementById('correct-answer-text');
-  const nextArea = document.getElementById('translation-next-area');
-
-  inp.classList.remove('input--checking');
-  inp.classList.remove('input--correct', 'input--wrong',
-    'translation-input--correct', 'translation-input--incorrect');
-
-  if (data.is_correct) {
-    inp.classList.add('input--correct', 'translation-input--correct');
-    _renderBadge('correct', '<i class="fas fa-check-circle"></i>', '{{ _("Правильно!") }}');
-    correctReveal.style.display = 'none';
+function showResults(data) {
+  const score = data.score || 0;
+  const passed = !!data.passed;
+  const correctItems = data.correct_items || 0;
+  const totalResp = data.total_items || totalItems;
+  const progLabel = document.getElementById('tr-progress-label');
+  if (progLabel) {
+    progLabel.innerHTML = '{{ _("Правильно:") }} ' +
+      '<span id="tr-filled" data-progress-current>' + correctItems + '</span>' +
+      ' / <span data-progress-total>' + totalResp + '</span>';
+  }
+  if (passed) {
+    // Перешли порог — глобальная плашка завершения, переход к next-lesson.
+    if (typeof window.showLessonCompletion === 'function') {
+      window.showLessonCompletion({score: score});
+    }
   } else {
-    inp.classList.add('input--wrong', 'translation-input--incorrect');
-    _renderBadge('incorrect', '<i class="fas fa-times-circle"></i>', '{{ _("Неправильно") }}');
-    correctReveal.style.display = 'flex';
-    const d = document.createElement('span');
-    d.textContent = data.correct_answer || '';
-    correctText.innerHTML = '';
-    correctText.appendChild(d);
+    // Не перешли — НЕ показываем глобальный финал «Урок завершён».
+    // Подсказываем доисправить и предлагаем перепройти урок целиком
+    // (state карт после reset сохраняется, прогресс по словам в SRS не
+    // обнуляется — теряется только сессионное LessonProgress).
+    _renderPartialPrompt(correctItems, totalResp);
   }
-
-  if (data.is_correct && data.next_lesson_url) {
-    nextArea.innerHTML = `
-      <a href="${data.next_lesson_url}" class="btn btn-success">
-        <i class="fas fa-arrow-right"></i> {{ _('Следующий урок') }}
-      </a>`;
-  }
-
-  const resultArea = document.getElementById('translation-result');
-  resultArea.hidden = false;
-  resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-document.getElementById('translation-answer').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    submitTranslation();
+function _renderPartialPrompt(correct, total) {
+  // Inline-блок: «Почти! Правильно X из N. Исправь оставшиеся.»
+  // + основная кнопка «Попробовать ещё раз» (soft retry — только провальные
+  // items сбрасываются, верные остаются как есть). Вторичная ссылка
+  // «Пройти урок заново» делает полный reset через ?reset=true для тех,
+  // кто хочет начать с нуля.
+  const items = document.getElementById('tr-items');
+  if (!items) return;
+  let banner = document.getElementById('tr-partial-banner');
+  if (banner) banner.remove();
+  banner = document.createElement('div');
+  banner.id = 'tr-partial-banner';
+  banner.className = 'translation-partial-banner';
+  const need = Math.max(0, total - correct);
+  const title = document.createElement('div');
+  title.className = 'translation-partial-banner__title';
+  title.innerHTML = '<i class="fas fa-info-circle"></i> ' +
+    `{{ _("Почти!") }} {{ _("Правильно") }} ${correct} {{ _("из") }} ${total}.`;
+  const body = document.createElement('div');
+  body.className = 'translation-partial-banner__body';
+  body.textContent = need === 1
+    ? '{{ _("Исправь оставшееся предложение и попробуй ещё раз.") }}'
+    : '{{ _("Исправь оставшиеся предложения и попробуй ещё раз.") }}';
+  const actions = document.createElement('div');
+  actions.className = 'translation-partial-banner__actions';
+  const softBtn = document.createElement('button');
+  softBtn.type = 'button';
+  softBtn.className = 'lsn-btn lsn-btn--primary';
+  softBtn.innerHTML = '<i class="fas fa-pen"></i> {{ _("Исправить ошибку") }}';
+  softBtn.addEventListener('click', _softRetryGivenUp);
+  actions.appendChild(softBtn);
+  const fullReset = document.createElement('a');
+  fullReset.className = 'lsn-btn lsn-btn--outline';
+  fullReset.href = window.location.pathname + '?reset=true';
+  fullReset.textContent = '{{ _("Пройти урок заново") }}';
+  actions.appendChild(fullReset);
+  banner.appendChild(title);
+  banner.appendChild(body);
+  banner.appendChild(actions);
+  items.parentElement.appendChild(banner);
+  banner.scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+// Soft retry: сбрасывает только items в стейте given-up и даёт исправить.
+// Правильно решённые items не трогаются. После исправления auto-finalize
+// снова сработает и отправит финальный submit.
+//
+// Reveal-блок («Правильно: I am from Russia.») мы НЕ убираем — пользователь
+// уже видел ответ, теперь должен сам ввести правильный вариант руками.
+// Это active recall: пассивный просмотр → активное воспроизведение.
+function _softRetryGivenUp() {
+  const banner = document.getElementById('tr-partial-banner');
+  if (banner) banner.remove();
+  let resetAny = false;
+  for (let i = 0; i < totalItems; i++) {
+    if (itemState[i] !== 'given-up') continue;
+    itemState[i] = 'pending';
+    itemAttempts[i] = 0;
+    const itemEl = document.getElementById('tr-item-' + i);
+    if (itemEl) itemEl.classList.remove('translation-item--wrong');
+    const inp = document.getElementById('tr-answer-' + i);
+    if (inp) {
+      inp.classList.remove('input--wrong', 'input--correct',
+        'translation-input--correct', 'translation-input--incorrect');
+      inp.readOnly = false;
+      inp.value = '';
+    }
+    const fb = document.getElementById('tr-feedback-' + i);
+    if (fb) { fb.className = 'translation-item__feedback'; fb.innerHTML = ''; }
+    // Reveal оставляем — это hint «Правильно: …», к которому пользователь
+    // может обращаться, пока вводит исправленный ответ. Финальный
+    // showCorrect его перерисует на «Совет:…» (если есть стилистика)
+    // или просто проигнорирует.
+    // Подсказки-чипы становятся снова активными: убираем chip--used
+    // у всех chip'ов, относящихся к этому item.
+    document.querySelectorAll('.translation-chips-section[data-item="' + i + '"] .translation-chip, .translation-chip[data-item="' + i + '"]')
+      .forEach(function(chip) {
+        chip.classList.remove('chip--used', 'translation-chip--used');
+        chip.setAttribute('aria-pressed', 'false');
+      });
+    resetAny = true;
+  }
+  if (!resetAny) return;
+  _finalizing = false;
+  _updateProgress();
+  // Прогресс-лейбл возвращаем к «Заполнено» — будет обновлён после повторного submit.
+  const progLabel = document.getElementById('tr-progress-label');
+  if (progLabel) {
+    let resolved = 0;
+    for (let i = 0; i < totalItems; i++) if (itemState[i] !== 'pending') resolved++;
+    progLabel.innerHTML = '{{ _("Заполнено:") }} ' +
+      '<span id="tr-filled" data-progress-current>' + resolved + '</span>' +
+      ' / <span data-progress-total>' + totalItems + '</span>';
+  }
+  // Фокус на первый pending-инпут.
+  for (let i = 0; i < totalItems; i++) {
+    if (itemState[i] === 'pending') {
+      const inp = document.getElementById('tr-answer-' + i);
+      if (inp) inp.focus();
+      break;
+    }
+  }
+}
+
+// Live-input wiring
+document.addEventListener('focusout', function(e) {
+  const el = e.target;
+  if (!el.classList || !el.classList.contains('translation-input')) return;
+  if (el.readOnly || el.disabled) return;
+  const idx = parseInt(el.getAttribute('data-index') || '-1');
+  if (idx < 0) return;
+  checkTranslationItem(idx);
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter') return;
+  const el = e.target;
+  if (!el.classList || !el.classList.contains('translation-input')) return;
+  e.preventDefault();
+  el.blur();
+});
+
+document.addEventListener('input', function(e) {
+  const el = e.target;
+  if (!el.classList || !el.classList.contains('translation-input')) return;
+  const idx = parseInt(el.getAttribute('data-index') || '-1');
+  if (idx < 0 || itemState[idx] !== 'pending') return;
+  el.classList.remove('input--wrong');
+  const fb = document.getElementById('tr-feedback-' + idx);
+  if (fb) {fb.className = 'translation-item__feedback'; fb.innerHTML = '';}
+});
+
+_updateProgress();
+
+// Restore on reload — replay сохранённого состояния.
+//
+// Срабатывает в двух случаях:
+//   * is_completed=True (lesson пройден на 100%) → восстанавливаем все items
+//     в их terminal-стейт + сразу разворачиваем зелёную плашку завершения.
+//   * is_completed=False, но progress.data есть (был partial-submit
+//     с 2/3 или хуже) → восстанавливаем уже-проверенные items в их состояние
+//     (correct / given-up) и снова показываем баннер «Почти! Исправь…»
+//     с кнопкой «Исправить ошибку». Иначе на reload терялся бы прогресс
+//     и пользователь начинал бы тренировку с нуля.
+{% if progress and progress.data %}
+document.addEventListener('DOMContentLoaded', function _restoreSaved() {
+  const saved = {{ progress.data | tojson }};
+  if (!saved || !Array.isArray(saved.item_results)) return;
+  const isCompleted = {{ is_completed | tojson }};
+  _finalizing = true;
+  saved.item_results.forEach(function(res, idx) {
+    if (idx >= totalItems) return;
+    const itemEl = document.getElementById('tr-item-' + idx);
+    if (!itemEl) return;
+    const expected = res.answer || itemEl.dataset.answer || '';
+    const inp = document.getElementById('tr-answer-' + idx);
+    if (inp) inp.value = res.user_answer || '';
+    if (res.correct) _showCorrect(idx, expected);
+    else _showGivenUp(idx, res.user_answer || '', expected);
+  });
+  const progLabel = document.getElementById('tr-progress-label');
+  if (progLabel) {
+    progLabel.innerHTML = '{{ _("Правильно:") }} ' +
+      '<span id="tr-filled" data-progress-current>' + (saved.correct_items || 0) + '</span>' +
+      ' / <span data-progress-total>' + (saved.total_items || totalItems) + '</span>';
+  }
+  if (isCompleted) {
+    if (typeof window.showLessonCompletion === 'function') {
+      window.showLessonCompletion({score: saved.score || 100, silent: true});
+    }
+  } else {
+    // Partial-pass — снова покажем баннер «Почти!» с soft-retry кнопкой.
+    _renderPartialPrompt(saved.correct_items || 0, saved.total_items || totalItems);
   }
 });
+{% endif %}
 </script>
 {% endblock %}

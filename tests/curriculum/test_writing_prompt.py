@@ -213,13 +213,17 @@ class TestWritingPromptTemplate:
         assert "submitWriting()" in tpl
 
     def test_word_count_function_present(self):
+        """Live counter helper (renamed to updateWritingProgress in the
+        guided-writing rewrite — handles both word and sentence modes)."""
         tpl = _read_writing_template()
-        assert "updateWordCount()" in tpl
+        assert "updateWritingProgress()" in tpl
 
     def test_example_response_conditional_block(self):
+        """Example response is now rendered inside a <details> helper toggle
+        rather than a hidden example-section div."""
         tpl = _read_writing_template()
         assert "example_response" in tpl
-        assert "example-section" in tpl
+        assert "Показать пример" in tpl
 
     def test_min_words_variable_used(self):
         tpl = _read_writing_template()
@@ -461,15 +465,23 @@ class TestWritingPromptTask28:
         # Count <input type="checkbox"> elements rendered from checklist loop
         assert html.count('type="checkbox"') == 4
 
-    # --- 2-item minimum enforcement in JS ---
+    # --- Checklist threshold gating in JS ---
 
-    def test_template_js_enforces_minimum_two_checklist_items(self):
+    def test_template_js_enforces_min_checklist_threshold(self):
+        """Threshold is parametric (MIN_CHECKLIST), default 3 for guided
+        and 2 for structured. The submit gate compares checked items
+        against this constant via `< MIN_CHECKLIST`."""
         tpl = _read_writing_template()
-        assert "checkboxes.length < 2" in tpl
+        assert "MIN_CHECKLIST" in tpl
+        assert "checkboxes.length < MIN_CHECKLIST" in tpl
 
-    def test_template_contains_checklist_hint_element(self):
+    def test_template_contains_readiness_diagnostic(self):
+        """Old `checklist-hint` element replaced by a richer readiness
+        block (`wp-readiness`) that lists specific missing requirements
+        (sentences, name, age, country, etc.)."""
         tpl = _read_writing_template()
-        assert "checklist-hint" in tpl
+        assert "wp-readiness" in tpl
+        assert "wp-readiness-list" in tpl
 
     def test_template_checklist_label_mentions_minimum_two(self):
         tpl = _read_writing_template()
@@ -496,26 +508,31 @@ class TestWritingPromptTask28:
 
     # --- Live word count ---
 
-    def test_template_has_word_count_display_element(self):
+    def test_template_has_count_display_element(self):
+        """After the guided-writing rewrite the counter element is renamed
+        to `wp-count-display` (and shows sentences or words depending on
+        the lesson's mode)."""
         tpl = _read_writing_template()
-        assert "word-count-display" in tpl
+        assert "wp-count-display" in tpl
 
     def test_template_textarea_has_oninput_handler(self):
         tpl = _read_writing_template()
-        assert 'oninput="updateWordCount()"' in tpl
+        assert 'oninput="updateWritingProgress()"' in tpl
 
-    def test_template_update_word_count_function_defined(self):
+    def test_template_update_progress_function_defined(self):
         tpl = _read_writing_template()
-        assert "function updateWordCount()" in tpl
+        assert "function updateWritingProgress()" in tpl
 
-    def test_template_word_count_updates_display_correctly(self):
+    def test_template_progress_updates_display_correctly(self):
         tpl = _read_writing_template()
         # Verify the function updates the display element by ID
-        assert "word-count-display" in tpl
+        assert "wp-count-display" in tpl
         assert "display.textContent" in tpl
 
-    def test_template_shows_min_words_target_in_counter(self):
+    def test_template_shows_min_target_in_counter(self):
+        """Counter total may be sentences (`min_sentences`) or words
+        (`min_words`) — depending on mode. Both Jinja vars are present."""
         tpl = _read_writing_template()
-        # The word count bar shows "X / min_words слов"
-        assert "word-count-display" in tpl
+        assert "wp-count-display" in tpl
         assert "min_words" in tpl
+        assert "min_sentences" in tpl

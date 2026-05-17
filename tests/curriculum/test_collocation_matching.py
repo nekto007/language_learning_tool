@@ -229,32 +229,51 @@ class TestCollocationMatchingTemplate:
         tpl = _read_template()
         assert "collocation-translation-card" in tpl
 
-    def test_submit_function_present(self):
+    def test_live_handlers_present(self):
+        # Live-flow rewrite: per-pair check runs client-side via tryPair →
+        # handleCorrect / handleWrong. A final submit to the server happens
+        # once all pairs are matched (finalizeLesson).
         tpl = _read_template()
-        assert "submitMatching()" in tpl
+        assert "function tryPair" in tpl
+        assert "function handleCorrect" in tpl
+        assert "function handleWrong" in tpl
+        assert "function finalizeLesson" in tpl
 
     def test_result_area_present(self):
         tpl = _read_template()
         assert 'id="matching-result"' in tpl
 
-    def test_pair_results_area_present(self):
+    def test_matched_zone_present(self):
+        # "Готовые пары" zone replaces the old per-pair-results-list — it
+        # receives a row each time a pair is successfully matched live.
         tpl = _read_template()
-        assert 'id="pair-results-list"' in tpl
+        assert 'id="cm-matched-zone"' in tpl
+        assert 'id="cm-matched-list"' in tpl
 
     def test_shuffled_pairs_used(self):
         tpl = _read_template()
         assert "shuffled_pairs" in tpl
 
-    def test_reset_button_present(self):
+    def test_no_check_or_reset_buttons(self):
+        # Live-flow design: no batched "Проверить" / "Сбросить" buttons.
+        # Each pair is validated instantly; incorrect attempts auto-clear.
         tpl = _read_template()
-        assert "resetMatching()" in tpl
+        assert "submitMatching()" not in tpl
+        assert "resetMatching()" not in tpl
+        assert "id=\"submit-btn\"" not in tpl
+        assert "id=\"reset-btn\"" not in tpl
+
+    def test_correct_translation_embedded_for_client_check(self):
+        # phraseData carries the canonical answer so tryPair() can validate
+        # a (phrase, translation) click without a network round-trip.
+        tpl = _read_template()
+        assert "correctTranslation:" in tpl
 
     def test_uses_lesson_shell(self):
         tpl = _read_template()
         assert "lesson-shell" in tpl
         assert "lesson-shell__header" in tpl
         assert "lesson-shell__body" in tpl
-        assert "lesson-shell__actions" in tpl
 
     def test_uses_option_btn(self):
         tpl = _read_template()
@@ -264,11 +283,19 @@ class TestCollocationMatchingTemplate:
         tpl = _read_template()
         assert "lesson_type: 'collocation_matching'" in tpl
 
-    def test_result_uses_result_badge_classes(self):
+    def test_flash_classes_present(self):
+        # Live-feedback classes drive the green pulse / red shake transitions.
         tpl = _read_template()
-        assert "result-badge" in tpl
-        assert "result-badge--correct" in tpl
-        assert "result-badge--incorrect" in tpl
+        assert "option-btn--correct-flash" in tpl
+        assert "option-btn--wrong-flash" in tpl
+
+    def test_speech_synthesis_button_wired(self):
+        # P1.6 audio support — Web Speech Synthesis works in all major browsers
+        # without server-side audio file generation.
+        tpl = _read_template()
+        assert "speakPhrase" in tpl
+        assert "speechSynthesis" in tpl
+        assert "cm-speak-btn" in tpl
 
 
 # ---------------------------------------------------------------------------
@@ -343,9 +370,14 @@ class TestCollocationMatchingSubmitRoute:
         assert data["score"] == 100
         assert data["passed"] is True
 
-    def test_wrong_pairs_hide_correct_answer(self, app, db_session, test_user, client):
-        """On failure the route must strip canonical translations from
-        pair_results so a deliberate fail does not reveal the answer key."""
+    def test_wrong_pairs_expose_canonical_for_correction(self, app, db_session, test_user, client):
+        """On failure the route must return the canonical translation for every
+        pair so the template can render a "Правильно: <phrase> → <answer>"
+        correction line. The lesson is teaching — withholding the answer would
+        leave the learner with no way to learn from the mistake.
+        ``user_translation`` still echoes the learner's submission so the UI
+        can show what they actually picked side-by-side with the correction.
+        """
         lesson = _make_collocation_matching_lesson(db_session)
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/collocation-matching")
@@ -368,9 +400,7 @@ class TestCollocationMatchingSubmitRoute:
         for row in pr:
             phrase = row["phrase"]
             assert row.get("correct") is False
-            assert row.get("translation") == ""
-            # user_translation must echo the learner's submission, never the
-            # canonical answer — otherwise the answer key leaks via this field.
+            assert row.get("translation") == canonical[phrase]
             assert row.get("user_translation") == submitted[phrase]
             assert row.get("user_translation") != canonical[phrase]
 
@@ -388,12 +418,15 @@ class TestCollocationMatchingSubmitRoute:
         assert data["correct_items"] == 1
         assert data["total_items"] == 3
 
-    def test_partial_failure_preserves_correct_row_translation(
+    def test_partial_failure_returns_canonical_for_every_row(
         self, app, db_session, test_user, client
     ):
-        """On a failed-but-partial submission, correct rows must keep their
-        canonical translation so the UI can show the learner's win. Only
-        wrong-row translations are masked to avoid leaking the answer key."""
+        """On a failed-but-partial submission, every row keeps the canonical
+        translation. Correct rows show "✓ phrase → translation"; wrong rows
+        show "✗ phrase → user_translation" plus a "Правильно: phrase →
+        translation" correction underneath. Both branches need the canonical
+        answer in ``translation``.
+        """
         lesson = _make_collocation_matching_lesson(db_session)
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/collocation-matching")
@@ -409,7 +442,11 @@ class TestCollocationMatchingSubmitRoute:
         assert rows["make a decision"]["correct"] is True
         assert rows["make a decision"]["translation"] == "принять решение"
         assert rows["break the rules"]["correct"] is False
-        assert rows["break the rules"]["translation"] == ""
+        assert rows["break the rules"]["translation"] == "нарушать правила"
+        assert rows["break the rules"]["user_translation"] == "идти на риск"
+        assert rows["take a risk"]["correct"] is False
+        assert rows["take a risk"]["translation"] == "идти на риск"
+        assert rows["take a risk"]["user_translation"] == "нарушать правила"
 
     def test_correct_submission_marks_progress_completed(self, app, db_session, test_user, client):
         lesson = _make_collocation_matching_lesson(db_session)

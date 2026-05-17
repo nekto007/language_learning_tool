@@ -107,9 +107,13 @@ class TestListeningImmersionTemplate:
         assert "/curriculum/api/lesson/" in tpl
         assert "/submit" in tpl
 
-    def test_result_region_present(self):
+    def test_uses_global_completion_helper(self):
+        """Listening immersion uses the shared showLessonCompletion() helper
+        from lesson_base_template instead of a custom result region — so the
+        completion UI (icon, title, CTAs) is consistent with every other
+        lesson type."""
         tpl = _read_template()
-        assert 'id="li-result"' in tpl
+        assert "showLessonCompletion(" in tpl
 
 
 # ---------------------------------------------------------------------------

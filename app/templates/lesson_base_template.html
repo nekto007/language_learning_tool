@@ -232,9 +232,19 @@
   flex-shrink: 0;
 }
 
+.lsn-btn--primary,
+.lsn-btn--primary:link,
+.lsn-btn--primary:visited,
+.lsn-btn--primary:hover,
+.lsn-btn--primary:active {
+  /* Текст всегда белый — иначе в браузере с visited-link окраской
+     «Следующий урок» рендерится фиолетовым (default visited color)
+     поверх бирюзового градиента кнопки. */
+  color: #fff;
+}
+
 .lsn-btn--primary {
   background: var(--lsn-gradient);
-  color: #fff;
 }
 
 .lsn-btn--primary:hover {
@@ -243,7 +253,9 @@
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
-.lsn-btn--outline {
+.lsn-btn--outline,
+.lsn-btn--outline:link,
+.lsn-btn--outline:visited {
   background: var(--lsn-surface);
   color: var(--lsn-text-muted);
   border: 1.5px solid var(--lsn-border);
@@ -375,15 +387,20 @@
   margin-top: 0.625rem;
 }
 
-/* When the completion helper flips into plan-aware mode, suppress every
-   legacy curriculum-next surface so nothing (footer buttons, daily-plan
-   widget, inline standalone CTAs) competes with the plan CTAs inside
-   #lesson-completion. The helper also flips these via inline styles, but
-   the CSS rule is the belt to the JS braces. */
-#lesson-completion[data-completion-mode="plan"] ~ #lesson-footer,
-#lesson-completion[data-completion-mode="plan"] ~ #daily-plan-next-step {
+/* When the completion banner is visible (any mode), suppress the legacy
+   sticky footer so we don't render two «Следующий урок» buttons on the
+   same screen. Completion CTAs live inside #lesson-completion and the
+   footer's #complete-exercise duplicates them. The helper also flips
+   these via inline styles, but the CSS rule is the belt to the JS braces.
+   We key off the inline display:block that showLessonCompletion sets — the
+   default is display:none, so the rule only kicks in once completion is
+   shown. */
+#lesson-completion[style*="display: block"] ~ #lesson-footer,
+#lesson-completion[style*="display: block"] ~ #daily-plan-next-step {
   display: none !important;
 }
+/* Plan mode additionally hides the legacy standalone CTAs inside the
+   completion block — plan branch builds its own [data-plan-cta] buttons. */
 #lesson-completion[data-completion-mode="plan"] [data-standalone-cta] {
   display: none !important;
 }
@@ -429,7 +446,7 @@
     <a href="/learn/{{ lesson.module.level.code|lower }}/">{{ lesson.module.level.code }}</a>
     <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
     {% endif %}
-    <a href="/learn/{{ lesson.module.level.code|lower }}/#module-{{ lesson.module.number }}">Модуль {{ lesson.module.number }}</a>
+    <a href="{{ url_for('learn.learn_by_module', level_code=lesson.module.level.code|lower, module_number=lesson.module.number) }}">Модуль {{ lesson.module.number }}</a>
     <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
     <span class="breadcrumb-nav__current">{{ lesson.title }}</span>
   </nav>
@@ -461,10 +478,16 @@
         </span>
         <h1 class="lsn-title">{{ lesson.title }}</h1>
       </div>
-      <span class="lsn-header__counter">{{ lesson.number }}/{{ total_lessons|default(12) }}</span>
+      {# Derive the module's lesson count from the lesson's parent module
+         when the calling route does not pass ``total_lessons``. The legacy
+         default of 12 was incorrect after the per-module redesign — A1/1
+         now has 19 lessons, other modules also vary. ``lesson.module.lessons``
+         is eagerly loaded by most routes, so the count is essentially free. #}
+      {% set _total = total_lessons if total_lessons is defined and total_lessons else (lesson.module.lessons|length if lesson.module and lesson.module.lessons else 12) %}
+      <span class="lsn-header__counter">{{ _('Урок') }} {{ lesson.number }}/{{ _total }}</span>
     </div>
     <div class="lsn-progress">
-      <div class="lsn-progress__fill" style="width: {{ ((lesson.number / total_lessons|default(7)) * 100)|round }}%"></div>
+      <div class="lsn-progress__fill" style="width: {{ ((lesson.number / _total) * 100)|round }}%"></div>
     </div>
   </div>
 
@@ -503,15 +526,20 @@
     <div class="lsn-completion__grade" id="completion-grade"></div>
     <div class="lsn-completion__score" id="completion-score"></div>
     <div class="lsn-completion__actions" id="completion-actions">
+      {# Secondary "К списку уроков" first (left), primary "Следующий урок →"
+         second (right). LTR convention places the forward CTA closer to the
+         user's reading endpoint. The secondary link points to the parent
+         module's lessons index, not the global /learn/ root. #}
+      <a href="{% if lesson and lesson.module and lesson.module.level %}{{ url_for('learn.learn_by_module', level_code=lesson.module.level.code|lower, module_number=lesson.module.number) }}{% else %}/learn/{% endif %}"
+         class="lsn-btn lsn-btn--outline" data-standalone-cta="back-to-lessons">
+        {{ _('К списку уроков') }}
+      </a>
       {% if next_lesson %}
         <a href="/learn/{{ next_lesson.id }}/" class="lsn-btn lsn-btn--primary" data-standalone-cta="next-lesson">
           {{ _('Следующий урок') }}
           <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </a>
       {% endif %}
-      <a href="/learn/" class="lsn-btn lsn-btn--outline" data-standalone-cta="back-to-lessons">
-        {{ _('К урокам') }}
-      </a>
     </div>
     <!-- Lesson feedback widget -->
     <div class="lsn-feedback" id="lesson-feedback-widget" data-lesson-id="{{ lesson.id }}">
@@ -612,11 +640,20 @@ window.showLessonCompletion = function(opts) {
   function _revealCompletion(mode) {
     el.setAttribute('data-completion-mode', mode || 'standalone');
     el.style.display = 'block';
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Skip auto-scroll when the call comes from an "already-completed on
+    // page load" path — opts.silent === true. Otherwise the page jumps
+    // straight to the completion block before the user has had a chance
+    // to look at the lesson body.
+    if (!opts.silent) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
     document.dispatchEvent(new Event('dailyPlanStepComplete'));
   }
 
-  if (!planActive || typeof ctx.fetchNextSlot !== 'function') {
+  // `silent: true` означает «урок открыт повторно, уже завершён» — не
+  // надо дёргать plan-сервер и подменять CTA на «Следующий слот плана».
+  // Просто показываем стандартные «К списку уроков» / «Следующий урок».
+  if (opts.silent || !planActive || typeof ctx.fetchNextSlot !== 'function') {
     _revealCompletion('standalone');
     return;
   }

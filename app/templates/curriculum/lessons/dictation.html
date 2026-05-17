@@ -1,7 +1,7 @@
 {% extends "lesson_base_template.html" %}
 
 {% set component_name = _('Диктант') %}
-{% set instruction_text = _('Прослушайте аудио и запишите услышанный текст. Можно прослушать до 3 раз.') %}
+{% set instruction_text = _('Прослушайте аудио и заполните пропуски. Можно прослушать запись до 3 раз. На каждое слово даётся 3 попытки.') %}
 {% set block_description = _('Тренировка восприятия речи на слух') %}
 
 {% block extra_css %}
@@ -144,13 +144,18 @@
 .dictation-gap-feedback {
   position: absolute;
   right: 0;
-  bottom: -0.62rem;
-  color: var(--lsn-text-muted, #64748b);
-  font-size: 0.62rem;
-  font-weight: 800;
+  bottom: -0.72rem;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
   line-height: 1;
   white-space: nowrap;
+  letter-spacing: 0.06em;
 }
+/* Pip-индикатор оставшихся попыток: ●●● = 3, ●●○ = 2, ●○○ = 1.
+   Визуально честнее, чем голая цифра «3», и не требует подписи. */
+.dictation-gap-feedback .pip-on { color: #0ea5e9; }
+.dictation-gap-feedback .pip-off { color: #cbd5e1; }
 .dictation-gap-feedback--correct {
   color: #047857;
   font-weight: 700;
@@ -190,9 +195,9 @@
     </audio>
     <div class="dictation-replay-row">
       <button class="dictation-replay-btn" id="replay-btn" onclick="replayAudio()" type="button">
-        <i class="fas fa-redo"></i>
-        {{ _('Воспроизвести ещё раз') }}
-        <span class="dictation-replay-count" id="replay-count-label">
+        <i class="fas fa-redo" id="replay-btn-icon"></i>
+        <span id="replay-btn-text">{{ _('Воспроизвести') }}</span>
+        <span class="dictation-replay-count" id="replay-count-label" hidden>
           ({{ _('осталось') }} <span id="replays-left">{{ max_replays }}</span>)
         </span>
       </button>
@@ -206,7 +211,7 @@
     {% if hint_chars > 0 %}
     <p class="dictation-hint-note">
       <i class="fas fa-info-circle"></i>
-      {{ _('Слушайте аудио и заполните пропуски. После 3 ошибок слово раскроется и урок не будет засчитан.') }}
+      {{ _('Слушайте аудио и заполняйте пропуски. На каждое слово — 3 попытки (точки под полем показывают, сколько осталось). Если слово откроется как подсказка, урок не будет засчитан как пройденный — но можно попробовать ещё раз.') }}
     </p>
     {% endif %}
     <div class="dictation-gap-panel" aria-label="{{ _('Пропуски диктанта') }}">
@@ -240,15 +245,18 @@
           <span
             class="dictation-gap-feedback{% if completed_value %} dictation-gap-feedback--correct{% endif %}"
             data-index="{{ segment.index }}"
-          >{{ '✓' if completed_value else '3' }}</span>
+            title="{{ _('Осталось попыток') }}: {{ max_word_attempts }}"
+            aria-label="{{ _('Осталось попыток') }}: {{ max_word_attempts }}"
+          >{% if completed_value %}✓{% else %}<span class="pip-on">●</span><span class="pip-on">●</span><span class="pip-on">●</span>{% endif %}</span>
         </span>
         {% endif %}
         {% endfor %}
       </div>
     </div>
     <div class="dictation-input-meta">
-      <span>
-        {{ _('Проверено:') }} <strong id="dictation-word-count">0</strong> / <span id="dictation-target-word-count">{{ word_items|length }}</span>
+      <span id="dictation-progress-label-wrap">
+        <span id="dictation-progress-label">{{ _('Заполнено:') }}</span>
+        <strong id="dictation-word-count">0</strong> / <span id="dictation-target-word-count">{{ word_items|length }}</span>
       </span>
     </div>
 
@@ -280,6 +288,12 @@ function replayAudio() {
   audio.play().catch(() => {});
   replayCount++;
   const left = maxReplays - replayCount;
+  // После первого запуска кнопка переименовывается в «Воспроизвести ещё раз»
+  // и показывается счётчик (осталось N). До первого запуска — просто «Воспроизвести».
+  const textEl = document.getElementById('replay-btn-text');
+  if (textEl) textEl.textContent = '{{ _("Воспроизвести ещё раз") }}';
+  const countEl = document.getElementById('replay-count-label');
+  if (countEl) countEl.hidden = false;
   document.getElementById('replays-left').textContent = left;
   if (left === 0) {
     const btn = document.getElementById('replay-btn');
@@ -304,6 +318,25 @@ function setGapFeedback(index, text, state) {
   if (!feedback) return;
   feedback.textContent = text;
   feedback.className = 'dictation-gap-feedback' + (state ? ` dictation-gap-feedback--${state}` : '');
+}
+
+// Specialised renderer for the «attempts left» pip-indicator. Replaces
+// numeric «3 / 2 / 1» with «●●● / ●●○ / ●○○» — instantly readable.
+function setGapAttemptsPips(index, attemptsLeft) {
+  const feedback = getGapFeedback(index);
+  if (!feedback) return;
+  const total = maxWordAttempts;
+  const on = Math.max(0, Math.min(total, attemptsLeft));
+  let html = '';
+  for (let i = 0; i < total; i++) {
+    html += i < on
+      ? '<span class="pip-on">●</span>'
+      : '<span class="pip-off">○</span>';
+  }
+  feedback.innerHTML = html;
+  feedback.className = 'dictation-gap-feedback dictation-gap-feedback--wrong';
+  feedback.title = '{{ _("Осталось попыток") }}: ' + on;
+  feedback.setAttribute('aria-label', '{{ _("Осталось попыток") }}: ' + on);
 }
 
 function updateDictationInputState() {
@@ -374,7 +407,7 @@ async function checkDictationWord(index) {
       setGapFeedback(index, '×', 'failed');
     } else {
       card.dataset.status = 'pending';
-      setGapFeedback(index, String(data.attempts_left), 'wrong');
+      setGapAttemptsPips(index, Number(data.attempts_left));
       input.focus();
       input.select();
     }
@@ -443,6 +476,12 @@ function showResults(data) {
   // Score badge
   const score = data.score || 0;
   const passed = data.passed || false;
+  // Progress-лейбл переключается на «Правильно: X / N» — после проверки
+  // показываем фактический результат, а не количество заполненных полей.
+  const progLabel = document.getElementById('dictation-progress-label');
+  const wordCounter = document.getElementById('dictation-word-count');
+  if (progLabel) progLabel.textContent = '{{ _("Правильно:") }}';
+  if (wordCounter) wordCounter.textContent = String(data.correct_words || 0);
   const badgeClass = passed ? 'dictation-score-badge--pass' : 'dictation-score-badge--fail';
   const icon = passed ? 'fa-check-circle' : 'fa-times-circle';
   const label = data.failed_by_attempt_limit
@@ -479,19 +518,20 @@ function showResults(data) {
   }
 
   nextArea.innerHTML = '';
-  if (passed && data.next_lesson_url) {
-    nextArea.innerHTML = `
-      <a href="${data.next_lesson_url}" class="btn btn-success">
-        <i class="fas fa-arrow-right"></i> {{ _("Следующий урок") }}
-      </a>`;
-  } else if (!passed) {
+  if (passed) {
+    // На passed используем общую плашку «Урок завершён!» из lesson_base —
+    // те же CTA «К списку уроков» / «Следующий урок», что и в других уроках.
+    if (typeof window.showLessonCompletion === 'function') {
+      window.showLessonCompletion({ score: score, silent: data._silent === true });
+    }
+  } else {
     nextArea.innerHTML = `
       <button class="btn btn-primary" type="button" onclick="window.location.reload()">
         <i class="fas fa-redo"></i> {{ _("Начать заново") }}
       </button>`;
   }
 
-  resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (!passed) resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function escapeHtml(str) {
@@ -503,13 +543,22 @@ function escapeHtml(str) {
 document.addEventListener('DOMContentLoaded', function() {
   updateDictationInputState();
   if (initialDictationResult) {
-    showResults(initialDictationResult);
+    // Restore on reload: silent=true чтобы не дёргать страницу авто-скроллом
+    // в случае уже пройденного урока.
+    showResults(Object.assign({}, initialDictationResult, {_silent: true}));
   }
-  // Auto-play on load for better UX (muted to avoid autoplay policy issues)
   const audio = document.getElementById('dictation-audio');
   if (audio) {
-    audio.addEventListener('ended', function() {
-      // Audio finished naturally — not counted as a replay
+    // Первый запуск (хоть нативной play-кнопкой, хоть нашей) переключает
+    // кнопку с «Воспроизвести» на «Воспроизвести ещё раз».
+    let firstPlayDetected = false;
+    audio.addEventListener('play', function() {
+      if (firstPlayDetected) return;
+      firstPlayDetected = true;
+      const textEl = document.getElementById('replay-btn-text');
+      if (textEl) textEl.textContent = '{{ _("Воспроизвести ещё раз") }}';
+      const countEl = document.getElementById('replay-count-label');
+      if (countEl) countEl.hidden = false;
     });
   }
 });

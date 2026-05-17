@@ -155,10 +155,15 @@ class TestShadowReadingTemplate:
         tpl = _read_template()
         assert '<audio' in tpl
 
-    def test_self_assess_checkbox_present(self):
+    def test_self_assess_three_button_present(self):
+        """Self-assessment is a 3-button radio group (Легко/Нормально/Сложно)
+        rather than a binary checkbox — gives finer feedback for honor-system
+        speaking practice."""
         tpl = _read_template()
-        assert 'self-assess-checkbox' in tpl
-        assert 'type="checkbox"' in tpl
+        assert 'sr-assess-btn' in tpl
+        assert 'data-rating="easy"' in tpl
+        assert 'data-rating="ok"' in tpl
+        assert 'data-rating="hard"' in tpl
 
     def test_submit_button_disabled_initially(self):
         tpl = _read_template()
@@ -173,9 +178,10 @@ class TestShadowReadingTemplate:
         assert 'phase-2' in tpl
 
     def test_self_assess_required_before_submit(self):
+        """Submit must be disabled until the learner picks a rating."""
         tpl = _read_template()
-        # JS: btn.disabled = !cb.checked
-        assert 'btn.disabled = !cb.checked' in tpl
+        # JS: submitBtn.disabled = !assessRating
+        assert 'submitBtn.disabled = !assessRating' in tpl
 
     def test_template_shows_translation(self):
         tpl = _read_template()
@@ -208,9 +214,10 @@ class TestShadowReadingTemplate:
         assert 'retryAssess()' in tpl
 
     def test_retry_resets_self_assess_in_js(self):
+        """retryAssess() must clear the chosen rating and re-disable submit."""
         tpl = _read_template()
-        # retryAssess() must uncheck the checkbox
-        assert 'cb.checked = false' in tpl
+        assert "assessRating = ''" in tpl
+        assert 'sr-assess-btn--selected' in tpl  # class removed on retry
 
     def test_word_highlighting_guard_present(self):
         # initWordHighlighting must handle empty wordTimestamps gracefully

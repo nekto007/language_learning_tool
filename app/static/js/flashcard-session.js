@@ -124,7 +124,17 @@ class FlashcardSession {
     init() {
         this._cacheDom();
         this._bindEvents();
+        this._bindRetryModal();
         this._removeTapDelay();
+
+        // If lesson already completed — skip loading the flashcard flow
+        // entirely and show the celebration screen straight away using the
+        // saved stats. The «Начать заново» button lets the user re-do the
+        // lesson via a confirm-modal → reset=true reload.
+        if (this.config.isCompleted && this.config.completedStats) {
+            this._showCelebrationFromSavedStats(this.config.completedStats);
+            return;
+        }
 
         // If nothing to study, show message immediately
         if (this.config.nothingToStudy) {
@@ -138,6 +148,102 @@ class FlashcardSession {
 
         // Load cards
         this._loadCards();
+    }
+
+    /**
+     * Bind the «Начать заново» modal — opens on retry button click and
+     * navigates to ?reset=true on confirm. Only present when
+     * `fc_retry_lesson_url` was supplied by the route.
+     */
+    _bindRetryModal() {
+        const btn = document.getElementById('fc-retry-btn');
+        const modal = document.getElementById('fc-retry-modal');
+        if (!btn || !modal) return;
+        const open = () => {
+            modal.hidden = false;
+            document.body.style.overflow = 'hidden';
+            const confirmBtn = document.getElementById('fc-retry-confirm-btn');
+            if (confirmBtn) confirmBtn.focus();
+        };
+        const close = () => {
+            modal.hidden = true;
+            document.body.style.overflow = '';
+        };
+        btn.addEventListener('click', open);
+        const confirmBtn = document.getElementById('fc-retry-confirm-btn');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', () => {
+                const url = btn.dataset.retryUrl || this.config.retryLessonUrl;
+                if (url) window.location.href = url;
+            });
+        }
+        modal.querySelectorAll('[data-fc-retry-cancel]').forEach((el) => {
+            el.addEventListener('click', close);
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !modal.hidden) close();
+        });
+    }
+
+    /**
+     * Replay the celebration screen for an already-completed lesson — no
+     * cards re-played, just the same final numbers the learner saw last time.
+     */
+    _showCelebrationFromSavedStats(saved) {
+        // Hide the in-progress UI bits.
+        const loader = this.els.loadingSpinner;
+        if (loader) loader.style.display = 'none';
+        const progressSection = this.els.progressSection;
+        if (progressSection) progressSection.style.display = 'none';
+        if (this.els.endSessionBtn) this.els.endSessionBtn.style.display = 'none';
+        // Hide the actual card faces (they live inside #flashcard-view
+        // alongside #session-complete) — иначе обе стороны карты вылезут
+        // сверху celebration-экрана. Сам #flashcard-view ОСТАВЛЯЕМ
+        // видимым, потому что #session-complete лежит внутри него.
+        const cardFront = document.getElementById('card-front');
+        const cardBack = document.getElementById('card-back');
+        if (cardFront) cardFront.style.display = 'none';
+        if (cardBack) cardBack.style.display = 'none';
+        if (this.els.flashcardView) this.els.flashcardView.style.display = 'block';
+
+        const sessionComplete = document.getElementById('session-complete');
+        if (sessionComplete) sessionComplete.style.display = 'flex';
+
+        const titleEl = document.getElementById('celebration-title');
+        if (titleEl) titleEl.textContent = 'Урок уже пройден';
+
+        const studied = Math.max(0, Number(saved.cards_studied) || 0);
+        const correct = Math.max(0, Number(saved.correct) || 0);
+        const percentage = Math.max(0, Number(saved.accuracy) || 0);
+        // Без анимации: на re-view не имеет смысла дёргать счётчики.
+        const setText = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = String(val);
+        };
+        setText('stats-words', studied);
+        setText('stats-correct', correct);
+        setText('stats-total', studied);
+        setText('stats-score', Math.round(percentage));
+
+        const ring = document.querySelector('.accuracy-progress');
+        if (ring) {
+            const circumference = 213.6;
+            ring.style.strokeDashoffset = circumference - (percentage / 100) * circumference;
+        }
+
+        // XP/level — берём актуальные (мог вырасти от других уроков).
+        setText('xp-earned-amount', 0);
+        const xpBadge = document.querySelector('.xp-badge');
+        if (xpBadge) xpBadge.style.display = 'none'; // на re-view не показываем «+0 XP»
+        setText('current-level', saved.level || 1);
+
+        const continueBtn = document.getElementById('fc-continue-btn');
+        if (continueBtn) {
+            continueBtn.href = this.config.onCompleteUrl;
+            const span = continueBtn.querySelector('span');
+            if (span) span.textContent = this.config.onCompleteText;
+            else continueBtn.textContent = this.config.onCompleteText;
+        }
     }
 
     /**
@@ -1067,8 +1173,15 @@ class FlashcardSession {
         // Animate stats
         this.animateValue('stats-words', 0, wordsStudied, 800);
         this.animateValue('stats-correct', 0, correct, 800);
+        this.animateValue('stats-total', 0, wordsStudied, 800);
         this.animateValue('stats-score', 0, percentage, 1000);
         this.animateValue('xp-earned-amount', 0, xpEarned, 1200);
+
+        // Hide the header "Завершить" button on the completion screen —
+        // it’s for early termination mid-session, not for a finished session.
+        if (this.els.endSessionBtn) {
+            this.els.endSessionBtn.style.display = 'none';
+        }
 
         // Animate accuracy ring
         setTimeout(() => {
@@ -1100,7 +1213,14 @@ class FlashcardSession {
         const continueBtn = document.getElementById('fc-continue-btn');
         if (continueBtn) {
             continueBtn.href = this.config.onCompleteUrl;
-            continueBtn.textContent = this.config.onCompleteText;
+            // Ставим текст только в <span> — иначе разметка с SVG-стрелкой
+            // полностью затиралась бы textContent'ом.
+            const span = continueBtn.querySelector('span');
+            if (span) {
+                span.textContent = this.config.onCompleteText;
+            } else {
+                continueBtn.textContent = this.config.onCompleteText;
+            }
         }
 
         // Launch confetti

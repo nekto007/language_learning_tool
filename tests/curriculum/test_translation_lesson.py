@@ -81,18 +81,24 @@ class TestTranslationTemplate:
         tpl = _read_translation_template()
         assert len(tpl) > 100
 
-    def test_russian_source_variable_present(self):
+    def test_renders_item_loop(self):
+        """Translation is now a guided multi-item flow — template iterates
+        `items` and renders one card per source sentence."""
         tpl = _read_translation_template()
-        assert "{{ russian }}" in tpl
+        assert "for item in items" in tpl
+        assert "item.russian" in tpl
 
     def test_input_element_present(self):
         tpl = _read_translation_template()
-        assert 'id="translation-answer"' in tpl
+        assert "class=\"translation-input\"" in tpl
         assert 'type="text"' in tpl
 
-    def test_submit_button_present(self):
+    def test_auto_finalize_present(self):
+        """No manual submit button — answers are auto-submitted once every
+        item is in a terminal state (correct / given-up)."""
         tpl = _read_translation_template()
-        assert "submitTranslation()" in tpl
+        assert "_submitFinal" in tpl
+        assert "_maybeFinalize" in tpl
 
     def test_hint_words_section_conditionally_rendered(self):
         tpl = _read_translation_template()
@@ -100,20 +106,24 @@ class TestTranslationTemplate:
         assert "translation-chips" in tpl
 
     def test_correct_answer_reveal_present(self):
+        """Wrong-answer reveal block uses translation-item__reveal class."""
         tpl = _read_translation_template()
-        assert "correct-answer-reveal" in tpl
+        assert "translation-item__reveal" in tpl
 
     def test_js_show_result_function_present(self):
         tpl = _read_translation_template()
-        assert "function showResult(" in tpl
+        assert "function showResults(" in tpl
 
     def test_result_badge_container(self):
+        """Result-badge class is still in the shell-stub div for taxonomy."""
         tpl = _read_translation_template()
-        assert 'id="result-badge"' in tpl
+        assert "result-badge" in tpl
 
-    def test_next_lesson_area_present(self):
+    def test_uses_global_completion_helper(self):
+        """Final summary is delegated to the shared showLessonCompletion()
+        helper from lesson_base_template — same CTA as every other lesson."""
         tpl = _read_translation_template()
-        assert "translation-next-area" in tpl
+        assert "showLessonCompletion(" in tpl
 
     def test_enter_key_submits(self):
         tpl = _read_translation_template()
@@ -223,8 +233,12 @@ class TestTranslationLessonRoute:
         _login(client, test_user)
         resp = client.get(f"/curriculum/lesson/{lesson.id}/translation")
         html = resp.get_data(as_text=True)
-        # chips section only rendered when hint_words is truthy
-        assert "translation-chips-section" not in html
+        # The chips block is conditional on `item.hint_words` — when absent,
+        # no actual `<div class="translation-chips-section">` is rendered.
+        # CSS class names may leak via inline JS (querySelector template
+        # literals), so we check for the actual DOM-opening tags instead.
+        assert '<div class="translation-chips-section' not in html
+        assert '<button\n              class="chip chip--clickable translation-chip"' not in html
 
     def test_unauthenticated_redirects(self, app, db_session, client):
         lesson = _make_translation_lesson(db_session)
@@ -244,31 +258,39 @@ class TestTranslationSubmitRoute:
             content_type="application/json",
         )
 
-    def test_correct_answer_returns_is_correct_true(self, app, db_session, test_user, client):
+    def test_correct_answer_returns_passed_true(self, app, db_session, test_user, client):
+        """Translation now uses the multi-item grading contract:
+        {passed, score, correct_items, total_items, item_results}."""
         lesson = _make_translation_lesson(db_session, english="I love cats")
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/translation")
         resp = self._submit(client, lesson.id, "I love cats")
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["is_correct"] is True
+        assert data["passed"] is True
+        assert data["correct_items"] == 1
+        assert data["total_items"] == 1
 
-    def test_wrong_answer_returns_is_correct_false(self, app, db_session, test_user, client):
+    def test_wrong_answer_returns_passed_false(self, app, db_session, test_user, client):
         lesson = _make_translation_lesson(db_session, english="I love cats")
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/translation")
         resp = self._submit(client, lesson.id, "She hates dogs")
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["is_correct"] is False
+        assert data["passed"] is False
+        assert data["correct_items"] == 0
 
-    def test_wrong_answer_includes_correct_answer(self, app, db_session, test_user, client):
+    def test_wrong_answer_reveals_correct_in_item_results(self, app, db_session, test_user, client):
+        """Per-item correct answer is exposed via item_results[i].answer
+        for the client to reveal in the «правильно: …» strip."""
         lesson = _make_translation_lesson(db_session, english="I love cats")
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/translation")
         resp = self._submit(client, lesson.id, "wrong answer here")
         data = resp.get_json()
-        assert data.get("correct_answer") == "I love cats"
+        assert data["item_results"][0]["answer"] == "I love cats"
+        assert data["item_results"][0]["correct"] is False
 
     def test_correct_answer_marks_progress_completed(self, app, db_session, test_user, client):
         lesson = _make_translation_lesson(db_session, english="I love cats")

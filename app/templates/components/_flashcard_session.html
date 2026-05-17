@@ -296,7 +296,7 @@
                 <div class="celebration-stats">
                     <div class="stat-card stat-cards-studied">
                         <div class="stat-value" id="stats-words">0</div>
-                        <div class="stat-label">карточек изучено</div>
+                        <div class="stat-label">карточек пройдено</div>
                     </div>
 
                     <div class="stat-card stat-accuracy">
@@ -321,7 +321,11 @@
                     </div>
 
                     <div class="stat-card stat-correct">
-                        <div class="stat-value" id="stats-correct">0</div>
+                        {# X / Y вместо одиночного X — пользователь сразу
+                           видит долю правильных от общего числа. #}
+                        <div class="stat-value">
+                            <span id="stats-correct">0</span><span class="stat-value__divider">/</span><span id="stats-total">0</span>
+                        </div>
                         <div class="stat-label">правильных</div>
                     </div>
                 </div>
@@ -345,22 +349,64 @@
                 </div>
                 <span id="total-xp" style="display:none;">0</span>
 
-                <!-- Action buttons -->
-                <div class="celebration-actions" data-celebration-actions data-completion-mode="standalone">
+                {# Unified completion CTAs: «К списку уроков» (outline) +
+                   «Следующий урок» (primary). Совпадает с lesson_base_template,
+                   чтобы итоговый экран любого урока выглядел одинаково. #}
+                <div class="celebration-actions celebration-actions--unified"
+                     data-celebration-actions data-completion-mode="standalone">
                     <div id="daily-plan-next-step"></div>
 
-                    <!-- Extra study button (shown conditionally) -->
                     <a href="#" id="session-extra-study-link" class="btn-extra-study" style="display: none;">
                         <span class="btn-icon">🔥</span>
                         Ещё карточки
                     </a>
 
-                    <!-- Continue / back button -->
-                    <a href="{{ fc_on_complete_url|default('/') }}" id="fc-continue-btn" class="btn-back-home">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-                        <span>{{ fc_on_complete_text|default('К обучению') }}</span>
+                    {% set _back_url = fc_back_url|default('/learn/') %}
+                    <a href="{{ _back_url }}" class="lsn-btn lsn-btn--outline" id="fc-back-btn">
+                        {{ _('К списку уроков') }}
+                    </a>
+                    {% if fc_retry_lesson_url is defined and fc_retry_lesson_url %}
+                    {# Retry-кнопка для повторного прохождения урока. Только в
+                       curriculum-контексте (route передаёт fc_retry_lesson_url).
+                       В обычной /study сессии её нет — там нет «урока» как сущности. #}
+                    <button type="button" class="lsn-btn lsn-btn--outline" id="fc-retry-btn"
+                            data-retry-url="{{ fc_retry_lesson_url }}">
+                        <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+                        {{ _('Начать заново') }}
+                    </button>
+                    {% endif %}
+                    <a href="{{ fc_on_complete_url|default('/') }}" id="fc-continue-btn"
+                       class="lsn-btn lsn-btn--primary">
+                        <span>{{ fc_on_complete_text|default(_('Следующий урок')) }}</span>
+                        <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                     </a>
                 </div>
+
+                {% if fc_retry_lesson_url is defined and fc_retry_lesson_url %}
+                {# Confirm-модалка для retry. По UX-дизайну как у quiz.html —
+                   in-page модалка вместо native confirm(), чтобы не была
+                   подавлена браузером. #}
+                <div class="fc-retry-modal" id="fc-retry-modal" hidden role="dialog"
+                     aria-modal="true" aria-labelledby="fc-retry-title">
+                    <div class="fc-retry-modal__backdrop" data-fc-retry-cancel></div>
+                    <div class="fc-retry-modal__dialog" role="document">
+                        <h3 class="fc-retry-modal__title" id="fc-retry-title">
+                            ⚠️ {{ _('Начать урок заново?') }}
+                        </h3>
+                        <p class="fc-retry-modal__body">
+                            {{ _('Прогресс прохождения урока будет сброшен, и карточки покажутся снова с начала. Ваш прогресс по словам в SRS (что вы уже знаете) сохранится.') }}
+                        </p>
+                        <div class="fc-retry-modal__actions">
+                            <button type="button" class="lsn-btn lsn-btn--outline" data-fc-retry-cancel>
+                                {{ _('Отмена') }}
+                            </button>
+                            <button type="button" class="lsn-btn lsn-btn--danger" id="fc-retry-confirm-btn">
+                                {{ _('Начать заново') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
 
                 <span id="session-extra-study-text" style="display: none;"></span>
             </div>
@@ -402,6 +448,9 @@
             deckId: {{ fc_deck_id | tojson if fc_deck_id is defined and fc_deck_id else 'null' }},
             extraStudy: {{ fc_extra_study | tojson if fc_extra_study is defined else 'false' }},
             lessonMode: {{ fc_lesson_mode | tojson if fc_lesson_mode is defined else 'false' }},
+            isCompleted: {{ fc_is_completed | tojson if fc_is_completed is defined else 'false' }},
+            completedStats: {{ fc_completed_stats | tojson if fc_completed_stats is defined and fc_completed_stats else 'null' }},
+            retryLessonUrl: {{ fc_retry_lesson_url | tojson if fc_retry_lesson_url is defined and fc_retry_lesson_url else 'null' }},
         });
     });
 </script>
