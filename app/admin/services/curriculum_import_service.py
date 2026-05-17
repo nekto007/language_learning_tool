@@ -324,12 +324,18 @@ class CurriculumImportService:
                     'exercises': lesson_data.get('exercises', []) or content.get('exercises', [])
                 }
                 processed_grammar = CurriculumImportService.process_grammar(grammar_input)
-                # Сохраняем дополнительные поля из grammar_explanation
+                # Сохраняем дополнительные поля из grammar_explanation.
+                # tldr — массив строк "Главное за 20 секунд" (опциональный, может
+                # отсутствовать в старых уроках). Без явного pick он бы терялся
+                # при импорте, потому что importer переписывает lesson.content
+                # из processed_grammar, а не сливает поля.
                 if grammar_explanation:
                     processed_grammar['title'] = grammar_explanation.get('title', '')
                     processed_grammar['sections'] = grammar_explanation.get('sections', [])
                     processed_grammar['important_notes'] = grammar_explanation.get('important_notes', [])
                     processed_grammar['summary'] = grammar_explanation.get('summary', {})
+                    if grammar_explanation.get('tldr'):
+                        processed_grammar['tldr'] = grammar_explanation['tldr']
                 processed_grammar['xp_reward'] = lesson_data.get('xp_reward')
                 lesson.content = processed_grammar
 

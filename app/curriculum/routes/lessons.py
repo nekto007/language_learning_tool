@@ -636,6 +636,9 @@ def dictation_lesson(lesson_id: int):
             flag_modified(progress, 'data')
             db.session.commit()
 
+    next_lesson = _get_next_lesson_for_completion(lesson)
+    is_completed = bool(progress and progress.status == 'completed')
+
     return render_template(
         'curriculum/lessons/dictation.html',
         lesson=lesson,
@@ -650,6 +653,8 @@ def dictation_lesson(lesson_id: int):
         completed_gap_values=completed_gap_values,
         max_replays=_DICTATION_MAX_REPLAYS,
         max_word_attempts=_DICTATION_MAX_WORD_ATTEMPTS,
+        next_lesson=next_lesson,
+        is_completed=is_completed,
     )
 
 
@@ -760,12 +765,17 @@ def audio_fill_blank_lesson(lesson_id: int):
             logger.error(f"Error creating audio_fill_blank progress: {e}")
             db.session.rollback()
 
+    next_lesson = _get_next_lesson_for_completion(lesson)
+    is_completed = bool(progress and progress.status == 'completed')
+
     return render_template(
         'curriculum/lessons/audio_fill_blank.html',
         lesson=lesson,
         progress=progress,
         audio_url=audio_url,
         items=items,
+        next_lesson=next_lesson,
+        is_completed=is_completed,
     )
 
 
@@ -832,6 +842,55 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
     return result
 
 
+def _translation_items_from_content(content: dict) -> list:
+    """Normalise translation content into a list of items.
+
+    Multi-item is the new shape (preferred for guided practice). Legacy
+    single-item content gets wrapped into a one-element list so the template
+    can branch on items uniformly.
+    """
+    items = content.get('items') if isinstance(content, dict) else None
+    if isinstance(items, list) and items:
+        return [
+            {
+                'russian': (it.get('russian') or '').strip(),
+                'english': (it.get('english') or '').strip(),
+                'hint_words': it.get('hint_words') or [],
+                'alternatives': it.get('alternatives') or [],
+            }
+            for it in items
+            if isinstance(it, dict) and it.get('russian') and it.get('english')
+        ]
+    # Legacy single-item shape
+    russian = (content.get('russian') or '').strip()
+    english = (content.get('english') or '').strip()
+    if russian and english:
+        return [{
+            'russian': russian,
+            'english': english,
+            'hint_words': content.get('hint_words') or [],
+            'alternatives': content.get('alternatives') or [],
+        }]
+    return []
+
+
+def _translation_mode(content: dict, items: list) -> str:
+    """Resolve translation lesson difficulty mode.
+
+    Explicit ``mode`` in content wins. Otherwise auto-derive: any item with
+    hint_words → ``guided`` (A1/A2), else → ``open`` (B1/B2). ``rubric``
+    (C1/C2) requires explicit opt-in via content since it implies a
+    different grader path.
+    """
+    explicit = (content or {}).get('mode') if isinstance(content, dict) else None
+    if explicit in ('guided', 'open', 'rubric'):
+        return explicit
+    for it in (items or []):
+        if it.get('hint_words'):
+            return 'guided'
+    return 'open'
+
+
 @lessons_bp.route('/lesson/<int:lesson_id>/translation')
 @login_required
 @require_lesson_access
@@ -843,14 +902,26 @@ def translation_lesson(lesson_id: int):
         return redirect('/learn/')
 
     content = lesson.content or {}
-    russian = content.get('russian', '')
-    correct_answer = content.get('english', '')
-    hint_words = content.get('hint_words') or []
+    items = _translation_items_from_content(content)
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+
+    # ?reset=true сбрасывает LessonProgress, чтобы пользователь мог
+    # перепройти урок-тренировку (после partial-score 2/3, например).
+    # Прогресс отдельных слов в SRS отдельная история — он живёт в
+    # UserCardDirection и не трогается. XP не дублируется (idempotent
+    # dedup в maybe_award_curriculum_xp / writing_xp).
+    if request.args.get('reset') == 'true' and progress and progress.status in ('completed', 'in_progress'):
+        progress.status = 'in_progress'
+        progress.score = None
+        progress.data = None
+        progress.completed_at = None
+        progress.last_activity = datetime.now(UTC)
+        db.session.commit()
+
     if not progress:
         try:
             progress = LessonProgress(
@@ -866,53 +937,79 @@ def translation_lesson(lesson_id: int):
             logger.error(f"Error creating translation progress: {e}")
             db.session.rollback()
 
+    is_completed = bool(progress and progress.status == 'completed')
+    next_lesson = _get_next_lesson_for_completion(lesson)
+    mode = _translation_mode(content, items)
+
     return render_template(
         'curriculum/lessons/translation.html',
         lesson=lesson,
         progress=progress,
-        russian=russian,
-        correct_answer=correct_answer,
-        hint_words=hint_words,
+        items=items,
+        is_completed=is_completed,
+        next_lesson=next_lesson,
+        mode=mode,
     )
 
 
 def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
-    """Grade a translation submission, update progress, award XP, return result."""
-    from app.curriculum.grading import grade_translation
+    """Grade a translation submission, update progress, award XP, return result.
+
+    Supports two payload shapes:
+      * Multi-item: ``{"answers": ["...", "...", ...]}`` (preferred)
+      * Single-item legacy: ``{"user_answer": "..."}``
+    """
+    from app.curriculum.grading import grade_translation, grade_translation_multi
     from app.curriculum.models import save_writing_attempt
     from app.curriculum.services.progress_service import ProgressService
 
     content = lesson.content or {}
-    correct_answer = content.get('english', '')
-    user_answer = (data.get('user_answer', '') or '')[:2000]
+    items = _translation_items_from_content(content)
 
-    grade = grade_translation(user_answer, correct_answer)
-    passed = grade['is_correct']
+    answers_payload = data.get('answers')
+    if isinstance(answers_payload, list) and items:
+        user_answers = [(str(a) if a is not None else '')[:2000] for a in answers_payload]
+        grade = grade_translation_multi(user_answers, items)
+        passed = grade['passed']
+        combined_text = ' | '.join(a.strip() for a in user_answers if a and a.strip())
+    else:
+        # Legacy single-item path
+        legacy_correct = items[0]['english'] if items else (content.get('english') or '')
+        user_answer = (data.get('user_answer', '') or '')[:2000]
+        single = grade_translation(user_answer, legacy_correct)
+        passed = single['is_correct']
+        grade = {
+            'score': 100 if passed else 0,
+            'passed': passed,
+            'correct_items': 1 if passed else 0,
+            'total_items': 1,
+            'item_results': [{
+                'answer': legacy_correct,
+                'user_answer': user_answer,
+                'correct': passed,
+            }],
+        }
+        combined_text = user_answer
 
     try:
-        save_writing_attempt(user_id, lesson.id, user_answer, passed, db)
-        db.session.flush()
+        if combined_text:
+            save_writing_attempt(user_id, lesson.id, combined_text, passed, db)
+            db.session.flush()
     except Exception as save_err:
         logger.warning(f"Translation writing attempt save failed for lesson {lesson.id}: {save_err}")
         db.session.rollback()
 
-    # Build a progress-compatible result dict
-    progress_result = {
-        'passed': passed,
-        'score': 100.0 if passed else 0.0,
-    }
-
     ProgressService.update_progress_with_grading(
         user_id=user_id,
         lesson=lesson,
-        result=progress_result,
-        passing_score=100,
+        result=grade,
+        passing_score=70,
     )
 
     if passed:
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_writing_xp
-            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=100)
+            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade.get('score', 100))
             maybe_award_writing_xp(user_id, lesson.id, db_session=db)
             db.session.commit()
         except Exception as xp_err:
@@ -924,11 +1021,10 @@ def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict)
     except Exception as ach_err:
         logger.warning(f"Writing achievements check failed for user {user_id}: {ach_err}")
 
-    result = {**grade, 'passed': passed}
+    result = dict(grade)
     next_lesson = _get_next_lesson_for_completion(lesson)
     if passed and next_lesson:
         result['next_lesson_url'] = _lesson_completion_url(next_lesson)
-
     return result
 
 
@@ -943,9 +1039,14 @@ def sentence_correction_lesson(lesson_id: int):
         return redirect('/learn/')
 
     content = lesson.content or {}
+    items = content.get('items') or []
+    # Single-item legacy fields. Stay for backwards-compatible templates;
+    # the multi-item flow reads from ``items``.
     incorrect_sentence = content.get('incorrect_sentence', '')
     correct_sentence = content.get('correct_sentence', '')
     error_type = content.get('error_type', '')
+    error_type_ru = content.get('error_type_ru', '')
+    translation = content.get('translation', '')
     explanation = content.get('explanation', '')
     options = content.get('options') or []
 
@@ -968,55 +1069,91 @@ def sentence_correction_lesson(lesson_id: int):
             logger.error(f"Error creating sentence_correction progress: {e}")
             db.session.rollback()
 
+    module_url = '/learn/'
+    if lesson.module and lesson.module.level:
+        module_url = url_for(
+            'learn.learn_by_module',
+            level_code=lesson.module.level.code.lower(),
+            module_number=lesson.module.number,
+        )
+
+    is_completed = bool(progress and progress.status == 'completed')
+    next_lesson_url = None
+    if is_completed:
+        nxt = _get_next_lesson_for_completion(lesson)
+        if nxt:
+            next_lesson_url = _lesson_completion_url(nxt)
+
     return render_template(
         'curriculum/lessons/sentence_correction.html',
         lesson=lesson,
         progress=progress,
+        items=items,
         incorrect_sentence=incorrect_sentence,
         correct_sentence=correct_sentence,
         error_type=error_type,
+        error_type_ru=error_type_ru,
+        translation=translation,
         explanation=explanation,
         options=options,
+        module_url=module_url,
+        is_completed=is_completed,
+        next_lesson_url=next_lesson_url,
     )
 
 
 def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
-    """Grade a sentence correction submission, update progress, award XP, return result."""
-    from app.curriculum.grading import grade_sentence_correction
+    """Grade a sentence correction submission, update progress, award XP, return result.
+
+    Two payload shapes:
+    - Multi-item: data['answers'] is a list — grade each against items[].correct_sentence.
+    - Single-item legacy: data['user_answer'] is a string — grade against content.correct_sentence.
+    """
+    from app.curriculum.grading import grade_sentence_correction, grade_sentence_correction_multi
     from app.curriculum.models import save_writing_attempt
     from app.curriculum.services.progress_service import ProgressService
 
     content = lesson.content or {}
-    correct_sentence = content.get('correct_sentence', '')
-    explanation = content.get('explanation', '')
-    user_answer = (data.get('user_answer', '') or '')[:2000]
+    items = content.get('items') or []
+    is_multi = bool(items) and isinstance(data.get('answers'), list)
 
-    grade = grade_sentence_correction(user_answer, correct_sentence)
-    passed = grade['is_correct']
+    if is_multi:
+        user_answers = [(a or '')[:2000] for a in data.get('answers', [])]
+        grade = grade_sentence_correction_multi(user_answers, items)
+        passed = grade.get('passed', False)
+        score_value = float(grade.get('score', 0))
+    else:
+        correct_sentence = content.get('correct_sentence', '')
+        user_answer = (data.get('user_answer', '') or '')[:2000]
+        single = grade_sentence_correction(user_answer, correct_sentence)
+        passed = single.get('is_correct', False)
+        score_value = 100.0 if passed else 0.0
+        grade = {**single, 'passed': passed, 'explanation': content.get('explanation', '')}
 
+    # UserWritingAttempt rows — one per submission. For multi we save the
+    # joined answers; matches existing per-attempt analytics.
     try:
-        save_writing_attempt(user_id, lesson.id, user_answer, passed, db)
+        if is_multi:
+            joined = '\n'.join(filter(None, user_answers))
+            save_writing_attempt(user_id, lesson.id, joined, passed, db)
+        else:
+            save_writing_attempt(user_id, lesson.id, user_answer, passed, db)
         db.session.flush()
     except Exception as save_err:
         logger.warning(f"Sentence correction writing attempt save failed for lesson {lesson.id}: {save_err}")
         db.session.rollback()
 
-    progress_result = {
-        'passed': passed,
-        'score': 100.0 if passed else 0.0,
-    }
-
     ProgressService.update_progress_with_grading(
         user_id=user_id,
         lesson=lesson,
-        result=progress_result,
-        passing_score=100,
+        result={'passed': passed, 'score': score_value, **grade},
+        passing_score=70 if is_multi else 100,
     )
 
     if passed:
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_writing_xp
-            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=100)
+            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=score_value)
             maybe_award_writing_xp(user_id, lesson.id, db_session=db)
             db.session.commit()
         except Exception as xp_err:
@@ -1028,12 +1165,11 @@ def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, dat
     except Exception as ach_err:
         logger.warning(f"Writing achievements check failed for user {user_id}: {ach_err}")
 
-    result = {**grade, 'passed': passed, 'explanation': explanation}
     next_lesson = _get_next_lesson_for_completion(lesson)
     if passed and next_lesson:
-        result['next_lesson_url'] = _lesson_completion_url(next_lesson)
+        grade['next_lesson_url'] = _lesson_completion_url(next_lesson)
 
-    return result
+    return grade
 
 
 _DEFAULT_WRITING_CHECKLIST = [
@@ -1056,9 +1192,46 @@ def writing_prompt_lesson(lesson_id: int):
 
     content = lesson.content or {}
     prompt = content.get('prompt', '')
-    min_words = int(content.get('min_words', 50))
+    prompt_ru = content.get('prompt_ru') or None
+    min_words = content.get('min_words')
+    min_sentences = content.get('min_sentences')
+    # Default min_words=50 only if neither target is specified — preserves
+    # legacy single-target behavior.
+    if min_words is None and min_sentences is None:
+        min_words = 50
+    if min_words is not None:
+        try:
+            min_words = int(min_words)
+        except (TypeError, ValueError):
+            min_words = None
+    if min_sentences is not None:
+        try:
+            min_sentences = int(min_sentences)
+        except (TypeError, ValueError):
+            min_sentences = None
     example_response = content.get('example_response') or None
+    template_text = content.get('template') or None
+    hint_words = content.get('hint_words') or []
+    target_phrases = content.get('target_phrases') or []
+    # Mode auto-derive when not specified: presence of guided-only fields
+    # (min_sentences, hint_words, template) → 'guided'; else 'structured'.
+    mode = content.get('mode')
+    if not mode:
+        mode = 'guided' if (min_sentences or hint_words or template_text) else 'structured'
     checklist = content.get('checklist') or _DEFAULT_WRITING_CHECKLIST
+    # Threshold для чек-листа: guided требует структурный минимум 3 пункта
+    # (имя/возраст/страна/нравится/приветствие — без 3 из них writing
+    # фактически пустой). Остальные режимы — мягкий минимум 2.
+    raw_min_checklist = content.get('min_checklist')
+    try:
+        min_checklist = int(raw_min_checklist) if raw_min_checklist else None
+    except (TypeError, ValueError):
+        min_checklist = None
+    if not min_checklist:
+        min_checklist = 3 if mode == 'guided' else 2
+    # Clamp по фактическому размеру checklist — нельзя требовать больше
+    # пунктов, чем существует.
+    min_checklist = min(min_checklist, max(len(checklist), 2))
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
@@ -1079,14 +1252,26 @@ def writing_prompt_lesson(lesson_id: int):
             logger.error(f"Error creating writing_prompt progress: {e}")
             db.session.rollback()
 
+    is_completed = bool(progress and progress.status == 'completed')
+    next_lesson = _get_next_lesson_for_completion(lesson)
+
     return render_template(
         'curriculum/lessons/writing_prompt.html',
         lesson=lesson,
         progress=progress,
         prompt=prompt,
+        prompt_ru=prompt_ru,
         min_words=min_words,
+        min_sentences=min_sentences,
         example_response=example_response,
+        template_text=template_text,
+        hint_words=hint_words,
+        target_phrases=target_phrases,
+        mode=mode,
         checklist=checklist,
+        min_checklist=min_checklist,
+        is_completed=is_completed,
+        next_lesson=next_lesson,
     )
 
 
@@ -1103,13 +1288,47 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     checklist = content.get('checklist') or _DEFAULT_WRITING_CHECKLIST
     checklist_set = {str(item) for item in checklist}
     valid_checked = {item for item in raw_checked_items if isinstance(item, str) and item in checklist_set}
-    checklist_completed = bool(data.get('checklist_completed', False)) and len(valid_checked) >= 2
-    min_words = int(content.get('min_words', 50))
+    # Threshold согласуем с тем, что вычисляется в render_writing_prompt:
+    # guided → 3, иначе → 2. Если в контенте задано явно — используем его.
+    mode = content.get('mode') or (
+        'guided' if (content.get('min_sentences') or content.get('hint_words') or content.get('template'))
+        else 'structured'
+    )
+    raw_min_checklist = content.get('min_checklist')
+    try:
+        min_checklist = int(raw_min_checklist) if raw_min_checklist else None
+    except (TypeError, ValueError):
+        min_checklist = None
+    if not min_checklist:
+        min_checklist = 3 if mode == 'guided' else 2
+    min_checklist = min(min_checklist, max(len(checklist), 2))
+    checklist_completed = bool(data.get('checklist_completed', False)) and len(valid_checked) >= min_checklist
+    # min_words / min_sentences — оба опциональны, нужно хотя бы одно.
+    # Если есть min_sentences → проверяем по количеству предложений,
+    # иначе по словам. Default 50 слов сохранён для legacy-контента.
+    try:
+        min_sentences = int(content.get('min_sentences') or 0)
+    except (TypeError, ValueError):
+        min_sentences = 0
+    raw_min_words = content.get('min_words')
+    if raw_min_words is None and not min_sentences:
+        min_words = 50  # legacy default when ничего не задано
+    else:
+        try:
+            min_words = int(raw_min_words) if raw_min_words is not None else 0
+        except (TypeError, ValueError):
+            min_words = 0
 
     word_count = len(response_text.split()) if response_text else 0
-    meets_min = word_count >= min_words
+    # Sentence count: разделители .!? с любым whitespace вокруг.
+    import re as _re
+    sentence_count = len([s for s in _re.split(r'[.!?]+', response_text) if s.strip()])
 
-    completed = meets_min and len(valid_checked) >= 2
+    meets_min_words = (min_words == 0) or (word_count >= min_words)
+    meets_min_sentences = (min_sentences == 0) or (sentence_count >= min_sentences)
+    meets_min = meets_min_words and meets_min_sentences
+
+    completed = meets_min and len(valid_checked) >= min_checklist
 
     if meets_min:
         try:
@@ -1123,11 +1342,22 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
         progress = LessonProgress.query.filter_by(
             user_id=user_id, lesson_id=lesson.id
         ).first()
+        # Сохраняем response_text + checked_items в progress.data —
+        # на reload урок восстановит ответ и галочки, чтобы пользователь
+        # видел свою работу, а не пустую форму.
+        progress_data = {
+            'response_text': response_text,
+            'checked_items': sorted(valid_checked),
+            'word_count': word_count,
+            'sentence_count': sentence_count,
+        }
         if progress:
             progress.status = 'completed'
             if not progress.completed_at:
                 progress.completed_at = datetime.now(UTC)
             progress.last_activity = datetime.now(UTC)
+            progress.data = progress_data
+            flag_modified(progress, 'data')
         else:
             progress = LessonProgress(
                 user_id=user_id,
@@ -1136,6 +1366,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
                 started_at=datetime.now(UTC),
                 completed_at=datetime.now(UTC),
                 last_activity=datetime.now(UTC),
+                data=progress_data,
             )
             db.session.add(progress)
         try:
@@ -1164,7 +1395,9 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
         'success': True,
         'completed': completed,
         'word_count': word_count,
-        'meets_min_words': meets_min,
+        'sentence_count': sentence_count,
+        'meets_min_words': meets_min_words,
+        'meets_min_sentences': meets_min_sentences,
         'checklist_completed': checklist_completed,
     }
     if completed and example_response:
@@ -1209,11 +1442,29 @@ def sentence_completion_lesson(lesson_id: int):
             logger.error(f"Error creating sentence_completion progress: {e}")
             db.session.rollback()
 
+    module_url = '/learn/'
+    if lesson.module and lesson.module.level:
+        module_url = url_for(
+            'learn.learn_by_module',
+            level_code=lesson.module.level.code.lower(),
+            module_number=lesson.module.number,
+        )
+
+    is_completed = bool(progress and progress.status == 'completed')
+    next_lesson_url = None
+    if is_completed:
+        next_lesson = _get_next_lesson_for_completion(lesson)
+        if next_lesson:
+            next_lesson_url = _lesson_completion_url(next_lesson)
+
     return render_template(
         'curriculum/lessons/sentence_completion.html',
         lesson=lesson,
         progress=progress,
         items=items,
+        module_url=module_url,
+        is_completed=is_completed,
+        next_lesson_url=next_lesson_url,
     )
 
 
@@ -1297,12 +1548,33 @@ def collocation_matching_lesson(lesson_id: int):
             logger.error(f"Error creating collocation_matching progress: {e}")
             db.session.rollback()
 
+    is_completed = bool(progress and progress.status == 'completed')
+    next_lesson_url = None
+    if is_completed:
+        next_lesson = _get_next_lesson_for_completion(lesson)
+        if next_lesson:
+            next_lesson_url = _lesson_completion_url(next_lesson)
+
+    # URL of the parent module's lessons page — preferred destination for the
+    # "К списку уроков" secondary CTA. Generic /learn/ would drop the user on
+    # the curriculum index, one level too high.
+    module_url = '/learn/'
+    if lesson.module and lesson.module.level:
+        module_url = url_for(
+            'learn.learn_by_module',
+            level_code=lesson.module.level.code.lower(),
+            module_number=lesson.module.number,
+        )
+
     return render_template(
         'curriculum/lessons/collocation_matching.html',
         lesson=lesson,
         progress=progress,
         pairs=pairs,
         shuffled_pairs=shuffled_pairs,
+        is_completed=is_completed,
+        next_lesson_url=next_lesson_url,
+        module_url=module_url,
     )
 
 
@@ -1333,11 +1605,11 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
             logger.warning(f"Collocation matching XP award failed for lesson {lesson.id}: {xp_err}")
     db.session.commit()
 
+    # Return the full per-pair grading including the correct translation for
+    # wrong pairs — the template renders a "Правильно: ..." correction line
+    # so the user learns from the mistake. The lesson is teaching, not
+    # testing; a guess-and-retry loop without feedback teaches nothing.
     result = {**grade}
-    if not grade.get('passed'):
-        for pr in result.get('pair_results') or []:
-            if not pr.get('correct'):
-                pr['translation'] = ''
     next_lesson = _get_next_lesson_for_completion(lesson)
     if grade.get('passed') and next_lesson:
         result['next_lesson_url'] = _lesson_completion_url(next_lesson)
@@ -1380,6 +1652,9 @@ def shadow_reading_lesson(lesson_id: int):
             logger.error(f"Error creating shadow_reading progress: {e}")
             db.session.rollback()
 
+    next_lesson = _get_next_lesson_for_completion(lesson)
+    is_completed = bool(progress and progress.status == 'completed')
+
     return render_template(
         'curriculum/lessons/shadow_reading.html',
         lesson=lesson,
@@ -1388,6 +1663,8 @@ def shadow_reading_lesson(lesson_id: int):
         text=text,
         translation=translation,
         words=words,
+        next_lesson=next_lesson,
+        is_completed=is_completed,
     )
 
 

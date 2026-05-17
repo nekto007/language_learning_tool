@@ -151,7 +151,11 @@ def _grade_matching_pairs(user_pairs, correct_pairs):
     def _key(p):
         if not isinstance(p, dict):
             return None
-        return (_normalize_answer(p.get('left')), _normalize_answer(p.get('right')))
+        # Content payloads use {english, russian}; user payloads use {left, right}.
+        # Treat both shapes as equivalent so matching grading isn't a no-op.
+        left = p.get('left') or p.get('english') or p.get('word')
+        right = p.get('right') or p.get('russian') or p.get('translation')
+        return (_normalize_answer(left), _normalize_answer(right))
 
     user_keys = [_key(p) for p in user_pairs]
     correct_keys = [_key(p) for p in correct_pairs]
@@ -296,8 +300,60 @@ def grade_translation(user_answer: str, correct_answer: str) -> dict:
     }
 
 
+def grade_translation_multi(user_answers: list, items: list) -> dict:
+    """Grade a multi-item guided translation lesson.
+
+    Matches the audio_fill_blank / sentence_completion shape so the existing
+    completion banner + restore-on-reload flow on the client can be reused
+    unchanged.
+
+    Args:
+        user_answers: List[str], one per item in original order.
+        items: List[dict] from ``content['items']`` with at least ``english``
+            (and optional ``alternatives``).
+
+    Returns:
+        {score, passed, correct_items, total_items, item_results}.
+        Each item_result: {answer, user_answer, correct}.
+    """
+    total = len(items or [])
+    if total == 0:
+        return {
+            'score': 0,
+            'passed': False,
+            'correct_items': 0,
+            'total_items': 0,
+            'item_results': [],
+        }
+    correct = 0
+    item_results = []
+    for i, item in enumerate(items):
+        user_answer = (user_answers[i] if i < len(user_answers) else '') or ''
+        canonical = item.get('english', '') or ''
+        candidates = [canonical]
+        for alt in (item.get('alternatives') or []):
+            if isinstance(alt, str) and alt.strip():
+                candidates.append(alt)
+        is_correct = _strict_text_match(user_answer, candidates)
+        if is_correct:
+            correct += 1
+        item_results.append({
+            'answer': canonical,
+            'user_answer': user_answer,
+            'correct': is_correct,
+        })
+    score = round(correct / total * 100)
+    return {
+        'score': score,
+        'passed': score >= 70,
+        'correct_items': correct,
+        'total_items': total,
+        'item_results': item_results,
+    }
+
+
 def grade_sentence_correction(user_answer: str, correct_sentence: str) -> dict:
-    """Grade a sentence correction exercise.
+    """Grade a single-item sentence correction exercise.
 
     Compares the user's corrected sentence to the correct version using
     normalized exact match. No Levenshtein tolerance — the user must
@@ -311,6 +367,62 @@ def grade_sentence_correction(user_answer: str, correct_sentence: str) -> dict:
         'is_correct': is_correct,
         'user_answer': user_answer,
         'correct_sentence': correct_sentence,
+    }
+
+
+def grade_sentence_correction_multi(user_answers: list, items: list) -> dict:
+    """Grade a multi-item sentence-correction exercise.
+
+    Each item has its own ``correct_sentence``. The user's answer for the
+    item is compared via normalized exact match (same rule as the single-
+    item grader). Returns a sentence_completion-style summary so the
+    submit endpoint and the client showResults can stay consistent across
+    the two text-input lesson types.
+
+    Args:
+        user_answers: List of strings, one per item (same order as items).
+        items: List of item dicts with at least ``correct_sentence``.
+
+    Returns:
+        dict with score (0-100), passed (bool), correct_items (int),
+        total_items (int), item_results (list of {incorrect_sentence,
+        correct_sentence, user_answer, correct, explanation, error_type,
+        error_type_ru, translation}).
+    """
+    total = len(items)
+    if total == 0:
+        return {
+            'score': 0,
+            'passed': False,
+            'correct_items': 0,
+            'total_items': 0,
+            'item_results': [],
+        }
+    correct = 0
+    item_results = []
+    for i, item in enumerate(items):
+        user_value = user_answers[i] if i < len(user_answers) else ''
+        canonical = item.get('correct_sentence', '')
+        is_correct = _normalize_answer(user_value) == _normalize_answer(canonical)
+        if is_correct:
+            correct += 1
+        item_results.append({
+            'incorrect_sentence': item.get('incorrect_sentence', ''),
+            'correct_sentence': canonical,
+            'user_answer': user_value,
+            'correct': is_correct,
+            'explanation': item.get('explanation', ''),
+            'error_type': item.get('error_type', ''),
+            'error_type_ru': item.get('error_type_ru', ''),
+            'translation': item.get('translation', ''),
+        })
+    score = round(correct / total * 100)
+    return {
+        'score': score,
+        'passed': score >= 70,
+        'correct_items': correct,
+        'total_items': total,
+        'item_results': item_results,
     }
 
 

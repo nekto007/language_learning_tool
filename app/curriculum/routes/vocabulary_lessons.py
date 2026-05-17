@@ -645,11 +645,16 @@ def listening_immersion_lesson(lesson_id):
             logger.error(f"Error creating listening_immersion progress: {e}")
             db.session.rollback()
 
+    is_completed = bool(progress and progress.status == 'completed')
+    next_lesson = get_next_lesson(lesson.id)
+
     return render_template(
         'curriculum/lessons/listening_immersion.html',
         lesson=lesson,
         text_content=cleaned_content,
         progress=progress,
+        is_completed=is_completed,
+        next_lesson=next_lesson,
     )
 
 

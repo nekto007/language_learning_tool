@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import UTC, datetime
 
-from flask import jsonify, render_template, request
+from flask import jsonify, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.curriculum.models import LessonProgress, Lessons
@@ -19,6 +19,64 @@ from app.utils.db import db
 from app.words.models import CollectionWords
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_word_example(word) -> tuple[str, str]:
+    """Return (english_example, russian_example) tolerating multiple legacy
+    storage shapes for ``CollectionWords.sentences``.
+
+    Shapes seen in the wild:
+      * Modern JSON: ``[{"en": "...", "ru": "..."}, ...]``
+      * Legacy plain-string: ``"He is here.<br>Он здесь."`` (split by ``<br>``,
+        or ``\\n``, or `` / ``).
+      * Already-deserialised list/dict — returned as-is.
+
+    Failures are logged at debug-level (not as full ERROR stack-traces),
+    because malformed/empty sentences are common in older content and not
+    worth spamming the log for. The card-lesson UI just hides examples
+    when the function returns empty strings.
+    """
+    raw = getattr(word, 'sentences', None)
+    if not raw:
+        return '', ''
+
+    # Already structured?
+    if isinstance(raw, list):
+        first = raw[0] if raw else None
+        if isinstance(first, dict):
+            return first.get('en', '') or '', first.get('ru', '') or ''
+        return '', ''
+    if isinstance(raw, dict):
+        return raw.get('en', '') or '', raw.get('ru', '') or ''
+
+    if not isinstance(raw, str):
+        return '', ''
+
+    text = raw.strip()
+    if not text:
+        return '', ''
+
+    # JSON first — only attempt if the string actually looks like JSON.
+    if text[0] in '[{':
+        try:
+            parsed = json.loads(text)
+            if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+                return parsed[0].get('en', '') or '', parsed[0].get('ru', '') or ''
+            if isinstance(parsed, dict):
+                return parsed.get('en', '') or '', parsed.get('ru', '') or ''
+        except (ValueError, TypeError):
+            logger.debug("word %s: sentences looked JSON-shaped but failed to parse",
+                         getattr(word, 'id', '?'))
+
+    # Legacy plain-string formats: «English<br>Russian», or «English / Russian»,
+    # or «English\nRussian». Split on first delimiter, keep both halves.
+    for delim in ('<br>', '<BR>', '<br/>', '<br />', '\n', ' / '):
+        if delim in text:
+            en, _, ru = text.partition(delim)
+            return en.strip(), ru.strip()
+
+    # Unknown shape — give whole string as English example, leave Russian empty.
+    return text, ''
 
 
 def _build_cards_for_words(
@@ -90,18 +148,7 @@ def _build_cards_for_words(
         if not audio_file and word.get_download == 1:
             audio_file = f"{word.english_word.lower().replace(' ', '_')}.mp3"
 
-        example_en = ''
-        example_ru = ''
-        if word.sentences:
-            try:
-                sentences_data = json.loads(word.sentences) if isinstance(word.sentences, str) else word.sentences
-                if isinstance(sentences_data, list) and len(sentences_data) > 0:
-                    first_sentence = sentences_data[0]
-                    if isinstance(first_sentence, dict):
-                        example_en = first_sentence.get('en', '')
-                        example_ru = first_sentence.get('ru', '')
-            except Exception:
-                logger.exception("Failed to parse word sentences for word %s", word.id)
+        example_en, example_ru = _extract_word_example(word)
 
         directions = directions_by_word.get(word.id, [])
         if directions:
@@ -216,6 +263,20 @@ def render_card_lesson(lesson):
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+
+    # ?reset=true сбрасывает LessonProgress в in_progress, чтобы пользователь
+    # мог пройти карточный урок заново через confirm-модалку. SRS-state
+    # отдельных карт при этом не трогаем (живёт в UserCardDirection
+    # независимо от LessonProgress). XP не начислится дважды — там idempotent
+    # dedup через StreakEvent.
+    reset_progress = request.args.get('reset') == 'true'
+    if reset_progress and progress and progress.status == 'completed':
+        progress.status = 'in_progress'
+        progress.score = None
+        progress.data = None
+        progress.completed_at = None
+        progress.last_activity = datetime.now(UTC)
+        db.session.commit()
 
     next_lesson = None
     if lesson.number is not None:
@@ -333,9 +394,37 @@ def render_card_lesson(lesson):
 
     next_lesson_url = f"/learn/{next_lesson.id}/" if next_lesson else None
     if lesson.module and lesson.module.level:
-        back_url = f"/learn/{lesson.module.level.code.lower()}/#module-{lesson.module.number}"
+        # Используем именованный роут — даёт каноничный
+        # /learn/<level>/module-<N>/ вместо легаси-якоря /learn/<level>/#module-N.
+        # Якорная версия осталась с тех времён, когда уровень-страница
+        # была одной длинной лентой со скроллом до anchor'а; сейчас у
+        # каждого модуля своя страница.
+        back_url = url_for(
+            'learn.learn_by_module',
+            level_code=lesson.module.level.code.lower(),
+            module_number=lesson.module.number,
+        )
     else:
         back_url = '/learn/'
+
+    # Восстановление celebration на reload завершённого урока — те же
+    # цифры, что показывали в финале первый раз, плюс актуальный
+    # total_xp/level (могли вырасти после других уроков).
+    is_completed = bool(progress and progress.status == 'completed')
+    completed_stats = None
+    if is_completed and isinstance(progress.data, dict) and progress.data:
+        from app.achievements.models import UserStatistics
+        from app.achievements.xp_service import get_level_info
+
+        ustats = UserStatistics.query.filter_by(user_id=current_user.id).first()
+        total_xp = (ustats.total_xp if ustats else 0) or 0
+        completed_stats = {
+            'cards_studied': progress.data.get('cards_studied', 0),
+            'correct': progress.data.get('correct', 0),
+            'accuracy': progress.data.get('accuracy', progress.score or 0),
+            'total_xp': total_xp,
+            'level': get_level_info(total_xp).current_level,
+        }
 
     return render_template(
         'curriculum/lessons/card.html',
@@ -359,6 +448,9 @@ def render_card_lesson(lesson):
         fc_nothing_to_study=len(fc_cards) == 0,
         fc_extra_study=True,
         fc_lesson_mode=True,
+        fc_is_completed=is_completed,
+        fc_completed_stats=completed_stats,
+        fc_retry_lesson_url=url_for('learn.lesson_by_id', lesson_id=lesson.id) + '?reset=true',
     )
 
 
@@ -505,7 +597,16 @@ def card_lesson(lesson_id):
 
     next_lesson_url = f"/learn/{next_lesson.id}/" if next_lesson else None
     if lesson.module and lesson.module.level:
-        back_url = f"/learn/{lesson.module.level.code.lower()}/#module-{lesson.module.number}"
+        # Используем именованный роут — даёт каноничный
+        # /learn/<level>/module-<N>/ вместо легаси-якоря /learn/<level>/#module-N.
+        # Якорная версия осталась с тех времён, когда уровень-страница
+        # была одной длинной лентой со скроллом до anchor'а; сейчас у
+        # каждого модуля своя страница.
+        back_url = url_for(
+            'learn.learn_by_module',
+            level_code=lesson.module.level.code.lower(),
+            module_number=lesson.module.number,
+        )
     else:
         back_url = '/learn/'
 
@@ -568,6 +669,18 @@ def complete_srs_session(lesson_id):
             progress.status = 'completed'
             progress.score = round(accuracy, 2)
             progress.completed_at = datetime.now(UTC)
+            correct_for_data = int(round(cards_studied * (accuracy / 100)))
+            # Сохраняем stats в progress.data — на повторном открытии урока
+            # роут читает их и показывает celebration без перепрохождения
+            # карточек (read-only re-view). Точно как у других уроков
+            # (audio_fill_blank/shadow_reading/dictation/listening_immersion).
+            progress.data = {
+                'cards_studied': int(cards_studied),
+                'correct': correct_for_data,
+                'accuracy': float(accuracy),
+            }
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(progress, 'data')
 
         db.session.commit()
 
