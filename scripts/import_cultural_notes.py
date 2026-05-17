@@ -476,7 +476,7 @@ def main(argv: Optional[list] = None) -> int:
     os.environ.setdefault("FLASK_ENV", "development")
 
     from app import create_app
-    from app.extensions import db
+    from app.utils.db import db
 
     app = create_app()
     t0 = time.monotonic()

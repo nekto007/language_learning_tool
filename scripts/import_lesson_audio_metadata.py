@@ -460,7 +460,7 @@ def main(argv: list = None) -> int:
 
     sys.path.insert(0, str(PROJECT_ROOT))
     from app import create_app
-    from app.extensions import db as _db
+    from app.utils.db import db as _db
 
     flask_app = create_app()
     with flask_app.app_context():
