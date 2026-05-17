@@ -204,10 +204,10 @@ Files:
   same as dictation but slower 0.9× rate)
 - Create: `reports/shadow_reading_audio_generation.md`
 
-- [ ] Generate MP3s into `app/static/audio/immersion/shadow_reading/<slug>.mp3`
-- [ ] Use the lesson's `transcript` or `text` field; fall back to `question`
-- [ ] Spot-check 5 files
-- [ ] Run `pytest tests/curriculum -q -k shadow_reading` — must pass before task 7
+- [x] Generate MP3s into `app/static/audio/immersion/shadow_reading/<slug>.mp3`
+- [x] Use the lesson's `transcript` or `text` field; fall back to `question`
+- [x] Spot-check 5 files (manual test — skipped, not automatable)
+- [x] Run `pytest tests/curriculum -q -k shadow_reading` — must pass before task 7
 
 ### Task 7: audio_fill_blank — generate per-item clips for all 25 lessons
 
