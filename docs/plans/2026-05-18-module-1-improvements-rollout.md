@@ -256,13 +256,13 @@ Files:
 - Create: `reports/dialogue_completion_audit.md`
 - Create: `reports/ordering_quiz_audit.md`
 
-- [ ] dialogue_completion_quiz: ensure each turn has a `hint` array (Russian
+- [x] dialogue_completion_quiz: ensure each turn has a `hint` array (Russian
       hint chips); ensure correct answer matches one of the options
-- [ ] ordering_quiz: ensure `words[]` shuffles uniquely (no duplicate buttons
+- [x] ordering_quiz: ensure `words[]` shuffles uniquely (no duplicate buttons
       with same `data-word`), ensure correct order is unambiguous
-- [ ] Patch script that fills missing `hint` chips by deriving from the
+- [x] Patch script that fills missing `hint` chips by deriving from the
       Russian gloss of the next-line vocab
-- [ ] Run `pytest tests/curriculum -q -k "dialogue_completion or ordering"` — must
+- [x] Run `pytest tests/curriculum -q -k "dialogue_completion or ordering"` — must
       pass before task 11
 
 ### Task 11: pronunciation, sentence_correction, sentence_completion,
