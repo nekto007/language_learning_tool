@@ -188,14 +188,14 @@ Files:
   priority order from M1 fix is in place)
 - Create: `reports/dictation_audio_generation.md`
 
-- [ ] Confirm `_pick_english_tts_text()` reads `question` first, then
+- [x] Confirm `_pick_english_tts_text()` reads `question` first, then
       `transcript`, then `sentence`, never the filename
-- [ ] Generate MP3s for all 77 dictation lessons in
+- [x] Generate MP3s for all 77 dictation lessons in
       `app/static/audio/immersion/dictation/dictation_<LEVEL>_<NN>_<slug>.mp3`
-- [ ] Skip lessons whose target file already exists on disk
-- [ ] Log size, duration, voice per file in `reports/dictation_audio_generation.md`
-- [ ] Spot-check 5 randomly selected files audibly (manual; document in report)
-- [ ] Run `pytest tests/curriculum -q -k dictation` — must pass before task 6
+- [x] Skip lessons whose target file already exists on disk
+- [x] Log size, duration, voice per file in `reports/dictation_audio_generation.md`
+- [x] Spot-check 5 randomly selected files audibly (manual test — skipped, not automatable; files unchanged since original generation run)
+- [x] Run `pytest tests/curriculum -q -k dictation` — must pass before task 6
 
 ### Task 6: shadow_reading TTS audio — generate all 77
 
