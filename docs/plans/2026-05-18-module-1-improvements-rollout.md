@@ -228,12 +228,12 @@ Files:
 - Run: `scripts/generate_audio.py` with `--type listening_immersion`
 - Create: `reports/listening_immersion_audio_rollout.md`
 
-- [ ] Generate MP3s for all 77 listening_immersion lessons (use `transcript`)
-- [ ] Run the audio-metadata importer against `content/immersion/listening_immersion_audio.json`
+- [x] Generate MP3s for all 77 listening_immersion lessons (use `transcript`)
+- [x] Run the audio-metadata importer against `content/immersion/listening_immersion_audio.json`
       so `Lessons.content.audio_url` is populated in DB
-- [ ] Re-run `scripts/audit_immersion_data.py` and confirm zero listening
+- [x] Re-run `scripts/audit_immersion_data.py` and confirm zero listening
       lessons miss audio_url
-- [ ] Run `pytest tests/curriculum -q -k listening_immersion` — must pass before task 9
+- [x] Run `pytest tests/curriculum -q -k listening_immersion` — must pass before task 9
 
 ### Task 9: listening_quiz inline audio sanity-check
 
