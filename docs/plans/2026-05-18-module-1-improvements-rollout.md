@@ -272,16 +272,16 @@ Files:
 - Create: `scripts/audit_remaining_lesson_types.py`
 - Create: `reports/remaining_types_audit.md`
 
-- [ ] pronunciation: verify each item has `word`, `phonetic`, optional `audio`;
+- [x] pronunciation: verify each item has `word`, `phonetic`, optional `audio`;
       24 lessons total
-- [ ] sentence_correction: ensure `mode` field is set; ensure each item has
+- [x] sentence_correction: ensure `mode` field is set; ensure each item has
       either `options[]` (multiple choice) or accepts free-form input
-- [ ] sentence_completion: ensure each item has `prompt`, `answer`, optional
+- [x] sentence_completion: ensure each item has `prompt`, `answer`, optional
       `alternatives`
-- [ ] collocation_matching: ensure `pairs[]` use `{phrase, translation}` shape
+- [x] collocation_matching: ensure `pairs[]` use `{phrase, translation}` shape
       consistently; 25 lessons
-- [ ] idiom: ensure `phrase`, `meaning_ru`, `example`, `example_ru` present
-- [ ] Run `pytest tests/curriculum -q` — must pass before task 12
+- [x] idiom: ensure `phrase`, `meaning_ru`, `example`, `example_ru` present
+- [x] Run `pytest tests/curriculum -q` — must pass before task 12
 
 ### Task 12: Quiz / final_test idempotency on retry
 
