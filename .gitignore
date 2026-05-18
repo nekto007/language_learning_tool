@@ -394,9 +394,8 @@ tests/conftest.py
 grammar_exercises_extra/
 grammar_extra_audit_report.md
 
-# One-shot content tooling / migration reports (local-only)
+# Локальный контент и инструменты — не отправляем в гит
+content/
+scripts/
 reports/
-scripts/generate_audio.py
-scripts/merge_immersion_into_source_module.py
-scripts/sync_source_module_with_db.py
-scripts/patch_final_test_prompts.py
+module_completed/
