@@ -93,15 +93,20 @@ def _compute_listening_goal(user, tz: str) -> dict:
             lesson.id: lesson
             for lesson in Lessons.query.filter(Lessons.id.in_(unique_lesson_ids)).all()
         }
+        # De-duplicate by lesson: each lesson counts once; take max replay_count seen.
+        lesson_max_replay: dict[int, int] = {}
         for attempt in attempts:
-            lesson = lessons_map.get(attempt.lesson_id)
+            prev = lesson_max_replay.get(attempt.lesson_id, 0)
+            lesson_max_replay[attempt.lesson_id] = max(prev, attempt.replay_count or 0)
+        for lesson_id, max_replay in lesson_max_replay.items():
+            lesson = lessons_map.get(lesson_id)
             duration = 300
             if lesson and lesson.content and isinstance(lesson.content, dict):
                 try:
                     duration = min(int(float(lesson.content.get('duration_seconds') or 300)), 3600)
                 except (TypeError, ValueError):
                     duration = 300
-            replay_bonus = duration if (attempt.replay_count or 0) > 0 else 0
+            replay_bonus = duration if max_replay > 0 else 0
             total_seconds += duration + replay_bonus
 
     listening_minutes_today = round(total_seconds / 60, 1)

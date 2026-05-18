@@ -501,6 +501,7 @@ def _grant_streak_shield(user_id: int) -> bool:
     if user is None or getattr(user, 'streak_shield_active', False):
         return False
     user.streak_shield_active = True
+    db.session.flush()
     return True
 
 
