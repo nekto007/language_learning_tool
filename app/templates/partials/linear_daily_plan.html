@@ -608,11 +608,31 @@
     {% if today_challenge.get('lesson_id') %}
         {% set _chns.btn_url = '/learn/' ~ today_challenge.lesson_id | int ~ '/?from=daily_challenge' %}
     {% else %}
-        {% for slot in l_slots %}
-            {% if _chns.btn_url is none and not slot.completed and slot.url %}
-                {% set _chns.btn_url = slot.url %}
+        {# listening_deep засчитывается только за dictation / audio_fill_blank /
+           listening_immersion (см. check_challenge_criteria). Поэтому ищем
+           подходящий слот по типу урока, иначе пользователь приземлится
+           на reading и челлендж не зачтётся. #}
+        {% set _listening_types = ['dictation', 'audio_fill_blank', 'listening_immersion'] %}
+        {% if _ch_category == 'listening_deep' %}
+            {% for slot in l_slots %}
+                {% if _chns.btn_url is none and not slot.completed and slot.url
+                      and (slot.kind == 'listening'
+                           or (slot.data and slot.data.lesson_type in _listening_types)) %}
+                    {% set _chns.btn_url = slot.url %}
+                {% endif %}
+            {% endfor %}
+            {# Если в спине нет подходящего слота, ищем ближайший
+               неначатый урок listening-типа через специальный route. #}
+            {% if _chns.btn_url is none %}
+                {% set _chns.btn_url = url_for('curriculum_lessons.next_listening_lesson') ~ '?from=daily_challenge' %}
             {% endif %}
-        {% endfor %}
+        {% else %}
+            {% for slot in l_slots %}
+                {% if _chns.btn_url is none and not slot.completed and slot.url %}
+                    {% set _chns.btn_url = slot.url %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
     {% endif %}
     <div class="daily-challenge-card{% if _ch_completed %} daily-challenge-card--completed{% endif %}"
          data-daily-challenge="true"
