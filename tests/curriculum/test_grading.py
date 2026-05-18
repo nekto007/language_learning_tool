@@ -152,7 +152,7 @@ class TestGradeDictation:
         assert result["correct_words"] == 4
         assert result["total_words"] == 5
 
-    def test_three_wrong_words_in_five_is_40_fail(self):
+    def test_all_words_wrong_is_zero_fail(self):
         result = grade_dictation("dog runs up a hill", "the cat sat on the")
         assert result["score"] == 0
         assert result["passed"] is False

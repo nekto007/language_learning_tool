@@ -266,13 +266,6 @@ def check_challenge_criteria(
         # client controls the self-assessment outcome.
         # vocabulary, flashcards, and grammar are excluded: they allow client-set
         # completed status via the progress endpoint (not server-graded via submit).
-        from datetime import timedelta
-        _SPEED_RUN_GRADED_TYPES = (
-            'dictation', 'audio_fill_blank', 'translation',
-            'sentence_correction', 'sentence_completion', 'collocation_matching',
-            'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
-            'dialogue_completion_quiz', 'final_test',
-        )
         _speed_run_window = timedelta(seconds=_SPEED_RUN_MAX_SECONDS)
         from app.curriculum.models import LessonAttempt, LessonProgress, Lessons
         completed_today = (
@@ -284,7 +277,7 @@ def check_challenge_criteria(
                 LessonAttempt.completed_at.isnot(None),
                 LessonAttempt.passed.is_(True),
                 (LessonAttempt.completed_at - LessonAttempt.started_at) < _speed_run_window,
-                Lessons.type.in_(_SPEED_RUN_GRADED_TYPES),
+                Lessons.type.in_(_ACCURACY_FOCUS_GRADED_TYPES),
             )
             .first()
         )
@@ -306,7 +299,7 @@ def check_challenge_criteria(
                     LessonProgress.status == 'completed',
                     LessonProgress.last_activity >= today_start,
                     (LessonProgress.last_activity - LessonProgress.started_at) < _speed_run_window,
-                    Lessons.type.in_(_SPEED_RUN_GRADED_TYPES),
+                    Lessons.type.in_(_ACCURACY_FOCUS_GRADED_TYPES),
                 )
                 .first()
             )

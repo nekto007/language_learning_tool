@@ -1321,8 +1321,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
 
     word_count = len(response_text.split()) if response_text else 0
     # Sentence count: разделители .!? с любым whitespace вокруг.
-    import re as _re
-    sentence_count = len([s for s in _re.split(r'[.!?]+', response_text) if s.strip()])
+    sentence_count = len([s for s in re.split(r'[.!?]+', response_text) if s.strip()])
 
     meets_min_words = (min_words == 0) or (word_count >= min_words)
     meets_min_sentences = (min_sentences == 0) or (sentence_count >= min_sentences)

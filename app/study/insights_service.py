@@ -655,26 +655,8 @@ def get_writing_stats(user_id: int) -> dict[str, Any]:
     total_attempts = int(agg.total) if agg.total else 0
     avg_word_count = round(float(agg.avg_words), 1) if agg.avg_words is not None else 0.0
 
-    # Consecutive days streak (most recent run ending today or yesterday).
-    day_rows = (
-        db.session.query(
-            cast(UserWritingAttempt.created_at, Date).label('d'),
-        )
-        .filter(UserWritingAttempt.user_id == user_id)
-        .distinct()
-        .all()
-    )
-    active_dates = {row.d for row in day_rows}
-
-    today = datetime.now(timezone.utc).date()
-    consecutive_days = 0
-    if active_dates:
-        anchor = today if today in active_dates else today - timedelta(days=1)
-        if anchor in active_dates:
-            check = anchor
-            while check in active_dates:
-                consecutive_days += 1
-                check -= timedelta(days=1)
+    from app.achievements.streak_service import get_writing_streak
+    consecutive_days = get_writing_streak(user_id)
 
     return {
         'total_attempts': total_attempts,
