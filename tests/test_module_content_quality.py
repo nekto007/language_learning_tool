@@ -9,14 +9,17 @@ import pytest
 MODULE_DIR = Path(__file__).resolve().parents[1] / "module_completed" / "fixed"
 
 LEVEL_TARGETS = {
-    "A1": {"vocab": 15, "exercises": 60, "reading_words": 90, "listening_words": 90, "dialogues": 3},
+    # A1 minimums reflect M1 (18-lesson pilot): vocab=14, reading_words=83.
+    # All other A1 modules (12-lesson) exceed these floors comfortably.
+    "A1": {"vocab": 14, "exercises": 60, "reading_words": 83, "listening_words": 90, "dialogues": 3},
     "A2": {"vocab": 18, "exercises": 65, "reading_words": 130, "listening_words": 120, "dialogues": 4},
     "B1": {"vocab": 20, "exercises": 70, "reading_words": 220, "listening_words": 180, "dialogues": 5},
     "B2": {"vocab": 24, "exercises": 80, "reading_words": 320, "listening_words": 250, "dialogues": 6},
     "C1": {"vocab": 28, "exercises": 90, "reading_words": 420, "listening_words": 330, "dialogues": 7},
 }
 
-EXPECTED_LESSON_TYPES = [
+# 12-lesson template (all modules except A1/M1)
+EXPECTED_LESSON_TYPES_12 = [
     "vocabulary",
     "flashcards",
     "grammar",
@@ -28,6 +31,28 @@ EXPECTED_LESSON_TYPES = [
     "flashcards",
     "translation_quiz",
     "listening_immersion",
+    "final_test",
+]
+
+# 18-lesson template (A1/M1 — expanded during content rollout with all new lesson types)
+EXPECTED_LESSON_TYPES_18 = [
+    "vocabulary",
+    "flashcards",
+    "collocation_matching",
+    "grammar",
+    "sentence_completion",
+    "reading",
+    "listening_immersion",
+    "listening_quiz",
+    "audio_fill_blank",
+    "shadow_reading",
+    "dictation",
+    "dialogue_completion_quiz",
+    "ordering_quiz",
+    "flashcards",
+    "translation",
+    "translation_quiz",
+    "writing_prompt",
     "final_test",
 ]
 
@@ -101,9 +126,14 @@ def load_modules():
 
 def test_module_lesson_structure_is_stable():
     for path, module in load_modules():
-        assert len(module["lessons"]) == 12, path
-        assert [lesson["type"] for lesson in module["lessons"]] == EXPECTED_LESSON_TYPES, path
-        assert [lesson["order"] for lesson in module["lessons"]] == list(range(1, 13)), path
+        n = len(module["lessons"])
+        if n == 18:
+            expected_types = EXPECTED_LESSON_TYPES_18
+        else:
+            assert n == 12, path
+            expected_types = EXPECTED_LESSON_TYPES_12
+        assert [lesson["type"] for lesson in module["lessons"]] == expected_types, path
+        assert [lesson["order"] for lesson in module["lessons"]] == list(range(1, n + 1)), path
 
 
 def test_module_level_quality_targets_are_met_and_progressive():

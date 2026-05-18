@@ -34,7 +34,10 @@ class StatsService:
 
         # Today's statistics
         today = datetime.now(timezone.utc).date()
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        # UserCardDirection datetimes are naive-UTC; compare with naive UTC midnight
+        today_start = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+        )
         today_sessions = StudySession.query.filter_by(user_id=user_id) \
             .filter(func.date(StudySession.start_time) == today).all()
 
