@@ -15596,6 +15596,15 @@ span.vocab-word.vocab-word--active {
     color: var(--color-text-secondary, #6b7280);
     margin: 0;
 }
+.daily-challenge-card__hint {
+    font-size: 0.82rem;
+    color: #92400e;
+    background: rgba(254, 243, 199, 0.6);
+    border-left: 3px solid #f59e0b;
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.35rem;
+    margin: 0.35rem 0 0.6rem;
+}
 
 /* ── Curriculum search bar (index page) ── */
 .learn-search-bar {
