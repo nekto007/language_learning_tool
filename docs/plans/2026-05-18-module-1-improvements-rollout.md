@@ -305,12 +305,12 @@ Files:
 - Create: `reports/module_content_audit_after.md`
 - Create: `reports/module_content_audit_diff.md`
 
-- [ ] Re-run the audit from Task 1; produce `_after.md`
-- [ ] Diff against baseline; per-module-per-type cell should now read "OK" for
+- [x] Re-run the audit from Task 1; produce `_after.md`
+- [x] Diff against baseline; per-module-per-type cell should now read "OK" for
       every cell that previously showed gaps
-- [ ] Any cell still showing gaps either gets a follow-up ticket or a
+- [x] Any cell still showing gaps either gets a follow-up ticket or a
       `known-deferred` annotation with reason
-- [ ] Run full `pytest -q` — record pass/skip/xfail counts in the diff report
+- [x] Run full `pytest -q` — record pass/skip/xfail counts in the diff report
 
 ### Task 14: Verification + Documentation
 
