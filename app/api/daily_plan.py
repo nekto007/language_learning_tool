@@ -93,15 +93,16 @@ def _compute_listening_goal(user, tz: str) -> dict:
             lesson.id: lesson
             for lesson in Lessons.query.filter(Lessons.id.in_(unique_lesson_ids)).all()
         }
-        for lesson_id in unique_lesson_ids:
-            lesson = lessons_map.get(lesson_id)
+        for attempt in attempts:
+            lesson = lessons_map.get(attempt.lesson_id)
             duration = 300
             if lesson and lesson.content and isinstance(lesson.content, dict):
                 try:
                     duration = min(int(float(lesson.content.get('duration_seconds') or 300)), 3600)
                 except (TypeError, ValueError):
                     duration = 300
-            total_seconds += duration
+            replay_credit = max(0, min(attempt.replay_count or 0, 10))
+            total_seconds += duration * (1 + replay_credit)
 
     listening_minutes_today = round(total_seconds / 60, 1)
 
@@ -1205,9 +1206,11 @@ def challenge_complete():
         bonus_xp = result.get('bonus_xp', 0)
         if bonus_xp:
             try:
-                award_xp(current_user.id, bonus_xp, 'daily_challenge')
+                with db.session.begin_nested():
+                    award_xp(current_user.id, bonus_xp, 'daily_challenge')
             except Exception as xp_err:
                 logger.warning("Challenge XP award failed for user %s: %s", current_user.id, xp_err)
+                result['bonus_xp'] = 0
 
     try:
         db.session.commit()

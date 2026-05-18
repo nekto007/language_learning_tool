@@ -136,7 +136,7 @@ class StatisticsService:
         if not stats:
             stats = UserStatistics(user_id=user_id)
             db.session.add(stats)
-            db.session.commit()
+            db.session.flush()
         return stats
 
     @staticmethod
@@ -192,7 +192,7 @@ class StatisticsService:
         return stats
 
     @staticmethod
-    def update_badge_stats(user_id: int) -> None:
+    def update_badge_stats(user_id: int, commit: bool = True) -> None:
         """Update badge-related statistics"""
         stats = StatisticsService.get_or_create_statistics(user_id)
 
@@ -209,7 +209,10 @@ class StatisticsService:
         stats.total_badge_points = total_points
         stats.updated_at = datetime.now(timezone.utc)
 
-        db.session.commit()
+        if commit:
+            db.session.commit()
+        else:
+            db.session.flush()
 
 
 class AchievementService:
@@ -502,7 +505,7 @@ class AchievementService:
 
         if newly_awarded:
             db.session.flush()
-            StatisticsService.update_badge_stats(user_id)
+            StatisticsService.update_badge_stats(user_id, commit=False)
 
         return newly_awarded
 

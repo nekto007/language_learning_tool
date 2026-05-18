@@ -157,18 +157,35 @@ def complete_challenge(
             'completed_at': existing.completed_at.isoformat(),
         }
 
+    from sqlalchemy.exc import IntegrityError
+
     completion = DailyChallengeCompletion(
         challenge_id=challenge_id,
         user_id=user_id,
         score=score,
         time_spent_seconds=time_spent_seconds,
     )
-    db.session.add(completion)
-    db.session.flush()
+    try:
+        with db.session.begin_nested():
+            db.session.add(completion)
+    except IntegrityError:
+        existing = DailyChallengeCompletion.query.filter_by(
+            challenge_id=challenge_id,
+            user_id=user_id,
+        ).first()
+        if existing is None:
+            raise
+        return {
+            'challenge_id': challenge_id,
+            'user_id': user_id,
+            'already_completed': True,
+            'completed_at': existing.completed_at.isoformat(),
+        }
 
     try:
-        from app.achievements.services import check_challenge_achievements
-        check_challenge_achievements(user_id)
+        with db.session.begin_nested():
+            from app.achievements.services import check_challenge_achievements
+            check_challenge_achievements(user_id)
     except Exception:
         logger.exception(
             "Failed to check challenge achievements for user %s", user_id
@@ -374,10 +391,15 @@ def maybe_auto_complete_challenge(
             time_spent_seconds=time_spent_seconds,
             db=db,
         )
-        from app.achievements.xp_service import award_xp
         bonus_xp = result.get('bonus_xp', 0)
         if bonus_xp and not result.get('already_completed'):
-            award_xp(user_id, bonus_xp, 'daily_challenge')
+            try:
+                from app.achievements.xp_service import award_xp
+                with db.session.begin_nested():
+                    award_xp(user_id, bonus_xp, 'daily_challenge')
+            except Exception:
+                logger.warning("maybe_auto_complete_challenge: XP award failed for user=%s", user_id)
+                result['bonus_xp'] = 0
         return result
     except Exception:
         logger.exception("maybe_auto_complete_challenge failed for user=%s lesson=%s", user_id, lesson_id)
