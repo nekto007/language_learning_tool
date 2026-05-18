@@ -800,6 +800,7 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
     user_answers = data.get('answers') or []
     if not isinstance(user_answers, list):
         user_answers = []
+    user_answers = [(str(a) if a is not None else '')[:2000] for a in user_answers]
     try:
         replay_count = max(0, min(int(data.get('replay_count') or 0), _DICTATION_MAX_REPLAYS))
     except (TypeError, ValueError):
@@ -1499,6 +1500,7 @@ def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, dat
     user_answers = data.get('answers') or []
     if not isinstance(user_answers, list):
         user_answers = []
+    user_answers = [(str(a) if a is not None else '')[:2000] for a in user_answers]
 
     grade = grade_sentence_completion(user_answers, items)
 
@@ -1607,6 +1609,10 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
     content = lesson.content or {}
     correct_pairs = content.get('pairs', [])
     user_pairs = data.get('user_pairs', [])
+    if not isinstance(user_pairs, list):
+        user_pairs = []
+    max_pairs = max(len(correct_pairs) * 2, 50)
+    user_pairs = user_pairs[:max_pairs]
 
     grade = grade_collocation_matching(user_pairs, correct_pairs)
 
@@ -1725,16 +1731,6 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
             db.session.rollback()
             logger.warning(f"Shadow reading XP award failed for lesson {lesson.id}: {xp_err}")
 
-        try:
-            from app.curriculum.listening_service import log_pronunciation_attempt
-            from app.achievements.services import check_speaking_achievements
-            log_pronunciation_attempt(user_id, 'shadow_reading', '', False, db)
-            db.session.commit()
-            check_speaking_achievements(user_id, db_session=db.session)
-            db.session.commit()
-        except Exception as sp_err:
-            db.session.rollback()
-            logger.warning(f"Shadow reading speaking signal failed for lesson {lesson.id}: {sp_err}")
 
     result: dict = {'success': True, 'completed': self_assessed}
     if self_assessed:
