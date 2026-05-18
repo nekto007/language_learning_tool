@@ -163,7 +163,7 @@ def update_lesson_progress(lesson_id):
             'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
             'dialogue_completion_quiz',
             'writing_prompt', 'shadow_reading', 'pronunciation',
-            'listening_immersion',
+            'listening_immersion', 'idiom',
         ))
         # For these types score must come from the submit endpoint, but status
         # can be set via the progress endpoint (e.g. theory-only auto-complete).
@@ -687,7 +687,14 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
     ).first()
     failed_indices = []
     if existing_progress and isinstance(existing_progress.data, dict):
-        failed_indices = existing_progress.data.get('dictation_failed_indices') or []
+        # After first full submit, progress.data is the grade result dict which uses
+        # 'failed_indices' key (not 'dictation_failed_indices'). Check both so the
+        # attempt-limit penalty survives lesson retries.
+        failed_indices = (
+            existing_progress.data.get('dictation_failed_indices')
+            or existing_progress.data.get('failed_indices')
+            or []
+        )
     if failed_indices:
         grade['passed'] = False
         grade['score'] = min(int(grade.get('score') or 0), 79)
