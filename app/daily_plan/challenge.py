@@ -93,10 +93,11 @@ def get_today_challenge(user_id: int, db) -> dict:
     today = get_user_local_date(user_id, db)
     challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
     if challenge is None:
+        from sqlalchemy.exc import IntegrityError
         try:
             challenge = _seed_today_challenge(today, db)
             db.session.commit()
-        except Exception:
+        except IntegrityError:
             logger.warning("get_today_challenge: race seeding challenge for %s, retrying read", today)
             db.session.rollback()
             challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
@@ -284,6 +285,7 @@ def check_challenge_criteria(
         # vocabulary, flashcards, and grammar are excluded: they allow client-set
         # completed status via the progress endpoint (not server-graded via submit).
         _speed_run_window = timedelta(seconds=_SPEED_RUN_MAX_SECONDS)
+        _speed_run_floor = timedelta(seconds=_SPEED_RUN_MIN_SECONDS)
         from app.curriculum.models import LessonAttempt, LessonProgress, Lessons
         completed_today = (
             db.session.query(LessonAttempt.id)
@@ -293,6 +295,7 @@ def check_challenge_criteria(
                 LessonAttempt.completed_at >= today_start,
                 LessonAttempt.completed_at.isnot(None),
                 LessonAttempt.passed.is_(True),
+                (LessonAttempt.completed_at - LessonAttempt.started_at) >= _speed_run_floor,
                 (LessonAttempt.completed_at - LessonAttempt.started_at) < _speed_run_window,
                 Lessons.type.in_(_ACCURACY_FOCUS_GRADED_TYPES),
             )
@@ -315,6 +318,7 @@ def check_challenge_criteria(
                     LessonProgress.user_id == user_id,
                     LessonProgress.status == 'completed',
                     LessonProgress.last_activity >= today_start,
+                    (LessonProgress.last_activity - LessonProgress.started_at) >= _speed_run_floor,
                     (LessonProgress.last_activity - LessonProgress.started_at) < _speed_run_window,
                     Lessons.type.in_(_ACCURACY_FOCUS_GRADED_TYPES),
                 )
@@ -352,10 +356,11 @@ def maybe_auto_complete_challenge(
     today = get_user_local_date(user_id, db)
     challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
     if challenge is None:
+        from sqlalchemy.exc import IntegrityError
         try:
             challenge = _seed_today_challenge(today, db)
             db.session.commit()
-        except Exception:
+        except IntegrityError:
             logger.warning("maybe_auto_complete_challenge: race seeding challenge for %s, retrying read", today)
             db.session.rollback()
             challenge = DailyChallenge.query.filter_by(challenge_date=today).first()

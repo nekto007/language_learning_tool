@@ -101,8 +101,8 @@ def _compute_listening_goal(user, tz: str) -> dict:
                     duration = min(int(float(lesson.content.get('duration_seconds') or 300)), 3600)
                 except (TypeError, ValueError):
                     duration = 300
-            replay_credit = max(0, min(attempt.replay_count or 0, 10))
-            total_seconds += duration * (1 + replay_credit)
+            replay_bonus = duration if (attempt.replay_count or 0) > 0 else 0
+            total_seconds += duration + replay_bonus
 
     listening_minutes_today = round(total_seconds / 60, 1)
 
