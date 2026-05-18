@@ -9,6 +9,11 @@ under `scripts/import_immersion_lessons.py` and
 
 Companion documents:
 
+- `docs/design/module-source-json-contract.md` — authoritative contract
+  for `module_completed/fixed/module_*.json` (file layout, lesson
+  identity, per-type content schemas, XP source keys, audio paths,
+  production transfer workflow). The seed files in this directory feed
+  into that source-of-truth layer via the importer.
 - `docs/content/immersion-content-targets.md` — acceptance contract
   (per-module slot saturation, CEFR seed minimums, audio quality
   requirements).
@@ -88,20 +93,35 @@ Optional but recommended:
 must be deterministic, human-readable, and globally unique across all
 immersion content. Choose the key once, never rename it.
 
+The full contract lives in
+`docs/design/module-source-json-contract.md` §7 ("Lesson identity"),
+which also covers the canonical-source layer in
+`module_completed/fixed/`. Seed files in this directory map to a module
+through `module_insertion_map.csv` and inherit the same key shape.
+
 Format:
 
 ```
-{lesson_type}:{level}:{module_number:02d}:{slug}
+{source}:{lesson_type}:{level}:{module_number:02d}:{slug}
 ```
+
+`{source}` is `immersion` for content authored from this directory and
+`curriculum` for original spine lessons. The seed slot uses `seed` in
+place of the module number when the file is a CEFR-wide seed, not a
+per-module anchor.
 
 Examples:
 
-- `dictation:A1:01:greetings` — per-module dictation, A1 module 1.
-- `writing_prompt:B2:07:work_email` — per-module writing prompt.
-- `shadow_reading:C1:13:negotiation` — per-module shadow reading.
-- `audio_fill_blank:B1:seed:weather_forecast` — CEFR seed (no
+- `immersion:dictation:A1:01:greetings` — per-module dictation, A1 module 1.
+- `immersion:writing_prompt:B2:07:work_email` — per-module writing prompt.
+- `immersion:shadow_reading:C1:13:negotiation` — per-module shadow reading.
+- `immersion:audio_fill_blank:B1:seed:weather_forecast` — CEFR seed (no
   per-module anchor; use `seed` in the module slot).
-- `idiom:C1:seed:break_the_ice` — idiom seed.
+- `immersion:idiom:C1:seed:break_the_ice` — idiom seed.
+
+Earlier seed files committed without the `{source}` prefix
+(`dictation:A1:01:greetings`) remain valid; new content adds the prefix
+to keep the source layer auditable.
 
 Slug rules:
 
@@ -139,9 +159,13 @@ non-per-module lessons trivial.
 
 ## Cross-references
 
+- Source-of-truth contract: `docs/design/module-source-json-contract.md`
+- Canonical source tree: `module_completed/fixed/`
 - Importer: `scripts/import_immersion_lessons.py`
 - Audit: `scripts/audit_immersion_data.py` → `reports/immersion_data_audit.md`
 - Gap report: `scripts/report_immersion_gaps.py` → `reports/immersion_gap_report.md`
+- Source gap audit: `scripts/audit_module_completed_json_gaps.py` →
+  `reports/module_completed_json_gap_report.md`
 - Audio audit: `scripts/audit_existing_listening_payloads.py` →
   `reports/existing_listening_payloads.md`
 - Acceptance contract: `docs/content/immersion-content-targets.md`

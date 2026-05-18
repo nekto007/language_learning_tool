@@ -5,31 +5,38 @@ _Source directory_: `/Users/igorkorobko/Library/Mobile Documents/com~apple~Cloud
 - By CEFR level: A1=16, A2=22, B1=14, B2=12, C1=13
 
 ## Lessons per CEFR Level × Type (source)
-| level | dialogue_completion_quiz | final_test | flashcards | grammar | listening_immersion | listening_quiz | ordering_quiz | quiz | reading | translation_quiz | vocabulary |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A1 | 16 | 16 | 32 | 16 | 16 | 16 | 16 | 16 | 16 | 16 | 16 |
-| A2 | 22 | 22 | 44 | 22 | 22 | 22 | 22 | 22 | 22 | 22 | 22 |
-| B1 | 14 | 14 | 28 | 14 | 14 | 14 | 14 | 14 | 14 | 14 | 14 |
-| B2 | 12 | 12 | 24 | 12 | 12 | 12 | 12 | 12 | 12 | 12 | 12 |
-| C1 | 13 | 13 | 26 | 13 | 13 | 13 | 13 | 13 | 13 | 13 | 13 |
+| level | audio_fill_blank | collocation_matching | dialogue_completion_quiz | dictation | final_test | flashcards | grammar | listening_immersion | listening_quiz | ordering_quiz | quiz | reading | sentence_completion | shadow_reading | translation | translation_quiz | vocabulary | writing_prompt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A1 | 1 | 1 | 16 | 1 | 16 | 32 | 16 | 16 | 16 | 16 | 15 | 16 | 1 | 1 | 1 | 16 | 16 | 1 |
+| A2 | 0 | 0 | 22 | 0 | 22 | 44 | 22 | 22 | 22 | 22 | 22 | 22 | 0 | 0 | 0 | 22 | 22 | 0 |
+| B1 | 0 | 0 | 14 | 0 | 14 | 28 | 14 | 14 | 14 | 14 | 14 | 14 | 0 | 0 | 0 | 14 | 14 | 0 |
+| B2 | 0 | 0 | 12 | 0 | 12 | 24 | 12 | 12 | 12 | 12 | 12 | 12 | 0 | 0 | 0 | 12 | 12 | 0 |
+| C1 | 0 | 0 | 13 | 0 | 13 | 26 | 13 | 13 | 13 | 13 | 13 | 13 | 0 | 0 | 0 | 13 | 13 | 0 |
 
 ## Source Lessons Total per Type
 | lesson_type | count |
 | --- | --- |
+| audio_fill_blank | 1 |
+| collocation_matching | 1 |
 | dialogue_completion_quiz | 77 |
+| dictation | 1 |
 | final_test | 77 |
 | flashcards | 154 |
 | grammar | 77 |
 | listening_immersion | 77 |
 | listening_quiz | 77 |
 | ordering_quiz | 77 |
-| quiz | 77 |
+| quiz | 76 |
 | reading | 77 |
+| sentence_completion | 1 |
+| shadow_reading | 1 |
+| translation | 1 |
 | translation_quiz | 77 |
 | vocabulary | 77 |
+| writing_prompt | 1 |
 
 ## Source Modules Missing Slot-Critical Lesson Types
-### `dictation` — missing in 77 module(s)
+### `dictation` — missing in 76 module(s)
 | level | file_order | filename | title |
 | --- | --- | --- | --- |
 | A1 | 10 | module_A1_10_daily_routine.json | Повседневная жизнь |
@@ -39,7 +46,6 @@ _Source directory_: `/Users/igorkorobko/Library/Mobile Documents/com~apple~Cloud
 | A1 | 14 | module_A1_14_can_abilities.json | Умения и способности |
 | A1 | 15 | module_A1_15_food_and_drinks.json | Еда и напитки |
 | A1 | 16 | module_A1_16_personal_belongings.json | Личные вещи |
-| A1 | 1 | module_A1_1_greetings.json | Знакомство и приветствия |
 | A1 | 2 | module_A1_2_numbers_and_colors.json | Предметы вокруг нас |
 | A1 | 3 | module_A1_3_clothing.json | Одежда |
 | A1 | 4 | module_A1_4_objects_around_us.json | Числа и цвета |
@@ -109,7 +115,7 @@ _Source directory_: `/Users/igorkorobko/Library/Mobile Documents/com~apple~Cloud
 | C1 | 7 | module_C1_7_media_and_communications.json | СМИ и коммуникации (анализ новостей). |
 | C1 | 8 | module_C1_8_third_conditional.json | Путешествия и сожаления |
 | C1 | 9 | module_C1_9_money_and_finances.json | Деньги и финансы (инвестиции, экономика). |
-### `writing_prompt` — missing in 77 module(s)
+### `writing_prompt` — missing in 76 module(s)
 | level | file_order | filename | title |
 | --- | --- | --- | --- |
 | A1 | 10 | module_A1_10_daily_routine.json | Повседневная жизнь |
@@ -119,7 +125,6 @@ _Source directory_: `/Users/igorkorobko/Library/Mobile Documents/com~apple~Cloud
 | A1 | 14 | module_A1_14_can_abilities.json | Умения и способности |
 | A1 | 15 | module_A1_15_food_and_drinks.json | Еда и напитки |
 | A1 | 16 | module_A1_16_personal_belongings.json | Личные вещи |
-| A1 | 1 | module_A1_1_greetings.json | Знакомство и приветствия |
 | A1 | 2 | module_A1_2_numbers_and_colors.json | Предметы вокруг нас |
 | A1 | 3 | module_A1_3_clothing.json | Одежда |
 | A1 | 4 | module_A1_4_objects_around_us.json | Числа и цвета |
@@ -189,7 +194,7 @@ _Source directory_: `/Users/igorkorobko/Library/Mobile Documents/com~apple~Cloud
 | C1 | 7 | module_C1_7_media_and_communications.json | СМИ и коммуникации (анализ новостей). |
 | C1 | 8 | module_C1_8_third_conditional.json | Путешествия и сожаления |
 | C1 | 9 | module_C1_9_money_and_finances.json | Деньги и финансы (инвестиции, экономика). |
-### `shadow_reading` — missing in 77 module(s)
+### `shadow_reading` — missing in 76 module(s)
 | level | file_order | filename | title |
 | --- | --- | --- | --- |
 | A1 | 10 | module_A1_10_daily_routine.json | Повседневная жизнь |
@@ -199,7 +204,6 @@ _Source directory_: `/Users/igorkorobko/Library/Mobile Documents/com~apple~Cloud
 | A1 | 14 | module_A1_14_can_abilities.json | Умения и способности |
 | A1 | 15 | module_A1_15_food_and_drinks.json | Еда и напитки |
 | A1 | 16 | module_A1_16_personal_belongings.json | Личные вещи |
-| A1 | 1 | module_A1_1_greetings.json | Знакомство и приветствия |
 | A1 | 2 | module_A1_2_numbers_and_colors.json | Предметы вокруг нас |
 | A1 | 3 | module_A1_3_clothing.json | Одежда |
 | A1 | 4 | module_A1_4_objects_around_us.json | Числа и цвета |

@@ -1,13 +1,11 @@
 [
   {
-    "external_key": "fixture:sentence_correction:A2:99:no_explanation",
+    "external_key": "fixture:sentence_correction:A2:99:no_sentences",
     "level": "A2",
     "module_number": 1,
     "lesson_type": "sentence_correction",
-    "title": "Bad: Sentence correction without explanation",
+    "title": "Bad: Sentence correction without required sentence fields",
     "content": {
-      "incorrect_sentence": "She is a engineer.",
-      "correct_sentence": "She is an engineer.",
       "error_type": "article"
     }
   }

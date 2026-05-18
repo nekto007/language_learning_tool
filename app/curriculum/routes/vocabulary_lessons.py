@@ -693,15 +693,6 @@ def text_lesson(lesson_id):
         if 'text' not in cleaned_content and text_content:
             cleaned_content['text'] = cleaned_content['content']
 
-    if lesson.type == 'listening_immersion':
-        cleaned_content['is_listening_immersion'] = True
-        if 'audio' in cleaned_content:
-            cleaned_content['audio'] = cleaned_content['audio']
-        if 'translation' in cleaned_content:
-            cleaned_content['translation'] = sanitize_html(cleaned_content['translation'])
-        if 'instruction' in cleaned_content:
-            cleaned_content['instruction'] = sanitize_html(cleaned_content['instruction'])
-
     if 'title' in cleaned_content:
         cleaned_content['title'] = sanitize_html(cleaned_content['title'])
 

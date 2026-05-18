@@ -10,10 +10,12 @@ from datetime import UTC, datetime
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _, lazy_gettext as _l
+from flask_login import current_user
 from flask_wtf import FlaskForm
 from wtforms import IntegerField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
+from app.admin.audit import log_admin_action
 from app.admin.main_routes import admin, admin_required
 from app.auth.models import User
 from app.books.models import Book
@@ -840,5 +842,6 @@ def cultural_note_delete(note_id):
     word_id = note.word_id
     db.session.delete(note)
     db.session.commit()
+    log_admin_action(current_user.id, 'delete_cultural_note', 'cultural_note', note_id)
     flash(_('Cultural note deleted.'), 'success')
     return redirect(url_for('admin.cultural_notes_list', word_id=word_id))

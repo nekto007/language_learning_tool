@@ -1274,6 +1274,9 @@ def get_immersion_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
 
     local_today = datetime.now(tz_obj).date()
     cutoff = local_today - timedelta(days=365)
+    # UserReadingSession.started_at is TIMESTAMPTZ — must compare to tz-aware datetime,
+    # not a bare date object (PostgreSQL has no timestamptz >= date operator).
+    cutoff_dt = tz_obj.localize(datetime.combine(cutoff, datetime.min.time()))
 
     def _local_date(col):
         return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
@@ -1307,7 +1310,7 @@ def get_immersion_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
         reading_dates = {
             row[0]
             for row in session.query(_local_date_tz(UserReadingSession.started_at).label('d'))
-            .filter(UserReadingSession.user_id == user_id, UserReadingSession.started_at >= cutoff)
+            .filter(UserReadingSession.user_id == user_id, UserReadingSession.started_at >= cutoff_dt)
             .distinct().all()
             if row[0] is not None
         }

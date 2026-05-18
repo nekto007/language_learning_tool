@@ -357,7 +357,8 @@ def test_listening_immersion_audio_json_parses():
     assert data_file.exists(), f"Missing: {data_file}"
     entries, errors = load_entries([str(data_file)])
     assert errors == [], f"Parse errors: {errors}"
-    assert len(entries) == 77, f"Expected 77 entries, got {len(entries)}"
+    # 81 entries: 77 original + 4 added during the M1 content rollout (Task 8)
+    assert len(entries) == 81, f"Expected 81 entries, got {len(entries)}"
 
 
 def test_listening_immersion_audio_all_have_audio_url():

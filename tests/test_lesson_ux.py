@@ -322,12 +322,12 @@ class TestPlanContextHidesCurriculumNext:
         response = authenticated_client.get(f'/learn/{empty_content_lesson.id}/')
         assert response.status_code == 200
         html = response.data.decode()
-        # Sibling selector wording is stable — keep the assertion tight so a
-        # rename breaks immediately.
-        assert '#lesson-completion[data-completion-mode="plan"] ~ #lesson-footer' in html
-        assert '#lesson-completion[data-completion-mode="plan"] ~ #daily-plan-next-step' in html
-        # Descendant selector ensures legacy curriculum-next CTAs inside the
-        # completion block disappear once plan mode wins.
+        # Footer is hidden via the style-based sibling selector (keys off
+        # showLessonCompletion's inline display:block rather than the
+        # data-attribute, which is set later in the plan branch).
+        assert '#lesson-completion[style*="display: block"] ~ #lesson-footer' in html
+        assert '#lesson-completion[style*="display: block"] ~ #daily-plan-next-step' in html
+        # Plan mode hides legacy standalone CTAs inside the completion block.
         assert '#lesson-completion[data-completion-mode="plan"] [data-standalone-cta]' in html
 
     @patch('app.curriculum.security.check_lesson_access', return_value=True)
@@ -373,9 +373,9 @@ class TestPlanContextHidesCurriculumNext:
         html = response.data.decode()
         assert 'id="complete-exercise"' in html
         assert 'data-next-url="/learn/{}/"'.format(follow_up.id) in html
-        # And the new sibling CSS rule is present so that URL never becomes
+        # And the style-based sibling rule is present so that URL never becomes
         # reachable when plan mode is active.
-        assert '#lesson-completion[data-completion-mode="plan"] ~ #lesson-footer' in html
+        assert '#lesson-completion[style*="display: block"] ~ #lesson-footer' in html
 
 
 class TestQuizPlanAwareCompletion:
@@ -431,7 +431,8 @@ class TestQuizPlanAwareCompletion:
         html = response.data.decode()
         # Plan-aware hook: the completed-quiz DOMContentLoaded handler calls
         # the shared helper so the plan branch runs when context is active.
-        assert 'showLessonCompletion({ score: completionScore })' in html
+        # silent=true because this is a page-reload of an already-completed lesson.
+        assert 'showLessonCompletion({ score: completionScore, silent: true })' in html
         # Score is piped from the stored progress data into the helper call
         # (rounded to int via Jinja filters).
         assert 'const completionScore = 95' in html

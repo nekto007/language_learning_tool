@@ -107,7 +107,8 @@ class TestPlanPauseEndpoint:
         assert resp.status_code == 200
 
         with authenticated_client.application.app_context():
-            user = User.query.first()
+            user_id = authenticated_client.application.test_user.id
+            user = User.query.filter_by(id=user_id).first()
             assert user is not None
             assert user.plan_paused_until == date.today() + timedelta(days=5)
 
@@ -144,7 +145,8 @@ class TestPlanResumeEndpoint:
         assert resp.get_json()['status'] == 'ok'
 
         with authenticated_client.application.app_context():
-            user = User.query.first()
+            user_id = authenticated_client.application.test_user.id
+            user = User.query.filter_by(id=user_id).first()
             assert user.plan_paused_until is None
 
     def test_resume_when_not_paused(self, authenticated_client, db_session):

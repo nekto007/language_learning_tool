@@ -25,7 +25,10 @@ def _get_user_timezone(user_id: int, db_session: Any = None):
     from config.settings import DEFAULT_TIMEZONE
 
     db_obj = db_session if db_session is not None else db
-    user = db_obj.session.get(User, user_id)
+    # db_obj may be a Flask-SQLAlchemy extension (has .session) or a raw
+    # scoped_session passed directly from tests/callers.
+    session_obj = db_obj.session if hasattr(db_obj, 'session') else db_obj
+    user = session_obj.get(User, user_id)
     tz_name: Optional[str] = getattr(user, 'timezone', None) or DEFAULT_TIMEZONE
     try:
         return ZoneInfo(tz_name)

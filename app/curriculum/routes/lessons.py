@@ -163,7 +163,7 @@ def update_lesson_progress(lesson_id):
             'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
             'dialogue_completion_quiz',
             'writing_prompt', 'shadow_reading', 'pronunciation',
-            'listening_immersion',
+            'listening_immersion', 'idiom',
         ))
         # For these types score must come from the submit endpoint, but status
         # can be set via the progress endpoint (e.g. theory-only auto-complete).
@@ -674,7 +674,7 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
         hint_chars = 0
     user_text = (data.get('user_text') or '')[:50000]
     try:
-        replay_count = min(int(data.get('replay_count') or 0), _DICTATION_MAX_REPLAYS)
+        replay_count = max(0, min(int(data.get('replay_count') or 0), _DICTATION_MAX_REPLAYS))
     except (TypeError, ValueError):
         replay_count = 0
 
@@ -687,7 +687,14 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
     ).first()
     failed_indices = []
     if existing_progress and isinstance(existing_progress.data, dict):
-        failed_indices = existing_progress.data.get('dictation_failed_indices') or []
+        # After first full submit, progress.data is the grade result dict which uses
+        # 'failed_indices' key (not 'dictation_failed_indices'). Check both so the
+        # attempt-limit penalty survives lesson retries.
+        failed_indices = (
+            existing_progress.data.get('dictation_failed_indices')
+            or existing_progress.data.get('failed_indices')
+            or []
+        )
     if failed_indices:
         grade['passed'] = False
         grade['score'] = min(int(grade.get('score') or 0), 79)
@@ -711,7 +718,9 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
     try:
         from app.achievements.services import check_listening_achievements
         check_listening_achievements(user_id, db_session=db.session)
+        db.session.commit()
     except Exception as ach_err:
+        db.session.rollback()
         logger.warning(f"Listening achievement check failed for user {user_id}: {ach_err}")
 
     if grade.get('passed'):
@@ -721,6 +730,7 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
             maybe_award_listening_xp(user_id, lesson.id, score=grade['score'], db_session=db)
             db.session.commit()
         except Exception as xp_err:
+            db.session.rollback()
             logger.warning(f"Dictation XP award failed for lesson {lesson.id}: {xp_err}")
 
     result = {**grade, 'transcript': transcript if not grade.get('passed') else None}
@@ -790,8 +800,9 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
     user_answers = data.get('answers') or []
     if not isinstance(user_answers, list):
         user_answers = []
+    user_answers = [(str(a) if a is not None else '')[:2000] for a in user_answers]
     try:
-        replay_count = min(int(data.get('replay_count') or 0), _DICTATION_MAX_REPLAYS)
+        replay_count = max(0, min(int(data.get('replay_count') or 0), _DICTATION_MAX_REPLAYS))
     except (TypeError, ValueError):
         replay_count = 0
 
@@ -814,7 +825,9 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
     try:
         from app.achievements.services import check_listening_achievements
         check_listening_achievements(user_id, db_session=db.session)
+        db.session.commit()
     except Exception as ach_err:
+        db.session.rollback()
         logger.warning(f"Listening achievement check failed for user {user_id}: {ach_err}")
 
     if grade.get('passed'):
@@ -824,6 +837,7 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
             maybe_award_listening_xp(user_id, lesson.id, score=grade['score'], db_session=db)
             db.session.commit()
         except Exception as xp_err:
+            db.session.rollback()
             logger.warning(f"Audio fill blank XP award failed for lesson {lesson.id}: {xp_err}")
 
     result = {**grade}
@@ -1013,12 +1027,15 @@ def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict)
             maybe_award_writing_xp(user_id, lesson.id, db_session=db)
             db.session.commit()
         except Exception as xp_err:
+            db.session.rollback()
             logger.warning(f"Translation XP award failed for lesson {lesson.id}: {xp_err}")
 
     try:
         from app.achievements.services import check_writing_achievements
         check_writing_achievements(user_id, db_session=db.session)
+        db.session.commit()
     except Exception as ach_err:
+        db.session.rollback()
         logger.warning(f"Writing achievements check failed for user {user_id}: {ach_err}")
 
     result = dict(grade)
@@ -1157,12 +1174,15 @@ def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, dat
             maybe_award_writing_xp(user_id, lesson.id, db_session=db)
             db.session.commit()
         except Exception as xp_err:
+            db.session.rollback()
             logger.warning(f"Sentence correction XP award failed for lesson {lesson.id}: {xp_err}")
 
     try:
         from app.achievements.services import check_writing_achievements
         check_writing_achievements(user_id, db_session=db.session)
+        db.session.commit()
     except Exception as ach_err:
+        db.session.rollback()
         logger.warning(f"Writing achievements check failed for user {user_id}: {ach_err}")
 
     next_lesson = _get_next_lesson_for_completion(lesson)
@@ -1321,8 +1341,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
 
     word_count = len(response_text.split()) if response_text else 0
     # Sentence count: разделители .!? с любым whitespace вокруг.
-    import re as _re
-    sentence_count = len([s for s in _re.split(r'[.!?]+', response_text) if s.strip()])
+    sentence_count = len([s for s in re.split(r'[.!?]+', response_text) if s.strip()])
 
     meets_min_words = (min_words == 0) or (word_count >= min_words)
     meets_min_sentences = (min_sentences == 0) or (sentence_count >= min_sentences)
@@ -1383,12 +1402,15 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
             maybe_award_writing_xp(user_id, lesson.id, db_session=db)
             db.session.commit()
         except Exception as xp_err:
+            db.session.rollback()
             logger.warning(f"Writing prompt XP award failed for lesson {lesson.id}: {xp_err}")
 
         try:
             from app.achievements.services import check_writing_achievements
             check_writing_achievements(user_id, db_session=db.session)
+            db.session.commit()
         except Exception as ach_err:
+            db.session.rollback()
             logger.warning(f"Writing achievements check failed for user {user_id}: {ach_err}")
 
     result: dict = {
@@ -1478,6 +1500,7 @@ def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, dat
     user_answers = data.get('answers') or []
     if not isinstance(user_answers, list):
         user_answers = []
+    user_answers = [(str(a) if a is not None else '')[:2000] for a in user_answers]
 
     grade = grade_sentence_completion(user_answers, items)
 
@@ -1494,6 +1517,7 @@ def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, dat
             maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
             db.session.commit()
         except Exception as xp_err:
+            db.session.rollback()
             logger.warning(f"Sentence completion XP award failed for lesson {lesson.id}: {xp_err}")
 
     result = {**grade}
@@ -1586,6 +1610,10 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
     content = lesson.content or {}
     correct_pairs = content.get('pairs', [])
     user_pairs = data.get('user_pairs', [])
+    if not isinstance(user_pairs, list):
+        user_pairs = []
+    max_pairs = max(len(correct_pairs) * 2, 50)
+    user_pairs = user_pairs[:max_pairs]
 
     grade = grade_collocation_matching(user_pairs, correct_pairs)
 
@@ -1602,6 +1630,7 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
             maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
             db.session.flush()
         except Exception as xp_err:
+            db.session.rollback()
             logger.warning(f"Collocation matching XP award failed for lesson {lesson.id}: {xp_err}")
     db.session.commit()
 
@@ -1701,16 +1730,9 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
             maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
             db.session.commit()
         except Exception as xp_err:
+            db.session.rollback()
             logger.warning(f"Shadow reading XP award failed for lesson {lesson.id}: {xp_err}")
 
-        try:
-            from app.curriculum.listening_service import log_pronunciation_attempt
-            from app.achievements.services import check_speaking_achievements
-            log_pronunciation_attempt(user_id, 'shadow_reading', '', False, db)
-            db.session.commit()
-            check_speaking_achievements(user_id, db_session=db.session)
-        except Exception as sp_err:
-            logger.warning(f"Shadow reading speaking signal failed for lesson {lesson.id}: {sp_err}")
 
     result: dict = {'success': True, 'completed': self_assessed}
     if self_assessed:
@@ -1771,12 +1793,15 @@ def _process_listening_immersion_submission(lesson: 'Lessons', user_id: int, dat
         maybe_award_listening_xp(user_id, lesson.id, score=100.0, db_session=db)
         db.session.commit()
     except Exception as xp_err:
+        db.session.rollback()
         logger.warning(f"Listening immersion XP award failed for lesson {lesson.id}: {xp_err}")
 
     try:
         from app.achievements.services import check_listening_achievements
         check_listening_achievements(user_id, db_session=db.session)
+        db.session.commit()
     except Exception as ach_err:
+        db.session.rollback()
         logger.warning(f"Listening achievements check failed for user {user_id}: {ach_err}")
 
     result: dict = {'success': True, 'completed': True}
@@ -1866,12 +1891,15 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
             maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
             db.session.commit()
         except Exception as xp_err:
+            db.session.rollback()
             logger.warning(f"Pronunciation XP award failed for lesson {lesson.id}: {xp_err}")
 
         try:
             from app.achievements.services import check_speaking_achievements
             check_speaking_achievements(user_id, db_session=db.session)
+            db.session.commit()
         except Exception as ach_err:
+            db.session.rollback()
             logger.warning(f"Speaking achievements check failed for user {user_id}: {ach_err}")
 
         result: dict = {'success': True, 'completed': True}
@@ -1911,7 +1939,9 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
         try:
             from app.achievements.services import check_speaking_achievements
             check_speaking_achievements(user_id, db_session=db.session)
+            db.session.commit()
         except Exception as ach_err:
+            db.session.rollback()
             logger.warning(f"Speaking achievements check failed for user {user_id}: {ach_err}")
         return {'success': True, 'matched': False, 'self_assessed': True}
 
@@ -1931,7 +1961,9 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
     try:
         from app.achievements.services import check_speaking_achievements
         check_speaking_achievements(user_id, db_session=db.session)
+        db.session.commit()
     except Exception as ach_err:
+        db.session.rollback()
         logger.warning(f"Speaking achievements check failed for user {user_id}: {ach_err}")
     return {'success': True, **grade}
 
@@ -2009,6 +2041,7 @@ def _process_idiom_submission(lesson: 'Lessons', user_id: int, data: dict) -> di
         maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
         db.session.commit()
     except Exception as xp_err:
+        db.session.rollback()
         logger.warning(f"Idiom XP award failed for lesson {lesson.id}: {xp_err}")
 
     result: dict = {'success': True, 'completed': True}

@@ -19,6 +19,7 @@ else:
 build_audio_jobs = _mod.build_audio_jobs
 clean_text_for_audio = _mod.clean_text_for_audio
 resolve_audio_path = _mod.resolve_audio_path
+_pick_english_tts_text = _mod._pick_english_tts_text
 
 
 def test_clean_text_for_audio_collapses_whitespace():
@@ -52,6 +53,36 @@ def test_build_audio_jobs_prefers_audio_text(tmp_path):
     assert len(jobs) == 1
     assert jobs[0].text == "Audio text"
     assert jobs[0].lesson_type == "dictation"
+
+
+class TestPickEnglishTtsText:
+    def test_prefers_audio_text_over_question(self):
+        assert _pick_english_tts_text({"audio_text": "Audio", "question": "Q"}) == "Audio"
+
+    def test_falls_back_to_question_when_no_audio_text(self):
+        assert _pick_english_tts_text({"question": "What is this?"}) == "What is this?"
+
+    def test_falls_back_to_transcript(self):
+        assert _pick_english_tts_text({"transcript": "Hello world"}) == "Hello world"
+
+    def test_falls_back_to_sentence(self):
+        assert _pick_english_tts_text({"sentence": "A short sentence."}) == "A short sentence."
+
+    def test_falls_back_to_text(self):
+        assert _pick_english_tts_text({"text": "Plain text"}) == "Plain text"
+
+    def test_returns_empty_when_no_field_present(self):
+        assert _pick_english_tts_text({}) == ""
+
+    def test_skips_empty_string_values(self):
+        assert _pick_english_tts_text({"audio_text": "", "question": "Q"}) == "Q"
+
+    def test_never_uses_audio_url_as_text(self):
+        result = _pick_english_tts_text({"audio_url": "/static/audio/foo.mp3"})
+        assert result == ""
+
+    def test_cleans_whitespace(self):
+        assert _pick_english_tts_text({"question": "Hello\n\nworld"}) == "Hello world"
 
 
 def test_build_audio_jobs_filters_lesson_type(tmp_path):

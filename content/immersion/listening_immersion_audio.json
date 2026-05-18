@@ -999,5 +999,53 @@
     "needs_audio_file": true,
     "exclusion_reason": null,
     "word_count": 334
+  },
+  {
+    "external_key": "audio_meta:listening_immersion:B1:15",
+    "level": "B1",
+    "module_number": 15,
+    "lesson_type": "listening_immersion",
+    "audio_filename": "B1_M15_L11_dialogue.mp3",
+    "audio_url": "/static/audio/B1_M15_L11_dialogue.mp3",
+    "duration_seconds": 10,
+    "needs_audio_file": false,
+    "exclusion_reason": null,
+    "word_count": 25
+  },
+  {
+    "external_key": "audio_meta:listening_immersion:B1:16",
+    "level": "B1",
+    "module_number": 16,
+    "lesson_type": "listening_immersion",
+    "audio_filename": "B1_M16_L11_dialogue.mp3",
+    "audio_url": "/static/audio/B1_M16_L11_dialogue.mp3",
+    "duration_seconds": 27,
+    "needs_audio_file": false,
+    "exclusion_reason": null,
+    "word_count": 60
+  },
+  {
+    "external_key": "audio_meta:listening_immersion:B2:13",
+    "level": "B2",
+    "module_number": 13,
+    "lesson_type": "listening_immersion",
+    "audio_filename": "B2_M13_L11_dialogue.mp3",
+    "audio_url": "/static/audio/B2_M13_L11_dialogue.mp3",
+    "duration_seconds": 70,
+    "needs_audio_file": false,
+    "exclusion_reason": null,
+    "word_count": 100
+  },
+  {
+    "external_key": "audio_meta:listening_immersion:B2:14",
+    "level": "B2",
+    "module_number": 14,
+    "lesson_type": "listening_immersion",
+    "audio_filename": "B2_M14_L11_dialogue.mp3",
+    "audio_url": "/static/audio/B2_M14_L11_dialogue.mp3",
+    "duration_seconds": 49,
+    "needs_audio_file": false,
+    "exclusion_reason": null,
+    "word_count": 100
   }
 ]

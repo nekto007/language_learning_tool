@@ -284,8 +284,13 @@ class TestGetUserStats:
         from app.words.models import CollectionWords
         import uuid
 
-        now = datetime.now(timezone.utc)
-        yesterday = now - timedelta(days=1)
+        # Anchor all times to UTC midnight so the test is robust no matter what
+        # hour the test suite runs. "today_midnight" is the start of today in UTC
+        # (naive, matching the column convention in UserCardDirection).
+        today_midnight = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+        )
+        yesterday_midnight = today_midnight - timedelta(days=1)
 
         # Create words and user_words with card directions
         for i in range(11):
@@ -302,15 +307,17 @@ class TestGetUserStats:
             db_session.add(user_word)
             db_session.flush()
 
-            # First 5 are new cards (first_reviewed today)
-            # Next 6 are review cards (first_reviewed yesterday, last_reviewed today)
+            # First 5 are new cards: first_reviewed is today (after midnight)
+            # Next 6 are review cards: first_reviewed yesterday, last_reviewed today
             direction = UserCardDirection(user_word_id=user_word.id, direction='eng-rus')
             if i < 5:
-                direction.first_reviewed = now - timedelta(hours=i)
-                direction.last_reviewed = now - timedelta(hours=i)
+                # Spread across the first 5 hours of today (safely after midnight)
+                direction.first_reviewed = today_midnight + timedelta(hours=i)
+                direction.last_reviewed = today_midnight + timedelta(hours=i)
             else:
-                direction.first_reviewed = yesterday
-                direction.last_reviewed = now - timedelta(hours=i-5)
+                # Reviewed yesterday, last touched today
+                direction.first_reviewed = yesterday_midnight + timedelta(hours=i)
+                direction.last_reviewed = today_midnight + timedelta(minutes=i)
             db_session.add(direction)
 
         # Create session for time tracking
@@ -321,8 +328,8 @@ class TestGetUserStats:
             correct_answers=15,
             incorrect_answers=5
         )
-        session.start_time = now - timedelta(hours=1)
-        session.end_time = now
+        session.start_time = today_midnight + timedelta(minutes=10)
+        session.end_time = today_midnight + timedelta(minutes=70)
         db_session.add(session)
 
         db_session.commit()

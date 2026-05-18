@@ -93,10 +93,11 @@ def get_today_challenge(user_id: int, db) -> dict:
     today = get_user_local_date(user_id, db)
     challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
     if challenge is None:
+        from sqlalchemy.exc import IntegrityError
         try:
             challenge = _seed_today_challenge(today, db)
             db.session.commit()
-        except Exception:
+        except IntegrityError:
             logger.warning("get_today_challenge: race seeding challenge for %s, retrying read", today)
             db.session.rollback()
             challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
@@ -157,18 +158,35 @@ def complete_challenge(
             'completed_at': existing.completed_at.isoformat(),
         }
 
+    from sqlalchemy.exc import IntegrityError
+
     completion = DailyChallengeCompletion(
         challenge_id=challenge_id,
         user_id=user_id,
         score=score,
         time_spent_seconds=time_spent_seconds,
     )
-    db.session.add(completion)
-    db.session.flush()
+    try:
+        with db.session.begin_nested():
+            db.session.add(completion)
+    except IntegrityError:
+        existing = DailyChallengeCompletion.query.filter_by(
+            challenge_id=challenge_id,
+            user_id=user_id,
+        ).first()
+        if existing is None:
+            raise
+        return {
+            'challenge_id': challenge_id,
+            'user_id': user_id,
+            'already_completed': True,
+            'completed_at': existing.completed_at.isoformat(),
+        }
 
     try:
-        from app.achievements.services import check_challenge_achievements
-        check_challenge_achievements(user_id)
+        with db.session.begin_nested():
+            from app.achievements.services import check_challenge_achievements
+            check_challenge_achievements(user_id)
     except Exception:
         logger.exception(
             "Failed to check challenge achievements for user %s", user_id
@@ -266,14 +284,8 @@ def check_challenge_criteria(
         # client controls the self-assessment outcome.
         # vocabulary, flashcards, and grammar are excluded: they allow client-set
         # completed status via the progress endpoint (not server-graded via submit).
-        from datetime import timedelta
-        _SPEED_RUN_GRADED_TYPES = (
-            'dictation', 'audio_fill_blank', 'translation',
-            'sentence_correction', 'sentence_completion', 'collocation_matching',
-            'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
-            'dialogue_completion_quiz', 'final_test',
-        )
         _speed_run_window = timedelta(seconds=_SPEED_RUN_MAX_SECONDS)
+        _speed_run_floor = timedelta(seconds=_SPEED_RUN_MIN_SECONDS)
         from app.curriculum.models import LessonAttempt, LessonProgress, Lessons
         completed_today = (
             db.session.query(LessonAttempt.id)
@@ -283,8 +295,9 @@ def check_challenge_criteria(
                 LessonAttempt.completed_at >= today_start,
                 LessonAttempt.completed_at.isnot(None),
                 LessonAttempt.passed.is_(True),
+                (LessonAttempt.completed_at - LessonAttempt.started_at) >= _speed_run_floor,
                 (LessonAttempt.completed_at - LessonAttempt.started_at) < _speed_run_window,
-                Lessons.type.in_(_SPEED_RUN_GRADED_TYPES),
+                Lessons.type.in_(_ACCURACY_FOCUS_GRADED_TYPES),
             )
             .first()
         )
@@ -305,8 +318,9 @@ def check_challenge_criteria(
                     LessonProgress.user_id == user_id,
                     LessonProgress.status == 'completed',
                     LessonProgress.last_activity >= today_start,
+                    (LessonProgress.last_activity - LessonProgress.started_at) >= _speed_run_floor,
                     (LessonProgress.last_activity - LessonProgress.started_at) < _speed_run_window,
-                    Lessons.type.in_(_SPEED_RUN_GRADED_TYPES),
+                    Lessons.type.in_(_ACCURACY_FOCUS_GRADED_TYPES),
                 )
                 .first()
             )
@@ -342,10 +356,11 @@ def maybe_auto_complete_challenge(
     today = get_user_local_date(user_id, db)
     challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
     if challenge is None:
+        from sqlalchemy.exc import IntegrityError
         try:
             challenge = _seed_today_challenge(today, db)
             db.session.commit()
-        except Exception:
+        except IntegrityError:
             logger.warning("maybe_auto_complete_challenge: race seeding challenge for %s, retrying read", today)
             db.session.rollback()
             challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
@@ -381,10 +396,15 @@ def maybe_auto_complete_challenge(
             time_spent_seconds=time_spent_seconds,
             db=db,
         )
-        from app.achievements.xp_service import award_xp
         bonus_xp = result.get('bonus_xp', 0)
         if bonus_xp and not result.get('already_completed'):
-            award_xp(user_id, bonus_xp, 'daily_challenge')
+            try:
+                from app.achievements.xp_service import award_xp
+                with db.session.begin_nested():
+                    award_xp(user_id, bonus_xp, 'daily_challenge')
+            except Exception:
+                logger.warning("maybe_auto_complete_challenge: XP award failed for user=%s", user_id)
+                result['bonus_xp'] = 0
         return result
     except Exception:
         logger.exception("maybe_auto_complete_challenge failed for user=%s lesson=%s", user_id, lesson_id)
