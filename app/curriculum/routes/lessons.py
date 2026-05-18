@@ -48,24 +48,6 @@ def _count_writing_attempts_today(user_id: int) -> int:
 lessons_bp = Blueprint('curriculum_lessons', __name__)
 
 
-@lessons_bp.route('/lesson/next-listening')
-@login_required
-def next_listening_lesson():
-    """Redirect to the next incomplete listening-type lesson for the user.
-
-    Used by the daily-challenge `listening_deep` CTA when the linear chain
-    has no listening slot today. Falls back to the dashboard when no
-    eligible lesson exists.
-    """
-    from app.daily_plan.linear.slots.listening_slot import _find_next_listening_lesson
-    lesson = _find_next_listening_lesson(current_user.id, db)
-    if lesson is None:
-        flash('Подходящий урок по аудированию не найден.', 'info')
-        return redirect(url_for('words.dashboard'))
-    from_param = request.args.get('from', 'daily_challenge')
-    return redirect(f'/learn/{lesson.id}/?from={from_param}')
-
-
 @lessons_bp.route('/lesson/<int:lesson_id>')
 @login_required
 @require_lesson_access

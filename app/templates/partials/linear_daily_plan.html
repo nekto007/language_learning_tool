@@ -604,14 +604,16 @@
         'accuracy_focus': '&#127919;',
         'listening_deep': '&#127911;',
     } %}
-    {% set _chns = namespace(btn_url=none) %}
+    {% set _chns = namespace(btn_url=none, btn_label=none, hint=none) %}
     {% if today_challenge.get('lesson_id') %}
         {% set _chns.btn_url = '/learn/' ~ today_challenge.lesson_id | int ~ '/?from=daily_challenge' %}
     {% else %}
         {# listening_deep засчитывается только за dictation / audio_fill_blank /
-           listening_immersion (см. check_challenge_criteria). Поэтому ищем
-           подходящий слот по типу урока, иначе пользователь приземлится
-           на reading и челлендж не зачтётся. #}
+           listening_immersion (см. check_challenge_criteria). Если в чейне
+           уже есть listening-слот — ведём туда. Иначе НЕ обходим
+           прогрессию (предыдущие уроки в модуле могут быть заблокированы):
+           подсказываем, что урок аудирования откроется после следующего
+           шага плана, и ведём на ближайший доступный слот. #}
         {% set _listening_types = ['dictation', 'audio_fill_blank', 'listening_immersion'] %}
         {% if _ch_category == 'listening_deep' %}
             {% for slot in l_slots %}
@@ -621,10 +623,14 @@
                     {% set _chns.btn_url = slot.url %}
                 {% endif %}
             {% endfor %}
-            {# Если в спине нет подходящего слота, ищем ближайший
-               неначатый урок listening-типа через специальный route. #}
             {% if _chns.btn_url is none %}
-                {% set _chns.btn_url = url_for('curriculum_lessons.next_listening_lesson') ~ '?from=daily_challenge' %}
+                {% for slot in l_slots %}
+                    {% if _chns.btn_url is none and not slot.completed and slot.url %}
+                        {% set _chns.btn_url = slot.url %}
+                        {% set _chns.btn_label = 'Продолжить план' %}
+                        {% set _chns.hint = 'Урок аудирования откроется после следующего шага плана' %}
+                    {% endif %}
+                {% endfor %}
             {% endif %}
         {% else %}
             {% for slot in l_slots %}
@@ -656,11 +662,16 @@
         {% endif %}
         {% if _ch_completed %}
         <p class="daily-challenge-card__completion-note">+{{ today_challenge.get('bonus_xp', 0) | int }} XP начислено</p>
-        {% elif _chns.btn_url %}
+        {% else %}
+        {% if _chns.hint %}
+        <p class="daily-challenge-card__hint">&#9432; {{ _chns.hint }}</p>
+        {% endif %}
+        {% if _chns.btn_url %}
         <a href="{{ _chns.btn_url }}"
            class="daily-challenge-card__btn"
            data-linear-event="daily_challenge_clicked"
-           data-challenge-category="{{ _ch_category }}">Приступить</a>
+           data-challenge-category="{{ _ch_category }}">{{ _chns.btn_label or 'Приступить' }}</a>
+        {% endif %}
         {% endif %}
     </div>
     {% endif %}
