@@ -270,23 +270,23 @@ Files:
 - Create: `docs/design/module-source-json-contract.md`
 - Modify: `content/immersion/README.md`
 
-- [ ] Document the canonical source module shape:
+- [x] Document the canonical source module shape:
       `module`, `module.lessons[]`, local `id`, `number`, `order`, `type`,
       `title`, `xp_reward`, `grammar_focus`, `content`.
-- [ ] Document local IDs: `id` is 1..N within the module, not the DB primary key.
-- [ ] Document stable lesson identity: every inserted new-style lesson must carry
+- [x] Document local IDs: `id` is 1..N within the module, not the DB primary key.
+- [x] Document stable lesson identity: every inserted new-style lesson must carry
       `content.external_key`, and import/diff tooling must prefer it over
       `number`.
-- [ ] Document the accepted content schema for every new lesson type.
-- [ ] Document that source validation reuses `app/curriculum/validators.py`
+- [x] Document the accepted content schema for every new lesson type.
+- [x] Document that source validation reuses `app/curriculum/validators.py`
       schemas and only adds source-file checks around them.
-- [ ] Document XP metadata: `xp_reward` in JSON is source/display metadata, while
+- [x] Document XP metadata: `xp_reward` in JSON is source/display metadata, while
       actual daily-plan awards come from `app/achievements/xp_service.py::LINEAR_XP`.
       Include the current source-key table so authors do not invent random values.
-- [ ] Document the progression rubric: expected complexity by CEFR level and
+- [x] Document the progression rubric: expected complexity by CEFR level and
       expected within-level growth by module number.
-- [ ] Document audio path rules and where static audio must live.
-- [ ] Document the production transfer workflow from JSON to DB.
+- [x] Document audio path rules and where static audio must live.
+- [x] Document the production transfer workflow from JSON to DB.
 
 ### Task 3: Batch merge missing immersion lessons into source modules
 
