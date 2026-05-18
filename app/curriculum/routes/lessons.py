@@ -1517,6 +1517,7 @@ def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, dat
             maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
             db.session.commit()
         except Exception as xp_err:
+            db.session.rollback()
             logger.warning(f"Sentence completion XP award failed for lesson {lesson.id}: {xp_err}")
 
     result = {**grade}
@@ -1629,6 +1630,7 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
             maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
             db.session.flush()
         except Exception as xp_err:
+            db.session.rollback()
             logger.warning(f"Collocation matching XP award failed for lesson {lesson.id}: {xp_err}")
     db.session.commit()
 
@@ -2039,6 +2041,7 @@ def _process_idiom_submission(lesson: 'Lessons', user_id: int, data: dict) -> di
         maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
         db.session.commit()
     except Exception as xp_err:
+        db.session.rollback()
         logger.warning(f"Idiom XP award failed for lesson {lesson.id}: {xp_err}")
 
     result: dict = {'success': True, 'completed': True}

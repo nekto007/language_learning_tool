@@ -1048,7 +1048,7 @@ def plan_pause():
         StreakEvent.user_id == current_user.id,
         StreakEvent.event_type == 'plan_pause',
         StreakEvent.event_date >= today,
-    ).delete()
+    ).delete(synchronize_session=False)
 
     # Insert one StreakEvent per paused day so streak walks over them neutrally
     for offset in range(days):
@@ -1092,7 +1092,7 @@ def plan_resume():
         StreakEvent.user_id == current_user.id,
         StreakEvent.event_type == 'plan_pause',
         StreakEvent.event_date >= today,
-    ).delete()
+    ).delete(synchronize_session=False)
 
     user.plan_paused_until = None
     try:
