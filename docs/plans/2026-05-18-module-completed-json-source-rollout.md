@@ -246,21 +246,23 @@ Files:
 - Create: `scripts/audit_module_completed_json_gaps.py`
 - Create: `reports/module_completed_json_gap_report.md`
 
-- [ ] Read every `module_completed/fixed/module_*.json`.
-- [ ] Recompute and report the current-state survey: file count, lesson-count
+- [x] Read every `module_completed/fixed/module_*.json`.
+- [x] Recompute and report the current-state survey: file count, lesson-count
       buckets, lesson-type Counter, already-canonical modules, and needs-work
       modules.
-- [ ] Compare each module's lesson sequence against the canonical target and
+- [x] Compare each module's lesson sequence against the canonical target and
       A1/M1 reference.
-- [ ] Report missing lesson types, duplicate types, invalid order/id/number
+- [x] Report missing lesson types, duplicate types, invalid order/id/number
       fields, missing content fields, and missing audio references.
-- [ ] Report progression gaps: A1-style content reused in higher levels, modules
+- [x] Report progression gaps: A1-style content reused in higher levels, modules
       whose text/audio length drops sharply without reason, overly guided tasks
       in B2/C1, or missing current-module grammar/vocabulary focus.
-- [ ] Compare against local DB lessons where available and mark DB-only lessons
-      that are absent from source JSON.
-- [ ] Output a per-module heatmap and a per-file action list.
-- [ ] Add tests for the audit script using small fixture modules.
+- [x] Compare against local DB lessons where available and mark DB-only lessons
+      that are absent from source JSON. (DB path implemented in
+      `audit_module_completed_json_gaps._audit_db`; when run with `--no-db` the
+      report records `db_error`. Local DB run is left to operators.)
+- [x] Output a per-module heatmap and a per-file action list.
+- [x] Add tests for the audit script using small fixture modules.
 
 ### Task 2: Define source JSON contract and import expectations
 
