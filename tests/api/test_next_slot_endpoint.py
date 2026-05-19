@@ -33,6 +33,8 @@ def _linear_plan(
     curriculum_done: bool = False,
     srs_done: bool = False,
     reading_done: bool = False,
+    include_listening: bool = False,
+    listening_done: bool = False,
     include_error_review: bool = False,
     error_review_done: bool = False,
 ) -> dict:
@@ -66,6 +68,16 @@ def _linear_plan(
             'data': {},
         },
     ]
+    if include_listening:
+        baseline_slots.append({
+            'kind': 'listening',
+            'title': 'Listening: Unit 5',
+            'lesson_type': 'listening_immersion',
+            'eta_minutes': 10,
+            'url': '/learn/202/?from=linear_plan&slot=curriculum',
+            'completed': listening_done,
+            'data': {'lesson_id': 202},
+        })
     if include_error_review:
         baseline_slots.append({
             'kind': 'error_review',
@@ -255,6 +267,63 @@ class TestNextSlotSelection:
 
         assert response.status_code == 200
         assert response.get_json()['next']['kind'] == 'curriculum'
+
+    def test_listening_slot_serialised_as_listening(
+        self, authenticated_client, linear_user,
+    ):
+        """Listening slot kind is returned as 'listening' (1:1 mapping)."""
+        plan = _linear_plan(curriculum_done=True, srs_done=True, reading_done=True, include_listening=True)
+        with patch(
+            'app.daily_plan.linear.plan.get_linear_plan', return_value=plan,
+        ), patch(
+            'app.telegram.queries.get_daily_summary', return_value=_empty_summary(),
+        ):
+            response = authenticated_client.get('/api/daily-plan/next-slot?current=book')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['next']['kind'] == 'listening'
+        assert data['next']['title'] == 'Listening: Unit 5'
+        assert data['day_secured'] is False
+
+    def test_current_listening_skips_listening_slot(
+        self, authenticated_client, linear_user,
+    ):
+        """When current=listening, the listening slot is skipped even if incomplete."""
+        plan = _linear_plan(curriculum_done=True, srs_done=True, reading_done=True, include_listening=True)
+        with patch(
+            'app.daily_plan.linear.plan.get_linear_plan', return_value=plan,
+        ), patch(
+            'app.telegram.queries.get_daily_summary', return_value=_empty_summary(),
+        ):
+            response = authenticated_client.get('/api/daily-plan/next-slot?current=listening')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        # All other slots complete, listening skipped → no next slot, not yet secured
+        assert data['next'] is None
+        assert data['day_secured'] is False
+
+    def test_4_slot_baseline_day_secured_when_all_done(
+        self, authenticated_client, linear_user, db_session,
+    ):
+        """With 4 baseline slots (incl. listening), day_secured requires all 4."""
+        plan = _linear_plan(
+            curriculum_done=True, srs_done=True, reading_done=True,
+            include_listening=True, listening_done=True,
+        )
+        summary = _all_done_summary()
+        with patch(
+            'app.daily_plan.linear.plan.get_linear_plan', return_value=plan,
+        ), patch(
+            'app.telegram.queries.get_daily_summary', return_value=summary,
+        ):
+            response = authenticated_client.get('/api/daily-plan/next-slot?current=listening')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['next'] is None
+        assert data['day_secured'] is True
 
     def test_fragment_only_slot_url_rewritten_to_dashboard(
         self, authenticated_client, linear_user,

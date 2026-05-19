@@ -572,6 +572,7 @@ _SLOT_KIND_TO_LINEAR = {
     'curriculum': 'curriculum',
     'srs': 'srs',
     'reading': 'book',
+    'listening': 'listening',
     'error_review': 'error_review',
 }
 _LINEAR_TO_SLOT_KIND = {v: k for k, v in _SLOT_KIND_TO_LINEAR.items()}
