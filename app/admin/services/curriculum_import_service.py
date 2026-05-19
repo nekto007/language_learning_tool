@@ -264,6 +264,45 @@ class CurriculumImportService:
                 module.prerequisites = module_prerequisites
 
         # 3. Создаём уроки из списка data['lessons']
+        # Pre-fetch all existing lessons for the module and build an external_key
+        # index so that renumbered source files don't silently mutate the wrong
+        # DB row. Identity resolution order: external_key first, then (module_id,
+        # number), then explicit JSON id (within-module only).
+        existing_module_lessons = Lessons.query.filter_by(module_id=module.id).all()
+        _by_external_key: dict[str, 'Lessons'] = {}
+        for _l in existing_module_lessons:
+            if isinstance(_l.content, dict):
+                _ek = _l.content.get('external_key')
+                if _ek and isinstance(_ek, str) and _ek.strip():
+                    _by_external_key[_ek.strip()] = _l
+
+        # Position-based fallback index (original numbers before any renumbering).
+        _by_original_number: dict = {_l.number: _l for _l in existing_module_lessons}
+
+        # Type+title fallback for DB lessons that have no external_key.
+        # Normalise to (type, stripped_lower_title) so whitespace/case differences
+        # do not create phantom duplicates when source renumbers but keeps titles.
+        _by_type_title: dict = {
+            (_l.type, _l.title.strip().lower()): _l
+            for _l in existing_module_lessons
+            if _l.type and _l.title
+        }
+
+        # Pre-shift all existing lesson numbers to a high offset so that inserting
+        # new lessons in the middle (or reassigning numbers) does not violate the
+        # unique (module_id, number) index mid-loop.  Lessons not matched by any
+        # source entry are restored to their original numbers after the loop.
+        _SHIFT = 10000
+        for _l in existing_module_lessons:
+            _l.number = _l.number + _SHIFT
+            _l.order = _l.order + _SHIFT
+        if existing_module_lessons:
+            db.session.flush()
+
+        # Track numbers assigned during the loop so the restore pass can detect
+        # collisions before they hit the unique (module_id, number) constraint.
+        _used_numbers: set[int] = set()
+
         for lesson_data in data.get('lessons', []):
             # Нормализация формата урока (поддержка двух форматов)
             explicit_lesson_id = lesson_data.get('id')
@@ -277,11 +316,31 @@ class CurriculumImportService:
             }
             lesson_type = type_mapping.get(lesson_type, lesson_type)
 
-            # Ищем урок по module_id + number (наиболее надёжный способ)
-            lesson = Lessons.query.filter_by(module_id=module.id, number=number).first()
+            # Ищем урок по stable external_key (приоритет над позицией, чтобы
+            # переупорядочивание в источнике не перезаписывало чужой урок).
+            lesson = None
+            src_content = lesson_data.get('content') or {}
+            src_external_key = src_content.get('external_key') if isinstance(src_content, dict) else None
+            if src_external_key and isinstance(src_external_key, str) and src_external_key.strip():
+                lesson = _by_external_key.get(src_external_key.strip())
+                if lesson:
+                    logger.debug(f"Найден урок по external_key={src_external_key!r}: id={lesson.id}")
 
-            # Если не нашли по номеру, пробуем по явному ID (только если урок принадлежит этому модулю)
-            if not lesson and explicit_lesson_id:
+            # Если не нашли по external_key — ищем по (type, title) для унаследованных
+            # уроков без ключа, затем по оригинальной позиции как последний вариант.
+            # (type, title) идёт первым: number — это порядковые метаданные, не identity.
+            # Если у источника задан external_key, это новый урок — не перезаписываем
+            # существующий урок только потому, что он занимает ту же позицию.
+            if not lesson and not src_external_key:
+                if lesson_type and title:
+                    lesson = _by_type_title.get((lesson_type, title.strip().lower()))
+                if not lesson:
+                    lesson = _by_original_number.get(number)
+
+            # Явный ID в JSON — это относительный порядковый номер внутри модуля,
+            # не глобальный DB PK. Используем только как запасной вариант и только
+            # когда у источника нет external_key.
+            if not lesson and explicit_lesson_id and not src_external_key:
                 existing = Lessons.query.get(explicit_lesson_id)
                 if existing and existing.module_id == module.id:
                     lesson = existing
@@ -310,6 +369,8 @@ class CurriculumImportService:
                     lesson.description = title
                 if lesson_type:
                     lesson.type = lesson_type if lesson_type != 'text' else 'text'
+                lesson.number = number
+                lesson.order = number
 
             # Обрабатываем контент по типу урока
             if lesson_type == 'grammar':
@@ -414,11 +475,43 @@ class CurriculumImportService:
                     content['xp_reward'] = lesson_data.get('xp_reward')
                 lesson.content = content
 
+            # Preserve external_key in persisted content so re-imports use key-based matching
+            if src_external_key and isinstance(lesson.content, dict):
+                lesson.content['external_key'] = src_external_key.strip()
+
+            _used_numbers.add(number)
             # Явно помечаем content как изменённый для SQLAlchemy
             flag_modified(lesson, 'content')
             # Принудительно сохраняем изменения урока
             db.session.flush()
             logger.info(f"Обновлён урок id={lesson.id}: type={lesson_type}, content_keys={list(lesson.content.keys()) if isinstance(lesson.content, dict) else 'not dict'}")
+
+        # Restore any existing lessons that were pre-shifted but not matched by a
+        # source entry (DB lessons absent from the new JSON).  Guard against
+        # collisions: if the original number was taken by a new/renumbered lesson,
+        # place the unmatched row beyond the highest currently-used number.
+        _max_used = max(_used_numbers) if _used_numbers else 0
+        for _l in existing_module_lessons:
+            if _l.number >= _SHIFT:
+                original_number = _l.number - _SHIFT
+                original_order = _l.order - _SHIFT
+                if original_number not in _used_numbers:
+                    _l.number = original_number
+                    _l.order = original_order
+                    _used_numbers.add(original_number)
+                else:
+                    _max_used += 1
+                    _l.number = _max_used
+                    _l.order = _max_used
+                    _used_numbers.add(_max_used)
+                    logger.warning(
+                        f"Урок id={_l.id}: original number={original_number} занят новым уроком — "
+                        f"смещён на number={_max_used}"
+                    )
+                logger.warning(
+                    f"Урок id={_l.id} (number={_l.number}) не найден в источнике — "
+                    f"оставлен с исходным номером"
+                )
 
         # 4. Сохраняем все изменения
         db.session.commit()
