@@ -268,6 +268,56 @@ class TestProcessGrammar:
         assert result['description'] == 'Test Desc'
         assert result['exercises'] == []
 
+    def test_process_grammar_lesson_content_preserves_content_sections_audio(self):
+        """Modern grammar content.sections must survive import unchanged."""
+        lesson_data = {
+            'type': 'grammar',
+            'title': 'Grammar',
+            'xp_reward': 18,
+            'content': {
+                'external_key': 'a1_m1_l4_grammar',
+                'title': 'To be',
+                'rule': 'Use am/is/are.',
+                'description': 'Basic forms of to be.',
+                'examples': ['I am here. - Я здесь.'],
+                'sections': [
+                    {
+                        'title': 'Examples',
+                        'rules': [
+                            {
+                                'examples': [
+                                    'I am here. - Я здесь.',
+                                    'You are here. - Ты здесь.',
+                                ],
+                                'audio': [
+                                    '[sound:grammar_ex1.mp3]',
+                                    '[sound:grammar_ex2.mp3]',
+                                ],
+                            }
+                        ],
+                    }
+                ],
+                'important_notes': ['Use is with he/she/it.'],
+                'summary': {'ru': 'Кратко'},
+                'tldr': ['am/is/are'],
+                'exercises': [{'type': 'fill_in_blank', 'prompt': 'I ___ here.'}],
+            },
+        }
+
+        result = CurriculumImportService.process_grammar_lesson_content(lesson_data)
+
+        assert result['rule'] == 'Use am/is/are.'
+        assert result['description'] == 'Basic forms of to be.'
+        assert result['title'] == 'To be'
+        assert result['sections'][0]['rules'][0]['audio'] == [
+            '[sound:grammar_ex1.mp3]',
+            '[sound:grammar_ex2.mp3]',
+        ]
+        assert result['important_notes'] == ['Use is with he/she/it.']
+        assert result['summary'] == {'ru': 'Кратко'}
+        assert result['tldr'] == ['am/is/are']
+        assert result['xp_reward'] == 18
+
 
 class TestImportCurriculumData:
     """Tests for import_curriculum_data method"""
