@@ -1,14 +1,15 @@
 """Linear daily plan slot chain.
 
 The linear plan starts with a fixed minimum of baseline slots
-(curriculum / SRS / reading, plus optional error review) — that minimum
-defines ``day_secured``. Once those baseline slots are all completed,
-the chain extends with additional pending tasks pulled in priority
-order from the same sources (curriculum spine, SRS, reading,
-error review). Sources whose state has nothing more to offer today
-are skipped, and the chain stops growing as soon as the most recent
-slot is incomplete (the user must finish the current task before the
-next one is generated).
+(curriculum / SRS / reading / listening, plus optional error review) — that
+minimum defines ``day_secured``. The listening slot is included when the
+current module has an incomplete listening lesson; otherwise the baseline is
+3 slots. Once all baseline slots are completed, the chain extends with
+additional pending tasks pulled in priority order from the same sources
+(curriculum spine, SRS, reading, listening, speaking, writing, error review).
+Sources whose state has nothing more to offer today are skipped, and the chain
+stops growing as soon as the most recent slot is incomplete (the user must
+finish the current task before the next one is generated).
 """
 from __future__ import annotations
 
@@ -363,7 +364,10 @@ def _build_baseline(
     """Build the baseline slots.
 
     In 'light' mode only curriculum + SRS are returned (2 slots). In
-    'normal' and 'intensive' modes the standard 3-4 slot set is used.
+    'normal' and 'intensive' modes the standard 4-5 slot set is used
+    (curriculum / SRS / reading / listening, plus optional error review).
+    Listening is added as the 4th baseline slot when a listening lesson is
+    available; otherwise the baseline stays at 3 slots.
     """
     # Imported lazily to avoid a circular import: plan.py imports chain.py
     # in Task 2 once integration lands.
@@ -389,9 +393,12 @@ def _build_baseline(
 
     reading_dict = build_reading_slot(user_id, db, focus=focus).to_dict()
     error_review = build_error_review_slot(user_id, db)
+    listening_slot_obj = build_listening_slot(user_id, db)
 
     if focus == 'reading':
         baseline = [curriculum_dict, reading_dict, srs_dict]
+        if listening_slot_obj is not None:
+            baseline.append(listening_slot_obj.to_dict())
     elif focus == 'speaking':
         speaking_slot_obj = build_speaking_slot(user_id, db)
         if speaking_slot_obj is not None:
@@ -400,6 +407,8 @@ def _build_baseline(
             baseline = [curriculum_dict, srs_dict, reading_dict]
     else:
         baseline = [curriculum_dict, srs_dict, reading_dict]
+        if listening_slot_obj is not None:
+            baseline.append(listening_slot_obj.to_dict())
     if error_review is not None:
         baseline.append(error_review.to_dict())
     return baseline
@@ -420,7 +429,7 @@ def build_chain(
 
     Behaviour varies by ``plan_difficulty``:
     - 'light': baseline = curriculum + SRS only (2 slots); no forced extras.
-    - 'normal' (default): standard 3-4 baseline; extras built only when baseline done.
+    - 'normal' (default): standard 4-5 baseline; extras built only when baseline done.
     - 'intensive': standard baseline; INTENSIVE_FORCED_EXTRAS extension slots
       are always pre-built and shown upfront even when baseline is incomplete.
 

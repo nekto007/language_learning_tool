@@ -378,3 +378,55 @@ class TestBuildNextSlot:
         ]
 
         assert build_next_slot(user.id, real_db, chain) is None
+
+
+# ── Listening as 4th baseline slot ───────────────────────────────────
+
+
+class TestListeningBaseline:
+    def test_baseline_count_is_4_when_listening_available(self, db_session):
+        """When the module has an incomplete listening lesson, baseline_count==4."""
+        level = _make_level(db_session, _unique_code(), order=1)
+        module = _make_module(db_session, level, number=1)
+        _make_lesson(db_session, module, number=1, lesson_type='quiz')
+        # Add a listening lesson in the same module.
+        _make_lesson(db_session, module, number=2, lesson_type='listening_immersion')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        result = build_chain(user.id, real_db)
+
+        kinds = [s['kind'] for s in result['slots']]
+        assert 'listening' in kinds
+        assert result['baseline_count'] == 4
+        assert kinds[:4] == ['curriculum', 'srs', 'reading', 'listening']
+
+    def test_baseline_count_is_3_when_no_listening_lesson(self, two_lessons_setup):
+        """When no listening lesson exists in the module, baseline stays at 3."""
+        user = two_lessons_setup['user']
+        # two_lessons_setup uses quiz + grammar — no listening lessons.
+        result = build_chain(user.id, real_db)
+
+        assert result['baseline_count'] == 3
+        kinds = [s['kind'] for s in result['slots']]
+        assert 'listening' not in kinds[:3]
+
+    def test_baseline_count_is_3_when_listening_lesson_completed(self, db_session):
+        """When the listening lesson is already completed, no pending listening in chain."""
+        level = _make_level(db_session, _unique_code(), order=1)
+        module = _make_module(db_session, level, number=1)
+        _make_lesson(db_session, module, number=1, lesson_type='quiz')
+        listening_lesson = _make_lesson(
+            db_session, module, number=2, lesson_type='listening_immersion'
+        )
+        user = _make_user(db_session, onboarding_level=level.code)
+        # Mark the listening lesson as completed.
+        _complete_lesson(db_session, user, listening_lesson)
+
+        result = build_chain(user.id, real_db)
+
+        # Key invariant: no non-baseline listening slot is marked as pending.
+        pending_listening = [
+            s for s in result['slots']
+            if s['kind'] == 'listening' and not s.get('completed', False)
+        ]
+        assert pending_listening == []
