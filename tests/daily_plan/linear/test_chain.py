@@ -18,6 +18,7 @@ import pytest
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.daily_plan.linear.chain import (
+    DEFAULT_MAX_EXTRA,
     EXTENSION_PRIORITY,
     build_chain,
     build_next_slot,
@@ -410,6 +411,10 @@ class TestListeningBaseline:
         kinds = [s['kind'] for s in result['slots']]
         assert 'listening' not in kinds[:3]
 
+    def test_default_max_extra_is_50(self):
+        """DEFAULT_MAX_EXTRA must be 50 (effectively unlimited for one day)."""
+        assert DEFAULT_MAX_EXTRA == 50
+
     def test_baseline_count_is_3_when_listening_lesson_completed(self, db_session):
         """When the listening lesson is already completed, no pending listening in chain."""
         level = _make_level(db_session, _unique_code(), order=1)
@@ -430,3 +435,56 @@ class TestListeningBaseline:
             if s['kind'] == 'listening' and not s.get('completed', False)
         ]
         assert pending_listening == []
+
+
+# ── DEFAULT_MAX_EXTRA = 50 / exhausted sources ───────────────────────
+
+
+class TestMaxExtraUnlimited:
+    def test_chain_stops_on_source_exhaustion_not_on_old_cap(self, db_session):
+        """With DEFAULT_MAX_EXTRA=50 the chain stops when all sources are
+        exhausted (has_more_available=False), not at the old hard cap of 10.
+
+        Setup: single lesson on the spine, user completes it with all baseline
+        done. No reading preference, no SRS, no errors → chain cannot grow
+        beyond baseline, so has_more_available=False and exhausted_sources
+        covers all EXTENSION_PRIORITY sources.
+        """
+        level = _make_level(db_session, _unique_code(), order=1)
+        module = _make_module(db_session, level, number=1)
+        lesson = _make_lesson(db_session, module, number=1, lesson_type='quiz')
+        user = _make_user(db_session, onboarding_level=level.code)
+        _complete_lesson(db_session, user, lesson)
+        _record_curriculum_xp_event(db_session, user)
+        book = _make_book(db_session)
+        _set_reading_preference(db_session, user, book)
+        _record_reading_xp_event(db_session, user)
+
+        result = build_chain(user.id, real_db)
+
+        # Chain must not have been capped by the old limit of 10.
+        assert DEFAULT_MAX_EXTRA == 50
+        # With all sources exhausted the flag must be False.
+        assert result['has_more_available'] is False
+        # Every source from EXTENSION_PRIORITY must be reported exhausted.
+        assert set(result['exhausted_sources']) == set(EXTENSION_PRIORITY)
+        # Chain equals baseline (nothing more to add).
+        assert len(result['slots']) == result['baseline_count']
+
+    def test_exhausted_sources_populated_correctly_when_spine_still_has_lessons(
+        self, two_lessons_setup, db_session
+    ):
+        """When the spine still has lesson_2 pending, 'curriculum' must NOT
+        appear in exhausted_sources even with max_extra=50."""
+        user = two_lessons_setup['user']
+        lesson_1 = two_lessons_setup['lesson_1']
+        book = _make_book(db_session)
+        _mark_baseline_completed(db_session, user, lesson_1, book)
+        _record_curriculum_xp_event(db_session, user)
+
+        result = build_chain(user.id, real_db)
+
+        # lesson_2 is pending → curriculum is not exhausted.
+        assert 'curriculum' not in result['exhausted_sources']
+        # The chain grew (lesson_2 appended as extension).
+        assert len(result['slots']) > result['baseline_count']

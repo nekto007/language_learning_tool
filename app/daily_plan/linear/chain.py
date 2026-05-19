@@ -57,7 +57,7 @@ def _get_plan_difficulty(user_id: int, db: Any) -> str:
         return 'normal'
     return val
 
-DEFAULT_MAX_EXTRA = 10
+DEFAULT_MAX_EXTRA = 50
 
 
 def _curriculum_lesson_ids_in_chain(chain: list[dict[str, Any]]) -> set[int]:
