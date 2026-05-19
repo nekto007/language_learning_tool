@@ -10,7 +10,7 @@
     "lessons": [
       {
         "id": 1,
-        "title": "Привет! Hello!",
+        "title": "Словарь: Знакомство и приветствия",
         "order": 1,
         "type": "vocabulary",
         "xp_reward": 50,
@@ -137,7 +137,7 @@
             {
               "english": "classmate",
               "russian": "одноклассник",
-              "pronunciation": "classmate",
+              "pronunciation": "клэсмэйт",
               "audio": "[sound:pronunciation_en_classmate.mp3]",
               "example": "This is my classmate.",
               "example_translation": "Это мой одноклассник."
@@ -150,7 +150,7 @@
       },
       {
         "id": 2,
-        "title": "Карточки: Слова и фразы",
+        "title": "Карточки: Знакомство и приветствия",
         "order": 2,
         "type": "flashcards",
         "xp_reward": 50,
@@ -266,12 +266,9 @@
         "number": 2
       },
       {
-        "id": 3,
-        "title": "Сочетания: знакомство и приветствия",
-        "number": 3,
-        "order": 3,
         "type": "collocation_matching",
-        "xp_reward": 50,
+        "title": "Сочетания: Знакомство и приветствия",
+        "description": "Соедините английские фразы знакомства с их русскими переводами.",
         "content": {
           "external_key": "immersion:collocation_matching:A1:01:greetings_introductions",
           "pairs": [
@@ -302,11 +299,13 @@
           ],
           "xp_reward": 50
         },
-        "description": "Соедините английские фразы знакомства с их русскими переводами."
+        "id": 3,
+        "number": 3,
+        "order": 3
       },
       {
         "id": 4,
-        "title": "Глагол BE (am/is/are)",
+        "title": "Грамматика: Знакомство и приветствия",
         "order": 4,
         "type": "grammar",
         "xp_reward": 75,
@@ -584,14 +583,12 @@
         "number": 4
       },
       {
-        "id": 5,
-        "number": 5,
-        "order": 5,
         "type": "sentence_completion",
         "title": "Завершение предложений: глагол to be",
+        "title_en": "Sentence Completion: Verb To Be",
+        "description": "Завершите каждое предложение, используя правильную форму глагола to be.",
         "content": {
           "external_key": "immersion:sentence_completion:A1:01:to_be",
-          "instruction": "Вставьте недостающую форму глагола BE: am, is или are.",
           "items": [
             {
               "prompt": "My name is Anna. I",
@@ -628,14 +625,16 @@
               "context": "Класс",
               "hint": "am / is / are"
             }
-          ]
+          ],
+          "instruction": "Вставьте недостающую форму глагола BE: am, is или are."
         },
-        "description": "Завершите каждое предложение, используя правильную форму глагола to be.",
-        "title_en": "Sentence Completion: Verb To Be"
+        "id": 5,
+        "number": 5,
+        "order": 5
       },
       {
         "id": 6,
-        "title": "Чтение: Новые друзья",
+        "title": "Чтение: Знакомство и приветствия",
         "order": 6,
         "type": "reading",
         "xp_reward": 75,
@@ -771,7 +770,7 @@
       },
       {
         "id": 7,
-        "title": "Слушаем диалог",
+        "title": "Слушаем диалог: Знакомство и приветствия",
         "order": 7,
         "type": "listening_immersion",
         "xp_reward": 50,
@@ -791,7 +790,7 @@
       },
       {
         "id": 8,
-        "title": "Аудирование: Слушаем и понимаем",
+        "title": "Аудирование: Знакомство и приветствия",
         "order": 8,
         "type": "listening_quiz",
         "xp_reward": 75,
@@ -810,7 +809,9 @@
                 "Goodbye"
               ],
               "correct": "Hello",
-              "translation": "Здравствуйте"
+              "translation": "Здравствуйте",
+              "transcript": "Hello",
+              "audio_text": "Hello"
             },
             {
               "type": "listening_choice",
@@ -824,7 +825,9 @@
                 "Good night"
               ],
               "correct": "Good morning",
-              "translation": "Доброе утро"
+              "translation": "Доброе утро",
+              "transcript": "Good morning",
+              "audio_text": "Good morning"
             },
             {
               "type": "listening_choice",
@@ -837,7 +840,9 @@
                 "Он учитель",
                 "Мы учителя"
               ],
-              "correct": "Я учитель"
+              "correct": "Я учитель",
+              "transcript": "I am a teacher",
+              "audio_text": "I am a teacher"
             },
             {
               "type": "listening_choice",
@@ -850,7 +855,9 @@
                 "Как дела?",
                 "Где ты?"
               ],
-              "correct": "Как дела?"
+              "correct": "Как дела?",
+              "transcript": "How are you?",
+              "audio_text": "How are you?"
             },
             {
               "type": "listening_choice",
@@ -863,7 +870,9 @@
                 "Где ты живешь?",
                 "Куда ты идешь?"
               ],
-              "correct": "Откуда ты?"
+              "correct": "Откуда ты?",
+              "transcript": "Where are you from?",
+              "audio_text": "Where are you from?"
             },
             {
               "type": "listening_choice",
@@ -877,7 +886,9 @@
                 "be"
               ],
               "correct": "are",
-              "translation": "Мы счастливы"
+              "translation": "Мы счастливы",
+              "transcript": "are",
+              "audio_text": "We are happy"
             }
           ],
           "external_key": "curriculum:listening_quiz:A1:01:greetings",
@@ -887,8 +898,13 @@
       },
       {
         "type": "audio_fill_blank",
-        "title": "Аудио: Приветствия и знакомство",
+        "title": "Аудио: Знакомство и приветствия",
+        "title_en": "Audio Fill-in: Greetings",
+        "description": "Слушайте предложение и выбирайте слово из словаря модуля.",
+        "xp_reward": 100,
+        "grammar_focus": "Аудио и словарь модуля",
         "content": {
+          "external_key": "immersion:audio_fill_blank:A1:01:greetings",
           "audio_url": "/static/audio/immersion/audio_fill_blank/afb_A1_01_greetings.mp3",
           "items": [
             {
@@ -896,56 +912,60 @@
               "answer": "name",
               "options": [
                 "name",
-                "age",
-                "job",
-                "city"
-              ],
-              "audio_clip_url": "/static/audio/immersion/audio_fill_blank/afb_A1_01_item0.mp3"
+                "friend",
+                "teacher",
+                "classmate"
+              ]
             },
             {
               "text_with_gap": "Nice to ___ you.",
               "answer": "meet",
               "options": [
                 "meet",
-                "see",
                 "know",
-                "like"
-              ],
-              "audio_clip_url": "/static/audio/immersion/audio_fill_blank/afb_A1_01_item1.mp3"
+                "see",
+                "find"
+              ]
             },
             {
               "text_with_gap": "I am ___ years old.",
               "answer": "twelve",
               "options": [
                 "twelve",
-                "twenty",
                 "two",
+                "twenty",
                 "ten"
-              ],
-              "audio_clip_url": "/static/audio/immersion/audio_fill_blank/afb_A1_01_item2.mp3"
+              ]
             },
             {
               "text_with_gap": "Where are you ___?",
               "answer": "from",
-              "audio_clip_url": "/static/audio/immersion/audio_fill_blank/afb_A1_01_item3.mp3"
+              "options": [
+                "from",
+                "going",
+                "now",
+                "today"
+              ]
             },
             {
               "text_with_gap": "I live in a small ___.",
               "answer": "town",
-              "audio_clip_url": "/static/audio/immersion/audio_fill_blank/afb_A1_01_item4.mp3"
+              "options": [
+                "town",
+                "school",
+                "name",
+                "class"
+              ]
             }
-          ],
-          "external_key": "immersion:audio_fill_blank:A1:01:greetings"
+          ]
         },
-        "description": "Прослушайте короткие диалоги о приветствиях и вставьте пропущенные слова.",
-        "title_en": "Audio Fill-in: Greetings and Introductions",
         "id": 9,
         "number": 9,
         "order": 9
       },
       {
         "type": "shadow_reading",
-        "title": "Теневое чтение: Знакомство и приветствия",
+        "title": "Слушай и повторяй: Знакомство и приветствия",
         "content": {
           "audio_url": "/static/audio/immersion/shadow_reading/shadow_reading_A1_01_greetings.mp3",
           "text": "Hello! My name is Anna. I am from Russia. Nice to meet you.",
@@ -1005,7 +1025,7 @@
       },
       {
         "id": 12,
-        "title": "Дополни диалог",
+        "title": "Дополни диалог: Знакомство и приветствия",
         "order": 12,
         "type": "dialogue_completion_quiz",
         "xp_reward": 75,
@@ -1250,7 +1270,7 @@
       },
       {
         "id": 13,
-        "title": "Порядок слов в предложении",
+        "title": "Порядок слов: Знакомство и приветствия",
         "order": 13,
         "type": "ordering_quiz",
         "xp_reward": 75,
@@ -1428,7 +1448,7 @@
       },
       {
         "id": 14,
-        "title": "Карточки: Повторение",
+        "title": "Карточки: Знакомство и приветствия (повторение)",
         "order": 14,
         "type": "flashcards",
         "xp_reward": 50,
@@ -1501,7 +1521,11 @@
       },
       {
         "type": "translation",
-        "title": "Перевод: Знакомство",
+        "title": "Переводим на английский",
+        "title_en": "Translation: Introductions",
+        "description": "Переведите предложение о знакомстве с русского на английский.",
+        "xp_reward": 75,
+        "grammar_focus": "Перевод фраз со словарём модуля",
         "content": {
           "external_key": "immersion:translation:A1:01:introductions",
           "items": [
@@ -1543,15 +1567,13 @@
             }
           ]
         },
-        "description": "Переведите предложение о знакомстве с русского на английский.",
-        "title_en": "Translation: Introductions",
         "id": 15,
         "number": 15,
         "order": 15
       },
       {
         "id": 16,
-        "title": "Переводим на английский",
+        "title": "Переводим на английский: Знакомство и приветствия",
         "order": 16,
         "type": "translation_quiz",
         "xp_reward": 75,
@@ -1732,7 +1754,8 @@
             "i am",
             "i am from",
             "i like"
-          ]
+          ],
+          "min_checklist": 3
         },
         "description": "Напишите короткое представление о себе, используя слова и фразы модуля «Знакомство и приветствия».",
         "title_en": "Writing: Greetings and Introductions",
@@ -1742,7 +1765,7 @@
       },
       {
         "id": 18,
-        "title": "Итоговый тест модуля",
+        "title": "Итоговый тест модуля: Знакомство и приветствия",
         "order": 18,
         "type": "final_test",
         "xp_reward": 100,
@@ -1808,7 +1831,7 @@
                   "explanation": "С местоимением 'We' используется форма 'are'"
                 }
               ],
-              "title": "Section 1"
+              "title": "Грамматика: заполните пропуски"
             },
             {
               "section": "Перевод на английский",
@@ -1859,7 +1882,7 @@
                   ]
                 }
               ],
-              "title": "Section 2"
+              "title": "Перевод предложений"
             },
             {
               "section": "Вопросы - сделайте вопросительную форму",
@@ -1895,7 +1918,7 @@
                   ]
                 }
               ],
-              "title": "Section 3"
+              "title": "Преобразование предложений"
             },
             {
               "section": "Диалог - выберите правильный ответ",
@@ -1934,7 +1957,7 @@
                   "correct": "Yes, I am"
                 }
               ],
-              "title": "Section 4"
+              "title": "Выбор правильного ответа"
             },
             {
               "section": "Словарный запас",
@@ -1977,7 +2000,7 @@
                   "correct": "Good morning"
                 }
               ],
-              "title": "Section 5"
+              "title": "Соотнесите элементы"
             },
             {
               "section": "Аудирование",
@@ -1994,10 +2017,12 @@
                     "Goodbye"
                   ],
                   "correct": "Hello",
-                  "translation": "Здравствуйте"
+                  "translation": "Здравствуйте",
+                  "audio_text": "Hello",
+                  "transcript": "Hello"
                 }
               ],
-              "title": "Section 6"
+              "title": "Аудирование"
             },
             {
               "section": "Порядок слов",
@@ -2014,7 +2039,7 @@
                   "correct": "My name is John"
                 }
               ],
-              "title": "Section 7"
+              "title": "Порядок слов в предложении"
             },
             {
               "section": "Правда или ложь",
@@ -2026,7 +2051,28 @@
                   "explanation": "Правда. BE изменяется в зависимости от лица: I am, he/she/it is, you/we/they are"
                 }
               ],
-              "title": "Section 8"
+              "title": "Верно / Неверно"
+            },
+            {
+              "title": "Раздел: Аудирование",
+              "exercises": [
+                {
+                  "type": "listening_choice",
+                  "instruction": "Прослушайте и выберите правильный вариант",
+                  "audio": "[sound:A1M01_final_listen_2.mp3]",
+                  "question": "Какое слово вы услышали?",
+                  "options": [
+                    "hello",
+                    "hi",
+                    "good morning",
+                    "good afternoon"
+                  ],
+                  "correct": "hello",
+                  "transcript": "hello",
+                  "translation": "здравствуйте, привет",
+                  "audio_text": "hello"
+                }
+              ]
             }
           ],
           "passing_score": 75,

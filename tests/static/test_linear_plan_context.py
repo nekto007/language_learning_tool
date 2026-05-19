@@ -74,9 +74,9 @@ class TestPublicApiSurface:
             f'{method} must be exposed on window.linearPlanContext'
         )
 
-    def test_all_four_slot_kinds_referenced(self):
+    def test_all_slot_kinds_referenced(self):
         src = _read_script()
-        for slot in ('curriculum', 'srs', 'book', 'error_review'):
+        for slot in ('curriculum', 'srs', 'book', 'error_review', 'listening', 'speaking', 'writing'):
             assert "'" + slot + "'" in src, f'slot kind {slot!r} missing from script'
 
     def test_references_linear_plan_query_source(self):

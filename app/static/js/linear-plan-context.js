@@ -25,7 +25,7 @@
 
   var STORAGE_KEY = 'linear_plan_context';
   var PLAN_SOURCE = 'linear_plan';
-  var VALID_SLOTS = ['curriculum', 'srs', 'book', 'error_review'];
+  var VALID_SLOTS = ['curriculum', 'srs', 'book', 'error_review', 'listening', 'speaking', 'writing'];
 
   function _todayIsoDate() {
     var d = new Date();
