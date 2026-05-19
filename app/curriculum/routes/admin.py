@@ -463,19 +463,32 @@ def audio_stats():
 
     audio_dir = os.path.join(current_app.static_folder, 'audio')
 
+    # Walk audio_dir recursively — immersion lessons (dictation, audio_fill_blank,
+    # shadow_reading, listening_immersion) store their MP3s in subdirectories
+    # like audio/immersion/dictation/foo.mp3.  Storing only basenames is enough:
+    # this project's filenames already encode level/module/lesson and are
+    # unique across the tree.
     existing_files: set[str] = set()
     if os.path.exists(audio_dir):
-        for f in os.listdir(audio_dir):
-            if not f.endswith('.mp3'):
-                continue
-            filepath = os.path.join(audio_dir, f)
-            try:
-                if os.path.getsize(filepath) > 0:
-                    existing_files.add(f)
-            except OSError:
-                # Broken symlink or file disappeared between listdir and getsize —
-                # treat as missing so the stats page surfaces it instead of 500'ing.
-                continue
+        for root, _dirs, files in os.walk(audio_dir):
+            for f in files:
+                if not f.endswith('.mp3'):
+                    continue
+                filepath = os.path.join(root, f)
+                try:
+                    if os.path.getsize(filepath) > 0:
+                        existing_files.add(f)
+                except OSError:
+                    # Broken symlink or file disappeared between listdir and getsize —
+                    # treat as missing so the stats page surfaces it instead of 500'ing.
+                    continue
+
+    def _filename_from_url(url: str) -> str | None:
+        """Extract trailing filename from a `/static/audio/...` style URL."""
+        if not url or not isinstance(url, str):
+            return None
+        name = os.path.basename(url.strip())
+        return name if name.endswith('.mp3') else None
 
     module_stats = []
     modules = Module.query.join(CEFRLevel).order_by(CEFRLevel.order, Module.number).all()
@@ -515,6 +528,13 @@ def audio_stats():
             # --- 2. Top-level audio (text / listening lessons) ---
             top_audio = content.get('audio', '')
             fn = _extract_sound_filename(str(top_audio))
+            if fn:
+                _add_ref(f'Урок: {lesson.title}', fn, 'lesson')
+
+            # --- 2b. audio_url field (immersion lesson types: dictation, shadow_reading,
+            #         audio_fill_blank, listening_immersion) ---
+            top_audio_url = content.get('audio_url', '')
+            fn = _filename_from_url(str(top_audio_url))
             if fn:
                 _add_ref(f'Урок: {lesson.title}', fn, 'lesson')
 

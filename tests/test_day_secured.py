@@ -257,6 +257,36 @@ class TestComputeDaySecuredFromActivity:
             plan, {'curriculum': True, 'srs': True}
         ) is True
 
+    def test_linear_4_slots_all_complete_returns_true(self):
+        """With listening as 4th baseline slot, all 4 must be done."""
+        plan = {
+            '_plan_meta': {'effective_mode': 'linear'},
+            'baseline_slots': [
+                {'kind': 'curriculum'},
+                {'kind': 'srs'},
+                {'kind': 'reading'},
+                {'kind': 'listening'},
+            ],
+        }
+        assert compute_day_secured_from_activity(
+            plan, {'curriculum': True, 'srs': True, 'reading': True, 'listening': True}
+        ) is True
+
+    def test_linear_4_slots_listening_incomplete_returns_false(self):
+        """Listening slot incomplete in 4-slot baseline blocks day_secured."""
+        plan = {
+            '_plan_meta': {'effective_mode': 'linear'},
+            'baseline_slots': [
+                {'kind': 'curriculum'},
+                {'kind': 'srs'},
+                {'kind': 'reading'},
+                {'kind': 'listening'},
+            ],
+        }
+        assert compute_day_secured_from_activity(
+            plan, {'curriculum': True, 'srs': True, 'reading': True, 'listening': False}
+        ) is False
+
     def test_linear_one_slot_incomplete_returns_false(self):
         plan = {
             '_plan_meta': {'effective_mode': 'linear'},

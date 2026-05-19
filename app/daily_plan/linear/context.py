@@ -1,6 +1,6 @@
 """Plan-context helpers for linear daily plan slot URLs.
 
-``LinearSlotKind`` enumerates the four baseline slot kinds. ``build_slot_url``
+``LinearSlotKind`` enumerates the slot kinds. ``build_slot_url``
 appends ``from=linear_plan&slot=<kind>`` to any base URL so downstream
 lesson pages can detect plan entry and show plan-aware completion CTAs.
 
@@ -26,6 +26,9 @@ class LinearSlotKind(str, Enum):
     CURRICULUM = 'curriculum'
     SRS = 'srs'
     BOOK = 'book'
+    LISTENING = 'listening'
+    SPEAKING = 'speaking'
+    WRITING = 'writing'
     ERROR_REVIEW = 'error_review'
 
 

@@ -107,6 +107,7 @@ const itemAttempts = {}; // {idx: [wrong_value, ...]}
 function _normalize(s) {
   return (s || '').trim().toLowerCase()
     .replace(/[\u2019']/g, "'")  // unify curly + straight apostrophes
+    .replace(/[^\w\s]/g, '')     // strip punctuation (matches server _normalize_answer)
     .replace(/\s+/g, ' ');
 }
 
