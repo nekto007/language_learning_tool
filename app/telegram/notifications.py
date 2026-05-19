@@ -49,6 +49,9 @@ def format_linear_plan_text(plan: dict[str, Any]) -> str:
         'curriculum': '\U0001f3af',
         'srs': '\U0001f4d6',
         'reading': '\U0001f4d5',
+        'listening': '\U0001f3a7',
+        'speaking': '\U0001f399',
+        'writing': '\u270d',
         'error_review': '\U0001f50d',
     }
     for index, slot in enumerate(slots, 1):

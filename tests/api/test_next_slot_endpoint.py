@@ -74,7 +74,7 @@ def _linear_plan(
             'title': 'Listening: Unit 5',
             'lesson_type': 'listening_immersion',
             'eta_minutes': 10,
-            'url': '/learn/202/?from=linear_plan&slot=curriculum',
+            'url': '/learn/202/?from=linear_plan&slot=listening',
             'completed': listening_done,
             'data': {'lesson_id': 202},
         })

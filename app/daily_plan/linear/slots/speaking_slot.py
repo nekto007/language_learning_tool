@@ -98,7 +98,7 @@ def build_speaking_slot(user_id: int, db: Any) -> Optional[LinearSlot]:
     module = getattr(speaking_lesson, 'module', None)
     level = getattr(module, 'level', None) if module is not None else None
 
-    url = build_slot_url(f'/learn/{speaking_lesson.id}/', LinearSlotKind.CURRICULUM)
+    url = build_slot_url(f'/learn/{speaking_lesson.id}/', LinearSlotKind.SPEAKING)
 
     logger.info(
         "speaking_slot user=%s lesson=%s type=%s module=%s speech_api=%s state=%s",

@@ -121,7 +121,7 @@ def build_writing_slot(user_id: int, db: Any) -> Optional[LinearSlot]:
     module = getattr(writing_lesson, 'module', None)
     level = getattr(module, 'level', None) if module is not None else None
 
-    url = build_slot_url(f'/learn/{writing_lesson.id}/', LinearSlotKind.CURRICULUM)
+    url = build_slot_url(f'/learn/{writing_lesson.id}/', LinearSlotKind.WRITING)
 
     prompt_preview: Optional[str] = None
     content = getattr(writing_lesson, 'content', None) or {}

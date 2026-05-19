@@ -26,6 +26,9 @@ class LinearSlotKind(str, Enum):
     CURRICULUM = 'curriculum'
     SRS = 'srs'
     BOOK = 'book'
+    LISTENING = 'listening'
+    SPEAKING = 'speaking'
+    WRITING = 'writing'
     ERROR_REVIEW = 'error_review'
 
 
