@@ -24,7 +24,7 @@ from app.daily_plan.linear.context import (
 
 
 class TestLinearSlotKind:
-    def test_all_four_kinds_present(self):
+    def test_all_kinds_present(self):
         # Stability: these strings are surfaced via query-params and read
         # by the frontend. Changing a value breaks saved sessionStorage
         # contexts, so these must remain stable.
@@ -32,9 +32,12 @@ class TestLinearSlotKind:
         assert LinearSlotKind.SRS.value == 'srs'
         assert LinearSlotKind.BOOK.value == 'book'
         assert LinearSlotKind.ERROR_REVIEW.value == 'error_review'
+        assert LinearSlotKind.LISTENING.value == 'listening'
+        assert LinearSlotKind.SPEAKING.value == 'speaking'
+        assert LinearSlotKind.WRITING.value == 'writing'
 
-    def test_kind_count_is_exactly_four(self):
-        assert len(list(LinearSlotKind)) == 4
+    def test_kind_count_is_exactly_seven(self):
+        assert len(list(LinearSlotKind)) == 7
 
     def test_values_serialize_as_str(self):
         # LinearSlotKind is a str enum, so urlencode sees the raw value.
@@ -58,6 +61,9 @@ class TestBuildSlotUrlBasics:
             (LinearSlotKind.SRS, 'srs'),
             (LinearSlotKind.BOOK, 'book'),
             (LinearSlotKind.ERROR_REVIEW, 'error_review'),
+            (LinearSlotKind.LISTENING, 'listening'),
+            (LinearSlotKind.SPEAKING, 'speaking'),
+            (LinearSlotKind.WRITING, 'writing'),
         ],
     )
     def test_slot_param_for_each_kind(self, kind, expected_slot):
