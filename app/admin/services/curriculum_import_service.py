@@ -166,6 +166,56 @@ class CurriculumImportService:
         }
 
     @staticmethod
+    def process_grammar_lesson_content(lesson_data):
+        """Build persisted content for a grammar lesson without losing rich sections.
+
+        Older imports stored grammar as top-level rule/description/examples.
+        Current module JSON can store the full explanation directly under
+        content.sections, or wrapped in content.grammar_explanation.  Preserve
+        those rich fields so example audio refs survive re-imports.
+        """
+        theory = lesson_data.get('theory', {}) or {}
+        content = lesson_data.get('content', {}) or {}
+        if not isinstance(content, dict):
+            content = {}
+        grammar_explanation = content.get('grammar_explanation', {}) or {}
+        if not isinstance(grammar_explanation, dict):
+            grammar_explanation = {}
+
+        grammar_input = {
+            'rule': (
+                theory.get('rule', '')
+                or grammar_explanation.get('rule', '')
+                or content.get('rule', '')
+            ),
+            'description': (
+                theory.get('description', '')
+                or grammar_explanation.get('introduction', '')
+                or content.get('description', '')
+                or content.get('content', '')
+            ),
+            'examples': (
+                theory.get('examples', [])
+                or grammar_explanation.get('examples', [])
+                or content.get('examples', [])
+            ),
+            'exercises': lesson_data.get('exercises', []) or content.get('exercises', []),
+        }
+        processed_grammar = CurriculumImportService.process_grammar(grammar_input)
+
+        rich_source = grammar_explanation if grammar_explanation else content
+        if grammar_explanation or content.get('sections'):
+            processed_grammar['title'] = rich_source.get('title', '')
+            processed_grammar['sections'] = rich_source.get('sections', [])
+            processed_grammar['important_notes'] = rich_source.get('important_notes', [])
+            processed_grammar['summary'] = rich_source.get('summary', {})
+            if rich_source.get('tldr'):
+                processed_grammar['tldr'] = rich_source['tldr']
+
+        processed_grammar['xp_reward'] = lesson_data.get('xp_reward')
+        return processed_grammar
+
+    @staticmethod
     def import_curriculum_data(data):
         """
         Импортирует данные курса из JSON
@@ -388,31 +438,9 @@ class CurriculumImportService:
 
             # Обрабатываем контент по типу урока
             if lesson_type == 'grammar':
-                theory = lesson_data.get('theory', {})
-                content = lesson_data.get('content', {})
-                grammar_explanation = content.get('grammar_explanation', {})
-
-                grammar_input = {
-                    'rule': theory.get('rule', '') or grammar_explanation.get('rule', ''),
-                    'description': theory.get('description', '') or grammar_explanation.get('introduction', ''),
-                    'examples': theory.get('examples', []) or grammar_explanation.get('examples', []),
-                    'exercises': lesson_data.get('exercises', []) or content.get('exercises', [])
-                }
-                processed_grammar = CurriculumImportService.process_grammar(grammar_input)
-                # Сохраняем дополнительные поля из grammar_explanation.
-                # tldr — массив строк "Главное за 20 секунд" (опциональный, может
-                # отсутствовать в старых уроках). Без явного pick он бы терялся
-                # при импорте, потому что importer переписывает lesson.content
-                # из processed_grammar, а не сливает поля.
-                if grammar_explanation:
-                    processed_grammar['title'] = grammar_explanation.get('title', '')
-                    processed_grammar['sections'] = grammar_explanation.get('sections', [])
-                    processed_grammar['important_notes'] = grammar_explanation.get('important_notes', [])
-                    processed_grammar['summary'] = grammar_explanation.get('summary', {})
-                    if grammar_explanation.get('tldr'):
-                        processed_grammar['tldr'] = grammar_explanation['tldr']
-                processed_grammar['xp_reward'] = lesson_data.get('xp_reward')
-                lesson.content = processed_grammar
+                lesson.content = CurriculumImportService.process_grammar_lesson_content(
+                    lesson_data
+                )
 
             elif lesson_type == 'vocabulary':
                 # Поддержка обоих форматов: words или content.vocabulary
