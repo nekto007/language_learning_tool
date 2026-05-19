@@ -111,11 +111,13 @@ def _compute_linear_slot_completion(
     API recomputes day-secured consistently with the mission flow.
     """
     srs_words_reviewed = int(daily_summary.get('srs_words_reviewed', 0) or 0)
-    # Reading intentionally has no summary fallback: ``books_read`` counts
-    # any book the user touched today and ignores both the preferred-book
-    # filter and the read-progress threshold. The slot's own ``completed``
-    # flag keys off the ``linear_book_reading`` XP event which applies
-    # both gates correctly.
+    # Reading and listening intentionally have no summary fallbacks.
+    # ``books_read`` counts any book the user touched today and ignores both
+    # the preferred-book filter and the read-progress threshold; listening
+    # has no daily-summary counter at all.  Both slots set ``completed`` via
+    # their own XP StreakEvent queries (_book_reading_done_today /
+    # _listening_done_today) during plan assembly, which is called fresh on
+    # every API request — so the slot flag is always up-to-date.
     # SRS signal gates on SRS-specific counters only; ``words_reviewed``
     # includes curriculum card-lesson reviews that belong to the
     # curriculum slot, not the /study-based SRS slot.

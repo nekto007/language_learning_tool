@@ -591,7 +591,8 @@ def daily_plan_next_slot():
 
     Query params:
         current (str, optional): LinearSlotKind value (curriculum/srs/book/
-            error_review) identifying the slot the caller just left. The
+            error_review/listening/speaking/writing) identifying the slot the
+            caller just left. The
             endpoint skips that kind when picking the next slot, even if
             it is still incomplete — the caller has already engaged with it.
         tz (str, optional): user timezone. Used to resolve the local day
