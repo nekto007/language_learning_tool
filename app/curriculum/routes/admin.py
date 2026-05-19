@@ -531,6 +531,13 @@ def audio_stats():
             if fn:
                 _add_ref(f'Урок: {lesson.title}', fn, 'lesson')
 
+            # --- 2b. audio_url field (immersion lesson types: dictation, shadow_reading,
+            #         audio_fill_blank, listening_immersion) ---
+            top_audio_url = content.get('audio_url', '')
+            fn = _filename_from_url(str(top_audio_url))
+            if fn:
+                _add_ref(f'Урок: {lesson.title}', fn, 'lesson')
+
             # --- 3. Exercises with audio (listening_quiz, etc.) ---
             exercises = content.get('exercises', [])
             if isinstance(exercises, list):
