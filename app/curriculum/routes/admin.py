@@ -466,10 +466,16 @@ def audio_stats():
     existing_files: set[str] = set()
     if os.path.exists(audio_dir):
         for f in os.listdir(audio_dir):
-            if f.endswith('.mp3'):
-                filepath = os.path.join(audio_dir, f)
+            if not f.endswith('.mp3'):
+                continue
+            filepath = os.path.join(audio_dir, f)
+            try:
                 if os.path.getsize(filepath) > 0:
                     existing_files.add(f)
+            except OSError:
+                # Broken symlink or file disappeared between listdir and getsize —
+                # treat as missing so the stats page surfaces it instead of 500'ing.
+                continue
 
     module_stats = []
     modules = Module.query.join(CEFRLevel).order_by(CEFRLevel.order, Module.number).all()
