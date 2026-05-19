@@ -567,12 +567,14 @@ def daily_race_status():
 # Mapping between internal ``LinearSlot.kind`` values (used inside the
 # plan payload and ``plan_completion`` dict) and ``LinearSlotKind`` values
 # (the stable query-param form surfaced in URLs and frontend sessionStorage).
-# Only the reading slot diverges — everything else is 1:1.
+# Only the reading slot diverges (kind='reading' → query-param form 'book').
 _SLOT_KIND_TO_LINEAR = {
     'curriculum': 'curriculum',
     'srs': 'srs',
     'reading': 'book',
     'listening': 'listening',
+    'speaking': 'speaking',
+    'writing': 'writing',
     'error_review': 'error_review',
 }
 _LINEAR_TO_SLOT_KIND = {v: k for k, v in _SLOT_KIND_TO_LINEAR.items()}

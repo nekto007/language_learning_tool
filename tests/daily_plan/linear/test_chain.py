@@ -416,7 +416,7 @@ class TestListeningBaseline:
         assert DEFAULT_MAX_EXTRA == 50
 
     def test_baseline_count_is_3_when_listening_lesson_completed(self, db_session):
-        """When the listening lesson is already completed, no pending listening in chain."""
+        """When the listening lesson is already completed, baseline stays at 3."""
         level = _make_level(db_session, _unique_code(), order=1)
         module = _make_module(db_session, level, number=1)
         _make_lesson(db_session, module, number=1, lesson_type='quiz')
@@ -424,17 +424,34 @@ class TestListeningBaseline:
             db_session, module, number=2, lesson_type='listening_immersion'
         )
         user = _make_user(db_session, onboarding_level=level.code)
-        # Mark the listening lesson as completed.
+        # Mark the listening lesson as completed — no incomplete listening slot exists.
         _complete_lesson(db_session, user, listening_lesson)
 
         result = build_chain(user.id, real_db)
 
-        # Key invariant: no non-baseline listening slot is marked as pending.
-        pending_listening = [
-            s for s in result['slots']
-            if s['kind'] == 'listening' and not s.get('completed', False)
-        ]
-        assert pending_listening == []
+        assert result['baseline_count'] == 3
+        kinds = [s['kind'] for s in result['slots']]
+        assert 'listening' not in kinds
+
+    def test_no_duplicate_when_spine_lesson_is_listening_type(self, db_session):
+        """When the next spine lesson is itself a listening lesson, it must not
+        appear twice (once as curriculum, once as listening)."""
+        level = _make_level(db_session, _unique_code(), order=1)
+        module = _make_module(db_session, level, number=1)
+        # The spine's first (and only) lesson is a listening lesson.
+        listening_lesson = _make_lesson(
+            db_session, module, number=1, lesson_type='listening_immersion'
+        )
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        result = build_chain(user.id, real_db)
+
+        # Curriculum slot covers the listening lesson — no separate listening slot.
+        kinds = [s['kind'] for s in result['slots']]
+        assert kinds.count('listening') == 0
+        assert result['baseline_count'] == 3
+        curriculum_slot = next(s for s in result['slots'] if s['kind'] == 'curriculum')
+        assert curriculum_slot['data']['lesson_id'] == listening_lesson.id
 
 
 # ── DEFAULT_MAX_EXTRA = 50 / exhausted sources ───────────────────────

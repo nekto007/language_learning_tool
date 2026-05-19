@@ -393,12 +393,15 @@ def _build_baseline(
 
     reading_dict = build_reading_slot(user_id, db, focus=focus).to_dict()
     error_review = build_error_review_slot(user_id, db)
-    listening_slot_obj = build_listening_slot(user_id, db)
+    curriculum_lesson_id = (curriculum_dict.get('data') or {}).get('lesson_id')
 
     if focus == 'reading':
         baseline = [curriculum_dict, reading_dict, srs_dict]
+        listening_slot_obj = build_listening_slot(user_id, db)
         if listening_slot_obj is not None:
-            baseline.append(listening_slot_obj.to_dict())
+            listening_dict = listening_slot_obj.to_dict()
+            if (listening_dict.get('data') or {}).get('lesson_id') != curriculum_lesson_id:
+                baseline.append(listening_dict)
     elif focus == 'speaking':
         speaking_slot_obj = build_speaking_slot(user_id, db)
         if speaking_slot_obj is not None:
@@ -407,8 +410,11 @@ def _build_baseline(
             baseline = [curriculum_dict, srs_dict, reading_dict]
     else:
         baseline = [curriculum_dict, srs_dict, reading_dict]
+        listening_slot_obj = build_listening_slot(user_id, db)
         if listening_slot_obj is not None:
-            baseline.append(listening_slot_obj.to_dict())
+            listening_dict = listening_slot_obj.to_dict()
+            if (listening_dict.get('data') or {}).get('lesson_id') != curriculum_lesson_id:
+                baseline.append(listening_dict)
     if error_review is not None:
         baseline.append(error_review.to_dict())
     return baseline
