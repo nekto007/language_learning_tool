@@ -452,6 +452,84 @@ def _extract_sound_filename(value: str) -> str | None:
     return parse_audio_filename(value)
 
 
+def _extract_audio_filename(value: object) -> str | None:
+    """Extract an MP3 filename from supported lesson audio reference shapes."""
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    if not value:
+        return None
+
+    fn = _extract_sound_filename(value)
+    if fn and fn.endswith('.mp3'):
+        return fn.rsplit('/', 1)[-1]
+
+    if value.endswith('.mp3'):
+        return value.rsplit('/', 1)[-1]
+
+    return None
+
+
+def _iter_lesson_audio_refs(content: object):
+    """Yield audio refs from nested lesson content, including arrays."""
+    audio_keys = {'audio', 'audio_url', 'audio_clip_url', 'listening'}
+
+    def _label_from_context(ctx: dict | None) -> str:
+        if not isinstance(ctx, dict):
+            return ''
+        for key in (
+            'english', 'word', 'front', 'text', 'audio_text', 'question',
+            'correct', 'example', 'case', 'title',
+        ):
+            value = ctx.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()[:80]
+        return ''
+
+    def _source_from_path(path: str) -> str:
+        def has(segment: str) -> bool:
+            return path.startswith(segment) or f'.{segment}' in path
+
+        if has('vocabulary') or has('words'):
+            return 'vocabulary'
+        if has('cards'):
+            return 'card'
+        if has('test_sections'):
+            return 'test'
+        if has('exercises'):
+            return 'exercise'
+        if has('lines'):
+            return 'reading'
+        if has('sections') or has('grammar_explanation'):
+            return 'grammar'
+        return 'lesson'
+
+    def _walk(node: object, path: str, parent: dict | None = None):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                next_path = f'{path}.{key}' if path else key
+                if key in audio_keys:
+                    yield from _walk_audio_value(value, next_path, node)
+                yield from _walk(value, next_path, node)
+        elif isinstance(node, list):
+            for idx, item in enumerate(node):
+                yield from _walk(item, f'{path}[{idx}]', parent)
+
+    def _walk_audio_value(value: object, path: str, parent: dict | None):
+        if isinstance(value, str):
+            filename = _extract_audio_filename(value)
+            if filename:
+                label = _label_from_context(parent)
+                yield label, filename, _source_from_path(path)
+        elif isinstance(value, list):
+            for idx, item in enumerate(value):
+                yield from _walk_audio_value(item, f'{path}[{idx}]', parent)
+        elif isinstance(value, dict):
+            yield from _walk(value, path, value)
+
+    yield from _walk(content, '')
+
+
 @admin_bp.route('/admin/audio-stats')
 @login_required
 @admin_required
@@ -585,6 +663,14 @@ def audio_stats():
                         fn = _extract_sound_filename(str(cw.listening or ''))
                         if fn:
                             _add_ref(cw.english_word or '', fn, 'collection')
+
+            # --- 6. Nested lesson content fallback ---
+            # Grammar examples, flashcard cards, final_test sections, and similar
+            # shapes can keep audio refs deeper than the historical flat fields
+            # above.  Walk known audio keys recursively; _add_ref de-duplicates
+            # filenames already counted by the explicit legacy branches.
+            for label, fn, source in _iter_lesson_audio_refs(content):
+                _add_ref(label or f'Урок: {lesson.title}', fn, source)
 
         if audio_refs:
             module_stats.append({
