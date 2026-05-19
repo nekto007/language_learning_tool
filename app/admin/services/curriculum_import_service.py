@@ -329,20 +329,34 @@ class CurriculumImportService:
             # Если не нашли по external_key — ищем по (type, title) для унаследованных
             # уроков без ключа, затем по оригинальной позиции как последний вариант.
             # (type, title) идёт первым: number — это порядковые метаданные, не identity.
-            # Если у источника задан external_key, это новый урок — не перезаписываем
-            # существующий урок только потому, что он занимает ту же позицию.
-            if not lesson and not src_external_key:
+            # Если у источника есть external_key, fallback срабатывает только на
+            # legacy DB-уроках без external_key — иначе мы могли бы переписать
+            # урок с одним ключом данными урока с другим ключом.
+            def _is_legacy(_l) -> bool:
+                if not isinstance(_l.content, dict):
+                    return True
+                existing_key = _l.content.get('external_key')
+                return not (existing_key and isinstance(existing_key, str) and existing_key.strip())
+
+            if not lesson:
+                candidate = None
                 if lesson_type and title:
-                    lesson = _by_type_title.get((lesson_type, title.strip().lower()))
-                if not lesson:
-                    lesson = _by_original_number.get(number)
+                    candidate = _by_type_title.get((lesson_type, title.strip().lower()))
+                if not candidate:
+                    candidate = _by_original_number.get(number)
+                if candidate and (not src_external_key or _is_legacy(candidate)):
+                    lesson = candidate
 
             # Явный ID в JSON — это относительный порядковый номер внутри модуля,
             # не глобальный DB PK. Используем только как запасной вариант и только
-            # когда у источника нет external_key.
-            if not lesson and explicit_lesson_id and not src_external_key:
+            # для legacy уроков без external_key.
+            if not lesson and explicit_lesson_id:
                 existing = Lessons.query.get(explicit_lesson_id)
-                if existing and existing.module_id == module.id:
+                if (
+                    existing
+                    and existing.module_id == module.id
+                    and (not src_external_key or _is_legacy(existing))
+                ):
                     lesson = existing
 
             if not lesson:
