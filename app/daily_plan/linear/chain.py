@@ -408,6 +408,11 @@ def _build_baseline(
             baseline = [curriculum_dict, speaking_slot_obj.to_dict(), srs_dict, reading_dict]
         else:
             baseline = [curriculum_dict, srs_dict, reading_dict]
+        listening_slot_obj = build_listening_slot(user_id, db)
+        if listening_slot_obj is not None:
+            listening_dict = listening_slot_obj.to_dict()
+            if (listening_dict.get('data') or {}).get('lesson_id') != curriculum_lesson_id:
+                baseline.append(listening_dict)
     else:
         baseline = [curriculum_dict, srs_dict, reading_dict]
         listening_slot_obj = build_listening_slot(user_id, db)

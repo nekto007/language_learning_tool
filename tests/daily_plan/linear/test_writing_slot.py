@@ -254,7 +254,7 @@ class TestWritingDoneToday:
             db_session,
             lesson_types=['writing_prompt'],
         )
-        result = _writing_done_today(user.id, lessons[0].id, 'writing_prompt', real_db)
+        result = _writing_done_today(user.id, real_db)
         assert result is False
 
     def test_done_when_writing_attempt_today(self, db_session):
@@ -264,7 +264,7 @@ class TestWritingDoneToday:
             lesson_types=['writing_prompt'],
         )
         _add_writing_attempt(db_session, user, lessons[0])
-        result = _writing_done_today(user.id, lessons[0].id, 'writing_prompt', real_db)
+        result = _writing_done_today(user.id, real_db)
         assert result is True
 
     def test_done_when_passing_attempt_today(self, db_session):
@@ -274,7 +274,7 @@ class TestWritingDoneToday:
             lesson_types=['translation'],
         )
         _add_passing_attempt(db_session, user, lessons[0])
-        result = _writing_done_today(user.id, lessons[0].id, 'translation', real_db)
+        result = _writing_done_today(user.id, real_db)
         assert result is True
 
     def test_not_done_when_only_lesson_progress_completed(self, db_session):
@@ -287,7 +287,7 @@ class TestWritingDoneToday:
             lesson_types=['translation'],
         )
         _mark_completed(db_session, user, lessons[0])
-        result = _writing_done_today(user.id, lessons[0].id, 'translation', real_db)
+        result = _writing_done_today(user.id, real_db)
         assert result is False
 
     def test_writing_prompt_attempt_credits_translation_slot(self, db_session):
@@ -301,7 +301,7 @@ class TestWritingDoneToday:
             lesson_types=['writing_prompt', 'translation'],
         )
         _add_writing_attempt(db_session, user, lessons[0])
-        result = _writing_done_today(user.id, lessons[1].id, 'translation', real_db)
+        result = _writing_done_today(user.id, real_db)
         assert result is True
 
 

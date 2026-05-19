@@ -31,7 +31,7 @@ _WRITING_LESSON_TYPES: frozenset[str] = frozenset({
 _WRITING_SLOT_ETA_MINUTES = 8
 
 
-def _writing_done_today(user_id: int, lesson_id: int, lesson_type: str, db: Any) -> bool:
+def _writing_done_today(user_id: int, db: Any) -> bool:
     """Return True when the user has done writing activity today.
 
     The slot represents today's writing engagement, not a specific lesson, so
@@ -116,7 +116,7 @@ def build_writing_slot(user_id: int, db: Any) -> Optional[LinearSlot]:
         logger.debug("writing_slot user=%s no_writing_lesson skipped", user_id)
         return None
 
-    completed = _writing_done_today(user_id, writing_lesson.id, writing_lesson.type, db)
+    completed = _writing_done_today(user_id, db)
 
     module = getattr(writing_lesson, 'module', None)
     level = getattr(module, 'level', None) if module is not None else None
