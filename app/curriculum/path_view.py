@@ -1,15 +1,22 @@
-"""Path-progression dashboard view helpers.
+"""Dashboard path-progression assembly.
 
-Powers the redesigned ``/dashboard`` (path-style per-module view). The
-canonical "current module" is the module that owns the user's next
-incomplete lesson on the linear spine. If the user has finished every
-eligible lesson, the most recently completed module is shown so the
-dashboard never goes blank.
+The path-style ``/dashboard`` is a vertical ribbon of three logical
+segments rendered as a single visual flow:
 
-``build_path_nodes`` walks the lessons of the chosen module and emits
-one node per lesson with display state (done / current / locked / open),
-plus the cosmetic horizontal offset used by the templates to break the
-straight column into a soft path.
+1. **Today** — one node per slot of the linear daily plan
+   (curriculum / SRS / book / listening / speaking / writing / error_review).
+   Nodes carry plan-slot URLs (already include ``?from=linear_plan&slot=<kind>``).
+
+2. **Challenge** — an optional bonus node representing today's daily
+   challenge. Rendered with gold-purple visual and a ``×2 XP`` badge.
+
+3. **Preview** — up to N upcoming curriculum-spine lessons after the
+   user's current position. Visually muted, opens in catalog-flow (no
+   plan query params), grouped by module so the label reads
+   ``Дальше в курсе · A2/M1 — <module title>``.
+
+Pure data assembly: no Flask request access, no template logic. The
+templates render whatever segments are non-empty and skip the rest.
 """
 from __future__ import annotations
 
@@ -23,11 +30,24 @@ from app.daily_plan.linear.progression import find_next_lesson_linear
 logger = logging.getLogger(__name__)
 
 
-# Iconography for the path nodes.  Deliberately generic, single-glyph
-# emoji to keep the look distinct from Duolingo (no owl, no skill
-# crystals).  Templates may swap these for SVG later — the key is that
-# the icon comes from a server-resolved type, not from a CSS class
-# fingerprint.
+# ─── Icon maps ───────────────────────────────────────────────────────
+
+# Generic, neutral emoji set — distinct from Duolingo's bespoke
+# illustrations.  Templates may swap for SVG later; the icon mapping
+# stays here so all path code agrees.
+SLOT_KIND_ICONS: dict[str, str] = {
+    'curriculum': '📚',
+    'srs': '🔁',
+    # 'reading' is the slot.kind emitted by reading_slot.py; 'book' is the
+    # URL-param kind via LinearSlotKind.BOOK.  Both map to the same icon
+    # so the path doesn't care which convention upstream used.
+    'reading': '📖',
+    'book': '📖',
+    'listening': '🎧',
+    'speaking': '🎤',
+    'writing': '✍️',
+    'error_review': '🛠',
+}
 LESSON_TYPE_ICONS: dict[str, str] = {
     'vocabulary': '📚',
     'card': '🃏',
@@ -55,223 +75,322 @@ LESSON_TYPE_ICONS: dict[str, str] = {
     'matching': '🧩',
     'final_test': '🏁',
 }
-DEFAULT_LESSON_ICON = '🎓'
+DEFAULT_ICON = '🎓'
+CHALLENGE_ICON = '✨'
 
-# Horizontal offset pattern (px). 5-step soft zig-zag — distinct from
-# Duolingo's hard symmetrical zig-zag, gentle enough not to push nodes
-# off-canvas on narrow viewports.
+# Cosmetic horizontal offsets so the column doesn't read like a straight
+# list. Deliberately gentler than Duolingo's full zig-zag.
 PATH_OFFSET_PATTERN: tuple[int, ...] = (0, 28, 18, -22, -10)
+
+PREVIEW_DEFAULT_LIMIT = 5
+
+
+# ─── Dataclasses ─────────────────────────────────────────────────────
 
 
 @dataclass(frozen=True)
 class PathNode:
-    """One node on the dashboard path."""
+    """One renderable bubble on the path.
 
-    lesson_id: int
+    ``segment`` plus ``state`` together drive the visuals:
+      - segment='today' / state in {done, current, locked}
+      - segment='challenge' / state='bonus'
+      - segment='preview' / state='preview'
+    """
+
     title: str
-    lesson_type: str
     icon: str
-    state: str          # 'done' | 'current' | 'locked' | 'open'
-    url: str            # URL to open this lesson
-    offset_px: int      # cosmetic horizontal offset
-    position: int       # 1-based index within the module
-    score: Optional[int] = None  # last completion score, if any
+    state: str
+    url: str
+    segment: str
+    offset_px: int
+    slot_kind: Optional[str] = None      # for today-segment nodes
+    lesson_id: Optional[int] = None      # for preview / challenge nodes
+    score: Optional[int] = None
+    badge: Optional[str] = None          # e.g. '×2 XP' for challenge
+    eta_minutes: Optional[int] = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            'lesson_id': self.lesson_id,
             'title': self.title,
-            'lesson_type': self.lesson_type,
             'icon': self.icon,
             'state': self.state,
             'url': self.url,
+            'segment': self.segment,
             'offset_px': self.offset_px,
-            'position': self.position,
+            'slot_kind': self.slot_kind,
+            'lesson_id': self.lesson_id,
             'score': self.score,
+            'badge': self.badge,
+            'eta_minutes': self.eta_minutes,
         }
 
 
 @dataclass(frozen=True)
-class PathModule:
-    """Module-level header data accompanying a path."""
+class PathSegment:
+    """A labelled group of contiguous nodes.
 
-    id: int
-    number: int
-    title: str
-    level_code: str
-    total_lessons: int
-    completed_lessons: int
-    catalog_url: str  # legacy module page (the "Справочник" CTA)
+    ``kind`` is the canonical segment id used by templates; ``label`` is
+    the human-readable header shown above the segment ('СЕГОДНЯ — …' or
+    'ДАЛЬШЕ В КУРСЕ · A2/M1 …').
+    """
 
-    @property
-    def percent(self) -> int:
-        if self.total_lessons <= 0:
-            return 0
-        return round(self.completed_lessons / self.total_lessons * 100)
+    kind: str
+    label: str
+    nodes: list[PathNode] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            'id': self.id,
-            'number': self.number,
-            'title': self.title,
-            'level_code': self.level_code,
-            'total_lessons': self.total_lessons,
-            'completed_lessons': self.completed_lessons,
-            'percent': self.percent,
-            'catalog_url': self.catalog_url,
+            'kind': self.kind,
+            'label': self.label,
+            'nodes': [n.to_dict() for n in self.nodes],
         }
 
 
-def _last_completed_module(user_id: int, db: Any) -> Optional[Module]:
-    """Return the module owning the user's most recently completed lesson."""
-    row = (
-        db.session.query(Lessons)
-        .join(LessonProgress, LessonProgress.lesson_id == Lessons.id)
-        .filter(
-            LessonProgress.user_id == user_id,
-            LessonProgress.status == 'completed',
-        )
-        .order_by(LessonProgress.completed_at.desc().nullslast())
-        .first()
+@dataclass(frozen=True)
+class DashboardPath:
+    """Top-level assembly returned to the template."""
+
+    segments: list[PathSegment] = field(default_factory=list)
+    preview_module_label: Optional[str] = None
+
+    @property
+    def is_empty(self) -> bool:
+        return not any(seg.nodes for seg in self.segments)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            'segments': [s.to_dict() for s in self.segments],
+            'preview_module_label': self.preview_module_label,
+            'is_empty': self.is_empty,
+        }
+
+
+# ─── Today segment ───────────────────────────────────────────────────
+
+
+def _slot_to_node(
+    slot: dict[str, Any], state: str, offset_idx: int,
+) -> PathNode:
+    kind = slot.get('kind') or ''
+    return PathNode(
+        title=slot.get('title') or '',
+        icon=SLOT_KIND_ICONS.get(kind, DEFAULT_ICON),
+        state=state,
+        url=slot.get('url') or '',
+        segment='today',
+        offset_px=PATH_OFFSET_PATTERN[offset_idx % len(PATH_OFFSET_PATTERN)],
+        slot_kind=kind,
+        eta_minutes=slot.get('eta_minutes'),
     )
-    if row is None:
-        return None
-    return db.session.get(Module, row.module_id)
 
 
-def _first_visible_module(user_id: int, db: Any) -> Optional[Module]:
-    """Return the lowest-order module the user is allowed to see.
+def _build_today_segment(
+    linear_plan: dict[str, Any],
+    plan_completion: dict[str, Any],
+) -> PathSegment:
+    """Map plan slots → today-segment nodes.
 
-    Fallback when the user has zero progress AND no next lesson (e.g.
-    every module is gated behind prerequisites or the curriculum is
-    empty). Returns the first module by (level.order, number).
+    State priority:
+      1. ``done``    — slot.completed OR plan_completion[kind] True (baseline).
+      2. ``current`` — first non-done slot.
+      3. ``locked``  — every subsequent slot.
+
+    Extension slots (beyond ``baseline_count``) trust slot.completed only;
+    plan_completion is keyed by kind and would falsely mark an extension
+    SRS done the moment the baseline SRS was completed.
     """
-    from app.daily_plan.linear.progression import _user_min_level_order
+    slots = (linear_plan or {}).get('slots') or (linear_plan or {}).get('baseline_slots') or []
+    if not slots:
+        return PathSegment(kind='today', label='', nodes=[])
 
-    min_order = _user_min_level_order(user_id, db)
-    return (
-        db.session.query(Module)
-        .join(CEFRLevel, CEFRLevel.id == Module.level_id)
-        .filter(CEFRLevel.order >= min_order)
-        .order_by(CEFRLevel.order.asc(), Module.number.asc())
-        .first()
-    )
+    chain_meta = (linear_plan or {}).get('chain_meta') or {}
+    baseline_count = chain_meta.get('baseline_count', len(slots))
+    completion = plan_completion or {}
 
-
-def get_current_module_for_user(user_id: int, db: Any) -> Optional[Module]:
-    """Return the module that should be displayed on the path dashboard.
-
-    Resolution order:
-      1. Module owning ``find_next_lesson_linear`` (the active next lesson)
-      2. Most-recently-completed module (curriculum-finished users)
-      3. First module visible to the user (fresh user, never started)
-      4. ``None`` if the curriculum is empty / fully gated
-    """
-    next_lesson = find_next_lesson_linear(user_id, db)
-    if next_lesson is not None:
-        module = db.session.get(Module, next_lesson.module_id)
-        if module is not None:
-            return module
-
-    completed = _last_completed_module(user_id, db)
-    if completed is not None:
-        return completed
-
-    return _first_visible_module(user_id, db)
-
-
-def _lesson_icon(lesson_type: Optional[str]) -> str:
-    return LESSON_TYPE_ICONS.get((lesson_type or '').lower(), DEFAULT_LESSON_ICON)
-
-
-def _resolve_lesson_url(lesson: Lessons) -> str:
-    """Return the canonical /learn/<id>/ URL for a lesson.
-
-    Plan-context query params (``from``, ``slot``) are NOT appended here:
-    the dashboard path is the catalog flow, not the daily-plan flow. The
-    side rail still routes through ``build_slot_url`` for plan-aware
-    slots.
-    """
-    return f'/learn/{lesson.id}/'
-
-
-def _resolve_catalog_url(module: Module) -> str:
-    """Return the legacy module-overview URL used by the «Справочник» CTA."""
-    level_code = (module.level.code if module.level else 'a0').lower()
-    return f'/learn/{level_code}/{module.number}/'
-
-
-def build_path_nodes(module: Module, user_id: int, db: Any) -> list[PathNode]:
-    """Return one ``PathNode`` per lesson of ``module``, in display order.
-
-    Display rules:
-      - ``done``: lesson has a LessonProgress(status='completed')
-      - ``current``: first non-done lesson (only ONE current per path)
-      - ``locked``: every lesson AFTER the current one
-      - ``open``: lessons BEFORE the current one with no progress yet
-        (rare in the linear spine, but possible if a user skipped via
-        admin import). Treated as openable, same as done for navigation.
-
-    A path with zero non-done lessons (module fully completed) has no
-    ``current`` — every node is ``done`` and the templates promote the
-    last node as the "review" anchor.
-    """
-    lessons = (
-        db.session.query(Lessons)
-        .filter(Lessons.module_id == module.id)
-        .order_by(Lessons.number.asc(), Lessons.id.asc())
-        .all()
-    )
-    if not lessons:
-        return []
-
-    progress_rows = (
-        db.session.query(LessonProgress)
-        .filter(
-            LessonProgress.user_id == user_id,
-            LessonProgress.lesson_id.in_([l.id for l in lessons]),
-        )
-        .all()
-    )
-    completed_ids = {p.lesson_id for p in progress_rows if p.status == 'completed'}
-    score_by_lesson = {p.lesson_id: p.score for p in progress_rows if p.score is not None}
-
-    current_assigned = False
     nodes: list[PathNode] = []
-    for index, lesson in enumerate(lessons):
-        offset = PATH_OFFSET_PATTERN[index % len(PATH_OFFSET_PATTERN)]
-        if lesson.id in completed_ids:
+    current_assigned = False
+    for idx, slot in enumerate(slots):
+        if slot.get('skipped'):
+            # Skipped slots simply don't appear in the path — they
+            # already have their own «Пропустить» action in the rail.
+            continue
+        kind = slot.get('kind') or ''
+        is_baseline = idx < baseline_count
+        completed = bool(slot.get('completed')) or (
+            is_baseline and bool(completion.get(kind))
+        )
+        if completed:
             state = 'done'
         elif not current_assigned:
             state = 'current'
             current_assigned = True
         else:
             state = 'locked'
+        nodes.append(_slot_to_node(slot, state, idx))
 
-        nodes.append(
-            PathNode(
-                lesson_id=lesson.id,
-                title=lesson.title or '',
-                lesson_type=lesson.type or '',
-                icon=_lesson_icon(lesson.type),
-                state=state,
-                url=_resolve_lesson_url(lesson),
-                offset_px=offset,
-                position=index + 1,
-                score=int(score_by_lesson.get(lesson.id)) if score_by_lesson.get(lesson.id) is not None else None,
-            )
-        )
-    return nodes
+    return PathSegment(kind='today', label='СЕГОДНЯ', nodes=nodes)
 
 
-def build_path_module(module: Module, nodes: list[PathNode]) -> PathModule:
-    """Compose the ``PathModule`` header from a module + its computed nodes."""
-    return PathModule(
-        id=module.id,
-        number=module.number,
-        title=module.title or '',
-        level_code=(module.level.code if module.level else 'A0'),
-        total_lessons=len(nodes),
-        completed_lessons=sum(1 for n in nodes if n.state == 'done'),
-        catalog_url=_resolve_catalog_url(module),
+# ─── Challenge segment ──────────────────────────────────────────────
+
+
+def _build_challenge_segment(
+    challenge: Optional[dict[str, Any]],
+    offset_idx: int,
+) -> PathSegment:
+    if not challenge:
+        return PathSegment(kind='challenge', label='', nodes=[])
+    if challenge.get('is_completed'):
+        # Don't render a bonus node for an already-claimed challenge —
+        # ``×2 XP`` next to a checkmark is just noise.
+        return PathSegment(kind='challenge', label='', nodes=[])
+    lesson_id = challenge.get('lesson_id')
+    if not lesson_id:
+        return PathSegment(kind='challenge', label='', nodes=[])
+    bonus_xp = challenge.get('bonus_xp') or 0
+    node = PathNode(
+        title=challenge.get('title') or 'Челлендж дня',
+        icon=CHALLENGE_ICON,
+        state='bonus',
+        url=f'/learn/{lesson_id}/',
+        segment='challenge',
+        offset_px=PATH_OFFSET_PATTERN[offset_idx % len(PATH_OFFSET_PATTERN)],
+        lesson_id=lesson_id,
+        badge=f'×{2 if bonus_xp else 1} XP',
     )
+    return PathSegment(kind='challenge', label='БОНУС', nodes=[node])
+
+
+# ─── Preview segment ────────────────────────────────────────────────
+
+
+def _user_min_order(user_id: int, db: Any) -> int:
+    from app.daily_plan.linear.progression import _user_min_level_order
+    return _user_min_level_order(user_id, db)
+
+
+def get_curriculum_preview(
+    user_id: int, db: Any, limit: int = PREVIEW_DEFAULT_LIMIT,
+) -> list[Lessons]:
+    """Return up to ``limit`` upcoming lessons on the curriculum spine.
+
+    Walking order: same as ``find_next_lesson_linear`` (level.order,
+    module.number, lesson.number), filtered against the user's
+    onboarding level and skipping completed lessons.
+
+    Used for the preview-segment tail under today's plan so the user
+    has a sense of what's coming next. NEVER appends plan-context query
+    params to URLs — preview opens in catalog flow.
+    """
+    min_order = _user_min_order(user_id, db)
+    completed_subq = (
+        db.session.query(LessonProgress.lesson_id)
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+        )
+        .subquery()
+    )
+    q = (
+        db.session.query(Lessons)
+        .join(Module, Module.id == Lessons.module_id)
+        .join(CEFRLevel, CEFRLevel.id == Module.level_id)
+        .filter(
+            CEFRLevel.order >= min_order,
+            Lessons.id.notin_(db.session.query(completed_subq.c.lesson_id)),
+        )
+        .order_by(
+            CEFRLevel.order.asc(),
+            Module.number.asc(),
+            Lessons.number.asc(),
+            Lessons.id.asc(),
+        )
+        .limit(max(limit * 2, limit))  # over-fetch to allow current-slot dedup
+    )
+    return list(q.all())
+
+
+def _build_preview_segment(
+    user_id: int,
+    db: Any,
+    today_lesson_ids: set[int],
+    limit: int,
+    today_node_count: int,
+) -> tuple[PathSegment, Optional[str]]:
+    """Build the preview segment + a module label for the section header.
+
+    ``today_lesson_ids`` lets us skip lessons that already appear as the
+    current today-curriculum slot — otherwise the preview's first node
+    is a duplicate of the today's primary CTA.
+    """
+    upcoming = get_curriculum_preview(user_id, db, limit=limit + len(today_lesson_ids) + 1)
+    if not upcoming:
+        return PathSegment(kind='preview', label='', nodes=[]), None
+
+    # Drop anything already represented in today's segment.
+    upcoming = [l for l in upcoming if l.id not in today_lesson_ids][:limit]
+    if not upcoming:
+        return PathSegment(kind='preview', label='', nodes=[]), None
+
+    # Module label: first preview lesson's parent module.
+    first_module = db.session.get(Module, upcoming[0].module_id)
+    label_module = (
+        first_module.title if first_module and first_module.title else f'Модуль {upcoming[0].module_id}'
+    )
+    level_code = (first_module.level.code if first_module and first_module.level else 'A0')
+    preview_module_label = f'ДАЛЬШЕ В КУРСЕ · {level_code}/M{first_module.number if first_module else 0} — {label_module}'
+
+    nodes: list[PathNode] = []
+    for i, lesson in enumerate(upcoming):
+        nodes.append(PathNode(
+            title=lesson.title or '',
+            icon=LESSON_TYPE_ICONS.get((lesson.type or '').lower(), DEFAULT_ICON),
+            state='preview',
+            url=f'/learn/{lesson.id}/',
+            segment='preview',
+            offset_px=PATH_OFFSET_PATTERN[(today_node_count + i + 2) % len(PATH_OFFSET_PATTERN)],
+            lesson_id=lesson.id,
+        ))
+    return PathSegment(kind='preview', label=preview_module_label, nodes=nodes), preview_module_label
+
+
+# ─── Public entry point ─────────────────────────────────────────────
+
+
+def build_dashboard_path(
+    user_id: int,
+    db: Any,
+    linear_plan: Optional[dict[str, Any]] = None,
+    plan_completion: Optional[dict[str, Any]] = None,
+    challenge: Optional[dict[str, Any]] = None,
+    preview_limit: int = PREVIEW_DEFAULT_LIMIT,
+) -> DashboardPath:
+    """Return the assembled three-segment path for the dashboard.
+
+    Callers from the dashboard route should pass the already-built
+    ``linear_plan``, ``plan_completion``, and ``challenge`` payloads to
+    avoid duplicate DB work. Tests can pass them directly without
+    hitting the plan assembler.
+    """
+    today = _build_today_segment(linear_plan or {}, plan_completion or {})
+    challenge_seg = _build_challenge_segment(challenge, offset_idx=len(today.nodes))
+
+    # Collect lesson IDs already represented in today's curriculum slot
+    # so the preview doesn't repeat them right after.
+    today_lesson_ids: set[int] = set()
+    for slot in (linear_plan or {}).get('slots') or []:
+        if slot.get('kind') == 'curriculum':
+            data = slot.get('data') or {}
+            lid = data.get('lesson_id')
+            if isinstance(lid, int):
+                today_lesson_ids.add(lid)
+
+    preview, preview_label = _build_preview_segment(
+        user_id, db, today_lesson_ids,
+        limit=preview_limit,
+        today_node_count=len(today.nodes) + len(challenge_seg.nodes),
+    )
+
+    segments = [s for s in (today, challenge_seg, preview) if s.nodes]
+    return DashboardPath(segments=segments, preview_module_label=preview_label)

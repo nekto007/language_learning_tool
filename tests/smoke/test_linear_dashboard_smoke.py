@@ -362,13 +362,14 @@ def test_scenario_3_first_entry_shows_select_book_and_modal(
 
     assert response.status_code == 200
     html = _strip_inline_style(response.data.decode('utf-8'))
-    # Reading slot renders in select-book mode.
-    assert 'data-linear-action="select-book"' in html
-    assert 'Выбрать книгу' in html
+    # Path dashboard: the reading node's URL resolves to the book-select
+    # modal hash, and the modal markup ships with the dashboard so the
+    # hash actually opens something.
     assert 'href="#book-select-modal"' in html
-    # Modal markup is in the dashboard so the link can open it.
     assert 'id="book-select-modal"' in html
     assert 'book-select-modal-list' in html
+    # Reading node is in the path with the right slot kind.
+    assert 'data-slot-kind="reading"' in html
 
 
 # ── Scenario 4: all 3 slots done → continuation CTA + day_secured ────
@@ -439,11 +440,14 @@ def test_scenario_4_all_slots_done_shows_continuation_and_secured(
 
     assert dashboard_response.status_code == 200
     html = _strip_inline_style(dashboard_response.data.decode('utf-8'))
-    # Day-secured celebration card + continuation CTA are rendered.
-    assert 'data-plan-celebration="true"' in html
-    assert 'data-linear-continuation="true"' in html
-    # Continuation CTA points at the first upcoming lesson via the chain
-    # extension slot's URL (continuation.next_lessons remains as a preview).
+    # Path dashboard: all 3 baseline slots render as done nodes; the
+    # appended curriculum extension shows up as the new current-node.
+    # Day-secured state lives in the absence of any locked baseline
+    # node + the API's day_secured=True flag below.
+    assert 'path-node--done' in html
+    # The continuation extension's lesson URL is rendered in the path
+    # so the user can keep going (same target as the legacy celebration
+    # CTA, just inside the path now).
     assert '/curriculum_lessons/102?from=linear_plan_continuation' in html
 
     assert api_response.status_code == 200

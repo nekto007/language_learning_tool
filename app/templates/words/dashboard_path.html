@@ -1,42 +1,56 @@
-{# Redesigned dashboard: path-progression on the left + plan/stats rail on the right.
+{# Redesigned dashboard: top stats strip + single-column segmented path.
 
-Server-rendered to keep the first paint useful without waiting on JS. The
-mission-plan legacy template lives at templates/dashboard.html and is
-selected by the route when the user is on the mission cohort.
+Today's plan slots, optional bonus challenge, and a curriculum-spine
+preview flow as one visual ribbon. No side rail — anything that didn't
+fit moved to /study/insights.
 
-Required variables (set in app/words/routes.py):
-  - path_module    → PathModule
-  - path_nodes     → list[PathNode]
-  - linear_plan    → dict (output of get_linear_plan)
-  - plan_completion→ dict (output of compute_plan_steps)
+Required template variables (set in app/words/routes.py):
+  - dashboard_path → DashboardPath
   - stats_card     → dict (streak/xp/goal compact data)
-  - challenge      → dict or None (today's daily challenge for the rail)
 #}
 {% extends "base.html" %}
 
 {% block content %}
-<div class="dash-path">
+<div class="dash-path" data-linear-plan="true">
+  <header class="dash-path__strip">
+    {% include 'components/_dashboard_stats_strip.html' %}
+  </header>
+
   <main class="dash-path__main">
     {% include 'components/_path.html' %}
   </main>
-
-  <aside class="dash-path__rail" aria-label="Прогресс и план дня">
-    {% include 'components/_dashboard_stats_card.html' %}
-    {% include 'components/_dashboard_plan_rail.html' %}
-  </aside>
 </div>
 
+{# Book-select modal: opened by the path's reading node when the URL
+   resolves to `#book-select-modal` (no UserReadingPreference yet).
+   Markup + JS mirror the legacy dashboard so the «Выбрать книгу» flow
+   keeps working from the path. #}
+<div id="book-select-modal" class="linear-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="book-select-modal-title">
+    <div class="linear-modal__backdrop" data-linear-close="book-select-modal"></div>
+    <div class="linear-modal__panel">
+        <div class="linear-modal__header">
+            <h2 class="linear-modal__title" id="book-select-modal-title">Выбрать книгу для чтения</h2>
+            <button type="button" class="linear-modal__close" data-linear-close="book-select-modal" aria-label="Закрыть">×</button>
+        </div>
+        <p class="linear-modal__hint">Книги подобраны под ваш уровень. После выбора она появится в плане «Чтение».</p>
+        <div class="linear-modal__body">
+            <div id="book-select-modal-status" class="linear-modal__status" aria-live="polite">Загрузка каталога…</div>
+            <ul id="book-select-modal-list" class="linear-book-list"></ul>
+        </div>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}" defer></script>
+
 <script>
-// Click-on-locked-node → toast (so the user knows WHY nothing happened).
+// Click-on-locked-node → toast.
 (function() {
-  var track = document.querySelector('.path-shell__track');
-  if (!track) return;
-  var msg = track.getAttribute('data-toast-locked') || 'Сначала завершите предыдущее задание';
-  track.addEventListener('click', function(e) {
+  var shell = document.querySelector('.path-shell');
+  if (!shell) return;
+  var msg = shell.getAttribute('data-toast-locked') || 'Сначала завершите предыдущее задание';
+  shell.addEventListener('click', function(e) {
     var locked = e.target.closest('.path-node--locked');
     if (!locked) return;
     e.preventDefault();
-    // Lightweight toast: reuse the existing .lsn-save-toast styling if present.
     var existing = document.getElementById('path-toast');
     if (existing) existing.parentNode.removeChild(existing);
     var t = document.createElement('div');

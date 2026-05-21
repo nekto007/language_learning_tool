@@ -1,0 +1,28 @@
+{# Render one PathSegment: header label + ordered nodes + connectors.
+
+Variables:
+  - segment    → PathSegment dataclass (kind, label, nodes)
+  - is_first   → bool, the first segment skips the leading divider
+#}
+{% if segment and segment.nodes %}
+  {% if not is_first %}
+    <div class="path-segment__transition" aria-hidden="true"></div>
+  {% endif %}
+
+  <div class="path-segment path-segment--{{ segment.kind }}">
+    {% if segment.label %}
+      <h2 class="path-segment__title">{{ segment.label }}</h2>
+    {% endif %}
+
+    <div class="path-segment__track">
+      {% set _total = segment.nodes | length %}
+      {% for node in segment.nodes %}
+        {% with node=node,
+                is_current=(node.state == 'current'),
+                is_last=(loop.index == _total) %}
+          {% include 'components/_path_node.html' %}
+        {% endwith %}
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}

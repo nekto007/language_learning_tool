@@ -700,16 +700,13 @@ def _build_completion_summary(
 def _render_path_dashboard(tz: str):
     """Render the path-progression dashboard for linear-plan users.
 
-    The legacy /dashboard render is hundreds of lines of widget assembly;
-    this view trims to: current module + path nodes, the linear plan
-    payload + completion, a compact stats card (streak/xp/goal), and the
-    daily challenge. Heavy analytics (insights, motivation, weekly digest)
-    moved to /study/insights.
+    Path = today's plan slots + bonus challenge + curriculum-spine preview.
+    No side rail, no insights duplication — analytics live at
+    /study/insights. The legacy widget dashboard (templates/dashboard.html)
+    serves mission-plan users.
     """
-    from app.curriculum.path_view import (
-        build_path_module, build_path_nodes, get_current_module_for_user,
-    )
-    from app.daily_plan.linear.plan import get_linear_plan
+    from app.curriculum.path_view import build_dashboard_path
+    from app.daily_plan.service import get_daily_plan_unified
     from app.achievements.streak_service import (
         compute_plan_steps, process_streak_on_activity,
     )
@@ -720,7 +717,10 @@ def _render_path_dashboard(tz: str):
 
     streak = get_current_streak(current_user.id, tz=tz)
     daily_summary = get_daily_summary(current_user.id, tz=tz)
-    linear_plan = get_linear_plan(current_user.id, db)
+    # Use unified entry point so test mocks and feature flags work the same
+    # as on the legacy dashboard; for linear-plan users this returns the
+    # same shape as get_linear_plan directly.
+    linear_plan = get_daily_plan_unified(current_user.id, tz=tz) or {}
     plan_completion, _avail, steps_done, steps_total = compute_plan_steps(
         linear_plan, daily_summary
     )
@@ -730,11 +730,29 @@ def _render_path_dashboard(tz: str):
     )
     streak = streak_result['streak_status'].get('streak', streak)
 
-    module = get_current_module_for_user(current_user.id, db)
-    path_nodes = build_path_nodes(module, current_user.id, db) if module else []
-    path_module = build_path_module(module, path_nodes) if module else None
+    # Daily challenge (best-effort — should not 500 the dashboard).
+    challenge_payload = None
+    try:
+        from app.daily_plan.challenge import get_today_challenge
+        ch = get_today_challenge(current_user.id, db)
+        if ch and ch.get('lesson_id'):
+            challenge_payload = {
+                'title': 'Челлендж дня',
+                'lesson_id': ch['lesson_id'],
+                'is_completed': bool(ch.get('is_completed')),
+                'bonus_xp': ch.get('bonus_xp') or 0,
+            }
+    except Exception:
+        logger.warning('daily_challenge build failed', exc_info=True)
 
-    # Stats card
+    dashboard_path = build_dashboard_path(
+        current_user.id, db,
+        linear_plan=linear_plan,
+        plan_completion=plan_completion,
+        challenge=challenge_payload,
+    )
+
+    # Stats strip
     stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
     total_xp = (stats.total_xp if stats else 0) or 0
     level_info = get_level_info(total_xp)
@@ -745,44 +763,20 @@ def _render_path_dashboard(tz: str):
         logger.warning('xp_today lookup failed', exc_info=True)
         xp_today = 0
 
-    goal_target = getattr(current_user, 'daily_word_goal', None) or 0
-    # daily_summary already counts words studied today (SRS-graded cards).
-    goal_current = (daily_summary or {}).get('words_studied', 0) if daily_summary else 0
-
     stats_card = {
         'streak_days': streak or 0,
         'streak_shield': bool(getattr(current_user, 'streak_shield_active', False)),
         'xp_today': xp_today,
-        'xp_total': total_xp,
         'level': level_info.current_level,
-        'goal_target': goal_target,
-        'goal_current': goal_current,
+        'goal_target': getattr(current_user, 'daily_word_goal', None) or 0,
+        'goal_current': (daily_summary or {}).get('words_studied', 0) if daily_summary else 0,
         'goal_label': 'слов',
     }
 
-    # Daily challenge (best-effort)
-    challenge_payload = None
-    try:
-        from app.daily_plan.challenge import get_today_challenge
-        ch = get_today_challenge(current_user.id, db)
-        if ch:
-            challenge_payload = {
-                'title': 'Выполни сегодняшнее задание',
-                'completed': bool(ch.get('is_completed')),
-                'bonus_multiplier': '2' if ch.get('bonus_xp') else '1',
-                'url': f"/learn/{ch['lesson_id']}/" if ch.get('lesson_id') else None,
-            }
-    except Exception:
-        logger.warning('daily_challenge build failed', exc_info=True)
-
     return render_template(
         'words/dashboard_path.html',
-        path_module=path_module,
-        path_nodes=path_nodes,
-        linear_plan=linear_plan,
-        plan_completion=plan_completion,
+        dashboard_path=dashboard_path,
         stats_card=stats_card,
-        challenge=challenge_payload,
     )
 
 
