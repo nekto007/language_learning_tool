@@ -1,0 +1,57 @@
+{# Compact streak + XP + daily goal card for the dashboard side rail.
+
+Variables (all optional, defaults to zero):
+  - stats_card.streak_days        → int
+  - stats_card.streak_shield      → bool, render shield badge if active
+  - stats_card.xp_today           → int
+  - stats_card.xp_total           → int
+  - stats_card.goal_target        → int, words/min target for today
+  - stats_card.goal_current       → int
+  - stats_card.goal_label         → 'слов' / 'мин'
+  - stats_card.level              → int, current XP level
+#}
+{% set _s = stats_card or {} %}
+{% set _streak = _s.streak_days|default(0) %}
+{% set _shield = _s.streak_shield|default(False) %}
+{% set _xp_today = _s.xp_today|default(0) %}
+{% set _xp_total = _s.xp_total|default(0) %}
+{% set _level = _s.level|default(1) %}
+{% set _goal_target = _s.goal_target|default(0) %}
+{% set _goal_current = _s.goal_current|default(0) %}
+{% set _goal_label = _s.goal_label|default('слов') %}
+{% set _goal_pct = ((_goal_current / _goal_target) * 100) | round if _goal_target else 0 %}
+{% if _goal_pct > 100 %}{% set _goal_pct = 100 %}{% endif %}
+
+<aside class="dash-stats" aria-label="Статистика дня">
+  <div class="dash-stats__row">
+    <div class="dash-stats__item" title="Серия дней подряд">
+      <span class="dash-stats__icon" aria-hidden="true">🔥</span>
+      <span class="dash-stats__value">{{ _streak }}</span>
+      <span class="dash-stats__label">{% if _streak == 1 %}день{% elif _streak in (2,3,4) %}дня{% else %}дней{% endif %}</span>
+      {% if _shield %}
+        <span class="dash-stats__shield" title="Серия защищена на 1 день" aria-label="Серия защищена">🛡</span>
+      {% endif %}
+    </div>
+
+    <div class="dash-stats__item" title="Уровень и опыт">
+      <span class="dash-stats__icon" aria-hidden="true">⚡</span>
+      <span class="dash-stats__value">{{ _xp_today }}</span>
+      <span class="dash-stats__label">XP сегодня</span>
+    </div>
+
+    {% if _goal_target %}
+    <div class="dash-stats__item" title="Дневная цель">
+      <span class="dash-stats__icon" aria-hidden="true">🎯</span>
+      <span class="dash-stats__value">{{ _goal_current }}/{{ _goal_target }}</span>
+      <span class="dash-stats__label">{{ _goal_label }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if _goal_target %}
+  <div class="dash-stats__goal-bar" aria-label="Прогресс цели" role="progressbar"
+       aria-valuenow="{{ _goal_current }}" aria-valuemin="0" aria-valuemax="{{ _goal_target }}">
+    <div class="dash-stats__goal-fill" style="width: {{ _goal_pct }}%"></div>
+  </div>
+  {% endif %}
+</aside>

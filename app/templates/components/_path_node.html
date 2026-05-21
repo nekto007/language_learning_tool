@@ -1,0 +1,64 @@
+{# Single node on the dashboard path.
+
+Variables:
+  - node        → PathNode dataclass (lesson_id, title, icon, state, url, offset_px, position, score)
+  - is_current  → bool, the only node that gets the "НАЧАТЬ" tooltip
+  - is_last     → bool, suppress trailing connector if true
+
+States: 'done' | 'current' | 'locked' | 'open'
+#}
+<div class="path-node path-node--{{ node.state }}"
+     style="--node-offset: {{ node.offset_px }}px;"
+     data-lesson-id="{{ node.lesson_id }}"
+     data-lesson-type="{{ node.lesson_type }}">
+
+  {# Floating "НАЧАТЬ" callout above the current node. Server-rendered, so
+     keyboard focus / screen readers see it without waiting for JS. #}
+  {% if is_current %}
+    <a class="path-node__callout"
+       href="{{ node.url }}"
+       title="{{ node.title }}"
+       data-callout="start">
+      Начать
+      <svg class="path-node__callout-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </a>
+  {% endif %}
+
+  {# The clickable bubble itself.  ``locked`` nodes render as a span so they
+     can't be activated; everything else is an anchor.  #}
+  {% if node.state == 'locked' %}
+    <span class="path-node__bubble" aria-disabled="true"
+          aria-label="{{ node.title }} (заблокирован)">
+      <span class="path-node__icon" aria-hidden="true">{{ node.icon }}</span>
+      <svg class="path-node__lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="5" y="11" width="14" height="10" rx="2"/>
+        <path d="M8 11V8a4 4 0 018 0v3"/>
+      </svg>
+    </span>
+  {% else %}
+    <a class="path-node__bubble"
+       href="{{ node.url }}"
+       title="{{ node.title }}"
+       aria-label="{{ node.title }}{% if node.state == 'done' %} (завершён{% if node.score %}, {{ node.score }}%{% endif %}){% elif node.state == 'current' %} (текущий){% endif %}">
+      <span class="path-node__icon" aria-hidden="true">{{ node.icon }}</span>
+      {% if node.state == 'done' %}
+        <svg class="path-node__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      {% endif %}
+    </a>
+  {% endif %}
+
+  <div class="path-node__caption">
+    <span class="path-node__title">{{ node.title }}</span>
+    {% if node.state == 'done' and node.score is not none %}
+      <span class="path-node__score" data-score="{{ node.score }}">{{ node.score }}%</span>
+    {% endif %}
+  </div>
+
+  {% if not is_last %}
+    <div class="path-node__connector" aria-hidden="true"></div>
+  {% endif %}
+</div>

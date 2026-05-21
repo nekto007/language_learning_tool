@@ -1,0 +1,55 @@
+{# Redesigned dashboard: path-progression on the left + plan/stats rail on the right.
+
+Server-rendered to keep the first paint useful without waiting on JS. The
+mission-plan legacy template lives at templates/dashboard.html and is
+selected by the route when the user is on the mission cohort.
+
+Required variables (set in app/words/routes.py):
+  - path_module    → PathModule
+  - path_nodes     → list[PathNode]
+  - linear_plan    → dict (output of get_linear_plan)
+  - plan_completion→ dict (output of compute_plan_steps)
+  - stats_card     → dict (streak/xp/goal compact data)
+  - challenge      → dict or None (today's daily challenge for the rail)
+#}
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dash-path">
+  <main class="dash-path__main">
+    {% include 'components/_path.html' %}
+  </main>
+
+  <aside class="dash-path__rail" aria-label="Прогресс и план дня">
+    {% include 'components/_dashboard_stats_card.html' %}
+    {% include 'components/_dashboard_plan_rail.html' %}
+  </aside>
+</div>
+
+<script>
+// Click-on-locked-node → toast (so the user knows WHY nothing happened).
+(function() {
+  var track = document.querySelector('.path-shell__track');
+  if (!track) return;
+  var msg = track.getAttribute('data-toast-locked') || 'Сначала завершите предыдущее задание';
+  track.addEventListener('click', function(e) {
+    var locked = e.target.closest('.path-node--locked');
+    if (!locked) return;
+    e.preventDefault();
+    // Lightweight toast: reuse the existing .lsn-save-toast styling if present.
+    var existing = document.getElementById('path-toast');
+    if (existing) existing.parentNode.removeChild(existing);
+    var t = document.createElement('div');
+    t.id = 'path-toast';
+    t.className = 'path-toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(function() { t.classList.add('path-toast--visible'); });
+    setTimeout(function() {
+      t.classList.remove('path-toast--visible');
+      setTimeout(function() { t.parentNode && t.parentNode.removeChild(t); }, 250);
+    }, 1800);
+  });
+})();
+</script>
+{% endblock %}

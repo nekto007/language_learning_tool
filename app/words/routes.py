@@ -697,6 +697,95 @@ def _build_completion_summary(
     }
 
 
+def _render_path_dashboard(tz: str):
+    """Render the path-progression dashboard for linear-plan users.
+
+    The legacy /dashboard render is hundreds of lines of widget assembly;
+    this view trims to: current module + path nodes, the linear plan
+    payload + completion, a compact stats card (streak/xp/goal), and the
+    daily challenge. Heavy analytics (insights, motivation, weekly digest)
+    moved to /study/insights.
+    """
+    from app.curriculum.path_view import (
+        build_path_module, build_path_nodes, get_current_module_for_user,
+    )
+    from app.daily_plan.linear.plan import get_linear_plan
+    from app.achievements.streak_service import (
+        compute_plan_steps, process_streak_on_activity,
+    )
+    from app.achievements.xp_service import get_level_info, get_today_xp
+    from app.telegram.queries import get_current_streak, get_daily_summary
+    from app.achievements.models import UserStatistics
+    from app.utils.time_utils import get_user_local_date
+
+    streak = get_current_streak(current_user.id, tz=tz)
+    daily_summary = get_daily_summary(current_user.id, tz=tz)
+    linear_plan = get_linear_plan(current_user.id, db)
+    plan_completion, _avail, steps_done, steps_total = compute_plan_steps(
+        linear_plan, daily_summary
+    )
+    streak_result = process_streak_on_activity(
+        current_user.id, steps_done, steps_total, tz=tz,
+        daily_plan=linear_plan, plan_completion=plan_completion,
+    )
+    streak = streak_result['streak_status'].get('streak', streak)
+
+    module = get_current_module_for_user(current_user.id, db)
+    path_nodes = build_path_nodes(module, current_user.id, db) if module else []
+    path_module = build_path_module(module, path_nodes) if module else None
+
+    # Stats card
+    stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
+    total_xp = (stats.total_xp if stats else 0) or 0
+    level_info = get_level_info(total_xp)
+    try:
+        today_local = get_user_local_date(current_user.id, db)
+        xp_today = get_today_xp(current_user.id, today_local) or 0
+    except Exception:
+        logger.warning('xp_today lookup failed', exc_info=True)
+        xp_today = 0
+
+    goal_target = getattr(current_user, 'daily_word_goal', None) or 0
+    # daily_summary already counts words studied today (SRS-graded cards).
+    goal_current = (daily_summary or {}).get('words_studied', 0) if daily_summary else 0
+
+    stats_card = {
+        'streak_days': streak or 0,
+        'streak_shield': bool(getattr(current_user, 'streak_shield_active', False)),
+        'xp_today': xp_today,
+        'xp_total': total_xp,
+        'level': level_info.current_level,
+        'goal_target': goal_target,
+        'goal_current': goal_current,
+        'goal_label': 'слов',
+    }
+
+    # Daily challenge (best-effort)
+    challenge_payload = None
+    try:
+        from app.daily_plan.challenge import get_today_challenge
+        ch = get_today_challenge(current_user.id, db)
+        if ch:
+            challenge_payload = {
+                'title': 'Выполни сегодняшнее задание',
+                'completed': bool(ch.get('is_completed')),
+                'bonus_multiplier': '2' if ch.get('bonus_xp') else '1',
+                'url': f"/learn/{ch['lesson_id']}/" if ch.get('lesson_id') else None,
+            }
+    except Exception:
+        logger.warning('daily_challenge build failed', exc_info=True)
+
+    return render_template(
+        'words/dashboard_path.html',
+        path_module=path_module,
+        path_nodes=path_nodes,
+        linear_plan=linear_plan,
+        plan_completion=plan_completion,
+        stats_card=stats_card,
+        challenge=challenge_payload,
+    )
+
+
 @words.route('/dashboard')
 @login_required
 @module_required('words')
@@ -707,6 +796,15 @@ def dashboard():
 
     # Process deferred referral reward on first visit
     _process_referral_reward_on_first_visit(current_user)
+
+    # Linear-plan users get the redesigned path dashboard; mission-plan
+    # legacy cohort continues to see the rich widget dashboard until
+    # mission plan is fully retired.
+    if bool(getattr(current_user, 'use_linear_plan', False)):
+        try:
+            return _render_path_dashboard(tz)
+        except Exception:
+            logger.exception('path_dashboard render failed, falling back to legacy')
 
     from app.study.models import Achievement, UserAchievement
     from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus

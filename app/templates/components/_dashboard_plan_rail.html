@@ -1,0 +1,112 @@
+{# Compact daily-plan slots for the dashboard side rail.
+
+Variables:
+  - linear_plan      → output of get_linear_plan()
+  - plan_completion  → output of compute_plan_steps()
+  - challenge        → optional, today's daily challenge {bonus_xp, category, lesson_id, completed, url}
+
+This is a stripped-down version of partials/linear_daily_plan.html — it
+only renders the baseline (минимум на день) section + an optional
+"дальше необязательно" tail, plus the daily challenge card. The big
+hero / motivation / continuation blocks live in the heavy partial; the
+side rail is intentionally minimal.
+#}
+{% set _slots_raw = linear_plan.get('slots') or linear_plan.get('baseline_slots') or [] %}
+{% set _chain_meta = linear_plan.get('chain_meta') or {} %}
+{% set _baseline_count = _chain_meta.get('baseline_count', _slots_raw | length) %}
+{% set _completion = plan_completion or {} %}
+
+{% set _slot_icons = {
+    'curriculum': '📚',
+    'srs': '🔁',
+    'book': '📖',
+    'listening': '🎧',
+    'speaking': '🎤',
+    'writing': '✍️',
+    'error_review': '🛠',
+} %}
+
+{% set _slot_kind_labels = {
+    'curriculum': 'УРОК КУРСА',
+    'srs': 'ПОВТОРЕНИЕ СЛОВ',
+    'book': 'ЧТЕНИЕ КНИГИ',
+    'listening': 'АУДИРОВАНИЕ',
+    'speaking': 'ГОВОРЕНИЕ',
+    'writing': 'ПИСЬМО',
+    'error_review': 'РАЗБОР ОШИБОК',
+} %}
+
+<aside class="dash-rail" aria-label="План дня">
+  <h2 class="dash-rail__title">МИНИМУМ НА ДЕНЬ</h2>
+
+  <ol class="dash-rail__slots">
+    {% for slot in _slots_raw %}
+      {% set _kind = slot.get('kind') or '' %}
+      {% set _is_baseline = loop.index0 < _baseline_count %}
+      {% set _completed = slot.get('completed') or (_is_baseline and _completion.get(_kind, False)) %}
+      {% set _skipped = slot.get('skipped') %}
+      {% set _icon = _slot_icons.get(_kind, '✨') %}
+      {% set _label = _slot_kind_labels.get(_kind, _kind|upper) %}
+
+      {# Find first incomplete slot to mark as "current" — others are locked. #}
+      {% set _is_first_incomplete = loop.first %}
+      {% if not loop.first %}
+        {% set _earlier_incomplete = namespace(found=False) %}
+        {% for prev in _slots_raw[:loop.index0] %}
+          {% set _prev_kind = prev.get('kind') or '' %}
+          {% set _prev_done = prev.get('completed') or (loop.index0 < _baseline_count and _completion.get(_prev_kind, False)) %}
+          {% if not _prev_done and not prev.get('skipped') %}
+            {% set _earlier_incomplete.found = True %}
+          {% endif %}
+        {% endfor %}
+        {% set _is_first_incomplete = (not _earlier_incomplete.found) %}
+      {% endif %}
+
+      {% set _state = 'done' if _completed else ('skipped' if _skipped else ('current' if _is_first_incomplete else 'locked')) %}
+
+      <li class="dash-rail__slot dash-rail__slot--{{ _state }}{% if not _is_baseline %} dash-rail__slot--extension{% endif %}">
+        <div class="dash-rail__slot-icon" aria-hidden="true">
+          {% if _state == 'done' %}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                 stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          {% elif _state == 'locked' %}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+          {% else %}
+            <span>{{ _icon }}</span>
+          {% endif %}
+        </div>
+
+        <div class="dash-rail__slot-body">
+          <div class="dash-rail__slot-label">{{ _label }}</div>
+          <div class="dash-rail__slot-title">{{ slot.get('title', '') }}</div>
+          {% if slot.get('eta_minutes') and _state == 'current' %}
+            <div class="dash-rail__slot-eta">~{{ slot.get('eta_minutes') }} мин</div>
+          {% endif %}
+        </div>
+
+        {% if _state == 'current' and slot.get('url') %}
+          <a class="dash-rail__slot-cta" href="{{ slot.get('url') }}">Начать</a>
+        {% elif _state == 'done' %}
+          <span class="dash-rail__slot-done">Готово ✓</span>
+        {% elif _state == 'locked' %}
+          <span class="dash-rail__slot-locked-label">🔒</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+
+  {% if challenge %}
+    <div class="dash-rail__challenge dash-rail__challenge--{{ 'done' if challenge.completed else 'open' }}">
+      <div class="dash-rail__challenge-icon" aria-hidden="true">🎯</div>
+      <div class="dash-rail__challenge-body">
+        <div class="dash-rail__challenge-label">Челлендж дня</div>
+        <div class="dash-rail__challenge-title">{{ challenge.title or 'Выполни задание' }}</div>
+      </div>
+      <span class="dash-rail__challenge-bonus" title="Бонус XP">×{{ challenge.bonus_multiplier|default('2') }}</span>
+      {% if not challenge.completed and challenge.url %}
+        <a class="dash-rail__challenge-cta" href="{{ challenge.url }}">Приступить</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</aside>
