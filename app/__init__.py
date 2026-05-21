@@ -362,6 +362,62 @@ def create_app(config_class=Config):
         # For regular requests, redirect to login with next parameter
         return redirect(url_for('auth.login', next=request.url))
 
+    # Per-request daily-plan lesson context.  When the user opens a lesson page
+    # with ?from=linear_plan&slot=<kind>, this context processor injects
+    # `daily_plan_ctx` into every jinja render — the unified completion partial
+    # uses it to render plan-aware CTAs (next-slot + dashboard) instead of the
+    # catalog defaults (next-lesson + module list).  Gated on a small set of
+    # lesson-rendering endpoints so it doesn't query the plan on every request.
+    _LESSON_ENDPOINT_PREFIXES = (
+        'curriculum_lessons.',
+        'learn.',
+        'study.',
+        'books.',
+        'book_courses.',
+    )
+
+    @app.context_processor
+    def _inject_daily_plan_ctx():
+        from flask import request
+        from flask_login import current_user
+
+        try:
+            if not current_user.is_authenticated:
+                return {}
+        except Exception:
+            return {}
+
+        endpoint = request.endpoint or ''
+        if not any(endpoint.startswith(prefix) for prefix in _LESSON_ENDPOINT_PREFIXES):
+            return {}
+
+        # Skip non-page endpoints inside lesson blueprints (e.g. API JSON helpers).
+        if endpoint.endswith('_json') or '.api_' in endpoint:
+            return {}
+
+        from app.daily_plan.linear.lesson_context import build_lesson_context
+
+        lesson_id = None
+        view_args = request.view_args or {}
+        for key in ('lesson_id', 'lesson'):
+            val = view_args.get(key)
+            if isinstance(val, int):
+                lesson_id = val
+                break
+            if isinstance(val, str) and val.isdigit():
+                lesson_id = int(val)
+                break
+
+        try:
+            ctx = build_lesson_context(
+                current_user.id, db.session, current_lesson_id=lesson_id
+            )
+        except Exception:
+            logger.exception("daily_plan_ctx build failed for endpoint=%s", endpoint)
+            return {}
+
+        return {'daily_plan_ctx': ctx}
+
     # Set up database-specific optimizations via SQLAlchemy events
     from app.utils.db_config import configure_database_engine
     configure_database_engine(app, db)

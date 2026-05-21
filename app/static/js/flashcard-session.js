@@ -1094,11 +1094,38 @@ class FlashcardSession {
                     data.streak || 0
                 );
 
-                // Show extra study button if more cards available
-                if (this.hasMoreNewCards || this.hasMoreReviewCards) {
+                // Show extra study button if more cards available (and we're
+                // not in a daily-plan session — there the UI is locked to the
+                // plan flow, "extra study" would derail it).
+                const inDailyPlan = !!(data.daily_plan_ctx && data.daily_plan_ctx.is_daily_plan);
+                if ((this.hasMoreNewCards || this.hasMoreReviewCards) && !inDailyPlan) {
                     const extraLink = document.getElementById('session-extra-study-link');
                     if (extraLink) {
                         extraLink.style.display = 'inline-flex';
+                    }
+                }
+
+                // Refresh completion CTAs from the server-recomputed plan
+                // context.  Covers the day-secured edge case: if finishing
+                // this session closed the day, redirect to the dashboard
+                // with the secured banner.
+                if (inDailyPlan) {
+                    const dp = data.daily_plan_ctx;
+                    if (dp.day_secured && !dp.next_slot_url) {
+                        try { if (window.linearPlanContext && typeof window.linearPlanContext.clear === 'function') window.linearPlanContext.clear(); } catch (e) {}
+                        window.location.href = (dp.dashboard_url || '/dashboard') + '?day_secured=1';
+                        return;
+                    }
+                    const actions = document.querySelector('[data-celebration-actions]');
+                    if (actions) {
+                        const nextBtn = actions.querySelector('[data-plan-cta="next-slot"]');
+                        if (nextBtn && dp.next_slot_url) {
+                            nextBtn.setAttribute('href', dp.next_slot_url);
+                        }
+                        const dashBtn = actions.querySelector('[data-plan-cta="dashboard"]');
+                        if (dashBtn && dp.dashboard_url) {
+                            dashBtn.setAttribute('href', dp.dashboard_url);
+                        }
                     }
                 }
 

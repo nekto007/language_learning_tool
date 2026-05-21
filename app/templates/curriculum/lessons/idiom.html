@@ -295,22 +295,15 @@ async function finishLesson() {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
 
+    // Идиома была custom completion card. Унифицируем: показываем общую
+    // плашку lesson-completion из base, чтобы daily-plan-CTA отработали как
+    // и в других уроках. Кастомный idiom-result-area оставляем пустым.
     const area = document.getElementById('idiom-result-area');
-    area.style.display = 'block';
-    let html = `<div class="idiom-done-card">
-      <i class="fas fa-star" style="color:#f59e0b;font-size:1.5rem;"></i>
-      <p style="margin:0.5rem 0 0;font-weight:600;">{{ _("Урок завершён!") }}</p>
-    </div>`;
-    if (data.next_lesson_url) {
-      html += `<div style="text-align:center;margin-top:0.75rem;">
-        <a href="${data.next_lesson_url}" class="btn btn-success">
-          <i class="fas fa-arrow-right"></i> {{ _("Следующий урок") }}
-        </a>
-      </div>`;
-    }
-    area.innerHTML = html;
-    area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (area) area.style.display = 'none';
     btn.style.display = 'none';
+    if (typeof showLessonCompletion === 'function') {
+      showLessonCompletion({ daily_plan_ctx: data.daily_plan_ctx });
+    }
   } catch (err) {
     console.error('Idiom finish error:', err);
     btn.disabled = false;

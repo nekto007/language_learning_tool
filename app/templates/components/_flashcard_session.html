@@ -349,37 +349,39 @@
                 </div>
                 <span id="total-xp" style="display:none;">0</span>
 
-                {# Unified completion CTAs: «К списку уроков» (outline) +
-                   «Следующий урок» (primary). Совпадает с lesson_base_template,
-                   чтобы итоговый экран любого урока выглядел одинаково. #}
+                {# Unified completion CTAs. В daily-plan-flow рендерится только
+                   «Дальше: <слот>» + «На дашборд» (партиал решает по
+                   daily_plan_ctx). В каталоге — стандартный fallback с back-url
+                   и «Следующий урок». Retry-кнопка показывается ТОЛЬКО в
+                   каталоге (в плане она уводит от цели). #}
                 <div class="celebration-actions celebration-actions--unified"
-                     data-celebration-actions data-completion-mode="standalone">
+                     data-celebration-actions
+                     data-completion-mode="{% if daily_plan_ctx and daily_plan_ctx.is_daily_plan %}plan{% else %}standalone{% endif %}">
                     <div id="daily-plan-next-step"></div>
 
+                    {% if not (daily_plan_ctx and daily_plan_ctx.is_daily_plan) %}
                     <a href="#" id="session-extra-study-link" class="btn-extra-study" style="display: none;">
                         <span class="btn-icon">🔥</span>
                         Ещё карточки
                     </a>
-
-                    {% set _back_url = fc_back_url|default('/learn/') %}
-                    <a href="{{ _back_url }}" class="lsn-btn lsn-btn--outline" id="fc-back-btn">
-                        {{ _('К списку уроков') }}
-                    </a>
                     {% if fc_retry_lesson_url is defined and fc_retry_lesson_url %}
-                    {# Retry-кнопка для повторного прохождения урока. Только в
-                       curriculum-контексте (route передаёт fc_retry_lesson_url).
-                       В обычной /study сессии её нет — там нет «урока» как сущности. #}
+                    {# Retry — только catalog-flow. В плане дня не нужен. #}
                     <button type="button" class="lsn-btn lsn-btn--outline" id="fc-retry-btn"
                             data-retry-url="{{ fc_retry_lesson_url }}">
                         <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
                         {{ _('Начать заново') }}
                     </button>
                     {% endif %}
-                    <a href="{{ fc_on_complete_url|default('/') }}" id="fc-continue-btn"
-                       class="lsn-btn lsn-btn--primary">
-                        <span>{{ fc_on_complete_text|default(_('Следующий урок')) }}</span>
-                        <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                    </a>
+                    {% endif %}
+
+                    {# Партиал решает что показать — daily_plan_ctx picks CTAs.
+                       Для catalog-flow SRS-сессии back/next URL'ы передаются
+                       через fc_* переменные, поэтому проксируем их. #}
+                    {% with back_url=fc_back_url|default('/learn/'),
+                            next_url=fc_on_complete_url|default('/'),
+                            next_label=fc_on_complete_text|default(_('Следующий урок')) %}
+                      {% include 'components/_lesson_completion_actions.html' %}
+                    {% endwith %}
                 </div>
 
                 {% if fc_retry_lesson_url is defined and fc_retry_lesson_url %}
@@ -455,43 +457,8 @@
     });
 </script>
 <script>
-// Plan-aware session completion: when ?from=linear_plan&slot=srs (SRS global
-// review) or ?from=linear_plan&slot=curriculum (curriculum card lesson) is
-// active and the celebration screen becomes visible, swap "К колодам" /
-// "Ещё карточки" for "Следующий слот плана · X" + "На дашборд". Delegates
-// the actual DOM work to ``linearPlanContext.applySrsPlanAwareCompletion``.
-(function() {
-    'use strict';
-    var ctx = window.linearPlanContext;
-    if (!ctx || typeof ctx.applySrsPlanAwareCompletion !== 'function') return;
-    if (!ctx.isActive()) return;
-    var slotKind = ctx.getSlotKind();
-    if (slotKind !== 'srs' && slotKind !== 'curriculum') return;
-
-    var sessionComplete = document.getElementById('session-complete');
-    if (!sessionComplete) return;
-    var actions = sessionComplete.querySelector('[data-celebration-actions]');
-    if (!actions) return;
-
-    var applied = false;
-    var observer = null;
-    function maybeApply() {
-        if (applied) return;
-        var visible = sessionComplete.offsetParent !== null ||
-            (sessionComplete.style.display && sessionComplete.style.display !== 'none');
-        if (!visible) return;
-        applied = true;
-        if (observer) observer.disconnect();
-        ctx.applySrsPlanAwareCompletion(actions);
-    }
-
-    // First chance: maybe it's already visible on DOM ready (unlikely).
-    maybeApply();
-
-    // Observe display toggle on #session-complete. Disconnect after first apply.
-    if (!applied) {
-        observer = new MutationObserver(function() { maybeApply(); });
-        observer.observe(sessionComplete, { attributes: true, attributeFilter: ['style', 'class'] });
-    }
-})();
+// Daily-plan CTAs здесь рендерятся сервером через _lesson_completion_actions
+// (см. data-completion-mode на .celebration-actions выше). Клиентский swap
+// больше не нужен — для SRS-сессий в плане «Дальше: <slot>» + «На дашборд»
+// уже в DOM на момент завершения.
 </script>

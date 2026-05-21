@@ -753,7 +753,10 @@ a.test-errors-summary__topic-chip:hover {
   <!-- Action Buttons -->
   <div class="result-actions">
     {% if results.score >= passing_score %}
-      {% if _is_module_end %}
+      {% if daily_plan_ctx and daily_plan_ctx.is_daily_plan %}
+        {# Daily-plan-flow: тест засчитан, ведём на следующий слот плана. #}
+        {% include 'components/_lesson_completion_actions.html' %}
+      {% elif _is_module_end %}
         <a href="{{ _module_url }}"
            class="action-btn primary">
           <i class="fas fa-flag-checkered"></i>
@@ -774,10 +777,18 @@ a.test-errors-summary__topic-chip:hover {
         </a>
       {% endif %}
     {% else %}
+      {# Не пройдено: всегда даём ретрай (даже в daily-plan-потоке —
+         финальный тест блокирует прогрессию модуля). #}
       <button type="button" class="action-btn secondary" onclick="retryCheckpoint()">
         <i class="fas fa-redo"></i>
         {{ _('Попробовать еще раз') }}
       </button>
+      {% if daily_plan_ctx and daily_plan_ctx.is_daily_plan %}
+        <a href="{{ daily_plan_ctx.dashboard_url }}" class="action-btn tertiary">
+          <i class="fas fa-arrow-left"></i>
+          {{ _('На дашборд') }}
+        </a>
+      {% endif %}
     {% endif %}
 
     <button type="button" class="action-btn tertiary" onclick="toggleAnswersView()">
@@ -986,7 +997,16 @@ a.test-errors-summary__topic-chip:hover {
 <script>
 function retryCheckpoint() {
   if (confirm('{{ _("Вы хотите пройти финальный тест заново? Предыдущие результаты будут сброшены.") }}')) {
-    window.location.href = '{{ url_for("curriculum_lessons.final_test_lesson", lesson_id=lesson.id, reset="true") }}';
+    // Preserve daily-plan context (?from=linear_plan&slot=<kind>) across the
+    // retry hop so the second attempt still ends with plan-aware CTAs.
+    var url = '{{ url_for("curriculum_lessons.final_test_lesson", lesson_id=lesson.id, reset="true") }}';
+    {%- if daily_plan_ctx and daily_plan_ctx.is_daily_plan %}
+    url += '&from=linear_plan';
+    {%- if daily_plan_ctx.slot_kind %}
+    url += '&slot={{ daily_plan_ctx.slot_kind }}';
+    {%- endif %}
+    {%- endif %}
+    window.location.href = url;
   }
 }
 

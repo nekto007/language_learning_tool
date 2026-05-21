@@ -1,0 +1,37 @@
+{# Unified lesson-page breadcrumb / exit nav.
+
+Required jinja variables:
+  - daily_plan_ctx → DailyPlanLessonContext (from context_processor)
+  - lesson         → Lessons object with .module (for catalog breadcrumb)
+
+When opened from the linear daily plan, the breadcrumb collapses to a
+tight "← Дашборд · План дня · {lesson title}" trail so the user can exit
+back to the plan view in one click without bouncing through the module list.
+
+Catalog flow falls back to the standard 4-level breadcrumb (Курсы → Level
+→ Module → Lesson) so the in-catalog browsing experience is unchanged.
+#}
+{% set _dp = daily_plan_ctx %}
+{% if _dp and _dp.is_daily_plan %}
+  <nav class="breadcrumb-nav breadcrumb-nav--plan" aria-label="Навигация">
+    <a href="{{ _dp.dashboard_url }}" data-plan-cta="dashboard">← Дашборд</a>
+    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+    <span class="breadcrumb-nav__plan-label">План дня</span>
+    {% if lesson and lesson.title %}
+      <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+      <span class="breadcrumb-nav__current">{{ lesson.title }}</span>
+    {% endif %}
+  </nav>
+{% elif lesson and lesson.module %}
+  <nav class="breadcrumb-nav" aria-label="Навигация">
+    <a href="/learn/">Курсы</a>
+    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+    {% if lesson.module.level %}
+      <a href="/learn/{{ lesson.module.level.code|lower }}/">{{ lesson.module.level.code }}</a>
+      <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+    {% endif %}
+    <a href="{{ url_for('learn.learn_by_module', level_code=lesson.module.level.code|lower, module_number=lesson.module.number) }}">Модуль {{ lesson.module.number }}</a>
+    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
+    <span class="breadcrumb-nav__current">{{ lesson.title }}</span>
+  </nav>
+{% endif %}

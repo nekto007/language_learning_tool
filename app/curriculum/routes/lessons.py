@@ -372,6 +372,20 @@ def submit_lesson(lesson_id):
                 db.session.rollback()
                 logger.warning("Challenge auto-complete failed for lesson %s: %s", lesson_id, ch_err)
 
+        # Attach a refreshed daily_plan_ctx so the client completion helper
+        # can update its CTA href/title (and trigger the day-secured redirect
+        # to /dashboard?day_secured=1 when this slot just closed the day).
+        # Always safe: returns is_daily_plan=False when ?from=linear_plan is
+        # absent from the originating request.
+        try:
+            from app.daily_plan.linear.lesson_context import build_lesson_context
+            dp_ctx = build_lesson_context(
+                current_user.id, db.session, current_lesson_id=lesson_id
+            )
+            result['daily_plan_ctx'] = dp_ctx.to_dict()
+        except Exception as ctx_err:
+            logger.warning("daily_plan_ctx attach failed for lesson %s: %s", lesson_id, ctx_err)
+
         return jsonify(result)
 
     except Exception as e:

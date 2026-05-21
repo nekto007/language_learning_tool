@@ -1217,27 +1217,25 @@ body:has(.quiz-results-compact) #lesson-completion {
          основная цель. «Повторить ошибки» появляется только когда есть
          ошибки. «Пройти заново» — вторичная outline-ссылка. #}
       <div class="quiz-final-actions">
-        {% if errors|length > 0 %}
+        {% if errors|length > 0 and not (daily_plan_ctx and daily_plan_ctx.is_daily_plan) %}
+        {# В daily-plan-потоке прячем «Повторить ошибки» — пользователь должен
+           двинуться к следующему слоту плана, а не зависать на этом. Через
+           каталог поведение прежнее. #}
         <button type="button" class="lsn-btn lsn-btn--outline" onclick="retryErrorsOnly()">
           <i class="fas fa-redo"></i> {{ _('Повторить ошибки') }} ({{ errors|length }})
         </button>
         {% endif %}
-        <a href="{% if lesson and lesson.module and lesson.module.level %}{{ url_for('learn.learn_by_module', level_code=lesson.module.level.code|lower, module_number=lesson.module.number) }}{% else %}/learn/{% endif %}"
-           class="lsn-btn lsn-btn--outline">
-          {{ _('К списку уроков') }}
-        </a>
-        {% if next_lesson %}
-        <a href="/learn/{{ next_lesson.id }}/" class="lsn-btn lsn-btn--primary">
-          {{ _('Следующий урок') }}
-          <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        {% endif %}
+        {% include 'components/_lesson_completion_actions.html' %}
       </div>
+      {% if not (daily_plan_ctx and daily_plan_ctx.is_daily_plan) %}
+      {# В daily-plan-потоке скрываем «пройти заново» — пользователь идёт
+         дальше по плану дня, ретрай уводит от цели. #}
       <div class="quiz-final-secondary">
         <button type="button" class="quiz-secondary-link" onclick="retryQuiz()">
           <i class="fas fa-redo"></i> {{ _('Пройти викторину заново') }}
         </button>
       </div>
+      {% endif %}
     </div>
 
     <!-- Reset-confirm модалка. Заменяет нативный confirm(), который у части

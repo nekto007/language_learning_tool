@@ -714,7 +714,7 @@ def complete_srs_session(lesson_id):
         correct = int(round(cards_studied * (accuracy / 100))) if cards_studied > 0 else 0
         incorrect = max(int(cards_studied) - correct, 0)
 
-        return jsonify({
+        response_data = {
             'success': True,
             'cards_studied': cards_studied,
             'accuracy': accuracy,
@@ -727,7 +727,24 @@ def complete_srs_session(lesson_id):
             'xp_earned': xp_award.xp_awarded if xp_award else 0,
             'total_xp': total_xp,
             'level': level,
-        })
+        }
+
+        # Attach refreshed daily_plan_ctx so the flashcard session can
+        # update completion CTAs (or trigger the day-secured dashboard
+        # redirect) right after the SRS session is committed.
+        try:
+            from app.daily_plan.linear.lesson_context import build_lesson_context
+            dp_ctx = build_lesson_context(
+                current_user.id, db.session, current_lesson_id=lesson_id
+            )
+            response_data['daily_plan_ctx'] = dp_ctx.to_dict()
+        except Exception as ctx_err:
+            logger.warning(
+                "daily_plan_ctx attach failed (card-srs) user=%s lesson=%s: %s",
+                current_user.id, lesson_id, ctx_err,
+            )
+
+        return jsonify(response_data)
 
     except Exception as e:
         logger.error(f"Error completing SRS session: {str(e)}")

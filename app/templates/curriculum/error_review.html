@@ -178,6 +178,13 @@
       </div>
       <button id="error-review-complete-btn" class="btn btn--primary btn--lg">Завершить разбор</button>
       <p id="error-review-status" class="er-results-status"></p>
+      {# После «Завершить разбор» бэкенд (er_complete) выставит resolved_at и
+         клиент покажет дашборд-CTA через включённый ниже партиал. Если
+         пользователь зашёл из плана дня, тут будут «Дальше: <слот>» и
+         «На дашборд». Если через каталог — стандартный fallback. #}
+      <div class="er-results-actions" id="error-review-results-actions" hidden>
+        {% include 'components/_lesson_completion_actions.html' %}
+      </div>
     </div>
   </div>
 
@@ -620,27 +627,20 @@
       })
         .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
         .then(function () {
-          function _done() {
-            try {
-              if (window.linearPlanContext && typeof window.linearPlanContext.clear === 'function')
-                window.linearPlanContext.clear();
-            } catch (e) {}
-            if (statusEl) statusEl.textContent = 'Готово. Возвращаемся на дашборд.';
+          // Сервер уже отрендерил правильные CTA в #error-review-results-actions
+          // — daily-plan-аware «Дальше: …» / «На дашборд» если зашли через
+          // план дня, иначе только «К списку уроков». Прячем кнопку «Завершить
+          // разбор» и показываем готовый партиал.
+          completeBtn.style.display = 'none';
+          if (statusEl) statusEl.textContent = '';
+          var actions = document.getElementById('error-review-results-actions');
+          if (actions) {
+            actions.hidden = false;
+            actions.style.display = 'flex';
+          } else {
+            // Fallback (на случай старого шаблона): просто на дашборд.
             window.location.href = '/dashboard';
           }
-          function _isPlanAware() {
-            try {
-              return !!(window.linearPlanContext &&
-                        window.linearPlanContext.isActive() &&
-                        window.linearPlanContext.getSlotKind() === 'error_review');
-            } catch (e) { return false; }
-          }
-          if (_isPlanAware() && window.linearPlanContext.applyErrorReviewPlanAwareCompletion) {
-            return window.linearPlanContext
-              .applyErrorReviewPlanAwareCompletion(container)
-              .then(function (mode) { if (mode !== 'plan') _done(); });
-          }
-          _done();
         })
         .catch(function () {
           if (statusEl) statusEl.textContent = 'Не удалось сохранить. Попробуйте ещё раз.';

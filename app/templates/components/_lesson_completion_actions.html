@@ -1,0 +1,71 @@
+{# Unified lesson-completion CTA block.
+
+Required jinja variables:
+  - daily_plan_ctx  → DailyPlanLessonContext (injected by app context processor)
+  - lesson          → the current lesson (for catalog fallback "back to module")
+
+Optional overrides (per-template fallbacks for the catalog flow):
+  - next_lesson     → Lessons obj; if present, primary CTA is "Следующий урок"
+  - back_url        → override catalog back URL
+  - back_label      → override catalog back label
+  - next_url        → override catalog next URL
+  - next_label      → override catalog next label
+
+When opened from the linear daily plan (``daily_plan_ctx.is_daily_plan``):
+  - Primary CTA: "Дальше: <next slot title>" → next plan slot
+    OR "День завершён · на дашборд" if no slot left
+  - Secondary CTA: "На дашборд"
+  - No "К списку уроков" / module-back button — keeps the flow tight.
+
+Catalog flow (default, no plan context):
+  - Primary CTA: "Следующий урок" if next_lesson given, else "Завершить"
+  - Secondary CTA: "К списку уроков" → module page
+#}
+{% set _dp = daily_plan_ctx %}
+{% if _dp and _dp.is_daily_plan %}
+  {# ── Daily-plan flow: two-button minimal CTA stack ── #}
+  {% if _dp.next_slot_url %}
+    <a href="{{ _dp.next_slot_url }}"
+       class="lsn-btn lsn-btn--primary"
+       data-plan-cta="next-slot"
+       data-plan-next-slot-url="{{ _dp.next_slot_url }}"
+       data-plan-next-slot-title="{{ _dp.next_slot_title or '' }}">
+      Дальше{% if _dp.next_slot_title %}: {{ _dp.next_slot_title }}{% endif %}
+      <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </a>
+  {% endif %}
+  <a href="{{ _dp.dashboard_url }}{% if _dp.day_secured %}?day_secured=1{% endif %}"
+     class="lsn-btn lsn-btn--{% if _dp.next_slot_url %}outline{% else %}primary{% endif %}"
+     data-plan-cta="dashboard">
+    {% if _dp.day_secured and not _dp.next_slot_url %}
+      День завершён · на дашборд
+    {% else %}
+      На дашборд
+    {% endif %}
+  </a>
+{% else %}
+  {# ── Catalog flow: legacy "next lesson" + "back to module" ── #}
+  {% set _back_url = back_url %}
+  {% if not _back_url and lesson and lesson.module and lesson.module.level %}
+    {% set _back_url = url_for('learn.learn_by_module',
+                               level_code=lesson.module.level.code|lower,
+                               module_number=lesson.module.number) %}
+  {% endif %}
+  {% set _back_url = _back_url or '/learn/' %}
+  <a href="{{ _back_url }}"
+     class="lsn-btn lsn-btn--outline"
+     data-standalone-cta="back-to-lessons">
+    {{ back_label or _('К списку уроков') }}
+  </a>
+  {% if next_url %}
+    <a href="{{ next_url }}" class="lsn-btn lsn-btn--primary" data-standalone-cta="next-lesson">
+      {{ next_label or _('Следующий урок') }}
+      <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </a>
+  {% elif next_lesson %}
+    <a href="/learn/{{ next_lesson.id }}/" class="lsn-btn lsn-btn--primary" data-standalone-cta="next-lesson">
+      {{ _('Следующий урок') }}
+      <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </a>
+  {% endif %}
+{% endif %}

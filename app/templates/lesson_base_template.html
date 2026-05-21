@@ -437,20 +437,8 @@
 {% block content %}
 <div class="lsn-page">
 
-  <!-- Breadcrumb -->
-  {% if lesson.module %}
-  <nav class="breadcrumb-nav" aria-label="Навигация">
-    <a href="/learn/">Курсы</a>
-    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
-    {% if lesson.module.level %}
-    <a href="/learn/{{ lesson.module.level.code|lower }}/">{{ lesson.module.level.code }}</a>
-    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
-    {% endif %}
-    <a href="{{ url_for('learn.learn_by_module', level_code=lesson.module.level.code|lower, module_number=lesson.module.number) }}">Модуль {{ lesson.module.number }}</a>
-    <span class="breadcrumb-nav__separator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
-    <span class="breadcrumb-nav__current">{{ lesson.title }}</span>
-  </nav>
-  {% endif %}
+  <!-- Breadcrumb / exit nav (daily-plan-aware via components/_lesson_header_nav) -->
+  {% include 'components/_lesson_header_nav.html' %}
 
   <!-- Compact Header -->
   <div class="lsn-header">
@@ -526,20 +514,11 @@
     <div class="lsn-completion__grade" id="completion-grade"></div>
     <div class="lsn-completion__score" id="completion-score"></div>
     <div class="lsn-completion__actions" id="completion-actions">
-      {# Secondary "К списку уроков" first (left), primary "Следующий урок →"
-         second (right). LTR convention places the forward CTA closer to the
-         user's reading endpoint. The secondary link points to the parent
-         module's lessons index, not the global /learn/ root. #}
-      <a href="{% if lesson and lesson.module and lesson.module.level %}{{ url_for('learn.learn_by_module', level_code=lesson.module.level.code|lower, module_number=lesson.module.number) }}{% else %}/learn/{% endif %}"
-         class="lsn-btn lsn-btn--outline" data-standalone-cta="back-to-lessons">
-        {{ _('К списку уроков') }}
-      </a>
-      {% if next_lesson %}
-        <a href="/learn/{{ next_lesson.id }}/" class="lsn-btn lsn-btn--primary" data-standalone-cta="next-lesson">
-          {{ _('Следующий урок') }}
-          <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-      {% endif %}
+      {# Daily-plan-aware completion CTAs. Server-side daily_plan_ctx (from
+         the app context processor) decides whether to render the catalog
+         "К списку уроков / Следующий урок" pair or the plan "Дальше: ... /
+         На дашборд" pair. No client-side swap needed. #}
+      {% include 'components/_lesson_completion_actions.html' %}
     </div>
     <!-- Lesson feedback widget -->
     <div class="lsn-feedback" id="lesson-feedback-widget" data-lesson-id="{{ lesson.id }}">
@@ -614,13 +593,13 @@ window.showSaveToast = function() {
   }, 2000);
 };
 
-// Lesson completion confirmation helper
-// Plan-aware branch: if the user entered the lesson through a linear-plan
-// baseline slot (?from=linear_plan&slot=<kind>), swap the curriculum-next
-// CTA for "Следующий слот плана · <title>" + "На дашборд". When the slot
-// that just finished was the final baseline, redirect to
-// /dashboard?day_secured=1 so the dashboard shows the "День сохранён"
-// banner. Outside a plan context the helper behaves exactly as before.
+// Lesson completion helper.
+// CTAs are rendered server-side via daily_plan_ctx (see
+// components/_lesson_completion_actions.html). This helper just shows the
+// completion block, fills in grade/score, and (optionally) refreshes the
+// plan CTAs when the API submit response carries an updated daily_plan_ctx —
+// e.g. when finishing the current slot turns the next-slot URL into the
+// dashboard "day secured" redirect.
 window.showLessonCompletion = function(opts) {
   opts = opts || {};
   var el = document.getElementById('lesson-completion');
@@ -634,125 +613,52 @@ window.showLessonCompletion = function(opts) {
     scoreEl.textContent = Math.round(opts.score) + '%';
   }
 
-  var ctx = window.linearPlanContext;
-  var planActive = !!(ctx && typeof ctx.isActive === 'function' && ctx.isActive());
-
-  function _revealCompletion(mode) {
-    el.setAttribute('data-completion-mode', mode || 'standalone');
-    el.style.display = 'block';
-    // Skip auto-scroll when the call comes from an "already-completed on
-    // page load" path — opts.silent === true. Otherwise the page jumps
-    // straight to the completion block before the user has had a chance
-    // to look at the lesson body.
-    if (!opts.silent) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-    document.dispatchEvent(new Event('dailyPlanStepComplete'));
-  }
-
-  // `silent: true` означает «урок открыт повторно, уже завершён» — не
-  // надо дёргать plan-сервер и подменять CTA на «Следующий слот плана».
-  // Просто показываем стандартные «К списку уроков» / «Следующий урок».
-  if (opts.silent || !planActive || typeof ctx.fetchNextSlot !== 'function') {
-    _revealCompletion('standalone');
-    return;
-  }
-
-  // Race guard: quiz/grammar templates call ``nextBtn.style.display =
-  // 'inline-flex'`` right before this helper, which fires the MutationObserver
-  // lower in this file and adds ``lsn-footer--visible`` to the footer. Hide
-  // the legacy curriculum-next surfaces synchronously so the user cannot
-  // click them during the ``fetchNextSlot`` round-trip. On fallback
-  // (standalone branch), we restore them before revealing the completion.
-  var legacyFooter = document.getElementById('lesson-footer');
-  var legacyDailyPlan = document.getElementById('daily-plan-next-step');
-  var _legacyFooterHadVisible = false;
-  if (legacyFooter) {
-    _legacyFooterHadVisible = legacyFooter.classList.contains('lsn-footer--visible');
-    legacyFooter.classList.remove('lsn-footer--visible');
-    legacyFooter.style.display = 'none';
-  }
-  if (legacyDailyPlan) {
-    legacyDailyPlan.style.display = 'none';
-  }
-  function _restoreLegacyFooter() {
-    if (legacyFooter) {
-      legacyFooter.style.display = '';
-      if (_legacyFooterHadVisible) legacyFooter.classList.add('lsn-footer--visible');
-    }
-    if (legacyDailyPlan) {
-      legacyDailyPlan.style.display = '';
-    }
-  }
-
-  ctx.fetchNextSlot().then(function(data) {
-    if (!data || data.success === false) {
-      _restoreLegacyFooter();
-      _revealCompletion('standalone');
+  // Optional CTA refresh from the API response. ``opts.daily_plan_ctx``
+  // mirrors the server dataclass shape: {is_daily_plan, next_slot_url,
+  // next_slot_title, day_secured, dashboard_url}.
+  if (opts.daily_plan_ctx && opts.daily_plan_ctx.is_daily_plan) {
+    var dp = opts.daily_plan_ctx;
+    // If finishing this slot closed the day, hand off to dashboard banner.
+    if (dp.day_secured && !dp.next_slot_url) {
+      try {
+        if (window.linearPlanContext && typeof window.linearPlanContext.clear === 'function') {
+          window.linearPlanContext.clear();
+        }
+      } catch (e) { /* ignore */ }
+      window.location.href = (dp.dashboard_url || '/dashboard') + '?day_secured=1';
       return;
     }
-    if (data.day_secured) {
-      // Final baseline just closed — hand off to the dashboard banner.
-      try { ctx.clear(); } catch (e) { /* ignore */ }
-      window.location.href = '/dashboard?day_secured=1';
-      return;
-    }
-    if (!data.next || !data.next.url) {
-      _restoreLegacyFooter();
-      _revealCompletion('standalone');
-      return;
-    }
-
     var actions = document.getElementById('completion-actions');
     if (actions) {
-      // Hide legacy curriculum-next CTAs but keep them in the DOM so the
-      // standalone branch can fall back to them if the helper is called
-      // again without plan context.
-      Array.prototype.forEach.call(
-        actions.querySelectorAll('[data-standalone-cta]'),
-        function(node) { node.style.display = 'none'; }
-      );
-
-      // Drop any previously-rendered plan CTAs (defensive: re-entry from
-      // quiz/grammar lessons that call showLessonCompletion more than once).
-      Array.prototype.forEach.call(
-        actions.querySelectorAll('[data-plan-cta]'),
-        function(node) { node.parentNode.removeChild(node); }
-      );
-
-      var primary = document.createElement('a');
-      primary.className = 'lsn-btn lsn-btn--primary';
-      primary.setAttribute('data-plan-cta', 'next-slot');
-      primary.href = data.next.url;
-      var primaryTitle = data.next.title
-        ? 'Следующий слот плана · ' + data.next.title
-        : 'Следующий слот плана';
-      primary.textContent = primaryTitle + ' ';
-      var arrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      arrow.setAttribute('class', 'lsn-btn__icon');
-      arrow.setAttribute('viewBox', '0 0 24 24');
-      arrow.setAttribute('fill', 'none');
-      arrow.setAttribute('stroke', 'currentColor');
-      arrow.setAttribute('stroke-width', '2');
-      arrow.innerHTML = '<polyline points="9 18 15 12 9 6"></polyline>';
-      primary.appendChild(arrow);
-
-      var secondary = document.createElement('a');
-      secondary.className = 'lsn-btn lsn-btn--outline';
-      secondary.setAttribute('data-plan-cta', 'dashboard');
-      secondary.href = '/dashboard';
-      secondary.textContent = 'На дашборд';
-
-      // Primary first for keyboard/visual order.
-      actions.insertBefore(primary, actions.firstChild);
-      actions.appendChild(secondary);
+      var nextBtn = actions.querySelector('[data-plan-cta="next-slot"]');
+      if (nextBtn && dp.next_slot_url) {
+        nextBtn.setAttribute('href', dp.next_slot_url);
+        // Preserve any icon by rebuilding text via the title attribute only.
+        var label = 'Дальше' + (dp.next_slot_title ? ': ' + dp.next_slot_title : '');
+        // Walk children: first text node (before svg) gets the new label.
+        var firstText = nextBtn.firstChild;
+        while (firstText && firstText.nodeType !== Node.TEXT_NODE) {
+          firstText = firstText.nextSibling;
+        }
+        if (firstText) {
+          firstText.nodeValue = label + ' ';
+        } else {
+          nextBtn.insertBefore(document.createTextNode(label + ' '), nextBtn.firstChild);
+        }
+      }
+      var dashBtn = actions.querySelector('[data-plan-cta="dashboard"]');
+      if (dashBtn && dp.dashboard_url) {
+        dashBtn.setAttribute('href', dp.dashboard_url);
+      }
     }
+  }
 
-    _revealCompletion('plan');
-  }).catch(function() {
-    _restoreLegacyFooter();
-    _revealCompletion('standalone');
-  });
+  el.setAttribute('data-completion-mode', (opts.daily_plan_ctx && opts.daily_plan_ctx.is_daily_plan) ? 'plan' : 'standalone');
+  el.style.display = 'block';
+  if (!opts.silent) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  document.dispatchEvent(new Event('dailyPlanStepComplete'));
 };
 </script>
 <script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>
