@@ -1,0 +1,80 @@
+{# Right-side context rail for the path dashboard.
+
+Three light cards, light-weight motivation. NOT a copy of Duolingo's
+league/quest column — these are progress bars + week pulse + a single
+challenge.
+
+Variables:
+  - focus.targets        → list of {label, current, target, icon_key, suffix}
+  - week_rhythm.days     → list of 7 {date, label, active, today}
+  - week_rhythm.summary  → e.g. «3 из 5 учебных дней»
+  - challenge_card       → {title, badge, bonus_label, completed, url}
+#}
+{% set _focus = focus or {} %}
+{% set _focus_targets = _focus.targets or [] %}
+{% set _week = week_rhythm or {} %}
+{% set _week_days = _week.days or [] %}
+{% set _ch = challenge_card %}
+
+<aside class="dash-rail" aria-label="Контекст дня">
+  {% if _focus_targets %}
+  <section class="dash-rail__card">
+    <h2 class="dash-rail__heading">Фокус дня</h2>
+    <ul class="dash-rail__targets">
+      {% for t in _focus_targets %}
+        {% set _pct = ((t.current / t.target) * 100)|round if t.target else 0 %}
+        {% if _pct > 100 %}{% set _pct = 100 %}{% endif %}
+        <li class="dash-rail__target{% if _pct >= 100 %} dash-rail__target--done{% endif %}">
+          <div class="dash-rail__target-row">
+            <span class="dash-rail__target-icon" aria-hidden="true">
+              {% with icon_key=t.icon_key, cls='dash-rail__svg' %}{% include 'components/_path_icon.html' %}{% endwith %}
+            </span>
+            <span class="dash-rail__target-label">{{ t.label }}</span>
+            <span class="dash-rail__target-value">{{ t.current }}/{{ t.target }}{% if t.suffix %} {{ t.suffix }}{% endif %}</span>
+          </div>
+          <div class="dash-rail__target-bar" role="progressbar"
+               aria-valuenow="{{ t.current }}" aria-valuemin="0" aria-valuemax="{{ t.target }}">
+            <div class="dash-rail__target-fill" style="width: {{ _pct }}%"></div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if _week_days %}
+  <section class="dash-rail__card">
+    <h2 class="dash-rail__heading">Ритм недели</h2>
+    <ol class="dash-rail__week">
+      {% for d in _week_days %}
+        <li class="dash-rail__week-day
+                   {% if d.active %}dash-rail__week-day--active{% endif %}
+                   {% if d.today %}dash-rail__week-day--today{% endif %}"
+            title="{{ d.date }}">
+          <span class="dash-rail__week-label">{{ d.label }}</span>
+          <span class="dash-rail__week-dot" aria-hidden="true"></span>
+        </li>
+      {% endfor %}
+    </ol>
+    {% if _week.summary %}<p class="dash-rail__week-summary">{{ _week.summary }}</p>{% endif %}
+  </section>
+  {% endif %}
+
+  {% if _ch %}
+  <section class="dash-rail__card dash-rail__card--challenge{% if _ch.completed %} dash-rail__card--challenge-done{% endif %}">
+    <div class="dash-rail__challenge-head">
+      <span class="dash-rail__challenge-icon" aria-hidden="true">
+        {% with icon_key='sparkles', cls='dash-rail__svg' %}{% include 'components/_path_icon.html' %}{% endwith %}
+      </span>
+      <h2 class="dash-rail__heading">Челлендж</h2>
+      {% if _ch.badge %}<span class="dash-rail__challenge-badge">{{ _ch.badge }}</span>{% endif %}
+    </div>
+    <p class="dash-rail__challenge-title">{{ _ch.title or 'Дополнительная цель' }}</p>
+    {% if _ch.completed %}
+      <p class="dash-rail__challenge-status">Выполнено · бонус начислен</p>
+    {% elif _ch.url %}
+      <a class="dash-rail__challenge-cta" href="{{ _ch.url }}">Приступить</a>
+    {% endif %}
+  </section>
+  {% endif %}
+</aside>

@@ -1,0 +1,78 @@
+{# Day-status hero block for the path dashboard.
+
+Replaces the bare stats strip with «состояние дня» — what the user needs
+to do today, how far along they are, and ambient stats (streak / XP /
+goal) compressed into the same card.
+
+Variables:
+  - hero.title         → e.g. «План на сегодня»
+  - hero.subtitle      → e.g. «1 из 3 шагов · осталось ~8 мин»
+  - hero.steps_done    → int
+  - hero.steps_total   → int
+  - hero.minutes_left  → int (sum eta of remaining slots)
+  - stats_card.*       → existing shape (streak_days, xp_today, goal_*)
+#}
+{% set _h = hero or {} %}
+{% set _steps_done = _h.steps_done|default(0) %}
+{% set _steps_total = _h.steps_total|default(0) %}
+{% set _pct = ((_steps_done / _steps_total) * 100)|round if _steps_total else 0 %}
+{% if _pct > 100 %}{% set _pct = 100 %}{% endif %}
+{% set _s = stats_card or {} %}
+
+<header class="dash-hero" aria-label="Состояние дня">
+  <div class="dash-hero__top">
+    <div class="dash-hero__heading">
+      <h1 class="dash-hero__title">{{ _h.title or 'План на сегодня' }}</h1>
+      {% if _h.subtitle %}<p class="dash-hero__subtitle">{{ _h.subtitle }}</p>{% endif %}
+    </div>
+    <div class="dash-hero__counter" aria-label="Шагов выполнено">
+      <span class="dash-hero__counter-done">{{ _steps_done }}</span>
+      <span class="dash-hero__counter-sep">/</span>
+      <span class="dash-hero__counter-total">{{ _steps_total }}</span>
+    </div>
+  </div>
+
+  {% if _steps_total %}
+  <div class="dash-hero__progress" role="progressbar"
+       aria-valuenow="{{ _steps_done }}" aria-valuemin="0" aria-valuemax="{{ _steps_total }}">
+    <div class="dash-hero__progress-fill" style="width: {{ _pct }}%"></div>
+  </div>
+  {% endif %}
+
+  <div class="dash-hero__stats" aria-label="Сводка дня">
+    <div class="dash-hero__stat">
+      <span class="dash-hero__stat-icon" aria-hidden="true">
+        {% with icon_key='flag', cls='dash-hero__stat-svg' %}{% include 'components/_path_icon.html' %}{% endwith %}
+      </span>
+      <span class="dash-hero__stat-value">{{ _s.streak_days|default(0) }}</span>
+      <span class="dash-hero__stat-label">{% if _s.streak_days == 1 %}день{% elif _s.streak_days in (2,3,4) %}дня{% else %}дней{% endif %} серии</span>
+    </div>
+    <span class="dash-hero__stat-divider" aria-hidden="true"></span>
+    <div class="dash-hero__stat">
+      <span class="dash-hero__stat-icon" aria-hidden="true">
+        {% with icon_key='sparkles', cls='dash-hero__stat-svg' %}{% include 'components/_path_icon.html' %}{% endwith %}
+      </span>
+      <span class="dash-hero__stat-value">{{ _s.xp_today|default(0) }}</span>
+      <span class="dash-hero__stat-label">XP сегодня</span>
+    </div>
+    {% if _s.goal_target %}
+      <span class="dash-hero__stat-divider" aria-hidden="true"></span>
+      <div class="dash-hero__stat">
+        <span class="dash-hero__stat-icon" aria-hidden="true">
+          {% with icon_key='target', cls='dash-hero__stat-svg' %}{% include 'components/_path_icon.html' %}{% endwith %}
+        </span>
+        <span class="dash-hero__stat-value">{{ _s.goal_current|default(0) }}/{{ _s.goal_target }}</span>
+        <span class="dash-hero__stat-label">{{ _s.goal_label|default('слов') }}</span>
+      </div>
+    {% endif %}
+    {% if _s.streak_shield %}
+      <span class="dash-hero__stat-divider" aria-hidden="true"></span>
+      <div class="dash-hero__stat dash-hero__stat--shield" title="Серия защищена на 1 день">
+        <span class="dash-hero__stat-icon" aria-hidden="true">
+          {% with icon_key='wrench', cls='dash-hero__stat-svg' %}{% include 'components/_path_icon.html' %}{% endwith %}
+        </span>
+        <span class="dash-hero__stat-label">щит</span>
+      </div>
+    {% endif %}
+  </div>
+</header>

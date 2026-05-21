@@ -260,11 +260,57 @@ def test_build_dashboard_path_preview_module_label_includes_level_and_module(
 def test_dashboard_path_to_dict_serialises_for_api():
     """Sanity check: the dataclass tree round-trips through to_dict()."""
     node = PathNode(
-        title='X', icon='📚', state='current', url='/x',
+        title='X', icon='book-open', state='current', url='/x',
         segment='today', offset_px=0, slot_kind='curriculum',
     )
-    segment = PathSegment(kind='today', label='СЕГОДНЯ', nodes=[node])
+    segment = PathSegment(kind='today', label='Сегодня', nodes=[node])
     path = DashboardPath(segments=[segment], preview_module_label=None)
     d = path.to_dict()
     assert d['segments'][0]['nodes'][0]['slot_kind'] == 'curriculum'
     assert d['is_empty'] is False
+
+
+def test_today_segment_milestone_state_for_curriculum_complete():
+    """A done curriculum slot titled 'Curriculum complete' is promoted to
+    a milestone state with the trophy icon and Russian copy."""
+    plan = {
+        'slots': [
+            {'kind': 'curriculum', 'title': 'Curriculum complete',
+             'url': '/x', 'completed': True, 'data': {}},
+            {'kind': 'srs', 'title': 'SRS', 'url': '/y',
+             'completed': False, 'data': {}},
+        ],
+        'chain_meta': {'baseline_count': 2},
+    }
+    seg = _build_today_segment(plan, {})
+    assert seg.nodes[0].state == 'milestone'
+    assert seg.nodes[0].title == 'Курс пройден'
+    assert seg.nodes[0].icon == 'trophy'
+
+
+def test_today_segment_locked_node_carries_russian_reason():
+    """Locked slots advertise *why* they're locked, not just a padlock."""
+    plan = {
+        'slots': [
+            {'kind': 'curriculum', 'title': 'A', 'url': '/a', 'completed': False, 'data': {}},
+            {'kind': 'srs', 'title': 'B', 'url': '/b', 'completed': False, 'data': {}},
+            {'kind': 'reading', 'title': 'C', 'url': '/c', 'completed': False, 'data': {}},
+        ],
+        'chain_meta': {'baseline_count': 3},
+    }
+    seg = _build_today_segment(plan, {})
+    locked = seg.nodes[1]  # second slot, after current
+    assert locked.state == 'locked'
+    assert locked.locked_reason is not None
+    assert 'Откроется' in locked.locked_reason
+
+
+def test_slot_kind_icons_use_stroke_keys_not_emoji():
+    """All slot-kind icons resolve to lucide-style keys (lowercase string)
+    so the SVG resolver template can render them."""
+    for kind in ('curriculum', 'srs', 'reading', 'listening', 'speaking', 'writing', 'error_review'):
+        icon = SLOT_KIND_ICONS[kind]
+        assert isinstance(icon, str)
+        assert icon == icon.lower()
+        # No emoji bytes (legacy code used 📚 / 🔁 / 📖 / ...).
+        assert all(ord(c) < 128 or c == '-' for c in icon)

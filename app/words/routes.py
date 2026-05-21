@@ -697,13 +697,59 @@ def _build_completion_summary(
     }
 
 
+_FOCUS_DEFAULT_XP_TARGET = 30
+_FOCUS_DEFAULT_WORDS_TARGET = 10
+
+
+def _build_week_rhythm(user_id: int, tz: str) -> dict:
+    """Return {days: [{date, label, active, today}*7], summary} for the rail.
+
+    Pulls the activity heatmap from insights_service (already covers all
+    six learning sources) and projects the last 7 calendar days. ``today``
+    is the user's local today; ``active`` is heatmap.count > 0.
+    """
+    from datetime import date, datetime, timedelta
+    import pytz
+    from app.study.insights_service import get_activity_heatmap
+    try:
+        heatmap = get_activity_heatmap(user_id, days=14, tz=tz)
+    except Exception:
+        logger.warning('week_rhythm heatmap lookup failed', exc_info=True)
+        heatmap = []
+    by_date = {row['date']: row.get('count', 0) for row in heatmap}
+
+    try:
+        local_today = datetime.now(pytz.timezone(tz)).date()
+    except Exception:
+        local_today = datetime.utcnow().date()
+
+    labels = ('Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс')
+    monday = local_today - timedelta(days=local_today.weekday())
+    days = []
+    active_count = 0
+    for i in range(7):
+        d = monday + timedelta(days=i)
+        is_today = (d == local_today)
+        is_active = by_date.get(d.isoformat(), 0) > 0
+        if is_active:
+            active_count += 1
+        days.append({
+            'date': d.isoformat(),
+            'label': labels[i],
+            'active': is_active,
+            'today': is_today,
+        })
+    summary = f'{active_count} из 7 учебных дней'
+    return {'days': days, 'summary': summary}
+
+
 def _render_path_dashboard(tz: str):
     """Render the path-progression dashboard for linear-plan users.
 
     Path = today's plan slots + bonus challenge + curriculum-spine preview.
-    No side rail, no insights duplication — analytics live at
-    /study/insights. The legacy widget dashboard (templates/dashboard.html)
-    serves mission-plan users.
+    Right rail = focus targets (XP / words progress bars), weekly rhythm
+    (7-day calendar), challenge card. Heavy analytics live at /study/insights.
+    Mission-plan users get the legacy dashboard.html.
     """
     from app.curriculum.path_view import build_dashboard_path
     from app.daily_plan.service import get_daily_plan_unified
@@ -717,9 +763,6 @@ def _render_path_dashboard(tz: str):
 
     streak = get_current_streak(current_user.id, tz=tz)
     daily_summary = get_daily_summary(current_user.id, tz=tz)
-    # Use unified entry point so test mocks and feature flags work the same
-    # as on the legacy dashboard; for linear-plan users this returns the
-    # same shape as get_linear_plan directly.
     linear_plan = get_daily_plan_unified(current_user.id, tz=tz) or {}
     plan_completion, _avail, steps_done, steps_total = compute_plan_steps(
         linear_plan, daily_summary
@@ -732,6 +775,7 @@ def _render_path_dashboard(tz: str):
 
     # Daily challenge (best-effort — should not 500 the dashboard).
     challenge_payload = None
+    challenge_card = None
     try:
         from app.daily_plan.challenge import get_today_challenge
         ch = get_today_challenge(current_user.id, db)
@@ -741,6 +785,12 @@ def _render_path_dashboard(tz: str):
                 'lesson_id': ch['lesson_id'],
                 'is_completed': bool(ch.get('is_completed')),
                 'bonus_xp': ch.get('bonus_xp') or 0,
+            }
+            challenge_card = {
+                'title': 'Бонусная цель дня',
+                'badge': f"×{2 if ch.get('bonus_xp') else 1} XP",
+                'completed': bool(ch.get('is_completed')),
+                'url': f"/learn/{ch['lesson_id']}/",
             }
     except Exception:
         logger.warning('daily_challenge build failed', exc_info=True)
@@ -752,7 +802,6 @@ def _render_path_dashboard(tz: str):
         challenge=challenge_payload,
     )
 
-    # Stats strip
     stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
     total_xp = (stats.total_xp if stats else 0) or 0
     level_info = get_level_info(total_xp)
@@ -763,20 +812,75 @@ def _render_path_dashboard(tz: str):
         logger.warning('xp_today lookup failed', exc_info=True)
         xp_today = 0
 
+    words_today = (daily_summary or {}).get('words_studied', 0) if daily_summary else 0
+    words_goal = getattr(current_user, 'daily_word_goal', None) or _FOCUS_DEFAULT_WORDS_TARGET
+
     stats_card = {
         'streak_days': streak or 0,
         'streak_shield': bool(getattr(current_user, 'streak_shield_active', False)),
         'xp_today': xp_today,
         'level': level_info.current_level,
-        'goal_target': getattr(current_user, 'daily_word_goal', None) or 0,
-        'goal_current': (daily_summary or {}).get('words_studied', 0) if daily_summary else 0,
+        'goal_target': words_goal,
+        'goal_current': words_today,
         'goal_label': 'слов',
     }
+
+    # Hero block: minutes from incomplete slot etas, steps_done/total
+    # from compute_plan_steps (already baseline-aware).
+    minutes_left = 0
+    for slot in (linear_plan or {}).get('slots') or []:
+        if slot.get('completed') or slot.get('skipped'):
+            continue
+        eta = slot.get('eta_minutes') or 0
+        minutes_left += int(eta) if isinstance(eta, (int, float)) else 0
+    if steps_total and steps_done >= steps_total:
+        subtitle = 'Минимум на сегодня выполнен — продолжайте, если есть силы'
+    elif steps_total:
+        subtitle = f'{steps_done} из {steps_total} шагов'
+        if minutes_left:
+            subtitle += f' · осталось ~{minutes_left} мин'
+    else:
+        subtitle = 'Откройте каталог, чтобы начать обучение'
+    hero = {
+        'title': 'План на сегодня',
+        'subtitle': subtitle,
+        'steps_done': steps_done or 0,
+        'steps_total': steps_total or 0,
+        'minutes_left': minutes_left,
+    }
+
+    # Focus targets — XP and words goals. Minutes intentionally skipped
+    # (no canonical study-minutes source yet; can be added later from
+    # session timing).
+    focus = {
+        'targets': [
+            {
+                'label': 'Опыт',
+                'current': xp_today,
+                'target': _FOCUS_DEFAULT_XP_TARGET,
+                'icon_key': 'sparkles',
+                'suffix': 'XP',
+            },
+            {
+                'label': 'Словарь',
+                'current': words_today,
+                'target': words_goal,
+                'icon_key': 'book-open',
+                'suffix': 'слов',
+            },
+        ],
+    }
+
+    week_rhythm = _build_week_rhythm(current_user.id, tz)
 
     return render_template(
         'words/dashboard_path.html',
         dashboard_path=dashboard_path,
         stats_card=stats_card,
+        hero=hero,
+        focus=focus,
+        week_rhythm=week_rhythm,
+        challenge_card=challenge_card,
     )
 
 

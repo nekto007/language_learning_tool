@@ -30,53 +30,83 @@ from app.daily_plan.linear.progression import find_next_lesson_linear
 logger = logging.getLogger(__name__)
 
 
-# ─── Icon maps ───────────────────────────────────────────────────────
+# ─── Icon keys ───────────────────────────────────────────────────────
 
-# Generic, neutral emoji set — distinct from Duolingo's bespoke
-# illustrations.  Templates may swap for SVG later; the icon mapping
-# stays here so all path code agrees.
+# Icon keys (resolved to inline SVG by components/_path_icon.html).
+# Using string keys instead of emoji lets us swap to a consistent
+# stroke-icon set without round-tripping through emoji fonts and gives
+# the templates one source of truth.
 SLOT_KIND_ICONS: dict[str, str] = {
-    'curriculum': '📚',
-    'srs': '🔁',
-    # 'reading' is the slot.kind emitted by reading_slot.py; 'book' is the
-    # URL-param kind via LinearSlotKind.BOOK.  Both map to the same icon
-    # so the path doesn't care which convention upstream used.
-    'reading': '📖',
-    'book': '📖',
-    'listening': '🎧',
-    'speaking': '🎤',
-    'writing': '✍️',
-    'error_review': '🛠',
+    'curriculum': 'book-open',
+    'srs': 'repeat',
+    # 'reading' is the slot.kind emitted by reading_slot.py; 'book' is
+    # the URL-param kind via LinearSlotKind.BOOK. Both map to the same
+    # icon so the path doesn't care which convention upstream used.
+    'reading': 'book',
+    'book': 'book',
+    'listening': 'headphones',
+    'speaking': 'mic',
+    'writing': 'pen',
+    'error_review': 'wrench',
 }
 LESSON_TYPE_ICONS: dict[str, str] = {
-    'vocabulary': '📚',
-    'card': '🃏',
-    'flashcards': '🃏',
-    'anki_cards': '🃏',
-    'grammar': '✏️',
-    'quiz': '🎯',
-    'listening_quiz': '🎧',
-    'dialogue_completion_quiz': '💬',
-    'ordering_quiz': '🔀',
-    'translation_quiz': '🌐',
-    'reading': '📖',
-    'text': '📖',
-    'listening_immersion': '🎧',
-    'dictation': '📝',
-    'audio_fill_blank': '🎧',
-    'shadow_reading': '🗣️',
-    'translation': '🌐',
-    'sentence_correction': '✏️',
-    'sentence_completion': '✏️',
-    'collocation_matching': '🔗',
-    'writing_prompt': '✍️',
-    'pronunciation': '🎤',
-    'idiom': '💡',
-    'matching': '🧩',
-    'final_test': '🏁',
+    'vocabulary': 'book-open',
+    'card': 'cards',
+    'flashcards': 'cards',
+    'anki_cards': 'cards',
+    'grammar': 'pen',
+    'quiz': 'target',
+    'listening_quiz': 'headphones',
+    'dialogue_completion_quiz': 'message',
+    'ordering_quiz': 'shuffle',
+    'translation_quiz': 'globe',
+    'reading': 'book',
+    'text': 'book',
+    'listening_immersion': 'headphones',
+    'dictation': 'edit',
+    'audio_fill_blank': 'headphones',
+    'shadow_reading': 'mic',
+    'translation': 'globe',
+    'sentence_correction': 'pen',
+    'sentence_completion': 'pen',
+    'collocation_matching': 'link',
+    'writing_prompt': 'pen',
+    'pronunciation': 'mic',
+    'idiom': 'lightbulb',
+    'matching': 'puzzle',
+    'final_test': 'flag',
 }
-DEFAULT_ICON = '🎓'
-CHALLENGE_ICON = '✨'
+DEFAULT_ICON = 'circle'
+CHALLENGE_ICON = 'sparkles'
+MILESTONE_ICON = 'trophy'
+
+# Localised slot-kind labels used in copy + ARIA labels. Keep all
+# user-facing strings in Russian; legacy English fragments like
+# "Curriculum complete" get rewritten via _slot_title_localised().
+SLOT_KIND_LABELS_RU: dict[str, str] = {
+    'curriculum': 'Урок курса',
+    'srs': 'Повторение слов',
+    'reading': 'Чтение книги',
+    'book': 'Чтение книги',
+    'listening': 'Аудирование',
+    'speaking': 'Говорение',
+    'writing': 'Письмо',
+    'error_review': 'Разбор ошибок',
+}
+
+# Locked-state copy: explain *why* it's locked rather than just showing
+# a padlock. Keyed by the slot kind that's locked.
+LOCKED_REASONS_RU: dict[str, str] = {
+    'curriculum': 'Откроется после следующего урока',
+    'srs': 'Откроется после повторения',
+    'reading': 'Откроется после повторения',
+    'book': 'Откроется после повторения',
+    'listening': 'Откроется после аудирования',
+    'speaking': 'Откроется после говорения',
+    'writing': 'Откроется после письма',
+    'error_review': 'Откроется после разбора',
+}
+LOCKED_REASON_DEFAULT_RU = 'Откроется после предыдущего шага'
 
 # Cosmetic horizontal offsets so the column doesn't read like a straight
 # list. Deliberately gentler than Duolingo's full zig-zag.
@@ -90,16 +120,16 @@ PREVIEW_DEFAULT_LIMIT = 5
 
 @dataclass(frozen=True)
 class PathNode:
-    """One renderable bubble on the path.
+    """One renderable bubble (or task-card) on the path.
 
     ``segment`` plus ``state`` together drive the visuals:
-      - segment='today' / state in {done, current, locked}
+      - segment='today' / state in {done, current, locked, milestone}
       - segment='challenge' / state='bonus'
       - segment='preview' / state='preview'
     """
 
     title: str
-    icon: str
+    icon: str                 # icon key, resolved to SVG by template
     state: str
     url: str
     segment: str
@@ -109,6 +139,9 @@ class PathNode:
     score: Optional[int] = None
     badge: Optional[str] = None          # e.g. '×2 XP' for challenge
     eta_minutes: Optional[int] = None
+    label: Optional[str] = None          # short kind label (e.g. «Повторение слов»)
+    locked_reason: Optional[str] = None  # «Откроется после повторения»
+    xp_reward: Optional[int] = None      # est. XP for current/preview nodes
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -123,6 +156,9 @@ class PathNode:
             'score': self.score,
             'badge': self.badge,
             'eta_minutes': self.eta_minutes,
+            'label': self.label,
+            'locked_reason': self.locked_reason,
+            'xp_reward': self.xp_reward,
         }
 
 
@@ -169,19 +205,54 @@ class DashboardPath:
 # ─── Today segment ───────────────────────────────────────────────────
 
 
+def _slot_title_localised(slot: dict[str, Any]) -> str:
+    """Return a Russian title for the slot, rewriting legacy English fragments.
+
+    The linear plan assembler sometimes returns 'Curriculum complete'
+    (English) for finished-curriculum users — we never want that to
+    leak into the dashboard. Same defensive treatment for other known
+    legacy strings.
+    """
+    raw = (slot.get('title') or '').strip()
+    if not raw:
+        return SLOT_KIND_LABELS_RU.get(slot.get('kind') or '', '')
+    # Map known English placeholders to Russian + milestone state.
+    legacy_map = {
+        'Curriculum complete': 'Курс пройден',
+        'Curriculum completed': 'Курс пройден',
+        'Plan complete': 'План завершён',
+    }
+    return legacy_map.get(raw, raw)
+
+
 def _slot_to_node(
     slot: dict[str, Any], state: str, offset_idx: int,
 ) -> PathNode:
     kind = slot.get('kind') or ''
+    title = _slot_title_localised(slot)
+    label = SLOT_KIND_LABELS_RU.get(kind)
+
+    # Milestone state: curriculum slot whose title is the «finished» marker.
+    # Treat as a celebratory done-state, not a regular «done» slot.
+    raw_title = (slot.get('title') or '').strip().lower()
+    is_milestone = state == 'done' and kind == 'curriculum' and raw_title.startswith('curriculum')
+    if is_milestone:
+        state = 'milestone'
+        icon_key = MILESTONE_ICON
+    else:
+        icon_key = SLOT_KIND_ICONS.get(kind, DEFAULT_ICON)
+
     return PathNode(
-        title=slot.get('title') or '',
-        icon=SLOT_KIND_ICONS.get(kind, DEFAULT_ICON),
+        title=title,
+        icon=icon_key,
         state=state,
         url=slot.get('url') or '',
         segment='today',
         offset_px=PATH_OFFSET_PATTERN[offset_idx % len(PATH_OFFSET_PATTERN)],
         slot_kind=kind,
         eta_minutes=slot.get('eta_minutes'),
+        label=label,
+        locked_reason=LOCKED_REASONS_RU.get(kind, LOCKED_REASON_DEFAULT_RU) if state == 'locked' else None,
     )
 
 
@@ -229,7 +300,7 @@ def _build_today_segment(
             state = 'locked'
         nodes.append(_slot_to_node(slot, state, idx))
 
-    return PathSegment(kind='today', label='СЕГОДНЯ', nodes=nodes)
+    return PathSegment(kind='today', label='Сегодня', nodes=nodes)
 
 
 # ─── Challenge segment ──────────────────────────────────────────────
@@ -258,8 +329,10 @@ def _build_challenge_segment(
         offset_px=PATH_OFFSET_PATTERN[offset_idx % len(PATH_OFFSET_PATTERN)],
         lesson_id=lesson_id,
         badge=f'×{2 if bonus_xp else 1} XP',
+        label='Бонус',
+        xp_reward=bonus_xp,
     )
-    return PathSegment(kind='challenge', label='БОНУС', nodes=[node])
+    return PathSegment(kind='challenge', label='Бонус', nodes=[node])
 
 
 # ─── Preview segment ────────────────────────────────────────────────
@@ -339,7 +412,9 @@ def _build_preview_segment(
         first_module.title if first_module and first_module.title else f'Модуль {upcoming[0].module_id}'
     )
     level_code = (first_module.level.code if first_module and first_module.level else 'A0')
-    preview_module_label = f'ДАЛЬШЕ В КУРСЕ · {level_code}/M{first_module.number if first_module else 0} — {label_module}'
+    module_label = (
+        f'Дальше в курсе · {level_code}/М{first_module.number if first_module else 0} — {label_module}'
+    )
 
     nodes: list[PathNode] = []
     for i, lesson in enumerate(upcoming):
@@ -351,8 +426,9 @@ def _build_preview_segment(
             segment='preview',
             offset_px=PATH_OFFSET_PATTERN[(today_node_count + i + 2) % len(PATH_OFFSET_PATTERN)],
             lesson_id=lesson.id,
+            label=SLOT_KIND_LABELS_RU.get('curriculum'),
         ))
-    return PathSegment(kind='preview', label=preview_module_label, nodes=nodes), preview_module_label
+    return PathSegment(kind='preview', label=module_label, nodes=nodes), module_label
 
 
 # ─── Public entry point ─────────────────────────────────────────────

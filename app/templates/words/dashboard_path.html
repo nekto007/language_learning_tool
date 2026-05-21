@@ -1,30 +1,30 @@
-{# Redesigned dashboard: top stats strip + single-column segmented path.
+{# Redesigned dashboard: two-column layout (path + context rail) with a
+day-status hero on top of the path column.
 
-Today's plan slots, optional bonus challenge, and a curriculum-spine
-preview flow as one visual ribbon. No side rail — anything that didn't
-fit moved to /study/insights.
+Template inputs (set in app/words/routes.py:_render_path_dashboard):
+  - dashboard_path  → DashboardPath
+  - stats_card      → dict (streak/xp/goal)
+  - hero            → dict (title/subtitle/steps_done/steps_total/minutes_left)
+  - focus           → dict (targets: list of progress-bar items)
+  - week_rhythm     → dict (days: list of 7 markers, summary)
+  - challenge_card  → dict (title/badge/completed/url) or None
 
-Required template variables (set in app/words/routes.py):
-  - dashboard_path → DashboardPath
-  - stats_card     → dict (streak/xp/goal compact data)
+Mobile: rail re-orders below path, hero shrinks, stats wrap 2x2.
 #}
 {% extends "base.html" %}
 
 {% block content %}
 <div class="dash-path" data-linear-plan="true">
-  <header class="dash-path__strip">
-    {% include 'components/_dashboard_stats_strip.html' %}
-  </header>
-
   <main class="dash-path__main">
+    {% include 'components/_dashboard_hero.html' %}
     {% include 'components/_path.html' %}
   </main>
+
+  {% include 'components/_dashboard_rail.html' %}
 </div>
 
 {# Book-select modal: opened by the path's reading node when the URL
-   resolves to `#book-select-modal` (no UserReadingPreference yet).
-   Markup + JS mirror the legacy dashboard so the «Выбрать книгу» flow
-   keeps working from the path. #}
+   resolves to `#book-select-modal` (no UserReadingPreference yet). #}
 <div id="book-select-modal" class="linear-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="book-select-modal-title">
     <div class="linear-modal__backdrop" data-linear-close="book-select-modal"></div>
     <div class="linear-modal__panel">
