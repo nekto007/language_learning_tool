@@ -16604,6 +16604,156 @@ body.dashboard-path-wide main.container {
 }
 .path-card:hover .path-card__cta { background: #0284c7; }
 .path-card__cta-arrow { width: 14px; height: 14px; }
+.path-card__cta svg { width: 14px; height: 14px; }
+
+/* ─── path-card state variants ──────────────────────────────────── */
+
+/* CURRENT — the default styling above is current. Add an «active» hint. */
+.path-card--current { /* defaults applied */ }
+
+/* DONE — green accent, ✓ stamp, soft glow, click navigates back into the lesson */
+.path-card--done {
+    border-color: rgba(16, 185, 129, 0.55);
+    border-left-color: var(--path-success);
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02),
+                0 4px 12px rgba(16, 185, 129, 0.10);
+}
+.path-card--done::before { display: none; }
+.path-card--done .path-card__icon {
+    background: linear-gradient(135deg, var(--path-success) 0%, #059669 100%);
+}
+.path-card--done .path-card__check {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    right: -4px;
+    bottom: -4px;
+    padding: 3px;
+    border-radius: 50%;
+    background: #fff;
+    color: #059669;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+.path-card--done .path-card__label { color: var(--path-success); }
+.path-card--done .path-card__cta {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--path-success);
+    cursor: default;
+    font-weight: 600;
+}
+.path-card--done:hover .path-card__cta { background: rgba(16, 185, 129, 0.18); }
+
+/* LOCKED — dashed muted, no hover lift, lock icon, reason instead of meta */
+.path-card--locked {
+    border: 1px dashed var(--path-slate-300);
+    border-left: 6px solid var(--path-slate-300);
+    background: var(--path-slate-50);
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.85;
+}
+.path-card--locked::before { display: none; }
+.path-card--locked:hover {
+    transform: none;
+    box-shadow: none;
+}
+.path-card--locked .path-card__icon {
+    background: var(--path-slate-100);
+    color: var(--path-slate-500);
+    box-shadow: none;
+}
+.path-card--locked .path-card__title { color: var(--path-slate-500); }
+.path-card--locked .path-card__label { color: var(--path-slate-500); }
+.path-card--locked .path-card__reason {
+    font-size: 0.78rem;
+    color: var(--path-slate-500);
+    font-style: italic;
+}
+.path-card--locked .path-card__cta {
+    background: transparent;
+    color: var(--path-slate-500);
+    padding: 0.4rem 0.6rem;
+    cursor: not-allowed;
+}
+.path-card--locked .path-card__lock {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    bottom: -3px;
+    right: -3px;
+    padding: 2px;
+    background: #fff;
+    border-radius: 50%;
+    color: var(--path-slate-500);
+}
+
+/* PREVIEW — soft, dashed, openable, lighter shadow */
+.path-card--preview {
+    border: 1px dashed var(--path-slate-300);
+    border-left: 6px solid var(--path-slate-300);
+    background: var(--surface, #fff);
+    box-shadow: none;
+    opacity: 0.88;
+}
+.path-card--preview::before { display: none; }
+.path-card--preview:hover {
+    opacity: 1;
+    border-color: var(--path-accent);
+    border-left-color: var(--path-accent);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.12);
+    transform: translateY(-1px);
+}
+.path-card--preview .path-card__icon {
+    background: var(--path-slate-100);
+    color: var(--path-slate-500);
+    box-shadow: none;
+}
+.path-card--preview .path-card__title {
+    color: var(--path-slate-700);
+    font-style: italic;
+    font-weight: 600;
+}
+.path-card--preview .path-card__label { color: var(--path-slate-500); }
+.path-card--preview .path-card__cta {
+    background: var(--path-slate-100);
+    color: var(--path-slate-700);
+    font-weight: 600;
+}
+.path-card--preview:hover .path-card__cta {
+    background: var(--path-accent);
+    color: #fff;
+}
+
+/* BONUS — gold-purple accent for daily-challenge */
+.path-card--bonus {
+    border: 1px solid rgba(168, 85, 247, 0.45);
+    border-left: 6px solid #fbbf24;
+    background: linear-gradient(180deg, #fef3c7 0%, var(--surface, #fff) 60%);
+    box-shadow: 0 8px 20px rgba(168, 85, 247, 0.16);
+}
+.path-card--bonus::before { display: none; }
+.path-card--bonus .path-card__icon {
+    background: linear-gradient(135deg, #fbbf24 0%, #a855f7 100%);
+}
+.path-card--bonus .path-card__label { color: #92400e; }
+.path-card--bonus .path-card__badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    padding: 0.15rem 0.5rem;
+    background: #fbbf24;
+    color: #78350f;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    border: 2px solid #fff;
+    white-space: nowrap;
+}
+.path-card--bonus .path-card__cta {
+    background: #fbbf24;
+    color: #78350f;
+}
+.path-card--bonus:hover .path-card__cta { background: #f59e0b; }
 
 /* ─── Toast for clicks on locked nodes ──────────────────────────── */
 .path-toast {

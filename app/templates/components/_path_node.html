@@ -2,62 +2,22 @@
 
 Variables:
   - node        → PathNode dataclass
-  - is_current  → bool, the only node rendered as a task-card
+  - is_current  → bool
   - is_last     → bool, suppress trailing connector if true
 
-State-specific shape:
-  - 'current'   → task-card (route ticket): full-width card with icon,
-                  label, title, meta line, CTA button. Distinct from
-                  Duolingo's speech-bubble-over-bubble pattern.
-  - 'milestone' → celebratory done-state with trophy + "Курс пройден" copy.
-  - 'done'      → solid green bubble with check.
-  - 'locked'    → muted bubble + reason text ("Откроется после повторения").
-  - 'bonus'     → gold-purple bubble with sparkle and ×N XP badge.
-  - 'preview'   → muted dashed bubble, openable.
+Все состояния кроме milestone рендерятся как одинаковый route-ticket
+card (.path-card), варианты по state class:
+  - current   → бирюзовый акцент, кнопка «Начать»
+  - done      → зелёный акцент, ✓ check, нет CTA
+  - locked    → серый dashed, замок + reason, не кликабелен
+  - preview   → muted dashed, label «Можно повторить» / «Из каталога», кликабелен
+  - bonus     → gold-purple, ×N XP badge
+  - milestone → круглый trophy (celebration, единственное исключение)
 #}
-<div class="path-node path-node--{{ node.state }}"
-     style="--node-offset: {{ node.offset_px }}px;"
-     {% if node.slot_kind %}data-slot-kind="{{ node.slot_kind }}"{% endif %}
-     {% if node.lesson_id %}data-lesson-id="{{ node.lesson_id }}"{% endif %}>
-
-  {% if node.state == 'current' %}
-    {# ── Task-card current node ── #}
-    <a class="path-card" href="{{ node.url }}" title="{{ node.title }}">
-      <span class="path-card__icon" aria-hidden="true">
-        {% with icon_key=node.icon, cls='path-card__svg' %}{% include 'components/_path_icon.html' %}{% endwith %}
-      </span>
-      <div class="path-card__body">
-        {% if node.label %}<span class="path-card__label">{{ node.label }}</span>{% endif %}
-        <h3 class="path-card__title">{{ node.title }}</h3>
-        <div class="path-card__meta">
-          {% if node.eta_minutes %}<span>~{{ node.eta_minutes }} мин</span>{% endif %}
-          {% if node.xp_reward %}<span>· +{{ node.xp_reward }} XP</span>{% endif %}
-        </div>
-      </div>
-      <span class="path-card__cta" aria-hidden="true">
-        Начать
-        <svg class="path-card__cta-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-      </span>
-    </a>
-
-  {% elif node.state == 'locked' %}
-    {# ── Locked bubble + reason ── #}
-    <span class="path-node__bubble" aria-disabled="true"
-          aria-label="{{ node.title }} (заблокирован)">
-      {% with icon_key=node.icon, cls='path-node__svg' %}{% include 'components/_path_icon.html' %}{% endwith %}
-      <svg class="path-node__lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <rect x="5" y="11" width="14" height="10" rx="2"/>
-        <path d="M8 11V8a4 4 0 018 0v3"/>
-      </svg>
-    </span>
-    <div class="path-node__caption">
-      <span class="path-node__title">{{ node.title }}</span>
-      {% if node.locked_reason %}<span class="path-node__reason">{{ node.locked_reason }}</span>{% endif %}
-    </div>
-
-  {% elif node.state == 'milestone' %}
-    {# ── Milestone: celebration marker, NOT clickable (nowhere to go) ── #}
+{% if node.state == 'milestone' %}
+  <div class="path-node path-node--milestone"
+       style="--node-offset: {{ node.offset_px }}px;"
+       {% if node.slot_kind %}data-slot-kind="{{ node.slot_kind }}"{% endif %}>
     <span class="path-node__bubble" aria-label="{{ node.title }} (этап завершён)">
       {% with icon_key=node.icon, cls='path-node__svg' %}{% include 'components/_path_icon.html' %}{% endwith %}
     </span>
@@ -66,34 +26,69 @@ State-specific shape:
       {% if node.label %}<span class="path-node__milestone-context">{{ node.label }}</span>{% endif %}
       <span class="path-node__milestone-tag">Этап пройден</span>
     </div>
+    {% if not is_last %}<div class="path-node__connector" aria-hidden="true"></div>{% endif %}
+  </div>
 
-  {% else %}
-    {# ── Done / bonus / preview: openable bubble + caption ── #}
-    <a class="path-node__bubble" href="{{ node.url }}" title="{{ node.title }}"
-       aria-label="{{ node.title }}{% if node.state == 'done' %} (завершён{% if node.score %}, {{ node.score }}%{% endif %}){% elif node.state == 'bonus' %} (бонус){% elif node.state == 'preview' %} (можно повторить){% endif %}">
-      {% with icon_key=node.icon, cls='path-node__svg' %}{% include 'components/_path_icon.html' %}{% endwith %}
-      {% if node.state == 'done' %}
-        <svg class="path-node__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-      {% endif %}
-      {% if node.badge %}
-        <span class="path-node__badge" aria-hidden="true">{{ node.badge }}</span>
-      {% endif %}
-    </a>
-    <div class="path-node__caption">
-      <span class="path-node__title">{{ node.title }}</span>
-      {% if node.label and node.state == 'preview' %}
-        <span class="path-node__sublabel">{{ node.label }}</span>
-      {% endif %}
-      {% if node.state == 'done' and node.score is not none %}
-        <span class="path-node__score">{{ node.score }}%</span>
-      {% endif %}
-    </div>
-  {% endif %}
+{% else %}
+  {# Card-based nodes: current / done / locked / preview / bonus.
+     Single layout, the state-class drives the visual styling. #}
+  {% set _is_clickable = node.state in ('current', 'done', 'preview', 'bonus') and node.url %}
+  {% set _tag = 'a' if _is_clickable else 'div' %}
+  <div class="path-node path-node--{{ node.state }}"
+       style="--node-offset: {{ node.offset_px }}px;"
+       {% if node.slot_kind %}data-slot-kind="{{ node.slot_kind }}"{% endif %}
+       {% if node.lesson_id %}data-lesson-id="{{ node.lesson_id }}"{% endif %}>
 
-  {% if not is_last %}
-    <div class="path-node__connector" aria-hidden="true"></div>
-  {% endif %}
-</div>
+    <{{ _tag }} class="path-card path-card--{{ node.state }}"
+       {% if _is_clickable %}href="{{ node.url }}"{% endif %}
+       title="{{ node.title }}"
+       {% if not _is_clickable %}aria-disabled="true"{% endif %}>
+
+      <span class="path-card__icon" aria-hidden="true">
+        {% with icon_key=node.icon, cls='path-card__svg' %}{% include 'components/_path_icon.html' %}{% endwith %}
+        {% if node.state == 'done' %}
+          <svg class="path-card__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        {% elif node.state == 'locked' %}
+          <svg class="path-card__lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+        {% elif node.badge %}
+          <span class="path-card__badge" aria-hidden="true">{{ node.badge }}</span>
+        {% endif %}
+      </span>
+
+      <div class="path-card__body">
+        {% if node.label %}<span class="path-card__label">{{ node.label }}</span>{% endif %}
+        <h3 class="path-card__title">{{ node.title }}</h3>
+        <div class="path-card__meta">
+          {% if node.state == 'locked' and node.locked_reason %}
+            <span class="path-card__reason">{{ node.locked_reason }}</span>
+          {% else %}
+            {% if node.eta_minutes %}<span>~{{ node.eta_minutes }} мин</span>{% endif %}
+            {% if node.xp_reward %}<span>· +{{ node.xp_reward }} XP</span>{% endif %}
+            {% if node.state == 'done' and node.score is not none %}
+              <span class="path-card__score">· {{ node.score }}%</span>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+
+      <span class="path-card__cta" aria-hidden="true">
+        {% if node.state == 'current' %}
+          Начать
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        {% elif node.state == 'done' %}
+          Пройдено
+        {% elif node.state == 'preview' %}
+          Открыть
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        {% elif node.state == 'bonus' %}
+          Получить
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        {% elif node.state == 'locked' %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+        {% endif %}
+      </span>
+    </{{ _tag }}>
+
+    {% if not is_last %}<div class="path-node__connector" aria-hidden="true"></div>{% endif %}
+  </div>
+{% endif %}
