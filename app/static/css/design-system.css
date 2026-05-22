@@ -16114,11 +16114,13 @@ span.vocab-word.vocab-word--active {
    components/_dashboard_{hero,rail}.html.
    ════════════════════════════════════════════════════════════════════════ */
 
-/* Опт-аут от .container { max-width: 950px } из base.html — без него
-   dash-path всегда жался к 950px независимо от собственного max-width. */
-body.dashboard-path-wide .container,
+/* Опт-аут от .container { max-width: 950px } из design-system.css:847
+   только для <main> на этой странице — навбар, футер и flash-блоки в
+   base.html тоже используют .container и должны остаться узкими. */
 body.dashboard-path-wide main.container {
     max-width: 1360px;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
 }
 
 .dash-path {
