@@ -17383,3 +17383,60 @@ body.dashboard-path-wide main.container {
     color: var(--color-text-muted, #888);
     line-height: 1.4;
 }
+
+/* Unified plan: methodist-pass polish */
+.plan-item__kind-label {
+    display: block;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    color: var(--color-text-muted, #888);
+    margin-bottom: 4px;
+}
+.plan-item--current .plan-item__kind-label {
+    color: var(--color-brand, #4f46e5);
+}
+
+/* Locked: read at 70% (not 45%) so disabled is unmistakable but text stays legible. */
+.plan-item--locked {
+    opacity: 0.7;
+    background: var(--color-surface, #fff);
+    border-color: var(--color-border, #e5e5e5);
+}
+.plan-item--locked .plan-item__title--locked {
+    color: var(--color-text, #2a2a2a);
+    opacity: 0.95;
+}
+
+/* Optional locked: muted but not skeleton-like (no dashed border). */
+.daily-plan__section--optional-locked .plan-item--optional-locked {
+    opacity: 0.75;
+    background: var(--color-surface, #fff);
+    border-style: solid;
+    border-color: var(--color-border, #e5e5e5);
+    cursor: not-allowed;
+}
+.plan-item--optional-locked .plan-item__title--locked {
+    color: var(--color-text, #2a2a2a);
+    opacity: 0.85;
+}
+
+/* Compact done — even tighter; one row, transparent background, no border. */
+.plan-item--compact {
+    padding: 6px 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    align-items: center;
+    min-height: 36px;
+}
+.plan-item--compact .plan-item__marker--done {
+    width: 20px; height: 20px;
+    font-size: 0.7rem;
+}
+.plan-item--compact .plan-item__title {
+    font-size: 0.9375rem;
+    text-decoration: line-through;
+    opacity: 0.7;
+    font-weight: 500;
+}

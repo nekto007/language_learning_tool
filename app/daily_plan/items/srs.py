@@ -88,13 +88,17 @@ def build_srs_item(
 
     reviews_remaining = max(reviews_limit - reviews_today, 0)
     limit_reached = reviews_limit > 0 and reviews_today >= reviews_limit
+    # Reason hint surfaces ONLY for pending SRS: a service explanation
+    # belongs on the actionable card, not on a closed one (otherwise it
+    # reads as «punishment after the step is already done»).
     reason_hint = None
-    if limit_reason == 'accuracy_low':
-        reason_hint = 'Точность ниже 85% — сосредоточьтесь на повторении'
-    elif limit_reason == 'backlog_reduction':
-        reason_hint = 'Лимит новых слов снижен — много просроченных карточек'
-    elif limit_reached:
-        reason_hint = 'Лимит повторений на сегодня достигнут'
+    if due_count > 0:
+        if limit_reason == 'accuracy_low':
+            reason_hint = 'Точность ниже 85% — сосредоточьтесь на повторении'
+        elif limit_reason == 'backlog_reduction':
+            reason_hint = 'Лимит новых слов снижен — много просроченных карточек'
+        elif limit_reached:
+            reason_hint = 'Лимит повторений на сегодня достигнут'
 
     data: dict[str, Any] = {
         'due_count': due_count,
@@ -111,12 +115,11 @@ def build_srs_item(
     }
 
     if due_count <= 0 and completed_today:
-        title = 'Повторение засчитано'
-        subtitle_bits: list[str] = []
-        if reviews_today:
-            subtitle_bits.append(f'{reviews_today} карточек')
-        subtitle_bits.append('на сегодня всё')
-        subtitle = ' · '.join(subtitle_bits)
+        # «Закрыто» (not «засчитано») avoids the «what was credited?»
+        # confusion when XP-counter elsewhere shows 0/30. The card states
+        # a fact (повторение закрыто), not a reward claim.
+        title = 'Повторение закрыто'
+        subtitle = f'{reviews_today} карточек сегодня' if reviews_today else 'на сегодня всё'
     else:
         title = f'Повторить {due_count} карточек'
         subtitle_bits = [f'{due_count} к повторению']

@@ -109,6 +109,9 @@ def build_reading_item(
         section=section,  # type: ignore[arg-type]
         kind='reading',
         title=book.title,
+        # NOTE: lesson_type stays None — reading is not a curriculum lesson —
+        # the template uses kind='reading' to display the «Чтение книги»
+        # label above the book name.
         subtitle=' · '.join(subtitle_parts) if subtitle_parts else None,
         lesson_type=None,
         eta_minutes=_READING_ITEM_ETA_MINUTES,

@@ -238,6 +238,7 @@ def build_curriculum_item(
         'lesson_number': next_lesson.number,
         'module_id': next_lesson.module_id,
         'module_number': module.number if module is not None else None,
+        'module_title': module.title if module is not None else None,
         'level_code': level.code if level is not None else None,
     }
 

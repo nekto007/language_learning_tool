@@ -19,17 +19,17 @@
 
 {# Human-readable lesson-kind labels for curriculum subtitle + locked hints. #}
 {% set lesson_kind_labels = {
-    'vocabulary': 'Урок',
+    'vocabulary': 'Урок курса',
     'card': 'Закрепление',
     'flashcards': 'Закрепление',
     'grammar': 'Грамматика',
     'quiz': 'Квиз',
-    'reading': 'Чтение',
+    'reading': 'Чтение в уроке',
     'listening_quiz': 'Аудиоквиз',
     'listening_immersion': 'Аудирование',
     'listening_immersion_quiz': 'Аудиоквиз',
     'dialogue_completion_quiz': 'Диалог',
-    'ordering_quiz': 'Порядок',
+    'ordering_quiz': 'Порядок слов',
     'translation_quiz': 'Перевод',
     'translation': 'Перевод',
     'sentence_completion': 'Завершение фраз',
@@ -43,9 +43,16 @@
     'collocation_matching': 'Сочетания',
     'final_test': 'Итоговый тест',
 } %}
-{% macro _kind_label(lesson_type) -%}
-    {{ lesson_kind_labels.get(lesson_type, 'Урок') }}
-{%- endmacro %}
+{# Kind-level labels (independent of lesson_type) for skill / reading items. #}
+{% set kind_section_labels = {
+    'reading': 'Чтение книги',
+    'listening': 'Аудирование',
+    'speaking': 'Произношение',
+    'writing': 'Письмо',
+    'error_review': 'Разбор ошибок',
+    'srs': 'Повторение слов',
+} %}
+
 
 {# Resolve per-item completion + locate the first incomplete required index. #}
 {% set ns = namespace(done=0, current_idx=-1) %}
@@ -80,11 +87,14 @@
       {% if u_module.get('lessons_total') %}
         {% set _done = u_module.get('lessons_completed', 0) %}
         {% set _total = u_module.get('lessons_total') %}
+        {% set _current_les = u_position.get('lesson_number') if u_position else None %}
         <div class="daily-plan__module-progress">
           <div class="daily-plan__level-bar" role="progressbar" aria-valuemin="0" aria-valuemax="{{ _total }}" aria-valuenow="{{ _done }}">
             <div class="daily-plan__level-bar__fill" style="width: {{ ((_done / _total) * 100)|round(0) }}%"></div>
           </div>
-          <span class="daily-plan__level-caption">Прогресс модуля: {{ _done }} из {{ _total }}</span>
+          <span class="daily-plan__level-caption">
+            {% if _current_les %}Урок {{ _current_les }} из {{ _total }}{% else %}{{ _done }} из {{ _total }} уроков{% endif %}
+          </span>
         </div>
       {% endif %}
     {% else %}
@@ -118,27 +128,16 @@
           {% set _kind = item.get('kind', '') %}
           {% set _url = item.get('url') or '#' %}
           {% set _state = 'done' if _completed else ('locked' if _is_locked else 'current') %}
-          {# Locked hint: name the previous step the user must close first.
-             For curriculum, use the actual lesson_type label so the hint
-             says «после карточек» / «после грамматики» / etc — much more
-             precise than a generic «после урока курса». #}
-          {% set _prev = u_required[loop.index0 - 1] if loop.index0 > 0 else None %}
-          {% set _prev_short = '' %}
-          {% if _prev %}
-            {% if _prev.get('kind') == 'srs' %}{% set _prev_short = 'карточек' %}
-            {% elif _prev.get('kind') == 'curriculum' %}
-                {% set _pt = _prev.get('lesson_type') %}
-                {% if _pt in ('card', 'flashcards') %}{% set _prev_short = 'карточек' %}
-                {% elif _pt == 'grammar' %}{% set _prev_short = 'грамматики' %}
-                {% elif _pt == 'reading' %}{% set _prev_short = 'чтения' %}
-                {% elif _pt in ('quiz', 'listening_quiz', 'dialogue_completion_quiz', 'ordering_quiz', 'translation_quiz', 'listening_immersion_quiz') %}{% set _prev_short = 'квиза' %}
-                {% elif _pt in ('listening_immersion', 'dictation', 'audio_fill_blank') %}{% set _prev_short = 'аудирования' %}
-                {% else %}{% set _prev_short = 'текущего задания' %}{% endif %}
-            {% elif _prev.get('kind') == 'listening' %}{% set _prev_short = 'аудирования' %}
-            {% elif _prev.get('kind') == 'reading' %}{% set _prev_short = 'чтения' %}
-            {% elif _prev.get('kind') == 'speaking' %}{% set _prev_short = 'произношения' %}
-            {% elif _prev.get('kind') == 'writing' %}{% set _prev_short = 'письма' %}
-            {% else %}{% set _prev_short = 'текущего задания' %}{% endif %}
+          {# Resolve kind-label + display title (overrides item.title for
+             curriculum, where module.title is the human-readable «theme of the day»). #}
+          {% set _item_data = item.get('data') or {} %}
+          {% set _label = '' %}
+          {% set _display_title = item.get('title') %}
+          {% if _kind == 'curriculum' %}
+              {% set _label = lesson_kind_labels.get(item.get('lesson_type'), 'Урок курса') %}
+              {% if _item_data.get('module_title') %}{% set _display_title = _item_data.get('module_title') %}{% endif %}
+          {% elif _kind in kind_section_labels %}
+              {% set _label = kind_section_labels[_kind] %}
           {% endif %}
           <li class="plan-item plan-item--{{ _kind }} plan-item--{{ _state }}{% if _completed %} plan-item--compact{% endif %}"
               data-plan-item="true"
@@ -146,9 +145,7 @@
               data-item-kind="{{ _kind }}"
               data-state="{{ _state }}">
             {% if _completed %}
-              {# Compact one-liner for completed items. SRS done card also
-                 surfaces a hint (limit_reached / accuracy_low / backlog) so
-                 the user understands why the cap is what it is. #}
+              {# Compact one-liner for completed items. #}
               <span class="plan-item__marker plan-item__marker--done" aria-hidden="true">&#10003;</span>
               <div class="plan-item__body">
                 <a class="plan-item__link plan-item__link--compact" href="{{ _url }}">
@@ -157,38 +154,32 @@
                     <span class="plan-item__subtitle plan-item__subtitle--inline">· {{ item.get('subtitle') }}</span>
                   {% endif %}
                 </a>
-                {% set _data = item.get('data') or {} %}
-                {% if _kind == 'srs' and _data.get('reason_hint') %}
-                  <span class="plan-item__hint">{{ _data.get('reason_hint') }}</span>
-                {% endif %}
               </div>
             {% elif _is_locked %}
               <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">&#128274;</span>
               <div class="plan-item__body">
-                <span class="plan-item__title plan-item__title--locked">{{ item.get('title') }}</span>
-                <span class="plan-item__lock-hint">
-                  {% if _prev_short %}Откроется после {{ _prev_short }}{% else %}Откроется после завершения предыдущего{% endif %}
-                </span>
+                {% if _label %}
+                  <span class="plan-item__kind-label">{{ _label }}</span>
+                {% endif %}
+                <span class="plan-item__title plan-item__title--locked">{{ _display_title }}</span>
+                <span class="plan-item__lock-hint">Откроется после предыдущего шага</span>
               </div>
             {% else %}
-              {# Current item — full card with prominent CTA button. #}
+              {# Current item — kind-label, theme title, ETA, primary CTA. #}
               <span class="plan-item__marker" aria-hidden="true">{{ loop.index }}</span>
               <div class="plan-item__body">
+                {% if _label %}
+                  <span class="plan-item__kind-label">{{ _label }}</span>
+                {% endif %}
                 <a class="plan-item__link" href="{{ _url }}">
-                  <span class="plan-item__title">{{ item.get('title') }}</span>
-                  {# Compose subtitle from kind-label (for curriculum) + ETA.
-                     Position context (A2·M1·L2) lives in the header now. #}
-                  {% set _sub_bits = [] %}
-                  {% if _kind == 'curriculum' and item.get('lesson_type') %}
-                    {% set _sub_bits = _sub_bits + [_kind_label(item.get('lesson_type'))|trim] %}
-                  {% endif %}
+                  <span class="plan-item__title">{{ _display_title }}</span>
                   {% if item.get('eta_minutes') %}
-                    {% set _sub_bits = _sub_bits + ['~' ~ item.get('eta_minutes') ~ ' мин'] %}
-                  {% endif %}
-                  {% if _sub_bits %}
-                    <span class="plan-item__subtitle">{{ _sub_bits | join(' · ') }}</span>
+                    <span class="plan-item__subtitle">~{{ item.get('eta_minutes') }} мин</span>
                   {% endif %}
                 </a>
+                {% if _kind == 'srs' and _item_data.get('reason_hint') %}
+                  <span class="plan-item__hint">{{ _item_data.get('reason_hint') }}</span>
+                {% endif %}
               </div>
               <a class="plan-item__cta plan-item__cta--button" href="{{ _url }}">
                 Начать <span aria-hidden="true">→</span>
@@ -249,9 +240,7 @@
       <div class="daily-plan__section-header">
         <h3 class="daily-plan__section-title">Дополнительно</h3>
         {% if u_optional_locked %}
-          <p class="daily-plan__section-hint">
-            Откроется после {{ u_required_total - u_required_done }} {% if (u_required_total - u_required_done) == 1 %}обязательного шага{% else %}обязательных шагов{% endif %}
-          </p>
+          <p class="daily-plan__section-hint">Откроется после дневного минимума</p>
         {% endif %}
       </div>
       <ol class="daily-plan__list">
