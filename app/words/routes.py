@@ -834,6 +834,28 @@ def _render_unified_dashboard(tz: str):
 
     week_rhythm = _build_week_rhythm(current_user.id, tz)
 
+    # Social-row widgets: rank (титул), leaderboard, achievements.
+    # All three reuse the legacy dashboard.html markup, so they live next
+    # to the unified plan but in dedicated layout slots:
+    #   - rank_info → full-width band above the plan
+    #   - achievements_by_category → right rail, below week rhythm
+    #   - xp_leaderboard → left column, below «Показать ещё задания»
+    rank_info = _safe_widget_call('rank_info', _build_rank_info, current_user.id, default=None)
+    try:
+        from app.study.services.stats_service import StatsService
+    except Exception:
+        StatsService = None
+    if StatsService is not None:
+        xp_leaderboard = _safe_widget_call(
+            'xp_leaderboard', _get_cached_leaderboard, StatsService, limit=5, default=[])
+        user_xp_rank = _safe_widget_call(
+            'user_xp_rank', StatsService.get_user_xp_rank, current_user.id, default=None)
+        achievements_by_category = _safe_widget_call(
+            'achievements_by_category', StatsService.get_achievements_by_category,
+            current_user.id, default={})
+    else:
+        xp_leaderboard, user_xp_rank, achievements_by_category = [], None, {}
+
     return render_template(
         'words/dashboard_unified.html',
         unified_plan=unified_plan,
@@ -843,6 +865,10 @@ def _render_unified_dashboard(tz: str):
         focus=focus,
         week_rhythm=week_rhythm,
         challenge_card=challenge_card,
+        rank_info=rank_info,
+        xp_leaderboard=xp_leaderboard,
+        user_xp_rank=user_xp_rank,
+        achievements_by_category=achievements_by_category,
     )
 
 

@@ -18,13 +18,94 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
 {% block body_class %}dashboard-path-wide{% endblock %}
 
 {% block content %}
-<div class="dash-path" data-unified-plan="true">
-  <main class="dash-path__main">
-    {% include 'components/_dashboard_hero.html' %}
-    {% include 'partials/unified_daily_plan.html' %}
-  </main>
+<div class="dash-unified-wrap">
 
-  {% include 'components/_dashboard_rail.html' %}
+  {# ── RANK BAND (full width, above the plan) ── #}
+  {% if rank_info %}
+  <div class="dash-rank dash-rank--{{ rank_info.code }} dash-rank--band"
+       data-rank-code="{{ rank_info.code }}"
+       data-rank-plans="{{ rank_info.plans_completed }}"
+       title="Титул за выполненные дневные планы">
+    <div class="dash-rank__band-row">
+      <span class="dash-rank__badge" style="--rank-color: {{ rank_info.color }}">
+        <span class="dash-rank__icon" aria-hidden="true">{{ rank_info.icon }}</span>
+        <span class="dash-rank__name">{{ rank_info.display_name }}</span>
+      </span>
+      {% if rank_info.is_max %}
+        <span class="dash-rank__progress-text">Максимальный титул — {{ rank_info.plans_completed }} планов</span>
+      {% else %}
+        <div class="dash-rank__progress dash-rank__progress--band" data-rank-progress="true">
+          <span class="dash-rank__progress-text">{{ rank_info.plans_completed }}/{{ rank_info.next_threshold }} до «{{ rank_info.next_display_name }}»</span>
+          <span class="dash-rank__progress-track" aria-hidden="true">
+            <span class="dash-rank__progress-fill" style="width: {{ rank_info.progress_percent }}%; --rank-color: {{ rank_info.color }}"></span>
+          </span>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="dash-path" data-unified-plan="true">
+    <main class="dash-path__main">
+      {% include 'components/_dashboard_hero.html' %}
+      {% include 'partials/unified_daily_plan.html' %}
+
+      {# ── LEADERBOARD (below the plan in the left column) ── #}
+      {% if xp_leaderboard %}
+      <div class="dash-leaderboard dash-leaderboard--under-plan">
+        <h3 class="dash-leaderboard__heading">&#127942; Лидеры по XP</h3>
+        <div class="dash-leaderboard__list">
+          {% for entry in xp_leaderboard %}
+            <div class="dash-leaderboard__row{% if entry.id == current_user.id %} dash-leaderboard__highlight{% endif %}">
+              <span class="dash-leaderboard__rank">{{ loop.index }}</span>
+              <span class="dash-leaderboard__avatar">{{ entry.username[:1]|upper }}</span>
+              <span class="dash-leaderboard__name">{{ entry.username }}</span>
+              <span class="dash-leaderboard__xp">{{ entry.total_xp }} XP</span>
+              <span class="dash-leaderboard__level">Ур.&nbsp;{{ entry.level }}</span>
+            </div>
+          {% endfor %}
+        </div>
+        {% if user_xp_rank and user_xp_rank > 5 %}
+          <div class="dash-leaderboard__you">Вы на {{ user_xp_rank }}-м месте</div>
+        {% endif %}
+        <a href="{{ url_for('study.leaderboard') }}" class="dash-leaderboard__link">Полный рейтинг &rarr;</a>
+      </div>
+      {% endif %}
+    </main>
+
+    <div class="dash-path__rail-wrap">
+      {% include 'components/_dashboard_rail.html' %}
+
+      {# ── ACHIEVEMENTS (right rail, below week rhythm) ── #}
+      {% if achievements_by_category and achievements_by_category.by_category %}
+      <div class="dash-achievements dash-achievements--rail">
+        <h3 class="dash-achievements__heading">&#127941; Достижения</h3>
+        <div class="dash-achievements__summary">
+          <span class="dash-achievements__count">{{ achievements_by_category.earned_count }} / {{ achievements_by_category.total_achievements }}</span>
+          <span class="dash-achievements__pct">{{ achievements_by_category.progress_percentage }}%</span>
+        </div>
+        <div class="dash-achievements__categories">
+          {% for category, items in achievements_by_category.by_category.items() %}
+            {% set earned_in_cat = items|selectattr('earned')|list|length %}
+            {% set total_in_cat = items|length %}
+            {% set pct = (earned_in_cat / total_in_cat * 100)|round|int if total_in_cat > 0 else 0 %}
+            <div class="dash-achievements__cat">
+              <div class="dash-achievements__ring" style="--pct: {{ pct }}">
+                <svg viewBox="0 0 36 36" class="dash-achievements__svg">
+                  <circle cx="18" cy="18" r="15.9" class="dash-achievements__track"></circle>
+                  <circle cx="18" cy="18" r="15.9" class="dash-achievements__fill" stroke-dasharray="{{ pct }}, 100"></circle>
+                </svg>
+                <span class="dash-achievements__ring-text">{{ earned_in_cat }}/{{ total_in_cat }}</span>
+              </div>
+              <span class="dash-achievements__cat-name">{{ category }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
 </div>
 
 {# Book-select modal: opened by the setup_book item when the URL resolves to
