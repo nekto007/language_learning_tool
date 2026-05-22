@@ -10,6 +10,20 @@
 {% block content %}
 {{ page_header('Активность пользователей', 'Хронологический журнал событий по всем пользователям') }}
 
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a class="nav-link active" href="{{ url_for('activity_admin.activity_index') }}">
+            <i class="fas fa-stream me-1"></i>Лента событий
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('activity_admin.activity_funnel') }}">
+            <i class="fas fa-filter me-1"></i>Воронка конверсий
+        </a>
+    </li>
+</ul>
+
 <!-- Filter Bar -->
 <div class="card mb-4">
     <div class="card-header">

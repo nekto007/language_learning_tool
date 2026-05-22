@@ -1,0 +1,235 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% macro heatmap_style(pct) %}
+{%- if pct is none -%}
+{%- elif pct >= 50 -%}background-color:#d4edda;
+{%- elif pct >= 25 -%}background-color:#fff3cd;
+{%- else -%}background-color:#f8d7da;
+{%- endif -%}
+{% endmacro %}
+
+{% block title %}Воронка конверсий{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('Активность', url_for('activity_admin.activity_index')), ('Воронка', '')]) }}
+{% endblock %}
+
+{% block content %}
+{{ page_header('Воронка конверсий', 'Прохождение пользователей по этапам онбординга и удержание') }}
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('activity_admin.activity_index') }}">
+            <i class="fas fa-stream me-1"></i>Лента событий
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link active" href="{{ url_for('activity_admin.activity_funnel') }}">
+            <i class="fas fa-filter me-1"></i>Воронка конверсий
+        </a>
+    </li>
+</ul>
+
+<!-- Controls -->
+<div class="card mb-4">
+    <div class="card-body py-2">
+        <form method="GET" action="{{ url_for('activity_admin.activity_funnel') }}" class="d-flex align-items-center gap-3 flex-wrap">
+            <div class="d-flex align-items-center gap-2">
+                <label class="mb-0 text-nowrap">Окно регистрации:</label>
+                <select name="days" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                    {% for d in [7, 14, 30, 60, 90] %}
+                    <option value="{{ d }}" {% if d == days %}selected{% endif %}>{{ d }} дней</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <label class="mb-0 text-nowrap">Недели когорт:</label>
+                <select name="weeks" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                    {% for w in [4, 8, 12, 16] %}
+                    <option value="{{ w }}" {% if w == weeks %}selected{% endif %}>{{ w }} нед.</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <span class="text-muted small ms-auto">
+                Обновлено: {{ funnel.generated_at.strftime('%d.%m.%Y %H:%M') }} UTC
+            </span>
+        </form>
+    </div>
+</div>
+
+<!-- Funnel Chart -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="fas fa-filter me-2"></i>Воронка — пользователи за последние {{ days }} дней
+        </h6>
+    </div>
+    <div class="card-body">
+        <canvas id="funnelChart" height="80"></canvas>
+    </div>
+</div>
+
+<!-- Funnel Table -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-table me-2"></i>Конверсия по шагам</h6>
+    </div>
+    <div class="card-body p-0">
+        <table class="table mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Шаг</th>
+                    <th class="text-end">Пользователей</th>
+                    <th class="text-end">от предыдущего</th>
+                    <th class="text-end">от начала</th>
+                    <th style="min-width: 200px;">Доля</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for step in funnel.steps %}
+                <tr>
+                    <td>{{ step.label }}</td>
+                    <td class="text-end fw-bold">{{ '{:,}'.format(step.count).replace(',', '\u202f') }}</td>
+                    <td class="text-end">
+                        {% if step.conversion_from_prev is not none %}
+                            <span class="badge {% if step.conversion_from_prev >= 70 %}bg-success{% elif step.conversion_from_prev >= 40 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                {{ step.conversion_from_prev }}%
+                            </span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end text-muted small">{{ step.conversion_from_top }}%</td>
+                    <td>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar
+                                {% if step.conversion_from_top >= 70 %}bg-success
+                                {% elif step.conversion_from_top >= 40 %}bg-warning
+                                {% else %}bg-danger{% endif %}"
+                                style="width: {{ step.conversion_from_top }}%;">
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Cohort Retention Heatmap -->
+<div class="card">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="fas fa-th me-2"></i>Когортное удержание — по неделям регистрации
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        {% if cohorts %}
+        <div class="table-responsive">
+            <table class="table table-bordered mb-0" style="font-size: 0.85rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Неделя</th>
+                        <th class="text-center">Размер</th>
+                        <th class="text-center" title="Вернулись в первые 48 часов">День 1</th>
+                        <th class="text-center" title="Активны в первые 7 дней">День 7</th>
+                        <th class="text-center" title="Активны в первые 30 дней">День 30</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cohort in cohorts %}
+                    <tr>
+                        <td class="fw-medium">{{ cohort.week_label }}</td>
+                        <td class="text-center text-muted">
+                            {% if cohort.cohort_size > 0 %}{{ cohort.cohort_size }}{% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-center" style="{{ heatmap_style(cohort.day1_pct) }}">
+                            {% if cohort.day1_pct is not none %}{{ cohort.day1_pct }}%{% else %}<span class="text-muted small">—</span>{% endif %}
+                        </td>
+                        <td class="text-center" style="{{ heatmap_style(cohort.day7_pct) }}">
+                            {% if cohort.day7_pct is not none %}{{ cohort.day7_pct }}%{% else %}<span class="text-muted small">н/д</span>{% endif %}
+                        </td>
+                        <td class="text-center" style="{{ heatmap_style(cohort.day30_pct) }}">
+                            {% if cohort.day30_pct is not none %}{{ cohort.day30_pct }}%{% else %}<span class="text-muted small">н/д</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="p-3 text-muted small">
+            <i class="fas fa-info-circle me-1"></i>
+            «н/д» — данных ещё недостаточно (нужно подождать 7 или 30 дней с момента окончания недели).
+            Цвет: <span style="background:#d4edda;padding:1px 6px;border-radius:3px;">зелёный</span> ≥ 50%,
+            <span style="background:#fff3cd;padding:1px 6px;border-radius:3px;">жёлтый</span> ≥ 25%,
+            <span style="background:#f8d7da;padding:1px 6px;border-radius:3px;">красный</span> < 25%.
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-chart-bar fa-3x mb-3"></i>
+            <p>Нет данных о когортах</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    const labels = {{ funnel.steps | map(attribute='label') | list | tojson }};
+    const counts = {{ funnel.steps | map(attribute='count') | list | tojson }};
+    const maxCount = Math.max(...counts, 1);
+
+    const colors = counts.map(c => {
+        const ratio = c / maxCount;
+        if (ratio >= 0.7) return 'rgba(40,167,69,0.75)';
+        if (ratio >= 0.4) return 'rgba(255,193,7,0.75)';
+        return 'rgba(220,53,69,0.75)';
+    });
+
+    new Chart(document.getElementById('funnelChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Пользователей',
+                data: counts,
+                backgroundColor: colors,
+                borderColor: colors.map(c => c.replace('0.75', '1')),
+                borderWidth: 1,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ' ' + ctx.raw.toLocaleString('ru-RU') + ' пользователей',
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    ticks: { callback: v => v.toLocaleString('ru-RU') }
+                },
+                y: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

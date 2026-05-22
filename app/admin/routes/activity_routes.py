@@ -8,6 +8,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request
 
 from app.admin.services.activity_feed_service import ALL_EVENT_TYPES, EVENT_TYPE_LABELS, get_recent_events
+from app.admin.services.cohort_service import get_cohort_retention, get_funnel_data
 from app.admin.utils.decorators import admin_required
 from app.utils.db import db
 
@@ -64,6 +65,28 @@ def activity_index():
         filter_types=selected_types or [],
         filter_date_from=request.args.get('date_from', ''),
         filter_date_to=request.args.get('date_to', ''),
+    )
+
+
+@activity_bp.route('/activity/funnel')
+@admin_required
+def activity_funnel():
+    days = request.args.get('days', 30, type=int)
+    if days not in (7, 14, 30, 60, 90):
+        days = 30
+    weeks = request.args.get('weeks', 8, type=int)
+    if weeks not in (4, 8, 12, 16):
+        weeks = 8
+
+    funnel = get_funnel_data(db.session, days=days)
+    cohorts = get_cohort_retention(db.session, weeks=weeks)
+
+    return render_template(
+        'admin/activity/funnel.html',
+        funnel=funnel,
+        cohorts=cohorts,
+        days=days,
+        weeks=weeks,
     )
 
 
