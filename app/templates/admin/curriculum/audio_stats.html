@@ -52,10 +52,12 @@
                             {% if module.missing_files %}
                             <button class="btn btn-sm btn-outline-secondary" type="button"
                                     data-bs-toggle="collapse"
-                                    data-bs-target="#missing-{{ module.id }}">
+                                    data-bs-target="#missing-{{ module.uid }}"
+                                    aria-expanded="false"
+                                    aria-controls="missing-{{ module.uid }}">
                                 Показать ({{ module.missing_count }})
                             </button>
-                            <div class="collapse mt-2" id="missing-{{ module.id }}">
+                            <div class="collapse mt-2" id="missing-{{ module.uid }}">
                                 <div class="small">
                                     {% for item in module.missing_files %}
                                     <div class="mb-1">

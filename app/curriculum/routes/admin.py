@@ -677,6 +677,11 @@ def audio_stats():
                 'id': module.number,
                 'title': module.title,
                 'level': level_code,
+                'level_order': module.level.order if module.level else 0,
+                # Unique key combining level + module number, used as DOM id
+                # for the collapse target so each "Показать" button toggles
+                # ONLY its own module's missing-files block.
+                'uid': f"{level_code}-{module.number}",
                 'total_audio': len(audio_refs),
                 'missing_count': len(missing_files),
                 'missing_files': missing_files,
@@ -685,7 +690,9 @@ def audio_stats():
                 ),
             })
 
-    module_stats.sort(key=lambda x: x['id'])
+    # Sort by (level_order, module number) so output reads A1/M1, A1/M2, ...,
+    # A2/M1, ..., not all M1 from every level interleaved.
+    module_stats.sort(key=lambda x: (x['level_order'], x['id']))
 
     return render_template(
         'admin/curriculum/audio_stats.html',
