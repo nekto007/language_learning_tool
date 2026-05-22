@@ -895,10 +895,12 @@ def dashboard():
     # Process deferred referral reward on first visit
     _process_referral_reward_on_first_visit(current_user)
 
-    # Linear-plan users get the redesigned path dashboard; mission-plan
-    # legacy cohort continues to see the rich widget dashboard until
-    # mission plan is fully retired.
-    if bool(getattr(current_user, 'use_linear_plan', False)):
+    # Unified-plan users skip the Path UI entirely and fall through to the
+    # main dashboard.html, which routes on ``unified_plan`` and renders
+    # partials/unified_daily_plan.html with required/optional/setup sections.
+    # Linear-plan-only users still get the redesigned Path dashboard.
+    if not bool(getattr(current_user, 'use_unified_plan', False)) and \
+       bool(getattr(current_user, 'use_linear_plan', False)):
         try:
             return _render_path_dashboard(tz)
         except Exception:
