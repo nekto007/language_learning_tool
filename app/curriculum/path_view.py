@@ -638,4 +638,9 @@ def build_dashboard_path(
     )
 
     segments = [s for s in (today, challenge_seg, preview) if s.nodes]
+    logger.info(
+        "dashboard_path user=%s today=%d challenge=%d preview=%d label=%r milestone_ctx=%r",
+        user_id, len(today.nodes), len(challenge_seg.nodes), len(preview.nodes),
+        preview.label, milestone_ctx,
+    )
     return DashboardPath(segments=segments, preview_module_label=preview_label)
