@@ -94,19 +94,33 @@ SLOT_KIND_LABELS_RU: dict[str, str] = {
     'error_review': 'Разбор ошибок',
 }
 
-# Locked-state copy: explain *why* it's locked rather than just showing
-# a padlock. Keyed by the slot kind that's locked.
-LOCKED_REASONS_RU: dict[str, str] = {
-    'curriculum': 'Откроется после следующего урока',
-    'srs': 'Откроется после повторения',
-    'reading': 'Откроется после повторения',
-    'book': 'Откроется после повторения',
-    'listening': 'Откроется после аудирования',
-    'speaking': 'Откроется после говорения',
-    'writing': 'Откроется после письма',
-    'error_review': 'Откроется после разбора',
+# Genitive (after-X) forms of slot actions — used to build dynamic
+# locked-reason copy that refers to the *preceding* slot in the chain.
+# Example: locked SRS slot after a reading slot reads
+# «Откроется после чтения» (not «Откроется после повторения», which
+# self-references the slot itself).
+SLOT_KIND_GENITIVE_RU: dict[str, str] = {
+    'curriculum': 'урока',
+    'srs': 'повторения',
+    'reading': 'чтения',
+    'book': 'чтения',
+    'listening': 'аудирования',
+    'speaking': 'говорения',
+    'writing': 'письма',
+    'error_review': 'разбора ошибок',
 }
 LOCKED_REASON_DEFAULT_RU = 'Откроется после предыдущего шага'
+
+
+def _build_locked_reason(prev_kind: Optional[str]) -> str:
+    """Compose 'Откроется после <X>' from the kind of the slot that
+    immediately precedes the locked one in the chain."""
+    if not prev_kind:
+        return LOCKED_REASON_DEFAULT_RU
+    action = SLOT_KIND_GENITIVE_RU.get(prev_kind)
+    if not action:
+        return LOCKED_REASON_DEFAULT_RU
+    return f'Откроется после {action}'
 
 # Cosmetic horizontal offsets so the column doesn't read like a straight
 # list. Deliberately gentler than Duolingo's full zig-zag.
@@ -227,13 +241,13 @@ def _slot_title_localised(slot: dict[str, Any]) -> str:
 
 def _slot_to_node(
     slot: dict[str, Any], state: str, offset_idx: int,
+    prev_slot_kind: Optional[str] = None,
 ) -> PathNode:
     kind = slot.get('kind') or ''
     title = _slot_title_localised(slot)
     label = SLOT_KIND_LABELS_RU.get(kind)
 
     # Milestone state: curriculum slot whose title is the «finished» marker.
-    # Treat as a celebratory done-state, not a regular «done» slot.
     raw_title = (slot.get('title') or '').strip().lower()
     is_milestone = state == 'done' and kind == 'curriculum' and raw_title.startswith('curriculum')
     if is_milestone:
@@ -241,6 +255,8 @@ def _slot_to_node(
         icon_key = MILESTONE_ICON
     else:
         icon_key = SLOT_KIND_ICONS.get(kind, DEFAULT_ICON)
+
+    locked_reason = _build_locked_reason(prev_slot_kind) if state == 'locked' else None
 
     return PathNode(
         title=title,
@@ -252,7 +268,7 @@ def _slot_to_node(
         slot_kind=kind,
         eta_minutes=slot.get('eta_minutes'),
         label=label,
-        locked_reason=LOCKED_REASONS_RU.get(kind, LOCKED_REASON_DEFAULT_RU) if state == 'locked' else None,
+        locked_reason=locked_reason,
     )
 
 
@@ -281,6 +297,7 @@ def _build_today_segment(
 
     nodes: list[PathNode] = []
     current_assigned = False
+    prev_kind: Optional[str] = None
     for idx, slot in enumerate(slots):
         if slot.get('skipped'):
             # Skipped slots simply don't appear in the path — they
@@ -298,7 +315,8 @@ def _build_today_segment(
             current_assigned = True
         else:
             state = 'locked'
-        nodes.append(_slot_to_node(slot, state, idx))
+        nodes.append(_slot_to_node(slot, state, idx, prev_slot_kind=prev_kind))
+        prev_kind = kind
 
     return PathSegment(kind='today', label='Сегодня', nodes=nodes)
 

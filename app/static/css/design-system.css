@@ -16534,11 +16534,10 @@ span.vocab-word.vocab-word--active {
 }
 .path-card__label {
     display: inline-block;
-    font-size: 0.66rem;
-    font-weight: 700;
+    font-size: 0.78rem;
+    font-weight: 600;
     color: var(--path-accent);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0;
     margin-bottom: 0.15rem;
 }
 .path-card__title {
@@ -16610,11 +16609,10 @@ span.vocab-word.vocab-word--active {
 }
 .dash-rail__heading {
     margin: 0 0 0.75rem;
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 700;
-    color: var(--path-slate-700);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    color: var(--path-slate-900);
+    letter-spacing: -0.005em;
 }
 .dash-rail__svg { width: 16px; height: 16px; }
 
