@@ -240,15 +240,47 @@ def build_curriculum_slot(
         next_lesson = find_next_lesson_linear(user_id, db)
 
     if next_lesson is None:
-        logger.info("curriculum_slot user=%s state=complete no_lessons_remaining", user_id)
+        # ``next_lesson is None`` is overloaded — it could mean genuinely
+        # completed OR no eligible content (empty level / all blocked /
+        # bare catalog).  Disambiguate by inspecting LessonProgress:
+        # «completed» is only legitimate when the user actually has
+        # completion history. Otherwise we surface a starter-state that
+        # the dashboard can render as «перейти к каталогу», not as a
+        # bogus «Курс пройден» milestone.
+        from app.curriculum.models import LessonProgress
+        has_history = (
+            db.session.query(LessonProgress.id)
+            .filter(
+                LessonProgress.user_id == user_id,
+                LessonProgress.status == 'completed',
+            )
+            .first()
+        ) is not None
+        if has_history:
+            logger.info("curriculum_slot user=%s state=complete no_lessons_remaining", user_id)
+            return LinearSlot(
+                kind='curriculum',
+                title='Curriculum complete',
+                lesson_type=None,
+                eta_minutes=0,
+                url=None,
+                completed=True,
+                data={'state': 'completed'},
+            )
+        # No history AND no next lesson — content unavailable for the
+        # user (empty level, blocked prereqs, bare catalogue). Surface
+        # an actionable «browse catalogue» CTA instead of a bogus
+        # «Курс пройден» celebration. completed=False makes this slot
+        # the «current» step so the dashboard nudges the user to act.
+        logger.info("curriculum_slot user=%s state=empty no_lessons_no_history", user_id)
         return LinearSlot(
             kind='curriculum',
-            title='Curriculum complete',
+            title='Перейти в каталог',
             lesson_type=None,
-            eta_minutes=0,
-            url=None,
-            completed=True,
-            data={},
+            eta_minutes=5,
+            url='/learn/',
+            completed=False,
+            data={'state': 'empty_catalog'},
         )
 
     # Authoritative completion: did the user earn curriculum XP today?

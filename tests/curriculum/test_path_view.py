@@ -366,6 +366,28 @@ def test_curriculum_complete_user_preview_shows_review(
     assert {n.lesson_id for n in preview.nodes} == {l1.id, l2.id}
 
 
+def test_milestone_NOT_promoted_for_user_without_progress():
+    """Critical: a user with zero LessonProgress.completed must NEVER
+    see a «Курс пройден» milestone, even if curriculum_slot mistakenly
+    sets completed=True with title 'Curriculum complete'. allow_milestone
+    is the belt-and-suspenders guard."""
+    from app.curriculum.path_view import _build_today_segment
+    plan = {
+        'slots': [
+            {'kind': 'curriculum', 'title': 'Curriculum complete',
+             'url': '', 'completed': True, 'data': {}},
+            {'kind': 'srs', 'title': 'SRS', 'url': '/y',
+             'completed': False, 'data': {}},
+        ],
+        'chain_meta': {'baseline_count': 2},
+    }
+    seg = _build_today_segment(plan, {}, milestone_context=None,
+                                allow_milestone=False)
+    # Fresh user: curriculum stays as plain «done», not «milestone».
+    assert seg.nodes[0].state == 'done'
+    assert seg.nodes[0].icon != 'trophy'
+
+
 def test_milestone_context_fallback_to_level_when_no_progress():
     """When LessonProgress is empty but linear_plan reports a CEFR level,
     milestone caption falls back to «Уровень <X> пройден»."""

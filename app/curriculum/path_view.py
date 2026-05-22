@@ -243,19 +243,27 @@ def _slot_to_node(
     slot: dict[str, Any], state: str, offset_idx: int,
     prev_slot_kind: Optional[str] = None,
     milestone_context: Optional[str] = None,
+    allow_milestone: bool = True,
 ) -> PathNode:
     kind = slot.get('kind') or ''
     title = _slot_title_localised(slot)
     label = SLOT_KIND_LABELS_RU.get(kind)
 
-    # Milestone state: curriculum slot whose title is the «finished» marker.
+    # Milestone state: curriculum slot whose title marks «finished» AND
+    # the caller has confirmed the user has real completion history.
+    # The second check is a belt-and-suspenders defence against legacy
+    # callers that mark slots completed when there's no actual progress.
     raw_title = (slot.get('title') or '').strip().lower()
-    is_milestone = state == 'done' and kind == 'curriculum' and raw_title.startswith('curriculum')
+    is_milestone = (
+        allow_milestone
+        and state == 'done'
+        and kind == 'curriculum'
+        and raw_title.startswith('curriculum')
+    )
     if is_milestone:
         state = 'milestone'
         icon_key = MILESTONE_ICON
         # Milestone label carries WHAT was completed («A2 · Animals» etc.)
-        # so the user has context for the celebration, not just a trophy.
         if milestone_context:
             label = milestone_context
     else:
@@ -333,6 +341,7 @@ def _build_today_segment(
     linear_plan: dict[str, Any],
     plan_completion: dict[str, Any],
     milestone_context: Optional[str] = None,
+    allow_milestone: bool = True,
 ) -> PathSegment:
     """Map plan slots → today-segment nodes.
 
@@ -377,6 +386,7 @@ def _build_today_segment(
             slot, state, idx,
             prev_slot_kind=prev_kind,
             milestone_context=milestone_context,
+            allow_milestone=allow_milestone,
         ))
         prev_kind = kind
 
@@ -490,35 +500,57 @@ def _get_recent_completed_lessons(
 def _get_browseable_lessons(
     user_id: int, db: Any, limit: int,
 ) -> list[Lessons]:
-    """Return first ``limit`` lessons from the catalogue visible to the user.
+    """Return first ``limit`` lessons from the catalogue.
 
-    Final fallback for the preview segment when there's neither upcoming
-    spine work nor a completed-lesson history (fresh user / migrated
-    data). Lets the dashboard always offer something to click.
+    Two-pass cascade: first try at the user's CEFR level or above
+    (standard catalogue), then drop the filter entirely and pull from
+    any level. Catches the «user picked C1, no C1 content yet» case
+    where filtering by level would return empty but lower-level lessons
+    would still be a perfectly reasonable suggestion to click.
+
+    Final guarantee: if the curriculum has ANY lessons at all, the
+    preview tail is populated. Only returns empty when the DB is bare.
     """
     from app.daily_plan.linear.progression import _user_min_level_order
     try:
         min_order = _user_min_level_order(user_id, db)
     except Exception:
         min_order = 0
-    try:
-        return (
-            db.session.query(Lessons)
-            .join(Module, Module.id == Lessons.module_id)
-            .join(CEFRLevel, CEFRLevel.id == Module.level_id)
-            .filter(CEFRLevel.order >= min_order)
-            .order_by(
-                CEFRLevel.order.asc(),
-                Module.number.asc(),
-                Lessons.number.asc(),
-                Lessons.id.asc(),
+
+    def _query(min_level: int):
+        try:
+            return (
+                db.session.query(Lessons)
+                .join(Module, Module.id == Lessons.module_id)
+                .join(CEFRLevel, CEFRLevel.id == Module.level_id)
+                .filter(CEFRLevel.order >= min_level)
+                .order_by(
+                    CEFRLevel.order.asc(),
+                    Module.number.asc(),
+                    Lessons.number.asc(),
+                    Lessons.id.asc(),
+                )
+                .limit(limit)
+                .all()
             )
-            .limit(limit)
-            .all()
+        except Exception:
+            logger.warning('browseable_lessons: query failed (min=%s)', min_level, exc_info=True)
+            return []
+
+    # Pass 1: respect user's level (typical case).
+    results = _query(min_order)
+    if results:
+        return results
+
+    # Pass 2: drop the level filter. C1-user with no C1 content still
+    # gets to click something rather than stare at blank space.
+    if min_order > 0:
+        logger.info(
+            "browseable_lessons user=%s: nothing at level order>=%d, falling back to any level",
+            user_id, min_order,
         )
-    except Exception:
-        logger.warning('browseable_lessons: query failed', exc_info=True)
-        return []
+        results = _query(0)
+    return results
 
 
 def _build_preview_segment(
@@ -614,10 +646,28 @@ def build_dashboard_path(
     avoid duplicate DB work. Tests can pass them directly without
     hitting the plan assembler.
     """
-    milestone_ctx = _get_milestone_context(user_id, db, linear_plan=linear_plan)
+    # Authoritative «user has progress» check. Milestone state may ONLY
+    # render when there's real LessonProgress history — prevents the
+    # «Курс пройден» banner from showing for a fresh user whose plan
+    # returned None next-lesson because the catalogue is empty / gated.
+    try:
+        has_progress = (
+            db.session.query(LessonProgress.id)
+            .filter(
+                LessonProgress.user_id == user_id,
+                LessonProgress.status == 'completed',
+            )
+            .first()
+        ) is not None
+    except Exception:
+        logger.warning('dashboard_path: progress lookup failed', exc_info=True)
+        has_progress = False
+
+    milestone_ctx = _get_milestone_context(user_id, db, linear_plan=linear_plan) if has_progress else None
     today = _build_today_segment(
         linear_plan or {}, plan_completion or {},
         milestone_context=milestone_ctx,
+        allow_milestone=has_progress,
     )
     challenge_seg = _build_challenge_segment(challenge, offset_idx=len(today.nodes))
 

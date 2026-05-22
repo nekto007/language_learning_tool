@@ -87,7 +87,12 @@ def find_next_lesson_linear(user_id: int, db: Any) -> Optional[Lessons]:
             module = db.session.get(Module, module_id)
             accessible = True
             if module is not None:
-                ok, _reasons = module.check_prerequisites(user_id)
+                # Pass min_level_order so a placement-test C1 student
+                # isn't blocked by «complete B1 module» prerequisites
+                # they were never asked to study.
+                ok, _reasons = module.check_prerequisites(
+                    user_id, min_level_order=min_order,
+                )
                 accessible = bool(ok)
                 if not ok:
                     logger.debug(

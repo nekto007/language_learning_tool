@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer, JSON, SmallInteger, String, Text, func
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import joinedload, relationship
 
 from app.utils.db import db
 from config.settings import PASSING_SCORE_PERCENT
@@ -63,9 +63,19 @@ class Module(db.Model):
         Index('idx_modules_number', 'number'),
     )
 
-    def check_prerequisites(self, user_id: int) -> tuple[bool, list[str]]:
+    def check_prerequisites(
+        self, user_id: int, min_level_order: int | None = None,
+    ) -> tuple[bool, list[str]]:
         """
         Check if user meets prerequisites for this module.
+
+        Args:
+            user_id: target user.
+            min_level_order: when provided, prerequisites that point to
+                modules whose CEFR level is strictly below this order
+                are ignored. Use the user's ``onboarding_level`` order
+                so a placement-test C1 student isn't required to grind
+                through A1-B2 modules they were placed past.
 
         Returns:
             tuple: (is_accessible, reasons_blocked)
@@ -86,23 +96,38 @@ class Module(db.Model):
         if not prereq_ids:
             return True, []
 
+        # Eager-load CEFRLevel so the optional min_level_order filter
+        # doesn't fan out into N extra queries.
         prereq_modules = {
-            m.id: m for m in Module.query.filter(Module.id.in_(prereq_ids)).all()
+            m.id: m for m in (
+                Module.query
+                .filter(Module.id.in_(prereq_ids))
+                .options(joinedload(Module.level))
+                .all()
+            )
         }
 
         # Check each prerequisite using pre-loaded modules
         for prereq in module_prereqs:
             prereq_module = prereq_modules.get(prereq['id'])
-            if prereq_module:
-                # Check if user completed this module
-                progress = self._get_module_completion(user_id, prereq['id'])
-                min_score = prereq.get('min_score', PASSING_SCORE_PERCENT)
+            if prereq_module is None:
+                continue
 
-                if progress['progress_percent'] < 100:
-                    reasons.append(f"Complete module '{prereq_module.title}'")
-                elif progress['avg_score'] < min_score:
-                    reasons.append(
-                        f"Score {min_score}%+ in '{prereq_module.title}' (current: {progress['avg_score']:.0f}%)")
+            # Placement-aware skip: a C1 student shouldn't be told to
+            # finish a B1 prereq they were never expected to study.
+            if min_level_order is not None and prereq_module.level is not None:
+                if (prereq_module.level.order or 0) < min_level_order:
+                    continue
+
+            # Check if user completed this module
+            progress = self._get_module_completion(user_id, prereq['id'])
+            min_score = prereq.get('min_score', PASSING_SCORE_PERCENT)
+
+            if progress['progress_percent'] < 100:
+                reasons.append(f"Complete module '{prereq_module.title}'")
+            elif progress['avg_score'] < min_score:
+                reasons.append(
+                    f"Score {min_score}%+ in '{prereq_module.title}' (current: {progress['avg_score']:.0f}%)")
 
         return len(reasons) == 0, reasons
 
