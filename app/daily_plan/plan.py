@@ -245,6 +245,7 @@ def get_daily_plan(
     level_progress = get_user_level_progress(user_id, session, next_lesson=next_lesson)
     focus = _get_user_focus(user_id, session)
     difficulty = _get_plan_difficulty(user_id, session)
+    module_progress = _compute_module_progress(user_id, session, next_lesson)
 
     required = build_required(user_id, session, difficulty=difficulty, focus=focus)
     optional, has_more_optional = build_optional(
@@ -276,6 +277,7 @@ def get_daily_plan(
         'mode': 'unified',
         'position': _position_from_lesson(next_lesson),
         'progress': _level_progress_to_dict(level_progress),
+        'module_progress': module_progress,
         'required': [it.to_dict() for it in required],
         'optional': [it.to_dict() for it in optional],
         'setup': [it.to_dict() for it in setup],
@@ -283,4 +285,45 @@ def get_daily_plan(
         'total_estimated_minutes': total_estimated_minutes,
         'plan_intensity': get_plan_intensity(total_estimated_minutes),
         'has_more_optional': has_more_optional,
+    }
+
+
+def _compute_module_progress(user_id: int, db: Any, next_lesson: Any) -> Optional[dict[str, Any]]:
+    """Return module title + remaining-lessons count, or None if no module.
+
+    Lightweight DB call — single COUNT for the user's current module so the
+    dashboard can show «Артикли и some/any · до конца модуля: 10 уроков»
+    instead of the demotivating «осталось 413 уроков на A2».
+    """
+    if next_lesson is None:
+        return None
+    module = getattr(next_lesson, 'module', None)
+    if module is None:
+        return None
+
+    from app.curriculum.models import LessonProgress, Lessons
+
+    total = (
+        db.session.query(Lessons.id)
+        .filter(Lessons.module_id == module.id)
+        .count()
+    )
+    completed = (
+        db.session.query(LessonProgress.id)
+        .join(Lessons, Lessons.id == LessonProgress.lesson_id)
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+            Lessons.module_id == module.id,
+        )
+        .count()
+    )
+    remaining = max(total - completed, 0)
+    return {
+        'module_id': module.id,
+        'module_number': module.number,
+        'module_title': module.title,
+        'lessons_total': total,
+        'lessons_completed': completed,
+        'lessons_remaining': remaining,
     }

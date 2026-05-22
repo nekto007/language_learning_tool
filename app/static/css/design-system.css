@@ -17205,3 +17205,112 @@ body.dashboard-path-wide main.container {
     .daily-plan__layout { grid-template-columns: 1fr; }
     .daily-plan__sidebar { order: 2; }
 }
+
+/* Unified plan: module-title header + compact done items + button CTA + readable locked + optional badges */
+.daily-plan__module-title {
+    margin: 6px 0 4px;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text, #222);
+}
+.daily-plan__module-progress {
+    margin-top: 6px;
+}
+.daily-plan__close-hint {
+    margin: 12px 0 0;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted, #888);
+}
+
+/* Compact done item — one line, low height */
+.plan-item--compact {
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    align-items: center;
+}
+.plan-item--compact:hover {
+    border-color: transparent;
+    background: var(--color-success-soft, #f0fdf4);
+}
+.plan-item--compact .plan-item__marker--done {
+    width: 22px; height: 22px;
+    background: var(--color-success, #16a34a);
+    color: #fff;
+    font-size: 0.75rem;
+}
+.plan-item__link--compact {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.plan-item--compact .plan-item__title {
+    text-decoration: line-through;
+    opacity: 0.72;
+}
+.plan-item__subtitle--inline {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted, #888);
+}
+
+/* Locked: muted but readable, named-prev hint */
+.plan-item--locked {
+    opacity: 1;
+    background: var(--color-surface-muted, #fafafa);
+    border-color: var(--color-border, #e5e5e5);
+}
+.plan-item--locked .plan-item__title--locked {
+    font-weight: 500;
+    color: var(--color-text, #555);
+    opacity: 0.85;
+}
+.plan-item__marker--locked {
+    background: transparent;
+    color: var(--color-text-muted, #888);
+    font-size: 1rem;
+}
+
+/* CTA «Начать →» as a real button (was an inline link) */
+.plan-item__cta--button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--color-brand, #4f46e5);
+    color: #fff !important;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: transform 0.05s ease, background 0.2s;
+}
+.plan-item__cta--button:hover {
+    background: var(--color-brand-hover, #4338ca);
+    transform: translateY(-1px);
+}
+.plan-item__cta--button:active {
+    transform: translateY(0);
+}
+
+/* Optional: badge instead of generic «+» */
+.plan-item__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    background: var(--color-brand-soft, #eef2ff);
+    color: var(--color-brand, #4f46e5);
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+    height: 22px;
+    align-self: center;
+}
+.plan-item[data-challenge="true"] .plan-item__badge {
+    background: #fed7aa;
+    color: #c2410c;
+}

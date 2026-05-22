@@ -93,8 +93,8 @@ def build_srs_item(
     }
 
     if due_count <= 0 and completed_today:
-        title = f'Повторено {reviews_today} карточек'
-        subtitle = 'на сегодня всё'
+        title = 'Повторение засчитано'
+        subtitle = f'{reviews_today} карточек · на сегодня всё' if reviews_today else 'на сегодня всё'
     else:
         title = f'Повторить {due_count} карточек'
         subtitle = f'{due_count} к повторению'

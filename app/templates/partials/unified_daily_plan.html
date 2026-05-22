@@ -1,12 +1,7 @@
-{# Unified daily plan partial: required / optional / setup.
-
-   Required items are sequentially gated — only the first incomplete item
-   is actionable («Начать»). Items after it stay locked until the previous
-   one is done («Откроется после завершения предыдущего»). Completed items
-   remain clickable for replay. Optional / setup items are free-form.
-#}
+{# Unified daily plan partial: required / optional / setup. #}
 {% set u_position = unified_plan.get('position') %}
 {% set u_progress = unified_plan.get('progress') or {} %}
+{% set u_module = unified_plan.get('module_progress') or {} %}
 {% set u_required = unified_plan.get('required') or [] %}
 {% set u_optional = unified_plan.get('optional') or [] %}
 {% set u_setup = unified_plan.get('setup') or [] %}
@@ -30,7 +25,7 @@
 
 <section class="daily-plan" data-daily-plan="true" data-mode="unified">
 
-  {# ── Header: spine position + level progress ── #}
+  {# ── Header: human-readable spine position + module progress ── #}
   <header class="daily-plan__header">
     {% if u_position %}
       {% set _lvl = u_position.get('level_code') or '' %}
@@ -38,25 +33,29 @@
       {% set _les = u_position.get('lesson_number') %}
       <span class="daily-plan__position">
         {% if _lvl %}{{ _lvl }}{% endif %}
-        {% if _mod is not none %} · M{{ _mod }}{% endif %}
-        {% if _les is not none %} · L{{ _les }}{% endif %}
+        {% if _mod is not none %} · Модуль {{ _mod }}{% endif %}
+        {% if _les is not none %} · Урок {{ _les }}{% endif %}
       </span>
+      {% if u_module.get('module_title') %}
+        <h2 class="daily-plan__module-title">{{ u_module.get('module_title') }}</h2>
+      {% endif %}
+      {% if u_module.get('lessons_total') %}
+        {% set _done = u_module.get('lessons_completed', 0) %}
+        {% set _total = u_module.get('lessons_total') %}
+        {% set _remain = u_module.get('lessons_remaining', 0) %}
+        <div class="daily-plan__module-progress">
+          <div class="daily-plan__level-bar" role="progressbar" aria-valuemin="0" aria-valuemax="{{ _total }}" aria-valuenow="{{ _done }}">
+            <div class="daily-plan__level-bar__fill" style="width: {{ ((_done / _total) * 100)|round(0) }}%"></div>
+          </div>
+          <span class="daily-plan__level-caption">
+            Прогресс модуля: {{ _done }}/{{ _total }}{% if _remain > 0 %} · до конца модуля {{ _remain }} {% if _remain == 1 %}урок{% elif _remain < 5 %}урока{% else %}уроков{% endif %}{% endif %}
+          </span>
+        </div>
+      {% endif %}
     {% else %}
       <span class="daily-plan__position daily-plan__position--no-content" title="Подбираем материал под твой уровень">
         Подбираем материал
       </span>
-    {% endif %}
-
-    {% if u_progress %}
-      {% set _pct = u_progress.get('percent', 0) %}
-      <div class="daily-plan__level-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ _pct }}">
-        <div class="daily-plan__level-bar__fill" style="width: {{ _pct }}%"></div>
-      </div>
-      {% if u_progress.get('lessons_remaining_in_level') is not none %}
-        <span class="daily-plan__level-caption">
-          Осталось {{ u_progress.get('lessons_remaining_in_level') }} уроков на {{ u_progress.get('level', '?') }}
-        </span>
-      {% endif %}
     {% endif %}
   </header>
 
@@ -72,9 +71,6 @@
           <span class="daily-plan__eta">· ~{{ u_eta }} мин</span>
         {% endif %}
       </h3>
-      {% if u_day_secured %}
-        <p class="daily-plan__secured-note">День закрыт <span aria-hidden="true">&#10003;</span></p>
-      {% endif %}
     </div>
 
     {% if u_required %}
@@ -87,39 +83,65 @@
           {% set _kind = item.get('kind', '') %}
           {% set _url = item.get('url') or '#' %}
           {% set _state = 'done' if _completed else ('locked' if _is_locked else 'current') %}
-          <li class="plan-item plan-item--{{ _kind }} plan-item--{{ _state }}"
+          {# Locked hint: name the previous step the user must close first. #}
+          {% set _prev = u_required[loop.index0 - 1] if loop.index0 > 0 else None %}
+          {% set _prev_short = '' %}
+          {% if _prev %}
+            {% if _prev.get('kind') == 'srs' %}{% set _prev_short = 'карточек' %}
+            {% elif _prev.get('kind') == 'curriculum' %}{% set _prev_short = 'урока курса' %}
+            {% elif _prev.get('kind') == 'listening' %}{% set _prev_short = 'аудирования' %}
+            {% elif _prev.get('kind') == 'reading' %}{% set _prev_short = 'чтения' %}
+            {% else %}{% set _prev_short = 'предыдущего шага' %}{% endif %}
+          {% endif %}
+          <li class="plan-item plan-item--{{ _kind }} plan-item--{{ _state }}{% if _completed %} plan-item--compact{% endif %}"
               data-plan-item="true"
               data-item-id="{{ _id }}"
               data-item-kind="{{ _kind }}"
               data-state="{{ _state }}">
-            <span class="plan-item__marker" aria-hidden="true">
-              {% if _completed %}&#10003;{% elif _is_locked %}&#128274;{% else %}{{ loop.index }}{% endif %}
-            </span>
-            <div class="plan-item__body">
-              {% if _is_locked %}
-                <span class="plan-item__title plan-item__title--locked">{{ item.get('title') }}</span>
+            {% if _completed %}
+              {# Compact one-liner for completed items. #}
+              <span class="plan-item__marker plan-item__marker--done" aria-hidden="true">&#10003;</span>
+              <a class="plan-item__link plan-item__link--compact" href="{{ _url }}">
+                <span class="plan-item__title">{{ item.get('title') }}</span>
                 {% if item.get('subtitle') %}
-                  <span class="plan-item__subtitle">{{ item.get('subtitle') }}</span>
+                  <span class="plan-item__subtitle plan-item__subtitle--inline">· {{ item.get('subtitle') }}</span>
                 {% endif %}
-                <span class="plan-item__lock-hint">Откроется после завершения предыдущего</span>
-              {% else %}
+              </a>
+            {% elif _is_locked %}
+              <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">&#128274;</span>
+              <div class="plan-item__body">
+                <span class="plan-item__title plan-item__title--locked">{{ item.get('title') }}</span>
+                <span class="plan-item__lock-hint">
+                  {% if _prev_short %}Откроется после {{ _prev_short }}{% else %}Откроется после завершения предыдущего{% endif %}
+                </span>
+              </div>
+            {% else %}
+              {# Current item — full card with prominent CTA button. #}
+              <span class="plan-item__marker" aria-hidden="true">{{ loop.index }}</span>
+              <div class="plan-item__body">
                 <a class="plan-item__link" href="{{ _url }}">
                   <span class="plan-item__title">{{ item.get('title') }}</span>
                   {% if item.get('subtitle') %}
-                    <span class="plan-item__subtitle">{{ item.get('subtitle') }}</span>
+                    <span class="plan-item__subtitle">{{ item.get('subtitle') }}{% if item.get('eta_minutes') %} · ~{{ item.get('eta_minutes') }} мин{% endif %}</span>
+                  {% elif item.get('eta_minutes') %}
+                    <span class="plan-item__subtitle">~{{ item.get('eta_minutes') }} мин</span>
                   {% endif %}
                 </a>
-                {% if item.get('eta_minutes') and not _completed %}
-                  <span class="plan-item__eta">~{{ item.get('eta_minutes') }} мин</span>
-                {% endif %}
-              {% endif %}
-            </div>
-            {% if _is_current %}
-              <a class="btn btn--primary plan-item__cta" href="{{ _url }}">Начать</a>
+              </div>
+              <a class="plan-item__cta plan-item__cta--button" href="{{ _url }}">
+                Начать <span aria-hidden="true">→</span>
+              </a>
             {% endif %}
           </li>
         {% endfor %}
       </ol>
+      {% if not u_day_secured and u_required_total > 0 %}
+        <p class="daily-plan__close-hint">
+          День закроется после {% if u_required_total == 1 %}этого шага{% else %}этих {{ u_required_total }} {% if u_required_total < 5 %}шагов{% else %}шагов{% endif %}{% endif %}.
+        </p>
+      {% else %}
+        <p class="daily-plan__secured-note">День закрыт <span aria-hidden="true">&#10003;</span></p>
+      {% endif %}
     {% else %}
       <p class="daily-plan__empty">
         Завершите настройку ниже, чтобы получить план дня.
@@ -131,36 +153,41 @@
   {% if u_optional %}
     <div class="daily-plan__section daily-plan__section--optional" data-section="optional">
       <div class="daily-plan__section-header">
-        <h3 class="daily-plan__section-title">Дальше необязательно, но засчитывается</h3>
+        <h3 class="daily-plan__section-title">Дополнительно</h3>
       </div>
       <ol class="daily-plan__list daily-plan__list--compact">
         {% for item in u_optional %}
           {% set _id = item.get('id') %}
           {% set _kind = item.get('kind', '') %}
           {% set _data = item.get('data') or {} %}
+          {% set _is_challenge = _data.get('is_challenge') %}
+          {% set _bonus = _data.get('bonus_xp') %}
           <li class="plan-item plan-item--{{ _kind }} plan-item--optional"
               data-plan-item="true"
               data-item-id="{{ _id }}"
               data-item-kind="{{ _kind }}"
-              {% if _data.get('is_challenge') %}data-challenge="true"{% endif %}>
-            <span class="plan-item__marker plan-item__marker--optional" aria-hidden="true">+</span>
+              {% if _is_challenge %}data-challenge="true"{% endif %}>
+            <span class="plan-item__badge">
+              {% if _is_challenge and _bonus %}+{{ _bonus }} XP{% else %}Бонус{% endif %}
+            </span>
             <div class="plan-item__body">
               <a class="plan-item__link" href="{{ item.get('url') or '#' }}">
                 <span class="plan-item__title">{{ item.get('title') }}</span>
-                {% if item.get('subtitle') %}
-                  <span class="plan-item__subtitle">{{ item.get('subtitle') }}</span>
+                {% if item.get('subtitle') or item.get('eta_minutes') %}
+                  <span class="plan-item__subtitle">
+                    {% if item.get('subtitle') %}{{ item.get('subtitle') }}{% endif %}
+                    {% if item.get('subtitle') and item.get('eta_minutes') %} · {% endif %}
+                    {% if item.get('eta_minutes') %}~{{ item.get('eta_minutes') }} мин{% endif %}
+                  </span>
                 {% endif %}
               </a>
-              {% if item.get('eta_minutes') %}
-                <span class="plan-item__eta">~{{ item.get('eta_minutes') }} мин</span>
-              {% endif %}
             </div>
           </li>
         {% endfor %}
       </ol>
       {% if u_has_more %}
         <button type="button" class="daily-plan__load-more" data-action="reload-plan">
-          Показать ещё
+          {% if u_day_secured %}Продолжить обучение{% else %}Показать ещё задания{% endif %}
         </button>
       {% endif %}
     </div>
@@ -211,11 +238,8 @@
 (function() {
     var root = document.querySelector('[data-daily-plan="true"][data-mode="unified"]');
     if (!root) return;
-
     var btn = root.querySelector('[data-action="reload-plan"]');
     if (btn) btn.addEventListener('click', function() { window.location.reload(); });
-
-    // Locked items: prevent navigation, show a brief toast-like inline note.
     root.querySelectorAll('.plan-item--locked .plan-item__link').forEach(function(a) {
         a.addEventListener('click', function(ev) { ev.preventDefault(); });
     });
