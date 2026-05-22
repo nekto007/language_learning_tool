@@ -146,14 +146,22 @@
               data-item-kind="{{ _kind }}"
               data-state="{{ _state }}">
             {% if _completed %}
-              {# Compact one-liner for completed items. #}
+              {# Compact one-liner for completed items. SRS done card also
+                 surfaces a hint (limit_reached / accuracy_low / backlog) so
+                 the user understands why the cap is what it is. #}
               <span class="plan-item__marker plan-item__marker--done" aria-hidden="true">&#10003;</span>
-              <a class="plan-item__link plan-item__link--compact" href="{{ _url }}">
-                <span class="plan-item__title">{{ item.get('title') }}</span>
-                {% if item.get('subtitle') %}
-                  <span class="plan-item__subtitle plan-item__subtitle--inline">· {{ item.get('subtitle') }}</span>
+              <div class="plan-item__body">
+                <a class="plan-item__link plan-item__link--compact" href="{{ _url }}">
+                  <span class="plan-item__title">{{ item.get('title') }}</span>
+                  {% if item.get('subtitle') %}
+                    <span class="plan-item__subtitle plan-item__subtitle--inline">· {{ item.get('subtitle') }}</span>
+                  {% endif %}
+                </a>
+                {% set _data = item.get('data') or {} %}
+                {% if _kind == 'srs' and _data.get('reason_hint') %}
+                  <span class="plan-item__hint">{{ _data.get('reason_hint') }}</span>
                 {% endif %}
-              </a>
+              </div>
             {% elif _is_locked %}
               <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">&#128274;</span>
               <div class="plan-item__body">

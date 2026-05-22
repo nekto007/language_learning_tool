@@ -86,24 +86,43 @@ def build_srs_item(
     new_today = count_new_cards_today(user_id, db)
     limit_reason = SRSService.get_adaptive_limit_reason(user_id)
 
+    reviews_remaining = max(reviews_limit - reviews_today, 0)
+    limit_reached = reviews_limit > 0 and reviews_today >= reviews_limit
+    reason_hint = None
+    if limit_reason == 'accuracy_low':
+        reason_hint = 'Точность ниже 85% — сосредоточьтесь на повторении'
+    elif limit_reason == 'backlog_reduction':
+        reason_hint = 'Лимит новых слов снижен — много просроченных карточек'
+    elif limit_reached:
+        reason_hint = 'Лимит повторений на сегодня достигнут'
+
     data: dict[str, Any] = {
         'due_count': due_count,
         'backlog_due_count': backlog,
         'reviews_today': reviews_today,
         'reviews_limit': reviews_limit,
-        'reviews_remaining': max(reviews_limit - reviews_today, 0),
+        'reviews_remaining': reviews_remaining,
         'new_count': new_today,
         'new_budget': remaining_new,
         'budget_remaining': remaining_new,
         'srs_limit_reason': limit_reason,
+        'limit_reached': limit_reached,
+        'reason_hint': reason_hint,
     }
 
     if due_count <= 0 and completed_today:
         title = 'Повторение засчитано'
-        subtitle = f'{reviews_today} карточек · на сегодня всё' if reviews_today else 'на сегодня всё'
+        subtitle_bits: list[str] = []
+        if reviews_today:
+            subtitle_bits.append(f'{reviews_today} карточек')
+        subtitle_bits.append('на сегодня всё')
+        subtitle = ' · '.join(subtitle_bits)
     else:
         title = f'Повторить {due_count} карточек'
-        subtitle = f'{due_count} к повторению'
+        subtitle_bits = [f'{due_count} к повторению']
+        if backlog > due_count:
+            subtitle_bits.append(f'в очереди ещё {backlog - due_count}')
+        subtitle = ' · '.join(subtitle_bits)
 
     return PlanItem(
         id='srs:global',

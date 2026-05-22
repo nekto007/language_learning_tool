@@ -17374,3 +17374,12 @@ body.dashboard-path-wide main.container {
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+.plan-item__hint {
+    display: block;
+    margin-top: 4px;
+    margin-left: 28px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #888);
+    line-height: 1.4;
+}
