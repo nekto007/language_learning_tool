@@ -969,6 +969,20 @@ def save_reading_position():
             current_user.id, exc_info=True,
         )
 
+    # Book milestone (off-band notification, transient). Only checked when a
+    # chapter just transitioned to fully completed — saves per-tick overhead.
+    if chapter_completed:
+        try:
+            from app.books.progress import compute_book_progress_percent
+            from app.daily_plan.milestones import check_book_milestone
+            percent = compute_book_progress_percent(current_user.id, book_id, db)
+            check_book_milestone(current_user.id, book_id, percent, db)
+        except Exception:
+            logger.warning(
+                "book milestone check failed user=%s book=%s",
+                current_user.id, book_id, exc_info=True,
+            )
+
     db.session.commit()
 
     if chapter_completed:

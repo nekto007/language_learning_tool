@@ -1261,6 +1261,7 @@ def dashboard():
             db.session.rollback()
 
     plan_paused_until = daily_plan.get('paused_until') if daily_plan.get('mode') == 'paused' else None
+    unified_plan = daily_plan if daily_plan.get('mode') == 'unified' else None
     linear_plan = daily_plan if daily_plan.get('mode') == 'linear' else None
     mission_plan = daily_plan if daily_plan.get('mission') else None
     plan_meta = daily_plan.get('_plan_meta', {})
@@ -1416,6 +1417,7 @@ def dashboard():
         plan_steps=daily_plan.get('steps', {}),
         mission_plan=mission_plan,
         linear_plan=linear_plan,
+        unified_plan=unified_plan,
         plan_paused_until=plan_paused_until,
         use_linear_plan=bool(getattr(current_user, 'use_linear_plan', False)),
         learning_goals={

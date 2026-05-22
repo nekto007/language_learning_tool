@@ -268,6 +268,15 @@ def complete_lesson(user_id: int, lesson_id: int, score: float = 100.0) -> Optio
             logger.warning("Curriculum lesson XP award failed for user=%s lesson=%s", user_id, lesson_id, exc_info=True)
             db.session.rollback()
 
+        # Module / level milestone emission (off-band notifications).
+        # Failures are swallowed by check_curriculum_milestones itself.
+        try:
+            from app.daily_plan.milestones import check_curriculum_milestones
+            check_curriculum_milestones(user_id, lesson_id, db)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
         return progress
     except SQLAlchemyError as e:
         logger.exception("Lesson completion recording failed for user=%s lesson=%s: %s", user_id, lesson_id, e)
