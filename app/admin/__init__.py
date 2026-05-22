@@ -71,5 +71,9 @@ def register_admin_routes(flask_app):
     from app.admin.routes.seo_routes import seo_bp
     flask_app.register_blueprint(seo_bp, url_prefix='/admin')
 
+    # Import and register user activity feed routes blueprint
+    from app.admin.routes.activity_routes import activity_bp
+    flask_app.register_blueprint(activity_bp, url_prefix='/admin')
+
     # Now register the complete blueprint with all routes
     flask_app.register_blueprint(admin)
