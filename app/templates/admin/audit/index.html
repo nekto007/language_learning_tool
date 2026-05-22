@@ -1,0 +1,145 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}Аудит-лог{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('Аудит-лог', '')]) }}
+{% endblock %}
+
+{% block content %}
+{{ page_header('Аудит-лог', 'Журнал деструктивных действий администраторов') }}
+
+<!-- Filter Bar -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Фильтры</h6>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('audit_admin.audit_index') }}" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Администратор</label>
+                <select name="admin_id" class="form-select">
+                    <option value="">Все администраторы</option>
+                    {% for admin_user in admin_users %}
+                    <option value="{{ admin_user.id }}" {% if filter_admin_id == admin_user.id|string %}selected{% endif %}>
+                        {{ admin_user.email }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Действие (поиск)</label>
+                <input type="text" name="action" class="form-control" placeholder="Например: delete_user"
+                       value="{{ filter_action }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">С даты</label>
+                <input type="date" name="date_from" class="form-control" value="{{ filter_date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">По дату</label>
+                <input type="date" name="date_to" class="form-control" value="{{ filter_date_to }}">
+            </div>
+            <div class="col-md-2 d-flex gap-2 align-items-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search me-1"></i>Применить
+                </button>
+                <a href="{{ url_for('audit_admin.audit_index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Audit Log Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-history me-2"></i>Записи аудита</h6>
+        <span class="badge bg-secondary">
+            {% if entries %}
+                Страница {{ page }}{% if has_more %}, ещё есть{% endif %}
+            {% else %}
+                Нет записей
+            {% endif %}
+        </span>
+    </div>
+    <div class="card-body p-0">
+        {% if entries %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 180px;">Время</th>
+                        <th style="width: 220px;">Администратор</th>
+                        <th style="width: 220px;">Действие</th>
+                        <th>Объект</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <td class="text-muted small">
+                            {{ entry.timestamp.strftime('%d.%m.%Y %H:%M:%S') if entry.timestamp else '—' }}
+                        </td>
+                        <td>
+                            <span class="text-truncate d-inline-block" style="max-width: 200px;"
+                                  title="{{ entry.admin_email }}">
+                                {{ entry.admin_email }}
+                            </span>
+                        </td>
+                        <td>
+                            <code class="small">{{ entry.action }}</code>
+                        </td>
+                        <td class="small">
+                            {% if entry.target_type %}
+                                <span class="badge bg-light text-dark border">{{ entry.target_type }}</span>
+                                {% if entry.target_id %}
+                                    #{{ entry.target_id }}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+            <p>Нет записей по заданным фильтрам</p>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if page > 1 or has_more %}
+    <div class="card-footer">
+        <nav aria-label="Pagination">
+            <ul class="pagination mb-0 justify-content-center">
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('audit_admin.audit_index', page=page-1, admin_id=filter_admin_id, action=filter_action, date_from=filter_date_from, date_to=filter_date_to) }}">
+                        <i class="fas fa-chevron-left"></i> Назад
+                    </a>
+                </li>
+                {% endif %}
+                <li class="page-item disabled">
+                    <span class="page-link">Страница {{ page }}</span>
+                </li>
+                {% if has_more %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('audit_admin.audit_index', page=page+1, admin_id=filter_admin_id, action=filter_action, date_from=filter_date_from, date_to=filter_date_to) }}">
+                        Вперёд <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
