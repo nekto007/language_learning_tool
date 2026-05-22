@@ -147,15 +147,57 @@ def _compute_linear_slot_completion(
     return result
 
 
+def _compute_unified_item_completion(
+    required_items: list[dict], daily_summary: dict
+) -> dict[str, bool]:
+    """Infer unified-plan required-item completion from summary activity.
+
+    Mirrors ``_compute_linear_slot_completion`` but is keyed by ``item.id``
+    (unique per item) rather than by kind, since the unified plan can
+    duplicate kinds across sections (e.g. a curriculum item in required and
+    a different curriculum item later in optional — though we exclude
+    optional here).
+    """
+    srs_words_reviewed = int(daily_summary.get('srs_words_reviewed', 0) or 0)
+    summary_kind_done = {
+        'srs': (
+            int(daily_summary.get('srs_review_reviewed', 0) or 0) > 0
+            or srs_words_reviewed > 0
+        ),
+        'error_review': (
+            int(daily_summary.get('error_review_resolved_today', 0) or 0) > 0
+        ),
+    }
+
+    result: dict[str, bool] = {}
+    for item in required_items:
+        item_id = item.get('id', '')
+        if not item_id:
+            continue
+        item_completed = bool(item.get('completed', False))
+        summary_done = summary_kind_done.get(item.get('kind', ''), False)
+        result[item_id] = item_completed or summary_done
+    return result
+
+
 def compute_plan_steps(daily_plan: dict, daily_summary: dict) -> tuple[dict, dict, int, int]:
     """Compute plan completion and step counts from plan + summary data.
 
     Returns (plan_completion, steps_available, steps_done, steps_total).
     Single source of truth — used by dashboard route, API, and bot.
 
-    Supports linear baseline-slot format, mission phases format, new
-    step-state format, and legacy flat format.
+    Supports unified required-section format, linear baseline-slot format,
+    mission phases format, new step-state format, and legacy flat format.
     """
+    # ── Unified plan (required/optional/setup sections) ──
+    if daily_plan.get('mode') == 'unified':
+        required_items = daily_plan.get('required') or []
+        plan_completion = _compute_unified_item_completion(required_items, daily_summary)
+        steps_available = {item.get('id', ''): True for item in required_items if item.get('id')}
+        steps_total = len(required_items)
+        steps_done = sum(1 for v in plan_completion.values() if v)
+        return plan_completion, steps_available, steps_done, steps_total
+
     baseline_slots = daily_plan.get('baseline_slots')
     if baseline_slots is not None and daily_plan.get('mode') == 'linear':
         plan_completion = _compute_linear_slot_completion(baseline_slots, daily_summary)

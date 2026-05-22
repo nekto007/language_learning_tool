@@ -28,6 +28,60 @@ def _validate_timezone(tz_name: str) -> str:
         return DEFAULT_TZ
 
 
+# Map unified plan item kinds to mission phase weights for route progress.
+# Curriculum lessons are "learn" (3). SRS is "recall" (2). Reading/listening/
+# speaking/writing are skill activities (2). Error review is "check" (1).
+# Challenge is "close" (1) — it's a bonus completion signal.
+_UNIFIED_KIND_TO_PHASE: dict[str, str] = {
+    'curriculum': 'learn',
+    'srs': 'recall',
+    'reading': 'read',
+    'listening': 'use',
+    'speaking': 'use',
+    'writing': 'use',
+    'error_review': 'check',
+    'challenge': 'close',
+}
+
+
+def _sync_unified_route_steps(
+    user_id: int, plan: dict, plan_completion: dict, tz: str
+) -> None:
+    """Increment route progress for completed unified-plan required items.
+
+    Idempotent — :func:`add_route_steps_idempotent` deduplicates by
+    (user, date, phase_kind). Failures are swallowed with a warning so a
+    flaky route-progress write never breaks the daily-status response.
+    """
+    from datetime import datetime
+    import pytz as _pytz
+    from app.daily_plan.route_progress import (
+        PHASE_STEP_WEIGHTS,
+        add_route_steps_idempotent,
+    )
+
+    try:
+        try:
+            tz_obj = _pytz.timezone(tz)
+        except _pytz.UnknownTimeZoneError:
+            tz_obj = _pytz.timezone(DEFAULT_TZ)
+        today = datetime.now(tz_obj).date()
+        required = plan.get('required') or []
+        for item in required:
+            if not plan_completion.get(item.get('id', ''), False):
+                continue
+            phase_kind = _UNIFIED_KIND_TO_PHASE.get(item.get('kind', ''))
+            if not phase_kind or PHASE_STEP_WEIGHTS.get(phase_kind, 0) <= 0:
+                continue
+            add_route_steps_idempotent(user_id, phase_kind, today, db.session)
+        db.session.commit()
+    except Exception:
+        logger.warning(
+            "unified route_step sync failed for user %s", user_id, exc_info=True,
+        )
+        db.session.rollback()
+
+
 def _get_recovery_suggestion(user_id: int, tz: str) -> dict | None:
     """Return recovery suggestion when yesterday's plan was not secured, else None."""
     import pytz
@@ -47,7 +101,9 @@ def _get_recovery_suggestion(user_id: int, tz: str) -> dict | None:
         return None
 
     user = db.session.get(User, user_id)
-    if user is not None and user.use_linear_plan:
+    if user is not None and getattr(user, 'use_unified_plan', False):
+        action_url = '/dashboard'
+    elif user is not None and user.use_linear_plan:
         action_url = '/study?source=linear_plan'
     else:
         action_url = '/dashboard'
@@ -247,6 +303,8 @@ def daily_status():
         except Exception:
             logger.warning("route_step sync failed in daily_status", exc_info=True)
             db.session.rollback()
+    elif effective_mode == 'unified':
+        _sync_unified_route_steps(user_id, plan, plan_completion, tz)
 
     logger.info(
         "daily_status user=%s mode=%s steps=%d/%d day_secured=%s",
@@ -265,6 +323,16 @@ def daily_status():
         mission = plan.get('mission') or {}
         mission_type = mission.get('type') if isinstance(mission, dict) else None
         try:
+            # daily_plan_completed milestone (transient notification, not
+            # part of the plan payload). Emit BEFORE emit_minimum_completed
+            # so the DailyPlanEvent guard sees the previous state on first
+            # secure of the day. Idempotent — subsequent calls no-op via
+            # Notification existence check.
+            try:
+                from app.daily_plan.milestones import emit_daily_plan_completed
+                emit_daily_plan_completed(user_id, today, db)
+            except Exception:
+                logger.warning("daily_plan_completed milestone emit failed", exc_info=True)
             emit_minimum_completed(user_id, mission_type, today)
             write_secured_at(user_id, today, mission_type)
             if effective_mode == 'linear':
@@ -415,6 +483,8 @@ def daily_plan():
             db.session.commit()
         except Exception:
             db.session.rollback()
+    elif plan.get('_plan_meta', {}).get('effective_mode') == 'unified':
+        _sync_unified_route_steps(user_id, plan, plan_completion, tz)
 
     route_state = get_route_state(user_id, steps_today, db.session)
 
