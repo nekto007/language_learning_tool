@@ -28,13 +28,36 @@ logger = logging.getLogger(__name__)
 _SRS_ITEM_ETA_MINUTES = 8
 
 
+def _srs_completed_today(user_id: int, db: Any) -> bool:
+    """Return True when the user earned SRS-slot XP today."""
+    from app.achievements.models import StreakEvent
+    from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE, get_linear_event_local_date
+
+    today = get_linear_event_local_date(user_id, db)
+    query = db.session.query(StreakEvent).filter(
+        StreakEvent.user_id == user_id,
+        StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
+        StreakEvent.event_date == today,
+        StreakEvent.details['source'].astext == 'linear_srs_global',
+    )
+    return db.session.query(query.exists()).scalar() or False
+
+
 def build_srs_item(
     user_id: int,
     db: Any,
     *,
     section: str = 'required',
 ) -> Optional[PlanItem]:
-    """Return SRS PlanItem if at least one card is due, else None."""
+    """Return SRS PlanItem: pending when due>0, done when reviewed today, None otherwise.
+
+    When due_count drops to zero mid-session, returning None would make the
+    slot disappear from required and shrink the counter — confusing UX.
+    Instead, if the user already earned the SRS-slot XP today, keep the
+    item with completed=True so it stays on the «done» list. Only return
+    None when due=0 AND no activity today (e.g. brand-new user with no
+    cards yet).
+    """
     from app.srs.counting import count_due_cards, count_new_cards_today, get_new_card_budget
     from app.study.services import SRSService
     from app.study.models import StudySettings
@@ -44,14 +67,16 @@ def build_srs_item(
     )
 
     due_count = count_linear_plan_srs_due_cards(user_id, db)
-    if due_count <= 0:
+    reviews_today = count_srs_reviews_today(user_id, db)
+    completed_today = _srs_completed_today(user_id, db)
+
+    if due_count <= 0 and not completed_today:
         return None
 
     backlog = count_due_cards(user_id, db)
     remaining_new, _ = get_new_card_budget(user_id, db)
     settings = StudySettings.get_settings(user_id)
     reviews_limit = max(int(settings.reviews_per_day or 0), 0)
-    reviews_today = count_srs_reviews_today(user_id, db)
     new_today = count_new_cards_today(user_id, db)
     limit_reason = SRSService.get_adaptive_limit_reason(user_id)
 
@@ -67,16 +92,23 @@ def build_srs_item(
         'srs_limit_reason': limit_reason,
     }
 
+    if due_count <= 0 and completed_today:
+        title = f'Повторено {reviews_today} карточек'
+        subtitle = 'на сегодня всё'
+    else:
+        title = f'Повторить {due_count} карточек'
+        subtitle = f'{due_count} к повторению'
+
     return PlanItem(
         id='srs:global',
         section=section,  # type: ignore[arg-type]
         kind='srs',
-        title=f'Повторить {due_count} карточек',
-        subtitle=f'{due_count} к повторению',
+        title=title,
+        subtitle=subtitle,
         lesson_type=None,
-        eta_minutes=_SRS_ITEM_ETA_MINUTES,
+        eta_minutes=0 if completed_today and due_count <= 0 else _SRS_ITEM_ETA_MINUTES,
         url=build_slot_url('/study/cards?source=linear_plan', LinearSlotKind.SRS),
-        completed=False,
+        completed=completed_today,
         completion_signal='srs_xp_earned',
         data=data,
     )

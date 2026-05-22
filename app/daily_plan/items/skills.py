@@ -125,6 +125,25 @@ def _writing_done_today(user_id: int, db: Any) -> bool:
     )
 
 
+def _build_done_placeholder(
+    *, kind: str, section: str, title: str, completion_signal: str,
+) -> PlanItem:
+    """Build a generic «done today» card for a skill kind without a pending lesson."""
+    return PlanItem(
+        id=f'{kind}:done-today',
+        section=section,  # type: ignore[arg-type]
+        kind=kind,  # type: ignore[arg-type]
+        title=title,
+        subtitle='на сегодня всё',
+        lesson_type=None,
+        eta_minutes=0,
+        url=None,
+        completed=True,
+        completion_signal=completion_signal,  # type: ignore[arg-type]
+        data={'done_placeholder': True},
+    )
+
+
 def _build_skill_item(
     user_id: int,
     db: Any,
@@ -179,6 +198,13 @@ def build_listening_item(
 ) -> Optional[PlanItem]:
     lesson = _find_next_skill_lesson(user_id, db, _LISTENING_LESSON_TYPES)
     if lesson is None:
+        # No pending listening lesson in the current module. Keep a done
+        # placeholder if the user earned listening XP today so the item
+        # stays visible instead of vanishing mid-session.
+        if _xp_source_done_today(user_id, db, _LISTENING_XP_SOURCES):
+            return _build_done_placeholder(kind='listening', section=section,
+                                           title='Аудирование выполнено сегодня',
+                                           completion_signal='listening_attempt')
         return None
     completed = _xp_source_done_today(user_id, db, _LISTENING_XP_SOURCES)
     return _build_skill_item(
@@ -196,6 +222,10 @@ def build_speaking_item(
 ) -> Optional[PlanItem]:
     lesson = _find_next_skill_lesson(user_id, db, _SPEAKING_LESSON_TYPES)
     if lesson is None:
+        if _lesson_progress_done_today(user_id, db, _SPEAKING_LESSON_TYPES):
+            return _build_done_placeholder(kind='speaking', section=section,
+                                           title='Произношение выполнено сегодня',
+                                           completion_signal='pronunciation_attempt')
         return None
     completed = _lesson_progress_done_today(user_id, db, _SPEAKING_LESSON_TYPES)
     speech_api_required = lesson.type in _SPEECH_API_LESSON_TYPES
@@ -215,6 +245,10 @@ def build_writing_item(
 ) -> Optional[PlanItem]:
     lesson = _find_next_skill_lesson(user_id, db, _WRITING_LESSON_TYPES)
     if lesson is None:
+        if _writing_done_today(user_id, db):
+            return _build_done_placeholder(kind='writing', section=section,
+                                           title='Письмо выполнено сегодня',
+                                           completion_signal='writing_attempt')
         return None
     completed = _writing_done_today(user_id, db)
     prompt_preview: Optional[str] = None

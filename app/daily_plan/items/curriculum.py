@@ -227,32 +227,10 @@ def build_curriculum_item(
     if next_lesson is None:
         return None
 
-    done_today = _curriculum_done_today(user_id, db)
-
-    if done_today:
-        completed_lesson = _get_lesson_completed_today(user_id, db) or next_lesson
-        module = completed_lesson.module
-        level = module.level if module is not None else None
-        return PlanItem(
-            id=f'curriculum:lesson:{completed_lesson.id}',
-            section=section,  # type: ignore[arg-type]
-            kind='curriculum',
-            title=completed_lesson.title,
-            subtitle=_lesson_subtitle(completed_lesson),
-            lesson_type=completed_lesson.type,
-            eta_minutes=0,
-            url=_lesson_url(completed_lesson),
-            completed=True,
-            completion_signal='lesson_completed',
-            data={
-                'lesson_id': completed_lesson.id,
-                'lesson_number': completed_lesson.number,
-                'module_id': completed_lesson.module_id,
-                'module_number': module.number if module is not None else None,
-                'level_code': level.code if level is not None else None,
-            },
-        )
-
+    # Always surface the next pending lesson on the spine. Previously this
+    # branch returned today's completed lesson as a «done» card, which hid
+    # the actual next step from the user (e.g. user finished L1 today, but
+    # the card kept showing L1 instead of advancing to L2/L3).
     module = next_lesson.module
     level = module.level if module is not None else None
     data: dict[str, Any] = {
