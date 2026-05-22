@@ -126,7 +126,7 @@ def _build_locked_reason(prev_kind: Optional[str]) -> str:
 # list. Deliberately gentler than Duolingo's full zig-zag.
 PATH_OFFSET_PATTERN: tuple[int, ...] = (0, 28, 18, -22, -10)
 
-PREVIEW_DEFAULT_LIMIT = 5
+PREVIEW_DEFAULT_LIMIT = 8
 
 
 # ─── Dataclasses ─────────────────────────────────────────────────────
@@ -242,6 +242,7 @@ def _slot_title_localised(slot: dict[str, Any]) -> str:
 def _slot_to_node(
     slot: dict[str, Any], state: str, offset_idx: int,
     prev_slot_kind: Optional[str] = None,
+    milestone_context: Optional[str] = None,
 ) -> PathNode:
     kind = slot.get('kind') or ''
     title = _slot_title_localised(slot)
@@ -253,6 +254,10 @@ def _slot_to_node(
     if is_milestone:
         state = 'milestone'
         icon_key = MILESTONE_ICON
+        # Milestone label carries WHAT was completed («A2 · Animals» etc.)
+        # so the user has context for the celebration, not just a trophy.
+        if milestone_context:
+            label = milestone_context
     else:
         icon_key = SLOT_KIND_ICONS.get(kind, DEFAULT_ICON)
 
@@ -272,9 +277,41 @@ def _slot_to_node(
     )
 
 
+def _get_milestone_context(user_id: int, db: Any) -> Optional[str]:
+    """Return «<level> · <last module title>» for a milestone caption.
+
+    When the linear plan signals «Curriculum complete», we still want the
+    dashboard to remind the user WHAT they finished — pull the most
+    recently completed module's level + title and use it as the milestone
+    label. Returns None if the user has zero completed lessons (unlikely
+    on a milestone path, but safe).
+    """
+    row = (
+        db.session.query(Module, CEFRLevel)
+        .join(CEFRLevel, CEFRLevel.id == Module.level_id)
+        .join(Lessons, Lessons.module_id == Module.id)
+        .join(LessonProgress, LessonProgress.lesson_id == Lessons.id)
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+        )
+        .order_by(LessonProgress.completed_at.desc().nullslast())
+        .first()
+    )
+    if row is None:
+        return None
+    module, level = row
+    level_code = (level.code or '').strip() if level else ''
+    module_title = (module.title or '').strip() if module else ''
+    if level_code and module_title:
+        return f'{level_code} · {module_title}'
+    return module_title or level_code or None
+
+
 def _build_today_segment(
     linear_plan: dict[str, Any],
     plan_completion: dict[str, Any],
+    milestone_context: Optional[str] = None,
 ) -> PathSegment:
     """Map plan slots → today-segment nodes.
 
@@ -315,7 +352,11 @@ def _build_today_segment(
             current_assigned = True
         else:
             state = 'locked'
-        nodes.append(_slot_to_node(slot, state, idx, prev_slot_kind=prev_kind))
+        nodes.append(_slot_to_node(
+            slot, state, idx,
+            prev_slot_kind=prev_kind,
+            milestone_context=milestone_context,
+        ))
         prev_kind = kind
 
     return PathSegment(kind='today', label='Сегодня', nodes=nodes)
@@ -402,6 +443,29 @@ def get_curriculum_preview(
     return list(q.all())
 
 
+def _get_recent_completed_lessons(
+    user_id: int, db: Any, limit: int,
+) -> list[Lessons]:
+    """Return up to ``limit`` most-recently-completed lessons (newest first).
+
+    Used as the preview-segment fallback when the user has finished the
+    curriculum spine — there's nothing to preview, but recently-finished
+    lessons make great «можно повторить» candidates.
+    """
+    rows = (
+        db.session.query(Lessons)
+        .join(LessonProgress, LessonProgress.lesson_id == Lessons.id)
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+        )
+        .order_by(LessonProgress.completed_at.desc().nullslast())
+        .limit(limit)
+        .all()
+    )
+    return list(rows)
+
+
 def _build_preview_segment(
     user_id: int,
     db: Any,
@@ -411,42 +475,57 @@ def _build_preview_segment(
 ) -> tuple[PathSegment, Optional[str]]:
     """Build the preview segment + a module label for the section header.
 
-    ``today_lesson_ids`` lets us skip lessons that already appear as the
-    current today-curriculum slot — otherwise the preview's first node
-    is a duplicate of the today's primary CTA.
+    Strategy:
+      1. Upcoming lessons on the curriculum spine (normal case).
+      2. If spine is finished — fallback to recently completed lessons
+         shown as «можно повторить». The dashboard never goes blank for
+         curriculum-complete users.
     """
     upcoming = get_curriculum_preview(user_id, db, limit=limit + len(today_lesson_ids) + 1)
-    if not upcoming:
+
+    # Spine still has work → forward-looking preview.
+    if upcoming:
+        upcoming = [l for l in upcoming if l.id not in today_lesson_ids][:limit]
+        if upcoming:
+            first_module = db.session.get(Module, upcoming[0].module_id)
+            label_module = (
+                first_module.title if first_module and first_module.title
+                else f'Модуль {upcoming[0].module_id}'
+            )
+            level_code = (first_module.level.code if first_module and first_module.level else 'A0')
+            module_label = (
+                f'Дальше в курсе · {level_code}/М{first_module.number if first_module else 0} — {label_module}'
+            )
+            nodes = [_preview_node(lesson, today_node_count, i, kind_label='Урок курса')
+                     for i, lesson in enumerate(upcoming)]
+            return PathSegment(kind='preview', label=module_label, nodes=nodes), module_label
+
+    # Curriculum done → review-mode preview.
+    recent = _get_recent_completed_lessons(user_id, db, limit)
+    if not recent:
         return PathSegment(kind='preview', label='', nodes=[]), None
+    nodes = [_preview_node(lesson, today_node_count, i, kind_label='Можно повторить')
+             for i, lesson in enumerate(recent)]
+    return PathSegment(
+        kind='preview',
+        label='Доступно для повторения',
+        nodes=nodes,
+    ), None
 
-    # Drop anything already represented in today's segment.
-    upcoming = [l for l in upcoming if l.id not in today_lesson_ids][:limit]
-    if not upcoming:
-        return PathSegment(kind='preview', label='', nodes=[]), None
 
-    # Module label: first preview lesson's parent module.
-    first_module = db.session.get(Module, upcoming[0].module_id)
-    label_module = (
-        first_module.title if first_module and first_module.title else f'Модуль {upcoming[0].module_id}'
+def _preview_node(
+    lesson: Lessons, today_node_count: int, i: int, kind_label: str,
+) -> PathNode:
+    return PathNode(
+        title=lesson.title or '',
+        icon=LESSON_TYPE_ICONS.get((lesson.type or '').lower(), DEFAULT_ICON),
+        state='preview',
+        url=f'/learn/{lesson.id}/',
+        segment='preview',
+        offset_px=PATH_OFFSET_PATTERN[(today_node_count + i + 2) % len(PATH_OFFSET_PATTERN)],
+        lesson_id=lesson.id,
+        label=kind_label,
     )
-    level_code = (first_module.level.code if first_module and first_module.level else 'A0')
-    module_label = (
-        f'Дальше в курсе · {level_code}/М{first_module.number if first_module else 0} — {label_module}'
-    )
-
-    nodes: list[PathNode] = []
-    for i, lesson in enumerate(upcoming):
-        nodes.append(PathNode(
-            title=lesson.title or '',
-            icon=LESSON_TYPE_ICONS.get((lesson.type or '').lower(), DEFAULT_ICON),
-            state='preview',
-            url=f'/learn/{lesson.id}/',
-            segment='preview',
-            offset_px=PATH_OFFSET_PATTERN[(today_node_count + i + 2) % len(PATH_OFFSET_PATTERN)],
-            lesson_id=lesson.id,
-            label=SLOT_KIND_LABELS_RU.get('curriculum'),
-        ))
-    return PathSegment(kind='preview', label=module_label, nodes=nodes), module_label
 
 
 # ─── Public entry point ─────────────────────────────────────────────
@@ -467,7 +546,11 @@ def build_dashboard_path(
     avoid duplicate DB work. Tests can pass them directly without
     hitting the plan assembler.
     """
-    today = _build_today_segment(linear_plan or {}, plan_completion or {})
+    milestone_ctx = _get_milestone_context(user_id, db)
+    today = _build_today_segment(
+        linear_plan or {}, plan_completion or {},
+        milestone_context=milestone_ctx,
+    )
     challenge_seg = _build_challenge_segment(challenge, offset_idx=len(today.nodes))
 
     # Collect lesson IDs already represented in today's curriculum slot

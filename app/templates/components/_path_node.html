@@ -56,10 +56,21 @@ State-specific shape:
       {% if node.locked_reason %}<span class="path-node__reason">{{ node.locked_reason }}</span>{% endif %}
     </div>
 
+  {% elif node.state == 'milestone' %}
+    {# ── Milestone: celebration marker, NOT clickable (nowhere to go) ── #}
+    <span class="path-node__bubble" aria-label="{{ node.title }} (этап завершён)">
+      {% with icon_key=node.icon, cls='path-node__svg' %}{% include 'components/_path_icon.html' %}{% endwith %}
+    </span>
+    <div class="path-node__caption">
+      <span class="path-node__title">{{ node.title }}</span>
+      {% if node.label %}<span class="path-node__milestone-context">{{ node.label }}</span>{% endif %}
+      <span class="path-node__milestone-tag">Этап пройден</span>
+    </div>
+
   {% else %}
-    {# ── Done / milestone / bonus / preview: bubble + caption ── #}
+    {# ── Done / bonus / preview: openable bubble + caption ── #}
     <a class="path-node__bubble" href="{{ node.url }}" title="{{ node.title }}"
-       aria-label="{{ node.title }}{% if node.state == 'done' %} (завершён{% if node.score %}, {{ node.score }}%{% endif %}){% elif node.state == 'milestone' %} (этап завершён){% elif node.state == 'bonus' %} (бонус){% elif node.state == 'preview' %} (предпросмотр){% endif %}">
+       aria-label="{{ node.title }}{% if node.state == 'done' %} (завершён{% if node.score %}, {{ node.score }}%{% endif %}){% elif node.state == 'bonus' %} (бонус){% elif node.state == 'preview' %} (можно повторить){% endif %}">
       {% with icon_key=node.icon, cls='path-node__svg' %}{% include 'components/_path_icon.html' %}{% endwith %}
       {% if node.state == 'done' %}
         <svg class="path-node__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
@@ -73,9 +84,10 @@ State-specific shape:
     </a>
     <div class="path-node__caption">
       <span class="path-node__title">{{ node.title }}</span>
-      {% if node.state == 'milestone' %}
-        <span class="path-node__milestone-tag">Этап пройден</span>
-      {% elif node.state == 'done' and node.score is not none %}
+      {% if node.label and node.state == 'preview' %}
+        <span class="path-node__sublabel">{{ node.label }}</span>
+      {% endif %}
+      {% if node.state == 'done' and node.score is not none %}
         <span class="path-node__score">{{ node.score }}%</span>
       {% endif %}
     </div>
