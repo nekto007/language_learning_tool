@@ -1,0 +1,48 @@
+{# Two-column dashboard for unified-plan users.
+
+Left column: hero + unified daily plan (required / optional / setup).
+Right column: focus targets, week rhythm, challenge — same rail used by the
+Path dashboard so visual context stays consistent across plan modes.
+
+Template inputs (set in app/words/routes.py:_render_unified_dashboard):
+  - unified_plan        → unified plan payload (mode='unified')
+  - plan_completion     → {item_id: bool}
+  - stats_card          → dict (streak/xp/goal)
+  - hero                → dict (title/subtitle/steps_done/steps_total/minutes_left)
+  - focus               → dict (targets list)
+  - week_rhythm         → dict (days list + summary)
+  - challenge_card      → dict or None
+#}
+{% extends "base.html" %}
+
+{% block body_class %}dashboard-path-wide{% endblock %}
+
+{% block content %}
+<div class="dash-path" data-unified-plan="true">
+  <main class="dash-path__main">
+    {% include 'components/_dashboard_hero.html' %}
+    {% include 'partials/unified_daily_plan.html' %}
+  </main>
+
+  {% include 'components/_dashboard_rail.html' %}
+</div>
+
+{# Book-select modal: opened by the setup_book item when the URL resolves to
+   `#book-select-modal` (no UserReadingPreference yet). Reuses linear's modal
+   JS (data-linear-close hooks). #}
+<div id="book-select-modal" class="linear-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="book-select-modal-title">
+    <div class="linear-modal__backdrop" data-linear-close="book-select-modal"></div>
+    <div class="linear-modal__panel">
+        <div class="linear-modal__header">
+            <h2 class="linear-modal__title" id="book-select-modal-title">Выбрать книгу для чтения</h2>
+            <button type="button" class="linear-modal__close" data-linear-close="book-select-modal" aria-label="Закрыть">×</button>
+        </div>
+        <div class="linear-modal__body">
+            <div id="book-select-modal-status" class="linear-modal__status" aria-live="polite">Загрузка каталога…</div>
+            <div id="book-select-modal-grid" class="linear-modal__grid"></div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}"></script>
+{% endblock %}

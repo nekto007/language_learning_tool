@@ -743,6 +743,109 @@ def _build_week_rhythm(user_id: int, tz: str) -> dict:
     return {'days': days, 'summary': summary}
 
 
+def _render_unified_dashboard(tz: str):
+    """Render the two-column dashboard for unified-plan users.
+
+    Reuses the Path dashboard's hero + rail components (focus / week rhythm
+    / challenge) so visual context stays consistent across plan modes, but
+    swaps the path partial for partials/unified_daily_plan.html.
+    """
+    from app.daily_plan.service import get_daily_plan_unified
+    from app.achievements.streak_service import (
+        compute_plan_steps, process_streak_on_activity,
+    )
+    from app.achievements.xp_service import get_level_info, get_today_xp
+    from app.telegram.queries import get_current_streak, get_daily_summary
+    from app.achievements.models import UserStatistics
+
+    streak = get_current_streak(current_user.id, tz=tz)
+    daily_summary = get_daily_summary(current_user.id, tz=tz)
+    unified_plan = get_daily_plan_unified(current_user.id, tz=tz) or {}
+    plan_completion, _avail, steps_done, steps_total = compute_plan_steps(
+        unified_plan, daily_summary
+    )
+    streak_result = process_streak_on_activity(
+        current_user.id, steps_done, steps_total, tz=tz,
+        daily_plan=unified_plan, plan_completion=plan_completion,
+    )
+    streak = streak_result['streak_status'].get('streak', streak)
+
+    # Daily challenge card (right rail) — best-effort.
+    challenge_card = None
+    try:
+        from app.daily_plan.challenge import get_today_challenge
+        ch = get_today_challenge(current_user.id, db)
+        if ch and ch.get('lesson_id'):
+            challenge_card = {
+                'title': 'Бонусная цель дня',
+                'badge': f"×{2 if ch.get('bonus_xp') else 1} XP",
+                'completed': bool(ch.get('is_completed')),
+                'url': f"/learn/{ch['lesson_id']}/",
+            }
+    except Exception:
+        logger.warning('daily_challenge build failed (unified)', exc_info=True)
+
+    stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
+    total_xp = (stats.total_xp if stats else 0) or 0
+    level_info = get_level_info(total_xp)
+    try:
+        xp_today = get_today_xp(current_user.id) or 0
+    except Exception:
+        xp_today = 0
+
+    words_today = (daily_summary or {}).get('words_studied', 0) if daily_summary else 0
+    words_goal = getattr(current_user, 'daily_word_goal', None) or _FOCUS_DEFAULT_WORDS_TARGET
+
+    stats_card = {
+        'streak_days': streak or 0,
+        'streak_shield': bool(getattr(current_user, 'streak_shield_active', False)),
+        'xp_today': xp_today,
+        'level': level_info.current_level,
+        'goal_target': words_goal,
+        'goal_current': words_today,
+        'goal_label': 'слов',
+    }
+
+    minutes_left = int(unified_plan.get('total_estimated_minutes', 0) or 0)
+    if steps_total and steps_done >= steps_total:
+        subtitle = 'Минимум на сегодня выполнен — продолжайте, если есть силы'
+    elif steps_total:
+        subtitle = f'{steps_done} из {steps_total} шагов'
+        if minutes_left:
+            subtitle += f' · осталось ~{minutes_left} мин'
+    else:
+        subtitle = 'Откройте каталог, чтобы начать обучение'
+    hero = {
+        'title': 'План на сегодня',
+        'subtitle': subtitle,
+        'steps_done': steps_done or 0,
+        'steps_total': steps_total or 0,
+        'minutes_left': minutes_left,
+    }
+
+    focus = {
+        'targets': [
+            {'label': 'Опыт', 'current': xp_today, 'target': _FOCUS_DEFAULT_XP_TARGET,
+             'icon_key': 'sparkles', 'suffix': 'XP'},
+            {'label': 'Словарь', 'current': words_today, 'target': words_goal,
+             'icon_key': 'book-open', 'suffix': 'слов'},
+        ],
+    }
+
+    week_rhythm = _build_week_rhythm(current_user.id, tz)
+
+    return render_template(
+        'words/dashboard_unified.html',
+        unified_plan=unified_plan,
+        plan_completion=plan_completion,
+        stats_card=stats_card,
+        hero=hero,
+        focus=focus,
+        week_rhythm=week_rhythm,
+        challenge_card=challenge_card,
+    )
+
+
 def _render_path_dashboard(tz: str):
     """Render the path-progression dashboard for linear-plan users.
 
@@ -895,12 +998,15 @@ def dashboard():
     # Process deferred referral reward on first visit
     _process_referral_reward_on_first_visit(current_user)
 
-    # Unified-plan users skip the Path UI entirely and fall through to the
-    # main dashboard.html, which routes on ``unified_plan`` and renders
-    # partials/unified_daily_plan.html with required/optional/setup sections.
-    # Linear-plan-only users still get the redesigned Path dashboard.
-    if not bool(getattr(current_user, 'use_unified_plan', False)) and \
-       bool(getattr(current_user, 'use_linear_plan', False)):
+    # Unified-plan users get the dedicated two-column dashboard
+    # (hero + required/optional/setup + right rail). Linear-plan-only users
+    # still see the path-progression dashboard.
+    if bool(getattr(current_user, 'use_unified_plan', False)):
+        try:
+            return _render_unified_dashboard(tz)
+        except Exception:
+            logger.exception('unified_dashboard render failed, falling back to legacy')
+    elif bool(getattr(current_user, 'use_linear_plan', False)):
         try:
             return _render_path_dashboard(tz)
         except Exception:

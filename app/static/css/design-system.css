@@ -17151,3 +17151,57 @@ body.dashboard-path-wide main.container {
     cursor: pointer;
 }
 .daily-plan__load-more:hover { background: var(--color-surface, #fff); border-color: var(--color-brand, #4f46e5); }
+
+/* Sequential states for unified-plan required items */
+.plan-item--current {
+    border-color: var(--color-brand, #4f46e5);
+    border-width: 2px;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08);
+}
+.plan-item--current .plan-item__marker {
+    background: var(--color-brand, #4f46e5);
+    color: #fff;
+}
+.plan-item--locked {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: var(--color-surface-muted, #fafafa);
+}
+.plan-item--locked .plan-item__marker {
+    background: var(--color-surface-muted, #f0f0f0);
+    color: var(--color-text-muted, #888);
+    font-size: 0.75rem;
+}
+.plan-item--locked .plan-item__title--locked {
+    font-weight: 500;
+    color: var(--color-text-muted, #888);
+}
+.plan-item--locked .plan-item__link {
+    pointer-events: none;
+}
+.plan-item__lock-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #888);
+    font-style: italic;
+}
+.plan-item__cta {
+    flex-shrink: 0;
+    align-self: center;
+}
+.daily-plan__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 24px;
+    align-items: start;
+}
+.daily-plan__sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+@media (max-width: 900px) {
+    .daily-plan__layout { grid-template-columns: 1fr; }
+    .daily-plan__sidebar { order: 2; }
+}

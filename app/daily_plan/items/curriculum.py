@@ -241,7 +241,7 @@ def build_curriculum_item(
             subtitle=_lesson_subtitle(completed_lesson),
             lesson_type=completed_lesson.type,
             eta_minutes=0,
-            url=None,
+            url=_lesson_url(completed_lesson),
             completed=True,
             completion_signal='lesson_completed',
             data={

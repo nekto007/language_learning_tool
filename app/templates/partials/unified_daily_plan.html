@@ -1,8 +1,9 @@
 {# Unified daily plan partial: required / optional / setup.
 
-   Required items close the day (day_secured). Optional items earn XP and
-   route progress but never block secured state. Setup items are skippable
-   preparation steps (pick book, browse catalogue).
+   Required items are sequentially gated — only the first incomplete item
+   is actionable («Начать»). Items after it stay locked until the previous
+   one is done («Откроется после завершения предыдущего»). Completed items
+   remain clickable for replay. Optional / setup items are free-form.
 #}
 {% set u_position = unified_plan.get('position') %}
 {% set u_progress = unified_plan.get('progress') or {} %}
@@ -13,15 +14,19 @@
 {% set u_day_secured = unified_plan.get('day_secured', false) %}
 {% set u_eta = unified_plan.get('total_estimated_minutes', 0) %}
 
-{# Compute done count via namespace because Jinja {% set %} inside a for-loop
-   is scoped to the iteration and does not leak out. #}
-{% set ns = namespace(done=0) %}
+{# Resolve per-item completion + locate the first incomplete required index. #}
+{% set ns = namespace(done=0, current_idx=-1) %}
 {% for item in u_required %}
     {% set _completed = item.get('completed', false) or (plan_completion and plan_completion.get(item.get('id'), false)) %}
-    {% if _completed %}{% set ns.done = ns.done + 1 %}{% endif %}
+    {% if _completed %}
+        {% set ns.done = ns.done + 1 %}
+    {% elif ns.current_idx == -1 %}
+        {% set ns.current_idx = loop.index0 %}
+    {% endif %}
 {% endfor %}
 {% set u_required_done = ns.done %}
 {% set u_required_total = u_required | length %}
+{% set u_current_idx = ns.current_idx %}
 
 <section class="daily-plan" data-daily-plan="true" data-mode="unified">
 
@@ -37,7 +42,7 @@
         {% if _les is not none %} · L{{ _les }}{% endif %}
       </span>
     {% else %}
-      <span class="daily-plan__position daily-plan__position--no-content" title="Курс реально пройден или контент не сматчился под уровень — подбираем альтернативу">
+      <span class="daily-plan__position daily-plan__position--no-content" title="Подбираем материал под твой уровень">
         Подбираем материал
       </span>
     {% endif %}
@@ -77,25 +82,41 @@
         {% for item in u_required %}
           {% set _id = item.get('id') %}
           {% set _completed = item.get('completed', false) or (plan_completion and plan_completion.get(_id, false)) %}
+          {% set _is_current = (loop.index0 == u_current_idx) %}
+          {% set _is_locked = (not _completed and not _is_current) %}
           {% set _kind = item.get('kind', '') %}
-          <li class="plan-item plan-item--{{ _kind }} plan-item--{{ 'done' if _completed else 'pending' }}"
+          {% set _url = item.get('url') or '#' %}
+          {% set _state = 'done' if _completed else ('locked' if _is_locked else 'current') %}
+          <li class="plan-item plan-item--{{ _kind }} plan-item--{{ _state }}"
               data-plan-item="true"
               data-item-id="{{ _id }}"
-              data-item-kind="{{ _kind }}">
+              data-item-kind="{{ _kind }}"
+              data-state="{{ _state }}">
             <span class="plan-item__marker" aria-hidden="true">
-              {% if _completed %}&#10003;{% else %}{{ loop.index }}{% endif %}
+              {% if _completed %}&#10003;{% elif _is_locked %}&#128274;{% else %}{{ loop.index }}{% endif %}
             </span>
             <div class="plan-item__body">
-              <a class="plan-item__link" href="{{ item.get('url') or '#' }}">
-                <span class="plan-item__title">{{ item.get('title') }}</span>
+              {% if _is_locked %}
+                <span class="plan-item__title plan-item__title--locked">{{ item.get('title') }}</span>
                 {% if item.get('subtitle') %}
                   <span class="plan-item__subtitle">{{ item.get('subtitle') }}</span>
                 {% endif %}
-              </a>
-              {% if item.get('eta_minutes') and not _completed %}
-                <span class="plan-item__eta">~{{ item.get('eta_minutes') }} мин</span>
+                <span class="plan-item__lock-hint">Откроется после завершения предыдущего</span>
+              {% else %}
+                <a class="plan-item__link" href="{{ _url }}">
+                  <span class="plan-item__title">{{ item.get('title') }}</span>
+                  {% if item.get('subtitle') %}
+                    <span class="plan-item__subtitle">{{ item.get('subtitle') }}</span>
+                  {% endif %}
+                </a>
+                {% if item.get('eta_minutes') and not _completed %}
+                  <span class="plan-item__eta">~{{ item.get('eta_minutes') }} мин</span>
+                {% endif %}
               {% endif %}
             </div>
+            {% if _is_current %}
+              <a class="btn btn--primary plan-item__cta" href="{{ _url }}">Начать</a>
+            {% endif %}
           </li>
         {% endfor %}
       </ol>
@@ -188,11 +209,15 @@
 
 <script>
 (function() {
-    var btn = document.querySelector('[data-daily-plan="true"][data-mode="unified"] [data-action="reload-plan"]');
-    if (btn) {
-        btn.addEventListener('click', function() {
-            window.location.reload();
-        });
-    }
+    var root = document.querySelector('[data-daily-plan="true"][data-mode="unified"]');
+    if (!root) return;
+
+    var btn = root.querySelector('[data-action="reload-plan"]');
+    if (btn) btn.addEventListener('click', function() { window.location.reload(); });
+
+    // Locked items: prevent navigation, show a brief toast-like inline note.
+    root.querySelectorAll('.plan-item--locked .plan-item__link').forEach(function(a) {
+        a.addEventListener('click', function(ev) { ev.preventDefault(); });
+    });
 })();
 </script>
