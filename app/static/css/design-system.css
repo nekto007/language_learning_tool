@@ -16131,9 +16131,9 @@ span.vocab-word.vocab-word--active {
     --path-slate-900: #0f172a;
 
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1fr) 300px;
     gap: 1.5rem;
-    max-width: 1200px;
+    max-width: 1320px;
     margin: 0 auto;
     padding: 1.25rem 1.25rem 4rem;
     align-items: start;
@@ -16479,14 +16479,19 @@ span.vocab-word.vocab-word--active {
 }
 
 /* ─── CURRENT: task-card (route ticket) ─────────────────────────── */
-.path-node--current { padding: 0.75rem 0; }
+.path-node--current {
+    /* Card stretches edge-to-edge of the path column; cancel the
+       cosmetic zig-zag offset so the card stays aligned, not clipped. */
+    --node-offset: 0px !important;
+    padding: 0.75rem 0;
+}
 .path-card {
     display: grid;
     grid-template-columns: var(--path-card-icon-size) 1fr auto;
     gap: 0.9rem;
     align-items: center;
-    width: min(420px, 100%);
-    padding: 1rem 1rem 1rem 0.9rem;
+    width: 100%;
+    padding: 1rem 1.25rem 1rem 1rem;
     background: var(--surface, #fff);
     border: 1px solid var(--path-accent);
     border-left: 6px solid var(--path-accent);
