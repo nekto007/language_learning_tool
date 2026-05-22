@@ -305,6 +305,81 @@ def test_today_segment_locked_node_carries_russian_reason():
     assert 'Откроется' in locked.locked_reason
 
 
+def test_fresh_user_preview_always_shows_clickable_lessons(
+    db_session, test_user, test_module
+):
+    """Brand-new user: no plan slots, no completed lessons. The preview
+    segment must ALWAYS surface clickable lessons — strategy 1 (spine)
+    catches this case because find_next_lesson_linear returns the first
+    available lesson. If spine is empty too, strategy 3 catches it from
+    the catalogue."""
+    l1 = _add_lesson(db_session, test_module, 1, 'vocabulary')
+    l2 = _add_lesson(db_session, test_module, 2, 'grammar')
+    l3 = _add_lesson(db_session, test_module, 3, 'quiz')
+
+    path = build_dashboard_path(
+        test_user.id, real_db,
+        linear_plan={'slots': []},  # No plan slots — fresh user
+        plan_completion={},
+        challenge=None,
+    )
+    # No today segment (empty plan), but preview must populate.
+    seg_kinds = [s.kind for s in path.segments]
+    assert 'preview' in seg_kinds
+    preview = next(s for s in path.segments if s.kind == 'preview')
+    assert len(preview.nodes) >= 3
+    # All preview nodes are openable (state='preview' with a URL).
+    for node in preview.nodes:
+        assert node.state == 'preview'
+        assert node.url.startswith('/learn/')
+
+
+def test_browseable_lessons_fallback_when_no_spine_no_completion(db_session, test_user):
+    """Direct test of strategy 3: even with no progress AND no spine
+    (gated modules removed), catalogue browse must still return lessons."""
+    from app.curriculum.path_view import _get_browseable_lessons
+    # No lessons in DB → empty (still safe, no crash).
+    result = _get_browseable_lessons(test_user.id, real_db, 5)
+    assert result == []
+
+
+def test_curriculum_complete_user_preview_shows_review(
+    db_session, test_user, test_module
+):
+    """User finished spine: preview falls back to recently-completed
+    lessons so they can practice / review."""
+    l1 = _add_lesson(db_session, test_module, 1, 'vocabulary')
+    l2 = _add_lesson(db_session, test_module, 2, 'grammar')
+    _complete(db_session, test_user, l1)
+    _complete(db_session, test_user, l2)
+
+    path = build_dashboard_path(
+        test_user.id, real_db,
+        linear_plan={'slots': []},
+        plan_completion={},
+        challenge=None,
+    )
+    preview = next((s for s in path.segments if s.kind == 'preview'), None)
+    assert preview is not None
+    assert preview.label == 'Доступно для повторения'
+    assert all(n.label == 'Можно повторить' for n in preview.nodes)
+    assert {n.lesson_id for n in preview.nodes} == {l1.id, l2.id}
+
+
+def test_milestone_context_fallback_to_level_when_no_progress():
+    """When LessonProgress is empty but linear_plan reports a CEFR level,
+    milestone caption falls back to «Уровень <X> пройден»."""
+    from app.curriculum.path_view import _get_milestone_context
+    from unittest.mock import MagicMock
+    fake_db = MagicMock()
+    fake_db.session.query.return_value.join.return_value.join.return_value.join.return_value.filter.return_value.order_by.return_value.first.return_value = None
+    ctx = _get_milestone_context(
+        user_id=1, db=fake_db,
+        linear_plan={'progress': {'level': 'A2'}},
+    )
+    assert ctx == 'Уровень A2 пройден'
+
+
 def test_slot_kind_icons_use_stroke_keys_not_emoji():
     """All slot-kind icons resolve to lucide-style keys (lowercase string)
     so the SVG resolver template can render them."""

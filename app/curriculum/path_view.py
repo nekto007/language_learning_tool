@@ -277,35 +277,56 @@ def _slot_to_node(
     )
 
 
-def _get_milestone_context(user_id: int, db: Any) -> Optional[str]:
+def _get_milestone_context(
+    user_id: int, db: Any, linear_plan: Optional[dict[str, Any]] = None,
+) -> Optional[str]:
     """Return «<level> · <last module title>» for a milestone caption.
 
-    When the linear plan signals «Curriculum complete», we still want the
-    dashboard to remind the user WHAT they finished — pull the most
-    recently completed module's level + title and use it as the milestone
-    label. Returns None if the user has zero completed lessons (unlikely
-    on a milestone path, but safe).
+    Resolution order:
+      1. Most-recently-completed module + level via LessonProgress
+         («A2 · Animals»). The strong case — works whenever the user
+         actually has DB progress.
+      2. Level from ``linear_plan['progress']['level']`` (the linear
+         plan reports the user's current CEFR level even when there
+         are no LessonProgress rows — e.g. legacy data, fresh migration).
+         Shows «Уровень A2 пройден».
+      3. None — caller falls back to the generic «Урок курса» label.
     """
-    row = (
-        db.session.query(Module, CEFRLevel)
-        .join(CEFRLevel, CEFRLevel.id == Module.level_id)
-        .join(Lessons, Lessons.module_id == Module.id)
-        .join(LessonProgress, LessonProgress.lesson_id == Lessons.id)
-        .filter(
-            LessonProgress.user_id == user_id,
-            LessonProgress.status == 'completed',
+    try:
+        row = (
+            db.session.query(Module, CEFRLevel)
+            .join(CEFRLevel, CEFRLevel.id == Module.level_id)
+            .join(Lessons, Lessons.module_id == Module.id)
+            .join(LessonProgress, LessonProgress.lesson_id == Lessons.id)
+            .filter(
+                LessonProgress.user_id == user_id,
+                LessonProgress.status == 'completed',
+            )
+            .order_by(LessonProgress.completed_at.desc().nullslast())
+            .first()
         )
-        .order_by(LessonProgress.completed_at.desc().nullslast())
-        .first()
-    )
-    if row is None:
-        return None
-    module, level = row
-    level_code = (level.code or '').strip() if level else ''
-    module_title = (module.title or '').strip() if module else ''
-    if level_code and module_title:
-        return f'{level_code} · {module_title}'
-    return module_title or level_code or None
+    except Exception:
+        logger.warning('milestone_context: query failed', exc_info=True)
+        row = None
+
+    if row is not None:
+        module, level = row
+        level_code = (level.code or '').strip() if level else ''
+        module_title = (module.title or '').strip() if module else ''
+        if level_code and module_title:
+            return f'{level_code} · {module_title}'
+        if module_title:
+            return module_title
+
+    # Fallback: at least name the level so the celebration has anchor.
+    try:
+        progress = (linear_plan or {}).get('progress') or {}
+        level_code = (progress.get('level') or '').strip()
+        if level_code:
+            return f'Уровень {level_code} пройден'
+    except Exception:
+        pass
+    return None
 
 
 def _build_today_segment(
@@ -466,6 +487,40 @@ def _get_recent_completed_lessons(
     return list(rows)
 
 
+def _get_browseable_lessons(
+    user_id: int, db: Any, limit: int,
+) -> list[Lessons]:
+    """Return first ``limit`` lessons from the catalogue visible to the user.
+
+    Final fallback for the preview segment when there's neither upcoming
+    spine work nor a completed-lesson history (fresh user / migrated
+    data). Lets the dashboard always offer something to click.
+    """
+    from app.daily_plan.linear.progression import _user_min_level_order
+    try:
+        min_order = _user_min_level_order(user_id, db)
+    except Exception:
+        min_order = 0
+    try:
+        return (
+            db.session.query(Lessons)
+            .join(Module, Module.id == Lessons.module_id)
+            .join(CEFRLevel, CEFRLevel.id == Module.level_id)
+            .filter(CEFRLevel.order >= min_order)
+            .order_by(
+                CEFRLevel.order.asc(),
+                Module.number.asc(),
+                Lessons.number.asc(),
+                Lessons.id.asc(),
+            )
+            .limit(limit)
+            .all()
+        )
+    except Exception:
+        logger.warning('browseable_lessons: query failed', exc_info=True)
+        return []
+
+
 def _build_preview_segment(
     user_id: int,
     db: Any,
@@ -475,15 +530,16 @@ def _build_preview_segment(
 ) -> tuple[PathSegment, Optional[str]]:
     """Build the preview segment + a module label for the section header.
 
-    Strategy:
+    Strategy (cascading fallbacks — dashboard never goes blank):
       1. Upcoming lessons on the curriculum spine (normal case).
-      2. If spine is finished — fallback to recently completed lessons
-         shown as «можно повторить». The dashboard never goes blank for
-         curriculum-complete users.
+      2. Recently completed lessons («Можно повторить») for users who
+         finished the spine.
+      3. First lessons from the catalogue («Из каталога курса») for
+         fresh / migrated users with no completion history.
     """
     upcoming = get_curriculum_preview(user_id, db, limit=limit + len(today_lesson_ids) + 1)
 
-    # Spine still has work → forward-looking preview.
+    # Strategy 1: forward-looking preview on the spine.
     if upcoming:
         upcoming = [l for l in upcoming if l.id not in today_lesson_ids][:limit]
         if upcoming:
@@ -500,17 +556,29 @@ def _build_preview_segment(
                      for i, lesson in enumerate(upcoming)]
             return PathSegment(kind='preview', label=module_label, nodes=nodes), module_label
 
-    # Curriculum done → review-mode preview.
+    # Strategy 2: review-mode preview on recently completed lessons.
     recent = _get_recent_completed_lessons(user_id, db, limit)
-    if not recent:
-        return PathSegment(kind='preview', label='', nodes=[]), None
-    nodes = [_preview_node(lesson, today_node_count, i, kind_label='Можно повторить')
-             for i, lesson in enumerate(recent)]
-    return PathSegment(
-        kind='preview',
-        label='Доступно для повторения',
-        nodes=nodes,
-    ), None
+    if recent:
+        nodes = [_preview_node(lesson, today_node_count, i, kind_label='Можно повторить')
+                 for i, lesson in enumerate(recent)]
+        return PathSegment(
+            kind='preview',
+            label='Доступно для повторения',
+            nodes=nodes,
+        ), None
+
+    # Strategy 3: catalogue browsing.
+    browse = _get_browseable_lessons(user_id, db, limit)
+    if browse:
+        nodes = [_preview_node(lesson, today_node_count, i, kind_label='Из каталога')
+                 for i, lesson in enumerate(browse)]
+        return PathSegment(
+            kind='preview',
+            label='Из каталога курса',
+            nodes=nodes,
+        ), None
+
+    return PathSegment(kind='preview', label='', nodes=[]), None
 
 
 def _preview_node(
@@ -546,7 +614,7 @@ def build_dashboard_path(
     avoid duplicate DB work. Tests can pass them directly without
     hitting the plan assembler.
     """
-    milestone_ctx = _get_milestone_context(user_id, db)
+    milestone_ctx = _get_milestone_context(user_id, db, linear_plan=linear_plan)
     today = _build_today_segment(
         linear_plan or {}, plan_completion or {},
         milestone_context=milestone_ctx,
