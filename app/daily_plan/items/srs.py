@@ -73,6 +73,12 @@ def build_srs_item(
     if due_count <= 0 and not completed_today:
         return None
 
+    # In optional, don't surface a "done today" placeholder — keep the
+    # bonus list focused on actionable items. Required keeps the done
+    # card so the user can see progress and the counter reflects it.
+    if section == 'optional' and due_count <= 0 and completed_today:
+        return None
+
     backlog = count_due_cards(user_id, db)
     remaining_new, _ = get_new_card_budget(user_id, db)
     settings = StudySettings.get_settings(user_id)

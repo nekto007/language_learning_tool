@@ -198,10 +198,9 @@ def build_listening_item(
 ) -> Optional[PlanItem]:
     lesson = _find_next_skill_lesson(user_id, db, _LISTENING_LESSON_TYPES)
     if lesson is None:
-        # No pending listening lesson in the current module. Keep a done
-        # placeholder if the user earned listening XP today so the item
-        # stays visible instead of vanishing mid-session.
-        if _xp_source_done_today(user_id, db, _LISTENING_XP_SOURCES):
+        # Done-today placeholder only in required so the counter reflects
+        # progress; in optional the bonus list stays actionable.
+        if section == 'required' and _xp_source_done_today(user_id, db, _LISTENING_XP_SOURCES):
             return _build_done_placeholder(kind='listening', section=section,
                                            title='Аудирование выполнено сегодня',
                                            completion_signal='listening_attempt')
@@ -222,7 +221,7 @@ def build_speaking_item(
 ) -> Optional[PlanItem]:
     lesson = _find_next_skill_lesson(user_id, db, _SPEAKING_LESSON_TYPES)
     if lesson is None:
-        if _lesson_progress_done_today(user_id, db, _SPEAKING_LESSON_TYPES):
+        if section == 'required' and _lesson_progress_done_today(user_id, db, _SPEAKING_LESSON_TYPES):
             return _build_done_placeholder(kind='speaking', section=section,
                                            title='Произношение выполнено сегодня',
                                            completion_signal='pronunciation_attempt')
@@ -245,7 +244,7 @@ def build_writing_item(
 ) -> Optional[PlanItem]:
     lesson = _find_next_skill_lesson(user_id, db, _WRITING_LESSON_TYPES)
     if lesson is None:
-        if _writing_done_today(user_id, db):
+        if section == 'required' and _writing_done_today(user_id, db):
             return _build_done_placeholder(kind='writing', section=section,
                                            title='Письмо выполнено сегодня',
                                            completion_signal='writing_attempt')

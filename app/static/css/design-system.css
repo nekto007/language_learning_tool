@@ -17314,3 +17314,32 @@ body.dashboard-path-wide main.container {
     background: #fed7aa;
     color: #c2410c;
 }
+
+/* Primary load-more after day_secured: «Продолжить обучение» */
+.daily-plan__load-more--primary {
+    background: var(--color-brand, #4f46e5);
+    color: #fff;
+    border-color: transparent;
+    font-weight: 600;
+}
+.daily-plan__load-more--primary:hover {
+    background: var(--color-brand-hover, #4338ca);
+    border-color: transparent;
+    color: #fff;
+}
+
+/* Prominent setup (reading focus, no book yet) — between hero and optional */
+.daily-plan__section--setup-prominent .daily-plan__section-title {
+    color: var(--color-text, #222);
+    font-size: 1rem;
+}
+.daily-plan__section--setup-prominent .plan-item--setup {
+    background: var(--color-brand-soft, #eef2ff);
+    border-color: var(--color-brand, #4f46e5);
+    border-style: solid;
+}
+.daily-plan__section--setup-prominent .plan-item__marker {
+    background: var(--color-brand, #4f46e5);
+    color: #fff;
+    font-size: 1rem;
+}
