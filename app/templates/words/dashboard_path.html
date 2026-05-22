@@ -13,6 +13,10 @@ Mobile: rail re-orders below path, hero shrinks, stats wrap 2x2.
 #}
 {% extends "base.html" %}
 
+{# Override base.html's <main class="container"> 950px cap so the 2-col
+   path layout can use up to ~1320px. CSS lives next to .dash-path. #}
+{% block body_class %}dashboard-path-wide{% endblock %}
+
 {% block content %}
 <div class="dash-path" data-linear-plan="true">
   <main class="dash-path__main">

@@ -16114,6 +16114,13 @@ span.vocab-word.vocab-word--active {
    components/_dashboard_{hero,rail}.html.
    ════════════════════════════════════════════════════════════════════════ */
 
+/* Опт-аут от .container { max-width: 950px } из base.html — без него
+   dash-path всегда жался к 950px независимо от собственного max-width. */
+body.dashboard-path-wide .container,
+body.dashboard-path-wide main.container {
+    max-width: 1360px;
+}
+
 .dash-path {
     --path-bubble-size: 64px;
     --path-card-icon-size: 56px;
@@ -16135,7 +16142,7 @@ span.vocab-word.vocab-word--active {
     gap: 1.5rem;
     max-width: 1320px;
     margin: 0 auto;
-    padding: 1.25rem 1.25rem 4rem;
+    padding: 1.25rem 0.5rem 4rem;
     align-items: start;
 }
 
