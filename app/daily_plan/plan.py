@@ -95,9 +95,14 @@ def build_required(
         and not cur_item.completed
     )
 
-    if not next_is_card_lesson:
-        srs_item = build_srs_item(user_id, db, section='required')
-        if srs_item is not None:
+    # SRS placement rules:
+    #   curriculum is NOT card-lesson      → SRS in required (standard)
+    #   curriculum IS card-lesson, SRS pending → SRS in optional (dedup)
+    #   curriculum IS card-lesson, SRS done    → SRS in required as done
+    #     (so the counter shows progress instead of dropping a step)
+    srs_item = build_srs_item(user_id, db, section='required')
+    if srs_item is not None:
+        if srs_item.completed or not next_is_card_lesson:
             items.append(srs_item)
 
     if cur_item is not None:
