@@ -13,11 +13,14 @@
 {% set u_day_secured = unified_plan.get('day_secured', false) %}
 {% set u_eta = unified_plan.get('total_estimated_minutes', 0) %}
 
-{% set u_required_done = 0 %}
+{# Compute done count via namespace because Jinja {% set %} inside a for-loop
+   is scoped to the iteration and does not leak out. #}
+{% set ns = namespace(done=0) %}
 {% for item in u_required %}
     {% set _completed = item.get('completed', false) or (plan_completion and plan_completion.get(item.get('id'), false)) %}
-    {% if _completed %}{% set u_required_done = u_required_done + 1 %}{% endif %}
+    {% if _completed %}{% set ns.done = ns.done + 1 %}{% endif %}
 {% endfor %}
+{% set u_required_done = ns.done %}
 {% set u_required_total = u_required | length %}
 
 <section class="daily-plan" data-daily-plan="true" data-mode="unified">
