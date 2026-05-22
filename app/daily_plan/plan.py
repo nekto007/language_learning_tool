@@ -54,6 +54,9 @@ _OPTIONAL_PRIORITY = (
 )
 
 
+_CARD_LESSON_TYPES = frozenset({'card', 'flashcards'})
+
+
 def build_required(
     user_id: int,
     db: Any,
@@ -63,9 +66,14 @@ def build_required(
 ) -> list[PlanItem]:
     """Assemble the required-section items in caskade order.
 
-    Order: error_review (acute) → SRS (if due > 0) → curriculum → reading
-    (if book selected and not selected today) → listening (when in module
-    and difficulty != 'light').
+    Order: error_review (acute) → SRS (if due > 0 AND not already implied by
+    a card-type curriculum lesson) → curriculum → reading → listening.
+
+    SRS de-duplication: when the next curriculum lesson itself is a card /
+    flashcards lesson, including the SRS slot would mean the user faces
+    two flashcards sessions in a row. In that case SRS moves to optional
+    (so the user can still pull it in if they want extra reps) and only
+    the curriculum card-lesson stays in required.
 
     Setup items NEVER appear here. Empty list is valid (orchestrator
     reports day not secured and surfaces setup hints).
@@ -78,11 +86,20 @@ def build_required(
         if item is not None:
             items.append(item)
 
-    srs_item = build_srs_item(user_id, db, section='required')
-    if srs_item is not None:
-        items.append(srs_item)
-
+    # Resolve curriculum first so we can decide SRS placement based on
+    # the upcoming lesson type. The builder is cheap and idempotent.
     cur_item = build_curriculum_item(user_id, db, section='required')
+    next_is_card_lesson = (
+        cur_item is not None
+        and cur_item.lesson_type in _CARD_LESSON_TYPES
+        and not cur_item.completed
+    )
+
+    if not next_is_card_lesson:
+        srs_item = build_srs_item(user_id, db, section='required')
+        if srs_item is not None:
+            items.append(srs_item)
+
     if cur_item is not None:
         items.append(cur_item)
 
