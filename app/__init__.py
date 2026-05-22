@@ -409,8 +409,14 @@ def create_app(config_class=Config):
                 break
 
         try:
+            # NB: pass the SQLAlchemy `db` object, not `db.session`. The
+            # downstream call chain (build_lesson_context → get_linear_plan
+            # → find_next_lesson_linear) does `db.session.query(...)`; if
+            # we hand it a scoped session, that becomes `session.session`
+            # and silently dies, leaving the lesson page with catalog CTAs
+            # even when ?from=linear_plan is set on the URL.
             ctx = build_lesson_context(
-                current_user.id, db.session, current_lesson_id=lesson_id
+                current_user.id, db, current_lesson_id=lesson_id
             )
         except Exception:
             logger.exception("daily_plan_ctx build failed for endpoint=%s", endpoint)

@@ -380,7 +380,7 @@ def submit_lesson(lesson_id):
         try:
             from app.daily_plan.linear.lesson_context import build_lesson_context
             dp_ctx = build_lesson_context(
-                current_user.id, db.session, current_lesson_id=lesson_id
+                current_user.id, db, current_lesson_id=lesson_id
             )
             result['daily_plan_ctx'] = dp_ctx.to_dict()
         except Exception as ctx_err:

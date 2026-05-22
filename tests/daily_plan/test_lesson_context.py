@@ -231,6 +231,42 @@ def test_to_dict_round_trip():
     assert d['day_secured'] is False
 
 
+def test_build_lesson_context_accepts_full_db_object_not_session():
+    """Regression: the dashboard context processor and lesson API endpoints
+    pass the SQLAlchemy ``db`` object (whose ``.session`` is the scoped
+    session) — not ``db.session`` directly. Downstream get_linear_plan →
+    find_next_lesson_linear does ``db.session.query(...)``. Passing a
+    session here would silently degrade to is_daily_plan=False, leaving
+    lesson pages with catalog CTAs even when ?from=linear_plan is set."""
+    from unittest.mock import MagicMock
+    from app.daily_plan.linear.lesson_context import build_lesson_context, PLAN_FROM_VALUE
+    from app import create_app
+    app = create_app()
+    with app.test_request_context(f'/learn/1/?from={PLAN_FROM_VALUE}&slot=curriculum'):
+        # Pass a fake db with .session attribute that returns a mock
+        # supporting .query — mirrors the real db shape. If
+        # build_lesson_context wrongly treats this as a session, it will
+        # try .session.session.query and crash; try/except inside it
+        # would return is_daily_plan=False — which we assert against.
+        fake_session = MagicMock()
+        # Mock get_linear_plan to return a minimal payload to confirm
+        # we make it past the try.
+        fake_db = MagicMock()
+        fake_db.session = fake_session
+        from unittest.mock import patch
+        # get_linear_plan is imported lazily inside build_lesson_context,
+        # so patch the source module that owns the symbol.
+        with patch('app.daily_plan.linear.plan.get_linear_plan',
+                   return_value={'slots': [], 'baseline_slots': []}) as mock_plan:
+            ctx = build_lesson_context(user_id=1, db=fake_db, current_lesson_id=1)
+        mock_plan.assert_called_once()
+        # ``db`` arg forwarded to get_linear_plan — confirms callers can
+        # hand over the SQLAlchemy module-level db object.
+        forwarded_db = mock_plan.call_args.args[1]
+        assert forwarded_db is fake_db
+        assert ctx.is_daily_plan is True
+
+
 def test_extension_after_baseline_chosen_as_next():
     """When baseline curriculum is complete and an extension is queued,
     the extension is the next CTA target."""
