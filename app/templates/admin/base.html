@@ -191,6 +191,19 @@
                 </div>
             </div>
 
+            <div class="nav-section" data-section="analytics">
+                <div class="nav-section-title" onclick="toggleNavSection('analytics')">
+                    <span>Аналитика</span>
+                    <i class="fas fa-chevron-down nav-section-chevron"></i>
+                </div>
+                <div class="nav-section-content">
+                    <a href="{{ url_for('seo_admin.seo_index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('seo_admin.') }}">
+                        <i class="fas fa-chart-line"></i>
+                        <span>SEO Аналитика</span>
+                    </a>
+                </div>
+            </div>
+
             <div class="nav-section" data-section="config">
                 <div class="nav-section-title" onclick="toggleNavSection('config')">
                     <span>Настройки</span>
