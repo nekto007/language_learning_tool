@@ -56,6 +56,17 @@ def compute_day_secured_from_activity(
             plan_completion.get(slot.get('kind', ''), False)
             for slot in baseline_slots
         )
+    if effective_mode == 'unified':
+        # Unified plan: day_secured iff every required-section item is
+        # marked completed by activity. Empty required → not secured
+        # (orchestrator surfaces setup hints; user has to act first).
+        required = plan.get('required') or []
+        if not required:
+            return False
+        return all(
+            plan_completion.get(item.get('id', ''), False) or bool(item.get('completed'))
+            for item in required
+        )
     return bool(plan.get('day_secured', False))
 
 
@@ -295,6 +306,20 @@ def _get_linear_plan_safe(user_id: int) -> Optional[dict[str, Any]]:
         return None
 
 
+def _get_unified_plan_safe(user_id: int) -> Optional[dict[str, Any]]:
+    """Wrap the unified-plan orchestrator so any failure degrades to linear/mission/legacy."""
+    try:
+        from app.daily_plan.plan import get_daily_plan
+        return get_daily_plan(user_id)
+    except Exception:
+        logger.warning(
+            "unified plan assembly failed for user_id=%s, falling back",
+            user_id,
+            exc_info=True,
+        )
+        return None
+
+
 def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, Any]:
     """Entry point: routes to linear → mission → legacy based on user flags.
 
@@ -318,6 +343,21 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
             mission_plan_enabled=bool(user.use_mission_plan),
             effective_mode='paused',
         )
+
+    if user and user.use_unified_plan:
+        unified_payload = _get_unified_plan_safe(user_id)
+        if unified_payload is not None:
+            logger.info("daily_plan_unified user=%s mode=unified", user_id)
+            return _with_plan_meta(
+                unified_payload,
+                mission_plan_enabled=bool(user.use_mission_plan),
+                effective_mode='unified',
+            )
+        logger.warning(
+            "unified plan failed for user_id=%s, falling back to linear/mission/legacy",
+            user_id,
+        )
+        # Fall through to existing linear/mission/legacy path below.
 
     if user and user.use_linear_plan:
         linear_payload = _get_linear_plan_safe(user_id)

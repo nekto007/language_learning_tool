@@ -59,6 +59,10 @@ class User(db.Model, UserMixin):
     # Daily plan: linear (curriculum spine) feature flag
     use_linear_plan = Column(Boolean, default=False, nullable=False, server_default='false')
 
+    # Daily plan: unified required/optional/setup model (replaces linear/mission/legacy).
+    # When true, get_daily_plan_unified returns the new payload format.
+    use_unified_plan = Column(Boolean, default=False, nullable=False, server_default='false')
+
     # Age gating: used to determine adult status for rival strip (Phase 3).
     # Null = unknown age (treated as adult for backward compatibility).
     birth_year = Column(Integer, nullable=True)
