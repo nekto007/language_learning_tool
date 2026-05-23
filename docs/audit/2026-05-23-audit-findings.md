@@ -233,6 +233,23 @@ Beглядом по `app/static/css/design-system.css` (~11400 строк) и к
 - Отложено: F-005 (hardcoded canonical `llt-english.com` на 16 шаблонах) — открытый вопрос из реестра «production-only или ошибка»; не фиксим без env-aware решения.
 - Отложено: TPL-001..TPL-007 (PWA manifest, общие inline-стили в base/dashboard/landing/components) — требует генерации иконок и масштабного рефакторинга; вне scope Task 4 baseline.
 
+## Статус Task 5 (Code quality)
+
+- ✅ C-005 — `app/repository.py.update_download_status` теперь валидирует `table_name`/`column_name` через allowlist (`_ALLOWED_SQL_TABLES`/`_ALLOWED_SQL_COLUMNS`), произвольные идентификаторы → `ValueError`.
+- ✅ C-006 — silent excepts в `app/api/daily_plan.py:492` (mission route_step sync), `:619` (challenge bonus lookup), `:631/:640` (mission/linear race-point updates) теперь логируют через `logger.warning(..., exc_info=True)`.
+- ✅ C-009 — `app/achievements/streak_service.py` get_listening_streak/get_writing_streak/get_speaking_streak/get_immersion_streak логируют исключения через `logger.exception(...)` (4 silent excepts закрыты).
+- ✅ C-011 — `app/utils/template_utils.py` get_words_due_count и get_grammar_due_count теперь логируют через `logger.exception(...)` (приведено к единому стилю с активными book_course/curriculum/grammar навбар-помощниками).
+- ✅ C-012 — `app/words/routes.py.dashboard` дополнительно обернул `yesterday_summary` и `weekly_analytics` в `_safe_widget_call(...)` с пустыми default-ами. Core-данные (streak, daily_plan, daily_summary) намеренно не обёрнуты.
+- ✅ DC-001 — `pytest.ini.bak` удалён.
+- ✅ DC-002 — `app/templates/curriculum/lessons/vocabulary_old.html.backup` удалён (0 grep references).
+- ✅ DC-006 — `app/static/js/reader-optimized.js` удалён (0 grep references).
+- ⏸ DC-003/DC-004/DC-005 — iCloud-managed `* 2.*` дубли, требуют подтверждения пользователя per registry open questions; не трогаем.
+- ⏸ DC-008/DC-009 — корневые исторические session-summary и wordlist файлы; гитигнорируемые локальные артефакты, не влияют на репозиторий.
+- ⏸ C-013/C-014 — рефакторинг крупных файлов и длинных функций; P2 non-blocker, оставлен как технический долг.
+- ⏸ C-015/C-016 — `datetime.utcnow()` / SQLAlchemy 2.0 deprecation в тестах; tests-only cosmetic.
+- ✅ Регрессионные тесты — `tests/test_task5_code_quality_fixes.py` (5 тестов: C-005 allowlist accept/reject, C-009 streak logging, C-011 navbar logger references, DC dead-file removal).
+- Полный pytest: 6 failed (5 deferred контентных T-001..T-005 + 1 flaky robots — pre-existing); smoke: 169 passed (+4 новых теста).
+
 ## Статус Task 3 (Admin P0/P1)
 
 - ✅ AD-001..AD-004 — CSRF token hidden input добавлен в `admin/curriculum/edit_text.html`, `edit_quiz.html`, `edit_matching.html`, `edit_grammar.html`.

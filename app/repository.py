@@ -14,6 +14,18 @@ from app.books.models import Book
 
 logger = logging.getLogger(__name__)
 
+# Allowlist of identifiers that may be interpolated into raw SQL. Used by
+# admin audio-download flows where the table/column come from the request.
+_ALLOWED_SQL_TABLES = frozenset({'collection_words', 'phrasal_verb'})
+_ALLOWED_SQL_COLUMNS = frozenset({'english_word', 'phrasal_verb'})
+
+
+def _validate_sql_identifier(value: str, allowlist: frozenset) -> str:
+    """Reject SQL identifiers that are not on an explicit allowlist."""
+    if value not in allowlist:
+        raise ValueError(f"SQL identifier {value!r} is not allowed")
+    return value
+
 
 class DatabaseRepository:
     """Repository for working with the database."""
@@ -536,6 +548,10 @@ class DatabaseRepository:
         Returns:
             int: Number of updated records.
         """
+        # Reject identifiers that are not on the explicit allowlist before
+        # building the raw SQL string (psycopg2 has no bind support for them).
+        table_name = _validate_sql_identifier(table_name, _ALLOWED_SQL_TABLES)
+        column_name = _validate_sql_identifier(column_name, _ALLOWED_SQL_COLUMNS)
         # Get list of words/phrases for which files are not downloaded
         query = f"SELECT {column_name}, listening FROM {table_name} WHERE (get_download = 0 or get_download isnull)"
 

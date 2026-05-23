@@ -1178,7 +1178,8 @@ def dashboard():
 
     # Yesterday summary
     from app.telegram.queries import get_yesterday_summary
-    yesterday_summary = get_yesterday_summary(current_user.id, tz=tz)
+    yesterday_summary = _safe_widget_call(
+        'yesterday_summary', get_yesterday_summary, current_user.id, tz=tz, default={})
 
     # === PLAN COMPLETION & STREAK ===
     from app.achievements.streak_service import compute_plan_steps, process_streak_on_activity
@@ -1306,7 +1307,8 @@ def dashboard():
 
     # === WEEKLY ANALYTICS (via insights_service — week-to-date, not lifetime) ===
     from app.study.insights_service import get_weekly_summary, get_listening_stats, get_writing_stats, get_vocabulary_growth, get_pronunciation_stats, get_weak_areas, get_learning_velocity
-    weekly_analytics = get_weekly_summary(current_user.id)
+    weekly_analytics = _safe_widget_call(
+        'weekly_analytics', get_weekly_summary, current_user.id, default={})
 
     # === LISTENING STATS (last 7 days dictation/audio_fill_blank) ===
     listening_stats = _safe_widget_call(

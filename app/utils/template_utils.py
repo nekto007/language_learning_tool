@@ -288,6 +288,7 @@ def init_template_utils(app):
                 ).scalar() or 0
                 return count
             except Exception:
+                logger.exception("Failed to get words due count for navbar")
                 return 0
 
         def get_grammar_due_count() -> int:
@@ -312,6 +313,7 @@ def init_template_utils(app):
                 ).scalar() or 0
                 return count
             except Exception:
+                logger.exception("Failed to get grammar due count for navbar")
                 return 0
 
         return dict(

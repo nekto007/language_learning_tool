@@ -1195,6 +1195,7 @@ def get_listening_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
         )
         active_dates = {row[0] for row in rows if row[0] is not None}
     except Exception:
+        logger.exception("Failed to query listening streak for user %s", user_id)
         return 0
 
     streak = 0
@@ -1245,6 +1246,7 @@ def get_writing_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZONE
         )
         active_dates = {row[0] for row in rows if row[0] is not None}
     except Exception:
+        logger.exception("Failed to query writing streak for user %s", user_id)
         return 0
 
     streak = 0
@@ -1294,6 +1296,7 @@ def get_speaking_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZON
         )
         active_dates = {row[0] for row in rows if row[0] is not None}
     except Exception:
+        logger.exception("Failed to query speaking streak for user %s", user_id)
         return 0
 
     streak = 0
@@ -1373,6 +1376,7 @@ def get_immersion_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
             if row[0] is not None
         }
     except Exception:
+        logger.exception("Failed to query immersion streak for user %s", user_id)
         return 0
 
     all_four_dates = listening_dates & writing_dates & speaking_dates & reading_dates
