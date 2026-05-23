@@ -449,6 +449,7 @@ def cleanup_books():
                             removed_files += 1
                         except Exception:
                             logger.exception("Failed to remove temp file: %s", filename)
+                log_admin_action(current_user.id, 'book.cleanup_temp_files', target_type='book')
                 results['details'].append(f"Удалено {removed_files} временных файлов")
 
             results['message'] = 'Очистка выполнена успешно'
