@@ -68,6 +68,7 @@ def get_site_setting(key: str, default: Any = None, db_session=None) -> Optional
     # Seed from SETTING_DEFAULTS on first access
     seed_value = SETTING_DEFAULTS.get(key, default)
     if seed_value is not None:
+        sp = None
         try:
             sp = session.begin_nested()
             row = SiteSettings(
@@ -78,7 +79,8 @@ def get_site_setting(key: str, default: Any = None, db_session=None) -> Optional
             session.flush()
             return row.value
         except Exception:
-            sp.rollback()
+            if sp is not None:
+                sp.rollback()
             logger.warning('Could not seed site setting %r', key)
 
     return default if default is not None else (SETTING_DEFAULTS.get(key))

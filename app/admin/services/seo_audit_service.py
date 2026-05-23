@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 SEO_AUDIT_CACHE_KEY = 'seo_audit_results'
 SEO_AUDIT_CACHE_TIMEOUT = 3600  # 1 hour
 
-# Key public URLs to audit — static paths that don't require dynamic IDs
+# Key public URLs to audit — static HTML paths only.  Sitemap is audited
+# separately via `_fetch_sitemap_stats` so meta-tag coverage stays consistent.
 PUBLIC_URLS = [
     '/',
     '/register',
@@ -30,7 +31,6 @@ PUBLIC_URLS = [
     '/grammar-lab/topics/c1',
     '/onboarding',
     '/reset_password',
-    '/sitemap.xml',
 ]
 
 
@@ -110,13 +110,8 @@ def _audit_page(client, path: str) -> dict:
             return result
 
         content_type = response.content_type or ''
-        if 'html' not in content_type and 'xml' not in content_type:
+        if 'html' not in content_type:
             result['error'] = f'Non-HTML response: {content_type}'
-            return result
-
-        # Skip XML (sitemap) — handled separately
-        if 'xml' in content_type:
-            result['title_ok'] = True
             return result
 
         html = response.data.decode('utf-8', errors='replace')

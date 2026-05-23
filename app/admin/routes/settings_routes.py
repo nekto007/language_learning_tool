@@ -5,7 +5,9 @@
 import logging
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import current_user
 
+from app.admin.audit import log_admin_action
 from app.admin.site_settings import SETTING_DEFAULTS, get_site_setting, set_site_setting
 from app.admin.utils.decorators import admin_required
 from app.utils.db import db
@@ -57,6 +59,7 @@ def settings_save():
             else:
                 value = request.form.get(key, '').strip()
             set_site_setting(key, value)
+        log_admin_action(current_user.id, 'settings_update', target_type='site_settings')
         db.session.commit()
         flash('Настройки сохранены.', 'success')
         logger.info('Site settings updated')

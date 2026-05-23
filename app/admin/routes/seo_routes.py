@@ -14,7 +14,9 @@ from flask import (
     session,
     url_for,
 )
+from flask_login import current_user
 
+from app.admin.audit import log_admin_action
 from app.admin.services.seo_audit_service import (
     SEO_AUDIT_CACHE_KEY,
     SEO_AUDIT_CACHE_TIMEOUT,
@@ -177,6 +179,7 @@ def gsc_callback():
 
     set_site_setting('gsc_refresh_token', refresh_token)
     set_site_setting('gsc_site_url', site_url)
+    log_admin_action(current_user.id, 'gsc_connect', target_type='site_settings')
     db.session.commit()
 
     flash('Google Search Console успешно подключён.', 'success')
@@ -189,6 +192,7 @@ def gsc_disconnect():
     """Remove stored GSC credentials."""
     set_site_setting('gsc_refresh_token', '')
     set_site_setting('gsc_site_url', '')
+    log_admin_action(current_user.id, 'gsc_disconnect', target_type='site_settings')
     db.session.commit()
     flash('Google Search Console отключён.', 'info')
     return redirect(url_for('seo_admin.seo_index'))

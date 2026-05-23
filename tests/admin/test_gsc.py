@@ -64,8 +64,10 @@ class TestGSCService:
         assert len(result['queries']) == 2
         assert result['queries'][0]['query'] == 'english grammar'
         assert result['queries'][0]['clicks'] == 100
-        assert result['total_clicks'] == 180
-        assert result['total_impressions'] == 1900
+        # Totals come from the per-date series (sums across ALL queries),
+        # not from the top-10 query rows.
+        assert result['total_clicks'] == 110
+        assert result['total_impressions'] == 1100
         assert 'chart_dates' in result
         assert result['chart_dates'] == ['2026-04-25', '2026-04-26']
         assert result['chart_clicks'] == [50, 60]

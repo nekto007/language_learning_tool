@@ -98,14 +98,10 @@ def fetch_gsc_data(
         }
         for r in rows
     ]
-    total_clicks = sum(q['clicks'] for q in queries)
-    total_impressions = sum(q['impressions'] for q in queries)
-    avg_ctr = round(total_clicks / total_impressions * 100, 1) if total_impressions else 0.0
-    avg_position = (
-        round(sum(q['position'] for q in queries) / len(queries), 1) if queries else 0.0
-    )
 
-    # Daily time-series for 28-day chart
+    # Daily time-series for 28-day chart. Per-date rows aggregate across ALL
+    # queries, so sums over chart rows give site-wide totals (top-10 query
+    # sums would under-report any site with >10 queries).
     date_resp = service.searchanalytics().query(
         siteUrl=site_url,
         body={**date_range, 'dimensions': ['date'], 'rowLimit': days + 5},
@@ -114,6 +110,17 @@ def fetch_gsc_data(
     chart_dates = [r['keys'][0] for r in chart_rows]
     chart_clicks = [int(r.get('clicks', 0)) for r in chart_rows]
     chart_impressions = [int(r.get('impressions', 0)) for r in chart_rows]
+
+    total_clicks = sum(chart_clicks)
+    total_impressions = sum(chart_impressions)
+    avg_ctr = round(total_clicks / total_impressions * 100, 1) if total_impressions else 0.0
+    # Impression-weighted average position across the date series.
+    weighted_position_sum = sum(
+        float(r.get('position', 0)) * int(r.get('impressions', 0)) for r in chart_rows
+    )
+    avg_position = (
+        round(weighted_position_sum / total_impressions, 1) if total_impressions else 0.0
+    )
 
     return {
         'queries': queries,
