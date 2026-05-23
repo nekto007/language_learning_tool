@@ -17611,3 +17611,44 @@ body.dashboard-path-wide main.container {
     font-size: 0.8125rem;
     color: var(--color-text-muted, #888);
 }
+
+/* ============================================================
+   Admin — activity / audit / funnel inline-style extraction
+   (Task 4 audit findings AD-024..AD-026)
+   ============================================================ */
+.admin-funnel-select { width: auto; }
+.admin-funnel-share-col { min-width: 200px; }
+.admin-funnel-progress { height: 8px; }
+.admin-funnel-cohort-table { font-size: 0.85rem; }
+.admin-funnel-legend-swatch {
+    padding: 1px 6px;
+    border-radius: 3px;
+}
+.admin-funnel-heatmap--high { background-color: #d4edda; }
+.admin-funnel-heatmap--mid { background-color: #fff3cd; }
+.admin-funnel-heatmap--low { background-color: #f8d7da; }
+
+.admin-activity-th--time { width: 180px; }
+.admin-activity-th--type { width: 160px; }
+.admin-activity-th--user { width: 220px; }
+.admin-activity-th--actions { width: 80px; }
+.admin-activity-user-truncate {
+    max-width: 200px;
+}
+.admin-activity-details-cell {
+    max-width: 480px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.admin-activity-dropdown-list {
+    min-width: 240px;
+}
+
+.admin-audit-th--time { width: 180px; }
+.admin-audit-th--admin { width: 220px; }
+.admin-audit-th--action { width: 220px; }
+.admin-audit-th--target { width: 220px; }
+.admin-audit-admin-truncate {
+    max-width: 200px;
+}

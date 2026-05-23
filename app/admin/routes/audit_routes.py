@@ -18,6 +18,7 @@ audit_bp = Blueprint('audit_admin', __name__)
 logger = logging.getLogger(__name__)
 
 _PER_PAGE = 50
+_MAX_PAGE = 1000
 
 
 @audit_bp.route('/audit-log')
@@ -26,6 +27,8 @@ def audit_index():
     page = request.args.get('page', 1, type=int)
     if page < 1:
         page = 1
+    elif page > _MAX_PAGE:
+        page = _MAX_PAGE
 
     admin_id_raw = request.args.get('admin_id', '').strip()
     admin_id = int(admin_id_raw) if admin_id_raw.isdigit() else None

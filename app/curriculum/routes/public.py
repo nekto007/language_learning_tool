@@ -1,6 +1,8 @@
 # app/curriculum/routes/public.py
 """Public course catalog routes — no login required."""
 
+from types import SimpleNamespace
+
 from flask import Blueprint, abort, render_template
 from sqlalchemy import func
 
@@ -8,6 +10,57 @@ from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.utils.db import db
 
 courses_bp = Blueprint('courses', __name__)
+
+_CEFR_FALLBACKS = {
+    'A0': {
+        'name': 'Starter',
+        'description': 'Стартовый уровень для тех, кто начинает английский с полного нуля.',
+        'order': 0,
+    },
+    'A1': {
+        'name': 'Beginner',
+        'description': 'Базовые фразы, простая грамматика и первые разговорные ситуации.',
+        'order': 1,
+    },
+    'A2': {
+        'name': 'Elementary',
+        'description': 'Повседневные темы, устойчивые фразы и уверенная базовая коммуникация.',
+        'order': 2,
+    },
+    'B1': {
+        'name': 'Intermediate',
+        'description': 'Самостоятельное общение, рассказы о событиях и аргументация простых идей.',
+        'order': 3,
+    },
+    'B2': {
+        'name': 'Upper-Intermediate',
+        'description': 'Свободная речь на широкий круг тем, сложная грамматика и точная лексика.',
+        'order': 4,
+    },
+    'C1': {
+        'name': 'Advanced',
+        'description': 'Продвинутая речь, академический английский и работа с нюансами регистра.',
+        'order': 5,
+    },
+    'C2': {
+        'name': 'Proficiency',
+        'description': 'Профессиональный уровень владения английским для сложных текстов и точной речи.',
+        'order': 6,
+    },
+}
+
+
+def _fallback_level(level_code: str):
+    data = _CEFR_FALLBACKS.get(level_code.upper())
+    if not data:
+        return None
+    return SimpleNamespace(
+        id=None,
+        code=level_code.upper(),
+        name=data['name'],
+        description=data['description'],
+        order=data['order'],
+    )
 
 
 @courses_bp.route('/')
@@ -51,16 +104,23 @@ def catalog():
 @courses_bp.route('/<string:level_code>')
 def level_detail(level_code: str):
     """Public level detail page with module list and sample lesson titles."""
-    level = CEFRLevel.query.filter_by(code=level_code.upper()).first()
+    normalized_code = level_code.upper()
+    level = CEFRLevel.query.filter_by(code=normalized_code).first()
+    is_placeholder_level = False
     if not level:
-        abort(404)
+        level = _fallback_level(normalized_code)
+        if not level:
+            abort(404)
+        is_placeholder_level = True
 
-    modules = (
-        Module.query
-        .filter_by(level_id=level.id)
-        .order_by(Module.number)
-        .all()
-    )
+    modules = []
+    if level.id is not None:
+        modules = (
+            Module.query
+            .filter_by(level_id=level.id)
+            .order_by(Module.number)
+            .all()
+        )
 
     # Get sample lesson titles per module (first 3)
     modules_data = []
@@ -89,4 +149,5 @@ def level_detail(level_code: str):
         level=level,
         modules_data=modules_data,
         meta_description=meta_description,
+        is_placeholder_level=is_placeholder_level,
     )

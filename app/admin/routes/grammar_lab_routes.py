@@ -9,7 +9,7 @@ import logging
 import re
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
-from flask_login import current_user, login_required
+from flask_login import current_user
 from sqlalchemy.exc import IntegrityError
 
 from app.admin.utils.decorators import admin_required
@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 
 @grammar_lab_bp.route('/grammar-lab')
-@login_required
 @admin_required
 def grammar_lab_index():
     """Grammar Lab admin dashboard"""
@@ -47,7 +46,6 @@ def grammar_lab_index():
 
 
 @grammar_lab_bp.route('/grammar-lab/topics')
-@login_required
 @admin_required
 def topic_list():
     """List all grammar topics"""
@@ -67,7 +65,6 @@ def topic_list():
 
 
 @grammar_lab_bp.route('/grammar-lab/topics/create', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def create_topic():
     """Create a new grammar topic"""
@@ -119,7 +116,6 @@ def create_topic():
 
 
 @grammar_lab_bp.route('/grammar-lab/topics/<int:topic_id>/edit', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def edit_topic(topic_id):
     """Edit a grammar topic"""
@@ -164,7 +160,6 @@ def edit_topic(topic_id):
 
 
 @grammar_lab_bp.route('/grammar-lab/topics/<int:topic_id>/delete', methods=['POST'])
-@login_required
 @admin_required
 def delete_topic(topic_id):
     """Delete a grammar topic"""
@@ -191,7 +186,6 @@ def delete_topic(topic_id):
 # ============ Exercise Routes ============
 
 @grammar_lab_bp.route('/grammar-lab/topics/<int:topic_id>/exercises/create', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def create_exercise(topic_id):
     """Create a new exercise for a topic"""
@@ -233,7 +227,6 @@ def create_exercise(topic_id):
 
 
 @grammar_lab_bp.route('/grammar-lab/exercises/<int:exercise_id>/edit', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def edit_exercise(exercise_id):
     """Edit an exercise"""
@@ -273,7 +266,6 @@ def edit_exercise(exercise_id):
 
 
 @grammar_lab_bp.route('/grammar-lab/exercises/<int:exercise_id>/delete', methods=['POST'])
-@login_required
 @admin_required
 def delete_exercise(exercise_id):
     """Delete an exercise"""
@@ -295,7 +287,6 @@ def delete_exercise(exercise_id):
 # ============ Import from Modules ============
 
 @grammar_lab_bp.route('/grammar-lab/import-from-modules', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def import_from_modules():
     """Import grammar topics from curriculum modules (from database)"""
@@ -675,7 +666,6 @@ def _import_exercises_json_file(file, deleted_topic_ids: set[int]) -> tuple[bool
     )
 
 @grammar_lab_bp.route('/grammar-lab/import-exercises-json', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def import_exercises_json():
     """Import extra exercises from one or more generated JSON files."""
@@ -711,7 +701,6 @@ def import_exercises_json():
 # ============ API Endpoints ============
 
 @grammar_lab_bp.route('/grammar-lab/api/topics', methods=['GET'])
-@login_required
 @admin_required
 def api_topics():
     """Get all topics as JSON"""
@@ -720,7 +709,6 @@ def api_topics():
 
 
 @grammar_lab_bp.route('/grammar-lab/api/topic/<int:topic_id>/exercises', methods=['GET'])
-@login_required
 @admin_required
 def api_topic_exercises(topic_id):
     """Get exercises for a topic"""

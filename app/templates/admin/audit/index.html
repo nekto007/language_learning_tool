@@ -71,9 +71,9 @@
             <table class="table table-hover mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 180px;">Время</th>
-                        <th style="width: 220px;">Администратор</th>
-                        <th style="width: 220px;">Действие</th>
+                        <th class="admin-audit-th--time">Время</th>
+                        <th class="admin-audit-th--admin">Администратор</th>
+                        <th class="admin-audit-th--action">Действие</th>
                         <th>Объект</th>
                     </tr>
                 </thead>
@@ -84,7 +84,7 @@
                             {{ entry.timestamp.strftime('%d.%m.%Y %H:%M:%S') if entry.timestamp else '—' }}
                         </td>
                         <td>
-                            <span class="text-truncate d-inline-block" style="max-width: 200px;"
+                            <span class="text-truncate d-inline-block admin-audit-admin-truncate"
                                   title="{{ entry.admin_email }}">
                                 {{ entry.admin_email }}
                             </span>

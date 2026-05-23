@@ -86,6 +86,14 @@ class TestPublicLevelDetail:
         response = client.get('/courses/ZZ')
         assert response.status_code == 404
 
+    def test_known_cefr_level_without_db_row_returns_placeholder(self, client):
+        response = client.get('/courses/C2')
+        html = response.data.decode()
+        assert response.status_code == 200
+        assert 'C2' in html
+        assert 'noindex, follow' in html
+        assert 'Материалы уровня готовятся' in html
+
     def test_level_has_og_tags(self, client, sample_level):
         response = client.get(f'/courses/{sample_level.code}')
         html = response.data.decode()

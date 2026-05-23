@@ -17,6 +17,7 @@ activity_bp = Blueprint('activity_admin', __name__)
 logger = logging.getLogger(__name__)
 
 _PER_PAGE = 50
+_MAX_PAGE = 1000
 
 
 @activity_bp.route('/activity')
@@ -25,6 +26,8 @@ def activity_index():
     page = request.args.get('page', 1, type=int)
     if page < 1:
         page = 1
+    elif page > _MAX_PAGE:
+        page = _MAX_PAGE
 
     user_id_raw = request.args.get('user_id', '').strip()
     user_id = int(user_id_raw) if user_id_raw.isdigit() else None

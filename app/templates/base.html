@@ -534,7 +534,7 @@ document.addEventListener('click', function(e) {
     <p style="font-size:1rem; color:#64748b; margin:0 0 1rem;" id="levelup-desc"></p>
     <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
       <button onclick="document.getElementById('levelup-modal').style.display='none'" style="padding:0.625rem 1.5rem; background:linear-gradient(135deg,#2563eb,#0ea5e9); color:#fff; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.9rem;">Отлично!</button>
-      <a href="#" onclick="shareVia('telegram','https://llt-english.com',document.getElementById('levelup-title').textContent); document.getElementById('levelup-modal').style.display='none'; return false;" style="padding:0.625rem 1.5rem; border:1px solid #e2e8f0; background:#fff; color:#475569; border-radius:10px; font-weight:600; text-decoration:none; font-size:0.9rem;">Поделиться</a>
+      <a href="#" onclick="shareVia('telegram','{{ url_for('landing.index', _external=True) }}',document.getElementById('levelup-title').textContent); document.getElementById('levelup-modal').style.display='none'; return false;" style="padding:0.625rem 1.5rem; border:1px solid #e2e8f0; background:#fff; color:#475569; border-radius:10px; font-weight:600; text-decoration:none; font-size:0.9rem;">Поделиться</a>
     </div>
   </div>
 </div>

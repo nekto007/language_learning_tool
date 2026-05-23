@@ -219,6 +219,20 @@ Beглядом по `app/static/css/design-system.css` (~11400 строк) и к
 - Полный pytest: было 17 failed (T-010..T-021 + 5 контентных), стало 5 failed (только контентные T-001..T-005, deferred).
 - smoke: 160 passed.
 
+## Статус Task 4 (UX/UI консистентность)
+
+- ✅ F-002, F-003 — `PUBLIC_URLS` в `app/admin/services/seo_audit_service.py` пополнен per-CEFR-level страницами `/courses/{A1..C2}` и `/grammar-lab/topics/c2`.
+- ✅ F-006 — `final_test_results.html` использует `url_for('landing.index', _external=True)` для share_url (вместо hardcoded `https://llt-english.com`).
+- ✅ F-007 — `base.html` levelup-share onclick + `book_courses/lessons/_lesson_base.html` shareVia URLs построены через `url_for('landing.index', _external=True)`.
+- ✅ F-008, F-009 — `robots.txt` теперь явно дисэлоуит login-walled prefixes: `/api/`, `/onboarding`, `/curriculum/`, `/study/`, `/uploads/`, `/dashboard`, `/achievements`, `/telegram/`, `/reset_password`, `/notifications/`. Cleanup crawl-budget на public-facing URLs.
+- ✅ AD-022 — убран избыточный `@login_required` поверх `@admin_required` в `app/admin/routes/{collection,topic,grammar_lab}_routes.py` (admin_required уже оборачивает login_required); неиспользуемый импорт `login_required` удалён.
+- ✅ AD-023 — `_MAX_PAGE = 1000` clamp добавлен в `activity_routes.py` и `audit_routes.py`, защита от bogus `?page=99999999` (избыточные offset-запросы).
+- ✅ AD-024..AD-026 — статичные inline-стили в `admin/activity/funnel.html`, `admin/activity/index.html`, `admin/audit/index.html` заменены на CSS-классы `.admin-funnel-*`, `.admin-activity-*`, `.admin-audit-*` в `design-system.css`. Остался только dynamic `width: {{ step.conversion_from_top }}%` (data-driven, inline допустим).
+- ✅ Регрессионные тесты — `tests/test_task4_ux_audit_fixes.py` (14 тестов: F-002/F-003, F-008/F-009, F-006/F-007, AD-022 для 3 файлов, AD-023 для активности и аудита, AD-024..AD-026 + CSS classes).
+- pytest smoke: 165 passed; targeted suites (admin + curriculum + acceptance + p0 + task4): green.
+- Отложено: F-005 (hardcoded canonical `llt-english.com` на 16 шаблонах) — открытый вопрос из реестра «production-only или ошибка»; не фиксим без env-aware решения.
+- Отложено: TPL-001..TPL-007 (PWA manifest, общие inline-стили в base/dashboard/landing/components) — требует генерации иконок и масштабного рефакторинга; вне scope Task 4 baseline.
+
 ## Статус Task 3 (Admin P0/P1)
 
 - ✅ AD-001..AD-004 — CSRF token hidden input добавлен в `admin/curriculum/edit_text.html`, `edit_quiz.html`, `edit_matching.html`, `edit_grammar.html`.

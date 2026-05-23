@@ -6,12 +6,7 @@ from . import seo_bp
 def _site_urls() -> list[str]:
     configured = (current_app.config.get('SITE_URL') or '').rstrip('/')
     canonical = 'https://llt-english.com'
-    urls: list[str] = []
-    if configured:
-        urls.append(configured)
-    if canonical not in urls:
-        urls.append(canonical)
-    return urls
+    return [configured or canonical]
 
 
 def _add(urlset: Element, loc: str, priority: str = '0.5', changefreq: str = 'weekly') -> None:
@@ -100,6 +95,17 @@ def robots() -> Response:
         'User-agent: *\n'
         'Allow: /\n'
         'Disallow: /admin/\n'
+        'Disallow: /api/\n'
+        'Disallow: /onboarding\n'
+        'Disallow: /onboarding/\n'
+        'Disallow: /uploads/\n'
+        'Disallow: /curriculum/\n'
+        'Disallow: /study/\n'
+        'Disallow: /dashboard\n'
+        'Disallow: /achievements\n'
+        'Disallow: /telegram/\n'
+        'Disallow: /reset_password\n'
+        'Disallow: /notifications/\n'
     )
     content += ''.join(f'\nSitemap: {site_url}/sitemap.xml' for site_url in site_urls) + '\n'
     return Response(content, mimetype='text/plain')
