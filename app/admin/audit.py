@@ -49,7 +49,11 @@ def log_admin_action(
         db.session.add(entry)
         db.session.flush()
         nested.commit()
+        db.session.commit()
     except Exception:
         if nested is not None:
-            nested.rollback()
+            try:
+                nested.rollback()
+            except Exception:
+                pass
         logger.exception('Failed to write admin audit log entry: action=%s', action)
