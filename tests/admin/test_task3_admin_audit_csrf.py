@@ -95,11 +95,11 @@ class TestUserToggleAuditLog:
 
         entry = db_session.query(AdminAuditLog).filter_by(
             admin_id=admin.id,
-            action='user.toggle_admin',
             target_type='user',
             target_id=target.id,
-        ).first()
+        ).order_by(AdminAuditLog.id.desc()).first()
         assert entry is not None
+        assert entry.action in ('user.grant_admin', 'user.revoke_admin')
 
     def test_toggle_mission_plan_logs_action(self, app, client, db_session):
         admin = _make_admin(db_session)
@@ -112,11 +112,11 @@ class TestUserToggleAuditLog:
 
         entry = db_session.query(AdminAuditLog).filter_by(
             admin_id=admin.id,
-            action='user.toggle_mission_plan',
             target_type='user',
             target_id=target.id,
-        ).first()
+        ).order_by(AdminAuditLog.id.desc()).first()
         assert entry is not None
+        assert entry.action in ('user.enable_mission_plan', 'user.disable_mission_plan')
 
 
 class TestCurriculumDeleteAuditLog:

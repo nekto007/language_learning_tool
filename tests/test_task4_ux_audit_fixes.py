@@ -105,13 +105,17 @@ def test_grammar_lab_routes_do_not_double_decorate_with_login_required():
 def test_admin_activity_page_param_is_clamped(admin_client):
     response = admin_client.get('/admin/activity?page=999999')
     assert response.status_code == 200
-    # When clamped to 1000, the rendered page label should reflect that.
-    assert b'1000' in response.data or b'\xd1\x81\xd1\x82\xd1\x80\xd0\xb0\xd0\xbd\xd0\xb8\xd1\x86\xd0\xb0' in response.data
+    # Template renders "Страница {{ page }}" — clamped value (1000) must appear,
+    # raw input (999999) must NOT, so unclamped regressions fail.
+    assert 'Страница 1000'.encode('utf-8') in response.data
+    assert b'999999' not in response.data
 
 
 def test_admin_audit_log_page_param_is_clamped(admin_client):
     response = admin_client.get('/admin/audit-log?page=999999')
     assert response.status_code == 200
+    assert 'Страница 1000'.encode('utf-8') in response.data
+    assert b'999999' not in response.data
 
 
 # ── AD-024..AD-026: inline styles in admin templates moved to CSS ──

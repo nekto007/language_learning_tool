@@ -327,7 +327,7 @@ def quiz_deck_remove_word(deck_id, word_id):
 
     db.session.delete(deck_word)
     db.session.commit()
-    log_admin_action(current_user.id, 'quiz_deck.remove_word', target_type='quiz_deck_word', target_id=word_id)
+    log_admin_action(current_user.id, 'quiz_deck.remove_word', target_type='quiz_deck', target_id=deck_id)
 
     # Check if AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:

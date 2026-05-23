@@ -48,26 +48,62 @@ def test_streak_helpers_log_on_query_failure(monkeypatch, caplog):
         assert ss.get_listening_streak(user_id=999, db_session=_BrokenSession()) == 0
         assert ss.get_writing_streak(user_id=999, db_session=_BrokenSession()) == 0
         assert ss.get_speaking_streak(user_id=999, db_session=_BrokenSession()) == 0
+        assert ss.get_immersion_streak(user_id=999, db_session=_BrokenSession()) == 0
 
     messages = " | ".join(record.getMessage() for record in caplog.records)
     assert "listening streak" in messages
     assert "writing streak" in messages
     assert "speaking streak" in messages
+    assert "immersion streak" in messages
 
 
 # ── C-011: navbar grammar/words badges log silent excepts ──
 
 
-def test_template_utils_logs_words_due_count_failure(caplog):
-    # The function is defined inside ``init_template_utils``; we recreate the
-    # closure via direct call after patching the source query.
-    from app.utils import template_utils
+def test_template_utils_logs_words_due_count_failure(app, caplog):
+    """Force the navbar badge queries to raise and assert exceptions are logged.
 
-    src = Path(template_utils.__file__).read_text(encoding="utf-8")
-    # Sanity: ensure the regression introduced the logger call so future
-    # refactors don't silently drop it again.
-    assert "Failed to get words due count for navbar" in src
-    assert "Failed to get grammar due count for navbar" in src
+    Exercises the closures built by ``init_template_utils.inject_curriculum_data``
+    so a future refactor that drops the ``logger.exception`` calls is caught.
+    """
+    import app.utils.template_utils as tu
+    from flask_login import AnonymousUserMixin
+    from unittest.mock import patch, MagicMock
+
+    class _FakeAuthedUser(AnonymousUserMixin):
+        is_authenticated = True
+        id = 999
+
+    # Locate the context processor that exposes the badge helpers.
+    ctx = None
+    with app.test_request_context('/'):
+        with patch('flask_login.utils._get_user', return_value=_FakeAuthedUser()):
+            for proc in app.template_context_processors[None]:
+                try:
+                    result = proc()
+                except Exception:
+                    continue
+                if isinstance(result, dict) and 'get_words_due_count' in result:
+                    ctx = result
+                    break
+
+    assert ctx is not None, 'inject_curriculum_data context processor not found'
+
+    broken_session = MagicMock()
+    broken_session.query.side_effect = RuntimeError('synthetic db failure')
+
+    from app.utils import db as db_mod
+
+    with app.test_request_context('/'):
+        with patch('flask_login.utils._get_user', return_value=_FakeAuthedUser()):
+            with patch.object(db_mod.db, 'session', broken_session):
+                with caplog.at_level(logging.ERROR, logger=tu.logger.name):
+                    assert ctx['get_words_due_count']() == 0
+                    assert ctx['get_grammar_due_count']() == 0
+
+    messages = ' | '.join(rec.getMessage() for rec in caplog.records)
+    assert 'words due count' in messages
+    assert 'grammar due count' in messages
 
 
 # ── DC-001 / DC-002 / DC-006: dead files removed ──

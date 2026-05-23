@@ -83,7 +83,9 @@ def toggle_admin_status(user_id):
     success, message = UserManagementService.toggle_admin_status(user_id, current_user.id)
 
     if success:
-        log_admin_action(current_user.id, 'user.toggle_admin', target_type='user', target_id=user_id)
+        user_after = User.query.get(user_id)
+        action = 'user.grant_admin' if (user_after and user_after.is_admin) else 'user.revoke_admin'
+        log_admin_action(current_user.id, action, target_type='user', target_id=user_id)
         flash(f'Права администратора успешно изменены: {message}', 'success')
     else:
         flash(message, 'danger')
@@ -99,7 +101,8 @@ def toggle_mission_plan(user_id):
 
     if result:
         state = "включён" if result['use_mission_plan'] else "выключен"
-        log_admin_action(current_user.id, 'user.toggle_mission_plan', target_type='user', target_id=user_id)
+        action = 'user.enable_mission_plan' if result['use_mission_plan'] else 'user.disable_mission_plan'
+        log_admin_action(current_user.id, action, target_type='user', target_id=user_id)
         flash(f'Mission-based daily plan для {result["username"]} {state}.', 'success')
     else:
         flash('Пользователь не найден.', 'danger')
