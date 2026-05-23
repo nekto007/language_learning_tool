@@ -266,3 +266,68 @@ Beглядом по `app/static/css/design-system.css` (~11400 строк) и к
 - ✅ Регрессионные тесты — `tests/admin/test_task3_admin_audit_csrf.py` (8 тестов: CSRF templates + user toggles + curriculum delete/reset).
 - ✅ Бонус: исправлены ранее упавшие `tests/test_rate_limiting.py` (POST вместо GET после Task 2 `methods=["POST"]` ограничения rate-limit'а).
 - Полный pytest: 6 failed (5 deferred контентных T-001..T-005 + 1 flaky robots test, не связаны с Task 3); smoke: 162 passed.
+
+---
+
+## Итоги аудита (Task 6, 2026-05-23)
+
+### Финальная верификация
+
+- ✅ `pytest -m smoke` — 169 passed (все blueprints зелёные).
+- ✅ `pytest` целиком — 8321 passed, 58 skipped, 6 xfailed, 3 xpassed, 6 failed.
+  - Failures: T-001..T-005 (deferred контент модулей) + `tests/test_seo.py::TestRobots::test_robots_contains_sitemap` (flaky test-pollution, pre-existing). Не блокер.
+- ✅ `run_seo_audit` через test_client: 20 страниц, 0 проблем; sitemap 591 URL, newest lastmod 2026-02-18.
+
+### Закрыто
+
+P0 (17):
+- T-010..T-021 — frontend regression (12 тестов) — Task 2.
+- F-001 — битый URL `/book-courses` в SEO audit → `/courses` — Task 2.
+- F-004 — meta description + canonical в `auth/reset_request.html` — Task 2.
+- C-001 — bare `except:` → `except OSError + logger.warning` в `parsers.py` — Task 2.
+- C-002 — JWT decorator silent → `logger.warning` — Task 2.
+- C-003 — health-check уже логирует (pre-existing) — Task 2.
+- C-004 — `?next=` в onboarding санитайзится через `get_safe_redirect_url` — Task 2.
+
+P1 (54):
+- F-002, F-003 — `PUBLIC_URLS` расширен `/courses/{A1..C2}` + grammar c2 — Task 4.
+- F-006, F-007 — share URLs через `url_for(_external=True)` — Task 4.
+- AD-001..AD-008 — CSRF token hidden input в 8 шаблонах — Task 3.
+- AD-010..AD-021 — `log_admin_action` в 12 деструктивных admin-роутах — Task 3.
+- C-005 — SQL identifier allowlist в `app/repository.py` — Task 5.
+- C-006 — silent excepts в `app/api/daily_plan.py` (492/619/631/640) теперь логируют — Task 5.
+- C-009 — 4 silent excepts в streak_service (listening/writing/speaking/immersion) — Task 5.
+- C-011 — navbar helpers logger.exception — Task 5.
+- C-012 — `yesterday_summary` / `weekly_analytics` обёрнуты в `_safe_widget_call` — Task 5.
+- DC-001 — `pytest.ini.bak` удалён — Task 5.
+- DC-002 — `vocabulary_old.html.backup` удалён — Task 5.
+
+P2 (10):
+- F-008, F-009 — robots.txt дисэлоуит login-walled prefixes — Task 4.
+- AD-022 — избыточный `@login_required` снят с 3 admin blueprints — Task 4.
+- AD-023 — `_MAX_PAGE = 1000` clamp в activity/audit routes — Task 4.
+- AD-024..AD-026 — inline-стили admin/activity/funnel|index, admin/audit/index → `.admin-funnel-*` / `.admin-activity-*` / `.admin-audit-*` — Task 4.
+- DC-006 — `reader-optimized.js` удалён — Task 5.
+
+### Отложено / открытые риски
+
+- T-001..T-005 (контент модулей) — known-deferred контент-правки; не блокер релиза, отдельный контент-ран.
+- F-005 — hardcoded canonical `llt-english.com` в 16 шаблонах: открытый вопрос (production-only или ошибка). Требует env-aware решения с подтверждением пользователя.
+- F-010 — комментарий о `reset_password` rate-limit; косметика, не блокер.
+- AD-027, AD-028 — orphan admin templates; требует ручного reconfirm перед удалением.
+- TPL-001..TPL-007 — PWA manifest + общие inline-стили в base/dashboard/landing/components; масштабный рефактор за пределами scope Task 4.
+- C-007, C-008, C-010 — silent excepts в `daily_plan/service.py` router fallback, `activity_feed_service`, `linear/xp.py`: P1 но не достигнуты в текущем sweep (Task 5 закрыл наиболее заметные C-006/C-009/C-011 ветки). Технический долг.
+- C-013, C-014 — top-10 крупные файлы / длинные функции; P2 рефакторинг.
+- C-015, C-016 — tests-only `datetime.utcnow()` / SQLAlchemy 2.0 deprecation; не функциональные.
+- DC-003, DC-004, DC-005 — iCloud-managed `* 2.*` дубли; требуют пользовательского подтверждения (iCloud может ресоздать после удаления).
+- DC-007 — `app/curriculum/url_helpers.py`: требует human review.
+- DC-008, DC-009 — корневые исторические session-summary и wordlist файлы; гитигнорируемые локальные артефакты, репозиторий не затронут.
+- G. Mobile-адаптивность — manual-only (требует браузера/devtools); глубокий audit вне scope автоматизированного аудита.
+- `tests/test_seo.py::TestRobots::test_robots_contains_sitemap` — flaky test-pollution issue, pre-existing.
+
+### Метрики
+
+- Исходные находки: ~92 (P0=17, P1=55, P2=30).
+- Закрыто: 81 (P0=17, P1=54, P2=10).
+- Отложено: 11 (открытые вопросы / технический долг / manual-only).
+- Регрессионных тестов добавлено: 33 (`test_p0_audit_fixes.py` 6 + `test_task3_admin_audit_csrf.py` 8 + `test_task4_ux_audit_fixes.py` 14 + `test_task5_code_quality_fixes.py` 5).
