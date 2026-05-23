@@ -283,6 +283,7 @@ def delete_exercise(exercise_id):
     try:
         db.session.delete(exercise)
         db.session.commit()
+        log_admin_action(current_user.id, 'grammar_lab.delete_exercise', target_type='grammar_exercise', target_id=exercise_id)
         flash('Exercise deleted successfully!', 'success')
     except Exception as e:
         db.session.rollback()

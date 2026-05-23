@@ -5,6 +5,7 @@ from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user
 from sqlalchemy import func
 
+from app.admin.audit import log_admin_action
 from app.admin.main_routes import admin
 from app.admin.utils.decorators import admin_required
 from app.study.models import QuizDeck, QuizDeckWord, QuizResult
@@ -144,6 +145,7 @@ def quiz_deck_delete(deck_id):
 
     db.session.delete(deck)
     db.session.commit()
+    log_admin_action(current_user.id, 'quiz_deck.delete', target_type='quiz_deck', target_id=deck_id)
 
     # Check if AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
@@ -325,6 +327,7 @@ def quiz_deck_remove_word(deck_id, word_id):
 
     db.session.delete(deck_word)
     db.session.commit()
+    log_admin_action(current_user.id, 'quiz_deck.remove_word', target_type='quiz_deck_word', target_id=word_id)
 
     # Check if AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
@@ -350,6 +353,7 @@ def quiz_deck_reorder_words(deck_id):
             word.order_index = index
 
     db.session.commit()
+    log_admin_action(current_user.id, 'quiz_deck.reorder_words', target_type='quiz_deck', target_id=deck_id)
 
     return jsonify({'success': True})
 

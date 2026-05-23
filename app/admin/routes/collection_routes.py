@@ -10,6 +10,7 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
 
+from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
 from app.utils.db import db
 from app.words.forms import CollectionForm
@@ -127,6 +128,7 @@ def delete_collection(collection_id):
     collection = Collection.query.get_or_404(collection_id)
     db.session.delete(collection)
     db.session.commit()
+    log_admin_action(current_user.id, 'collection.delete', target_type='collection', target_id=collection_id)
 
     flash(_('Collection deleted successfully!'), 'success')
     return redirect(url_for('collection_admin.collection_list'))

@@ -170,7 +170,7 @@ def verify_reset_token(token: str, expiration: int = 3600):
 
 
 @auth.route('/reset_password', methods=['GET', 'POST'])
-@limiter.limit("3 per hour")
+@limiter.limit("3 per hour", methods=["POST"])
 def reset_request():
     if current_user.is_authenticated:
         return redirect(url_for(_default_fallback()))
@@ -245,7 +245,7 @@ def reset_password(token):
 
 
 @auth.route('/login', methods=['GET', 'POST'])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per minute", methods=["POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for(_default_fallback()))
@@ -301,7 +301,7 @@ def login():
 
 
 @auth.route('/register', methods=['GET', 'POST'])
-@limiter.limit("5 per minute")
+@limiter.limit("5 per minute", methods=["POST"])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for(_default_fallback()))

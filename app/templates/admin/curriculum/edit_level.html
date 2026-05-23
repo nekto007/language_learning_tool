@@ -59,6 +59,7 @@
 
                         {% if level.modules|length == 0 %}
                         <form action="{{ url_for('admin.delete_level', level_id=level.id) }}" method="POST" class="ms-auto">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-danger"
                                     onclick="return confirm('Are you sure you want to delete this level?')">
                                 <i class="fas fa-trash me-1"></i> Delete Level

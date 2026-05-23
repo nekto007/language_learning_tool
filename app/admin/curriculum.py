@@ -188,6 +188,7 @@ def delete_level(level_id):
 
     db.session.delete(level)
     db.session.commit()
+    log_admin_action(current_user.id, 'curriculum.level.delete', target_type='cefr_level', target_id=level_id)
 
     flash(_('Уровень успешно удален!'), 'success')
     return redirect(url_for('admin.level_list'))
@@ -278,6 +279,7 @@ def delete_module(module_id):
 
     db.session.delete(module)
     db.session.commit()
+    log_admin_action(current_user.id, 'curriculum.module.delete', target_type='module', target_id=module_id)
 
     if lesson_count > 0:
         flash(_('Модуль "{}" и {} урок(ов) успешно удалены!').format(module_title, lesson_count), 'success')
@@ -373,6 +375,7 @@ def delete_lesson(lesson_id):
 
     db.session.delete(lesson)
     db.session.commit()
+    log_admin_action(current_user.id, 'curriculum.lesson.delete', target_type='lesson', target_id=lesson_id)
 
     flash(_('Урок и все связанные данные успешно удалены!'), 'success')
     return redirect(url_for('admin.lesson_list', module_id=module_id))
@@ -719,6 +722,7 @@ def reset_progress(progress_id):
     progress.data = {}
 
     db.session.commit()
+    log_admin_action(current_user.id, 'curriculum.progress.reset', target_type='lesson_progress', target_id=progress_id)
 
     flash(_('Прогресс успешно сброшен!'), 'success')
     return redirect(url_for('admin.user_progress'))
@@ -733,6 +737,7 @@ def delete_progress(progress_id):
     # Удаляем запись о прогрессе
     db.session.delete(progress)
     db.session.commit()
+    log_admin_action(current_user.id, 'curriculum.progress.delete', target_type='lesson_progress', target_id=progress_id)
 
     flash(_('Запись о прогрессе успешно удалена!'), 'success')
     return redirect(url_for('admin.user_progress'))

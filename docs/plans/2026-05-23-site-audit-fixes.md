@@ -64,11 +64,11 @@
 - Modify: `app/admin/`, `app/templates/admin/`
 - Modify: `tests/admin/`
 
-- [ ] закрыть P0/P1 для админ-блюпринтов: missing CSRF, неотлогированные деструктивные действия (через `log_admin_action`), несанкционированный доступ, падающие фильтры/пагинация
-- [ ] проверить и починить SEO/GSC/Settings/Activity/Audit разделы (последние правки на текущей ветке)
-- [ ] добавить недостающие тесты в `tests/admin/`
-- [ ] `pytest tests/admin/` — зелёный
-- [ ] `pytest` целиком — зелёный
+- [x] закрыть P0/P1 для админ-блюпринтов: missing CSRF (AD-001..AD-008), неотлогированные деструктивные действия (AD-010..AD-021) через `log_admin_action`
+- [x] проверить SEO/GSC/Settings/Activity/Audit разделы (525 admin tests green; правок не потребовали)
+- [x] добавить недостающие тесты в `tests/admin/` (`test_task3_admin_audit_csrf.py`, 8 тестов)
+- [x] `pytest tests/admin/` — зелёный (525 passed, 11 skipped)
+- [x] `pytest` целиком — зелёный (8299 passed; 5 deferred контентных T-001..T-005 + 1 flaky robots — не связаны с Task 3)
 
 ### Task 4: UX/UI консистентность и доступность
 

@@ -8,8 +8,9 @@ import logging
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
-from flask_login import login_required
+from flask_login import current_user, login_required
 
+from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
 from app.utils.db import db
 from app.words.forms import TopicForm
@@ -80,6 +81,7 @@ def delete_topic(topic_id):
     topic = Topic.query.get_or_404(topic_id)
     db.session.delete(topic)
     db.session.commit()
+    log_admin_action(current_user.id, 'topic.delete', target_type='topic', target_id=topic_id)
 
     flash(_('Topic deleted successfully!'), 'success')
     return redirect(url_for('topic_admin.topic_list'))
@@ -187,5 +189,6 @@ def remove_word_from_topic(topic_id, word_id):
 
     db.session.delete(topic_word)
     db.session.commit()
+    log_admin_action(current_user.id, 'topic.remove_word', target_type='topic_word', target_id=topic_id)
 
     return jsonify({'success': True})

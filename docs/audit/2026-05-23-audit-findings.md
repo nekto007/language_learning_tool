@@ -218,3 +218,20 @@ Beглядом по `app/static/css/design-system.css` (~11400 строк) и к
 - ✅ Регрессионный тест — `tests/test_p0_audit_fixes.py` (6 тестов: F-001, F-004, C-001, C-002, C-004 × 2).
 - Полный pytest: было 17 failed (T-010..T-021 + 5 контентных), стало 5 failed (только контентные T-001..T-005, deferred).
 - smoke: 160 passed.
+
+## Статус Task 3 (Admin P0/P1)
+
+- ✅ AD-001..AD-004 — CSRF token hidden input добавлен в `admin/curriculum/edit_text.html`, `edit_quiz.html`, `edit_matching.html`, `edit_grammar.html`.
+- ✅ AD-005..AD-008 — CSRF token добавлен в inline reset/delete формы `admin/curriculum/user_progress.html`, `progress_details.html`, `edit_module.html`, `edit_level.html`.
+- ✅ AD-010..AD-013 — `log_admin_action` добавлен в `delete_level`, `delete_module`, `delete_lesson`, `reset_progress`, `delete_progress` (`app/admin/curriculum.py`).
+- ✅ AD-014 — `quiz_deck_delete`, `quiz_deck_remove_word`, `quiz_deck_reorder_words` теперь логируются (`app/admin/quiz_decks.py`).
+- ✅ AD-015 — `delete_topic`, `remove_word_from_topic` (`app/admin/routes/topic_routes.py`).
+- ✅ AD-016 — `delete_collection` (`app/admin/routes/collection_routes.py`).
+- ✅ AD-017 — `delete_book` + `cleanup_books → remove_empty_books` (`app/admin/routes/book_routes.py`); per-book id записывается отдельной audit-строкой.
+- ✅ AD-018 — `delete_daily_lesson`, `remove_word_from_lesson` (`app/admin/book_courses.py`).
+- ✅ AD-019 — `delete_exercise` (`app/admin/routes/grammar_lab_routes.py`).
+- ✅ AD-020 — `toggle_user_status`, `toggle_admin_status`, `toggle_mission_plan` (`app/admin/routes/user_routes.py`).
+- ✅ AD-021 — `init_database` (`app/admin/routes/system_routes.py`).
+- ✅ Регрессионные тесты — `tests/admin/test_task3_admin_audit_csrf.py` (8 тестов: CSRF templates + user toggles + curriculum delete/reset).
+- ✅ Бонус: исправлены ранее упавшие `tests/test_rate_limiting.py` (POST вместо GET после Task 2 `methods=["POST"]` ограничения rate-limit'а).
+- Полный pytest: 6 failed (5 deferred контентных T-001..T-005 + 1 flaky robots test, не связаны с Task 3); smoke: 162 passed.

@@ -13,6 +13,7 @@ from flask import Blueprint, Response, current_app, flash, redirect, render_temp
 from flask_login import current_user
 from sqlalchemy import desc
 
+from app.admin.audit import log_admin_action
 from app.admin.services import UserManagementService
 from app.admin.utils.decorators import admin_required
 from app.auth.models import User
@@ -66,6 +67,8 @@ def toggle_user_status(user_id):
 
     if result:
         status = "активирован" if result['active'] else "деактивирован"
+        action = 'user.activate' if result['active'] else 'user.deactivate'
+        log_admin_action(current_user.id, action, target_type='user', target_id=user_id)
         flash(f'Пользователь {result["username"]} успешно {status}.', 'success')
     else:
         flash('Пользователь не найден.', 'danger')
@@ -80,6 +83,7 @@ def toggle_admin_status(user_id):
     success, message = UserManagementService.toggle_admin_status(user_id, current_user.id)
 
     if success:
+        log_admin_action(current_user.id, 'user.toggle_admin', target_type='user', target_id=user_id)
         flash(f'Права администратора успешно изменены: {message}', 'success')
     else:
         flash(message, 'danger')
@@ -95,6 +99,7 @@ def toggle_mission_plan(user_id):
 
     if result:
         state = "включён" if result['use_mission_plan'] else "выключен"
+        log_admin_action(current_user.id, 'user.toggle_mission_plan', target_type='user', target_id=user_id)
         flash(f'Mission-based daily plan для {result["username"]} {state}.', 'success')
     else:
         flash('Пользователь не найден.', 'danger')

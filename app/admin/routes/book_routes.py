@@ -12,9 +12,11 @@ from datetime import UTC, datetime
 
 from flask import (Blueprint, flash, jsonify, redirect, render_template,
                    request, url_for, current_app)
+from flask_login import current_user
 from sqlalchemy import func
 from werkzeug.utils import secure_filename
 
+from app.admin.audit import log_admin_action
 from app.admin.services.book_processing_service import BookProcessingService
 from app.admin.utils.cache import clear_admin_cache
 from app.admin.utils.decorators import admin_required, handle_admin_errors
@@ -429,9 +431,12 @@ def cleanup_books():
                     db.or_(Book.content.is_(None), Book.content == '')
                 ).all()
                 count = len(empty_books)
+                removed_ids = [b.id for b in empty_books]
                 for book in empty_books:
                     db.session.delete(book)
                 db.session.commit()
+                for removed_id in removed_ids:
+                    log_admin_action(current_user.id, 'book.cleanup_empty', target_type='book', target_id=removed_id)
                 results['details'].append(f"Удалено {count} книг без содержания")
 
             elif action == 'clean_temp_files':
@@ -495,6 +500,7 @@ def delete_book(book_id):
         # Delete the book
         db.session.delete(book)
         db.session.commit()
+        log_admin_action(current_user.id, 'book.delete', target_type='book', target_id=book_id)
 
         logger.info(f"Book deleted: {book_title} (ID: {book_id})")
 

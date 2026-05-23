@@ -16,6 +16,7 @@
 </div>
 
 <form method="POST" action="">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="row">
         <div class="col-lg-8">
             <!-- Text Source Selection -->

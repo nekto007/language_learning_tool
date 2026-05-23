@@ -1095,6 +1095,7 @@ def register_book_course_routes(admin_bp):
             # Delete the lesson
             db.session.delete(lesson)
             db.session.commit()
+            log_admin_action(current_user.id, 'book_course.delete_daily_lesson', target_type='daily_lesson', target_id=lesson_id)
 
             flash(f'Урок День {day_number} удален!', 'success')
             return jsonify({
@@ -1431,6 +1432,7 @@ def register_book_course_routes(admin_bp):
         try:
             db.session.delete(vocab)
             db.session.commit()
+            log_admin_action(current_user.id, 'book_course.remove_lesson_word', target_type='slice_vocabulary', target_id=vocab_id)
             return jsonify({'success': True})
         except Exception as e:
             logger.error(f"Error removing word {vocab_id} from lesson {lesson_id}: {str(e)}", exc_info=True)

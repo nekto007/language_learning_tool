@@ -22,6 +22,10 @@ def test_seo_audit_public_urls_use_courses_not_book_courses():
     assert '/book-courses' not in PUBLIC_URLS, (
         '/book-courses 404s — the public catalog lives at /courses'
     )
+    assert '/curriculum/book-courses' not in PUBLIC_URLS, (
+        '/curriculum/book-courses is login-required and should not be audited '
+        'as a public SEO page'
+    )
     assert '/courses' in PUBLIC_URLS
 
 
@@ -35,6 +39,17 @@ def test_reset_request_page_has_meta_description_and_canonical(client):
     html = response.data.decode('utf-8')
     assert '<meta name="description"' in html
     assert '<link rel="canonical"' in html
+
+
+@pytest.mark.smoke
+def test_seo_audited_auth_get_pages_do_not_trigger_rate_limit(client):
+    """SEO audit uses GET requests, so auth form pages must not spend POST limits."""
+    paths = ['/login', '/register', '/reset_password']
+
+    for _ in range(12):
+        for path in paths:
+            response = client.get(path)
+            assert response.status_code != 429
 
 
 # ── C-001: parsers.os.remove cleanup must log on failure, not swallow ──
