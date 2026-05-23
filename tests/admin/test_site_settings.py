@@ -90,6 +90,10 @@ class TestEnsureDefaultsSeeded:
 
     def test_seeds_missing_keys(self, app, db_session):
         """ensure_defaults_seeded creates rows for all missing default keys."""
+        # Clear any rows inserted by earlier tests so we can check fresh seeds.
+        db_session.query(SiteSettings).delete(synchronize_session=False)
+        db_session.flush()
+
         ensure_defaults_seeded(db_session=db_session)
         for key, expected in SETTING_DEFAULTS.items():
             row = db_session.get(SiteSettings, key)
