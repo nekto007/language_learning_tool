@@ -136,7 +136,12 @@ def _count_retained(
     min_offset: timedelta,
     lesson_progress_cls: Any,
 ) -> int:
-    """Count cohort users with activity in [min_offset, delta] after registration."""
+    """Count cohort users with activity in [min_offset, delta] after registration.
+
+    Constrained to users who also satisfy day_secured (have at least one
+    DailyPlanLog with secured_at IS NOT NULL) so the funnel stays monotonic:
+    retention_N ⊆ day_secured ⊆ first_plan ⊆ onboarding ⊆ registered.
+    """
     from app.auth.models import User
     from app.daily_plan.models import DailyPlanLog
 
@@ -146,6 +151,10 @@ def _count_retained(
             User.created_at >= cutoff,
             User.is_admin.is_(False),
             User.onboarding_completed.is_(True),
+            exists().where(
+                (DailyPlanLog.user_id == User.id)
+                & DailyPlanLog.secured_at.isnot(None)
+            ),
             or_(
                 exists().where(
                     (DailyPlanLog.user_id == User.id)

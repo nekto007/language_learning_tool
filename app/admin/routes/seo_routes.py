@@ -15,7 +15,11 @@ from flask import (
     url_for,
 )
 
-from app.admin.services.seo_audit_service import SEO_AUDIT_CACHE_KEY, run_seo_audit
+from app.admin.services.seo_audit_service import (
+    SEO_AUDIT_CACHE_KEY,
+    SEO_AUDIT_CACHE_TIMEOUT,
+    run_seo_audit,
+)
 from app.admin.site_settings import get_site_setting, set_site_setting
 from app.admin.utils.cache import clear_cache_by_prefix, get_cache
 from app.admin.utils.decorators import admin_required
@@ -44,7 +48,7 @@ def _google_config_present() -> bool:
 @admin_required
 def seo_index():
     app = current_app._get_current_object()
-    is_cached = get_cache(SEO_AUDIT_CACHE_KEY) is not None
+    is_cached = get_cache(SEO_AUDIT_CACHE_KEY, timeout=SEO_AUDIT_CACHE_TIMEOUT) is not None
     try:
         report = run_seo_audit(app)
     except Exception:
