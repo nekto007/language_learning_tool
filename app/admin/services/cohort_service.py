@@ -46,7 +46,11 @@ def get_funnel_data(db_session: Any, days: int = 30) -> FunnelData:
     from app.curriculum.models import LessonProgress
     from app.daily_plan.models import DailyPlanLog
 
-    now = datetime.now(timezone.utc)
+    # Columns User.created_at, DailyPlanLog.created_at, LessonProgress.last_activity
+    # are naive UTC (Column(DateTime) without timezone=True). Compare against naive
+    # UTC to avoid PostgreSQL's tz-aware vs tz-naive DatatypeMismatch.
+    now_aware = datetime.now(timezone.utc)
+    now = now_aware.replace(tzinfo=None)
     cutoff = now - timedelta(days=days)
     _min_offset = timedelta(hours=1)
     _delta_7 = timedelta(days=7)
@@ -68,11 +72,14 @@ def get_funnel_data(db_session: Any, days: int = 30) -> FunnelData:
         .scalar() or 0
     )
 
+    # Subsequent steps imply the prior — require onboarding_completed so that
+    # the funnel never reports more conversions at step N than at step N-1.
     first_plan = int(
         db_session.query(func.count(User.id.distinct()))
         .filter(
             User.created_at >= cutoff,
             User.is_admin.is_(False),
+            User.onboarding_completed.is_(True),
             exists().where(DailyPlanLog.user_id == User.id),
         )
         .scalar() or 0
@@ -83,6 +90,7 @@ def get_funnel_data(db_session: Any, days: int = 30) -> FunnelData:
         .filter(
             User.created_at >= cutoff,
             User.is_admin.is_(False),
+            User.onboarding_completed.is_(True),
             exists().where(
                 (DailyPlanLog.user_id == User.id)
                 & DailyPlanLog.secured_at.isnot(None)
@@ -118,7 +126,7 @@ def get_funnel_data(db_session: Any, days: int = 30) -> FunnelData:
         ))
         prev = max(count, 1)
 
-    return FunnelData(steps=steps, days=days, generated_at=now)
+    return FunnelData(steps=steps, days=days, generated_at=now_aware)
 
 
 def _count_retained(
@@ -137,6 +145,7 @@ def _count_retained(
         .filter(
             User.created_at >= cutoff,
             User.is_admin.is_(False),
+            User.onboarding_completed.is_(True),
             or_(
                 exists().where(
                     (DailyPlanLog.user_id == User.id)
@@ -160,12 +169,13 @@ def get_cohort_retention(db_session: Any, weeks: int = 8) -> List[CohortWeek]:
     from app.curriculum.models import LessonProgress
     from app.daily_plan.models import DailyPlanLog
 
-    now = datetime.now(timezone.utc)
+    # Comparison columns are naive UTC — keep all datetimes naive here too.
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     today = now.date()
     monday_this_week = today - timedelta(days=today.weekday())
     # weeks-1 so the last bucket is the current (incomplete) week
     range_start = monday_this_week - timedelta(weeks=weeks - 1)
-    range_start_dt = datetime(range_start.year, range_start.month, range_start.day, tzinfo=timezone.utc)
+    range_start_dt = datetime(range_start.year, range_start.month, range_start.day)
 
     user_rows = (
         db_session.query(User.id, User.created_at)
@@ -198,8 +208,8 @@ def get_cohort_retention(db_session: Any, weeks: int = 8) -> List[CohortWeek]:
         for uid, ts in db_session.query(DailyPlanLog.user_id, DailyPlanLog.created_at).filter(
             DailyPlanLog.user_id.in_(chunk)
         ).all():
-            if ts and ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
+            if ts is not None and ts.tzinfo is not None:
+                ts = ts.astimezone(timezone.utc).replace(tzinfo=None)
             if ts:
                 plan_ts.setdefault(uid, []).append(ts)
 
@@ -211,8 +221,8 @@ def get_cohort_retention(db_session: Any, weeks: int = 8) -> List[CohortWeek]:
             LessonProgress.user_id.in_(chunk),
             LessonProgress.last_activity.isnot(None),
         ).all():
-            if ts and ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
+            if ts is not None and ts.tzinfo is not None:
+                ts = ts.astimezone(timezone.utc).replace(tzinfo=None)
             if ts:
                 lesson_ts.setdefault(uid, []).append(ts)
 
@@ -232,8 +242,8 @@ def get_cohort_retention(db_session: Any, weeks: int = 8) -> List[CohortWeek]:
     for user_id, created_at in user_rows:
         if created_at is None:
             continue
-        if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
+        if created_at.tzinfo is not None:
+            created_at = created_at.astimezone(timezone.utc).replace(tzinfo=None)
         d = created_at.date()
         monday = d - timedelta(days=d.weekday())
         key = monday.isoformat()
@@ -258,7 +268,7 @@ def get_cohort_retention(db_session: Any, weeks: int = 8) -> List[CohortWeek]:
             ))
             continue
 
-        week_end_dt = datetime(week_end.year, week_end.month, week_end.day, tzinfo=timezone.utc)
+        week_end_dt = datetime(week_end.year, week_end.month, week_end.day)
         days_since_week_end = (now - week_end_dt).days
 
         day1_count = sum(1 for uid, reg in users if had_activity(uid, reg, 1, 48))

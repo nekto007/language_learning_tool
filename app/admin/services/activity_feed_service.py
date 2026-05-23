@@ -108,7 +108,7 @@ def _fetch_lesson_completed(db_session, user_id, date_from, date_to, limit) -> L
     q = (
         db_session.query(LessonProgress, User, Lessons)
         .join(User, User.id == LessonProgress.user_id)
-        .join(Lessons, Lessons.id == LessonProgress.lesson_id)
+        .outerjoin(Lessons, Lessons.id == LessonProgress.lesson_id)
         .filter(LessonProgress.status == 'completed')
         .filter(LessonProgress.completed_at.isnot(None))
     )
@@ -123,12 +123,13 @@ def _fetch_lesson_completed(db_session, user_id, date_from, date_to, limit) -> L
     events = []
     for lp, user, lesson in q:
         score_str = f', {int(round(lp.score))}%' if lp.score is not None else ''
+        lesson_title = lesson.title if lesson else f'#{lp.lesson_id} (удалён)'
         events.append(ActivityEvent(
             timestamp=lp.completed_at,
             user_id=user.id,
             user_email=user.email,
             event_type='lesson_completed',
-            description=f'Завершил урок «{lesson.title}»{score_str}',
+            description=f'Завершил урок «{lesson_title}»{score_str}',
         ))
     return events
 
@@ -140,7 +141,7 @@ def _fetch_achievements(db_session, user_id, date_from, date_to, limit) -> List[
     q = (
         db_session.query(UserAchievement, User, Achievement)
         .join(User, User.id == UserAchievement.user_id)
-        .join(Achievement, Achievement.id == UserAchievement.achievement_id)
+        .outerjoin(Achievement, Achievement.id == UserAchievement.achievement_id)
     )
     if user_id is not None:
         q = q.filter(UserAchievement.user_id == user_id)
@@ -152,12 +153,13 @@ def _fetch_achievements(db_session, user_id, date_from, date_to, limit) -> List[
 
     events = []
     for ua, user, ach in q:
+        ach_name = ach.name if ach else f'#{ua.achievement_id} (удалён)'
         events.append(ActivityEvent(
             timestamp=ua.earned_at,
             user_id=user.id,
             user_email=user.email,
             event_type='achievement_granted',
-            description=f'Получил достижение «{ach.name}»',
+            description=f'Получил достижение «{ach_name}»',
         ))
     return events
 
@@ -181,14 +183,17 @@ def _fetch_xp_events(db_session, user_id, date_from, date_to, limit) -> List[Act
 
     events = []
     for se, user in q:
-        coins = se.coins_delta or 0
+        # Unified XP write-paths store the awarded amount in details['xp'];
+        # coins_delta is always 0 for xp_* events.
+        details = se.details or {}
+        xp_amount = details.get('xp') or se.coins_delta or 0
         label = se.event_type.replace('xp_', '').replace('_', ' ')
         events.append(ActivityEvent(
             timestamp=se.created_at,
             user_id=user.id,
             user_email=user.email,
             event_type='xp_awarded',
-            description=f'+{coins} XP ({label})',
+            description=f'+{xp_amount} XP ({label})',
         ))
     return events
 

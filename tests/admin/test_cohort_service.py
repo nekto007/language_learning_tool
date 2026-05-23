@@ -89,8 +89,8 @@ class TestGetFunnelData:
         """Users with any DailyPlanLog appear in first_plan_built step."""
         from app.admin.services.cohort_service import get_funnel_data
 
-        u1 = _make_user(db_session, registered_days_ago=5)
-        u2 = _make_user(db_session, registered_days_ago=5)
+        u1 = _make_user(db_session, registered_days_ago=5, onboarding_done=True)
+        u2 = _make_user(db_session, registered_days_ago=5, onboarding_done=True)
         _make_plan_log(db_session, u1.id)
         # u2 has no plan
         db_session.commit()
@@ -103,8 +103,8 @@ class TestGetFunnelData:
         """Users with secured_at plan appear in day_secured step."""
         from app.admin.services.cohort_service import get_funnel_data
 
-        u1 = _make_user(db_session, registered_days_ago=5)
-        u2 = _make_user(db_session, registered_days_ago=5)
+        u1 = _make_user(db_session, registered_days_ago=5, onboarding_done=True)
+        u2 = _make_user(db_session, registered_days_ago=5, onboarding_done=True)
         _make_plan_log(db_session, u1.id)  # not secured
         _make_secured_plan_log(db_session, u2.id)  # secured
         db_session.commit()
@@ -112,6 +112,24 @@ class TestGetFunnelData:
         result = get_funnel_data(db_session, days=30)
         day_secured_step = result.steps[3]
         assert day_secured_step.count >= 1
+
+    def test_funnel_step_counts_are_monotonic_non_increasing(self, app, db_session):
+        """Each funnel step has count <= previous step (true subset semantics)."""
+        from app.admin.services.cohort_service import get_funnel_data
+
+        # User who built a plan but never completed onboarding should NOT
+        # advance past the onboarding step in the funnel.
+        u = _make_user(db_session, registered_days_ago=5, onboarding_done=False)
+        _make_plan_log(db_session, u.id)
+        db_session.commit()
+
+        result = get_funnel_data(db_session, days=30)
+        counts = [s.count for s in result.steps]
+        for i in range(1, len(counts)):
+            assert counts[i] <= counts[i - 1], (
+                f'Step {i} ({counts[i]}) exceeds previous step ({counts[i-1]}); '
+                'funnel should be monotonic non-increasing.'
+            )
 
     def test_conversion_from_top_always_present(self, app, db_session):
         """All steps have conversion_from_top populated."""
