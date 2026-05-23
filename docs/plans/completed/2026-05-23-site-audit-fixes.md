@@ -110,7 +110,7 @@
 
 ### Task 7: Документация и завершение
 
-- [ ] обновить `CLAUDE.md` если поменялись внутренние паттерны (новые helpers, изменённые конвенции)
-- [ ] не обновлять README, если не было user-facing изменений
-- [ ] переместить этот план в `docs/plans/completed/`
-- [ ] реестр `docs/audit/2026-05-23-audit-findings.md` остаётся как артефакт
+- [x] обновить `CLAUDE.md` если поменялись внутренние паттерны (новые helpers, изменённые конвенции) — не требует апдейта: `_validate_sql_identifier` приватный helper в `app/repository.py` (внутри-модульный), CSS-классы `.admin-funnel-*/.admin-activity-*/.admin-audit-*` — локальные admin-стили, существующие паттерны (`get_safe_redirect_url`, `_safe_widget_call`, `log_admin_action`) уже задокументированы
+- [x] не обновлять README, если не было user-facing изменений — пропущено (правки только аудит/безопасность/качество кода)
+- [x] переместить этот план в `docs/plans/completed/`
+- [x] реестр `docs/audit/2026-05-23-audit-findings.md` остаётся как артефакт
