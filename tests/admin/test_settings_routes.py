@@ -1,6 +1,7 @@
 """Tests for admin settings page (Task 2)."""
 import uuid
 import pytest
+from unittest.mock import patch
 
 from app.admin.site_settings import SiteSettings, get_site_setting, set_site_setting
 from app.utils.db import db
@@ -122,40 +123,42 @@ class TestSettingsPOST:
 class TestFeatureFlagOnRegistration:
     """Feature flags from SiteSettings applied during user registration."""
 
-    def test_default_linear_plan_applied_on_register(self, app, client):
-        with app.app_context():
-            set_site_setting('default_linear_plan', 'true')
-            db.session.commit()
+    @patch('app.auth.routes.email_sender')
+    def test_default_linear_plan_applied_on_register(self, mock_email, app, client, db_session):
+        from app.auth.models import User
+        mock_email.send_email.return_value = True
+        set_site_setting('default_linear_plan', 'true', db_session=db_session)
+        db_session.commit()
 
         username = f'newuser_{uuid.uuid4().hex[:6]}'
-        client.post('/auth/register', data={
+        resp = client.post('/register', data={
             'username': username,
             'email': f'{username}@test.com',
-            'password': 'Password123!',
-            'confirm_password': 'Password123!',
+            'password': 'Xk9$mP2vL!qw',
+            'password2': 'Xk9$mP2vL!qw',
         }, follow_redirects=False)
+        assert resp.status_code == 302, f'Expected redirect, got {resp.status_code}'
 
-        with app.app_context():
-            from app.auth.models import User
-            user = User.query.filter_by(username=username).first()
-            if user is not None:
-                assert user.use_linear_plan is True
+        user = db_session.query(User).filter_by(username=username).first()
+        assert user is not None, 'Registration failed — user was not created'
+        assert user.use_linear_plan is True
 
-    def test_default_mission_plan_not_applied_when_false(self, app, client):
-        with app.app_context():
-            set_site_setting('default_mission_plan', 'false')
-            db.session.commit()
+    @patch('app.auth.routes.email_sender')
+    def test_default_mission_plan_not_applied_when_false(self, mock_email, app, client, db_session):
+        from app.auth.models import User
+        mock_email.send_email.return_value = True
+        set_site_setting('default_mission_plan', 'false', db_session=db_session)
+        db_session.commit()
 
         username = f'newuser2_{uuid.uuid4().hex[:6]}'
-        client.post('/auth/register', data={
+        resp = client.post('/register', data={
             'username': username,
             'email': f'{username}@test.com',
-            'password': 'Password123!',
-            'confirm_password': 'Password123!',
+            'password': 'Xk9$mP2vL!qw',
+            'password2': 'Xk9$mP2vL!qw',
         }, follow_redirects=False)
+        assert resp.status_code == 302, f'Expected redirect, got {resp.status_code}'
 
-        with app.app_context():
-            from app.auth.models import User
-            user = User.query.filter_by(username=username).first()
-            if user is not None:
-                assert user.use_mission_plan is False
+        user = db_session.query(User).filter_by(username=username).first()
+        assert user is not None, 'Registration failed — user was not created'
+        assert user.use_mission_plan is False

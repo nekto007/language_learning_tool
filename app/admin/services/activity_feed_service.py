@@ -4,7 +4,7 @@
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 logger = logging.getLogger(__name__)
@@ -117,12 +117,12 @@ def _fetch_lesson_completed(db_session, user_id, date_from, date_to, limit) -> L
     if date_from:
         q = q.filter(LessonProgress.completed_at >= date_from)
     if date_to:
-        q = q.filter(LessonProgress.completed_at <= date_to)
+        q = q.filter(LessonProgress.completed_at < date_to + timedelta(days=1))
     q = q.order_by(LessonProgress.completed_at.desc()).limit(limit)
 
     events = []
     for lp, user, lesson in q:
-        score_str = f', {int(lp.score * 100)}%' if lp.score is not None else ''
+        score_str = f', {int(round(lp.score))}%' if lp.score is not None else ''
         events.append(ActivityEvent(
             timestamp=lp.completed_at,
             user_id=user.id,
@@ -147,7 +147,7 @@ def _fetch_achievements(db_session, user_id, date_from, date_to, limit) -> List[
     if date_from:
         q = q.filter(UserAchievement.earned_at >= date_from)
     if date_to:
-        q = q.filter(UserAchievement.earned_at <= date_to)
+        q = q.filter(UserAchievement.earned_at < date_to + timedelta(days=1))
     q = q.order_by(UserAchievement.earned_at.desc()).limit(limit)
 
     events = []
@@ -176,7 +176,7 @@ def _fetch_xp_events(db_session, user_id, date_from, date_to, limit) -> List[Act
     if date_from:
         q = q.filter(StreakEvent.created_at >= date_from)
     if date_to:
-        q = q.filter(StreakEvent.created_at <= date_to)
+        q = q.filter(StreakEvent.created_at < date_to + timedelta(days=1))
     q = q.order_by(StreakEvent.created_at.desc()).limit(limit)
 
     events = []
@@ -207,7 +207,7 @@ def _fetch_day_secured(db_session, user_id, date_from, date_to, limit) -> List[A
     if date_from:
         q = q.filter(DailyPlanLog.secured_at >= date_from)
     if date_to:
-        q = q.filter(DailyPlanLog.secured_at <= date_to)
+        q = q.filter(DailyPlanLog.secured_at < date_to + timedelta(days=1))
     q = q.order_by(DailyPlanLog.secured_at.desc()).limit(limit)
 
     events = []
@@ -237,7 +237,7 @@ def _fetch_admin_actions(db_session, user_id, date_from, date_to, limit) -> List
     if date_from:
         q = q.filter(AdminAuditLog.created_at >= date_from)
     if date_to:
-        q = q.filter(AdminAuditLog.created_at <= date_to)
+        q = q.filter(AdminAuditLog.created_at < date_to + timedelta(days=1))
     q = q.order_by(AdminAuditLog.created_at.desc()).limit(limit)
 
     events = []

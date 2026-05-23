@@ -44,6 +44,7 @@ def _google_config_present() -> bool:
 @admin_required
 def seo_index():
     app = current_app._get_current_object()
+    is_cached = get_cache(SEO_AUDIT_CACHE_KEY) is not None
     try:
         report = run_seo_audit(app)
     except Exception:
@@ -55,9 +56,6 @@ def seo_index():
             'reachable_count': 0,
             'total_pages': 0,
         }
-
-    cached = get_cache(SEO_AUDIT_CACHE_KEY, timeout=3600)
-    is_cached = cached is not None
 
     gsc_connected = _gsc_is_connected()
     gsc_data = None
@@ -143,11 +141,16 @@ def gsc_callback():
         client_secret=current_app.config['GOOGLE_CLIENT_SECRET'],
     )
 
+    expected_state = session.pop('gsc_oauth_state', None)
+    if not expected_state or request.args.get('state') != expected_state:
+        flash('Неверный state параметр. Повторите подключение.', 'danger')
+        return redirect(url_for('seo_admin.seo_index'))
+
     try:
         flow.fetch_token(authorization_response=request.url)
-    except Exception as exc:
+    except Exception:
         logger.exception('GSC token exchange failed')
-        flash(f'Ошибка получения токена: {exc}', 'danger')
+        flash('Ошибка получения токена. Подробности в логах сервера.', 'danger')
         return redirect(url_for('seo_admin.seo_index'))
 
     credentials = flow.credentials

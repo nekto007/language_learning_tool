@@ -27,7 +27,7 @@ _INT_KEYS = {
 }
 
 # All editable keys exposed in the settings form
-_ALL_KEYS = list(SETTING_DEFAULTS.keys() - {'gsc_refresh_token', 'gsc_site_url'})
+_ALL_KEYS = [k for k in SETTING_DEFAULTS if k not in {'gsc_refresh_token', 'gsc_site_url'}]
 
 
 def _load_settings() -> dict:

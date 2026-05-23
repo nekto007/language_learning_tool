@@ -126,7 +126,7 @@ def _count_retained(
     cutoff: datetime,
     delta: timedelta,
     min_offset: timedelta,
-    LessonProgress: Any,
+    lesson_progress_cls: Any,
 ) -> int:
     """Count cohort users with activity in [min_offset, delta] after registration."""
     from app.auth.models import User
@@ -144,9 +144,9 @@ def _count_retained(
                     & (DailyPlanLog.created_at <= User.created_at + delta)
                 ),
                 exists().where(
-                    (LessonProgress.user_id == User.id)
-                    & (LessonProgress.last_activity >= User.created_at + min_offset)
-                    & (LessonProgress.last_activity <= User.created_at + delta)
+                    (lesson_progress_cls.user_id == User.id)
+                    & (lesson_progress_cls.last_activity >= User.created_at + min_offset)
+                    & (lesson_progress_cls.last_activity <= User.created_at + delta)
                 ),
             ),
         )
