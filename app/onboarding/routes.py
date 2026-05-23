@@ -21,8 +21,14 @@ def wizard():
     if current_user.onboarding_completed:
         return redirect(_get_dashboard_url())
 
-    return render_template('onboarding/wizard.html',
-                           next_url=request.args.get('next', ''))
+    # Sanitize ?next= on intake — the wizard form re-submits this value as
+    # a POST field, so an open-redirect via the query-string would leak
+    # into /onboarding/complete.
+    raw_next = request.args.get('next', '')
+    safe_next = get_safe_redirect_url(raw_next) if raw_next else ''
+    if safe_next == _get_dashboard_url():
+        safe_next = ''
+    return render_template('onboarding/wizard.html', next_url=safe_next)
 
 
 @onboarding_bp.route('/onboarding/complete', methods=['POST'])

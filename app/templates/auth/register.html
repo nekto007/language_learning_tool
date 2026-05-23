@@ -2,16 +2,17 @@
 
 {% block title %}Регистрация | LLT English{% endblock %}
 
+{% block meta_description %}<meta name="description" content="Зарегистрируйтесь бесплатно в LLT English: грамматика с упражнениями, курсы по уровням, карточки для запоминания слов.">{% endblock %}
+
+{% block robots %}<meta name="robots" content="noindex, follow">{% endblock %}
+
+{% block canonical %}<link rel="canonical" href="https://llt-english.com/register">{% endblock %}
+
 {% block og_tags %}
 <meta property="og:title" content="Регистрация | LLT English">
 <meta property="og:description" content="Бесплатная регистрация для изучения английского: грамматика, курсы, карточки.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="{{ request.url }}">
-{% endblock %}
-{% block meta_description %}<meta name="description" content="Зарегистрируйтесь бесплатно в LLT English: грамматика с упражнениями, курсы по уровням, карточки для запоминания слов.">{% endblock %}
-
-{% block head_extra %}
-<link rel="canonical" href="https://llt-english.com/register">
+<meta property="og:url" content="https://llt-english.com/register">
 {% endblock %}
 
 {% block content %}

@@ -24,13 +24,15 @@ PUBLIC_URLS = [
     '/login',
     '/grammar-lab/topics',
     '/grammar-lab/',
-    '/book-courses',
+    '/courses',
     '/privacy',
     '/grammar-lab/topics/a1',
     '/grammar-lab/topics/a2',
     '/grammar-lab/topics/b1',
     '/grammar-lab/topics/b2',
     '/grammar-lab/topics/c1',
+    # POSTing /reset_password is rate-limited to 3/hour; the audit only
+    # issues GET requests, which always render the form.
     '/reset_password',
 ]
 
@@ -184,9 +186,16 @@ def run_seo_audit(app) -> dict:
     if cached is not None:
         return cached
 
-    with app.test_client() as client:
-        pages = [_audit_page(client, path) for path in PUBLIC_URLS]
-        sitemap_stats = _fetch_sitemap_stats(client)
+    # Push an isolated app context so nested test_client requests don't share
+    # `flask.g` with the outer request. Without this, the nested requests'
+    # `csrf_token()` calls populate `g.csrf_token` for the outer request,
+    # causing the outer template to emit a token bound to the nested session
+    # — and subsequent POSTs from /admin/seo fail with "CSRF session token is
+    # missing" because the outer session never received the matching value.
+    with app.app_context():
+        with app.test_client() as client:
+            pages = [_audit_page(client, path) for path in PUBLIC_URLS]
+            sitemap_stats = _fetch_sitemap_stats(client)
 
     fully_covered = sum(
         1 for p in pages

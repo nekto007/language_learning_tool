@@ -309,7 +309,12 @@ def register():
     # Capture ?ref= parameter and store in cookie so it survives form submission
     ref_code = request.args.get('ref', '').strip()
     if ref_code and len(ref_code) <= 16 and ref_code.isalnum() and request.method == 'GET':
-        resp = make_response(render_template('auth/register.html', form=RegistrationForm()))
+        resp = make_response(render_template(
+            'auth/register.html',
+            form=RegistrationForm(),
+            level_param=request.args.get('level', ''),
+            ref_param=ref_code,
+        ))
         resp.set_cookie('ref', ref_code, max_age=86400 * 30, httponly=True,
                        samesite='Lax', secure=not current_app.debug)
         return resp

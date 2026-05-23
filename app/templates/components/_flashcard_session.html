@@ -356,7 +356,7 @@
                    каталоге (в плане она уводит от цели). #}
                 <div class="celebration-actions celebration-actions--unified"
                      data-celebration-actions
-                     data-completion-mode="{% if daily_plan_ctx and daily_plan_ctx.is_daily_plan %}plan{% else %}standalone{% endif %}">
+                     data-completion-mode="standalone">
                     <div id="daily-plan-next-step"></div>
 
                     {% if not (daily_plan_ctx and daily_plan_ctx.is_daily_plan) %}
@@ -457,8 +457,40 @@
     });
 </script>
 <script>
-// Daily-plan CTAs здесь рендерятся сервером через _lesson_completion_actions
-// (см. data-completion-mode на .celebration-actions выше). Клиентский swap
-// больше не нужен — для SRS-сессий в плане «Дальше: <slot>» + «На дашборд»
-// уже в DOM на момент завершения.
+// Plan-aware celebration: when the session was opened via the linear plan
+// (`?source=linear_plan&slot=srs|curriculum`), swap the standalone «К
+// колодам» CTA for «Следующий слот плана» + «На дашборд» by calling
+// linearPlanContext.applySrsPlanAwareCompletion. The helper itself is
+// gated on slotKind !== 'srs' && slotKind !== 'curriculum' so non-plan
+// sessions are no-ops.
+(function () {
+    'use strict';
+    var container = document.querySelector('[data-celebration-actions]');
+    var screen = document.getElementById('session-complete');
+    if (!container || !screen) { return; }
+    var ctx = window.linearPlanContext;
+    if (!ctx || typeof ctx.applySrsPlanAwareCompletion !== 'function') { return; }
+    if (typeof ctx.getSlotKind === 'function') {
+        var slotKind = ctx.getSlotKind();
+        // Bail out early when the current slot isn't one of the flashcard kinds.
+        if (slotKind && slotKind !== 'srs' && slotKind !== 'curriculum') { return; }
+    }
+    var fired = false;
+    function trigger() {
+        if (fired) { return; }
+        fired = true;
+        try { ctx.applySrsPlanAwareCompletion(container); } catch (_e) { /* swallow */ }
+    }
+    if (screen.style.display !== 'none' && screen.offsetParent !== null) {
+        trigger();
+        return;
+    }
+    var observer = new MutationObserver(function () {
+        if (screen.style.display && screen.style.display !== 'none') {
+            trigger();
+            observer.disconnect();
+        }
+    });
+    observer.observe(screen, { attributes: true, attributeFilter: ['style', 'class'] });
+})();
 </script>

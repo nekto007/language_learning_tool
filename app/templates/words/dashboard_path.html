@@ -20,8 +20,13 @@ Mobile: rail re-orders below path, hero shrinks, stats wrap 2x2.
 {% block content %}
 <div class="dash-path" data-linear-plan="true">
   <main class="dash-path__main">
+    {% include 'partials/_day_secured_banner.html' %}
     {% include 'components/_dashboard_hero.html' %}
     {% include 'components/_path.html' %}
+    {# Anchor for the day-secured banner's «Продолжить обучение» CTA;
+       the path UI scrolls the user back to the path block when they
+       finish the day. #}
+    <div id="linear-plan-continuation" data-linear-continuation-anchor="true"></div>
   </main>
 
   {% include 'components/_dashboard_rail.html' %}

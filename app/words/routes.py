@@ -749,6 +749,87 @@ def _build_week_rhythm(user_id: int, tz: str) -> dict:
     return {'days': days, 'summary': summary}
 
 
+def _build_day_secured_banner(linear_plan, plan_completion, streak):
+    """Compute the day-secured banner payload for linear-plan users.
+
+    Returns None unless `?day_secured=1` is set, the user has
+    `use_linear_plan=True`, and a DailyPlanLog row for today carries a
+    non-null secured_at. On any internal error returns None — the banner
+    is best-effort and must never break the dashboard.
+    """
+    if not linear_plan:
+        return None
+    if request.args.get('day_secured') != '1':
+        return None
+    if not bool(getattr(current_user, 'use_linear_plan', False)):
+        return None
+    try:
+        from app.daily_plan.models import DailyPlanLog
+        from app.achievements.xp_service import get_today_xp
+        import pytz as _pytz_banner
+        _tz_banner_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
+        try:
+            _tz_banner = _pytz_banner.timezone(_tz_banner_name)
+        except Exception:
+            _tz_banner = _pytz_banner.timezone(DEFAULT_TIMEZONE)
+        _banner_today = datetime.now(_tz_banner).date()
+        _log = DailyPlanLog.query.filter_by(
+            user_id=current_user.id, plan_date=_banner_today
+        ).first()
+        if not _log or _log.secured_at is None:
+            return None
+        _baseline = linear_plan.get('baseline_slots') or []
+        _slots_total = len(_baseline)
+        _slots_done = sum(
+            1 for s in _baseline
+            if s.get('completed') or (plan_completion or {}).get(s.get('kind', ''), False)
+        )
+        banner = {
+            'today_xp': int(get_today_xp(current_user.id, _banner_today) or 0),
+            'streak': int(streak or 0),
+            'slots_done': _slots_done,
+            'slots_total': _slots_total,
+        }
+
+        def _build_next_step_for_banner():
+            from app.daily_plan.next_step import get_next_best_step
+            steps = get_next_best_step(current_user.id, db)
+            if not steps:
+                return None
+            top = steps[0]
+            data = top.data or {}
+            url = None
+            if top.kind == 'lesson' and data.get('lesson_id'):
+                url = f"/learn/{int(data['lesson_id'])}/?from=linear_plan&slot=curriculum"
+            elif top.kind == 'srs':
+                url = '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
+            elif top.kind == 'reading' and data.get('book_id'):
+                url = f"/read/{int(data['book_id'])}?from=linear_plan&slot=book"
+            elif top.kind == 'grammar' and data.get('topic_id'):
+                url = f"/grammar-lab/practice/topic/{int(data['topic_id'])}"
+            elif top.kind == 'vocab':
+                url = '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
+            return {
+                'kind': top.kind,
+                'reason': top.reason,
+                'estimated_minutes': top.estimated_minutes,
+                'url': url,
+            }
+
+        next_best = _safe_widget_call(
+            'day_secured_next_step',
+            _build_next_step_for_banner,
+            default=None,
+        )
+        if next_best:
+            banner['next_step'] = next_best
+        banner['tomorrow_preview'] = linear_plan.get('tomorrow_preview')
+        return banner
+    except Exception:
+        logger.warning("day_secured_banner build failed", exc_info=True)
+        return None
+
+
 def _render_unified_dashboard(tz: str):
     """Render the two-column dashboard for unified-plan users.
 
@@ -1016,6 +1097,8 @@ def _render_path_dashboard(tz: str):
 
     week_rhythm = _build_week_rhythm(current_user.id, tz)
 
+    day_secured_banner = _build_day_secured_banner(linear_plan, plan_completion, streak)
+
     return render_template(
         'words/dashboard_path.html',
         dashboard_path=dashboard_path,
@@ -1024,6 +1107,7 @@ def _render_path_dashboard(tz: str):
         focus=focus,
         week_rhythm=week_rhythm,
         challenge_card=challenge_card,
+        day_secured_banner=day_secured_banner,
     )
 
 
@@ -1469,75 +1553,7 @@ def dashboard():
     # === DAY SECURED BANNER (linear plan) ===
     # Shown on return from lesson/slot completion when all baseline slots
     # finished today. Gate on query-param + DailyPlanLog.secured_at.
-    day_secured_banner = None
-    if (
-        linear_plan
-        and request.args.get('day_secured') == '1'
-        and bool(getattr(current_user, 'use_linear_plan', False))
-    ):
-        try:
-            from app.daily_plan.models import DailyPlanLog
-            from app.achievements.xp_service import get_today_xp
-            import pytz as _pytz_banner
-            _tz_banner_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
-            try:
-                _tz_banner = _pytz_banner.timezone(_tz_banner_name)
-            except Exception:
-                _tz_banner = _pytz_banner.timezone(DEFAULT_TIMEZONE)
-            _banner_today = datetime.now(_tz_banner).date()
-            _log = DailyPlanLog.query.filter_by(
-                user_id=current_user.id, plan_date=_banner_today
-            ).first()
-            if _log and _log.secured_at is not None:
-                _slots_total = len(linear_plan.get('baseline_slots') or [])
-                _slots_done = sum(
-                    1 for s in (linear_plan.get('baseline_slots') or [])
-                    if s.get('completed') or plan_completion.get(s.get('kind', ''), False)
-                )
-                day_secured_banner = {
-                    'today_xp': int(get_today_xp(current_user.id, _banner_today) or 0),
-                    'streak': int(streak or 0),
-                    'slots_done': _slots_done,
-                    'slots_total': _slots_total,
-                }
-
-                def _build_next_step_for_banner():
-                    from app.daily_plan.next_step import get_next_best_step
-                    steps = get_next_best_step(current_user.id, db)
-                    if not steps:
-                        return None
-                    top = steps[0]
-                    data = top.data or {}
-                    url = None
-                    if top.kind == 'lesson' and data.get('lesson_id'):
-                        url = f"/learn/{int(data['lesson_id'])}/?from=linear_plan&slot=curriculum"
-                    elif top.kind == 'srs':
-                        url = '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
-                    elif top.kind == 'reading' and data.get('book_id'):
-                        url = f"/read/{int(data['book_id'])}?from=linear_plan&slot=book"
-                    elif top.kind == 'grammar' and data.get('topic_id'):
-                        url = f"/grammar-lab/practice/topic/{int(data['topic_id'])}"
-                    elif top.kind == 'vocab':
-                        url = '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
-                    return {
-                        'kind': top.kind,
-                        'reason': top.reason,
-                        'estimated_minutes': top.estimated_minutes,
-                        'url': url,
-                    }
-
-                next_best = _safe_widget_call(
-                    'day_secured_next_step',
-                    _build_next_step_for_banner,
-                    default=None,
-                )
-                if next_best:
-                    day_secured_banner['next_step'] = next_best
-
-                day_secured_banner['tomorrow_preview'] = linear_plan.get('tomorrow_preview')
-        except Exception:
-            logger.warning("day_secured_banner build failed", exc_info=True)
-            day_secured_banner = None
+    day_secured_banner = _build_day_secured_banner(linear_plan, plan_completion, streak)
 
     from app.admin.site_settings import is_streak_shield_enabled
 

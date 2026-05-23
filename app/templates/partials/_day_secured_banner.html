@@ -1,0 +1,101 @@
+{# Day-secured banner — shown when ?day_secured=1 query-param is set after
+   the user finishes the last baseline slot. Included from the legacy
+   linear daily-plan partial and from words/dashboard_path.html (path UI).
+
+   Inputs:
+     - day_secured_banner: dict | None — when None/falsy the banner is omitted.
+       Keys: today_xp, streak, slots_done, slots_total, next_step?, tomorrow_preview?
+
+   Optional context:
+     - l_slot_labels / l_slot_icons — slot kind → label/icon maps; the
+       partial falls back to a minimal local map if not provided. #}
+{% if day_secured_banner %}
+{% set _slot_labels_local = l_slot_labels if l_slot_labels is defined else {
+    'curriculum': 'Урок курса',
+    'srs': 'Повторение слов',
+    'reading': 'Чтение книги',
+    'listening': 'Аудирование',
+    'speaking': 'Произношение',
+    'writing': 'Письмо',
+    'error_review': 'Разбор ошибок',
+} %}
+{% set _slot_icons_local = l_slot_icons if l_slot_icons is defined else {
+    'curriculum': '&#127919;',
+    'srs': '&#128170;',
+    'reading': '&#128214;',
+    'listening': '&#127911;',
+    'speaking': '&#127908;',
+    'writing': '&#9999;',
+    'error_review': '&#128269;',
+} %}
+<div class="linear-plan__day-secured-banner"
+     data-linear-day-secured-banner="true"
+     role="status"
+     aria-live="polite">
+    <div class="linear-plan__day-secured-banner-head">
+        <span class="linear-plan__day-secured-banner-icon" aria-hidden="true">&#127942;</span>
+        <span class="linear-plan__day-secured-banner-title">День сохранён</span>
+    </div>
+    <ul class="linear-plan__day-secured-banner-stats">
+        <li class="linear-plan__day-secured-banner-stat">
+            <span class="linear-plan__day-secured-banner-stat-value">+{{ day_secured_banner.today_xp | int }} XP</span>
+            <span class="linear-plan__day-secured-banner-stat-label">за день</span>
+        </li>
+        <li class="linear-plan__day-secured-banner-stat">
+            <span class="linear-plan__day-secured-banner-stat-value">{{ day_secured_banner.streak | int }}</span>
+            <span class="linear-plan__day-secured-banner-stat-label">
+                {% set _s = day_secured_banner.streak | int %}
+                {% set _sm10 = _s % 10 %}
+                {% set _sm100 = _s % 100 %}
+                {% if _sm10 == 1 and _sm100 != 11 %}день{% elif 2 <= _sm10 <= 4 and not 12 <= _sm100 <= 14 %}дня{% else %}дней{% endif %}
+                подряд
+            </span>
+        </li>
+        <li class="linear-plan__day-secured-banner-stat">
+            <span class="linear-plan__day-secured-banner-stat-value">{{ day_secured_banner.slots_done | int }}/{{ day_secured_banner.slots_total | int }}</span>
+            <span class="linear-plan__day-secured-banner-stat-label">слотов</span>
+        </li>
+    </ul>
+    {% if day_secured_banner.next_step %}
+    {% set _ns = day_secured_banner.next_step %}
+    <div class="linear-plan__day-secured-banner-next" data-linear-day-secured-next-step="true">
+        <span class="linear-plan__day-secured-banner-next-label">Следующий шаг</span>
+        {% if _ns.url %}
+        <a href="{{ _ns.url }}"
+           class="linear-plan__day-secured-banner-next-link"
+           data-linear-event="day_secured_next_step_clicked"
+           data-linear-step-kind="{{ _ns.kind }}">{{ _ns.reason }}</a>
+        {% else %}
+        <span class="linear-plan__day-secured-banner-next-text">{{ _ns.reason }}</span>
+        {% endif %}
+        {% if _ns.estimated_minutes %}
+        <span class="linear-plan__day-secured-banner-next-eta">~{{ _ns.estimated_minutes | int }} мин</span>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% if day_secured_banner.tomorrow_preview %}
+    {% set _tp = day_secured_banner.tomorrow_preview %}
+    <div class="linear-plan__day-secured-banner-tomorrow"
+         data-linear-tomorrow-preview="true">
+        <span class="linear-plan__day-secured-banner-tomorrow-label">Завтра</span>
+        <span class="linear-plan__day-secured-banner-tomorrow-time">≈ {{ _tp.estimated_minutes | int }} мин</span>
+        <span class="linear-plan__day-secured-banner-tomorrow-slots">
+            {% for _sk in _tp.slot_types %}
+            <span class="linear-plan__day-secured-banner-tomorrow-icon"
+                  title="{{ _slot_labels_local.get(_sk, _sk) }}"
+                  aria-label="{{ _slot_labels_local.get(_sk, _sk) }}">{{ _slot_icons_local.get(_sk, '&#128204;')|safe }}</span>
+            {% endfor %}
+        </span>
+    </div>
+    {% endif %}
+    <div class="linear-plan__day-secured-banner-actions">
+        <a href="#linear-plan-continuation"
+           class="linear-plan__day-secured-banner-cta linear-plan__day-secured-banner-cta--primary"
+           data-linear-event="day_secured_continue_clicked">Продолжить обучение</a>
+        <a href="#"
+           class="linear-plan__day-secured-banner-cta linear-plan__day-secured-banner-cta--secondary"
+           data-linear-action="day-secured-dismiss"
+           data-linear-event="day_secured_dismiss_clicked">На сегодня хватит</a>
+    </div>
+</div>
+{% endif %}

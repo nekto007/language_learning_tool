@@ -2,6 +2,7 @@
 
 """Admin SEO analytics — meta-tag coverage audit, sitemap health, and GSC integration."""
 
+import hashlib
 import hmac
 import logging
 
@@ -25,13 +26,15 @@ from app.admin.services.seo_audit_service import (
     run_seo_audit,
 )
 from app.admin.site_settings import get_site_setting, set_site_setting
-from app.admin.utils.cache import clear_cache_by_prefix, get_cache
+from app.admin.utils.cache import clear_cache_by_prefix, get_cache, set_cache
 from app.admin.utils.decorators import admin_required
 from app.utils.db import db
 
 seo_bp = Blueprint('seo_admin', __name__)
 
 logger = logging.getLogger(__name__)
+GSC_DATA_CACHE_TIMEOUT = 600
+GSC_SITES_CACHE_TIMEOUT = 3600
 
 
 def _get_gsc_refresh_token() -> str:
@@ -51,6 +54,33 @@ def _google_config_present() -> bool:
         current_app.config.get('GOOGLE_CLIENT_ID')
         and current_app.config.get('GOOGLE_CLIENT_SECRET')
     )
+
+
+def _gsc_redirect_uri() -> str:
+    """Build the public OAuth callback URI.
+
+    In production Flask can sit behind an ingress/proxy and see the request as
+    plain HTTP, which makes url_for(..., _external=True) generate an OAuth URI
+    Google will reject. SITE_URL is the public origin we already expose in
+    config, so prefer it when present.
+    """
+    site_url = (current_app.config.get('SITE_URL') or '').strip().rstrip('/')
+    callback_path = url_for('seo_admin.gsc_callback')
+    if site_url:
+        return f'{site_url}{callback_path}'
+    return url_for('seo_admin.gsc_callback', _external=True)
+
+
+def _gsc_token_cache_suffix(refresh_token: str) -> str:
+    return hashlib.sha256(refresh_token.encode('utf-8')).hexdigest()[:12]
+
+
+def _gsc_data_cache_key(refresh_token: str, site_url: str) -> str:
+    return f'gsc_data:{_gsc_token_cache_suffix(refresh_token)}:{site_url}'
+
+
+def _gsc_sites_cache_key(refresh_token: str) -> str:
+    return f'gsc_sites:{_gsc_token_cache_suffix(refresh_token)}'
 
 
 @seo_bp.route('/seo')
@@ -77,27 +107,40 @@ def seo_index():
     gsc_error = None
 
     if gsc_connected:
+        refresh_token = _get_gsc_refresh_token()
         try:
             from app.admin.services.gsc_service import (
                 fetch_gsc_data,
                 get_verified_sites_for_refresh_token,
             )
-            gsc_data = fetch_gsc_data(
-                refresh_token=_get_gsc_refresh_token(),
-                site_url=gsc_site_url,
-                client_id=current_app.config.get('GOOGLE_CLIENT_ID', ''),
-                client_secret=current_app.config.get('GOOGLE_CLIENT_SECRET', ''),
-            )
+            if gsc_site_url:
+                data_cache_key = _gsc_data_cache_key(refresh_token, gsc_site_url)
+                gsc_data = get_cache(data_cache_key, timeout=GSC_DATA_CACHE_TIMEOUT)
+                if gsc_data is None:
+                    gsc_data = fetch_gsc_data(
+                        refresh_token=refresh_token,
+                        site_url=gsc_site_url,
+                        client_id=current_app.config.get('GOOGLE_CLIENT_ID', ''),
+                        client_secret=current_app.config.get('GOOGLE_CLIENT_SECRET', ''),
+                    )
+                    set_cache(data_cache_key, gsc_data)
         except Exception:
             logger.exception('Failed to fetch GSC data')
             gsc_error = 'Не удалось получить данные из Google Search Console. Переподключите аккаунт.'
 
         try:
-            gsc_available_sites = get_verified_sites_for_refresh_token(
-                refresh_token=_get_gsc_refresh_token(),
-                client_id=current_app.config.get('GOOGLE_CLIENT_ID', ''),
-                client_secret=current_app.config.get('GOOGLE_CLIENT_SECRET', ''),
+            sites_cache_key = _gsc_sites_cache_key(refresh_token)
+            gsc_available_sites = get_cache(
+                sites_cache_key,
+                timeout=GSC_SITES_CACHE_TIMEOUT,
             )
+            if gsc_available_sites is None:
+                gsc_available_sites = get_verified_sites_for_refresh_token(
+                    refresh_token=refresh_token,
+                    client_id=current_app.config.get('GOOGLE_CLIENT_ID', ''),
+                    client_secret=current_app.config.get('GOOGLE_CLIENT_SECRET', ''),
+                )
+                set_cache(sites_cache_key, gsc_available_sites)
         except Exception:
             logger.exception('Failed to list GSC verified sites')
             gsc_available_sites = []
@@ -133,7 +176,7 @@ def gsc_connect():
 
     from app.admin.services.gsc_service import build_flow
 
-    redirect_uri = url_for('seo_admin.gsc_callback', _external=True)
+    redirect_uri = _gsc_redirect_uri()
     flow = build_flow(
         redirect_uri=redirect_uri,
         client_id=current_app.config['GOOGLE_CLIENT_ID'],
@@ -162,7 +205,7 @@ def gsc_callback():
 
     from app.admin.services.gsc_service import build_flow, get_verified_sites
 
-    redirect_uri = url_for('seo_admin.gsc_callback', _external=True)
+    redirect_uri = _gsc_redirect_uri()
     flow = build_flow(
         redirect_uri=redirect_uri,
         client_id=current_app.config['GOOGLE_CLIENT_ID'],
@@ -224,6 +267,7 @@ def gsc_callback():
     set_site_setting('gsc_site_url', site_url)
     log_admin_action(current_user.id, 'gsc_connect', target_type='site_settings')
     db.session.commit()
+    clear_cache_by_prefix('gsc_')
 
     msg = f'Google Search Console подключён ({site_url}).'
     if len(sites) > 1:
@@ -240,6 +284,7 @@ def gsc_disconnect():
     set_site_setting('gsc_site_url', '')
     log_admin_action(current_user.id, 'gsc_disconnect', target_type='site_settings')
     db.session.commit()
+    clear_cache_by_prefix('gsc_')
     flash('Google Search Console отключён.', 'info')
     return redirect(url_for('seo_admin.seo_index'))
 
@@ -281,6 +326,6 @@ def gsc_select_site():
     set_site_setting('gsc_site_url', desired)
     log_admin_action(current_user.id, 'gsc_select_site', target_type='site_settings')
     db.session.commit()
-    clear_cache_by_prefix('seo_audit')
+    clear_cache_by_prefix('gsc_')
     flash(f'Активный сайт GSC изменён на {desired}.', 'success')
     return redirect(url_for('seo_admin.seo_index'))

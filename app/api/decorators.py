@@ -42,7 +42,10 @@ def api_auth_required(f):
                     }), 401
                 login_user(user, remember=False)
                 return f(*args, **kwargs)
-            except Exception:
+            except Exception as exc:
+                logger.warning(
+                    "JWT verification failed: %s", exc, exc_info=True
+                )
                 return jsonify({
                     'success': False,
                     'error': 'Invalid or expired token',
