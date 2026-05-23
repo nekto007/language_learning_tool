@@ -1,0 +1,184 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}Активность пользователей{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('Активность', '')]) }}
+{% endblock %}
+
+{% block content %}
+{{ page_header('Активность пользователей', 'Хронологический журнал событий по всем пользователям') }}
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a class="nav-link active" href="{{ url_for('activity_admin.activity_index') }}">
+            <i class="fas fa-stream me-1"></i>Лента событий
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('activity_admin.activity_funnel') }}">
+            <i class="fas fa-filter me-1"></i>Воронка конверсий
+        </a>
+    </li>
+</ul>
+
+<!-- Filter Bar -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Фильтры</h6>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('activity_admin.activity_index') }}" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">ID пользователя</label>
+                <input type="number" name="user_id" class="form-control" placeholder="Все пользователи"
+                       value="{{ filter_user_id }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">С даты</label>
+                <input type="date" name="date_from" class="form-control" value="{{ filter_date_from }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">По дату</label>
+                <input type="date" name="date_to" class="form-control" value="{{ filter_date_to }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Типы событий</label>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button"
+                            id="typeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        {% if filter_types %}
+                            {{ filter_types | length }} выбрано
+                        {% else %}
+                            Все типы
+                        {% endif %}
+                    </button>
+                    <div class="dropdown-menu p-3" style="min-width: 240px;">
+                        {% for et in all_event_types %}
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="checkbox" name="event_types"
+                                   value="{{ et }}" id="et_{{ et }}"
+                                   {% if et in filter_types %}checked{% endif %}>
+                            <label class="form-check-label" for="et_{{ et }}">
+                                {{ event_type_labels[et] }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search me-1"></i>Применить
+                </button>
+                <a href="{{ url_for('activity_admin.activity_index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i>Сбросить
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Event List -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-stream me-2"></i>События</h6>
+        <span class="badge bg-secondary">
+            {% if events %}
+                Страница {{ page }}{% if has_more %}, ещё есть{% endif %}
+            {% else %}
+                Нет событий
+            {% endif %}
+        </span>
+    </div>
+    <div class="card-body p-0">
+        {% if events %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 180px;">Время</th>
+                        <th style="width: 220px;">Пользователь</th>
+                        <th style="width: 160px;">Тип события</th>
+                        <th>Описание</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                    {% set badge_class = {
+                        'lesson_completed': 'bg-success',
+                        'achievement_granted': 'bg-warning text-dark',
+                        'xp_awarded': 'bg-info text-dark',
+                        'day_secured': 'bg-primary',
+                        'admin_action': 'bg-danger',
+                    }.get(event.event_type, 'bg-secondary') %}
+                    <tr>
+                        <td class="text-muted small">
+                            {{ event.timestamp.strftime('%d.%m.%Y %H:%M:%S') if event.timestamp else '—' }}
+                        </td>
+                        <td>
+                            {% if event.user_email %}
+                                <span class="text-truncate d-inline-block" style="max-width: 200px;"
+                                      title="{{ event.user_email }}">
+                                    {{ event.user_email }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {{ badge_class }}">
+                                {{ event_type_labels.get(event.event_type, event.event_type) }}
+                            </span>
+                        </td>
+                        <td class="small">
+                            {% if event.detail_url %}
+                                <a href="{{ event.detail_url }}">{{ event.description }}</a>
+                            {% else %}
+                                {{ event.description }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-inbox fa-3x mb-3"></i>
+            <p>Нет событий по заданным фильтрам</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if page > 1 or has_more %}
+    <div class="card-footer">
+        <nav aria-label="Pagination">
+            <ul class="pagination mb-0 justify-content-center">
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('activity_admin.activity_index', page=page-1, user_id=filter_user_id, date_from=filter_date_from, date_to=filter_date_to, event_types=filter_types) }}">
+                        <i class="fas fa-chevron-left"></i> Назад
+                    </a>
+                </li>
+                {% endif %}
+                <li class="page-item disabled">
+                    <span class="page-link">Страница {{ page }}</span>
+                </li>
+                {% if has_more %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('activity_admin.activity_index', page=page+1, user_id=filter_user_id, date_from=filter_date_from, date_to=filter_date_to, event_types=filter_types) }}">
+                        Вперёд <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

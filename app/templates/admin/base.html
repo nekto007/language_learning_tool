@@ -188,6 +188,40 @@
                         <i class="fas fa-chart-pie"></i>
                         <span>Аудио статистика</span>
                     </a>
+                    <a href="{{ url_for('audit_admin.audit_index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('audit_admin.') }}">
+                        <i class="fas fa-history"></i>
+                        <span>Аудит-лог</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="nav-section" data-section="analytics">
+                <div class="nav-section-title" onclick="toggleNavSection('analytics')">
+                    <span>Аналитика</span>
+                    <i class="fas fa-chevron-down nav-section-chevron"></i>
+                </div>
+                <div class="nav-section-content">
+                    <a href="{{ url_for('seo_admin.seo_index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('seo_admin.') }}">
+                        <i class="fas fa-chart-line"></i>
+                        <span>SEO Аналитика</span>
+                    </a>
+                    <a href="{{ url_for('activity_admin.activity_index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('activity_admin.') }}">
+                        <i class="fas fa-stream"></i>
+                        <span>Активность</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="nav-section" data-section="config">
+                <div class="nav-section-title" onclick="toggleNavSection('config')">
+                    <span>Настройки</span>
+                    <i class="fas fa-chevron-down nav-section-chevron"></i>
+                </div>
+                <div class="nav-section-content">
+                    <a href="{{ url_for('settings_admin.settings_index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('settings_admin.') }}">
+                        <i class="fas fa-sliders-h"></i>
+                        <span>Настройки сайта</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -279,7 +313,8 @@
             { title: 'Import Curriculum', url: '{{ url_for("admin_curriculum.import_curriculum") }}', icon: 'fa-upload', section: 'Tools' },
             { title: 'System Info', url: '{{ url_for("system_admin.system") }}', icon: 'fa-cogs', section: 'Tools' },
             { title: 'Database', url: '{{ url_for("system_admin.database_management") }}', icon: 'fa-database', section: 'Tools' },
-            { title: 'Audio', url: '{{ url_for("audio_admin.audio_management") }}', icon: 'fa-volume-up', section: 'Tools' }
+            { title: 'Audio', url: '{{ url_for("audio_admin.audio_management") }}', icon: 'fa-volume-up', section: 'Tools' },
+            { title: 'Настройки сайта', url: '{{ url_for("settings_admin.settings_index") }}', icon: 'fa-sliders-h', section: 'Settings' }
         ];
 
         function initGlobalSearch() {

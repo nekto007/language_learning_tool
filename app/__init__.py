@@ -33,7 +33,8 @@ _ONBOARDING_SKIP_PREFIXES = (
     'admin.', 'user_admin.', 'audio_admin.', 'book_admin.',
     'collection_admin.', 'topic_admin.', 'word_admin.',
     'system_admin.', 'grammar_lab_admin.', 'admin_curriculum.',
-    'curriculum_admin.', 'reminders.',
+    'curriculum_admin.', 'reminders.', 'settings_admin.', 'seo_admin.',
+    'activity_admin.', 'audit_admin.',
     'refresh_csrf_token',
     'health_check',
 )
@@ -423,6 +424,23 @@ def create_app(config_class=Config):
             return {}
 
         return {'daily_plan_ctx': ctx}
+
+    @app.context_processor
+    def _inject_site_settings():
+        from flask import g
+
+        cached = getattr(g, '_site_settings_cached', None)
+        if cached is not None:
+            return {'site_settings': cached}
+
+        try:
+            from app.admin.site_settings import get_public_settings
+            cached = get_public_settings()
+        except Exception:
+            logger.exception('Failed to load public site settings')
+            cached = {}
+        g._site_settings_cached = cached
+        return {'site_settings': cached}
 
     # Set up database-specific optimizations via SQLAlchemy events
     from app.utils.db_config import configure_database_engine

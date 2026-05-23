@@ -63,5 +63,21 @@ def register_admin_routes(flask_app):
     from app.admin.routes.grammar_lab_routes import grammar_lab_bp
     flask_app.register_blueprint(grammar_lab_bp, url_prefix='/admin')
 
+    # Import and register settings routes blueprint
+    from app.admin.routes.settings_routes import settings_bp
+    flask_app.register_blueprint(settings_bp, url_prefix='/admin')
+
+    # Import and register SEO analytics routes blueprint
+    from app.admin.routes.seo_routes import seo_bp
+    flask_app.register_blueprint(seo_bp, url_prefix='/admin')
+
+    # Import and register user activity feed routes blueprint
+    from app.admin.routes.activity_routes import activity_bp
+    flask_app.register_blueprint(activity_bp, url_prefix='/admin')
+
+    # Import and register admin audit log routes blueprint
+    from app.admin.routes.audit_routes import audit_bp
+    flask_app.register_blueprint(audit_bp, url_prefix='/admin')
+
     # Now register the complete blueprint with all routes
     flask_app.register_blueprint(admin)

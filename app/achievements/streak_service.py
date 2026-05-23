@@ -441,12 +441,22 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
 
     # Shield repair: fires with any real activity regardless of steps_done.
     # If the user has a shield and missed exactly one day, use the shield to
-    # repair the gap automatically, then deactivate the shield.
+    # repair the gap automatically, then deactivate the shield. Gated on the
+    # `streak_shield_enabled` site setting so admins can fully disable the
+    # feature — including consumption of shields already in circulation.
     if real_activity:
         try:
+            from app.admin.site_settings import get_site_setting as _get_site_setting
+            _shield_feature_enabled = (
+                _get_site_setting('streak_shield_enabled', 'true') == 'true'
+            )
             from app.auth.models import User as _User
             _shield_user = db.session.get(_User, user_id)
-            if _shield_user and getattr(_shield_user, 'streak_shield_active', False):
+            if (
+                _shield_feature_enabled
+                and _shield_user
+                and getattr(_shield_user, 'streak_shield_active', False)
+            ):
                 _shield_missed = find_missed_date(user_id, tz=tz)
                 if _shield_missed:
                     if apply_shield_repair(user_id, _shield_missed):
@@ -537,10 +547,13 @@ STREAK_MILESTONES = {
 def _grant_streak_shield(user_id: int) -> bool:
     """Grant a streak shield to the user if they don't already have one.
 
-    Returns True if shield was granted, False if already active.
+    Returns True if shield was granted, False if disabled or already active.
     """
     from app.auth.models import User
+    from app.admin.site_settings import get_site_setting
     from app import db
+    if get_site_setting('streak_shield_enabled', 'true') != 'true':
+        return False
     user = db.session.get(User, user_id)
     if user is None or getattr(user, 'streak_shield_active', False):
         return False

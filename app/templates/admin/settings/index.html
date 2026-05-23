@@ -1,0 +1,157 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}Настройки сайта{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('Настройки сайта', '')]) }}
+{% endblock %}
+
+{% block content %}
+{{ page_header('Настройки сайта', 'Конфигурация функций, SEO, контактов и реферальной программы') }}
+
+<form method="POST" action="{{ url_for('settings_admin.settings_save') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="row g-4">
+
+        <!-- Feature Flags -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-toggle-on me-2 text-primary"></i>Флаги фич</h5>
+                    <small class="text-muted">Применяются при создании нового пользователя</small>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="default_linear_plan"
+                                       name="default_linear_plan" value="1"
+                                       {{ 'checked' if settings.get('default_linear_plan') == 'true' }}>
+                                <label class="form-check-label" for="default_linear_plan">
+                                    <strong>Линейный план по умолчанию</strong>
+                                    <br><small class="text-muted">Новые пользователи получают use_linear_plan=True</small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="default_mission_plan"
+                                       name="default_mission_plan" value="1"
+                                       {{ 'checked' if settings.get('default_mission_plan') == 'true' }}>
+                                <label class="form-check-label" for="default_mission_plan">
+                                    <strong>Миссионный план по умолчанию</strong>
+                                    <br><small class="text-muted">Новые пользователи получают use_mission_plan=True</small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="daily_race_enabled"
+                                       name="daily_race_enabled" value="1"
+                                       {{ 'checked' if settings.get('daily_race_enabled') == 'true' }}>
+                                <label class="form-check-label" for="daily_race_enabled">
+                                    <strong>Ежедневная гонка</strong>
+                                    <br><small class="text-muted">Включить функцию daily race</small>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="streak_shield_enabled"
+                                       name="streak_shield_enabled" value="1"
+                                       {{ 'checked' if settings.get('streak_shield_enabled') == 'true' }}>
+                                <label class="form-check-label" for="streak_shield_enabled">
+                                    <strong>Защита серии</strong>
+                                    <br><small class="text-muted">Включить streak shield</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEO Defaults -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-search me-2 text-success"></i>SEO по умолчанию</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="site_title">Заголовок сайта</label>
+                            <input type="text" class="form-control" id="site_title" name="site_title"
+                                   value="{{ settings.get('site_title', '') }}" maxlength="200">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="og_image_url">URL OG-изображения</label>
+                            <input type="url" class="form-control" id="og_image_url" name="og_image_url"
+                                   value="{{ settings.get('og_image_url', '') }}" maxlength="500">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="site_description">Мета-описание</label>
+                            <textarea class="form-control" id="site_description" name="site_description"
+                                      rows="2" maxlength="300">{{ settings.get('site_description', '') }}</textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="meta_keywords">Мета-ключевые слова</label>
+                            <input type="text" class="form-control" id="meta_keywords" name="meta_keywords"
+                                   value="{{ settings.get('meta_keywords', '') }}" maxlength="500">
+                            <div class="form-text">Через запятую</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contacts -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-envelope me-2 text-info"></i>Контакты</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="support_email">Email поддержки</label>
+                        <input type="email" class="form-control" id="support_email" name="support_email"
+                               value="{{ settings.get('support_email', '') }}" maxlength="200">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="support_phone">Телефон поддержки</label>
+                        <input type="text" class="form-control" id="support_phone" name="support_phone"
+                               value="{{ settings.get('support_phone', '') }}" maxlength="50">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Referral Program -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-gift me-2 text-warning"></i>Реферальная программа</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="referral_bonus_xp">Бонус XP за реферала</label>
+                        <input type="number" class="form-control" id="referral_bonus_xp" name="referral_bonus_xp"
+                               value="{{ settings.get('referral_bonus_xp', '100') }}" min="0" max="10000">
+                        <div class="form-text">XP начисляется реферреру после онбординга приглашённого</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save -->
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-2"></i>Сохранить настройки
+            </button>
+        </div>
+
+    </div>
+</form>
+{% endblock %}

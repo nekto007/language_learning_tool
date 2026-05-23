@@ -1,0 +1,353 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb, stat_card %}
+
+{% block title %}SEO Аналитика{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('SEO Аналитика', '')]) }}
+{% endblock %}
+
+{% block content %}
+{% set actions %}
+<form method="POST" action="{{ url_for('seo_admin.seo_refresh') }}" class="d-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-sync-alt me-1"></i> Обновить данные
+    </button>
+</form>
+{% if is_cached %}
+<span class="badge bg-secondary ms-2"><i class="fas fa-clock me-1"></i>из кэша</span>
+{% endif %}
+{% endset %}
+
+{{ page_header('SEO Аналитика', 'Аудит мета-тегов публичных страниц и здоровье сайтмапа', actions=actions) }}
+
+<!-- Summary Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        {{ stat_card('Страниц проверено', report.total_pages, 'fa-globe', 'info') }}
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        {{ stat_card('Доступно', report.reachable_count, 'fa-check-circle', 'success') }}
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        {{ stat_card('Полное SEO', report.fully_covered_count, 'fa-star', 'primary') }}
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        {% if report.reachable_count > 0 %}
+            {% set pct = (report.fully_covered_count / report.reachable_count * 100)|int %}
+        {% else %}
+            {% set pct = 0 %}
+        {% endif %}
+        {{ stat_card('Покрытие', pct|string + '%', 'fa-chart-pie',
+            'success' if pct >= 80 else ('warning' if pct >= 50 else 'danger')) }}
+    </div>
+</div>
+
+<!-- Per-page audit table -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="mb-0"><i class="fas fa-search me-2 text-primary"></i>Аудит страниц</h5>
+        <small class="text-muted">✓ — OK, ✗ — отсутствует</small>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>URL</th>
+                        <th class="text-center">Статус</th>
+                        <th class="text-center">Title</th>
+                        <th class="text-center">Description</th>
+                        <th class="text-center">OG</th>
+                        <th class="text-center">Canonical</th>
+                        <th>Проблемы</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for page in report.pages %}
+                    <tr class="{{ 'table-danger' if page.error else ('table-success' if not page.issues else '') }}">
+                        <td>
+                            <code class="small">{{ page.url }}</code>
+                        </td>
+                        <td class="text-center">
+                            {% if page.status_code == 200 %}
+                                <span class="badge bg-success">200</span>
+                            {% elif page.status_code == 0 %}
+                                <span class="badge bg-secondary">—</span>
+                            {% else %}
+                                <span class="badge bg-danger">{{ page.status_code }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if page.status_code != 200 %}
+                                <span class="text-muted">—</span>
+                            {% elif page.title_ok %}
+                                <span class="text-success" title="{{ page.title }}">✓</span>
+                            {% else %}
+                                <span class="text-danger">✗</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if page.status_code != 200 %}
+                                <span class="text-muted">—</span>
+                            {% elif page.description_ok %}
+                                <span class="text-success" title="{{ page.description }}">✓</span>
+                            {% else %}
+                                <span class="text-danger">✗</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if page.status_code != 200 %}
+                                <span class="text-muted">—</span>
+                            {% elif page.og_ok %}
+                                <span class="text-success">✓</span>
+                            {% else %}
+                                <span class="text-danger">✗</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if page.status_code != 200 %}
+                                <span class="text-muted">—</span>
+                            {% elif page.canonical_ok %}
+                                <span class="text-success">✓</span>
+                            {% else %}
+                                <span class="text-danger">✗</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if page.error %}
+                                <span class="text-danger small">{{ page.error }}</span>
+                            {% elif page.issues %}
+                                <span class="text-warning small">{{ page.issues | join(', ') }}</span>
+                            {% else %}
+                                <span class="text-success small">Всё OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7" class="text-center text-muted py-3">Нет данных</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Sitemap Stats -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-sitemap me-2 text-success"></i>Sitemap</h5>
+    </div>
+    <div class="card-body">
+        {% if report.sitemap.error %}
+            <div class="alert alert-danger mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i>{{ report.sitemap.error }}
+            </div>
+        {% else %}
+            <dl class="row mb-0">
+                <dt class="col-sm-3">URL в сайтмапе</dt>
+                <dd class="col-sm-9"><strong>{{ report.sitemap.url_count }}</strong></dd>
+                <dt class="col-sm-3">Последнее изменение</dt>
+                <dd class="col-sm-9">{{ report.sitemap.newest_lastmod or '—' }}</dd>
+            </dl>
+            <a href="/sitemap.xml" target="_blank" class="btn btn-sm btn-outline-secondary mt-3">
+                <i class="fas fa-external-link-alt me-1"></i> Открыть sitemap.xml
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Google Search Console -->
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="mb-0">
+            <i class="fab fa-google me-2 text-danger"></i>Google Search Console
+        </h5>
+        {% if gsc_connected %}
+        <form method="POST" action="{{ url_for('seo_admin.gsc_disconnect') }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger"
+                    onclick="return confirm('Отключить Google Search Console?')">
+                <i class="fas fa-unlink me-1"></i> Отключить
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {# Site picker is rendered whenever we know the admin has other verified
+           properties in this account — including in the failure mode where the
+           stored gsc_site_url has become stale and the fetch above blew up.
+           Surfacing the picker here lets the admin recover without dropping the
+           connection and going through the full OAuth dance again. #}
+        {% if gsc_connected and gsc_available_sites and gsc_available_sites|length > 1 %}
+        <form method="POST" action="{{ url_for('seo_admin.gsc_select_site') }}" class="row g-2 align-items-end mb-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-sm-8 col-md-6">
+                <label for="gsc_site_url_picker" class="form-label small mb-1">Активный сайт</label>
+                <select id="gsc_site_url_picker" name="site_url" class="form-select form-select-sm">
+                    {% for site in gsc_available_sites %}
+                    <option value="{{ site }}" {% if site == gsc_site_url %}selected{% endif %}>{{ site }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-exchange-alt me-1"></i> Сменить
+                </button>
+            </div>
+        </form>
+        {% endif %}
+
+        {% if gsc_error %}
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>{{ gsc_error }}
+                {% if google_config_present %}
+                <div class="mt-2">
+                    <a href="{{ url_for('seo_admin.gsc_connect') }}" class="btn btn-sm btn-warning">
+                        <i class="fab fa-google me-1"></i> Переподключить
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+        {% elif gsc_connected and gsc_data %}
+            <p class="text-muted small mb-3">
+                <i class="fas fa-check-circle text-success me-1"></i>Подключено
+                {% if gsc_site_url %} — <code>{{ gsc_site_url }}</code>{% endif %}
+                &nbsp;· данные за последние 28 дней
+            </p>
+
+            <!-- Aggregate metrics -->
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6 col-lg-3">
+                    {{ stat_card('Клики', gsc_data.total_clicks, 'fa-mouse-pointer', 'primary') }}
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    {{ stat_card('Показы', gsc_data.total_impressions, 'fa-eye', 'info') }}
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    {{ stat_card('Средний CTR', gsc_data.avg_ctr|string + '%', 'fa-percentage', 'success') }}
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    {{ stat_card('Средняя позиция', gsc_data.avg_position, 'fa-sort-numeric-up', 'warning') }}
+                </div>
+            </div>
+
+            {% if gsc_data.chart_dates %}
+            <!-- 28-day chart -->
+            <div class="mb-4">
+                <h6 class="text-muted mb-2">Клики и показы за 28 дней</h6>
+                <canvas id="gscChart" height="80"></canvas>
+            </div>
+            {% endif %}
+
+            <!-- Top-10 queries table -->
+            {% if gsc_data.queries %}
+            <h6 class="text-muted mb-2">Топ-10 поисковых запросов</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Запрос</th>
+                            <th class="text-end">Клики</th>
+                            <th class="text-end">Показы</th>
+                            <th class="text-end">CTR</th>
+                            <th class="text-end">Позиция</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for q in gsc_data.queries %}
+                        <tr>
+                            <td>{{ q.query }}</td>
+                            <td class="text-end">{{ q.clicks }}</td>
+                            <td class="text-end">{{ q.impressions }}</td>
+                            <td class="text-end">{{ q.ctr }}%</td>
+                            <td class="text-end">{{ q.position }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+        {% elif gsc_connected %}
+            <div class="alert alert-info mb-0">
+                <i class="fas fa-info-circle me-2"></i>
+                Google Search Console подключён, но данные отсутствуют или сайт не верифицирован.
+            </div>
+
+        {% else %}
+            <p class="text-muted mb-3">
+                Подключите Google Search Console для просмотра кликов, показов,
+                CTR и средней позиции по поисковым запросам.
+            </p>
+            {% if google_config_present %}
+            <a href="{{ url_for('seo_admin.gsc_connect') }}" class="btn btn-danger">
+                <i class="fab fa-google me-2"></i>Подключить GSC
+            </a>
+            {% else %}
+            <div class="alert alert-secondary mb-0">
+                <i class="fas fa-info-circle me-2"></i>
+                Для подключения задайте <code>GOOGLE_CLIENT_ID</code> и
+                <code>GOOGLE_CLIENT_SECRET</code> в конфигурации приложения.
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% if gsc_connected and gsc_data and gsc_data.chart_dates %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    var ctx = document.getElementById('gscChart');
+    if (!ctx) return;
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ gsc_data.chart_dates | tojson }},
+            datasets: [
+                {
+                    label: 'Клики',
+                    data: {{ gsc_data.chart_clicks | tojson }},
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13,110,253,0.08)',
+                    tension: 0.3,
+                    fill: true,
+                    pointRadius: 2,
+                },
+                {
+                    label: 'Показы',
+                    data: {{ gsc_data.chart_impressions | tojson }},
+                    borderColor: '#6c757d',
+                    backgroundColor: 'rgba(108,117,125,0.05)',
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 2,
+                    yAxisID: 'y2',
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { position: 'top' } },
+            scales: {
+                y: { title: { display: true, text: 'Клики' }, beginAtZero: true },
+                y2: {
+                    position: 'right',
+                    title: { display: true, text: 'Показы' },
+                    beginAtZero: true,
+                    grid: { drawOnChartArea: false },
+                },
+            }
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

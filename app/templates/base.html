@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ _('Изучение английского языка') }}{% endblock %}</title>
+    <title>{% block title %}{{ site_settings.site_title or _('Изучение английского языка') }}{% endblock %}</title>
+    {% block meta_description %}{% if site_settings.site_description %}<meta name="description" content="{{ site_settings.site_description }}">{% endif %}{% endblock %}
+    {% if site_settings.meta_keywords %}<meta name="keywords" content="{{ site_settings.meta_keywords }}">{% endif %}
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <!-- Google Fonts: Onest -->
@@ -19,12 +21,12 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- OG defaults (override via head_extra block in child templates) -->
     {% block og_tags %}
-    <meta property="og:title" content="LLT English — Платформа для изучения английского языка">
-    <meta property="og:description" content="Грамматика, курсы, карточки, книги — всё для изучения английского в одном месте.">
+    <meta property="og:title" content="{{ site_settings.site_title or 'LLT English — Платформа для изучения английского языка' }}">
+    <meta property="og:description" content="{{ site_settings.site_description or 'Грамматика, курсы, карточки, книги — всё для изучения английского в одном месте.' }}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.url }}">
     {% endblock %}
-    <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='img/og-default.png', _external=True) }}{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{{ site_settings.og_image_url or url_for('static', filename='img/og-default.png', _external=True) }}{% endblock %}">
     <meta name="twitter:card" content="summary_large_image">
     {% if config.GOOGLE_SITE_VERIFICATION %}
     <meta name="google-site-verification" content="{{ config.GOOGLE_SITE_VERIFICATION }}">
@@ -313,6 +315,14 @@
                 <span class="text-muted">Платформа для изучения английского</span>
                 <div class="mt-2">
                     <a href="{{ url_for('legal.privacy') }}" class="text-muted footer-link" style="font-size: 0.8125rem; text-decoration: none;">Политика конфиденциальности</a>
+                    {% if site_settings.support_email %}
+                    <span class="text-muted mx-2">&middot;</span>
+                    <a href="mailto:{{ site_settings.support_email }}" class="text-muted footer-link" style="font-size: 0.8125rem; text-decoration: none;">{{ site_settings.support_email }}</a>
+                    {% endif %}
+                    {% if site_settings.support_phone %}
+                    <span class="text-muted mx-2">&middot;</span>
+                    <span class="text-muted" style="font-size: 0.8125rem;">{{ site_settings.support_phone }}</span>
+                    {% endif %}
                     <span class="text-muted mx-2">&middot;</span>
                     <span class="text-muted footer-copyright">&copy; 2025</span>
                 </div>
