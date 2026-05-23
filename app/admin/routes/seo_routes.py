@@ -2,6 +2,7 @@
 
 """Admin SEO analytics — meta-tag coverage audit, sitemap health, and GSC integration."""
 
+import hmac
 import logging
 
 from flask import (
@@ -148,7 +149,8 @@ def gsc_callback():
     )
 
     expected_state = session.pop('gsc_oauth_state', None)
-    if not expected_state or request.args.get('state') != expected_state:
+    received_state = request.args.get('state') or ''
+    if not expected_state or not hmac.compare_digest(expected_state, received_state):
         flash('Неверный state параметр. Повторите подключение.', 'danger')
         return redirect(url_for('seo_admin.seo_index'))
 

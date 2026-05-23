@@ -16,20 +16,21 @@ SEO_AUDIT_CACHE_TIMEOUT = 3600  # 1 hour
 
 # Key public URLs to audit — static HTML paths only.  Sitemap is audited
 # separately via `_fetch_sitemap_stats` so meta-tag coverage stays consistent.
+# Auth-gated pages (e.g. /onboarding) are excluded since the test client would
+# follow a redirect to /login and report meta-tags from the wrong page.
 PUBLIC_URLS = [
     '/',
     '/register',
     '/login',
     '/grammar-lab/topics',
     '/grammar-lab/',
-    '/courses',
+    '/book-courses',
     '/privacy',
     '/grammar-lab/topics/a1',
     '/grammar-lab/topics/a2',
     '/grammar-lab/topics/b1',
     '/grammar-lab/topics/b2',
     '/grammar-lab/topics/c1',
-    '/onboarding',
     '/reset_password',
 ]
 
