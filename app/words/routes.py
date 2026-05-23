@@ -138,10 +138,12 @@ def _process_referral_reward_on_first_visit(user) -> None:
 
     try:
         from app.achievements.xp_service import award_referral_xp_idempotent
-        award_referral_xp_idempotent(user.referred_by_id, user.id, 100)
+        from app.admin.site_settings import get_referral_bonus_xp
+        bonus_xp = get_referral_bonus_xp()
+        award_referral_xp_idempotent(user.referred_by_id, user.id, bonus_xp)
 
         from app.notifications.services import notify_referral
-        notify_referral(user.referred_by_id, user.username)
+        notify_referral(user.referred_by_id, user.username, bonus_xp=bonus_xp)
 
         from app.auth.routes import _check_referral_achievements
         _check_referral_achievements(user.referred_by_id)
@@ -408,10 +410,14 @@ def _compute_daily_race_state(plan: dict, daily_summary: dict, streak: int) -> d
 def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     from app.auth.models import User
     from app.achievements.daily_race import get_race_standings
+    from app.admin.site_settings import get_site_setting
     from app.daily_plan.rivals import is_adult_user
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_current_streak, get_daily_summary
     import pytz
+
+    if get_site_setting('daily_race_enabled', 'true') != 'true':
+        return None
 
     user = User.query.get(current_user_id)
     if user is None or not is_adult_user(getattr(user, 'birth_year', None)):
@@ -796,9 +802,13 @@ def _render_unified_dashboard(tz: str):
     words_today = (daily_summary or {}).get('words_studied', 0) if daily_summary else 0
     words_goal = getattr(current_user, 'daily_word_goal', None) or _FOCUS_DEFAULT_WORDS_TARGET
 
+    from app.admin.site_settings import is_streak_shield_enabled
+    shield_visible = bool(
+        getattr(current_user, 'streak_shield_active', False)
+    ) and is_streak_shield_enabled()
     stats_card = {
         'streak_days': streak or 0,
-        'streak_shield': bool(getattr(current_user, 'streak_shield_active', False)),
+        'streak_shield': shield_visible,
         'xp_today': xp_today,
         'level': level_info.current_level,
         'goal_target': words_goal,
@@ -944,9 +954,13 @@ def _render_path_dashboard(tz: str):
     words_today = (daily_summary or {}).get('words_studied', 0) if daily_summary else 0
     words_goal = getattr(current_user, 'daily_word_goal', None) or _FOCUS_DEFAULT_WORDS_TARGET
 
+    from app.admin.site_settings import is_streak_shield_enabled
+    shield_visible = bool(
+        getattr(current_user, 'streak_shield_active', False)
+    ) and is_streak_shield_enabled()
     stats_card = {
         'streak_days': streak or 0,
-        'streak_shield': bool(getattr(current_user, 'streak_shield_active', False)),
+        'streak_shield': shield_visible,
         'xp_today': xp_today,
         'level': level_info.current_level,
         'goal_target': words_goal,
@@ -1525,6 +1539,8 @@ def dashboard():
             logger.warning("day_secured_banner build failed", exc_info=True)
             day_secured_banner = None
 
+    from app.admin.site_settings import is_streak_shield_enabled
+
     # Local hour for time-of-day hints in linear plan partial.
     try:
         import pytz as _pytz_lh
@@ -1559,7 +1575,10 @@ def dashboard():
             'weekly_lesson_goal': getattr(current_user, 'weekly_lesson_goal', 5) or 5,
         },
         day_secured_banner=day_secured_banner,
-        streak_shield_active=bool(getattr(current_user, 'streak_shield_active', False)),
+        streak_shield_active=(
+            bool(getattr(current_user, 'streak_shield_active', False))
+            and is_streak_shield_enabled()
+        ),
         local_hour=local_hour,
         plan_meta=plan_meta,
         phase_urls=phase_urls,

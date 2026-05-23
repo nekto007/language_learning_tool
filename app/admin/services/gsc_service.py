@@ -42,12 +42,47 @@ def build_flow(redirect_uri: str, client_id: str, client_secret: str):
     return Flow.from_client_config(client_config, scopes=SCOPES, redirect_uri=redirect_uri)
 
 
+_VERIFIED_PERMISSION_LEVELS = frozenset(
+    {'siteOwner', 'siteFullUser', 'siteRestrictedUser'}
+)
+
+
 def get_verified_sites(credentials) -> list:
-    """Return list of site URLs verified in Google Search Console."""
+    """Return list of site URLs verified in Google Search Console.
+
+    Filters out entries whose ``permissionLevel`` is ``siteUnverifiedUser``;
+    those properties are visible to the account but not actually verified, so
+    `searchanalytics.query` against them will fail. When ``permissionLevel`` is
+    missing we keep the entry to stay compatible with future API additions.
+    """
     _require_libs()
     service = build('webmasters', 'v3', credentials=credentials)
     resp = service.sites().list().execute()
-    return [s['siteUrl'] for s in resp.get('siteEntry', [])]
+    sites: list[str] = []
+    for entry in resp.get('siteEntry', []):
+        level = entry.get('permissionLevel')
+        if level is not None and level not in _VERIFIED_PERMISSION_LEVELS:
+            continue
+        site_url = entry.get('siteUrl')
+        if site_url:
+            sites.append(site_url)
+    return sites
+
+
+def get_verified_sites_for_refresh_token(
+    refresh_token: str, client_id: str, client_secret: str
+) -> list:
+    """List verified GSC sites using a stored refresh token."""
+    _require_libs()
+    creds = Credentials(
+        token=None,
+        refresh_token=refresh_token,
+        token_uri='https://oauth2.googleapis.com/token',
+        client_id=client_id,
+        client_secret=client_secret,
+        scopes=SCOPES,
+    )
+    return get_verified_sites(creds)
 
 
 def fetch_gsc_data(
@@ -79,7 +114,8 @@ def fetch_gsc_data(
     service = build('webmasters', 'v3', credentials=creds)
 
     end_date = datetime.now(timezone.utc).date()
-    start_date = end_date - timedelta(days=days)
+    # Search Console date bounds are inclusive — subtract days-1 to get an N-day window.
+    start_date = end_date - timedelta(days=max(days - 1, 0))
     date_range = {'startDate': start_date.isoformat(), 'endDate': end_date.isoformat()}
 
     # Top-10 queries

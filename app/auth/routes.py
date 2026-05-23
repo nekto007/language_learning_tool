@@ -528,6 +528,7 @@ def profile():
         delta = datetime.now(timezone.utc) - current_user.created_at.replace(tzinfo=timezone.utc) if current_user.created_at.tzinfo is None else datetime.now(timezone.utc) - current_user.created_at
         account_age_days = delta.days
 
+    from app.admin.site_settings import get_referral_bonus_xp
     return render_template(
         'auth/profile.html',
         user=current_user,
@@ -538,6 +539,7 @@ def profile():
         rank_ru_names=RANK_RU_NAMES,
         account_age_days=account_age_days,
         timezone_choices=TIMEZONE_CHOICES,
+        referral_bonus_xp=get_referral_bonus_xp(),
     )
 
 
@@ -629,8 +631,22 @@ def referrals():
             if login_dt > thirty_days_ago:
                 active_referred += 1
 
-    # XP earned from referrals (100 XP per referred user)
-    total_referral_xp = len(referred_users) * 100
+    from app.admin.site_settings import get_referral_bonus_xp
+    bonus_xp = get_referral_bonus_xp()
+
+    from app.achievements.models import StreakEvent
+    from app.achievements.xp_service import REFERRAL_XP_EVENT_TYPE
+    referral_xp_events = (
+        db.session.query(StreakEvent.details)
+        .filter(
+            StreakEvent.user_id == current_user.id,
+            StreakEvent.event_type == REFERRAL_XP_EVENT_TYPE,
+        )
+        .all()
+    )
+    total_referral_xp = sum(
+        int((details or {}).get('xp', 0) or 0) for (details,) in referral_xp_events
+    )
 
     return render_template(
         'auth/referrals.html',
@@ -640,6 +656,7 @@ def referrals():
         referral_count=len(referred_users),
         active_referred=active_referred,
         total_referral_xp=total_referral_xp,
+        referral_bonus_xp=bonus_xp,
     )
 
 

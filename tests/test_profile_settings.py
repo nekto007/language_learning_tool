@@ -406,7 +406,11 @@ class TestReferralStats:
         assert '200' in html  # total XP
 
     def test_referrals_xp_calculation(self, app, db_session, auth_client, profile_user):
-        """XP earned from referrals = count * 100."""
+        """XP earned from referrals = sum of actually-awarded XP recorded in StreakEvent."""
+        from app.achievements.models import StreakEvent
+        from app.achievements.xp_service import REFERRAL_XP_EVENT_TYPE
+        from datetime import date
+
         profile_user.ensure_referral_code()
 
         for i in range(3):
@@ -418,8 +422,16 @@ class TestReferralStats:
             )
             u.set_password('pass123')
             db_session.add(u)
+            db_session.flush()
+            db_session.add(StreakEvent(
+                user_id=profile_user.id,
+                event_type=REFERRAL_XP_EVENT_TYPE,
+                event_date=date.today(),
+                coins_delta=0,
+                details={'referee_id': u.id, 'xp': 100},
+            ))
         db_session.commit()
 
         resp = auth_client.get('/referrals')
         html = resp.data.decode()
-        assert '300' in html  # 3 * 100 XP
+        assert '300' in html  # 3 * 100 XP actually awarded

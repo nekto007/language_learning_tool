@@ -25,7 +25,6 @@ _BOOL_KEYS = {
 
 _INT_KEYS = {
     'referral_bonus_xp',
-    'referral_bonus_days',
 }
 
 # All editable keys exposed in the settings form
@@ -53,9 +52,12 @@ def settings_save():
             elif key in _INT_KEYS:
                 raw = request.form.get(key, '').strip()
                 try:
-                    value = str(int(raw)) if raw else SETTING_DEFAULTS.get(key, '0')
+                    parsed = int(raw) if raw else int(SETTING_DEFAULTS.get(key, '0') or 0)
                 except ValueError:
-                    value = SETTING_DEFAULTS.get(key, '0')
+                    parsed = int(SETTING_DEFAULTS.get(key, '0') or 0)
+                if parsed < 0:
+                    parsed = 0
+                value = str(parsed)
             else:
                 value = request.form.get(key, '').strip()
             set_site_setting(key, value)

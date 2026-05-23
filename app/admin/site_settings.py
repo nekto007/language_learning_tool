@@ -20,7 +20,10 @@ SETTING_DEFAULTS: dict[str, str] = {
     'daily_race_enabled': 'true',
     'streak_shield_enabled': 'true',
     # SEO defaults
-    'site_title': 'Language Learning Tool',
+    # site_title intentionally empty — templates fall back to their built-in
+    # default copy when no admin has configured a value yet (prevents a silent
+    # branding/SEO change on deploy).
+    'site_title': '',
     'site_description': '',
     'og_image_url': '',
     'meta_keywords': '',
@@ -28,8 +31,7 @@ SETTING_DEFAULTS: dict[str, str] = {
     'support_email': '',
     'support_phone': '',
     # Referral program
-    'referral_bonus_xp': '50',
-    'referral_bonus_days': '7',
+    'referral_bonus_xp': '100',
     # Google Search Console (populated via OAuth flow)
     'gsc_refresh_token': '',
     'gsc_site_url': '',
@@ -55,35 +57,19 @@ class SiteSettings(db.Model):
 
 
 def get_site_setting(key: str, default: Any = None, db_session=None) -> Optional[str]:
-    """Return the stored value for *key*, or *default* if not found.
+    """Return the stored value for *key*, or a default if not found.
 
-    On first access seeds the row with the default from SETTING_DEFAULTS so the
-    value is visible in the admin UI immediately.  Flush only — caller commits.
+    Read-only — never writes to the DB. Falls back first to *default*, then to
+    `SETTING_DEFAULTS[key]`, then to None. Use `ensure_defaults_seeded()` (or
+    the admin settings POST) to persist defaults.
     """
     session = db_session or db.session
     row = session.get(SiteSettings, key)
     if row is not None:
         return row.value
-
-    # Seed from SETTING_DEFAULTS on first access
-    seed_value = SETTING_DEFAULTS.get(key, default)
-    if seed_value is not None:
-        sp = None
-        try:
-            sp = session.begin_nested()
-            row = SiteSettings(
-                key=key,
-                value=str(seed_value) if seed_value is not None else '',
-            )
-            session.add(row)
-            session.flush()
-            return row.value
-        except Exception:
-            if sp is not None:
-                sp.rollback()
-            logger.warning('Could not seed site setting %r', key)
-
-    return default if default is not None else (SETTING_DEFAULTS.get(key))
+    if default is not None:
+        return default
+    return SETTING_DEFAULTS.get(key)
 
 
 def set_site_setting(key: str, value: str, db_session=None) -> SiteSettings:
@@ -98,6 +84,55 @@ def set_site_setting(key: str, value: str, db_session=None) -> SiteSettings:
         row.updated_at = datetime.now(UTC).replace(tzinfo=None)
     session.flush()
     return row
+
+
+_PUBLIC_SETTING_KEYS = (
+    'site_title',
+    'site_description',
+    'og_image_url',
+    'meta_keywords',
+    'support_email',
+    'support_phone',
+)
+
+
+def get_referral_bonus_xp(db_session=None) -> int:
+    """Return the referral bonus XP as an int, with safe fallback to 100."""
+    try:
+        raw = get_site_setting('referral_bonus_xp', '100', db_session=db_session) or '100'
+        return int(raw)
+    except (TypeError, ValueError):
+        return 100
+
+
+def is_streak_shield_enabled(db_session=None) -> bool:
+    """Return True when the streak-shield feature flag is enabled."""
+    try:
+        return (
+            get_site_setting('streak_shield_enabled', 'true', db_session=db_session)
+            == 'true'
+        )
+    except Exception:
+        return True
+
+
+def get_public_settings(db_session=None) -> dict[str, str]:
+    """Return the subset of SiteSettings safe to expose to public templates.
+
+    Single bulk query — called from a global template context processor on
+    every public page render, so the per-key `session.get()` loop is avoided.
+    """
+    session = db_session or db.session
+    rows = (
+        session.query(SiteSettings.key, SiteSettings.value)
+        .filter(SiteSettings.key.in_(_PUBLIC_SETTING_KEYS))
+        .all()
+    )
+    stored = {key: (value or '') for key, value in rows}
+    return {
+        key: stored.get(key) or SETTING_DEFAULTS.get(key, '') or ''
+        for key in _PUBLIC_SETTING_KEYS
+    }
 
 
 def ensure_defaults_seeded(db_session=None) -> None:

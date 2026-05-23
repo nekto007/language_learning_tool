@@ -230,7 +230,7 @@ class TestBuildCurriculumSlotStates:
         assert slot.url is None
         assert slot.eta_minutes == 0
         assert slot.completed is True
-        assert slot.data == {}
+        assert slot.data == {'state': 'completed'}
 
     def test_completed_progress_alone_does_not_complete_slot(self, db_session, curriculum):
         """Curriculum slot completion is keyed off the linear XP event, not

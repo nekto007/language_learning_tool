@@ -34,6 +34,20 @@ from sqlalchemy.orm import relationship
 from app.utils.db import db
 
 
+def is_daily_race_enabled() -> bool:
+    """Return True when the daily race feature is enabled in SiteSettings.
+
+    Defaults to enabled when the setting is missing or unreadable. All
+    write/read entry points consult this so admins can fully turn the feature
+    off, not just hide the dashboard widget.
+    """
+    try:
+        from app.admin.site_settings import get_site_setting
+        return get_site_setting('daily_race_enabled', 'true') == 'true'
+    except Exception:
+        return True
+
+
 # Capacity limits for a single daily race cohort.
 RACE_MIN_PARTICIPANTS = 3
 RACE_MAX_PARTICIPANTS = 5
@@ -408,6 +422,8 @@ def update_race_points_from_plan(
     challenge — callers should pass ``CHALLENGE_BONUS_POINTS`` when the user
     has completed today's challenge.
     """
+    if not is_daily_race_enabled():
+        return None
     phase_list = list(phases)
     total, all_required_done = _points_from_plan(phase_list, plan_completion)
     return update_race_points(
@@ -437,6 +453,8 @@ def update_race_points_from_linear_plan(
     ``challenge_bonus`` adds a flat bonus (default 0) for completing the daily
     challenge.
     """
+    if not is_daily_race_enabled():
+        return None
     slots = list(baseline_slots)
     total = 0
     all_required_done = bool(slots)
@@ -557,7 +575,12 @@ def get_race_standings(
       ``user_id``, ``username``, ``points``, ``is_me``, ``is_ghost``,
       ``rank``, ``finished_at``
     - ``my_rank``: current user's 1-indexed rank
+
+    Returns ``None`` when the daily race feature is disabled in SiteSettings.
     """
+    if not is_daily_race_enabled():
+        return None
+
     from app.auth.models import User
 
     cohort = get_or_create_race(user_id, race_date)

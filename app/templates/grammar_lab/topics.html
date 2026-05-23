@@ -2,8 +2,9 @@
 
 {% block title %}Темы грамматики{% if current_level %} — {{ current_level }}{% endif %} | LLT English{% endblock %}
 
+{% block meta_description %}<meta name="description" content="Грамматика английского языка{% if current_level %} уровня {{ current_level }}{% endif %}: правила, таблицы, примеры. Бесплатная теория + упражнения.">{% endblock %}
+
 {% block head_extra %}
-<meta name="description" content="Грамматика английского языка{% if current_level %} уровня {{ current_level }}{% endif %}: правила, таблицы, примеры. Бесплатная теория + упражнения.">
 <link rel="canonical" href="https://llt-english.com/grammar-lab/topics{% if current_level %}/{{ current_level }}{% endif %}">
 {% endblock %}
 

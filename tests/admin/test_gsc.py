@@ -228,6 +228,70 @@ class TestGSCRoutes:
             app.config.pop('GOOGLE_CLIENT_ID', None)
             app.config.pop('GOOGLE_CLIENT_SECRET', None)
 
+    def test_select_site_persists_choice_when_verified(self, app, client, admin_user, db_session):
+        """POST /admin/seo/select-site updates gsc_site_url when target is verified."""
+        set_site_setting('gsc_refresh_token', 'valid_token', db_session=db_session)
+        set_site_setting('gsc_site_url', 'https://first.example.com/', db_session=db_session)
+        db_session.commit()
+
+        app.config['GOOGLE_CLIENT_ID'] = 'test_id'
+        app.config['GOOGLE_CLIENT_SECRET'] = 'test_secret'
+        try:
+            import app.admin.services.gsc_service as gsc_module
+            mock_build = MagicMock()
+            mock_service = MagicMock()
+            mock_build.return_value = mock_service
+            mock_service.sites().list().execute.return_value = {
+                'siteEntry': [
+                    {'siteUrl': 'https://first.example.com/'},
+                    {'siteUrl': 'https://second.example.com/'},
+                ]
+            }
+            with patch.object(gsc_module, 'build', mock_build), \
+                 patch.object(gsc_module, 'Credentials', MagicMock()):
+                response = client.post(
+                    '/admin/seo/select-site',
+                    data={'site_url': 'https://second.example.com/'},
+                    follow_redirects=False,
+                )
+            assert response.status_code == 302
+            with app.app_context():
+                from app.admin.site_settings import get_site_setting
+                assert get_site_setting('gsc_site_url') == 'https://second.example.com/'
+        finally:
+            app.config.pop('GOOGLE_CLIENT_ID', None)
+            app.config.pop('GOOGLE_CLIENT_SECRET', None)
+
+    def test_select_site_rejects_unverified_target(self, app, client, admin_user, db_session):
+        """POST /admin/seo/select-site does NOT change gsc_site_url for unverified target."""
+        set_site_setting('gsc_refresh_token', 'valid_token', db_session=db_session)
+        set_site_setting('gsc_site_url', 'https://first.example.com/', db_session=db_session)
+        db_session.commit()
+
+        app.config['GOOGLE_CLIENT_ID'] = 'test_id'
+        app.config['GOOGLE_CLIENT_SECRET'] = 'test_secret'
+        try:
+            import app.admin.services.gsc_service as gsc_module
+            mock_build = MagicMock()
+            mock_service = MagicMock()
+            mock_build.return_value = mock_service
+            mock_service.sites().list().execute.return_value = {
+                'siteEntry': [{'siteUrl': 'https://first.example.com/'}]
+            }
+            with patch.object(gsc_module, 'build', mock_build), \
+                 patch.object(gsc_module, 'Credentials', MagicMock()):
+                client.post(
+                    '/admin/seo/select-site',
+                    data={'site_url': 'https://attacker.example.com/'},
+                    follow_redirects=False,
+                )
+            with app.app_context():
+                from app.admin.site_settings import get_site_setting
+                assert get_site_setting('gsc_site_url') == 'https://first.example.com/'
+        finally:
+            app.config.pop('GOOGLE_CLIENT_ID', None)
+            app.config.pop('GOOGLE_CLIENT_SECRET', None)
+
     def test_seo_index_shows_queries_table_when_connected(self, app, client, admin_user, db_session):
         """GET /admin/seo shows top-10 queries table when GSC data available."""
         set_site_setting('gsc_refresh_token', 'valid_token', db_session=db_session)

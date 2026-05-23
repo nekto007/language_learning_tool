@@ -126,11 +126,14 @@ def check_plan_streak_milestone_notification(
     notify_plan_streak_milestone(user_id, current_streak)
 
 
-def notify_referral(user_id: int, referred_username: str) -> Notification:
+def notify_referral(user_id: int, referred_username: str, bonus_xp: int | None = None) -> Notification:
+    if bonus_xp is None:
+        from app.admin.site_settings import get_referral_bonus_xp
+        bonus_xp = get_referral_bonus_xp()
     return create_notification(
         user_id, 'referral',
         title=f'{referred_username} присоединился!',
-        message='+100 XP за приглашение',
+        message=f'+{bonus_xp} XP за приглашение',
         icon='👥',
         link='/referrals',
     )

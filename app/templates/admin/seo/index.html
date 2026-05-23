@@ -175,6 +175,30 @@
         {% endif %}
     </div>
     <div class="card-body">
+        {# Site picker is rendered whenever we know the admin has other verified
+           properties in this account — including in the failure mode where the
+           stored gsc_site_url has become stale and the fetch above blew up.
+           Surfacing the picker here lets the admin recover without dropping the
+           connection and going through the full OAuth dance again. #}
+        {% if gsc_connected and gsc_available_sites and gsc_available_sites|length > 1 %}
+        <form method="POST" action="{{ url_for('seo_admin.gsc_select_site') }}" class="row g-2 align-items-end mb-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-sm-8 col-md-6">
+                <label for="gsc_site_url_picker" class="form-label small mb-1">Активный сайт</label>
+                <select id="gsc_site_url_picker" name="site_url" class="form-select form-select-sm">
+                    {% for site in gsc_available_sites %}
+                    <option value="{{ site }}" {% if site == gsc_site_url %}selected{% endif %}>{{ site }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-exchange-alt me-1"></i> Сменить
+                </button>
+            </div>
+        </form>
+        {% endif %}
+
         {% if gsc_error %}
             <div class="alert alert-danger">
                 <i class="fas fa-exclamation-triangle me-2"></i>{{ gsc_error }}

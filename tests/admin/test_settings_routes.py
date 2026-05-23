@@ -45,7 +45,6 @@ class TestSettingsPOST:
             'support_email': '',
             'support_phone': '',
             'referral_bonus_xp': '50',
-            'referral_bonus_days': '7',
         }, follow_redirects=True)
         assert response.status_code == 200
 
@@ -63,7 +62,6 @@ class TestSettingsPOST:
             'support_email': '',
             'support_phone': '',
             'referral_bonus_xp': '50',
-            'referral_bonus_days': '7',
         }, follow_redirects=True)
 
         with app.app_context():
@@ -82,7 +80,6 @@ class TestSettingsPOST:
             'support_email': '',
             'support_phone': '',
             'referral_bonus_xp': '50',
-            'referral_bonus_days': '7',
         }, follow_redirects=True)
 
         with app.app_context():
@@ -92,7 +89,6 @@ class TestSettingsPOST:
     def test_post_saves_int_value(self, app, client, admin_user):
         client.post('/admin/settings', data={
             'referral_bonus_xp': '100',
-            'referral_bonus_days': '14',
             'site_title': '',
             'site_description': '',
             'og_image_url': '',
@@ -103,7 +99,6 @@ class TestSettingsPOST:
 
         with app.app_context():
             assert get_site_setting('referral_bonus_xp') == '100'
-            assert get_site_setting('referral_bonus_days') == '14'
 
     def test_post_redirects_to_settings_page(self, app, client, admin_user):
         response = client.post('/admin/settings', data={
@@ -114,7 +109,6 @@ class TestSettingsPOST:
             'support_email': '',
             'support_phone': '',
             'referral_bonus_xp': '50',
-            'referral_bonus_days': '7',
         })
         assert response.status_code == 302
         assert '/admin/settings' in response.headers['Location']

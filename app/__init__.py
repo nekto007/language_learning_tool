@@ -425,6 +425,23 @@ def create_app(config_class=Config):
 
         return {'daily_plan_ctx': ctx}
 
+    @app.context_processor
+    def _inject_site_settings():
+        from flask import g
+
+        cached = getattr(g, '_site_settings_cached', None)
+        if cached is not None:
+            return {'site_settings': cached}
+
+        try:
+            from app.admin.site_settings import get_public_settings
+            cached = get_public_settings()
+        except Exception:
+            logger.exception('Failed to load public site settings')
+            cached = {}
+        g._site_settings_cached = cached
+        return {'site_settings': cached}
+
     # Set up database-specific optimizations via SQLAlchemy events
     from app.utils.db_config import configure_database_engine
     configure_database_engine(app, db)

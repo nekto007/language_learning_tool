@@ -9,8 +9,9 @@
 <meta property="og:url" content="{{ request.base_url }}">
 {% endblock %}
 
+{% block meta_description %}<meta name="description" content="{{ meta_description | default('')}}">{% endblock %}
+
 {% block head_extra %}
-<meta name="description" content="{{ meta_description | default('')}}">
 <link rel="canonical" href="https://llt-english.com/grammar-lab/topic/{{ topic.id }}">
 <link rel="alternate" hreflang="ru" href="https://llt-english.com/grammar-lab/topic/{{ topic.id }}">
 <script type="application/ld+json">

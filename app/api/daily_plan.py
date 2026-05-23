@@ -19,6 +19,14 @@ logger = logging.getLogger(__name__)
 DEFAULT_TZ = DEFAULT_TIMEZONE
 
 
+def _streak_shield_visible(user) -> bool:
+    """Return True only when the user holds a shield AND the feature is enabled."""
+    from app.admin.site_settings import is_streak_shield_enabled
+    return bool(
+        getattr(user, 'streak_shield_active', False)
+    ) and is_streak_shield_enabled()
+
+
 def _validate_timezone(tz_name: str) -> str:
     """Validate timezone string against system database. Returns default if invalid."""
     try:
@@ -402,7 +410,7 @@ def daily_status():
         'immersion_streak_days': immersion_streak_days,
         'pronunciation_weak_words': pronunciation_weak_words,
         'minutes_studied_today': minutes_studied_today,
-        'streak_shield_active': bool(getattr(current_user, 'streak_shield_active', False)),
+        'streak_shield_active': _streak_shield_visible(current_user),
         **listening_goal_data,
         **goal_progress_data,
     }
@@ -583,9 +591,13 @@ def daily_race_status():
         update_race_points_from_linear_plan,
     )
     from app.daily_plan.challenge import get_today_challenge
+    from app.achievements.daily_race import is_daily_race_enabled
 
     tz = _validate_timezone(request.args.get('tz', current_user.timezone or DEFAULT_TZ))
     user_id = current_user.id
+
+    if not is_daily_race_enabled():
+        return api_error('feature_disabled', 'Race feature is disabled', 403)
 
     user = User.query.get(user_id)
     if user is None or not is_adult_user(user.birth_year):

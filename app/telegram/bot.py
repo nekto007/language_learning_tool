@@ -134,22 +134,25 @@ def _handle_unlink(chat_id: int, telegram_id: int) -> None:
     _send_message(chat_id, 'Аккаунт отвязан. Чтобы привязать снова: /link XXXXXX')
 
 
-HELP_TEXT = (
-    'Доступные команды:\n\n'
-    '/plan — план на сегодня с чеклистом\n'
-    '/stats — статистика: стрик, уроки, слова, книги\n'
-    '/invite — пригласить друга и получить +100 XP\n'
-    '/settings — настройки уведомлений и часовой пояс\n'
-    '/link — привязать аккаунт\n'
-    '/unlink — отвязать аккаунт\n'
-    '/help — эта справка\n\n'
-    'Бот присылает:\n'
-    '• Утреннее напоминание с планом на день\n'
-    '• Вечернюю сводку результатов\n'
-    '• Напоминание, если забыл позаниматься\n'
-    '• Предупреждение о потере стрика\n\n'
-    'Все уведомления настраиваются в /settings'
-)
+def _help_text() -> str:
+    from app.admin.site_settings import get_referral_bonus_xp
+    bonus_xp = get_referral_bonus_xp()
+    return (
+        'Доступные команды:\n\n'
+        '/plan — план на сегодня с чеклистом\n'
+        '/stats — статистика: стрик, уроки, слова, книги\n'
+        f'/invite — пригласить друга и получить +{bonus_xp} XP\n'
+        '/settings — настройки уведомлений и часовой пояс\n'
+        '/link — привязать аккаунт\n'
+        '/unlink — отвязать аккаунт\n'
+        '/help — эта справка\n\n'
+        'Бот присылает:\n'
+        '• Утреннее напоминание с планом на день\n'
+        '• Вечернюю сводку результатов\n'
+        '• Напоминание, если забыл позаниматься\n'
+        '• Предупреждение о потере стрика\n\n'
+        'Все уведомления настраиваются в /settings'
+    )
 
 
 TIMEZONE_OPTIONS = {
@@ -720,6 +723,8 @@ def _handle_invite(chat_id: int, telegram_id: int) -> None:
     referral_count = User.query.filter_by(referred_by_id=user.id).count()
     stats_line = f'\n👥 Ты уже пригласил: {referral_count}' if referral_count > 0 else ''
 
+    from app.admin.site_settings import get_referral_bonus_xp
+    bonus_xp = get_referral_bonus_xp()
     message = (
         '📨 Поделись этим сообщением с друзьями:\n\n'
         '---\n'
@@ -728,7 +733,7 @@ def _handle_invite(chat_id: int, telegram_id: int) -> None:
         f'Присоединяйся: {invite_link}\n'
         '---\n'
         f'{stats_line}\n'
-        '💡 За каждого друга ты получишь +100 XP!'
+        f'💡 За каждого друга ты получишь +{bonus_xp} XP!'
     )
 
     _send_message(chat_id, message)
@@ -803,7 +808,7 @@ def handle_update(data: dict) -> None:
     elif text == '/invite':
         _handle_invite(chat_id, telegram_id)
     elif text == '/help':
-        _send_message(chat_id, HELP_TEXT)
+        _send_message(chat_id, _help_text())
     elif (PendingTelegramLink.is_pending(telegram_id)
           and text.isdigit() and len(text) == 6):
         # Two-step /link flow: user sent code after /link

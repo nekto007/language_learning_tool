@@ -29,21 +29,18 @@ class TestGetSiteSetting:
         result = get_site_setting('test_key_read', default='fallback', db_session=db_session)
         assert result == 'stored_value'
 
-    def test_seeds_default_on_first_access(self, app, db_session):
-        """First access for a known default key seeds the row."""
-        # Ensure the row does not pre-exist
+    def test_returns_default_without_writing(self, app, db_session):
+        """get_site_setting is read-only: missing row → return default, no DB write."""
         existing = db_session.get(SiteSettings, 'support_email')
         if existing is not None:
             db_session.delete(existing)
             db_session.flush()
 
         result = get_site_setting('support_email', db_session=db_session)
-        # Should return the SETTING_DEFAULTS value (empty string)
         assert result == SETTING_DEFAULTS['support_email']
 
-        # Row should now exist in DB
-        seeded = db_session.get(SiteSettings, 'support_email')
-        assert seeded is not None
+        # No row should be created by a read-only call
+        assert db_session.get(SiteSettings, 'support_email') is None
 
     def test_returns_none_default_when_no_default_arg(self, app, db_session):
         """get_site_setting with no default arg returns SETTING_DEFAULTS value or None."""

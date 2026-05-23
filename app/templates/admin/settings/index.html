@@ -138,12 +138,8 @@
                     <div class="mb-3">
                         <label class="form-label" for="referral_bonus_xp">Бонус XP за реферала</label>
                         <input type="number" class="form-control" id="referral_bonus_xp" name="referral_bonus_xp"
-                               value="{{ settings.get('referral_bonus_xp', '50') }}" min="0" max="10000">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label" for="referral_bonus_days">Бонус дней подписки</label>
-                        <input type="number" class="form-control" id="referral_bonus_days" name="referral_bonus_days"
-                               value="{{ settings.get('referral_bonus_days', '7') }}" min="0" max="365">
+                               value="{{ settings.get('referral_bonus_xp', '100') }}" min="0" max="10000">
+                        <div class="form-text">XP начисляется реферреру после онбординга приглашённого</div>
                     </div>
                 </div>
             </div>
