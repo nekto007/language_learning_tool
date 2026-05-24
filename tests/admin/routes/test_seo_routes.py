@@ -22,6 +22,7 @@ class TestSeoAuditCacheVersioning:
     def teardown_method(self):
         clear_admin_cache()
 
+    @pytest.mark.smoke
     def test_cache_key_is_versioned(self, app, db_session):
         set_site_setting(SEO_AUDIT_CACHE_VERSION_KEY, '7', db_session=db_session)
         db_session.commit()

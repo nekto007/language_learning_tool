@@ -10,6 +10,7 @@ from unittest.mock import patch, MagicMock
 class TestAudioManagement:
     """Tests for audio_management() route"""
 
+    @pytest.mark.smoke
     @patch('app.admin.routes.audio_routes.AudioManagementService.get_audio_statistics')
     @patch('config.settings.MEDIA_FOLDER', '/media')
     def test_audio_management_success(self, mock_get_stats, admin_client, mock_admin_user):

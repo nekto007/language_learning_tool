@@ -28,6 +28,7 @@ def sample_word(db_session):
 
 
 class TestTopicCrud:
+    @pytest.mark.smoke
     def test_topic_list_renders_word_count_without_n_plus_one(
         self, admin_client, mock_admin_user, db_session, sample_word
     ):
@@ -213,3 +214,77 @@ class TestCollectionCrud:
         response = admin_client.get('/admin/api/get_words_by_topic')
         assert response.status_code == 200
         assert response.get_json() == []
+
+    def test_edit_collection_get_renders_form(
+        self, admin_client, mock_admin_user, db_session, sample_word
+    ):
+        col = Collection(name=f'EditCol_{uuid.uuid4().hex[:6]}', description='')
+        db_session.add(col)
+        db_session.commit()
+
+        response = admin_client.get(f'/admin/collections/{col.id}/edit')
+        assert response.status_code == 200
+
+    def test_edit_collection_post_updates_name(
+        self, admin_client, mock_admin_user, db_session
+    ):
+        col = Collection(name=f'OldName_{uuid.uuid4().hex[:6]}', description='')
+        db_session.add(col)
+        db_session.commit()
+
+        new_name = f'NewName_{uuid.uuid4().hex[:6]}'
+        response = admin_client.post(
+            f'/admin/collections/{col.id}/edit',
+            data={'name': new_name, 'description': 'updated', 'word_ids': '', 'submit': 'Save'},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        db_session.refresh(col)
+        assert col.name == new_name
+
+    def test_edit_collection_rejects_duplicate_name(
+        self, admin_client, mock_admin_user, db_session
+    ):
+        col1 = Collection(name=f'Col1_{uuid.uuid4().hex[:6]}', description='')
+        col2 = Collection(name=f'Col2_{uuid.uuid4().hex[:6]}', description='')
+        db_session.add_all([col1, col2])
+        db_session.commit()
+
+        response = admin_client.post(
+            f'/admin/collections/{col2.id}/edit',
+            data={'name': col1.name, 'description': '', 'word_ids': '', 'submit': 'Save'},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200  # re-renders form with error
+
+    def test_collection_list_sort_by_word_count(
+        self, admin_client, mock_admin_user, db_session
+    ):
+        response = admin_client.get('/admin/collections?sort=word_count')
+        assert response.status_code == 200
+
+    def test_collection_list_sort_by_created_at(
+        self, admin_client, mock_admin_user, db_session
+    ):
+        response = admin_client.get('/admin/collections?sort=created_at')
+        assert response.status_code == 200
+
+    def test_collection_list_invalid_sort_falls_back(
+        self, admin_client, mock_admin_user, db_session
+    ):
+        response = admin_client.get('/admin/collections?sort=INVALID')
+        assert response.status_code == 200
+
+    def test_get_words_by_topic_returns_words(
+        self, admin_client, mock_admin_user, db_session, sample_word
+    ):
+        topic = Topic(name=f'WTopic_{uuid.uuid4().hex[:6]}')
+        db_session.add(topic)
+        db_session.flush()
+        db_session.add(TopicWord(topic_id=topic.id, word_id=sample_word.id))
+        db_session.commit()
+
+        response = admin_client.get(f'/admin/api/get_words_by_topic?topic_ids={topic.id}')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert any(w['id'] == sample_word.id for w in data)

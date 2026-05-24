@@ -318,10 +318,10 @@
 **Files:**
 - Modify: `tests/admin/*` (новые файлы)
 
-- [ ] прогнать `pytest --cov=app.admin --cov-report=term-missing tests/admin/`
-- [ ] для модулей с покрытием <80% — добавить тесты до 80%
-- [ ] добавить `@pytest.mark.smoke` на ключевые happy-path тесты каждой секции
-- [ ] прогнать `pytest -m smoke`
+- [x] прогнать `pytest --cov=app.admin --cov-report=term-missing tests/admin/`
+- [x] для модулей с покрытием <80% — добавить тесты до 80%
+- [x] добавить `@pytest.mark.smoke` на ключевые happy-path тесты каждой секции
+- [x] прогнать `pytest -m smoke`
 
 ### Task 30: Verify acceptance criteria
 

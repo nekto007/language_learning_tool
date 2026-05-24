@@ -1,11 +1,14 @@
 import uuid
 
+import pytest
+
 from app.words.models import CollectionWords, Topic, TopicWord
 
 
 class TestTopicWordsRoutes:
     """Tests for admin topic word management routes."""
 
+    @pytest.mark.smoke
     def test_bulk_add_words_requires_exact_english_match(
         self,
         admin_client,

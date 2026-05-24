@@ -13,6 +13,7 @@ from app.admin.services.system_service import mask_database_uri, sanitize_db_ver
 class TestClearCache:
     """Tests for clear_cache route"""
 
+    @pytest.mark.smoke
     @patch('app.admin.routes.system_routes.clear_admin_cache')
     def test_clear_cache_success(self, mock_clear_cache, admin_client, mock_admin_user):
         response = admin_client.post(

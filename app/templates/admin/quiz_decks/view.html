@@ -148,7 +148,7 @@
 
 <script>
 function copyShareLink() {
-    const link = "{{ url_for('study.quiz_deck_shared', code=deck.share_code, _external=True) }}";
+    const link = "{% if deck.share_code %}{{ url_for('study.quiz_deck_shared', code=deck.share_code, _external=True) }}{% endif %}";
     navigator.clipboard.writeText(link).then(() => {
         alert('Ссылка скопирована!');
     });

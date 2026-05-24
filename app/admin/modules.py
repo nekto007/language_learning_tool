@@ -152,7 +152,7 @@ def register_module_admin_routes(admin_bp):
         user = User.query.get(user_id)
         if not user:
             flash('Пользователь не найден', 'error')
-            return redirect(url_for('admin.index'))
+            return redirect(url_for('admin.modules_list'))
 
         user_modules = ModuleService.get_user_modules(user_id, enabled_only=False)
         all_modules = ModuleService.get_all_modules()

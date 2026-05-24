@@ -20,6 +20,7 @@ from app.admin.services.book_processing_service import (
 class TestBooksIndex:
     """Tests for books() - main books management page"""
 
+    @pytest.mark.smoke
     @patch('app.admin.routes.book_routes.render_template')
     @patch('app.admin.routes.book_routes.db.session')
     @patch('app.admin.routes.book_routes.Book')
