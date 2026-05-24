@@ -118,10 +118,11 @@ class TestSitemap:
         assert response.status_code == 200
         assert 'application/xml' in response.content_type
 
-    def test_sitemap_contains_root(self, client):
+    def test_sitemap_contains_root(self, app, client):
         response = client.get('/sitemap.xml')
         xml = response.data.decode()
-        assert 'https://llt-english.com/' in xml
+        site_url = (app.config.get('SITE_URL') or 'https://llt-english.com').rstrip('/')
+        assert f'<loc>{site_url}/</loc>' in xml
 
     def test_sitemap_contains_dictionary_words(self, client, sample_word):
         response = client.get('/sitemap.xml')

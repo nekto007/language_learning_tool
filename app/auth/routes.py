@@ -343,9 +343,11 @@ def register():
         except Exception:
             current_app.logger.warning('Could not read feature flag defaults from SiteSettings', exc_info=True)
 
-        # Pre-fill onboarding level from param
+        # Pre-fill onboarding level from param (validated against canonical CEFR codes)
         if level_param:
-            user.onboarding_level = level_param.upper()
+            normalized_level = level_param.upper()
+            if normalized_level in ('A1', 'A2', 'B1', 'B2', 'C1'):
+                user.onboarding_level = normalized_level
 
         # Handle referral code
         ref_code = ref_param or request.form.get('ref')
