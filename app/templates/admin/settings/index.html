@@ -31,7 +31,10 @@
                                        {{ 'checked' if settings.get('default_linear_plan') == 'true' }}>
                                 <label class="form-check-label" for="default_linear_plan">
                                     <strong>Линейный план по умолчанию</strong>
-                                    <br><small class="text-muted">Новые пользователи получают use_linear_plan=True</small>
+                                    <i class="fas fa-circle-info text-muted ms-1"
+                                       data-bs-toggle="tooltip"
+                                       title="{{ setting_meta.get('default_linear_plan', {}).get('description', '') }}"></i>
+                                    <br><small class="text-muted">{{ setting_meta.get('default_linear_plan', {}).get('description', '') }}</small>
                                 </label>
                             </div>
                         </div>
@@ -42,7 +45,10 @@
                                        {{ 'checked' if settings.get('default_mission_plan') == 'true' }}>
                                 <label class="form-check-label" for="default_mission_plan">
                                     <strong>Миссионный план по умолчанию</strong>
-                                    <br><small class="text-muted">Новые пользователи получают use_mission_plan=True</small>
+                                    <i class="fas fa-circle-info text-muted ms-1"
+                                       data-bs-toggle="tooltip"
+                                       title="{{ setting_meta.get('default_mission_plan', {}).get('description', '') }}"></i>
+                                    <br><small class="text-muted">{{ setting_meta.get('default_mission_plan', {}).get('description', '') }}</small>
                                 </label>
                             </div>
                         </div>
@@ -53,7 +59,10 @@
                                        {{ 'checked' if settings.get('daily_race_enabled') == 'true' }}>
                                 <label class="form-check-label" for="daily_race_enabled">
                                     <strong>Ежедневная гонка</strong>
-                                    <br><small class="text-muted">Включить функцию daily race</small>
+                                    <i class="fas fa-circle-info text-muted ms-1"
+                                       data-bs-toggle="tooltip"
+                                       title="{{ setting_meta.get('daily_race_enabled', {}).get('description', '') }}"></i>
+                                    <br><small class="text-muted">{{ setting_meta.get('daily_race_enabled', {}).get('description', '') }}</small>
                                 </label>
                             </div>
                         </div>
@@ -64,7 +73,10 @@
                                        {{ 'checked' if settings.get('streak_shield_enabled') == 'true' }}>
                                 <label class="form-check-label" for="streak_shield_enabled">
                                     <strong>Защита серии</strong>
-                                    <br><small class="text-muted">Включить streak shield</small>
+                                    <i class="fas fa-circle-info text-muted ms-1"
+                                       data-bs-toggle="tooltip"
+                                       title="{{ setting_meta.get('streak_shield_enabled', {}).get('description', '') }}"></i>
+                                    <br><small class="text-muted">{{ setting_meta.get('streak_shield_enabled', {}).get('description', '') }}</small>
                                 </label>
                             </div>
                         </div>
@@ -82,25 +94,48 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label" for="site_title">Заголовок сайта</label>
+                            <label class="form-label" for="site_title">
+                                Заголовок сайта
+                                <i class="fas fa-circle-info text-muted ms-1"
+                                   data-bs-toggle="tooltip"
+                                   title="{{ setting_meta.get('site_title', {}).get('description', '') }}"></i>
+                            </label>
                             <input type="text" class="form-control" id="site_title" name="site_title"
                                    value="{{ settings.get('site_title', '') }}" maxlength="200">
+                            <div class="form-text">{{ setting_meta.get('site_title', {}).get('description', '') }}</div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label" for="og_image_url">URL OG-изображения</label>
+                            <label class="form-label" for="og_image_url">
+                                URL OG-изображения
+                                <i class="fas fa-circle-info text-muted ms-1"
+                                   data-bs-toggle="tooltip"
+                                   title="{{ setting_meta.get('og_image_url', {}).get('description', '') }}"></i>
+                            </label>
                             <input type="url" class="form-control" id="og_image_url" name="og_image_url"
                                    value="{{ settings.get('og_image_url', '') }}" maxlength="500">
+                            <div class="form-text">{{ setting_meta.get('og_image_url', {}).get('description', '') }}</div>
                         </div>
                         <div class="col-12">
-                            <label class="form-label" for="site_description">Мета-описание</label>
+                            <label class="form-label" for="site_description">
+                                Мета-описание
+                                <i class="fas fa-circle-info text-muted ms-1"
+                                   data-bs-toggle="tooltip"
+                                   title="{{ setting_meta.get('site_description', {}).get('description', '') }}"></i>
+                            </label>
                             <textarea class="form-control" id="site_description" name="site_description"
                                       rows="2" maxlength="300">{{ settings.get('site_description', '') }}</textarea>
+                            <div class="form-text">{{ setting_meta.get('site_description', {}).get('description', '') }}</div>
                         </div>
                         <div class="col-12">
-                            <label class="form-label" for="meta_keywords">Мета-ключевые слова</label>
+                            <label class="form-label" for="meta_keywords">
+                                Мета-ключевые слова
+                                <i class="fas fa-circle-info text-muted ms-1"
+                                   data-bs-toggle="tooltip"
+                                   title="{{ setting_meta.get('meta_keywords', {}).get('description', '') }}"></i>
+                            </label>
                             <input type="text" class="form-control" id="meta_keywords" name="meta_keywords"
                                    value="{{ settings.get('meta_keywords', '') }}" maxlength="500">
-                            <div class="form-text">Через запятую</div>
+                            <div class="form-text">{{ setting_meta.get('meta_keywords', {}).get('description', '') }}</div>
                         </div>
                     </div>
                 </div>
@@ -115,14 +150,26 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label" for="support_email">Email поддержки</label>
+                        <label class="form-label" for="support_email">
+                            Email поддержки
+                            <i class="fas fa-circle-info text-muted ms-1"
+                               data-bs-toggle="tooltip"
+                               title="{{ setting_meta.get('support_email', {}).get('description', '') }}"></i>
+                        </label>
                         <input type="email" class="form-control" id="support_email" name="support_email"
                                value="{{ settings.get('support_email', '') }}" maxlength="200">
+                        <div class="form-text">{{ setting_meta.get('support_email', {}).get('description', '') }}</div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" for="support_phone">Телефон поддержки</label>
+                        <label class="form-label" for="support_phone">
+                            Телефон поддержки
+                            <i class="fas fa-circle-info text-muted ms-1"
+                               data-bs-toggle="tooltip"
+                               title="{{ setting_meta.get('support_phone', {}).get('description', '') }}"></i>
+                        </label>
                         <input type="text" class="form-control" id="support_phone" name="support_phone"
                                value="{{ settings.get('support_phone', '') }}" maxlength="50">
+                        <div class="form-text">{{ setting_meta.get('support_phone', {}).get('description', '') }}</div>
                     </div>
                 </div>
             </div>
@@ -136,10 +183,15 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label" for="referral_bonus_xp">Бонус XP за реферала</label>
+                        <label class="form-label" for="referral_bonus_xp">
+                            Бонус XP за реферала
+                            <i class="fas fa-circle-info text-muted ms-1"
+                               data-bs-toggle="tooltip"
+                               title="{{ setting_meta.get('referral_bonus_xp', {}).get('description', '') }}"></i>
+                        </label>
                         <input type="number" class="form-control" id="referral_bonus_xp" name="referral_bonus_xp"
                                value="{{ settings.get('referral_bonus_xp', '100') }}" min="0" max="10000">
-                        <div class="form-text">XP начисляется реферреру после онбординга приглашённого</div>
+                        <div class="form-text">{{ setting_meta.get('referral_bonus_xp', {}).get('description', '') }}</div>
                     </div>
                 </div>
             </div>
@@ -154,4 +206,15 @@
 
     </div>
 </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            const triggers = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            triggers.forEach(function (el) { new bootstrap.Tooltip(el); });
+        }
+    });
+</script>
 {% endblock %}

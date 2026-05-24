@@ -189,11 +189,11 @@
 **Files:**
 - Modify: `app/admin/routes/settings_routes.py`, `app/admin/site_settings.py`, `app/templates/admin/settings/*.html`
 
-- [ ] аудит SETTING_DEFAULTS — добавить tooltips/описания в UI
-- [ ] валидация типов value (bool/int/json) перед записью
-- [ ] audit-log на каждое изменение
-- [ ] обновить `tests/admin/test_settings_routes.py` и `test_site_settings.py`
-- [ ] прогнать тесты
+- [x] аудит SETTING_DEFAULTS — добавить tooltips/описания в UI
+- [x] валидация типов value (bool/int/json) перед записью
+- [x] audit-log на каждое изменение
+- [x] обновить `tests/admin/test_settings_routes.py` и `test_site_settings.py`
+- [x] прогнать тесты
 
 ### Task 17: System / Database admin — opasные операции
 
