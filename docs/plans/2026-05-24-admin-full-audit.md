@@ -308,10 +308,10 @@
 **Files:**
 - Modify: `app/admin/__init__.py` или новый `app/admin/error_handlers.py`, `app/templates/admin/errors/{403,404,500}.html`
 
-- [ ] кастомные admin 403/404/500 шаблоны с правильным branding и линком назад в hub
-- [ ] hook через `bp.app_errorhandler` или `bp.errorhandler`
-- [ ] тесты `tests/admin/test_error_pages.py`
-- [ ] прогнать тесты
+- [x] кастомные admin 403/404/500 шаблоны с правильным branding и линком назад в hub
+- [x] hook через `bp.app_errorhandler` или `bp.errorhandler`
+- [x] тесты `tests/admin/test_error_pages.py`
+- [x] прогнать тесты
 
 ### Task 29: Test coverage gap-анализ
 

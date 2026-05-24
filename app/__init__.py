@@ -289,21 +289,28 @@ def create_app(config_class=Config):
     @app.errorhandler(403)
     def handle_403_error(e):
         from flask import jsonify, render_template
+        from app.admin.error_handlers import is_admin_request, render_admin_403
         if _wants_json():
             return jsonify({'success': False, 'error': 'Forbidden'}), 403
+        if is_admin_request():
+            return render_admin_403()
         return render_template('errors/403.html'), 403
 
     @app.errorhandler(404)
     def handle_404_error(e):
         from flask import jsonify, render_template
+        from app.admin.error_handlers import is_admin_request, render_admin_404
         if _wants_json():
             return jsonify({'success': False, 'error': 'Not found'}), 404
+        if is_admin_request():
+            return render_admin_404()
         return render_template('errors/404.html'), 404
 
     @app.errorhandler(500)
     def handle_500_error(e):
         from flask import jsonify, render_template
         from app.admin.routes.dashboard_routes import increment_5xx_counter
+        from app.admin.error_handlers import is_admin_request, render_admin_500
         try:
             db.session.rollback()
         except Exception:
@@ -311,6 +318,8 @@ def create_app(config_class=Config):
         increment_5xx_counter()
         if _wants_json():
             return jsonify({'success': False, 'error': 'Internal server error'}), 500
+        if is_admin_request():
+            return render_admin_500()
         return render_template('errors/500.html'), 500
 
     @login_manager.user_loader
