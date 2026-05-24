@@ -544,6 +544,10 @@ class CurriculumImportService:
                     _l.number = original_number
                     _l.order = original_order
                     _used_numbers.add(original_number)
+                    logger.warning(
+                        f"Урок id={_l.id} (number={_l.number}) не найден в источнике — "
+                        f"оставлен с исходным номером"
+                    )
                 else:
                     _max_used += 1
                     _l.number = _max_used
@@ -553,10 +557,6 @@ class CurriculumImportService:
                         f"Урок id={_l.id}: original number={original_number} занят новым уроком — "
                         f"смещён на number={_max_used}"
                     )
-                logger.warning(
-                    f"Урок id={_l.id} (number={_l.number}) не найден в источнике — "
-                    f"оставлен с исходным номером"
-                )
 
         # 4. Сохраняем все изменения
         db.session.commit()
