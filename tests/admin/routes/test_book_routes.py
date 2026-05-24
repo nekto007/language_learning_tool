@@ -3,9 +3,18 @@ Comprehensive tests for app/admin/routes/book_routes.py
 Tests for book management routes (363 statements, currently 13% coverage)
 Target: Increase to 60-70% coverage to add ~1% to overall project coverage
 """
+import io
+import os
 import pytest
 from unittest.mock import patch, MagicMock, mock_open
 from flask import url_for
+from werkzeug.datastructures import FileStorage
+
+from app.admin.services.book_processing_service import (
+    ALLOWED_BOOK_EXTENSIONS,
+    BookUploadError,
+    save_uploaded_book_file,
+)
 
 
 class TestBooksIndex:
@@ -437,3 +446,148 @@ class TestAddBook:
         """Test that add book requires admin authentication"""
         response = client.get('/admin/books/add')
         assert response.status_code == 302
+
+
+class TestSaveUploadedBookFile:
+    """Direct tests for the safe-upload helper in book_processing_service."""
+
+    def _file_storage(self, name: str, payload: bytes) -> FileStorage:
+        return FileStorage(stream=io.BytesIO(payload), filename=name)
+
+    def test_rejects_missing_file(self, tmp_path):
+        with pytest.raises(BookUploadError):
+            save_uploaded_book_file(None, temp_dir=str(tmp_path))
+
+    def test_rejects_empty_filename(self, tmp_path):
+        fs = self._file_storage('', b'irrelevant')
+        with pytest.raises(BookUploadError):
+            save_uploaded_book_file(fs, temp_dir=str(tmp_path))
+
+    def test_rejects_disallowed_extension(self, tmp_path):
+        fs = self._file_storage('malicious.exe', b'MZ\x90\x00binary')
+        with pytest.raises(BookUploadError) as exc:
+            save_uploaded_book_file(fs, temp_dir=str(tmp_path))
+        assert '.exe' in str(exc.value) or 'exe' in str(exc.value)
+
+    def test_rejects_oversize_file(self, tmp_path):
+        fs = self._file_storage('book.txt', b'x' * 1024)
+        with pytest.raises(BookUploadError) as exc:
+            save_uploaded_book_file(fs, temp_dir=str(tmp_path), max_size_bytes=10)
+        assert 'превышает' in str(exc.value).lower() or 'мб' in str(exc.value).lower()
+
+    def test_rejects_empty_content(self, tmp_path):
+        fs = self._file_storage('book.txt', b'')
+        with pytest.raises(BookUploadError):
+            save_uploaded_book_file(fs, temp_dir=str(tmp_path))
+
+    def test_path_traversal_filename_sanitised(self, tmp_path):
+        """secure_filename strips traversal segments; final path must be inside temp_dir."""
+        fs = self._file_storage('../../../etc/passwd.txt', b'hello world')
+        saved_path, safe_name, ext = save_uploaded_book_file(fs, temp_dir=str(tmp_path))
+        assert ext == '.txt'
+        # The saved file resolves inside the requested temp dir.
+        assert os.path.realpath(saved_path).startswith(os.path.realpath(str(tmp_path)))
+        # And the saved filename contains no path separators.
+        assert os.path.basename(saved_path) == safe_name
+        assert '..' not in safe_name and '/' not in safe_name and '\\' not in safe_name
+
+    def test_happy_path_persists_file(self, tmp_path):
+        fs = self._file_storage('chapter.fb2', b'<fb2>data</fb2>')
+        saved_path, safe_name, ext = save_uploaded_book_file(fs, temp_dir=str(tmp_path))
+        assert ext == '.fb2'
+        assert safe_name.endswith('.fb2')
+        assert os.path.exists(saved_path)
+        with open(saved_path, 'rb') as fh:
+            assert fh.read() == b'<fb2>data</fb2>'
+
+    def test_allowed_extensions_constants(self):
+        # Sanity: the constant exposes the canonical book formats.
+        assert {'txt', 'fb2', 'epub', 'pdf', 'docx'}.issubset(ALLOWED_BOOK_EXTENSIONS)
+
+
+class TestExtractMetadataUploadGuard:
+    """Verify that extract_book_metadata enforces the safe-upload guard."""
+
+    def test_extract_metadata_rejects_disallowed_extension(self, admin_client, mock_admin_user):
+        response = admin_client.post(
+            '/admin/books/extract-metadata',
+            data={'file': (io.BytesIO(b'bad'), 'evil.exe')},
+            content_type='multipart/form-data',
+        )
+        assert response.status_code == 400
+        body = response.get_json()
+        assert body['success'] is False
+
+    def test_extract_metadata_rejects_empty_filename(self, admin_client, mock_admin_user):
+        response = admin_client.post(
+            '/admin/books/extract-metadata',
+            data={'file': (io.BytesIO(b'data'), '')},
+            content_type='multipart/form-data',
+        )
+        assert response.status_code == 400
+
+
+class TestAddBookUploadGuard:
+    """Verify add_book enforces the safe-upload guard for the file field."""
+
+    def test_add_book_rejects_disallowed_extension(self, admin_client, mock_admin_user):
+        # Use JSON header so route returns JSON 400 (easier to assert on).
+        response = admin_client.post(
+            '/admin/books/add',
+            data={
+                'title': 'X',
+                'author': 'Y',
+                'level': 'A1',
+                'format_type': 'enhanced',
+                'file': (io.BytesIO(b'malicious'), 'shell.exe'),
+            },
+            content_type='multipart/form-data',
+            headers={'Content-Type': 'multipart/form-data'},
+        )
+        # WTForms FileAllowed validator runs first, so request is rejected
+        # before reaching our service guard — either way the upload is refused
+        # and no book record / temp file is created. We assert the request did
+        # not succeed (no redirect to books list).
+        assert response.status_code in (200, 400)
+        # The response must NOT be a 302 to /admin/books (which would mean accepted).
+        if response.status_code == 302:
+            assert '/admin/books' not in response.location
+
+
+class TestBackgroundProcessingLaunchers:
+    """Smoke-test the background-processing helpers stay daemonic and named."""
+
+    def test_start_background_chapter_processing(self, app):
+        from app.admin.services.book_processing_service import BookProcessingService
+
+        with patch('app.books.safe_processors.safe_process_book_chapters_words') as mock_fn:
+            mock_fn.return_value = {'status': 'success'}
+            thread = BookProcessingService.start_background_chapter_processing(app, 42)
+            thread.join(timeout=5)
+            assert thread.daemon is True
+            assert thread.name == 'BookChapterProcessor-42'
+
+    def test_start_background_word_processing(self, app):
+        from app.admin.services.book_processing_service import BookProcessingService
+
+        with patch('app.books.safe_processors.safe_process_book_words') as mock_fn:
+            mock_fn.return_value = {'status': 'success'}
+            thread = BookProcessingService.start_background_word_processing(app, 7, '<p>x</p>')
+            thread.join(timeout=5)
+            assert thread.daemon is True
+            assert thread.name == 'BookWordProcessor-7'
+
+
+class TestEditBookChaptersCount:
+    """The edit template now reads book.chapters_cnt (avoids loading chapter rows)."""
+
+    def test_template_uses_chapters_cnt(self):
+        path = os.path.join(
+            os.path.dirname(__file__), '..', '..', '..',
+            'app', 'templates', 'admin', 'books', 'edit.html',
+        )
+        with open(os.path.normpath(path), 'r', encoding='utf-8') as fh:
+            tpl = fh.read()
+        assert 'book.chapters_cnt' in tpl
+        # Guard against regressing to the lazy-load count.
+        assert 'book.chapters|length' not in tpl

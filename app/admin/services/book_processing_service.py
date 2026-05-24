@@ -7,20 +7,90 @@
 import html
 import json
 import logging
+import os
 import pathlib
 import re
 import shutil
 import subprocess
 import tempfile
+import threading
+from typing import Optional, Tuple
 
 from flask import flash
 from sqlalchemy import func
+from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
 
 from app.books.models import Book, Chapter
 from app.utils.db import db
 from app.utils.file_security import process_and_save_cover_image
 
 logger = logging.getLogger(__name__)
+
+# Upload limits and allowed types for admin book uploads.
+ALLOWED_BOOK_EXTENSIONS = frozenset({'txt', 'fb2', 'epub', 'pdf', 'docx'})
+MAX_BOOK_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
+
+# Public so callers can resolve uploads (and so tests can monkey-patch a tmp dir).
+BOOK_TEMP_DIR = os.path.join('app', 'temp')
+
+
+class BookUploadError(ValueError):
+    """Raised when an uploaded book file fails validation."""
+
+
+def save_uploaded_book_file(
+    file: FileStorage,
+    *,
+    temp_dir: Optional[str] = None,
+    allowed_extensions: frozenset = ALLOWED_BOOK_EXTENSIONS,
+    max_size_bytes: int = MAX_BOOK_UPLOAD_BYTES,
+) -> Tuple[str, str, str]:
+    """
+    Validate and persist an uploaded book file to a temp directory.
+
+    Performs extension allow-list check, max-size check, and path-traversal
+    defense: the resolved final path MUST stay inside ``temp_dir``.
+
+    Returns (temp_path, safe_filename, ext_with_dot).
+    Raises BookUploadError on any validation failure; the caller is expected
+    to surface a 400 to the client.
+    """
+    if file is None or not getattr(file, 'filename', None):
+        raise BookUploadError('Файл не выбран')
+
+    safe_name = secure_filename(file.filename)
+    if not safe_name or '.' not in safe_name:
+        raise BookUploadError('Недопустимое имя файла')
+
+    extension = safe_name.rsplit('.', 1)[1].lower()
+    if extension not in allowed_extensions:
+        raise BookUploadError(
+            f'Расширение .{extension} не разрешено. Разрешены: {", ".join(sorted(allowed_extensions))}'
+        )
+
+    # Size check (rewinds the stream so the caller can re-read it).
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
+    file.seek(0)
+    if size <= 0:
+        raise BookUploadError('Файл пуст')
+    if size > max_size_bytes:
+        mb = max_size_bytes // (1024 * 1024)
+        raise BookUploadError(f'Размер файла превышает {mb} МБ')
+
+    target_dir = temp_dir or BOOK_TEMP_DIR
+    os.makedirs(target_dir, exist_ok=True)
+
+    target_path = os.path.join(target_dir, safe_name)
+    # Defense-in-depth: resolved path MUST stay inside target_dir.
+    real_dir = os.path.realpath(target_dir)
+    real_target = os.path.realpath(target_path)
+    if os.path.commonpath([real_dir, real_target]) != real_dir:
+        raise BookUploadError('Недопустимый путь файла')
+
+    file.save(target_path)
+    return target_path, safe_name, f'.{extension}'
 
 
 class BookProcessingService:
@@ -282,3 +352,54 @@ with DST.open("w", encoding="utf-8") as out:
         if result is None:
             flash('Ошибка при загрузке файла. Проверьте формат и размер изображения.', 'danger')
         return result
+
+    @staticmethod
+    def start_background_chapter_processing(app, book_id: int) -> threading.Thread:
+        """
+        Start a daemon thread that runs ``safe_process_book_chapters_words``
+        for the given book within an application context.
+
+        Extracted from ``add_book`` so the route stays slim and we can test
+        the launcher in isolation. Returns the started Thread.
+        """
+
+        def _worker():
+            print(f"[BOOK PROCESSING] Начало обработки глав книги {book_id}", flush=True)
+            success = False
+            try:
+                with app.app_context():
+                    from app.books.safe_processors import safe_process_book_chapters_words
+                    result = safe_process_book_chapters_words(book_id)
+                    status = result.get('status', 'unknown')
+                    success = (status == 'success')
+                    print(
+                        f"[BOOK PROCESSING] Результат обработки книги {book_id}: {status}",
+                        flush=True,
+                    )
+            except Exception as exc:
+                if not success:
+                    print(
+                        f"[BOOK PROCESSING] Ошибка обработки книги {book_id}: {exc}",
+                        flush=True,
+                    )
+
+        thread = threading.Thread(target=_worker, name=f"BookChapterProcessor-{book_id}", daemon=True)
+        thread.start()
+        return thread
+
+    @staticmethod
+    def start_background_word_processing(app, book_id: int, book_content: str) -> threading.Thread:
+        """Background launcher for safe_process_book_words (non-chapter path)."""
+
+        def _worker():
+            try:
+                with app.app_context():
+                    from app.books.safe_processors import safe_process_book_words
+                    result = safe_process_book_words(book_id, book_content)
+                    logger.info(f"[ADMIN] Processing result: {result}")
+            except Exception as exc:
+                logger.error(f"[ADMIN] Error in word processing thread: {exc}")
+
+        thread = threading.Thread(target=_worker, name=f"BookWordProcessor-{book_id}", daemon=True)
+        thread.start()
+        return thread

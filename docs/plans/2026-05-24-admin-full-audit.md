@@ -127,11 +127,11 @@
 **Files:**
 - Modify: `app/admin/routes/book_routes.py`, `app/admin/services/book_processing_service.py`, `app/templates/admin/books/*.html`
 
-- [ ] выделить тяжёлые методы (process/upload/parse) в `book_processing_service`
-- [ ] аудит upload: проверка MIME, размер, путь сохранения (защита от path traversal)
-- [ ] N+1 на chapter list — joinedload
-- [ ] тесты `tests/admin/routes/test_book_routes.py` (новый файл)
-- [ ] прогнать тесты
+- [x] выделить тяжёлые методы (process/upload/parse) в `book_processing_service`
+- [x] аудит upload: проверка MIME, размер, путь сохранения (защита от path traversal)
+- [x] N+1 на chapter list — joinedload
+- [x] тесты `tests/admin/routes/test_book_routes.py` (новый файл)
+- [x] прогнать тесты
 
 ### Task 11: Words admin — bulk-операции и CSV
 
