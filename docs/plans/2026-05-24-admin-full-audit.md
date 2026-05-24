@@ -210,10 +210,10 @@
 **Files:**
 - Modify: `app/admin/routes/{topic,collection}_routes.py`, `app/templates/admin/{topics,collections}/*.html`
 
-- [ ] аудит CRUD на N+1, валидацию slug uniqueness
-- [ ] audit-log на mutation
-- [ ] тесты `tests/admin/routes/test_topic_collection_routes.py`
-- [ ] прогнать тесты
+- [x] аудит CRUD на N+1, валидацию slug uniqueness
+- [x] audit-log на mutation
+- [x] тесты `tests/admin/routes/test_topic_collection_routes.py`
+- [x] прогнать тесты
 
 ### Task 19: Activity Feed + Cohort + Funnel — perf и точность
 

@@ -37,7 +37,7 @@
                 <td>{{ topic.id }}</td>
                 <td>{{ topic.name }}</td>
                 <td>{% if topic.description %}{{ topic.description | truncate(50) }}{% else %}-{% endif %}</td>
-                <td>{{ topic.word_count }}</td>
+                <td>{{ topic.word_count_cached }}</td>
                 <td class="text-end">
                   <div class="btn-group">
                     <a href="{{ url_for('topic_admin.topic_words', topic_id=topic.id) }}" class="btn btn-sm btn-info">

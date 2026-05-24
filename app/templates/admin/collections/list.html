@@ -84,14 +84,15 @@
                 <td>
                   {% if collection.description %}{{ collection.description | truncate(50) }}{% else %}-{% endif %}</td>
                 <td>
-                  {% for topic in collection.topics[:2] %}
+                  {% set _topics = collection.topics_cached if collection.topics_cached is defined else collection.topics %}
+                  {% for topic in _topics[:2] %}
                     <span class="badge bg-secondary">{{ topic.name }}</span>
                   {% endfor %}
-                  {% if collection.topics|length > 2 %}
-                    <span class="badge bg-light text-dark">+{{ collection.topics|length - 2 }}</span>
+                  {% if _topics|length > 2 %}
+                    <span class="badge bg-light text-dark">+{{ _topics|length - 2 }}</span>
                   {% endif %}
                 </td>
-                <td>{{ collection.word_count }}</td>
+                <td>{{ collection.word_count_cached if collection.word_count_cached is defined else collection.word_count }}</td>
                 <td>{{ collection.creator_name }}</td>
                 <td>{{ collection.created_at.strftime('%Y-%m-%d') if collection.created_at else '-' }}</td>
                 <td class="text-end">

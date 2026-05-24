@@ -9,6 +9,7 @@ import logging
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
 from flask_login import current_user
+from sqlalchemy.orm import contains_eager
 
 from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
@@ -26,11 +27,35 @@ logger = logging.getLogger(__name__)
 @admin_required
 def topic_list():
     """Отображение списка всех тем"""
-    topics = Topic.query.order_by(Topic.name).all()
+    word_count_subq = (
+        db.session.query(
+            TopicWord.topic_id.label('topic_id'),
+            db.func.count(TopicWord.word_id).label('cnt'),
+        )
+        .group_by(TopicWord.topic_id)
+        .subquery()
+    )
 
-    # Количество слов вычисляется автоматически через гибридное свойство
+    rows = (
+        db.session.query(Topic, db.func.coalesce(word_count_subq.c.cnt, 0))
+        .outerjoin(word_count_subq, word_count_subq.c.topic_id == Topic.id)
+        .order_by(Topic.name)
+        .all()
+    )
+
+    topics = []
+    for topic, count in rows:
+        topic.word_count_cached = int(count or 0)
+        topics.append(topic)
 
     return render_template('admin/topics/list.html', topics=topics)
+
+
+def _topic_name_taken(name: str, exclude_id: int | None = None) -> bool:
+    query = Topic.query.filter(db.func.lower(Topic.name) == name.lower())
+    if exclude_id is not None:
+        query = query.filter(Topic.id != exclude_id)
+    return db.session.query(query.exists()).scalar()
 
 
 @topic_bp.route('/topics/create', methods=['GET', 'POST'])
@@ -40,6 +65,10 @@ def create_topic():
     form = TopicForm()
 
     if form.validate_on_submit():
+        if _topic_name_taken(form.name.data):
+            form.name.errors.append(_('Topic with this name already exists.'))
+            return render_template('admin/topics/form.html', form=form, title=_('Create Topic'))
+
         topic = Topic(
             name=form.name.data,
             description=form.description.data
@@ -63,6 +92,10 @@ def edit_topic(topic_id):
     form = TopicForm(obj=topic)
 
     if form.validate_on_submit():
+        if _topic_name_taken(form.name.data, exclude_id=topic.id):
+            form.name.errors.append(_('Topic with this name already exists.'))
+            return render_template('admin/topics/form.html', form=form, topic=topic, title=_('Edit Topic'))
+
         form.populate_obj(topic)
         log_admin_action(current_user.id, 'topic.update', target_type='topic', target_id=topic_id)
         db.session.commit()
