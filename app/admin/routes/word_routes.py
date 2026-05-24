@@ -57,7 +57,7 @@ def bulk_status_update():
     """Массовое обновление статусов слов"""
     if request.method == 'POST':
         try:
-            data = request.get_json()
+            data = request.get_json(silent=True) or {}
             words = data.get('words', [])  # Список английских слов
             status = data.get('status')  # Новый статус
             user_id = data.get('user_id')  # ID пользователя (опционально)
@@ -66,19 +66,22 @@ def bulk_status_update():
                 WordManagementService.bulk_update_word_status(words, status, user_id)
 
             if not success:
+                db.session.rollback()
                 return jsonify({
                     'success': False,
                     'error': error
                 }), 400 if error == 'Требуются words и status' else 500
 
-            # Очищаем кэш после массового обновления
-            clear_admin_cache()
+            # Audit log + bulk update commit atomically: log_admin_action
+            # stages a row in a SAVEPOINT, then a single commit makes both
+            # the status mutations and the audit entry durable together.
             log_admin_action(
                 current_user.id,
                 'word.bulk_update_status',
                 target_type='word',
             )
             db.session.commit()
+            clear_admin_cache()
 
             return jsonify({
                 'success': True,
@@ -88,6 +91,7 @@ def bulk_status_update():
 
         except Exception as e:
             logger.error(f"Error in bulk status update: {str(e)}")
+            db.session.rollback()
             return jsonify({
                 'success': False,
                 'error': str(e)
@@ -154,7 +158,13 @@ def import_translations():
                     return redirect(request.url)
 
                 # Читаем содержимое файла
-                content = file.read().decode('utf-8')
+                # utf-8-sig strips a leading BOM if present (Excel/Notepad).
+                try:
+                    content = file.read().decode('utf-8-sig')
+                except UnicodeDecodeError as exc:
+                    logger.warning("Import file decode failed: %s", exc)
+                    flash('Файл должен быть в UTF-8', 'danger')
+                    return redirect(request.url)
 
                 # Парсим файл через сервис
                 existing_words, missing_words, errors = \
@@ -317,7 +327,13 @@ def import_phrasal_verbs():
                     return redirect(request.url)
 
                 # Read and parse file
-                content = file.read().decode('utf-8')
+                # utf-8-sig strips a leading BOM if present (Excel/Notepad).
+                try:
+                    content = file.read().decode('utf-8-sig')
+                except UnicodeDecodeError as exc:
+                    logger.warning("Import file decode failed: %s", exc)
+                    flash('Файл должен быть в UTF-8', 'danger')
+                    return redirect(request.url)
                 new_verbs, existing_verbs, errors = \
                     WordManagementService.parse_phrasal_verbs_file(content)
 

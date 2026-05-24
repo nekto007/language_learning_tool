@@ -4,13 +4,30 @@
 Утилиты для управления временными файлами импорта
 """
 import json
+import logging
 import os
 import uuid
 from datetime import datetime
 
+logger = logging.getLogger(__name__)
+
 # Директория для временных файлов импорта
 IMPORT_TEMP_DIR = 'app/temp/import_translations'
 os.makedirs(IMPORT_TEMP_DIR, exist_ok=True)
+
+
+def _validate_import_id(import_id):
+    """Return a canonical UUID hex string or None.
+
+    Form-supplied identifiers must be UUIDs so they cannot be used to
+    traverse to arbitrary paths via ``os.path.join``.
+    """
+    if not import_id or not isinstance(import_id, str):
+        return None
+    try:
+        return str(uuid.UUID(import_id))
+    except (ValueError, AttributeError):
+        return None
 
 
 def save_import_data(data):
@@ -40,12 +57,16 @@ def load_import_data(import_id):
     Загружает данные импорта из временного файла
 
     Args:
-        import_id: ID импорта
+        import_id: ID импорта (должен быть валидным UUID)
 
     Returns:
-        dict: Загруженные данные или None, если файл не найден
+        dict: Загруженные данные или None, если файл не найден / id невалиден
     """
-    file_path = os.path.join(IMPORT_TEMP_DIR, f"{import_id}.json")
+    safe_id = _validate_import_id(import_id)
+    if safe_id is None:
+        logger.warning("Rejected invalid import_id for load")
+        return None
+    file_path = os.path.join(IMPORT_TEMP_DIR, f"{safe_id}.json")
 
     if not os.path.exists(file_path):
         return None
@@ -59,9 +80,13 @@ def delete_import_data(import_id):
     Удаляет временный файл импорта
 
     Args:
-        import_id: ID импорта
+        import_id: ID импорта (должен быть валидным UUID)
     """
-    file_path = os.path.join(IMPORT_TEMP_DIR, f"{import_id}.json")
+    safe_id = _validate_import_id(import_id)
+    if safe_id is None:
+        logger.warning("Rejected invalid import_id for delete")
+        return
+    file_path = os.path.join(IMPORT_TEMP_DIR, f"{safe_id}.json")
 
     if os.path.exists(file_path):
         os.remove(file_path)

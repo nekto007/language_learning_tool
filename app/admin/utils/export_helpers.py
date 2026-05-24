@@ -4,13 +4,34 @@
 Утилиты для экспорта данных в различных форматах (JSON, CSV, TXT)
 """
 import csv
-import io
 import json
 from datetime import datetime, timezone
 
-from flask import make_response
+from flask import Response, make_response, stream_with_context
 
 MAX_EXPORT_ROWS = 10000
+
+
+class _LineBuffer:
+    """csv.writer-compatible sink that captures the most recent line."""
+
+    def __init__(self) -> None:
+        self.value = ''
+
+    def write(self, value: str) -> int:  # pragma: no cover - trivial
+        self.value = value
+        return len(value)
+
+
+def _stream_csv_rows(headers, rows):
+    """Yield CSV bytes header + rows, suitable for ``Response(generator)``."""
+    buffer = _LineBuffer()
+    writer = csv.writer(buffer)
+    writer.writerow(headers)
+    yield buffer.value
+    for row in rows:
+        writer.writerow(row)
+        yield buffer.value
 
 
 def _sanitize_csv_cell(value) -> str:
@@ -60,33 +81,35 @@ def export_words_json(words, status=None):
 
 
 def export_words_csv(words, status=None):
-    """Экспорт слов в формате CSV с защитой от CSV injection."""
-    words = words[:MAX_EXPORT_ROWS]  # Enforce limit
-    output = io.StringIO()
-    writer = csv.writer(output)
+    """Экспорт слов в формате CSV (streaming, sanitized, лимит MAX_EXPORT_ROWS)."""
+    words = list(words)[:MAX_EXPORT_ROWS]  # Enforce limit
 
-    # Заголовки
     headers = ['English', 'Russian', 'Level']
-    if words and hasattr(words[0], 'status'):
+    has_status = bool(words) and hasattr(words[0], 'status')
+    if has_status:
         headers.append('Status')
-    writer.writerow(headers)
 
-    # Данные (sanitized)
-    for word in words:
-        row = [
-            _sanitize_csv_cell(word.english_word),
-            _sanitize_csv_cell(word.russian_word),
-            _sanitize_csv_cell(word.level if hasattr(word, 'level') else ''),
-        ]
-        if hasattr(word, 'status'):
-            row.append(_sanitize_csv_cell(word.status))
-        writer.writerow(row)
+    def row_iter():
+        for word in words:
+            row = [
+                _sanitize_csv_cell(word.english_word),
+                _sanitize_csv_cell(word.russian_word),
+                _sanitize_csv_cell(word.level if hasattr(word, 'level') else ''),
+            ]
+            if has_status:
+                row.append(_sanitize_csv_cell(word.status))
+            yield row
 
-    response = make_response(output.getvalue())
+    filename = (
+        f"words_export_{status or 'all'}_"
+        f"{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
+    )
+    response = Response(
+        stream_with_context(_stream_csv_rows(headers, row_iter())),
+        mimetype='text/csv; charset=utf-8',
+    )
     response.headers['Content-Type'] = 'text/csv; charset=utf-8'
-    filename = f"words_export_{status or 'all'}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
     response.headers['Content-Disposition'] = f'attachment; filename={filename}'
-
     return response
 
 
@@ -144,23 +167,24 @@ def export_audio_list_json(words, pattern=None):
 
 
 def export_audio_list_csv(words, pattern=None):
-    """Экспорт списка аудио в формате CSV с Forvo URL"""
-    output = io.StringIO()
-    writer = csv.writer(output)
+    """Экспорт списка аудио в формате CSV (streaming, sanitized, лимит MAX_EXPORT_ROWS)."""
+    words_iter = list(words)[:MAX_EXPORT_ROWS]
 
-    # Заголовки
-    writer.writerow(['English Word', 'Forvo URL'])
+    def row_iter():
+        for word in words_iter:
+            forvo_url = f"https://forvo.com/word/{word}/#en"
+            yield [_sanitize_csv_cell(word), forvo_url]
 
-    # Данные (sanitized)
-    for word in words[:MAX_EXPORT_ROWS]:
-        forvo_url = f"https://forvo.com/word/{word}/#en"
-        writer.writerow([_sanitize_csv_cell(word), forvo_url])
-
-    response = make_response(output.getvalue())
+    filename = (
+        f"forvo_download_list_{pattern or 'all'}_"
+        f"{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
+    )
+    response = Response(
+        stream_with_context(_stream_csv_rows(['English Word', 'Forvo URL'], row_iter())),
+        mimetype='text/csv; charset=utf-8',
+    )
     response.headers['Content-Type'] = 'text/csv; charset=utf-8'
-    filename = f"forvo_download_list_{pattern or 'all'}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
     response.headers['Content-Disposition'] = f'attachment; filename={filename}'
-
     return response
 
 

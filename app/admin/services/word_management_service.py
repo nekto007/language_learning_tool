@@ -463,7 +463,10 @@ class WordManagementService:
     @staticmethod
     def bulk_update_word_status(words, status, user_id=None):
         """
-        Массово обновляет статус слов для пользователей
+        Массово обновляет статус слов для пользователей.
+
+        Flush only — caller commits inside the same transaction as the
+        audit-log entry so both become durable together (or roll back together).
 
         Args:
             words: Список английских слов (строки)
@@ -477,32 +480,57 @@ class WordManagementService:
             if not words or not status:
                 return False, 0, 0, 'Требуются words и status'
 
-            # Если не указан пользователь, обновляем для всех активных
-            if not user_id:
-                active_users = User.query.filter_by(active=True).all()
-                user_ids = [user.id for user in active_users]
+            if not isinstance(words, list):
+                return False, 0, 0, 'Требуются words и status'
+
+            # Normalize once; preserve order and skip blanks.
+            normalized = []
+            seen = set()
+            for raw in words:
+                if not isinstance(raw, str):
+                    continue
+                key = raw.lower().strip()
+                if not key or key in seen:
+                    continue
+                seen.add(key)
+                normalized.append(key)
+
+            if not normalized:
+                return False, 0, 0, 'Требуются words и status'
+
+            if user_id is None:
+                user_ids = [
+                    uid for (uid,) in db.session.query(User.id)
+                    .filter(User.active.is_(True))
+                    .all()
+                ]
             else:
                 user_ids = [user_id]
 
+            if not user_ids:
+                logger.info("Bulk status update: no target users")
+                return True, 0, 0, None
+
+            existing_words = CollectionWords.query.filter(
+                CollectionWords.english_word.in_(normalized)
+            ).all()
+
             updated_count = 0
+            for word in existing_words:
+                for uid in user_ids:
+                    user = db.session.get(User, uid)
+                    if user is None:
+                        continue
+                    user.set_word_status(word.id, status)
+                    updated_count += 1
 
-            for word_text in words:
-                # Найти слово в базе
-                word = CollectionWords.query.filter_by(
-                    english_word=word_text.lower().strip()
-                ).first()
+            db.session.flush()
+            total_requested = len(normalized) * len(user_ids)
 
-                if word:
-                    for uid in user_ids:
-                        user = User.query.get(uid)
-                        if user:
-                            user.set_word_status(word.id, status)
-                            updated_count += 1
-
-            db.session.commit()
-            total_requested = len(words) * len(user_ids)
-
-            logger.info(f"Bulk status update: {updated_count} words updated to '{status}'")
+            logger.info(
+                "Bulk status update prepared: %d updates to status=%s for %d words across %d users",
+                updated_count, status, len(normalized), len(user_ids),
+            )
             return True, updated_count, total_requested, None
 
         except Exception as e:

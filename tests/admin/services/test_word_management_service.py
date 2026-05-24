@@ -124,22 +124,27 @@ class TestGetDetailedStatistics:
 
 
 class TestBulkUpdateWordStatus:
-    """Tests for bulk_update_word_status method"""
+    """Tests for bulk_update_word_status method.
+
+    Service contract (post-Task-11):
+      - flush only (caller commits with the audit-log entry);
+      - bulk word lookup via `CollectionWords.query.filter(in_(...))`;
+      - active-user list via `db.session.query(User.id).filter(...).all()`;
+      - per-user fetch via `db.session.get(User, uid)`.
+    """
 
     @patch('app.admin.services.word_management_service.db')
     @patch('app.admin.services.word_management_service.User')
     @patch('app.admin.services.word_management_service.CollectionWords')
     def test_bulk_update_success(self, mock_words, mock_user, mock_db):
-        """Test successful bulk status update"""
-        # Mock word lookup
-        mock_word = Mock()
-        mock_word.id = 1
-        mock_words.query.filter_by.return_value.first.return_value = mock_word
+        """Successful path with explicit user_id."""
+        word_a = Mock(id=1)
+        word_b = Mock(id=2)
+        mock_words.query.filter.return_value.all.return_value = [word_a, word_b]
 
-        # Mock user
         mock_user_obj = Mock()
         mock_user_obj.set_word_status = Mock()
-        mock_user.query.get.return_value = mock_user_obj
+        mock_db.session.get.return_value = mock_user_obj
 
         success, updated, total, error = WordManagementService.bulk_update_word_status(
             words=['test', 'word'],
@@ -148,10 +153,12 @@ class TestBulkUpdateWordStatus:
         )
 
         assert success is True
-        assert updated == 2
+        assert updated == 2  # 2 words × 1 user
         assert total == 2
         assert error is None
-        mock_db.session.commit.assert_called_once()
+        mock_db.session.flush.assert_called_once()
+        # Service must NOT commit — caller commits with audit log entry.
+        assert mock_db.session.commit.call_count == 0
 
     @patch('app.admin.services.word_management_service.User')
     def test_bulk_update_empty_words(self, mock_user):
@@ -182,7 +189,7 @@ class TestBulkUpdateWordStatus:
     @patch('app.admin.services.word_management_service.CollectionWords')
     def test_bulk_update_error_rollback(self, mock_words, mock_db, mock_logger):
         """Test bulk update error handling and rollback"""
-        mock_words.query.filter_by.side_effect = Exception("Database error")
+        mock_words.query.filter.side_effect = Exception("Database error")
 
         success, updated, total, error = WordManagementService.bulk_update_word_status(
             words=['test'],
@@ -200,28 +207,23 @@ class TestBulkUpdateWordStatus:
     @patch('app.admin.services.word_management_service.User')
     @patch('app.admin.services.word_management_service.CollectionWords')
     def test_bulk_update_all_active_users(self, mock_words, mock_user, mock_db):
-        """Test bulk update for all active users"""
-        # Mock active users
+        """Test bulk update for all active users (user_id=None branch)."""
+        # db.session.query(User.id).filter(User.active.is_(True)).all() → [(1,), (2,)]
+        mock_db.session.query.return_value.filter.return_value.all.return_value = [(1,), (2,)]
+
         mock_user1 = Mock()
-        mock_user1.id = 1
         mock_user1.set_word_status = Mock()
-
         mock_user2 = Mock()
-        mock_user2.id = 2
         mock_user2.set_word_status = Mock()
+        mock_db.session.get.side_effect = [mock_user1, mock_user2]
 
-        mock_user.query.filter_by.return_value.all.return_value = [mock_user1, mock_user2]
-        mock_user.query.get.side_effect = [mock_user1, mock_user2]
-
-        # Mock word
-        mock_word = Mock()
-        mock_word.id = 1
-        mock_words.query.filter_by.return_value.first.return_value = mock_word
+        word = Mock(id=1)
+        mock_words.query.filter.return_value.all.return_value = [word]
 
         success, updated, total, error = WordManagementService.bulk_update_word_status(
             words=['test'],
             status='learning',
-            user_id=None  # All active users
+            user_id=None
         )
 
         assert success is True

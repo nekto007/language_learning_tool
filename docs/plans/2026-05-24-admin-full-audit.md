@@ -138,11 +138,11 @@
 **Files:**
 - Modify: `app/admin/routes/word_routes.py`, `app/admin/services/word_management_service.py`, `app/admin/utils/export_helpers.py`
 
-- [ ] аудит bulk delete/update: транзакция + `log_admin_action` per batch
-- [ ] CSV export — sanitize `=+@-`, MAX_EXPORT_ROWS=10000, streaming
-- [ ] аудит CSV import (utils/import_helpers): валидация заголовков, UTF-8 BOM, ошибки построчно
-- [ ] обновить `tests/admin/test_batch_operations.py`
-- [ ] прогнать тесты
+- [x] аудит bulk delete/update: транзакция + `log_admin_action` per batch
+- [x] CSV export — sanitize `=+@-`, MAX_EXPORT_ROWS=10000, streaming
+- [x] аудит CSV import (utils/import_helpers): валидация заголовков, UTF-8 BOM, ошибки построчно
+- [x] обновить `tests/admin/test_batch_operations.py`
+- [x] прогнать тесты
 
 ### Task 12: Curriculum admin (modules/lessons) — JSON-валидация
 
