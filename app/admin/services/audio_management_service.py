@@ -56,8 +56,6 @@ def safe_audio_path(media_folder, filename):
         return None
     media_root = os.path.realpath(media_folder)
     candidate = os.path.realpath(os.path.join(media_root, safe_name))
-    if candidate != os.path.join(media_root, safe_name):
-        return None
     if os.path.commonpath([media_root, candidate]) != media_root:
         return None
     return candidate

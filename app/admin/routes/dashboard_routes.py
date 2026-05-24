@@ -505,7 +505,11 @@ def get_linear_plan_metrics() -> dict:
             'day_secured_rate': 0.0,
             'average_slots_completed': 0.0,
             'error_review_trigger_rate': 0.0,
+            'error_review_completion_rate': 0.0,
             'book_select_rate': 0.0,
+            'reading_gate_completion_rate': 0.0,
+            'focus_distribution': {},
+            'focus_average_slots': {},
         }
 
 

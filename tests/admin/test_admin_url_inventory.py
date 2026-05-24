@@ -50,11 +50,7 @@ ADMIN_BLUEPRINT_PREFIXES = (
 
 # Endpoints intentionally callable without an admin session. Keep this list
 # tiny and document each entry.
-PUBLIC_ENDPOINT_WHITELIST = frozenset({
-    # OAuth callback hit by Google's servers; auth is delegated to the OAuth
-    # state token, not the Flask session.
-    "seo_admin.gsc_callback",
-})
+PUBLIC_ENDPOINT_WHITELIST: frozenset[str] = frozenset()
 
 # Path-parameter substitutions for converters Flask exposes. Anything not in
 # this map causes the route to be skipped from the live-request assertion (it
