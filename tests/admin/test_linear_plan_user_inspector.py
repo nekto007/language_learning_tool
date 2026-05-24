@@ -48,6 +48,7 @@ class TestLinearPlanInspectorAuth:
 
 
 class TestLinearPlanInspectorRender:
+    @pytest.mark.smoke
     def test_admin_can_open_for_linear_user(self, app, admin_client, db_session):
         user = _make_user(db_session, linear=True)
         response = admin_client.get(f'/admin/linear-plan/{user.id}')

@@ -239,9 +239,9 @@
 **Files:**
 - Modify: `app/admin/services/linear_plan_metrics.py`, `app/templates/admin/linear_plan_user.html`
 
-- [ ] аудит запросов на крупной cohort (>10k users) — добавить агрегацию через SQL, не Python loops; `chunk_ids` где нужно
-- [ ] обновить `tests/admin/test_linear_plan_metrics.py`, `test_linear_plan_user_inspector.py`
-- [ ] прогнать тесты
+- [x] аудит запросов на крупной cohort (>10k users) — добавить агрегацию через SQL, не Python loops; `chunk_ids` где нужно
+- [x] обновить `tests/admin/test_linear_plan_metrics.py`, `test_linear_plan_user_inspector.py`
+- [x] прогнать тесты
 
 ### Task 22: Шаблоны админки — единый layout/UX
 
