@@ -12,8 +12,7 @@ LOC values come from `wc -l`. Numbers are approximate (include blank lines and c
 | `book_courses.py` | 1586 | Legacy "book courses" routes attached to `admin` blueprint via `register_book_course_routes`. Candidate for split (Task 10 / Task 27). |
 | `curriculum.py` | 865 | Cultural notes + curriculum view-functions attached to `admin` blueprint. Overlaps with `routes/curriculum_routes.py` (Task 12). |
 | `form.py` | 276 | WTForms used by admin. |
-| `main_routes.py` | 1435 | Dashboard/stats/cache/content-quality. To be split in Task 7. |
-| `main_routes.py.backup` | 3170 | **Dead file — delete in Task 27.** |
+| `main_routes.py` | 544 | Curriculum index / levels / modules / lessons / import. Dashboard slice moved to `routes/dashboard_routes.py` in Task 7. |
 | `modules.py` | 259 | Module CRUD/grant attached to `admin` blueprint. |
 | `quiz_decks.py` | 415 | Quiz deck admin routes. |
 | `secret_store.py` | 78 | Helpers for sensitive settings. |
@@ -29,6 +28,7 @@ LOC values come from `wc -l`. Numbers are approximate (include blank lines and c
 | `book_admin` | `book_routes.py` | 734 |
 | `collection_admin` | `collection_routes.py` | 160 |
 | `admin_curriculum` | `curriculum_routes.py` | 260 |
+| `dashboard_admin` | `dashboard_routes.py` | 879 |
 | `grammar_lab_admin` | `grammar_lab_routes.py` | 729 |
 | `seo_admin` | `seo_routes.py` | 355 |
 | `settings_admin` | `settings_routes.py` | 73 |

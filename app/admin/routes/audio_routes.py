@@ -33,7 +33,7 @@ def audio_management():
 
         if 'error' in stats:
             flash(f'Ошибка при загрузке данных: {stats["error"]}', 'danger')
-            return redirect(url_for('admin.dashboard'))
+            return redirect(url_for('dashboard_admin.dashboard'))
 
         return render_template(
             'admin/audio/index.html',
@@ -47,7 +47,7 @@ def audio_management():
     except Exception as e:
         logger.error(f"Error in audio management: {str(e)}")
         flash(f'Ошибка при загрузке данных: {str(e)}', 'danger')
-        return redirect(url_for('admin.dashboard'))
+        return redirect(url_for('dashboard_admin.dashboard'))
 
 
 @audio_bp.route('/audio/update-download-status', methods=['POST'])

@@ -4,7 +4,7 @@
 {% block title %}Редактировать курс - {{ course.title }}{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Book Courses', url_for('admin.book_courses')), (course.title|truncate(25), url_for('admin.view_book_course', course_id=course.id)), ('Edit', '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Book Courses', url_for('admin.book_courses')), (course.title|truncate(25), url_for('admin.view_book_course', course_id=course.id)), ('Edit', '')]) }}
 {% endblock %}
 
 {% block extra_css %}

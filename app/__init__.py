@@ -34,7 +34,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'collection_admin.', 'topic_admin.', 'word_admin.',
     'system_admin.', 'grammar_lab_admin.', 'admin_curriculum.',
     'curriculum_admin.', 'reminders.', 'settings_admin.', 'seo_admin.',
-    'activity_admin.', 'audit_admin.',
+    'activity_admin.', 'audit_admin.', 'dashboard_admin.',
     'refresh_csrf_token',
     'health_check',
 )
@@ -303,7 +303,7 @@ def create_app(config_class=Config):
     @app.errorhandler(500)
     def handle_500_error(e):
         from flask import jsonify, render_template
-        from app.admin.main_routes import increment_5xx_counter
+        from app.admin.routes.dashboard_routes import increment_5xx_counter
         try:
             db.session.rollback()
         except Exception:

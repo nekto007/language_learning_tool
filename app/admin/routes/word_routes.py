@@ -35,7 +35,7 @@ def word_management():
 
         if 'error' in stats:
             flash(f'Ошибка при загрузке данных: {stats["error"]}', 'danger')
-            return redirect(url_for('admin.dashboard'))
+            return redirect(url_for('dashboard_admin.dashboard'))
 
         return render_template(
             'admin/words/index.html',
@@ -47,7 +47,7 @@ def word_management():
     except Exception as e:
         logger.error(f"Error in word management: {str(e)}")
         flash(f'Ошибка при загрузке данных: {str(e)}', 'danger')
-        return redirect(url_for('admin.dashboard'))
+        return redirect(url_for('dashboard_admin.dashboard'))
 
 
 @word_bp.route('/words/bulk-status-update', methods=['GET', 'POST'])

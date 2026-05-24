@@ -38,6 +38,7 @@ ADMIN_BLUEPRINT_PREFIXES = (
     "book_admin.",
     "collection_admin.",
     "curriculum_admin.",
+    "dashboard_admin.",
     "grammar_lab_admin.",
     "seo_admin.",
     "settings_admin.",

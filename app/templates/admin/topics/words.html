@@ -4,7 +4,7 @@
 {% block title %}{{ _('Manage Words in Topic') }} - Admin{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Topics', url_for('topic_admin.topic_list')), (topic.name, '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Topics', url_for('topic_admin.topic_list')), (topic.name, '')]) }}
 {% endblock %}
 
 {% block extra_css %}

@@ -45,7 +45,7 @@ class TestErrorPages:
         assert data['error'] == 'Forbidden'
 
     def test_500_handler_html(self, app):
-        with patch('app.admin.main_routes.increment_5xx_counter'):
+        with patch('app.admin.routes.dashboard_routes.increment_5xx_counter'):
             with app.test_request_context('/some-page'):
                 result = app.handle_http_exception(InternalServerError())
                 rv = app.make_response(result)
@@ -54,7 +54,7 @@ class TestErrorPages:
         assert 'Ошибка сервера' in html
 
     def test_500_handler_json(self, app):
-        with patch('app.admin.main_routes.increment_5xx_counter'):
+        with patch('app.admin.routes.dashboard_routes.increment_5xx_counter'):
             with app.test_request_context('/api/something', headers={'Accept': 'application/json'}):
                 result = app.handle_http_exception(InternalServerError())
                 rv = app.make_response(result)

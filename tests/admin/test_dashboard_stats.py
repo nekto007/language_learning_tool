@@ -15,9 +15,9 @@ class TestGetDashboardStatistics:
 
     def test_returns_expected_keys(self, app, db_session):
         """Dashboard stats dict should contain all expected keys."""
-        from app.admin.main_routes import get_dashboard_statistics
+        from app.admin.routes.dashboard_routes import get_dashboard_statistics
 
-        with patch('app.admin.main_routes.cache_result', lambda *a, **kw: lambda f: f):
+        with patch('app.admin.routes.dashboard_routes.cache_result', lambda *a, **kw: lambda f: f):
             stats = get_dashboard_statistics()
 
         expected_keys = {
@@ -62,7 +62,7 @@ class TestGetDashboardStatistics:
         db_session.add_all([u1, u2, u3])
         db_session.commit()
 
-        from app.admin.main_routes import get_dashboard_statistics
+        from app.admin.routes.dashboard_routes import get_dashboard_statistics
         stats = get_dashboard_statistics.__wrapped__()
 
         assert stats['total_users'] == 3
@@ -76,7 +76,7 @@ class TestGetDailyActivityData:
 
     def test_returns_correct_structure(self, app, db_session):
         """Should return dict with labels, registrations, logins, active_users."""
-        from app.admin.main_routes import get_daily_activity_data
+        from app.admin.routes.dashboard_routes import get_daily_activity_data
 
         result = get_daily_activity_data.__wrapped__(7)
 
@@ -104,7 +104,7 @@ class TestGetDailyActivityData:
         db_session.add(u)
         db_session.commit()
 
-        from app.admin.main_routes import get_daily_activity_data
+        from app.admin.routes.dashboard_routes import get_daily_activity_data
 
         result = get_daily_activity_data.__wrapped__(7)
 
@@ -128,7 +128,7 @@ class TestGetDailyActivityData:
         db_session.add(u)
         db_session.commit()
 
-        from app.admin.main_routes import get_daily_activity_data
+        from app.admin.routes.dashboard_routes import get_daily_activity_data
 
         result = get_daily_activity_data.__wrapped__(7)
 
@@ -171,7 +171,7 @@ class TestGetDailyActivityData:
         db_session.add(lp)
         db_session.commit()
 
-        from app.admin.main_routes import get_daily_activity_data
+        from app.admin.routes.dashboard_routes import get_daily_activity_data
 
         result = get_daily_activity_data.__wrapped__(7)
 
@@ -179,7 +179,7 @@ class TestGetDailyActivityData:
 
     def test_default_30_days(self, app, db_session):
         """Default call should return 30 days of data."""
-        from app.admin.main_routes import get_daily_activity_data
+        from app.admin.routes.dashboard_routes import get_daily_activity_data
 
         result = get_daily_activity_data.__wrapped__()
 
@@ -246,7 +246,7 @@ class TestEngagementMetrics:
 
     def test_returns_expected_keys(self, app, db_session):
         """Should return DAU, WAU, MAU with trends."""
-        from app.admin.main_routes import get_engagement_metrics
+        from app.admin.routes.dashboard_routes import get_engagement_metrics
 
         result = get_engagement_metrics.__wrapped__()
 
@@ -273,7 +273,7 @@ class TestEngagementMetrics:
         db_session.add(ss)
         db_session.commit()
 
-        from app.admin.main_routes import get_engagement_metrics
+        from app.admin.routes.dashboard_routes import get_engagement_metrics
 
         result = get_engagement_metrics.__wrapped__()
 
@@ -299,7 +299,7 @@ class TestEngagementMetrics:
         db_session.add(ss)
         db_session.commit()
 
-        from app.admin.main_routes import get_engagement_metrics
+        from app.admin.routes.dashboard_routes import get_engagement_metrics
 
         result = get_engagement_metrics.__wrapped__()
 
@@ -312,7 +312,7 @@ class TestEngagementMetrics:
         db_session.query(User).delete()
         db_session.commit()
 
-        from app.admin.main_routes import get_engagement_metrics
+        from app.admin.routes.dashboard_routes import get_engagement_metrics
 
         result = get_engagement_metrics.__wrapped__()
 
@@ -326,7 +326,7 @@ class TestLearningMetrics:
 
     def test_returns_expected_keys(self, app, db_session):
         """Should return lesson and session counts."""
-        from app.admin.main_routes import get_learning_metrics
+        from app.admin.routes.dashboard_routes import get_learning_metrics
 
         result = get_learning_metrics.__wrapped__()
 
@@ -373,7 +373,7 @@ class TestLearningMetrics:
         db_session.add(lp)
         db_session.commit()
 
-        from app.admin.main_routes import get_learning_metrics
+        from app.admin.routes.dashboard_routes import get_learning_metrics
 
         result = get_learning_metrics.__wrapped__()
 
@@ -419,7 +419,7 @@ class TestLearningMetrics:
         db_session.add_all([a1, a2])
         db_session.commit()
 
-        from app.admin.main_routes import get_learning_metrics
+        from app.admin.routes.dashboard_routes import get_learning_metrics
 
         result = get_learning_metrics.__wrapped__()
 
@@ -449,7 +449,7 @@ class TestLearningMetrics:
         db_session.add(ss)
         db_session.commit()
 
-        from app.admin.main_routes import get_learning_metrics
+        from app.admin.routes.dashboard_routes import get_learning_metrics
 
         result = get_learning_metrics.__wrapped__()
 
@@ -461,7 +461,7 @@ class TestContentMetrics:
 
     def test_returns_expected_keys(self, app, db_session):
         """Should return content metric counts."""
-        from app.admin.main_routes import get_content_metrics
+        from app.admin.routes.dashboard_routes import get_content_metrics
 
         result = get_content_metrics.__wrapped__()
 
@@ -485,7 +485,7 @@ class TestContentMetrics:
         db_session.add(topic)
         db_session.commit()
 
-        from app.admin.main_routes import get_content_metrics
+        from app.admin.routes.dashboard_routes import get_content_metrics
 
         result = get_content_metrics.__wrapped__()
 
@@ -511,7 +511,7 @@ class TestContentMetrics:
         db_session.add(deck)
         db_session.commit()
 
-        from app.admin.main_routes import get_content_metrics
+        from app.admin.routes.dashboard_routes import get_content_metrics
 
         result = get_content_metrics.__wrapped__()
 
@@ -523,7 +523,7 @@ class TestSRSHealthMetrics:
 
     def test_returns_expected_structure(self, app, db_session):
         """Should return words_srs and grammar_srs dicts."""
-        from app.admin.main_routes import get_srs_health_metrics
+        from app.admin.routes.dashboard_routes import get_srs_health_metrics
 
         result = get_srs_health_metrics.__wrapped__()
 
@@ -563,7 +563,7 @@ class TestSRSHealthMetrics:
         db_session.add(ucd)
         db_session.commit()
 
-        from app.admin.main_routes import get_srs_health_metrics
+        from app.admin.routes.dashboard_routes import get_srs_health_metrics
 
         result = get_srs_health_metrics.__wrapped__()
 
@@ -606,7 +606,7 @@ class TestSRSHealthMetrics:
         db_session.add(uge)
         db_session.commit()
 
-        from app.admin.main_routes import get_srs_health_metrics
+        from app.admin.routes.dashboard_routes import get_srs_health_metrics
 
         result = get_srs_health_metrics.__wrapped__()
 
@@ -619,7 +619,7 @@ class TestRetentionMetrics:
 
     def test_returns_expected_keys(self, app, db_session):
         """Should return d1, d7, d30 retention rates."""
-        from app.admin.main_routes import get_retention_metrics
+        from app.admin.routes.dashboard_routes import get_retention_metrics
 
         result = get_retention_metrics.__wrapped__()
 
@@ -632,7 +632,7 @@ class TestRetentionMetrics:
         db_session.query(User).delete()
         db_session.commit()
 
-        from app.admin.main_routes import get_retention_metrics
+        from app.admin.routes.dashboard_routes import get_retention_metrics
 
         result = get_retention_metrics.__wrapped__()
 
@@ -660,7 +660,7 @@ class TestRetentionMetrics:
         db_session.add(ss)
         db_session.commit()
 
-        from app.admin.main_routes import get_retention_metrics
+        from app.admin.routes.dashboard_routes import get_retention_metrics
 
         result = get_retention_metrics.__wrapped__()
 
@@ -683,7 +683,7 @@ class TestRetentionMetrics:
         db_session.add(u)
         db_session.commit()
 
-        from app.admin.main_routes import get_retention_metrics
+        from app.admin.routes.dashboard_routes import get_retention_metrics
 
         result = get_retention_metrics.__wrapped__()
 
@@ -695,7 +695,7 @@ class TestStreakAnalytics:
 
     def test_returns_expected_keys(self, app, db_session):
         """Should return active_streaks, avg_streak, longest_overall, distribution."""
-        from app.admin.main_routes import get_streak_analytics
+        from app.admin.routes.dashboard_routes import get_streak_analytics
 
         result = get_streak_analytics.__wrapped__()
 
@@ -725,7 +725,7 @@ class TestStreakAnalytics:
         db_session.add(stats)
         db_session.commit()
 
-        from app.admin.main_routes import get_streak_analytics
+        from app.admin.routes.dashboard_routes import get_streak_analytics
 
         result = get_streak_analytics.__wrapped__()
 
@@ -740,7 +740,7 @@ class TestStreakAnalytics:
         db_session.query(UserStatistics).delete()
         db_session.commit()
 
-        from app.admin.main_routes import get_streak_analytics
+        from app.admin.routes.dashboard_routes import get_streak_analytics
 
         result = get_streak_analytics.__wrapped__()
 
@@ -753,7 +753,7 @@ class TestReferralAnalytics:
 
     def test_returns_expected_keys(self, app, db_session):
         """Should return referral metrics."""
-        from app.admin.main_routes import get_referral_analytics
+        from app.admin.routes.dashboard_routes import get_referral_analytics
 
         result = get_referral_analytics.__wrapped__()
 
@@ -790,7 +790,7 @@ class TestReferralAnalytics:
         db_session.add(log)
         db_session.commit()
 
-        from app.admin.main_routes import get_referral_analytics
+        from app.admin.routes.dashboard_routes import get_referral_analytics
 
         result = get_referral_analytics.__wrapped__()
 
@@ -801,7 +801,7 @@ class TestReferralAnalytics:
 
     def test_no_referrals_returns_zeros(self, app, db_session):
         """With no referrals, all should be 0."""
-        from app.admin.main_routes import get_referral_analytics
+        from app.admin.routes.dashboard_routes import get_referral_analytics
 
         result = get_referral_analytics.__wrapped__()
 
@@ -816,7 +816,7 @@ class TestCoinEconomy:
 
     def test_returns_expected_keys(self, app, db_session):
         """Should return coin economy metrics."""
-        from app.admin.main_routes import get_coin_economy
+        from app.admin.routes.dashboard_routes import get_coin_economy
 
         result = get_coin_economy.__wrapped__()
 
@@ -847,7 +847,7 @@ class TestCoinEconomy:
         db_session.add(coins)
         db_session.commit()
 
-        from app.admin.main_routes import get_coin_economy
+        from app.admin.routes.dashboard_routes import get_coin_economy
 
         result = get_coin_economy.__wrapped__()
 
@@ -862,7 +862,7 @@ class TestCoinEconomy:
         db_session.query(StreakCoins).delete()
         db_session.commit()
 
-        from app.admin.main_routes import get_coin_economy
+        from app.admin.routes.dashboard_routes import get_coin_economy
 
         result = get_coin_economy.__wrapped__()
 
@@ -922,7 +922,7 @@ class TestContentQuality:
 
     def test_returns_expected_keys(self, app, db_session):
         """Should return content quality metrics."""
-        from app.admin.main_routes import get_content_quality
+        from app.admin.routes.dashboard_routes import get_content_quality
 
         result = get_content_quality.__wrapped__()
 
@@ -973,7 +973,7 @@ class TestContentQuality:
             db_session.add(attempt)
         db_session.commit()
 
-        from app.admin.main_routes import get_content_quality
+        from app.admin.routes.dashboard_routes import get_content_quality
 
         result = get_content_quality.__wrapped__()
 
@@ -1023,7 +1023,7 @@ class TestContentQuality:
             db_session.add(attempt)
         db_session.commit()
 
-        from app.admin.main_routes import get_content_quality
+        from app.admin.routes.dashboard_routes import get_content_quality
 
         result = get_content_quality.__wrapped__()
 
@@ -1032,7 +1032,7 @@ class TestContentQuality:
 
     def test_counts_zero_completions(self, app, db_session):
         """Should count lessons with zero completions."""
-        from app.admin.main_routes import get_content_quality
+        from app.admin.routes.dashboard_routes import get_content_quality
 
         result = get_content_quality.__wrapped__()
 
@@ -1054,7 +1054,7 @@ class TestContentQuality:
         db_session.add(topic)
         db_session.commit()
 
-        from app.admin.main_routes import get_content_quality
+        from app.admin.routes.dashboard_routes import get_content_quality
 
         result = get_content_quality.__wrapped__()
 
@@ -1066,7 +1066,7 @@ class TestContentAlerts:
 
     def test_returns_list(self, app, db_session):
         """Should return a list of alerts."""
-        from app.admin.main_routes import get_content_alerts
+        from app.admin.routes.dashboard_routes import get_content_alerts
 
         result = get_content_alerts.__wrapped__()
 
@@ -1074,7 +1074,7 @@ class TestContentAlerts:
 
     def test_alerts_have_expected_fields(self, app, db_session):
         """Each alert should have severity, type, message, action."""
-        from app.admin.main_routes import get_content_alerts
+        from app.admin.routes.dashboard_routes import get_content_alerts
 
         result = get_content_alerts.__wrapped__()
 
@@ -1086,7 +1086,7 @@ class TestContentAlerts:
 
     def test_max_5_alerts(self, app, db_session):
         """Should return at most 5 alerts."""
-        from app.admin.main_routes import get_content_alerts
+        from app.admin.routes.dashboard_routes import get_content_alerts
 
         result = get_content_alerts.__wrapped__()
 
@@ -1098,7 +1098,7 @@ class TestSystemHealth:
 
     def test_returns_db_status(self, app, db_session):
         """Should return db_status key."""
-        from app.admin.main_routes import get_system_health
+        from app.admin.routes.dashboard_routes import get_system_health
 
         result = get_system_health.__wrapped__()
 
@@ -1107,7 +1107,7 @@ class TestSystemHealth:
 
     def test_db_error_is_none_when_healthy(self, app, db_session):
         """db_error should be None when DB is healthy."""
-        from app.admin.main_routes import get_system_health
+        from app.admin.routes.dashboard_routes import get_system_health
 
         result = get_system_health.__wrapped__()
 

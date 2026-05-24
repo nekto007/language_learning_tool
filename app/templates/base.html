@@ -252,7 +252,7 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             {% if current_user.is_admin %}
-                            <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}"><i class="fas fa-shield-alt me-2"></i>Админ-панель</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard_admin.dashboard') }}"><i class="fas fa-shield-alt me-2"></i>Админ-панель</a></li>
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
                             {% if has_module('study') %}

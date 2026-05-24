@@ -46,7 +46,7 @@ class TestCountActiveUsersInRange:
     @pytest.mark.smoke
     def test_study_session_counted(self, app, db_session):
         """User with StudySession in range is counted."""
-        from app.admin.main_routes import _count_active_users_in_range
+        from app.admin.routes.dashboard_routes import _count_active_users_in_range
         from app.study.models import StudySession
 
         user = _make_user(db_session)
@@ -62,7 +62,7 @@ class TestCountActiveUsersInRange:
 
     def test_lesson_progress_counted(self, app, db_session):
         """User with LessonProgress activity in range is counted."""
-        from app.admin.main_routes import _count_active_users_in_range
+        from app.admin.routes.dashboard_routes import _count_active_users_in_range
 
         user = _make_user(db_session)
         lesson = _make_lesson(db_session)
@@ -83,7 +83,7 @@ class TestCountActiveUsersInRange:
 
     def test_lesson_attempt_counted(self, app, db_session):
         """User with LessonAttempt in range is counted."""
-        from app.admin.main_routes import _count_active_users_in_range
+        from app.admin.routes.dashboard_routes import _count_active_users_in_range
 
         user = _make_user(db_session)
         lesson = _make_lesson(db_session)
@@ -104,7 +104,7 @@ class TestCountActiveUsersInRange:
 
     def test_grammar_exercise_counted(self, app, db_session):
         """User with UserGrammarExercise reviewed in range is counted."""
-        from app.admin.main_routes import _count_active_users_in_range
+        from app.admin.routes.dashboard_routes import _count_active_users_in_range
         from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
 
         user = _make_user(db_session)
@@ -139,7 +139,7 @@ class TestCountActiveUsersInRange:
 
     def test_chapter_progress_counted(self, app, db_session):
         """User with UserChapterProgress updated in range is counted."""
-        from app.admin.main_routes import _count_active_users_in_range
+        from app.admin.routes.dashboard_routes import _count_active_users_in_range
         from app.books.models import Book, Chapter, UserChapterProgress
 
         user = _make_user(db_session)
@@ -180,7 +180,7 @@ class TestCountActiveUsersInRange:
 
     def test_book_course_enrollment_counted(self, app, db_session):
         """User with BookCourseEnrollment activity in range is counted."""
-        from app.admin.main_routes import _count_active_users_in_range
+        from app.admin.routes.dashboard_routes import _count_active_users_in_range
         from app.books.models import Book
         from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
 
@@ -220,7 +220,7 @@ class TestCountActiveUsersInRange:
 
     def test_user_lesson_progress_counted(self, app, db_session):
         """User with UserLessonProgress.completed_at in range is counted (7th source)."""
-        from app.admin.main_routes import _count_active_users_in_range, _active_user_ids_for_date
+        from app.admin.routes.dashboard_routes import _count_active_users_in_range, _active_user_ids_for_date
         from app.books.models import Book, Chapter
         from app.curriculum.book_courses import BookCourse, BookCourseModule, BookCourseEnrollment
         from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
@@ -306,7 +306,7 @@ class TestCountActiveUsersInRange:
 
     def test_user_active_in_multiple_tables_counted_once(self, app, db_session):
         """User active in multiple tables is counted only once (UNION deduplication)."""
-        from app.admin.main_routes import _count_active_users_in_range
+        from app.admin.routes.dashboard_routes import _count_active_users_in_range
         from app.study.models import StudySession
 
         user = _make_user(db_session)
@@ -349,7 +349,7 @@ class TestCountActiveUsersInRange:
 
     def test_out_of_range_activity_not_counted(self, app, db_session):
         """Activity outside the date range is not counted."""
-        from app.admin.main_routes import _count_active_users_in_range
+        from app.admin.routes.dashboard_routes import _count_active_users_in_range
         from app.study.models import StudySession
 
         user = _make_user(db_session)
@@ -371,7 +371,7 @@ class TestCountActiveUsersInRange:
 
     def test_empty_range_returns_zero(self, app, db_session):
         """Date range with no activity returns 0."""
-        from app.admin.main_routes import _count_active_users_in_range
+        from app.admin.routes.dashboard_routes import _count_active_users_in_range
 
         far_past = date(2000, 1, 1)
         count = _count_active_users_in_range(far_past, far_past)

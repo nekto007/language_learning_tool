@@ -77,7 +77,7 @@ def books():
     except Exception as e:
         logger.error(f"Error in book management: {str(e)}")
         flash(f'Ошибка при загрузке данных: {str(e)}', 'danger')
-        return redirect(url_for('admin.dashboard'))
+        return redirect(url_for('dashboard_admin.dashboard'))
 
 
 @book_bp.route('/books/scrape-website', methods=['POST'])

@@ -4,7 +4,7 @@
 {% block title %}Edit Lesson - {{ lesson.title }}{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Curriculum', url_for('admin_curriculum.curriculum')), (lesson.module.level.code, url_for('admin_curriculum.module_list', level_id=lesson.module.level.id)), ('Module ' ~ lesson.module.number, url_for('admin_curriculum.lesson_list', module_id=lesson.module.id)), ('Edit Lesson', '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Curriculum', url_for('admin_curriculum.curriculum')), (lesson.module.level.code, url_for('admin_curriculum.module_list', level_id=lesson.module.level.id)), ('Module ' ~ lesson.module.number, url_for('admin_curriculum.lesson_list', module_id=lesson.module.id)), ('Edit Lesson', '')]) }}
 {% endblock %}
 
 {% block content %}

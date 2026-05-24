@@ -5,7 +5,7 @@
 
 {% block breadcrumb %}
 {{ breadcrumb([
-    ('Dashboard', url_for('admin.dashboard')),
+    ('Dashboard', url_for('dashboard_admin.dashboard')),
     ('Grammar Lab', url_for('grammar_lab_admin.grammar_lab_index')),
     ('Topics', url_for('grammar_lab_admin.topic_list')),
     (topic.title if topic else 'Create', '')

@@ -4,7 +4,7 @@
 {% block title %}Пользователи модуля{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Modules', url_for('admin.modules_list')), (module.name, url_for('admin.modules_edit', module_id=module.id)), ('Users', '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Modules', url_for('admin.modules_list')), (module.name, url_for('admin.modules_edit', module_id=module.id)), ('Users', '')]) }}
 {% endblock %}
 
 {% block content %}

@@ -4,7 +4,7 @@
 {% block title %}Редактировать: {{ book.title }}{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Books', url_for('book_admin.books')), (book.title|truncate(20), '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Books', url_for('book_admin.books')), (book.title|truncate(20), '')]) }}
 {% endblock %}
 
 {% block content %}

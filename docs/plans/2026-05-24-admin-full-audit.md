@@ -94,12 +94,12 @@
 - Modify: `app/admin/main_routes.py`, `app/admin/routes/__init__.py`
 - Delete: `app/admin/main_routes.py.backup`
 
-- [ ] удалить `main_routes.py.backup` (мёртвый файл)
-- [ ] перенести dashboard/stats/cache-related routes в `app/admin/routes/dashboard_routes.py`
-- [ ] зарегистрировать новый sub-blueprint в `register_admin_routes`
-- [ ] обновить `_ONBOARDING_SKIP_PREFIXES` если нужно
-- [ ] перенести/расширить тесты `tests/admin/test_dashboard_stats.py`
-- [ ] прогнать `pytest tests/admin/`
+- [x] удалить `main_routes.py.backup` (мёртвый файл)
+- [x] перенести dashboard/stats/cache-related routes в `app/admin/routes/dashboard_routes.py`
+- [x] зарегистрировать новый sub-blueprint в `register_admin_routes`
+- [x] обновить `_ONBOARDING_SKIP_PREFIXES` если нужно
+- [x] перенести/расширить тесты `tests/admin/test_dashboard_stats.py`
+- [x] прогнать `pytest tests/admin/`
 
 ### Task 8: Dashboard performance — DAU/WAU/MAU и кэш
 

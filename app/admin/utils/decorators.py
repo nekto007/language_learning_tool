@@ -139,7 +139,7 @@ def handle_admin_errors(return_json: bool = True):
                         'operation': func.__name__,
                     }), 500
                 flash('Произошла внутренняя ошибка. Попробуйте позже.', 'danger')
-                return redirect(url_for('admin.dashboard'))
+                return redirect(url_for('dashboard_admin.dashboard'))
 
         return wrapper
 

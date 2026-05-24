@@ -10,7 +10,7 @@ class TestEngagementMetricsCache:
     def test_second_call_hits_cache(self, app, db_session):
         """Second call within TTL must not invoke _count_active_users_in_range again."""
         from app.admin.utils.cache import clear_admin_cache
-        from app.admin.main_routes import get_engagement_metrics
+        from app.admin.routes.dashboard_routes import get_engagement_metrics
 
         clear_admin_cache()
 
@@ -21,7 +21,7 @@ class TestEngagementMetricsCache:
         }
 
         with patch(
-            'app.admin.main_routes._count_active_users_in_range',
+            'app.admin.routes.dashboard_routes._count_active_users_in_range',
             return_value=1,
         ) as mock_count:
             result1 = get_engagement_metrics()
@@ -37,14 +37,14 @@ class TestEngagementMetricsCache:
         clear_admin_cache()
 
         with patch(
-            'app.admin.main_routes._count_active_users_in_range',
+            'app.admin.routes.dashboard_routes._count_active_users_in_range',
             return_value=1,
         ) as mock_first:
             get_engagement_metrics()
             first_calls = mock_first.call_count
 
         with patch(
-            'app.admin.main_routes._count_active_users_in_range',
+            'app.admin.routes.dashboard_routes._count_active_users_in_range',
             return_value=99,
         ) as mock_second:
             result_cached = get_engagement_metrics()
@@ -60,12 +60,12 @@ class TestEngagementMetricsCache:
     def test_engagement_metrics_returns_expected_keys(self, app, db_session):
         """get_engagement_metrics returns dict with dau/wau/mau keys."""
         from app.admin.utils.cache import clear_admin_cache
-        from app.admin.main_routes import get_engagement_metrics
+        from app.admin.routes.dashboard_routes import get_engagement_metrics
 
         clear_admin_cache()
 
         with patch(
-            'app.admin.main_routes._count_active_users_in_range',
+            'app.admin.routes.dashboard_routes._count_active_users_in_range',
             return_value=0,
         ):
             result = get_engagement_metrics()

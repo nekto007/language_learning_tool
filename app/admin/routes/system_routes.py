@@ -46,7 +46,7 @@ def system():
 
     if 'error' in info:
         flash(f'Ошибка при получении системной информации: {info["error"]}', 'danger')
-        return redirect(url_for('admin.dashboard'))
+        return redirect(url_for('dashboard_admin.dashboard'))
 
     return render_template(
         'admin/system.html',

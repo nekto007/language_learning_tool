@@ -30,7 +30,7 @@
 
 {# --------------------------------------------------------------------------
    Breadcrumb Navigation
-   Usage: {{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Users', '')]) }}
+   Usage: {{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Users', '')]) }}
    -------------------------------------------------------------------------- #}
 {% macro breadcrumb(items) %}
 <nav class="admin-breadcrumb" aria-label="Breadcrumb navigation">
