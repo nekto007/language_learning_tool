@@ -149,10 +149,10 @@
 **Files:**
 - Modify: `app/admin/routes/curriculum_routes.py`, `app/admin/curriculum.py`, `app/admin/modules.py`, `app/admin/services/curriculum_import_service.py`
 
-- [ ] аудит формы редактирования lesson content — провалидировать через `validate_exercise_content` и lesson-type schemas
-- [ ] миграция module/lesson order — гарантировать unique constraint
-- [ ] тесты `tests/admin/routes/test_curriculum_routes.py`
-- [ ] прогнать тесты
+- [x] аудит формы редактирования lesson content — провалидировать через `validate_exercise_content` и lesson-type schemas
+- [x] миграция module/lesson order — гарантировать unique constraint
+- [x] тесты `tests/admin/routes/test_curriculum_routes.py`
+- [x] прогнать тесты
 
 ### Task 13: Grammar Lab admin (729 LOC) — split + аудит
 
