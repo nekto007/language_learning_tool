@@ -116,17 +116,16 @@ def update_audio_download_status():
 def fix_audio_listening_fields():
     """Исправление полей прослушивания"""
     try:
-        log_admin_action(
-            current_user.id,
-            'audio.fix_listening_fields',
-            target_type='audio',
-        )
         success, fixed_count, message = AudioManagementService.fix_listening_fields()
 
         if success:
             # Очищаем кэш после изменения данных
             clear_admin_cache()
-
+            log_admin_action(
+                current_user.id,
+                'audio.fix_listening_fields',
+                target_type='audio',
+            )
             db.session.commit()
             logger.info(f"Audio listening fields fixed by {current_user.username}: {fixed_count} records")
 
@@ -159,15 +158,15 @@ def normalize_audio_listening_fields():
     Это позволяет использовать аудио напрямую в приложении.
     """
     try:
-        log_admin_action(
-            current_user.id,
-            'audio.normalize_listening_fields',
-            target_type='audio',
-        )
         success, fixed_count, message = AudioManagementService.normalize_listening_fields()
 
         if success:
             clear_admin_cache()
+            log_admin_action(
+                current_user.id,
+                'audio.normalize_listening_fields',
+                target_type='audio',
+            )
             db.session.commit()
             logger.info(f"Audio listening fields normalized by {current_user.username}: {fixed_count} records")
 
@@ -197,15 +196,15 @@ def normalize_audio_listening_fields():
 def fill_empty_listening_fields():
     """Заполнение пустых полей listening чистым именем файла"""
     try:
-        log_admin_action(
-            current_user.id,
-            'audio.fill_empty_listening',
-            target_type='audio',
-        )
         success, fixed_count, message = AudioManagementService.fill_empty_listening_fields()
 
         if success:
             clear_admin_cache()
+            log_admin_action(
+                current_user.id,
+                'audio.fill_empty_listening',
+                target_type='audio',
+            )
             db.session.commit()
             logger.info(f"Empty listening fields filled by {current_user.username}: {fixed_count} records")
 
