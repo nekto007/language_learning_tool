@@ -20,8 +20,7 @@ class BookContentForm(FlaskForm):
         ('A2', _l('A2 - Elementary')),
         ('B1', _l('B1 - Intermediate')),
         ('B2', _l('B2 - Upper Intermediate')),
-        ('C1', _l('C1 - Advanced')),
-        ('C2', _l('C2 - Proficiency'))
+        ('C1', _l('C1 - Advanced'))
     ], default='')
 
     cover_image = FileField(_l('Book Cover'), validators=[

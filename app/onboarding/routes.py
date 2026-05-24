@@ -41,7 +41,7 @@ def complete():
     # Save onboarding choices
     level = request.form.get('level', '').strip()
     focus = request.form.get('focus', '').strip()
-    valid_levels = {'A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'}
+    valid_levels = {'A1', 'A2', 'B1', 'B2', 'C1'}
     valid_focuses = {'grammar', 'vocabulary', 'reading', 'all'}
     if level and level in valid_levels:
         current_user.onboarding_level = level

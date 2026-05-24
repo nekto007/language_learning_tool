@@ -907,7 +907,7 @@ def _translation_mode(content: dict, items: list) -> str:
 
     Explicit ``mode`` in content wins. Otherwise auto-derive: any item with
     hint_words → ``guided`` (A1/A2), else → ``open`` (B1/B2). ``rubric``
-    (C1/C2) requires explicit opt-in via content since it implies a
+    (C1) requires explicit opt-in via content since it implies a
     different grader path.
     """
     explicit = (content or {}).get('mode') if isinstance(content, dict) else None

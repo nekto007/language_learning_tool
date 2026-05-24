@@ -63,7 +63,7 @@ class VocabularyExtractor:
 
         Args:
             book_id: ID of the book
-            target_level: Target CEFR level for vocabulary filtering (A1-C2)
+            target_level: Target CEFR level for vocabulary filtering (A1-C1)
         """
         self.book_id = book_id
         self.target_level = target_level or DEFAULT_LEVEL

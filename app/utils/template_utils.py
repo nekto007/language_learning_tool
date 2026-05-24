@@ -97,7 +97,13 @@ def init_template_utils(app):
 
         def get_cefr_levels():
             from app.curriculum.models import CEFRLevel
-            return CEFRLevel.query.order_by(CEFRLevel.order).all()
+            from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+            return (
+                CEFRLevel.query
+                .filter(CEFRLevel.code.in_(PUBLIC_CEFR_CODES))
+                .order_by(CEFRLevel.order)
+                .all()
+            )
 
         def get_user_lessons():
             from app.curriculum.models import Lessons, LessonProgress

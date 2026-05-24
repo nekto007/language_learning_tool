@@ -65,6 +65,10 @@ def add_book_redirect():
 def edit_book_content(book_id):
     book = Book.query.get_or_404(book_id)
     form = BookContentForm(obj=book)
+    # Preserve legacy CEFR values (e.g. C2) so unrelated edits don't downgrade them.
+    canonical_level_values = {choice[0] for choice in form.level.choices}
+    if book.level and book.level not in canonical_level_values:
+        form.level.choices = [(book.level, f'{book.level} (legacy)')] + list(form.level.choices)
 
     if form.validate_on_submit():
         try:
@@ -811,12 +815,15 @@ def edit_book_info(book_id):
             ('A2', 'A2 - Elementary'),
             ('B1', 'B1 - Intermediate'),
             ('B2', 'B2 - Upper Intermediate'),
-            ('C1', 'C1 - Advanced'),
-            ('C2', 'C2 - Proficiency')
+            ('C1', 'C1 - Advanced')
         ], default='')
         submit = SubmitField('Save Changes')
 
     form = BookInfoForm()
+    # Preserve legacy CEFR values (e.g. C2) so unrelated edits don't downgrade them.
+    canonical_level_values = {choice[0] for choice in form.level.choices}
+    if book.level and book.level not in canonical_level_values:
+        form.level.choices = [(book.level, f'{book.level} (legacy)')] + list(form.level.choices)
 
     if request.method == 'GET':
         # Pre-populate the form with existing values
@@ -849,6 +856,10 @@ def edit_book_info(book_id):
 def edit_book_info_with_cover(book_id):
     book = Book.query.get_or_404(book_id)
     form = BookContentForm(obj=book)
+    # Preserve legacy CEFR values (e.g. C2) so unrelated edits don't downgrade them.
+    canonical_level_values = {choice[0] for choice in form.level.choices}
+    if book.level and book.level not in canonical_level_values:
+        form.level.choices = [(book.level, f'{book.level} (legacy)')] + list(form.level.choices)
 
     if request.method == 'GET':
         # Pre-populate the form with existing values

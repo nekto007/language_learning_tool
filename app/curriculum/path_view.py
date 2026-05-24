@@ -580,7 +580,7 @@ def _build_preview_segment(
                 first_module.title if first_module and first_module.title
                 else f'Модуль {upcoming[0].module_id}'
             )
-            level_code = (first_module.level.code if first_module and first_module.level else 'A0')
+            level_code = (first_module.level.code if first_module and first_module.level else 'A1')
             module_label = (
                 f'Дальше в курсе · {level_code}/М{first_module.number if first_module else 0} — {label_module}'
             )

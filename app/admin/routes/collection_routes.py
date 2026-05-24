@@ -123,8 +123,8 @@ def delete_collection(collection_id):
     """Удаление коллекции"""
     collection = Collection.query.get_or_404(collection_id)
     db.session.delete(collection)
-    db.session.commit()
     log_admin_action(current_user.id, 'collection.delete', target_type='collection', target_id=collection_id)
+    db.session.commit()
 
     flash(_('Collection deleted successfully!'), 'success')
     return redirect(url_for('collection_admin.collection_list'))

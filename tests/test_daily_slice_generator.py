@@ -64,7 +64,6 @@ class TestInit:
             'B1': (400, 600),    # Range: 200-600 words
             'B2': (700, 800),    # Range: 600-800 words
             'C1': (900, 1000),   # Range: 800-1000 words
-            'C2': (1050, 1200),  # Range: 900-1200 words
         }
         assert generator.WORDS_PER_LEVEL_DEFAULT == (400, 600)
         assert len(generator.PRACTICE_ROTATION) == 6

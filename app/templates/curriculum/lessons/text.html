@@ -1,7 +1,7 @@
 {% extends "lesson_base_template.html" %}
 
 {% set level_code = lesson.module.level.code if lesson.module and lesson.module.level else 'A1' %}
-{% set is_advanced = level_code in ('B1', 'B2', 'C1', 'C2') %}
+{% set is_advanced = level_code in ('B1', 'B2', 'C1') %}
 
 {% if text_content and text_content.is_listening_immersion %}
   {% set component_name = _('Аудирование') %}
@@ -2248,4 +2248,3 @@ document.addEventListener('DOMContentLoaded', function() {
 })();
 </script>
 {% endblock %}
-

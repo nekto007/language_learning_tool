@@ -492,8 +492,8 @@ def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     CEFR_ORDER = sa_case(
         (Book.level == 'A1', 1), (Book.level == 'A2', 2),
         (Book.level == 'B1', 3), (Book.level == 'B2', 4),
-        (Book.level == 'C1', 5), (Book.level == 'C2', 6),
-        else_=7,
+        (Book.level == 'C1', 5),
+        else_=6,
     )
 
     def _lesson_minutes_est(lesson_type: str | None) -> int:

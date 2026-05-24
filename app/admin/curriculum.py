@@ -13,7 +13,7 @@ from flask_babel import gettext as _, lazy_gettext as _l
 from flask_login import current_user
 from flask_wtf import FlaskForm
 from wtforms import IntegerField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Length, NumberRange, Optional
+from wtforms.validators import AnyOf, DataRequired, Length, NumberRange, Optional
 
 from app.admin.audit import log_admin_action
 from app.admin.main_routes import admin, admin_required
@@ -26,11 +26,24 @@ from app.words.models import CollectionWordLink, CollectionWords
 # Настройка логирования
 logger = logging.getLogger(__name__)
 
+ALLOWED_CEFR_LEVELS = ('A1', 'A2', 'B1', 'B2', 'C1')
+
 
 # Формы для управления программой обучения
 class CEFRLevelForm(FlaskForm):
     """Форма для создания/редактирования уровня CEFR"""
-    code = StringField(_l('Code'), validators=[DataRequired(), Length(min=2, max=2)])
+    code = StringField(
+        _l('Code'),
+        validators=[
+            DataRequired(),
+            Length(min=2, max=2),
+            AnyOf(
+                ALLOWED_CEFR_LEVELS,
+                message=_l('Разрешены только уровни: ') + ', '.join(ALLOWED_CEFR_LEVELS),
+            ),
+        ],
+        filters=[lambda v: v.strip().upper() if isinstance(v, str) else v],
+    )
     name = StringField(_l('Name'), validators=[DataRequired(), Length(max=100)])
     description = TextAreaField(_l('Description'), validators=[Optional()])
     order = IntegerField(_l('Order'), validators=[Optional(), NumberRange(min=0)], default=0)
@@ -187,8 +200,8 @@ def delete_level(level_id):
         return redirect(url_for('admin.level_list'))
 
     db.session.delete(level)
-    db.session.commit()
     log_admin_action(current_user.id, 'curriculum.level.delete', target_type='cefr_level', target_id=level_id)
+    db.session.commit()
 
     flash(_('Уровень успешно удален!'), 'success')
     return redirect(url_for('admin.level_list'))
@@ -278,8 +291,8 @@ def delete_module(module_id):
     module_title = module.title
 
     db.session.delete(module)
-    db.session.commit()
     log_admin_action(current_user.id, 'curriculum.module.delete', target_type='module', target_id=module_id)
+    db.session.commit()
 
     if lesson_count > 0:
         flash(_('Модуль "{}" и {} урок(ов) успешно удалены!').format(module_title, lesson_count), 'success')
@@ -374,8 +387,8 @@ def delete_lesson(lesson_id):
     LessonProgress.query.filter_by(lesson_id=lesson.id).delete()
 
     db.session.delete(lesson)
-    db.session.commit()
     log_admin_action(current_user.id, 'curriculum.lesson.delete', target_type='lesson', target_id=lesson_id)
+    db.session.commit()
 
     flash(_('Урок и все связанные данные успешно удалены!'), 'success')
     return redirect(url_for('admin.lesson_list', module_id=module_id))
@@ -721,8 +734,8 @@ def reset_progress(progress_id):
     progress.last_activity = datetime.now(UTC)
     progress.data = {}
 
-    db.session.commit()
     log_admin_action(current_user.id, 'curriculum.progress.reset', target_type='lesson_progress', target_id=progress_id)
+    db.session.commit()
 
     flash(_('Прогресс успешно сброшен!'), 'success')
     return redirect(url_for('admin.user_progress'))
@@ -736,8 +749,8 @@ def delete_progress(progress_id):
 
     # Удаляем запись о прогрессе
     db.session.delete(progress)
-    db.session.commit()
     log_admin_action(current_user.id, 'curriculum.progress.delete', target_type='lesson_progress', target_id=progress_id)
+    db.session.commit()
 
     flash(_('Запись о прогрессе успешно удалена!'), 'success')
     return redirect(url_for('admin.user_progress'))
@@ -846,7 +859,7 @@ def cultural_note_delete(note_id):
     note = CulturalNote.query.get_or_404(note_id)
     word_id = note.word_id
     db.session.delete(note)
-    db.session.commit()
     log_admin_action(current_user.id, 'delete_cultural_note', 'cultural_note', note_id)
+    db.session.commit()
     flash(_('Cultural note deleted.'), 'success')
     return redirect(url_for('admin.cultural_notes_list', word_id=word_id))

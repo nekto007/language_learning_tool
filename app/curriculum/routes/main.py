@@ -342,10 +342,11 @@ def learn_by_level(level_code):
     """Страница уровня: /learn/a1/, /learn/a2/ и т.д."""
     from app.curriculum.services.curriculum_cache_service import CurriculumCacheService
 
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+
     # Валидация и нормализация кода уровня
     level_code_upper = level_code.upper()
-    valid_levels = ['A0', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2']
-    if level_code_upper not in valid_levels:
+    if level_code_upper not in PUBLIC_CEFR_CODES:
         flash('Уровень не найден', 'error')
         return redirect(url_for('learn.learn_index'))
 

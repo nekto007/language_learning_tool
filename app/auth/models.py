@@ -28,7 +28,7 @@ class User(db.Model, UserMixin):
     active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     onboarding_completed = Column(Boolean, default=False, nullable=False, server_default='false')
-    onboarding_level = Column(String(4), nullable=True)  # CEFR level chosen during onboarding (A0-C2)
+    onboarding_level = Column(String(4), nullable=True)  # CEFR level chosen during onboarding (A1-C1)
     onboarding_focus = Column(String(100), nullable=True)  # Study focus chosen during onboarding
 
     # Referral system

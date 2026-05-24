@@ -43,7 +43,7 @@ def sample_words(db_session):
         ('dig in', 'приступить', 'B2', 'phrasal_verb'),
     ]:
         w = CollectionWords(
-            english_word=f'{eng}_{suffix}',
+            english_word=f'{eng}{suffix}',
             russian_word=rus,
             level=level,
             item_type=item_type,
@@ -283,7 +283,7 @@ class TestPublicWord:
     @pytest.mark.smoke
     def test_public_word_200(self, client, sample_words):
         word = sample_words[0]
-        slug = word.english_word.replace(' ', '-')
+        slug = word.english_word.replace(' ', '_')
         resp = client.get(f'/dictionary/{slug}')
         assert resp.status_code == 200
 
@@ -293,7 +293,7 @@ class TestPublicWord:
 
     def test_public_word_no_auth_required(self, client, sample_words):
         word = sample_words[0]
-        slug = word.english_word.replace(' ', '-')
+        slug = word.english_word.replace(' ', '_')
         resp = client.get(f'/dictionary/{slug}')
         assert resp.status_code == 200
 

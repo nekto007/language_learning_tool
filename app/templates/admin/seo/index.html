@@ -146,6 +146,11 @@
             <dl class="row mb-0">
                 <dt class="col-sm-3">URL в сайтмапе</dt>
                 <dd class="col-sm-9"><strong>{{ report.sitemap.url_count }}</strong></dd>
+                <dt class="col-sm-3">Проверено из sitemap</dt>
+                <dd class="col-sm-9">
+                    {{ report.sitemap_audited_count or 0 }}
+                    <span class="text-muted small">дополнительно к ключевым страницам, лимит {{ report.sitemap_audit_limit or 0 }}</span>
+                </dd>
                 <dt class="col-sm-3">Последнее изменение</dt>
                 <dd class="col-sm-9">{{ report.sitemap.newest_lastmod or '—' }}</dd>
             </dl>

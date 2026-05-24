@@ -157,7 +157,7 @@
                 </p>
             </div>
             
-            {% if notification.data.level_code != 'C2' %}
+            {% if notification.data.level_code != 'C1' %}
             <div class="next-steps">
                 <h3>🚀 Что дальше?</h3>
                 <p>
@@ -182,7 +182,7 @@
             {% endif %}
             
             <div style="text-align: center;">
-                {% if notification.data.level_code != 'C2' %}
+                {% if notification.data.level_code != 'C1' %}
                 <a href="{{ url_for('curriculum.index', _external=True) }}" class="button">
                     🚀 Начать следующий уровень
                 </a>

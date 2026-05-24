@@ -8,7 +8,7 @@
 <meta property="og:title" content="{{ word.english_word }} — перевод на русский | LLT English">
 <meta property="og:description" content="{{ meta_description | default('') }}">
 <meta property="og:type" content="article">
-<link rel="canonical" href="https://llt-english.com/dictionary/{{ word.english_word|lower|replace(' ', '-') }}">
+<link rel="canonical" href="https://llt-english.com/dictionary/{{ word.english_word|word_slug }}">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -19,7 +19,7 @@
     "@type": "DefinedTermSet",
     "name": "LLT English Dictionary"
   },
-  "url": "https://llt-english.com/dictionary/{{ word.english_word|lower|replace(' ', '-') }}"
+  "url": "https://llt-english.com/dictionary/{{ word.english_word|word_slug }}"
 }
 </script>
 {% endblock %}
@@ -181,6 +181,10 @@
     <span class="pubw-breadcrumb__sep">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </span>
+    <a href="{{ url_for('words.public_dictionary') }}">{{ _('Словарь') }}</a>
+    <span class="pubw-breadcrumb__sep">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
     <span class="pubw-breadcrumb__current">{{ word.english_word }}</span>
   </nav>
 
@@ -261,7 +265,7 @@
     </div>
     <div class="pubw-related-grid">
       {% for related in related_words %}
-      <a href="{{ url_for('words.public_word', word_slug=related.english_word|lower|replace(' ', '-')) }}" class="pubw-related">
+      <a href="{{ url_for('words.public_word', word_slug=related.english_word|word_slug) }}" class="pubw-related">
         <div class="pubw-related__en">{{ related.english_word }}</div>
         <div class="pubw-related__ru">{{ related.russian_word }}</div>
       </a>

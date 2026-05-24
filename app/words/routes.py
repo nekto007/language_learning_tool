@@ -3,7 +3,7 @@ import time
 import threading
 from datetime import datetime
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import case, func, or_
@@ -60,21 +60,129 @@ def _build_route_metadata(phases: list[dict], plan_completion: dict) -> dict:
     }
 
 words = Blueprint('words', __name__)
+PUBLIC_DICTIONARY_ALPHABET = tuple('abcdefghijklmnopqrstuvwxyz')
+
+
+def encode_word_slug(english_word: str) -> str:
+    """Reversible slug: spaces → '_', preserve hyphens (e.g. 'mother-in-law')."""
+    return (english_word or '').strip().lower().replace(' ', '_')
+
+
+def decode_word_slug(slug: str) -> str:
+    """Inverse of encode_word_slug: '_' → space, preserve hyphens."""
+    return (slug or '').strip().lower().replace('_', ' ')
+
+
+@words.app_template_filter('word_slug')
+def _word_slug_filter(value: str) -> str:
+    return encode_word_slug(value)
+
+
+def _public_dictionary_query():
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+
+    return CollectionWords.query.filter(
+        CollectionWords.item_type == 'word',
+        CollectionWords.level.in_(PUBLIC_CEFR_CODES),
+    )
+
+
+@words.route('/dictionary')
+@words.route('/dictionary/letter/<string:letter>')
+def public_dictionary(letter: str | None = None):
+    """Public dictionary index for SEO — no login required."""
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+
+    selected_letter = (letter or '').strip().lower()
+    if selected_letter and (
+        len(selected_letter) != 1 or selected_letter not in PUBLIC_DICTIONARY_ALPHABET
+    ):
+        abort(404)
+
+    search = request.args.get('q', '').strip()
+    selected_level = request.args.get('level', '').strip().upper()
+    if selected_level and selected_level not in PUBLIC_CEFR_CODES:
+        selected_level = ''
+
+    page = request.args.get('page', 1, type=int)
+    query = _public_dictionary_query()
+
+    if selected_letter:
+        query = query.filter(CollectionWords.english_word.ilike(f'{selected_letter}%'))
+
+    if selected_level:
+        query = query.filter(CollectionWords.level == selected_level)
+
+    if search:
+        search_term = f'%{search}%'
+        query = query.filter(or_(
+            CollectionWords.english_word.ilike(search_term),
+            CollectionWords.russian_word.ilike(search_term),
+        ))
+
+    words_page = query.order_by(
+        CollectionWords.frequency_rank.asc().nullslast(),
+        CollectionWords.english_word.asc(),
+    ).paginate(page=page, per_page=48, error_out=False)
+
+    level_counts = dict(
+        db.session.query(CollectionWords.level, func.count(CollectionWords.id))
+        .filter(
+            CollectionWords.item_type == 'word',
+            CollectionWords.level.in_(PUBLIC_CEFR_CODES),
+        )
+        .group_by(CollectionWords.level)
+        .all()
+    )
+
+    popular_words = _public_dictionary_query().order_by(
+        CollectionWords.frequency_rank.asc().nullslast(),
+        CollectionWords.english_word.asc(),
+    ).limit(12).all()
+
+    meta_description = (
+        'Англо-русский словарь LLT English: переводы, уровни CEFR, '
+        'примеры употребления и произношение английских слов.'
+    )
+
+    return render_template(
+        'words/public_dictionary.html',
+        words_page=words_page,
+        popular_words=popular_words,
+        levels=PUBLIC_CEFR_CODES,
+        level_counts=level_counts,
+        alphabet=PUBLIC_DICTIONARY_ALPHABET,
+        selected_letter=selected_letter,
+        selected_level=selected_level,
+        search=search,
+        meta_description=meta_description,
+        should_noindex=bool(search),
+    )
 
 
 @words.route('/dictionary/<path:word_slug>')
 def public_word(word_slug: str):
     """Public word page for SEO — no login required."""
-    from flask import abort
-
-    # Normalize slug back to word (hyphens → spaces)
-    search_term = word_slug.replace('-', ' ').strip().lower()
+    # Slug uses '_' for spaces; hyphens are preserved (e.g. 'mother-in-law').
+    search_term = decode_word_slug(word_slug)
 
     word = CollectionWords.query.filter(
         func.lower(CollectionWords.english_word) == search_term
     ).first()
 
     if not word:
+        # Legacy fallback: older slug format used '-' for spaces; if a hyphen
+        # was used as a space separator, try interpreting all hyphens as spaces.
+        legacy_term = word_slug.strip().lower().replace('-', ' ').replace('_', ' ')
+        if legacy_term != search_term:
+            word = CollectionWords.query.filter(
+                func.lower(CollectionWords.english_word) == legacy_term
+            ).first()
+        if not word:
+            abort(404)
+
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+    if word.level and word.level not in PUBLIC_CEFR_CODES:
         abort(404)
 
     # Related words (same level, limit 6)

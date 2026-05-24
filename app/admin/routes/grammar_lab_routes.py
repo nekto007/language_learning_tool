@@ -20,6 +20,8 @@ from app.grammar_lab.models import GrammarTopic, GrammarExercise
 grammar_lab_bp = Blueprint('grammar_lab_admin', __name__)
 logger = logging.getLogger(__name__)
 
+ALLOWED_LEVELS = ('A1', 'A2', 'B1', 'B2', 'C1')
+
 
 @grammar_lab_bp.route('/grammar-lab')
 @admin_required
@@ -34,7 +36,7 @@ def grammar_lab_index():
         'by_level': {}
     }
 
-    for level in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']:
+    for level in ['A1', 'A2', 'B1', 'B2', 'C1']:
         count = sum(1 for t in topics if t.level == level)
         stats['by_level'][level] = count
 
@@ -75,6 +77,9 @@ def create_topic():
             title = request.form.get('title', '').strip()
             title_ru = request.form.get('title_ru', '').strip()
             level = request.form.get('level', 'A1')
+            if level not in ALLOWED_LEVELS:
+                flash(f'Invalid level "{level}". Allowed: {", ".join(ALLOWED_LEVELS)}.', 'danger')
+                return render_template('admin/grammar_lab/topic_form.html', topic=None)
             order = int(request.form.get('order', 0))
             estimated_time = int(request.form.get('estimated_time', 15))
             difficulty = int(request.form.get('difficulty', 1))
@@ -126,7 +131,13 @@ def edit_topic(topic_id):
             topic.slug = request.form.get('slug', topic.slug).strip()
             topic.title = request.form.get('title', topic.title).strip()
             topic.title_ru = request.form.get('title_ru', topic.title_ru).strip()
-            topic.level = request.form.get('level', topic.level)
+            submitted_level = request.form.get('level', topic.level)
+            # Preserve legacy CEFR values (e.g. C2) when admin saves an unrelated
+            # edit without touching the level dropdown.
+            if submitted_level not in ALLOWED_LEVELS and submitted_level != topic.level:
+                flash(f'Invalid level "{submitted_level}". Allowed: {", ".join(ALLOWED_LEVELS)}.', 'danger')
+                return render_template('admin/grammar_lab/topic_form.html', topic=topic)
+            topic.level = submitted_level
             topic.order = int(request.form.get('order', topic.order))
             topic.estimated_time = int(request.form.get('estimated_time', topic.estimated_time))
             topic.difficulty = int(request.form.get('difficulty', topic.difficulty))
@@ -167,13 +178,13 @@ def delete_topic(topic_id):
     title = topic.title
 
     try:
+        db.session.delete(topic)
         log_admin_action(
             admin_id=current_user.id,
             action='delete_grammar_topic',
             target_type='GrammarTopic',
             target_id=topic_id,
         )
-        db.session.delete(topic)
         db.session.commit()
         flash(f'Topic "{title}" deleted successfully!', 'success')
     except Exception as e:
@@ -274,8 +285,8 @@ def delete_exercise(exercise_id):
 
     try:
         db.session.delete(exercise)
-        db.session.commit()
         log_admin_action(current_user.id, 'grammar_lab.delete_exercise', target_type='grammar_exercise', target_id=exercise_id)
+        db.session.commit()
         flash('Exercise deleted successfully!', 'success')
     except Exception as e:
         db.session.rollback()

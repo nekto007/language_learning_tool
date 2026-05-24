@@ -267,9 +267,8 @@
                                         'A2': 'success',
                                         'B1': 'info',
                                         'B2': 'info',
-                                        'C1': 'warning',
-                                        'C2': 'warning'
-                                    }[word.level] }}">{{ word.level }}</span>
+                                        'C1': 'warning'
+                                    }.get(word.level, 'secondary') }}">{{ word.level }}</span>
                                     {% else %}
                                     <span class="badge bg-secondary">{{ _('N/A') }}</span>
                                     {% endif %}

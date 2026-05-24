@@ -28,7 +28,6 @@ class TestBookCoursesDirectFunctions:
         assert get_difficulty_score('B1') == 5.0
         assert get_difficulty_score('B2') == 6.5
         assert get_difficulty_score('C1') == 8.0
-        assert get_difficulty_score('C2') == 9.5
         assert get_difficulty_score('UNKNOWN') == 5.0
         assert get_difficulty_score(None) == 5.0
 

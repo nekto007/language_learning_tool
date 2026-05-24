@@ -458,98 +458,91 @@ class TestLessonOrdering:
 class TestGetUserCurrentCEFRLevel:
     """Tests for get_user_current_cefr_level() in daily_plan/level_utils.py."""
 
-    def test_returns_a0_for_new_user_no_onboarding(self, app, db_session, test_user):
-        """New user with no progress and no onboarding_level returns 'A0'."""
+    def test_returns_a1_for_new_user_no_onboarding(self, app, db_session, test_user):
+        """New user with no progress and no onboarding_level falls back to 'A1'."""
         with app.app_context():
             from app.utils.db import db as _db
             result = get_user_current_cefr_level(test_user.id, _db)
-            assert result == 'A0'
+            assert result == 'A1'
 
     def test_returns_onboarding_level_when_no_progress(self, app, db_session, test_user):
-        """User with onboarding_level but no lesson progress returns onboarding level."""
+        """User with supported onboarding_level but no progress returns it."""
         with app.app_context():
             from app.utils.db import db as _db
 
-            # Create a known CEFR level and set user's onboarding_level
-            level_code = uuid.uuid4().hex[:2].upper()
-            level = CEFRLevel(code=level_code, name='Test Level', order=3)
+            level = CEFRLevel(code='B1', name='Intermediate', order=3)
             db_session.add(level)
-            test_user.onboarding_level = level_code
+            test_user.onboarding_level = 'B1'
             db_session.commit()
 
             result = get_user_current_cefr_level(test_user.id, _db)
-            assert result == level_code
+            assert result == 'B1'
 
-    def test_returns_progress_based_level_when_lessons_completed(self, app, db_session, test_user, test_level):
-        """Returns the highest CEFR level from completed lessons."""
+    def test_returns_progress_based_level_when_lessons_completed(self, app, db_session, test_user):
+        """Returns the highest supported CEFR level from completed lessons."""
         with app.app_context():
             from app.utils.db import db as _db
 
-            module = _make_module(db_session, test_level, number=60)
+            level = CEFRLevel(code='A2', name='Elementary', order=2)
+            db_session.add(level)
+            db_session.commit()
+            module = _make_module(db_session, level, number=60)
             lesson = _make_lesson(db_session, module, number=60)
             _complete_lesson(db_session, test_user, lesson)
 
             result = get_user_current_cefr_level(test_user.id, _db)
-            assert result == test_level.code
+            assert result == 'A2'
 
     def test_returns_higher_of_progress_vs_onboarding(self, app, db_session, test_user):
-        """Returns whichever level (progress vs onboarding) has higher CEFRLevel.order."""
+        """Onboarding wins when its order is higher than completed progress."""
         with app.app_context():
             from app.utils.db import db as _db
 
-            low_code = uuid.uuid4().hex[:2].upper()
-            high_code = uuid.uuid4().hex[:2].upper()
-            low_level = CEFRLevel(code=low_code, name='Low', order=1)
-            high_level = CEFRLevel(code=high_code, name='High', order=5)
+            low_level = CEFRLevel(code='A1', name='Beginner', order=1)
+            high_level = CEFRLevel(code='C1', name='Advanced', order=5)
             db_session.add_all([low_level, high_level])
             db_session.commit()
 
-            # User has completed a lesson at the low level
             module = _make_module(db_session, low_level, number=70)
             lesson = _make_lesson(db_session, module, number=70)
             _complete_lesson(db_session, test_user, lesson)
 
-            # User's onboarding_level is the high level
-            test_user.onboarding_level = high_code
+            test_user.onboarding_level = 'C1'
             db_session.commit()
 
             result = get_user_current_cefr_level(test_user.id, _db)
-            assert result == high_code
+            assert result == 'C1'
 
     def test_progress_wins_over_lower_onboarding(self, app, db_session, test_user):
-        """Progress-based level wins when it has a higher order than onboarding_level."""
+        """Progress-based level wins when its order exceeds onboarding's."""
         with app.app_context():
             from app.utils.db import db as _db
 
-            low_code = uuid.uuid4().hex[:2].upper()
-            high_code = uuid.uuid4().hex[:2].upper()
-            low_level = CEFRLevel(code=low_code, name='Low2', order=1)
-            high_level = CEFRLevel(code=high_code, name='High2', order=5)
+            low_level = CEFRLevel(code='A1', name='Beginner', order=1)
+            high_level = CEFRLevel(code='B2', name='Upper-Intermediate', order=4)
             db_session.add_all([low_level, high_level])
             db_session.commit()
 
-            # User completed a lesson at high level
             module = _make_module(db_session, high_level, number=80)
             lesson = _make_lesson(db_session, module, number=80)
             _complete_lesson(db_session, test_user, lesson)
 
-            # Onboarding level is lower
-            test_user.onboarding_level = low_code
+            test_user.onboarding_level = 'A1'
             db_session.commit()
 
             result = get_user_current_cefr_level(test_user.id, _db)
-            assert result == high_code
+            assert result == 'B2'
 
-    def test_nonexistent_onboarding_level_falls_back_to_a0(self, app, db_session, test_user):
-        """If onboarding_level references a non-existent CEFRLevel, falls back to 'A0'."""
+    def test_unsupported_onboarding_level_falls_back_to_a1(self, app, db_session, test_user):
+        """Onboarding level that is not a real CEFR code falls back to 'A1'."""
         with app.app_context():
             from app.utils.db import db as _db
 
-            test_user.onboarding_level = 'ZZ'  # does not exist in DB
+            test_user.onboarding_level = 'ZZ'  # no matching CEFRLevel row
             db_session.commit()
 
             result = get_user_current_cefr_level(test_user.id, _db)
-            assert result == 'A0'
+            assert result == 'A1'
 
 
 # ---------------------------------------------------------------------------

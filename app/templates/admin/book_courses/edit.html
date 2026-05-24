@@ -459,12 +459,15 @@ select.form-control {
                 <div class="form-group flex-1">
                     <label class="form-label" for="level">Уровень CEFR *</label>
                     <select class="form-control" id="level" name="level" required>
+                        {% set canonical_levels = ['A1', 'A2', 'B1', 'B2', 'C1'] %}
+                        {% if course.level and course.level not in canonical_levels %}
+                        <option value="{{ course.level }}" selected>{{ course.level }} (legacy)</option>
+                        {% endif %}
                         <option value="A1" {% if course.level == 'A1' %}selected{% endif %}>A1 - Начальный</option>
                         <option value="A2" {% if course.level == 'A2' %}selected{% endif %}>A2 - Элементарный</option>
                         <option value="B1" {% if course.level == 'B1' %}selected{% endif %}>B1 - Средний</option>
                         <option value="B2" {% if course.level == 'B2' %}selected{% endif %}>B2 - Выше среднего</option>
                         <option value="C1" {% if course.level == 'C1' %}selected{% endif %}>C1 - Продвинутый</option>
-                        <option value="C2" {% if course.level == 'C2' %}selected{% endif %}>C2 - Профессиональный</option>
                     </select>
                     <div class="form-hint">Влияет на размер уроков и словарь</div>
                 </div>

@@ -3,7 +3,7 @@
 Grammar Lab - Standalone grammar training module.
 
 Provides:
-- Grammar topics organized by CEFR level (A1-C2)
+- Grammar topics organized by CEFR level (A1-C1)
 - Multiple exercise types (fill_blank, multiple_choice, etc.)
 - SRS-based spaced repetition for grammar
 - Progress tracking and gamification

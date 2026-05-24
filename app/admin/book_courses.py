@@ -27,6 +27,8 @@ from app.admin.form import (
 
 logger = logging.getLogger(__name__)
 
+ALLOWED_LEVELS = ('A1', 'A2', 'B1', 'B2', 'C1')
+
 try:
     from app.curriculum.services.book_course_generator import BookCourseGenerator
 except ImportError:
@@ -38,7 +40,7 @@ def get_difficulty_score(level):
     """Get difficulty score based on CEFR level"""
     scores = {
         'A1': 2.0, 'A2': 3.5, 'B1': 5.0, 
-        'B2': 6.5, 'C1': 8.0, 'C2': 9.5
+        'B2': 6.5, 'C1': 8.0
     }
     return scores.get(level, 5.0)
 
@@ -165,6 +167,11 @@ def register_book_course_routes(admin_bp):
             course_title = request.form.get('course_title', '').strip()
             course_description = request.form.get('course_description', '').strip()
             level = request.form.get('level', 'B1')
+            if level not in ALLOWED_LEVELS:
+                return jsonify({
+                    'success': False,
+                    'error': f'Недопустимый уровень "{level}". Разрешены: {", ".join(ALLOWED_LEVELS)}.'
+                }), 400
             is_featured = request.form.get('is_featured') == 'on'
             auto_generate = request.form.get('auto_generate') == 'on'
 
@@ -346,7 +353,15 @@ def register_book_course_routes(admin_bp):
             # Update course data
             course.title = request.form.get('title', course.title).strip()
             course.description = request.form.get('description', course.description).strip()
-            course.level = request.form.get('level', course.level)
+            submitted_level = request.form.get('level', course.level)
+            # Preserve legacy CEFR values (e.g. C2) when admin saves an unrelated
+            # edit without touching the level dropdown.
+            if submitted_level not in ALLOWED_LEVELS and submitted_level != course.level:
+                return jsonify({
+                    'success': False,
+                    'error': f'Недопустимый уровень "{submitted_level}". Разрешены: {", ".join(ALLOWED_LEVELS)}.'
+                }), 400
+            course.level = submitted_level
             course.is_active = request.form.get('is_active') == 'on'
             course.is_featured = request.form.get('is_featured') == 'on'
             course.requires_prerequisites = request.form.get('requires_prerequisites') == 'on'
@@ -459,8 +474,14 @@ def register_book_course_routes(admin_bp):
                 course.is_active = False
                 # Use datetime.now(UTC) and convert to naive for DB compatibility
                 course.updated_at = datetime.now(UTC).replace(tzinfo=None)
+                log_admin_action(
+                    admin_id=current_user.id,
+                    action='deactivate_book_course',
+                    target_type='BookCourse',
+                    target_id=course_id,
+                )
                 db.session.commit()
-                
+
                 flash(f'Курс "{course.title}" деактивирован!', 'info')
                 return jsonify({
                     'success': True,
@@ -640,6 +661,20 @@ def register_book_course_routes(admin_bp):
                     'success': False,
                     'error': 'Генератор курсов недоступен'
                 }), 500
+
+            # Legacy CEFR values (e.g. C2) survive edits as metadata but the
+            # generator stack only understands ALLOWED_LEVELS — regenerating
+            # would silently downgrade to B1. Force admin to pick a supported
+            # level first.
+            if course.level not in ALLOWED_LEVELS:
+                return jsonify({
+                    'success': False,
+                    'error': (
+                        f'Курс имеет устаревший уровень "{course.level}". '
+                        f'Сначала выберите поддерживаемый уровень в форме редактирования '
+                        f'({", ".join(ALLOWED_LEVELS)}), затем запустите регенерацию.'
+                    )
+                }), 400
 
             logger.info(f"Regenerating course {course_id}: {course.title}")
 
@@ -846,19 +881,49 @@ def register_book_course_routes(admin_bp):
 
                 if operation == 'activate':
                     course.is_active = True
+                    log_admin_action(
+                        admin_id=current_user.id,
+                        action='activate_book_course',
+                        target_type='BookCourse',
+                        target_id=course.id,
+                    )
 
                 elif operation == 'deactivate':
                     course.is_active = False
+                    log_admin_action(
+                        admin_id=current_user.id,
+                        action='deactivate_book_course',
+                        target_type='BookCourse',
+                        target_id=course.id,
+                    )
 
                 elif operation == 'feature':
                     course.is_featured = True
+                    log_admin_action(
+                        admin_id=current_user.id,
+                        action='feature_book_course',
+                        target_type='BookCourse',
+                        target_id=course.id,
+                    )
 
                 elif operation == 'unfeature':
                     course.is_featured = False
+                    log_admin_action(
+                        admin_id=current_user.id,
+                        action='unfeature_book_course',
+                        target_type='BookCourse',
+                        target_id=course.id,
+                    )
 
                 elif operation == 'delete':
                     # Soft delete - deactivate instead
                     course.is_active = False
+                    log_admin_action(
+                        admin_id=current_user.id,
+                        action='deactivate_book_course',
+                        target_type='BookCourse',
+                        target_id=course.id,
+                    )
 
                 elif operation == 'delete_permanently':
                     # Hard delete - physically remove from database
@@ -1094,8 +1159,8 @@ def register_book_course_routes(admin_bp):
 
             # Delete the lesson
             db.session.delete(lesson)
-            db.session.commit()
             log_admin_action(current_user.id, 'book_course.delete_daily_lesson', target_type='daily_lesson', target_id=lesson_id)
+            db.session.commit()
 
             flash(f'Урок День {day_number} удален!', 'success')
             return jsonify({
@@ -1431,8 +1496,8 @@ def register_book_course_routes(admin_bp):
 
         try:
             db.session.delete(vocab)
-            db.session.commit()
             log_admin_action(current_user.id, 'book_course.remove_lesson_word', target_type='slice_vocabulary', target_id=vocab_id)
+            db.session.commit()
             return jsonify({'success': True})
         except Exception as e:
             logger.error(f"Error removing word {vocab_id} from lesson {lesson_id}: {str(e)}", exc_info=True)

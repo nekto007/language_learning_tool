@@ -26,7 +26,24 @@ def test_seo_audit_public_urls_use_courses_not_book_courses():
         '/curriculum/book-courses is login-required and should not be audited '
         'as a public SEO page'
     )
-    assert '/courses' in PUBLIC_URLS
+    assert '/courses/' in PUBLIC_URLS
+    assert '/dictionary' in PUBLIC_URLS
+
+
+@pytest.mark.smoke
+def test_seo_audit_excludes_login_required_learning_tools():
+    from app.admin.services.seo_audit_service import PUBLIC_URLS
+
+    assert '/books' not in PUBLIC_URLS
+    assert '/words' not in PUBLIC_URLS
+    assert '/study/collections' not in PUBLIC_URLS
+    assert '/study/topics' not in PUBLIC_URLS
+
+
+def test_seo_audit_rejects_old_cache_without_public_url_signature():
+    from app.admin.services.seo_audit_service import _cached_urls_match_current
+
+    assert _cached_urls_match_current({'pages': [{'url': '/courses/C2'}]}) is False
 
 
 # ── F-004: reset_request renders meta description + canonical ──

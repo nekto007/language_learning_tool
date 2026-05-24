@@ -35,7 +35,11 @@
                         <div class="col-md-3">
                             <label class="form-label">Level <span class="text-danger">*</span></label>
                             <select name="level" class="form-select" required>
-                                {% for lvl in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
+                                {% set canonical_levels = ['A1', 'A2', 'B1', 'B2', 'C1'] %}
+                                {% if topic and topic.level and topic.level not in canonical_levels %}
+                                <option value="{{ topic.level }}" selected>{{ topic.level }} (legacy)</option>
+                                {% endif %}
+                                {% for lvl in canonical_levels %}
                                 <option value="{{ lvl }}" {% if topic and topic.level == lvl %}selected{% endif %}>{{ lvl }}</option>
                                 {% endfor %}
                             </select>

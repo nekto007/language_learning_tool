@@ -1,4 +1,5 @@
 from flask import Response, current_app
+from sqlalchemy import func
 from xml.etree.ElementTree import Element, SubElement, tostring
 from . import seo_bp
 
@@ -32,6 +33,7 @@ def sitemap() -> Response:
         ('/', '1.0', 'weekly'),
         ('/register', '0.8', 'monthly'),
         ('/grammar-lab/topics', '0.9', 'weekly'),
+        ('/dictionary', '0.8', 'weekly'),
         ('/privacy', '0.3', 'yearly'),
     ]
     for base_url in site_urls:
@@ -43,20 +45,37 @@ def sitemap() -> Response:
 
     # Course catalog
     from app.curriculum.models import CEFRLevel
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
     for base_url in site_urls:
-        _add(urlset, base_url + '/courses', '0.8', 'weekly')
-        for level in CEFRLevel.query.order_by(CEFRLevel.order).all():
+        _add(urlset, base_url + '/courses/', '0.8', 'weekly')
+        levels = (
+            CEFRLevel.query
+            .filter(CEFRLevel.code.in_(PUBLIC_CEFR_CODES))
+            .order_by(CEFRLevel.order)
+            .all()
+        )
+        for level in levels:
             _add(urlset, f'{base_url}/courses/{level.code}', '0.7', 'weekly')
 
     # Grammar level listing pages
     from app.utils.db import db as _db
-    grammar_levels = _db.session.query(GrammarTopic.level).distinct().all()
+    grammar_levels = (
+        _db.session.query(GrammarTopic.level)
+        .filter(GrammarTopic.level.in_(PUBLIC_CEFR_CODES))
+        .distinct()
+        .all()
+    )
     for base_url in site_urls:
         for (lvl,) in grammar_levels:
             _add(urlset, f'{base_url}/grammar-lab/topics/{lvl.lower()}', '0.7', 'weekly')
 
     # Grammar topics
-    topics = GrammarTopic.query.order_by(GrammarTopic.level, GrammarTopic.order).all()
+    topics = (
+        GrammarTopic.query
+        .filter(GrammarTopic.level.in_(PUBLIC_CEFR_CODES))
+        .order_by(GrammarTopic.level, GrammarTopic.order)
+        .all()
+    )
     for base_url in site_urls:
         for topic in topics:
             url_el = SubElement(urlset, 'url')
@@ -71,6 +90,7 @@ def sitemap() -> Response:
     top_words = (
         CollectionWords.query
         .filter(CollectionWords.item_type == 'word')
+        .filter(CollectionWords.level.in_(PUBLIC_CEFR_CODES))
         .order_by(
             CollectionWords.frequency_rank.asc().nullslast(),
             CollectionWords.id.asc(),
@@ -78,10 +98,20 @@ def sitemap() -> Response:
         .limit(500)
         .all()
     )
+    letters = (
+        _db.session.query(func.lower(func.substr(CollectionWords.english_word, 1, 1)))
+        .filter(CollectionWords.item_type == 'word')
+        .filter(CollectionWords.level.in_(PUBLIC_CEFR_CODES))
+        .distinct()
+        .all()
+    )
+    from app.words.routes import PUBLIC_DICTIONARY_ALPHABET, encode_word_slug
     for base_url in site_urls:
+        for (letter,) in letters:
+            if letter and len(letter) == 1 and letter in PUBLIC_DICTIONARY_ALPHABET:
+                _add(urlset, f'{base_url}/dictionary/letter/{letter}', '0.5', 'weekly')
         for word in top_words:
-            slug = word.english_word.lower().replace(' ', '-')
-            _add(urlset, f'{base_url}/dictionary/{slug}', '0.6', 'monthly')
+            _add(urlset, f'{base_url}/dictionary/{encode_word_slug(word.english_word)}', '0.6', 'monthly')
 
     xml_bytes = b'<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(urlset, encoding='unicode').encode('utf-8')
     return Response(xml_bytes, mimetype='application/xml')

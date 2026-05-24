@@ -5,6 +5,7 @@
 import logging
 import re
 from typing import Optional
+from urllib.parse import urlparse
 from xml.etree import ElementTree
 
 from app.admin.utils.cache import get_cache, set_cache
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 SEO_AUDIT_CACHE_KEY = 'seo_audit_results'
 SEO_AUDIT_CACHE_TIMEOUT = 3600  # 1 hour
+SITEMAP_AUDIT_SAMPLE_LIMIT = 50
 
 # Key public URLs to audit — static HTML paths only.  Sitemap is audited
 # separately via `_fetch_sitemap_stats` so meta-tag coverage stays consistent.
@@ -24,24 +26,41 @@ PUBLIC_URLS = [
     '/login',
     '/grammar-lab/topics',
     '/grammar-lab/',
-    '/courses',
+    '/dictionary',
+    '/courses/',
     '/courses/A1',
     '/courses/A2',
     '/courses/B1',
     '/courses/B2',
     '/courses/C1',
-    '/courses/C2',
     '/privacy',
     '/grammar-lab/topics/a1',
     '/grammar-lab/topics/a2',
     '/grammar-lab/topics/b1',
     '/grammar-lab/topics/b2',
     '/grammar-lab/topics/c1',
-    '/grammar-lab/topics/c2',
     # POSTing /reset_password is rate-limited to 3/hour; the audit only
     # issues GET requests, which always render the form.
     '/reset_password',
 ]
+
+
+def _cached_urls_match_current(report: dict) -> bool:
+    """Return true only when cached report was built for the current URL list."""
+    if not isinstance(report, dict):
+        return False
+    return (
+        report.get('public_urls') == PUBLIC_URLS
+        and report.get('sitemap_audit_limit') == SITEMAP_AUDIT_SAMPLE_LIMIT
+    )
+
+
+def _path_from_sitemap_loc(loc: str) -> str:
+    parsed = urlparse(loc)
+    path = parsed.path or '/'
+    if parsed.query:
+        return f'{path}?{parsed.query}'
+    return path
 
 
 def _extract_title(html: str) -> Optional[str]:
@@ -111,7 +130,7 @@ def _audit_page(client, path: str) -> dict:
     }
 
     try:
-        response = client.get(path, follow_redirects=True)
+        response = client.get(path, follow_redirects=False)
         result['status_code'] = response.status_code
 
         if response.status_code != 200:
@@ -162,7 +181,7 @@ def _audit_page(client, path: str) -> dict:
 
 
 def _fetch_sitemap_stats(client) -> dict:
-    stats: dict = {'url_count': 0, 'newest_lastmod': None, 'error': None}
+    stats: dict = {'url_count': 0, 'newest_lastmod': None, 'error': None, 'paths': []}
     try:
         response = client.get('/sitemap.xml')
         if response.status_code != 200:
@@ -173,6 +192,19 @@ def _fetch_sitemap_stats(client) -> dict:
         ns = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
         urls = root.findall('sm:url', ns)
         stats['url_count'] = len(urls)
+        locs = [
+            url_el.findtext('sm:loc', namespaces=ns)
+            for url_el in urls
+        ]
+        seen_paths = set()
+        for loc in locs:
+            if not loc:
+                continue
+            path = _path_from_sitemap_loc(loc.strip())
+            if path in seen_paths:
+                continue
+            seen_paths.add(path)
+            stats['paths'].append(path)
 
         lastmods = [
             url_el.findtext('sm:lastmod', namespaces=ns)
@@ -187,10 +219,26 @@ def _fetch_sitemap_stats(client) -> dict:
     return stats
 
 
+def _build_audit_paths(sitemap_stats: dict) -> list[str]:
+    """Audit curated public pages plus a bounded sample from sitemap.xml."""
+    audit_paths = list(PUBLIC_URLS)
+    seen = set(audit_paths)
+    sitemap_added = 0
+    for path in sitemap_stats.get('paths') or []:
+        if path in seen:
+            continue
+        audit_paths.append(path)
+        seen.add(path)
+        sitemap_added += 1
+        if sitemap_added >= SITEMAP_AUDIT_SAMPLE_LIMIT:
+            break
+    return audit_paths
+
+
 def run_seo_audit(app) -> dict:
     """Run SEO audit on key public pages. Result is cached for 1 hour."""
     cached = get_cache(SEO_AUDIT_CACHE_KEY, timeout=SEO_AUDIT_CACHE_TIMEOUT)
-    if cached is not None:
+    if cached is not None and _cached_urls_match_current(cached):
         return cached
 
     # Push an isolated app context so nested test_client requests don't share
@@ -201,8 +249,9 @@ def run_seo_audit(app) -> dict:
     # missing" because the outer session never received the matching value.
     with app.app_context():
         with app.test_client() as client:
-            pages = [_audit_page(client, path) for path in PUBLIC_URLS]
             sitemap_stats = _fetch_sitemap_stats(client)
+            audit_paths = _build_audit_paths(sitemap_stats)
+            pages = [_audit_page(client, path) for path in audit_paths]
 
     fully_covered = sum(
         1 for p in pages
@@ -220,6 +269,9 @@ def run_seo_audit(app) -> dict:
         'fully_covered_count': fully_covered,
         'reachable_count': len(reachable),
         'total_pages': len(pages),
+        'public_urls': PUBLIC_URLS,
+        'sitemap_audited_count': max(0, len(pages) - len(PUBLIC_URLS)),
+        'sitemap_audit_limit': SITEMAP_AUDIT_SAMPLE_LIMIT,
     }
 
     set_cache(SEO_AUDIT_CACHE_KEY, report)

@@ -76,8 +76,8 @@ def delete_topic(topic_id):
     """Удаление темы"""
     topic = Topic.query.get_or_404(topic_id)
     db.session.delete(topic)
-    db.session.commit()
     log_admin_action(current_user.id, 'topic.delete', target_type='topic', target_id=topic_id)
+    db.session.commit()
 
     flash(_('Topic deleted successfully!'), 'success')
     return redirect(url_for('topic_admin.topic_list'))
@@ -180,7 +180,7 @@ def remove_word_from_topic(topic_id, word_id):
     topic_word = TopicWord.query.filter_by(topic_id=topic_id, word_id=word_id).first_or_404()
 
     db.session.delete(topic_word)
-    db.session.commit()
     log_admin_action(current_user.id, 'topic.remove_word', target_type='topic_word', target_id=topic_id)
+    db.session.commit()
 
     return jsonify({'success': True})

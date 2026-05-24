@@ -6,15 +6,15 @@ from app.curriculum.models import CEFRLevel, Module, Lessons
 
 @pytest.fixture
 def sample_level(db_session):
-    """Create a sample CEFR level with a module and lesson."""
+    """Create a sample CEFR level (within PUBLIC_CEFR_CODES) with a module and lesson."""
     suffix = uuid.uuid4().hex[:6]
-    code = f'X{suffix[:1].upper()}'
+    code = 'A1'
 
     level = CEFRLevel(
         code=code,
         name=f'Test Level {suffix}',
         description='A test level for courses',
-        order=99,
+        order=1,
     )
     db_session.add(level)
     db_session.flush()
@@ -86,13 +86,10 @@ class TestPublicLevelDetail:
         response = client.get('/courses/ZZ')
         assert response.status_code == 404
 
-    def test_known_cefr_level_without_db_row_returns_placeholder(self, client):
-        response = client.get('/courses/C2')
-        html = response.data.decode()
-        assert response.status_code == 200
-        assert 'C2' in html
-        assert 'noindex, follow' in html
-        assert 'Материалы уровня готовятся' in html
+    @pytest.mark.parametrize('level_code', ['A0', 'C2'])
+    def test_unsupported_public_levels_return_404(self, client, level_code):
+        response = client.get(f'/courses/{level_code}')
+        assert response.status_code == 404
 
     def test_level_has_og_tags(self, client, sample_level):
         response = client.get(f'/courses/{sample_level.code}')

@@ -15,17 +15,17 @@ import pytest
 def test_seo_audit_includes_course_level_pages():
     from app.admin.services.seo_audit_service import PUBLIC_URLS
 
-    for level in ('A1', 'A2', 'B1', 'B2', 'C1', 'C2'):
+    for level in ('A1', 'A2', 'B1', 'B2', 'C1'):
         assert f'/courses/{level}' in PUBLIC_URLS, (
             f'public catalog page for {level} must be SEO-audited'
         )
 
 
 @pytest.mark.smoke
-def test_seo_audit_includes_grammar_c2_topics():
+def test_seo_audit_includes_grammar_c1_topics():
     from app.admin.services.seo_audit_service import PUBLIC_URLS
 
-    assert '/grammar-lab/topics/c2' in PUBLIC_URLS
+    assert '/grammar-lab/topics/c1' in PUBLIC_URLS
 
 
 # ── F-008 / F-009: robots.txt disallows login-walled prefixes ──

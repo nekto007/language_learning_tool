@@ -54,7 +54,6 @@ class DailySliceGenerator:
         'B1': (400, 600),    # Range: 200-600 words
         'B2': (700, 800),    # Range: 600-800 words
         'C1': (900, 1000),   # Range: 800-1000 words
-        'C2': (1050, 1200),  # Range: 900-1200 words
     }
     WORDS_PER_LEVEL_DEFAULT = (400, 600)
 
@@ -174,7 +173,7 @@ class DailySliceGenerator:
         elif level in ['B1', 'B2']:
             schedule = self.LESSON_SCHEDULE_INTERMEDIATE  # 6-day cycle
             schedule_name = 'intermediate (6-day)'
-        else:  # C1, C2
+        else:  # C1
             schedule = self.LESSON_SCHEDULE_INTERMEDIATE
             schedule_name = 'advanced (6-day)'
 
@@ -1123,7 +1122,7 @@ class DailySliceGenerator:
             module: BookCourseModule instance
 
         Returns:
-            CEFR level string (A1, A2, B1, B2, C1, C2)
+            CEFR level string (A1, A2, B1, B2, C1)
         """
         # First check module's own difficulty level
         if module.difficulty_level:

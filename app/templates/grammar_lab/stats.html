@@ -193,7 +193,7 @@
 
     <div class="stats-section__body">
       <div class="levels-chart">
-        {% for level_code in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
+        {% for level_code in ['A1', 'A2', 'B1', 'B2', 'C1'] %}
         {% set level_data = stats.by_level.get(level_code, {}) %}
         {% if level_data.total|default(0) > 0 %}
         <div class="chart-row">

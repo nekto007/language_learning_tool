@@ -1380,7 +1380,7 @@
                     </td>
                     <td>
                         {% if word.level %}
-                        <span class="vocab-table__level {% if word.level in ['A1', 'A2'] %}vocab-table__level--a{% elif word.level in ['B1', 'B2'] %}vocab-table__level--b{% elif word.level in ['C1', 'C2'] %}vocab-table__level--c{% endif %}">{{ word.level }}</span>
+                        <span class="vocab-table__level {% if word.level in ['A1', 'A2'] %}vocab-table__level--a{% elif word.level in ['B1', 'B2'] %}vocab-table__level--b{% elif word.level == 'C1' %}vocab-table__level--c{% endif %}">{{ word.level }}</span>
                         {% else %}
                         <span style="color: var(--vocab-text-muted);">-</span>
                         {% endif %}
@@ -1455,7 +1455,7 @@
 
             <div class="vocab-mobile-card__meta">
                 {% if word.level %}
-                <span class="vocab-table__level {% if word.level in ['A1', 'A2'] %}vocab-table__level--a{% elif word.level in ['B1', 'B2'] %}vocab-table__level--b{% elif word.level in ['C1', 'C2'] %}vocab-table__level--c{% endif %}">{{ word.level }}</span>
+                <span class="vocab-table__level {% if word.level in ['A1', 'A2'] %}vocab-table__level--a{% elif word.level in ['B1', 'B2'] %}vocab-table__level--b{% elif word.level == 'C1' %}vocab-table__level--c{% endif %}">{{ word.level }}</span>
                 {% endif %}
 
                 {% if word.books %}

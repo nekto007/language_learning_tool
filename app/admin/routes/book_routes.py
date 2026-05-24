@@ -434,9 +434,9 @@ def cleanup_books():
                 removed_ids = [b.id for b in empty_books]
                 for book in empty_books:
                     db.session.delete(book)
-                db.session.commit()
                 for removed_id in removed_ids:
                     log_admin_action(current_user.id, 'book.cleanup_empty', target_type='book', target_id=removed_id)
+                db.session.commit()
                 results['details'].append(f"Удалено {count} книг без содержания")
 
             elif action == 'clean_temp_files':
@@ -450,6 +450,7 @@ def cleanup_books():
                         except Exception:
                             logger.exception("Failed to remove temp file: %s", filename)
                 log_admin_action(current_user.id, 'book.cleanup_temp_files', target_type='book')
+                db.session.commit()
                 results['details'].append(f"Удалено {removed_files} временных файлов")
 
             results['message'] = 'Очистка выполнена успешно'
@@ -476,7 +477,14 @@ def edit_book(book_id):
     if request.method == 'POST':
         book.title = request.form.get('title', book.title).strip()
         book.author = request.form.get('author', book.author).strip()
-        book.level = request.form.get('level', book.level)
+        submitted_level = request.form.get('level', book.level)
+        allowed_levels = (None, '', 'A1', 'A2', 'B1', 'B2', 'C1')
+        # Preserve legacy CEFR values (e.g. C2) when admin saves an unrelated
+        # edit without touching the level dropdown.
+        if submitted_level not in allowed_levels and submitted_level != book.level:
+            flash(f'Недопустимый уровень "{submitted_level}".', 'danger')
+            return render_template('admin/books/edit.html', book=book)
+        book.level = submitted_level
         book.summary = request.form.get('description', book.summary)
 
         db.session.commit()
@@ -500,8 +508,8 @@ def delete_book(book_id):
 
         # Delete the book
         db.session.delete(book)
-        db.session.commit()
         log_admin_action(current_user.id, 'book.delete', target_type='book', target_id=book_id)
+        db.session.commit()
 
         logger.info(f"Book deleted: {book_title} (ID: {book_id})")
 

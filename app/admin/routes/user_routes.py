@@ -17,6 +17,7 @@ from app.admin.audit import log_admin_action
 from app.admin.services import UserManagementService
 from app.admin.utils.decorators import admin_required
 from app.auth.models import User
+from app.utils.db import db
 
 # Создаем blueprint для user routes
 user_bp = Blueprint('user_admin', __name__)
@@ -69,6 +70,7 @@ def toggle_user_status(user_id):
         status = "активирован" if result['active'] else "деактивирован"
         action = 'user.activate' if result['active'] else 'user.deactivate'
         log_admin_action(current_user.id, action, target_type='user', target_id=user_id)
+        db.session.commit()
         flash(f'Пользователь {result["username"]} успешно {status}.', 'success')
     else:
         flash('Пользователь не найден.', 'danger')
@@ -86,6 +88,7 @@ def toggle_admin_status(user_id):
         user_after = User.query.get(user_id)
         action = 'user.grant_admin' if (user_after and user_after.is_admin) else 'user.revoke_admin'
         log_admin_action(current_user.id, action, target_type='user', target_id=user_id)
+        db.session.commit()
         flash(f'Права администратора успешно изменены: {message}', 'success')
     else:
         flash(message, 'danger')
@@ -103,6 +106,7 @@ def toggle_mission_plan(user_id):
         state = "включён" if result['use_mission_plan'] else "выключен"
         action = 'user.enable_mission_plan' if result['use_mission_plan'] else 'user.disable_mission_plan'
         log_admin_action(current_user.id, action, target_type='user', target_id=user_id)
+        db.session.commit()
         flash(f'Mission-based daily plan для {result["username"]} {state}.', 'success')
     else:
         flash('Пользователь не найден.', 'danger')

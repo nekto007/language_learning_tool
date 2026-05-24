@@ -18,7 +18,7 @@
             <a href="{{ url_for('grammar_lab_admin.topic_list') }}" class="btn btn-sm {% if not current_level %}btn-primary{% else %}btn-outline-primary{% endif %}">
                 All
             </a>
-            {% for level in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
+            {% for level in ['A1', 'A2', 'B1', 'B2', 'C1'] %}
             <a href="{{ url_for('grammar_lab_admin.topic_list', level=level) }}"
                class="btn btn-sm {% if current_level == level %}btn-primary{% else %}btn-outline-primary{% endif %}">
                 {{ level }}

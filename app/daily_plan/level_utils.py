@@ -30,7 +30,7 @@ def get_user_current_cefr_level(user_id: int, db: Any) -> str:
     - User.onboarding_level (set during onboarding survey)
 
     Returns the code of whichever level has the higher CEFRLevel.order.
-    Falls back to 'A0' when both are absent or unresolvable.
+    Falls back to 'A1' when both are absent or unresolvable.
     """
     from app.auth.models import User
     from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
@@ -70,4 +70,4 @@ def get_user_current_cefr_level(user_id: int, db: Any) -> str:
     if onboarding_code is not None:
         return onboarding_code
 
-    return "A0"
+    return "A1"

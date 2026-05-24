@@ -79,7 +79,7 @@
 - [x] исправить P1/P2 UX-проблемы из реестра: F-006/F-007 hardcoded share URLs → `url_for('landing.index', _external=True)`; AD-022 избыточный `@login_required`; AD-023 page clamp 1000. (Контраст/focus/alt — manual review, не выявлено пунктов в реестре)
 - [x] mobile-адаптивность ключевых страниц — manual test (skipped: G в реестре помечен как manual-only, требует браузера/devtools)
 - [x] удалить inline-стили (admin/activity/funnel.html, activity/index.html, audit/index.html → `.admin-funnel-*` / `.admin-activity-*` / `.admin-audit-*` классы в design-system.css). TPL-002..TPL-007 (base/dashboard/landing inline-стили) отложены как «требует масштабного рефакторинга»
-- [x] прогнать `run_seo_audit` ещё раз — `PUBLIC_URLS` расширен `/courses/{A1..C2}` + grammar c2; robots.txt дисэлоуит login-walled paths (F-002/F-003/F-008/F-009)
+- [x] прогнать `run_seo_audit` ещё раз — `PUBLIC_URLS` расширен `/courses/{A1..C1}` + grammar c1; robots.txt дисэлоуит login-walled paths (F-002/F-003/F-008/F-009)
 - [x] добавить шаблонные smoke-тесты в `tests/test_task4_ux_audit_fixes.py` (14 тестов)
 - [x] `pytest -m smoke` — зелёный (165 passed)
 

@@ -144,8 +144,8 @@ def quiz_deck_delete(deck_id):
     title = deck.title
 
     db.session.delete(deck)
-    db.session.commit()
     log_admin_action(current_user.id, 'quiz_deck.delete', target_type='quiz_deck', target_id=deck_id)
+    db.session.commit()
 
     # Check if AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
@@ -326,8 +326,8 @@ def quiz_deck_remove_word(deck_id, word_id):
     deck_word = QuizDeckWord.query.filter_by(deck_id=deck_id, id=word_id).first_or_404()
 
     db.session.delete(deck_word)
-    db.session.commit()
     log_admin_action(current_user.id, 'quiz_deck.remove_word', target_type='quiz_deck', target_id=deck_id)
+    db.session.commit()
 
     # Check if AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
@@ -352,8 +352,8 @@ def quiz_deck_reorder_words(deck_id):
         if word and word.deck_id == deck_id:
             word.order_index = index
 
-    db.session.commit()
     log_admin_action(current_user.id, 'quiz_deck.reorder_words', target_type='quiz_deck', target_id=deck_id)
+    db.session.commit()
 
     return jsonify({'success': True})
 

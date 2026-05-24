@@ -840,7 +840,7 @@ if __name__ == "__main__":
     parser.add_argument("book_id", type=int, help="Book ID")
     parser.add_argument("--title", help="Course title")
     parser.add_argument("--description", help="Course description")
-    parser.add_argument("--level", default="B1", help="Course level (A1-C2)")
+    parser.add_argument("--level", default="B1", help="Course level (A1-C1)")
     parser.add_argument("--schema", help="Path to block schema file")
 
     args = parser.parse_args()

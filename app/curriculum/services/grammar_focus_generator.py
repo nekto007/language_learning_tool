@@ -50,8 +50,7 @@ class GrammarFocusGenerator:
             'A2': [],
             'B1': [],
             'B2': [],
-            'C1': [],
-            'C2': []
+            'C1': []
         }
 
         pattern = os.path.join(MODULE_JSON_PATH, 'module_*.json')
@@ -101,7 +100,7 @@ class GrammarFocusGenerator:
         Get grammar content for a specific level.
 
         Args:
-            level: CEFR level (A1, A2, B1, B2, C1, C2)
+            level: CEFR level (A1, A2, B1, B2, C1)
             topic_index: Optional index to select specific topic (cycles through available)
 
         Returns:
