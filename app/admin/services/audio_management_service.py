@@ -139,15 +139,79 @@ class AudioManagementService:
         Returns:
             int: Количество обновленных записей
         """
+        from config.settings import COLLECTIONS_TABLE
+        from sqlalchemy import or_
+
         try:
-            from app.repository import DatabaseRepository
+            if table_name == COLLECTIONS_TABLE and column_name == 'english_word':
+                # ORM path: no commit inside — caller's db.session.commit() covers
+                # both this mutation and the AdminAuditLog row atomically.
+                words = CollectionWords.query.filter(
+                    or_(
+                        CollectionWords.get_download.is_(None),
+                        CollectionWords.get_download != 1,
+                    )
+                ).all()
 
-            # Обновляем статус загрузки
-            repo = DatabaseRepository()
-            updated_count = repo.update_download_status(table_name, column_name, media_folder)
+                updated_count = 0
+                for word in words:
+                    try:
+                        existing = word.listening or ''
+                        if (existing
+                                and not existing.startswith('http')
+                                and not existing.startswith('[sound:')):
+                            # The listening field is already a clean filename. Also try the
+                            # legacy name as a fallback: safe_audio_filename_for_word strips
+                            # punctuation (can't → cant), but the actual file may have been
+                            # produced by get_clean_audio_filename which keeps apostrophes.
+                            legacy_name = get_clean_audio_filename(word.english_word)
+                            candidates = list(dict.fromkeys(
+                                n for n in [existing, legacy_name] if n
+                            ))
+                            filename = next(
+                                (c for c in candidates
+                                 if os.path.isfile(os.path.join(media_folder, c))),
+                                None,
+                            )
+                            if not filename:
+                                continue
+                        else:
+                            safe_name = safe_audio_filename_for_word(word.english_word)
+                            if not safe_name:
+                                continue
+                            # Fall back to legacy format (keeps apostrophes/hyphens) so
+                            # existing files produced by get_clean_audio_filename are found.
+                            legacy_name = get_clean_audio_filename(word.english_word)
+                            candidates = list(dict.fromkeys(
+                                n for n in [safe_name, legacy_name] if n
+                            ))
+                            filename = next(
+                                (c for c in candidates
+                                 if os.path.isfile(os.path.join(media_folder, c))),
+                                None,
+                            )
+                            if not filename:
+                                continue
 
-            logger.info(f"Audio download status updated: {updated_count} records")
-            return updated_count
+                        full_path = os.path.join(media_folder, filename)
+                        if os.path.isfile(full_path):
+                            word.get_download = 1
+                            word.listening = filename
+                            updated_count += 1
+                    except Exception as e:
+                        logger.warning('Error checking audio for word id=%s: %s',
+                                       getattr(word, 'id', '?'), e)
+                        continue
+
+                logger.info('Audio download status updated (ORM): %d records', updated_count)
+                return updated_count
+            else:
+                # Legacy psycopg2 path for non-collection_words tables.
+                from app.repository import DatabaseRepository
+                repo = DatabaseRepository()
+                updated_count = repo.update_download_status(table_name, column_name, media_folder)
+                logger.info('Audio download status updated (psycopg2): %d records', updated_count)
+                return updated_count
 
         except Exception as e:
             logger.error(f"Error updating audio download status: {str(e)}")
@@ -498,6 +562,7 @@ class AudioManagementService:
 
             orphans = []
             total = 0
+            total_orphans = 0
             for entry in os.listdir(media_folder):
                 if not entry.lower().endswith('.mp3'):
                     continue
@@ -507,16 +572,16 @@ class AudioManagementService:
                 total += 1
                 if safe_name in referenced:
                     continue
-                orphans.append(safe_name)
-                if limit is not None and len(orphans) >= limit:
-                    break
+                total_orphans += 1
+                if limit is None or len(orphans) < limit:
+                    orphans.append(safe_name)
 
             orphans.sort()
             return {
                 'folder': media_folder,
                 'total_files': total,
                 'referenced': len(referenced),
-                'orphan_count': len(orphans),
+                'orphan_count': total_orphans,
                 'orphans': orphans,
             }
         except OSError as e:

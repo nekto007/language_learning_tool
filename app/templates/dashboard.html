@@ -1513,7 +1513,7 @@
                 {% set earned_in_cat = items|selectattr('earned')|list|length %}
                 {% set total_in_cat = items|length %}
                 {% set pct = (earned_in_cat / total_in_cat * 100)|round|int if total_in_cat > 0 else 0 %}
-                <div class="dash-achievements__cat">
+                <div class="dash-achievements__cat" title="{{ category }}: {{ earned_in_cat }} из {{ total_in_cat }} достижений">
                     <div class="dash-achievements__ring" style="--pct: {{ pct }}">
                         <svg viewBox="0 0 36 36" class="dash-achievements__svg">
                             <circle cx="18" cy="18" r="15.9" class="dash-achievements__track"></circle>
@@ -1525,6 +1525,34 @@
                 </div>
                 {% endfor %}
             </div>
+            {% set next_achievements = [] %}
+            {% for category, items in achievements_by_category.by_category.items() %}
+                {% for item in items if not item.earned %}
+                    {% if next_achievements.append(item) %}{% endif %}
+                {% endfor %}
+            {% endfor %}
+            {% if next_achievements %}
+            <div class="dash-achievements__next">
+                <h4 class="dash-achievements__next-title">Следующие цели</h4>
+                {% for item in next_achievements[:4] %}
+                {% set ach = item.achievement %}
+                {% set ach_desc = ach.description or 'Описание пока не добавлено' %}
+                <div class="dash-achievements__goal"
+                     tabindex="0"
+                     title="{{ ach.name }} — {{ ach_desc }}"
+                     aria-label="{{ ach.name }}. {{ ach_desc }}">
+                    <span class="dash-achievements__goal-icon" aria-hidden="true">{{ ach.icon or '🏆' }}</span>
+                    <span class="dash-achievements__goal-copy">
+                        <span class="dash-achievements__goal-name">{{ ach.name }}</span>
+                        <span class="dash-achievements__goal-desc">{{ ach_desc }}</span>
+                    </span>
+                    {% if ach.xp_reward %}
+                    <span class="dash-achievements__goal-xp">+{{ ach.xp_reward }} XP</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
             {% set recent_unlocks = [] %}
             {% for category, items in achievements_by_category.by_category.items() %}
                 {% for item in items if item.earned and item.earned_at %}
@@ -1535,9 +1563,17 @@
             <div class="dash-achievements__recent">
                 <h4 class="dash-achievements__recent-title">Недавние</h4>
                 {% for item in recent_unlocks|sort(attribute='earned_at', reverse=true)|batch(3)|first %}
-                <div class="dash-achievements__unlock">
-                    <span class="dash-achievements__unlock-icon">{{ item.achievement.icon if item.achievement.icon else '&#127942;' }}</span>
-                    <span class="dash-achievements__unlock-name">{{ item.achievement.name }}</span>
+                {% set ach = item.achievement %}
+                {% set ach_desc = ach.description or 'Описание пока не добавлено' %}
+                <div class="dash-achievements__unlock"
+                     tabindex="0"
+                     title="{{ ach.name }} — {{ ach_desc }}"
+                     aria-label="{{ ach.name }}. {{ ach_desc }}">
+                    <span class="dash-achievements__unlock-icon">{{ ach.icon or '🏆' }}</span>
+                    <span class="dash-achievements__unlock-copy">
+                        <span class="dash-achievements__unlock-name">{{ ach.name }}</span>
+                        <span class="dash-achievements__unlock-desc">{{ ach_desc }}</span>
+                    </span>
                 </div>
                 {% endfor %}
             </div>
@@ -2964,31 +3000,82 @@ a.dash-hero__cta:focus {
 
 .dash-achievements__recent {
     border-top: 1px solid var(--dash-border);
+    margin-top: 1rem;
     padding-top: 0.75rem;
 }
 
-.dash-achievements__recent-title {
+.dash-achievements__next {
+    border-top: 1px solid var(--dash-border);
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+}
+
+.dash-achievements__recent-title,
+.dash-achievements__next-title {
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--dash-text-muted);
     margin: 0 0 0.5rem;
 }
 
-.dash-achievements__unlock {
-    display: flex;
-    align-items: center;
+.dash-achievements__unlock,
+.dash-achievements__goal {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
     gap: 0.5rem;
-    padding: 0.25rem 0;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
     font-size: 0.85rem;
     color: var(--dash-text);
+    cursor: help;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.dash-achievements__unlock-icon {
+.dash-achievements__unlock:hover,
+.dash-achievements__unlock:focus-visible,
+.dash-achievements__goal:hover,
+.dash-achievements__goal:focus-visible {
+    background: var(--dash-surface-muted);
+    box-shadow: inset 0 0 0 1px var(--dash-border);
+    outline: none;
+}
+
+.dash-achievements__unlock-icon,
+.dash-achievements__goal-icon {
     font-size: 1.1rem;
+    line-height: 1.2;
 }
 
-.dash-achievements__unlock-name {
+.dash-achievements__unlock-copy,
+.dash-achievements__goal-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.dash-achievements__unlock-name,
+.dash-achievements__goal-name {
     font-weight: 500;
+}
+
+.dash-achievements__unlock-desc,
+.dash-achievements__goal-desc {
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: var(--dash-text-muted);
+}
+
+.dash-achievements__goal-xp {
+    align-self: center;
+    white-space: nowrap;
+    border-radius: 999px;
+    background: var(--dash-accent-soft);
+    color: var(--dash-accent);
+    padding: 0.125rem 0.375rem;
+    font-size: 0.68rem;
+    font-weight: 700;
 }
 
 @media (max-width: 640px) {

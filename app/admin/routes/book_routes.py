@@ -18,6 +18,7 @@ from werkzeug.utils import secure_filename
 from app.admin.audit import log_admin_action
 from app.admin.services.book_processing_service import (
     ALLOWED_BOOK_EXTENSIONS,
+    BOOK_TEMP_DIR,
     BookProcessingService,
     BookUploadError,
     save_uploaded_book_file,
@@ -91,7 +92,8 @@ def scrape_website():
     from flask_login import current_user
 
     try:
-        data = request.get_json()
+        _raw = request.get_json(silent=True)
+        data = _raw if isinstance(_raw, dict) else {}
         url = data.get('url')
         max_pages = data.get('max_pages', 10)
 
@@ -141,7 +143,12 @@ def update_book_statistics():
     from flask_login import current_user
 
     try:
-        data = request.get_json()
+        _raw = request.get_json(silent=True)
+        if request.is_json and _raw is None:
+            return jsonify({'success': False, 'error': 'invalid_request'}), 400
+        if _raw is not None and not isinstance(_raw, dict):
+            return jsonify({'success': False, 'error': 'invalid_request'}), 400
+        data = _raw or {}
         book_id = data.get('book_id')  # Опционально для конкретной книги
 
         if book_id:
@@ -445,7 +452,7 @@ def cleanup_books():
                 results['details'].append(f"Удалено {count} книг без содержания")
 
             elif action == 'clean_temp_files':
-                temp_dir = os.path.join('app', 'temp')
+                temp_dir = BOOK_TEMP_DIR
                 removed_files = 0
                 if os.path.exists(temp_dir):
                     for filename in os.listdir(temp_dir):

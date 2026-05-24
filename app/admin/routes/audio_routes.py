@@ -57,25 +57,36 @@ def audio_management():
 def update_audio_download_status():
     """Обновление статуса загрузки аудио файлов"""
     try:
-        from config.settings import MEDIA_FOLDER, COLLECTIONS_TABLE
+        from config.settings import MEDIA_FOLDER, COLLECTIONS_TABLE, PHRASAL_VERB_TABLE
+
+        _ALLOWED_AUDIO_TABLES = frozenset({COLLECTIONS_TABLE, PHRASAL_VERB_TABLE})
 
         # Получаем параметры
         data = request.get_json(silent=True) or {}
         table_name = data.get('table', COLLECTIONS_TABLE)
 
+        if table_name not in _ALLOWED_AUDIO_TABLES:
+            return jsonify({'success': False, 'error': 'invalid_table'}), 400
+
         # Определяем имя колонки в зависимости от таблицы
         column_name = "english_word" if table_name == COLLECTIONS_TABLE else "phrasal_verb"
+
+        # Write audit before calling the service. The phrasal_verb path uses a
+        # separate psycopg2 connection that commits independently of db.session,
+        # so the audit must be committed first to guarantee it is always recorded.
+        log_admin_action(
+            current_user.id,
+            'audio.update_download_status',
+            target_type='audio',
+        )
+        db.session.commit()
 
         # Обновляем статус загрузки через сервис
         updated_count = AudioManagementService.update_download_status(
             table_name, column_name, MEDIA_FOLDER
         )
 
-        log_admin_action(
-            current_user.id,
-            'audio.update_download_status',
-            target_type='audio',
-        )
+        # Commit ORM changes staged by the collection_words path; no-op for psycopg2 path.
         db.session.commit()
         logger.info(f"Audio download status updated by {current_user.username}: {updated_count} records")
 
@@ -100,17 +111,17 @@ def update_audio_download_status():
 def fix_audio_listening_fields():
     """Исправление полей прослушивания"""
     try:
+        log_admin_action(
+            current_user.id,
+            'audio.fix_listening_fields',
+            target_type='audio',
+        )
         success, fixed_count, message = AudioManagementService.fix_listening_fields()
 
         if success:
             # Очищаем кэш после изменения данных
             clear_admin_cache()
 
-            log_admin_action(
-                current_user.id,
-                'audio.fix_listening_fields',
-                target_type='audio',
-            )
             db.session.commit()
             logger.info(f"Audio listening fields fixed by {current_user.username}: {fixed_count} records")
 
@@ -143,15 +154,15 @@ def normalize_audio_listening_fields():
     Это позволяет использовать аудио напрямую в приложении.
     """
     try:
+        log_admin_action(
+            current_user.id,
+            'audio.normalize_listening_fields',
+            target_type='audio',
+        )
         success, fixed_count, message = AudioManagementService.normalize_listening_fields()
 
         if success:
             clear_admin_cache()
-            log_admin_action(
-                current_user.id,
-                'audio.normalize_listening_fields',
-                target_type='audio',
-            )
             db.session.commit()
             logger.info(f"Audio listening fields normalized by {current_user.username}: {fixed_count} records")
 
@@ -181,15 +192,15 @@ def normalize_audio_listening_fields():
 def fill_empty_listening_fields():
     """Заполнение пустых полей listening чистым именем файла"""
     try:
+        log_admin_action(
+            current_user.id,
+            'audio.fill_empty_listening',
+            target_type='audio',
+        )
         success, fixed_count, message = AudioManagementService.fill_empty_listening_fields()
 
         if success:
             clear_admin_cache()
-            log_admin_action(
-                current_user.id,
-                'audio.fill_empty_listening',
-                target_type='audio',
-            )
             db.session.commit()
             logger.info(f"Empty listening fields filled by {current_user.username}: {fixed_count} records")
 
@@ -218,6 +229,12 @@ def fill_empty_listening_fields():
 def fix_all_audio():
     """Комбинированная операция: обновить статус + исправить HTTP + нормализовать формат"""
     results: list[dict] = []
+
+    log_admin_action(
+        current_user.id,
+        'audio.fix_all',
+        target_type='audio',
+    )
 
     # 1. Обновить статус загрузки
     try:
@@ -263,11 +280,6 @@ def fix_all_audio():
         results.append({'step': 'Заполнение пустых listening', 'success': False, 'error': str(e)})
 
     clear_admin_cache()
-    log_admin_action(
-        current_user.id,
-        'audio.fix_all',
-        target_type='audio',
-    )
     db.session.commit()
 
     all_success = all(r['success'] for r in results)

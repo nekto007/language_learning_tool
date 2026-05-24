@@ -112,6 +112,7 @@ class TestUpdateAudioDownloadStatus:
     @patch('app.admin.routes.audio_routes.AudioManagementService.update_download_status')
     @patch('config.settings.MEDIA_FOLDER', '/media')
     @patch('config.settings.COLLECTIONS_TABLE', 'collection_words')
+    @patch('config.settings.PHRASAL_VERB_TABLE', 'phrasal_verb')
     def test_update_download_status_phrasal_verbs(self, mock_update, admin_client, mock_admin_user):
         """Test update status with phrasal verbs table"""
         # Setup mock
@@ -120,7 +121,7 @@ class TestUpdateAudioDownloadStatus:
         # Execute
         response = admin_client.post(
             '/admin/audio/update-download-status',
-            json={'table': 'phrasal_verbs'}
+            json={'table': 'phrasal_verb'}
         )
 
         # Assert

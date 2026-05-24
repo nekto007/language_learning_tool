@@ -172,7 +172,7 @@ class TestAudioRoutesRateLimitPresence:
            patch('app.admin.routes.audio_routes.clear_admin_cache'):
             r = admin_client.post(
                 '/admin/audio/update-download-status',
-                json={'table': 'words'},
+                json={},
             )
         assert r.status_code == 200
 

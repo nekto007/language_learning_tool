@@ -151,6 +151,45 @@ class TestCards:
 
         assert response.status_code == 200
 
+    def test_linear_plan_cards_reset_attempts_before_requeue(
+        self, authenticated_client, user_words, user_card_directions, study_settings, db_session,
+    ):
+        """A new linear-plan SRS page session must not inherit stale attempt counts."""
+        from app.srs.constants import CardState
+
+        now = datetime.now(timezone.utc)
+        direction = user_card_directions[0]
+        direction.state = CardState.LEARNING.value
+        direction.step_index = 1
+        direction.session_attempts = 2
+        direction.first_reviewed = now - timedelta(days=1)
+        direction.next_review = now - timedelta(minutes=1)
+        direction.user_word.status = 'learning'
+        db_session.commit()
+
+        response = authenticated_client.get(
+            '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
+        )
+
+        assert response.status_code == 200
+        db_session.refresh(direction)
+        assert direction.session_attempts == 0
+
+        response = authenticated_client.post('/study/api/update-study-item', json={
+            'word_id': direction.user_word.word_id,
+            'direction': direction.direction,
+            'quality': 1,
+            'is_new': False,
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert data['state'] == CardState.LEARNING.value
+        assert data['session_attempts'] == 1
+        assert data['is_buried'] is False
+        assert data['requeue_position'] is not None
+
     def test_cards_daily_limit_reached(self, authenticated_client, study_settings, db_session):
         """Test cards page when daily limit is reached"""
         study_settings.new_words_per_day = 0

@@ -32,7 +32,9 @@ ALLOWED_BOOK_EXTENSIONS = frozenset({'txt', 'fb2', 'epub', 'pdf', 'docx'})
 MAX_BOOK_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
 
 # Public so callers can resolve uploads (and so tests can monkey-patch a tmp dir).
-BOOK_TEMP_DIR = os.path.join('app', 'temp')
+# Absolute path derived from this file's location so it is cwd-independent.
+_SVC_DIR = os.path.dirname(os.path.abspath(__file__))  # app/admin/services
+BOOK_TEMP_DIR = os.path.normpath(os.path.join(_SVC_DIR, '..', '..', 'temp'))
 
 
 class BookUploadError(ValueError):

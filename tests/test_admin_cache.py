@@ -258,9 +258,10 @@ class TestClearCacheByPrefix:
             clear_cache_by_prefix('user_')
 
             mock_logger.info.assert_called_once()
-            call_args = mock_logger.info.call_args[0][0]
-            assert 'Cleared 2 cache entries' in call_args
-            assert "prefix 'user_'" in call_args
+            args = mock_logger.info.call_args[0]
+            # logger.info(fmt, count, prefix) — check args, not formatted string
+            assert args[1] == 2
+            assert args[2] == 'user_'
 
     def test_handles_empty_cache(self):
         """Test handles empty cache gracefully"""
