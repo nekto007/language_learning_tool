@@ -84,9 +84,9 @@
 **Files:**
 - Modify: `app/admin/routes/user_routes.py`, `app/admin/main_routes.py`
 
-- [ ] аудит `request.args.get('next')` / `redirect(url)` — везде через `get_safe_redirect_url`
-- [ ] тест `tests/admin/test_redirect_safety.py` (external `?next=https://evil` блокируется)
-- [ ] прогнать тесты
+- [x] аудит `request.args.get('next')` / `redirect(url)` — везде через `get_safe_redirect_url`
+- [x] тест `tests/admin/test_redirect_safety.py` (external `?next=https://evil` блокируется)
+- [x] прогнать тесты
 
 ### Task 7: Рефакторинг main_routes.py (1435 LOC) — выделение sub-blueprints
 
