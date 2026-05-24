@@ -248,11 +248,11 @@
 **Files:**
 - Modify: `app/templates/admin/base.html`, `app/templates/admin/components.html`, все sub-шаблоны
 
-- [ ] проверить наличие breadcrumbs, единый header, flash messages, кнопки `.btn--loading`
-- [ ] добавить empty states + skeleton loaders где есть async load
-- [ ] проверить responsive (узкие колонки таблиц)
-- [ ] smoke-тест рендера ключевых шаблонов в `tests/admin/test_templates_smoke.py`
-- [ ] прогнать тесты
+- [x] проверить наличие breadcrumbs, единый header, flash messages, кнопки `.btn--loading`
+- [x] добавить empty states + skeleton loaders где есть async load
+- [x] проверить responsive (узкие колонки таблиц)
+- [x] smoke-тест рендера ключевых шаблонов в `tests/admin/test_templates_smoke.py`
+- [x] прогнать тесты
 
 ### Task 23: Accessibility (WCAG) для админки
 

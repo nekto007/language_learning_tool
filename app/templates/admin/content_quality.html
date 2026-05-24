@@ -1,6 +1,14 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import breadcrumb %}
 
 {% block title %}Качество контента{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Dashboard', url_for('dashboard_admin.dashboard')),
+    ('Качество контента', '')
+]) }}
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">

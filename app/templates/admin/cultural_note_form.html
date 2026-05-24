@@ -1,6 +1,15 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import breadcrumb %}
 
 {% block title %}{% if note %}Изменить заметку{% else %}Добавить заметку{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Dashboard', url_for('dashboard_admin.dashboard')),
+    ('Культурные заметки', url_for('admin.cultural_notes_list')),
+    ('Редактировать' if note else 'Добавить', '')
+]) }}
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">

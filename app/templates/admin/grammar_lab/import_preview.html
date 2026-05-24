@@ -1,6 +1,15 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import breadcrumb %}
 
 {% block title %}Импорт грамматики из модулей{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Dashboard', url_for('dashboard_admin.dashboard')),
+    ('Grammar Lab', url_for('grammar_lab_admin.grammar_lab_index')),
+    ('Импорт из модулей', '')
+]) }}
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
