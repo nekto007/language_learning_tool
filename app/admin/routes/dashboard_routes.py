@@ -407,7 +407,7 @@ def get_srs_health_metrics() -> dict:
 
     words_new = word_map.get('new', 0)
     words_learning = word_map.get('learning', 0) + word_map.get('relearning', 0)
-    words_review = word_map.get('review', 0) - mastered_words
+    words_review = max(0, word_map.get('review', 0) - mastered_words)
     words_mastered = mastered_words
     words_total = words_new + words_learning + words_review + words_mastered
 
@@ -424,7 +424,7 @@ def get_srs_health_metrics() -> dict:
 
     grammar_new = grammar_map.get('new', 0)
     grammar_learning = grammar_map.get('learning', 0) + grammar_map.get('relearning', 0)
-    grammar_review = grammar_map.get('review', 0) - mastered_grammar
+    grammar_review = max(0, grammar_map.get('review', 0) - mastered_grammar)
     grammar_mastered = mastered_grammar
     grammar_total = grammar_new + grammar_learning + grammar_review + grammar_mastered
 
@@ -623,7 +623,7 @@ def get_content_quality() -> dict:
     """Content quality metrics: low pass rate lessons, zero completions, grammar topics without exercises."""
     from app.grammar_lab.models import GrammarExercise, GrammarTopic
 
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    thirty_days_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
 
     lesson_stats_rows = db.session.query(
         LessonAttempt.lesson_id,
@@ -696,7 +696,6 @@ def get_content_quality_detail() -> dict:
         func.count(LessonFeedback.id).label('feedback_count'),
     ).group_by(LessonFeedback.lesson_id).all()
     avg_rating_by_lesson: dict[int, float] = {r.lesson_id: float(r.avg_rating) for r in feedback_rows}
-    feedback_count_by_lesson: dict[int, int] = {r.lesson_id: r.feedback_count for r in feedback_rows}
 
     completed_ids: set[int] = set(
         row[0] for row in db.session.query(distinct(LessonProgress.lesson_id))

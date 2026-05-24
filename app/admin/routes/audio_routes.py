@@ -235,12 +235,6 @@ def fix_all_audio():
     """Комбинированная операция: обновить статус + исправить HTTP + нормализовать формат"""
     results: list[dict] = []
 
-    log_admin_action(
-        current_user.id,
-        'audio.fix_all',
-        target_type='audio',
-    )
-
     # 1. Обновить статус загрузки
     try:
         from config.settings import MEDIA_FOLDER, COLLECTIONS_TABLE
@@ -285,9 +279,10 @@ def fix_all_audio():
         results.append({'step': 'Заполнение пустых listening', 'success': False, 'error': str(e)})
 
     clear_admin_cache()
-    db.session.commit()
-
     all_success = all(r['success'] for r in results)
+    if any(r['success'] for r in results):
+        log_admin_action(current_user.id, 'audio.fix_all', target_type='audio')
+    db.session.commit()
     return jsonify({
         'success': all_success,
         'results': results

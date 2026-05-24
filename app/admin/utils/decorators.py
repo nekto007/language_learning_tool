@@ -106,6 +106,7 @@ def admin_audit_required(
                             target_type=target_type,
                             target_id=target_id,
                         )
+                        db.session.commit()
                 return resp
             except Exception:
                 logger.exception('admin_audit_required failed to stage log for action=%s', action)
