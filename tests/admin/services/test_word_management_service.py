@@ -601,7 +601,7 @@ class TestImportTranslations:
         assert updated == 1
         assert added == 0
         assert mock_word.russian_word == 'тест'
-        mock_db.session.commit.assert_called_once()
+        mock_db.session.flush.assert_called_once()
 
     @patch('app.admin.services.word_management_service.Topic')
     @patch('app.admin.services.word_management_service.logger')
@@ -671,7 +671,7 @@ class TestImportTranslations:
         assert updated == 0
         assert added == 1
         mock_db.session.add.assert_called_once()
-        mock_db.session.commit.assert_called_once()
+        mock_db.session.flush.assert_called_once()
 
     @patch('app.admin.services.word_management_service.logger')
     @patch('app.admin.services.word_management_service.db')
@@ -727,7 +727,7 @@ class TestImportTranslations:
 
         mock_words.query.filter_by.return_value.first.return_value = None
         mock_db.session.add.return_value = None
-        mock_db.session.commit.side_effect = SAIntegrityError(
+        mock_db.session.flush.side_effect = SAIntegrityError(
             statement='INSERT', params={}, orig=Exception('unique constraint')
         )
         mock_db.session.rollback.return_value = None
@@ -755,7 +755,7 @@ class TestImportTranslations:
         from sqlalchemy.exc import IntegrityError as SAIntegrityError
 
         mock_db.session.add.return_value = None
-        mock_db.session.commit.side_effect = SAIntegrityError(
+        mock_db.session.flush.side_effect = SAIntegrityError(
             statement='INSERT', params={}, orig=Exception('unique constraint')
         )
         mock_db.session.rollback.return_value = None

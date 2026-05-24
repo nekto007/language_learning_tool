@@ -765,7 +765,7 @@ class WordManagementService:
                     )
                     added_count += 1
 
-            db.session.commit()
+            db.session.flush()
 
             logger.info(f"Translations imported: {updated_count} updated, {added_count} added")
             return updated_count, added_count
@@ -921,7 +921,7 @@ class WordManagementService:
                         word.item_type = 'phrasal_verb'
                         updated_count += 1
 
-            db.session.commit()
+            db.session.flush()
 
             logger.info(
                 f"Phrasal verbs imported: {added_count} added, {updated_count} updated"

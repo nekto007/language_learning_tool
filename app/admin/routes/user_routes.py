@@ -16,7 +16,7 @@ from sqlalchemy import desc
 from app.admin.audit import log_admin_action
 from app.admin.services import UserManagementService
 from app.admin.utils.decorators import admin_required
-from app.admin.utils.request_validators import get_int_arg
+from app.admin.utils.request_validators import escape_like, get_int_arg
 from app.auth.models import User
 from app.utils.db import db
 
@@ -28,10 +28,6 @@ logger = logging.getLogger(__name__)
 
 MAX_USERS_PER_PAGE = 100
 
-
-def _escape_like(term: str) -> str:
-    """Escape SQL LIKE wildcards so user-supplied text is matched literally."""
-    return term.replace('\\', '\\\\').replace('%', r'\%').replace('_', r'\_')
 
 
 @user_bp.route('/users')
@@ -46,7 +42,7 @@ def users():
     query = User.query
 
     if search:
-        like_pattern = f'%{_escape_like(search)}%'
+        like_pattern = f'%{escape_like(search)}%'
         query = query.filter(
             User.username.ilike(like_pattern, escape='\\') |
             User.email.ilike(like_pattern, escape='\\')

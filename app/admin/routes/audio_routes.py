@@ -95,6 +95,7 @@ def update_audio_download_status():
 
 @audio_bp.route('/audio/fix-listening-fields', methods=['POST'])
 @admin_required
+@limiter.limit("3 per minute")
 @handle_admin_errors(return_json=True)
 def fix_audio_listening_fields():
     """Исправление полей прослушивания"""
@@ -134,6 +135,7 @@ def fix_audio_listening_fields():
 
 @audio_bp.route('/audio/normalize-listening-fields', methods=['POST'])
 @admin_required
+@limiter.limit("3 per minute")
 @handle_admin_errors(return_json=True)
 def normalize_audio_listening_fields():
     """
@@ -174,6 +176,7 @@ def normalize_audio_listening_fields():
 
 @audio_bp.route('/audio/fill-empty-listening', methods=['POST'])
 @admin_required
+@limiter.limit("3 per minute")
 @handle_admin_errors(return_json=True)
 def fill_empty_listening_fields():
     """Заполнение пустых полей listening чистым именем файла"""

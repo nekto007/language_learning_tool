@@ -16,6 +16,7 @@ from app.study.models import UserWord
 from app.curriculum.models import LessonProgress
 from app.modules.models import UserModule
 from app.admin.audit import log_admin_action
+from app.admin.utils.request_validators import escape_like
 
 
 class UserManagementService:
@@ -230,10 +231,11 @@ class UserManagementService:
         )
 
         if search:
+            like_pattern = f'%{escape_like(search)}%'
             query = query.filter(
                 db.or_(
-                    User.username.ilike(f'%{search}%'),
-                    User.email.ilike(f'%{search}%'),
+                    User.username.ilike(like_pattern, escape='\\'),
+                    User.email.ilike(like_pattern, escape='\\'),
                 )
             )
 

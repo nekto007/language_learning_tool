@@ -21,7 +21,7 @@ class TestGetDashboardStatistics:
             stats = get_dashboard_statistics()
 
         expected_keys = {
-            'total_users', 'active_users', 'new_users', 'active_recently',
+            'total_users', 'active_users', 'new_users', 'logins_last_7d',
             'total_books', 'total_readings', 'words_total', 'words_with_audio',
             'total_lessons', 'active_lessons'
         }
@@ -68,7 +68,7 @@ class TestGetDashboardStatistics:
         assert stats['total_users'] == 3
         assert stats['active_users'] == 2  # u1 and u3
         assert stats['new_users'] >= 2  # u1 and u3 created within 7 days
-        assert stats['active_recently'] >= 2  # u1 and u3 logged in within 7 days
+        assert stats['logins_last_7d'] >= 2  # u1 and u3 logged in within 7 days
 
 
 class TestGetDailyActivityData:

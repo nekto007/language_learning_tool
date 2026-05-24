@@ -14,6 +14,7 @@ from sqlalchemy.orm import joinedload
 
 from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
+from app.admin.utils.request_validators import escape_like
 from app.utils.db import db
 from app.words.forms import CollectionForm
 from app.words.models import Collection, CollectionWordLink, CollectionWords, Topic, TopicWord
@@ -102,8 +103,8 @@ def collection_list():
     )
 
     if search:
-        like_term = f"%{search}%"
-        query = query.filter(Collection.name.ilike(like_term))
+        like_term = f"%{escape_like(search)}%"
+        query = query.filter(Collection.name.ilike(like_term, escape='\\'))
 
     if topic_filter:
         try:

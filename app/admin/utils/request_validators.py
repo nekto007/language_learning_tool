@@ -71,3 +71,8 @@ def get_choice_arg(
             description=f"Invalid value for '{name}': {raw!r}. Allowed: {allowed}",
         )
     return raw
+
+
+def escape_like(term: str) -> str:
+    """Escape SQL LIKE wildcards so user-supplied text is matched literally."""
+    return term.replace('\\', '\\\\').replace('%', r'\%').replace('_', r'\_')

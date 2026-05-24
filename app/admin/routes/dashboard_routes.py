@@ -178,12 +178,12 @@ def _count_active_users_in_range(start_date, end_date) -> int:
 @cache_result('dashboard_stats', timeout=180)
 def get_dashboard_statistics():
     """Получает статистику для дашборда с кэшированием"""
-    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    week_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=7)
 
     total_users = User.query.count()
     active_users = User.query.filter_by(active=True).count()
     new_users = User.query.filter(User.created_at >= week_ago).count()
-    active_recently = User.query.filter(User.last_login >= week_ago).count()
+    logins_last_7d = User.query.filter(User.last_login >= week_ago).count()
 
     try:
         total_books = db.session.query(func.count(Book.id)).scalar() or 0
@@ -213,7 +213,7 @@ def get_dashboard_statistics():
         'total_users': total_users,
         'active_users': active_users,
         'new_users': new_users,
-        'active_recently': active_recently,
+        'logins_last_7d': logins_last_7d,
         'total_books': total_books,
         'total_readings': total_readings,
         'words_total': words_total,
