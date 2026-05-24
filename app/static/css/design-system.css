@@ -4809,6 +4809,20 @@ body.dark-theme #translationPopup {
     background: rgba(255, 255, 255, 0.03);
 }
 
+.admin-sidebar .nav-section-title {
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+}
+
+.nav-section-title:focus-visible {
+    outline: 2px solid var(--primary-400);
+    outline-offset: -2px;
+    color: var(--gray-200);
+    background: rgba(255, 255, 255, 0.06);
+}
+
 .admin-sidebar .nav-link {
     display: flex;
     align-items: center;
@@ -4826,6 +4840,13 @@ body.dark-theme #translationPopup {
 .admin-sidebar .nav-link:hover {
     color: var(--text-inverse);
     background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-sidebar .nav-link:focus-visible {
+    outline: 2px solid var(--primary-400);
+    outline-offset: -2px;
+    color: var(--text-inverse);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .admin-sidebar .nav-link.active {
@@ -5052,6 +5073,12 @@ body.dark-theme #translationPopup {
     color: var(--text-secondary);
     cursor: pointer;
     margin-right: var(--space-4);
+    border-radius: var(--radius-sm);
+}
+
+.sidebar-toggle:focus-visible {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
 }
 
 /* Sidebar Overlay for Mobile */
@@ -10830,13 +10857,16 @@ textarea:focus-visible,
 
 /* Navbar Logo */
 .navbar-logo {
+    width: 32px;
     height: 32px;
     margin-right: 8px;
+    object-fit: contain;
 }
 
 /* Navbar Mobile Responsive */
 @media (max-width: 576px) {
     .navbar-logo {
+        width: 24px;
         height: 24px;
         margin-right: 6px;
     }
@@ -11412,6 +11442,13 @@ footer .col-md-4 {
 .nav-section-title:hover {
     color: var(--gray-600);
     background: var(--gray-50);
+}
+
+button.nav-section-title {
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
 }
 
 .nav-section-chevron {

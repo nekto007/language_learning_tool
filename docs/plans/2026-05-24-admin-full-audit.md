@@ -259,10 +259,10 @@
 **Files:**
 - Modify: `app/templates/admin/base.html`, `app/templates/admin/**/*.html`
 
-- [ ] aria-labels на иконки/sort headers, focus-visible, контраст цветов
-- [ ] keyboard navigation для drop-down/dialog
-- [ ] тесты `tests/admin/test_accessibility.py` (smoke-проверка наличия aria-атрибутов в ключевых страницах)
-- [ ] прогнать тесты
+- [x] aria-labels на иконки/sort headers, focus-visible, контраст цветов
+- [x] keyboard navigation для drop-down/dialog
+- [x] тесты `tests/admin/test_accessibility.py` (smoke-проверка наличия aria-атрибутов в ключевых страницах)
+- [x] прогнать тесты
 
 ### Task 24: Observability — структурированные логи
 
