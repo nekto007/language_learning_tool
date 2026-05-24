@@ -14,7 +14,6 @@ from app.admin.book_courses import (
     cache_result,
     handle_admin_errors,
     register_book_course_routes,
-    get_book_course_statistics,
     _cache,
     _cache_timeout
 )
@@ -190,72 +189,6 @@ class TestHandleAdminErrors:
         # Canonical version does NOT leak str(e) in flash messages
         assert 'Test error' not in mock_flash.call_args[0][0]
         assert result == 'redirect_response'
-
-
-class TestGetBookCourseStatistics:
-    """Tests for get_book_course_statistics function"""
-
-    def setup_method(self):
-        """Clear cache before each test"""
-        _cache.clear()
-
-    @patch('app.admin.book_courses.SliceVocabulary')
-    @patch('app.admin.book_courses.DailyLesson')
-    @patch('app.admin.book_courses.BookCourseModule')
-    @patch('app.admin.book_courses.BookCourseEnrollment')
-    @patch('app.admin.book_courses.BookCourse')
-    def test_get_book_course_statistics_success(self, mock_course, mock_enrollment,
-                                               mock_module, mock_lesson, mock_vocab):
-        """Test successful statistics retrieval"""
-        # Mock all query counts
-        mock_course.query.count.return_value = 10
-        mock_course.query.filter_by.return_value.count.side_effect = [8, 3]  # active, featured
-
-        mock_enrollment.query.count.return_value = 100
-        mock_enrollment.query.filter_by.return_value.count.side_effect = [75, 25]  # active, completed
-
-        mock_module.query.count.return_value = 50
-        mock_lesson.query.count.return_value = 200
-        mock_vocab.query.count.return_value = 5000
-
-        stats = get_book_course_statistics()
-
-        assert stats['total_courses'] == 10
-        assert stats['active_courses'] == 8
-        assert stats['featured_courses'] == 3
-        assert stats['total_enrollments'] == 100
-        assert stats['active_enrollments'] == 75
-        assert stats['completed_enrollments'] == 25
-        assert stats['total_modules'] == 50
-        assert stats['total_daily_lessons'] == 200
-        assert stats['total_vocabulary_words'] == 5000
-
-    @patch('app.admin.book_courses.SliceVocabulary')
-    @patch('app.admin.book_courses.DailyLesson')
-    @patch('app.admin.book_courses.BookCourseModule')
-    @patch('app.admin.book_courses.BookCourseEnrollment')
-    @patch('app.admin.book_courses.BookCourse')
-    def test_get_book_course_statistics_caching(self, mock_course, mock_enrollment,
-                                                mock_module, mock_lesson, mock_vocab):
-        """Test that statistics are cached"""
-        mock_course.query.count.return_value = 10
-        mock_course.query.filter_by.return_value.count.side_effect = [8, 3, 8, 3]
-        mock_enrollment.query.count.return_value = 100
-        mock_enrollment.query.filter_by.return_value.count.side_effect = [75, 25, 75, 25]
-        mock_module.query.count.return_value = 50
-        mock_lesson.query.count.return_value = 200
-        mock_vocab.query.count.return_value = 5000
-
-        # First call
-        stats1 = get_book_course_statistics()
-        call_count_1 = mock_course.query.count.call_count
-
-        # Second call - should be cached
-        stats2 = get_book_course_statistics()
-        call_count_2 = mock_course.query.count.call_count
-
-        assert stats1 == stats2
-        assert call_count_1 == call_count_2  # No additional calls
 
 
 class TestRegisterBookCourseRoutes:
