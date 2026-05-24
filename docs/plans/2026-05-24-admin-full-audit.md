@@ -73,11 +73,11 @@
 **Files:**
 - Modify: `app/admin/routes/{user,word,book,topic}_routes.py`, `app/admin/services/*.py`
 
-- [ ] grep сырых строковых конкатенаций в SQL (`text(f"...")`), заменить на bindparam/SQLAlchemy
-- [ ] аудит шаблонов на `|safe`, `{% autoescape false %}` — обосновать или убрать
-- [ ] валидация query-params: integer/enum cast через `validate_enum` и `int(...)` с try/except
-- [ ] тесты `tests/admin/test_input_validation.py` — невалидные params → 400
-- [ ] прогнать тесты
+- [x] grep сырых строковых конкатенаций в SQL (`text(f"...")`), заменить на bindparam/SQLAlchemy
+- [x] аудит шаблонов на `|safe`, `{% autoescape false %}` — обосновать или убрать
+- [x] валидация query-params: integer/enum cast через `validate_enum` и `int(...)` с try/except
+- [x] тесты `tests/admin/test_input_validation.py` — невалидные params → 400
+- [x] прогнать тесты
 
 ### Task 6: Redirect safety + open-redirect в админке
 

@@ -16,7 +16,9 @@ from app.admin.utils.cache import clear_admin_cache
 from app.utils.db import db
 from app.admin.utils.export_helpers import export_words_csv, export_words_json, export_words_txt
 from app.admin.utils.import_helpers import delete_import_data, load_import_data, save_import_data
+from app.admin.utils.request_validators import get_choice_arg, get_enum_arg, get_int_arg
 from app.auth.models import User
+from app.utils.validators import WordStatus
 
 # Создаем blueprint для word routes
 word_bp = Blueprint('word_admin', __name__)
@@ -100,9 +102,9 @@ def bulk_status_update():
 @admin_required
 def export_words():
     """Экспорт слов по различным критериям"""
-    status = request.args.get('status')
-    format_type = request.args.get('format', 'json')  # json, csv, txt
-    user_id = request.args.get('user_id', type=int)
+    status = get_enum_arg('status', WordStatus)
+    format_type = get_choice_arg('format', ('json', 'csv', 'txt'), default='json')
+    user_id = get_int_arg('user_id', min_val=1)
 
     try:
         words = WordManagementService.get_words_for_export(status, user_id)
@@ -111,11 +113,8 @@ def export_words():
             return export_words_json(words, status)
         elif format_type == 'csv':
             return export_words_csv(words, status)
-        elif format_type == 'txt':
+        else:  # 'txt' — only remaining choice (validated above)
             return export_words_txt(words, status)
-        else:
-            flash('Неподдерживаемый формат экспорта', 'danger')
-            return redirect(url_for('word_admin.word_management'))
 
     except Exception as e:
         logger.error(f"Error exporting words: {str(e)}")

@@ -16,6 +16,7 @@ from sqlalchemy import desc
 from app.admin.audit import log_admin_action
 from app.admin.services import UserManagementService
 from app.admin.utils.decorators import admin_required
+from app.admin.utils.request_validators import get_int_arg
 from app.auth.models import User
 from app.utils.db import db
 
@@ -29,8 +30,9 @@ logger = logging.getLogger(__name__)
 @admin_required
 def users():
     """Управление пользователями"""
-    page = request.args.get('page', 1, type=int)
-    per_page = min(request.args.get('per_page', 20, type=int), 50)
+    page = get_int_arg('page', default=1, min_val=1)
+    per_page_raw = get_int_arg('per_page', default=20, min_val=1)
+    per_page = min(per_page_raw, 50)
     search = request.args.get('search', '')
 
     # Build query with search
