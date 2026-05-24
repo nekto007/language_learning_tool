@@ -288,10 +288,10 @@
 **Files:**
 - Modify: `app/admin/utils/cache.py`
 
-- [ ] аудит TTL, ключей, per-worker vs shared (см. SEO audit cache замечание)
-- [ ] явный invalidate-button с audit-log
-- [ ] тесты `tests/admin/test_cache.py`
-- [ ] прогнать тесты
+- [x] аудит TTL, ключей, per-worker vs shared (см. SEO audit cache замечание)
+- [x] явный invalidate-button с audit-log
+- [x] тесты `tests/admin/test_cache.py`
+- [x] прогнать тесты
 
 ### Task 27: Удаление мёртвого кода и duplicate-файлов
 

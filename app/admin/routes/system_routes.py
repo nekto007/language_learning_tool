@@ -12,7 +12,7 @@ from flask_login import current_user
 from app.admin.audit import log_admin_action
 from app.admin.services.system_service import SystemService
 from app.admin.utils.decorators import admin_required
-from app.admin.utils.cache import clear_admin_cache
+from app.admin.utils.cache import clear_admin_cache, clear_cache_by_prefix, get_cache_stats
 from app.curriculum.rate_limiter import rate_limit
 from app.utils.db import db
 
@@ -60,6 +60,34 @@ def clear_cache():
     return redirect(url_for('system_admin.system'))
 
 
+@system_bp.route('/system/cache-stats')
+@admin_required
+def cache_stats():
+    """JSON snapshot of the current worker's in-memory cache."""
+    return jsonify(get_cache_stats())
+
+
+@system_bp.route('/system/clear-cache-prefix', methods=['POST'])
+@admin_required
+@rate_limit(limit=20, window=60, per='user')
+def clear_cache_prefix():
+    """Clear cache entries matching a given prefix."""
+    prefix = (request.form.get('prefix') or '').strip()
+    if not prefix:
+        flash('Префикс не указан — операция отменена.', 'warning')
+        return redirect(url_for('system_admin.system'))
+
+    removed = clear_cache_by_prefix(prefix)
+    log_admin_action(current_user.id, 'system.clear_cache_prefix', target_type=prefix)
+    db.session.commit()
+    flash(f'Удалено {removed} записей кэша с префиксом «{prefix}»', 'success')
+    logger.info(
+        "Cache prefix '%s' cleared by admin_id=%s (%d entries)",
+        prefix, current_user.id, removed,
+    )
+    return redirect(url_for('system_admin.system'))
+
+
 @system_bp.route('/system')
 @admin_required
 def system():
@@ -76,6 +104,7 @@ def system():
         db_stats=info['db_stats'],
         app_info=info['app_info'],
         clear_cache_confirm=CLEAR_CACHE_CONFIRM,
+        cache_stats=get_cache_stats(),
     )
 
 

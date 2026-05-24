@@ -92,14 +92,33 @@ def clear_admin_cache():
     logger.info("Admin cache cleared")
 
 
-def clear_cache_by_prefix(prefix):
-    """
-    Очищает кэш по префиксу ключа
-
-    Args:
-        prefix: Префикс ключей для очистки
-    """
+def clear_cache_by_prefix(prefix: str) -> int:
+    """Очищает кэш по префиксу ключа. Возвращает количество удалённых записей."""
     keys_to_delete = [key for key in _cache.keys() if key.startswith(prefix)]
     for key in keys_to_delete:
         del _cache[key]
-    logger.info(f"Cleared {len(keys_to_delete)} cache entries with prefix '{prefix}'")
+    logger.info("Cleared %d cache entries with prefix '%s'", len(keys_to_delete), prefix)
+    return len(keys_to_delete)
+
+
+def get_cache_stats() -> dict:
+    """Returns a snapshot of current cache state for observability.
+
+    Note: This is a per-worker in-memory cache. Each gunicorn worker maintains
+    its own independent cache instance. Cross-worker invalidation is handled via
+    the SiteSettings versioning mechanism (see seo_audit_service.py).
+    """
+    now = datetime.now(timezone.utc)
+    entries = [
+        {'key': k, 'age_seconds': round((now - ts).total_seconds())}
+        for k, (_, ts) in _cache.items()
+    ]
+    return {
+        'size': len(_cache),
+        'max_size': MAX_CACHE_SIZE,
+        'entries': entries,
+        'note': (
+            'Per-worker in-memory cache. Each gunicorn worker has its own '
+            'independent instance. Cross-worker invalidation uses SiteSettings versioning.'
+        ),
+    }
