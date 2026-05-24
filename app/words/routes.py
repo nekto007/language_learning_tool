@@ -3,7 +3,7 @@ import time
 import threading
 from datetime import datetime
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import case, func, or_
@@ -60,21 +60,129 @@ def _build_route_metadata(phases: list[dict], plan_completion: dict) -> dict:
     }
 
 words = Blueprint('words', __name__)
+PUBLIC_DICTIONARY_ALPHABET = tuple('abcdefghijklmnopqrstuvwxyz')
+
+
+def encode_word_slug(english_word: str) -> str:
+    """Reversible slug: spaces → '_', preserve hyphens (e.g. 'mother-in-law')."""
+    return (english_word or '').strip().lower().replace(' ', '_')
+
+
+def decode_word_slug(slug: str) -> str:
+    """Inverse of encode_word_slug: '_' → space, preserve hyphens."""
+    return (slug or '').strip().lower().replace('_', ' ')
+
+
+@words.app_template_filter('word_slug')
+def _word_slug_filter(value: str) -> str:
+    return encode_word_slug(value)
+
+
+def _public_dictionary_query():
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+
+    return CollectionWords.query.filter(
+        CollectionWords.item_type == 'word',
+        CollectionWords.level.in_(PUBLIC_CEFR_CODES),
+    )
+
+
+@words.route('/dictionary')
+@words.route('/dictionary/letter/<string:letter>')
+def public_dictionary(letter: str | None = None):
+    """Public dictionary index for SEO — no login required."""
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+
+    selected_letter = (letter or '').strip().lower()
+    if selected_letter and (
+        len(selected_letter) != 1 or selected_letter not in PUBLIC_DICTIONARY_ALPHABET
+    ):
+        abort(404)
+
+    search = request.args.get('q', '').strip()
+    selected_level = request.args.get('level', '').strip().upper()
+    if selected_level and selected_level not in PUBLIC_CEFR_CODES:
+        selected_level = ''
+
+    page = request.args.get('page', 1, type=int)
+    query = _public_dictionary_query()
+
+    if selected_letter:
+        query = query.filter(CollectionWords.english_word.ilike(f'{selected_letter}%'))
+
+    if selected_level:
+        query = query.filter(CollectionWords.level == selected_level)
+
+    if search:
+        search_term = f'%{search}%'
+        query = query.filter(or_(
+            CollectionWords.english_word.ilike(search_term),
+            CollectionWords.russian_word.ilike(search_term),
+        ))
+
+    words_page = query.order_by(
+        CollectionWords.frequency_rank.asc().nullslast(),
+        CollectionWords.english_word.asc(),
+    ).paginate(page=page, per_page=48, error_out=False)
+
+    level_counts = dict(
+        db.session.query(CollectionWords.level, func.count(CollectionWords.id))
+        .filter(
+            CollectionWords.item_type == 'word',
+            CollectionWords.level.in_(PUBLIC_CEFR_CODES),
+        )
+        .group_by(CollectionWords.level)
+        .all()
+    )
+
+    popular_words = _public_dictionary_query().order_by(
+        CollectionWords.frequency_rank.asc().nullslast(),
+        CollectionWords.english_word.asc(),
+    ).limit(12).all()
+
+    meta_description = (
+        'Англо-русский словарь LLT English: переводы, уровни CEFR, '
+        'примеры употребления и произношение английских слов.'
+    )
+
+    return render_template(
+        'words/public_dictionary.html',
+        words_page=words_page,
+        popular_words=popular_words,
+        levels=PUBLIC_CEFR_CODES,
+        level_counts=level_counts,
+        alphabet=PUBLIC_DICTIONARY_ALPHABET,
+        selected_letter=selected_letter,
+        selected_level=selected_level,
+        search=search,
+        meta_description=meta_description,
+        should_noindex=bool(search),
+    )
 
 
 @words.route('/dictionary/<path:word_slug>')
 def public_word(word_slug: str):
     """Public word page for SEO — no login required."""
-    from flask import abort
-
-    # Normalize slug back to word (hyphens → spaces)
-    search_term = word_slug.replace('-', ' ').strip().lower()
+    # Slug uses '_' for spaces; hyphens are preserved (e.g. 'mother-in-law').
+    search_term = decode_word_slug(word_slug)
 
     word = CollectionWords.query.filter(
         func.lower(CollectionWords.english_word) == search_term
     ).first()
 
     if not word:
+        # Legacy fallback: older slug format used '-' for spaces; if a hyphen
+        # was used as a space separator, try interpreting all hyphens as spaces.
+        legacy_term = word_slug.strip().lower().replace('-', ' ').replace('_', ' ')
+        if legacy_term != search_term:
+            word = CollectionWords.query.filter(
+                func.lower(CollectionWords.english_word) == legacy_term
+            ).first()
+        if not word:
+            abort(404)
+
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+    if word.level and word.level not in PUBLIC_CEFR_CODES:
         abort(404)
 
     # Related words (same level, limit 6)
@@ -749,6 +857,87 @@ def _build_week_rhythm(user_id: int, tz: str) -> dict:
     return {'days': days, 'summary': summary}
 
 
+def _build_day_secured_banner(linear_plan, plan_completion, streak):
+    """Compute the day-secured banner payload for linear-plan users.
+
+    Returns None unless `?day_secured=1` is set, the user has
+    `use_linear_plan=True`, and a DailyPlanLog row for today carries a
+    non-null secured_at. On any internal error returns None — the banner
+    is best-effort and must never break the dashboard.
+    """
+    if not linear_plan:
+        return None
+    if request.args.get('day_secured') != '1':
+        return None
+    if not bool(getattr(current_user, 'use_linear_plan', False)):
+        return None
+    try:
+        from app.daily_plan.models import DailyPlanLog
+        from app.achievements.xp_service import get_today_xp
+        import pytz as _pytz_banner
+        _tz_banner_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
+        try:
+            _tz_banner = _pytz_banner.timezone(_tz_banner_name)
+        except Exception:
+            _tz_banner = _pytz_banner.timezone(DEFAULT_TIMEZONE)
+        _banner_today = datetime.now(_tz_banner).date()
+        _log = DailyPlanLog.query.filter_by(
+            user_id=current_user.id, plan_date=_banner_today
+        ).first()
+        if not _log or _log.secured_at is None:
+            return None
+        _baseline = linear_plan.get('baseline_slots') or []
+        _slots_total = len(_baseline)
+        _slots_done = sum(
+            1 for s in _baseline
+            if s.get('completed') or (plan_completion or {}).get(s.get('kind', ''), False)
+        )
+        banner = {
+            'today_xp': int(get_today_xp(current_user.id, _banner_today) or 0),
+            'streak': int(streak or 0),
+            'slots_done': _slots_done,
+            'slots_total': _slots_total,
+        }
+
+        def _build_next_step_for_banner():
+            from app.daily_plan.next_step import get_next_best_step
+            steps = get_next_best_step(current_user.id, db)
+            if not steps:
+                return None
+            top = steps[0]
+            data = top.data or {}
+            url = None
+            if top.kind == 'lesson' and data.get('lesson_id'):
+                url = f"/learn/{int(data['lesson_id'])}/?from=linear_plan&slot=curriculum"
+            elif top.kind == 'srs':
+                url = '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
+            elif top.kind == 'reading' and data.get('book_id'):
+                url = f"/read/{int(data['book_id'])}?from=linear_plan&slot=book"
+            elif top.kind == 'grammar' and data.get('topic_id'):
+                url = f"/grammar-lab/practice/topic/{int(data['topic_id'])}"
+            elif top.kind == 'vocab':
+                url = '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
+            return {
+                'kind': top.kind,
+                'reason': top.reason,
+                'estimated_minutes': top.estimated_minutes,
+                'url': url,
+            }
+
+        next_best = _safe_widget_call(
+            'day_secured_next_step',
+            _build_next_step_for_banner,
+            default=None,
+        )
+        if next_best:
+            banner['next_step'] = next_best
+        banner['tomorrow_preview'] = linear_plan.get('tomorrow_preview')
+        return banner
+    except Exception:
+        logger.warning("day_secured_banner build failed", exc_info=True)
+        return None
+
+
 def _render_unified_dashboard(tz: str):
     """Render the two-column dashboard for unified-plan users.
 
@@ -1016,6 +1205,8 @@ def _render_path_dashboard(tz: str):
 
     week_rhythm = _build_week_rhythm(current_user.id, tz)
 
+    day_secured_banner = _build_day_secured_banner(linear_plan, plan_completion, streak)
+
     return render_template(
         'words/dashboard_path.html',
         dashboard_path=dashboard_path,
@@ -1024,6 +1215,7 @@ def _render_path_dashboard(tz: str):
         focus=focus,
         week_rhythm=week_rhythm,
         challenge_card=challenge_card,
+        day_secured_banner=day_secured_banner,
     )
 
 
@@ -1094,7 +1286,8 @@ def dashboard():
 
     # Yesterday summary
     from app.telegram.queries import get_yesterday_summary
-    yesterday_summary = get_yesterday_summary(current_user.id, tz=tz)
+    yesterday_summary = _safe_widget_call(
+        'yesterday_summary', get_yesterday_summary, current_user.id, tz=tz, default={})
 
     # === PLAN COMPLETION & STREAK ===
     from app.achievements.streak_service import compute_plan_steps, process_streak_on_activity
@@ -1222,7 +1415,8 @@ def dashboard():
 
     # === WEEKLY ANALYTICS (via insights_service — week-to-date, not lifetime) ===
     from app.study.insights_service import get_weekly_summary, get_listening_stats, get_writing_stats, get_vocabulary_growth, get_pronunciation_stats, get_weak_areas, get_learning_velocity
-    weekly_analytics = get_weekly_summary(current_user.id)
+    weekly_analytics = _safe_widget_call(
+        'weekly_analytics', get_weekly_summary, current_user.id, default={})
 
     # === LISTENING STATS (last 7 days dictation/audio_fill_blank) ===
     listening_stats = _safe_widget_call(
@@ -1469,75 +1663,7 @@ def dashboard():
     # === DAY SECURED BANNER (linear plan) ===
     # Shown on return from lesson/slot completion when all baseline slots
     # finished today. Gate on query-param + DailyPlanLog.secured_at.
-    day_secured_banner = None
-    if (
-        linear_plan
-        and request.args.get('day_secured') == '1'
-        and bool(getattr(current_user, 'use_linear_plan', False))
-    ):
-        try:
-            from app.daily_plan.models import DailyPlanLog
-            from app.achievements.xp_service import get_today_xp
-            import pytz as _pytz_banner
-            _tz_banner_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
-            try:
-                _tz_banner = _pytz_banner.timezone(_tz_banner_name)
-            except Exception:
-                _tz_banner = _pytz_banner.timezone(DEFAULT_TIMEZONE)
-            _banner_today = datetime.now(_tz_banner).date()
-            _log = DailyPlanLog.query.filter_by(
-                user_id=current_user.id, plan_date=_banner_today
-            ).first()
-            if _log and _log.secured_at is not None:
-                _slots_total = len(linear_plan.get('baseline_slots') or [])
-                _slots_done = sum(
-                    1 for s in (linear_plan.get('baseline_slots') or [])
-                    if s.get('completed') or plan_completion.get(s.get('kind', ''), False)
-                )
-                day_secured_banner = {
-                    'today_xp': int(get_today_xp(current_user.id, _banner_today) or 0),
-                    'streak': int(streak or 0),
-                    'slots_done': _slots_done,
-                    'slots_total': _slots_total,
-                }
-
-                def _build_next_step_for_banner():
-                    from app.daily_plan.next_step import get_next_best_step
-                    steps = get_next_best_step(current_user.id, db)
-                    if not steps:
-                        return None
-                    top = steps[0]
-                    data = top.data or {}
-                    url = None
-                    if top.kind == 'lesson' and data.get('lesson_id'):
-                        url = f"/learn/{int(data['lesson_id'])}/?from=linear_plan&slot=curriculum"
-                    elif top.kind == 'srs':
-                        url = '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
-                    elif top.kind == 'reading' and data.get('book_id'):
-                        url = f"/read/{int(data['book_id'])}?from=linear_plan&slot=book"
-                    elif top.kind == 'grammar' and data.get('topic_id'):
-                        url = f"/grammar-lab/practice/topic/{int(data['topic_id'])}"
-                    elif top.kind == 'vocab':
-                        url = '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
-                    return {
-                        'kind': top.kind,
-                        'reason': top.reason,
-                        'estimated_minutes': top.estimated_minutes,
-                        'url': url,
-                    }
-
-                next_best = _safe_widget_call(
-                    'day_secured_next_step',
-                    _build_next_step_for_banner,
-                    default=None,
-                )
-                if next_best:
-                    day_secured_banner['next_step'] = next_best
-
-                day_secured_banner['tomorrow_preview'] = linear_plan.get('tomorrow_preview')
-        except Exception:
-            logger.warning("day_secured_banner build failed", exc_info=True)
-            day_secured_banner = None
+    day_secured_banner = _build_day_secured_banner(linear_plan, plan_completion, streak)
 
     from app.admin.site_settings import is_streak_shield_enabled
 

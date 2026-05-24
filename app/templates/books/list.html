@@ -62,7 +62,7 @@
          class="bklist-filter__btn {% if not request.args.get('level') %}bklist-filter__btn--active{% endif %}">
         {{ _('Все') }}
       </a>
-      {% for level_value in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
+      {% for level_value in ['A1', 'A2', 'B1', 'B2', 'C1'] %}
       <a href="{{ url_for('books.book_list', level=level_value, search=request.args.get('search', ''), letter=request.args.get('letter', '')) }}"
          class="bklist-filter__btn {% if request.args.get('level') == level_value %}bklist-filter__btn--active{% endif %}">
         {{ level_value }}

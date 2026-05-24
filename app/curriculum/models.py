@@ -10,11 +10,11 @@ from config.settings import PASSING_SCORE_PERCENT
 
 
 class CEFRLevel(db.Model):
-    """Model representing a CEFR language proficiency level (A0, A1, A2, B1, B2, C1, C2)"""
+    """Model representing a CEFR language proficiency level (A1, A2, B1, B2, C1)"""
     __tablename__ = 'cefr_levels'
 
     id = Column(Integer, primary_key=True)
-    code = Column(String(2), unique=True, nullable=False)  # A0, A1, A2, B1, B2, C1, C2
+    code = Column(String(2), unique=True, nullable=False)  # A1, A2, B1, B2, C1
     name = Column(String(100), nullable=False)  # Pre-Beginner, Beginner, Elementary, etc.
     description = Column(Text)
     order = Column(Integer, default=0)  # For custom ordering
@@ -682,4 +682,3 @@ def save_lesson_feedback(user_id: int, lesson_id: int, rating: int, comment: str
 # Import LessonGrade to register it with SQLAlchemy
 # This needs to be at the end of the file to avoid circular imports
 from app.achievements.models import LessonGrade  # noqa: F401, E402
-

@@ -42,7 +42,7 @@ class TestGetLevelsWithProgress:
     @patch('app.curriculum.services.curriculum_cache_service.db.session')
     def test_no_levels_returns_empty_list(self, mock_session):
         """Test with no levels in database"""
-        mock_session.query.return_value.options.return_value.order_by.return_value.all.return_value = []
+        mock_session.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = []
 
         result = CurriculumCacheService.get_levels_with_progress(1)
 
@@ -57,7 +57,7 @@ class TestGetLevelsWithProgress:
         mock_level.modules = [mock_module]
 
         # Mock query chain for levels
-        mock_session.query.return_value.options.return_value.order_by.return_value.all.return_value = [mock_level]
+        mock_session.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = [mock_level]
 
         # Mock progress query - no progress
         mock_session.query.return_value.filter.return_value.all.return_value = []
@@ -79,7 +79,7 @@ class TestGetLevelsWithProgress:
         mock_level.modules = [mock_module]
 
         # Mock query chain
-        mock_session.query.return_value.options.return_value.order_by.return_value.all.return_value = [mock_level]
+        mock_session.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = [mock_level]
 
         # Mock progress with completed status
         progress = Mock()
@@ -110,7 +110,7 @@ class TestGetLevelsWithProgress:
 
         mock_level.modules = [mod1, mod2]
 
-        mock_session.query.return_value.options.return_value.order_by.return_value.all.return_value = [mock_level]
+        mock_session.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = [mock_level]
 
         # First module completed 50% - should lock second module
         progress = Mock()
@@ -135,7 +135,7 @@ class TestGetLevelsWithProgress:
         mock_module.number = 1
         mock_level.modules = [mock_module]
 
-        mock_session.query.return_value.options.return_value.order_by.return_value.all.return_value = [mock_level]
+        mock_session.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = [mock_level]
 
         # Lesson 1 completed, lesson 2 in progress, lesson 3 not started
         prog1 = Mock(lesson_id=1, status='completed')
@@ -159,7 +159,7 @@ class TestGetLevelsWithProgress:
         mock_module.number = 1
         mock_level.modules = [mock_module]
 
-        mock_session.query.return_value.options.return_value.order_by.return_value.all.return_value = [mock_level]
+        mock_session.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = [mock_level]
         mock_session.query.return_value.filter.return_value.all.return_value = []
 
         result = CurriculumCacheService.get_levels_with_progress(1)
@@ -177,7 +177,7 @@ class TestGetLevelsWithProgress:
         mock_module.number = 1
         mock_level.modules = [mock_module]
 
-        mock_session.query.return_value.options.return_value.order_by.return_value.all.return_value = [mock_level]
+        mock_session.query.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = [mock_level]
 
         # First two lessons completed
         prog1 = Mock(lesson_id=1, status='completed')

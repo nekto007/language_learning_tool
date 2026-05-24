@@ -2,6 +2,19 @@
 
 {% block title %}Добро пожаловать | LLT English{% endblock %}
 
+{% block meta_description %}<meta name="description" content="Настройте профиль в LLT English: выберите уровень английского и цели обучения, чтобы получить персональный план занятий.">{% endblock %}
+
+{% block robots %}<meta name="robots" content="noindex, follow">{% endblock %}
+
+{% block canonical %}<link rel="canonical" href="https://llt-english.com/onboarding">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:title" content="Добро пожаловать | LLT English">
+<meta property="og:description" content="Настройте профиль в LLT English: выберите уровень английского и цели обучения, чтобы получить персональный план занятий.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://llt-english.com/onboarding">
+{% endblock %}
+
 {% block content %}
 <div class="onboarding-page">
   <div class="onboarding-card">
@@ -22,11 +35,6 @@
         <p class="onboarding-step__subtitle">Мы подберём материалы под ваш уровень</p>
       </div>
       <div class="onboarding-levels">
-        <button class="onboarding-level-btn" data-level="A0" data-desc="Никогда не учил английский">
-          <span class="onboarding-level-btn__code">A0</span>
-          <span class="onboarding-level-btn__name">Starter</span>
-          <span class="onboarding-level-btn__desc">Никогда не учил английский</span>
-        </button>
         <button class="onboarding-level-btn" data-level="A1" data-desc="Знаю базовые фразы">
           <span class="onboarding-level-btn__code">A1</span>
           <span class="onboarding-level-btn__name">Beginner</span>
@@ -51,11 +59,6 @@
           <span class="onboarding-level-btn__code">C1</span>
           <span class="onboarding-level-btn__name">Advanced</span>
           <span class="onboarding-level-btn__desc">Понимаю сложные тексты и фильмы</span>
-        </button>
-        <button class="onboarding-level-btn" data-level="C2" data-desc="Владею английским на уровне носителя">
-          <span class="onboarding-level-btn__code">C2</span>
-          <span class="onboarding-level-btn__name">Proficiency</span>
-          <span class="onboarding-level-btn__desc">Владею английским на уровне носителя</span>
         </button>
       </div>
     </div>
@@ -383,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (selectedFocuses.length === 0) return;
 
     // Build summary
-    var levelNames = {A0:'Starter',A1:'Beginner',A2:'Elementary',B1:'Intermediate',B2:'Upper-Intermediate',C1:'Advanced',C2:'Proficiency'};
+    var levelNames = {A1:'Beginner',A2:'Elementary',B1:'Intermediate',B2:'Upper-Intermediate',C1:'Advanced'};
     var focusNames = {grammar:'Грамматика',vocabulary:'Слова',reading:'Чтение',all:'Всё сразу'};
     var summary = '<strong>Уровень:</strong> ' + selectedLevel + ' — ' + (levelNames[selectedLevel]||'') + '<br>';
     summary += '<strong>Фокус:</strong> ' + selectedFocuses.map(function(f){return focusNames[f]||f;}).join(', ');

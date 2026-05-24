@@ -48,31 +48,28 @@ def rl_client(rl_app):
 
 @pytest.mark.smoke
 def test_register_rate_limit_returns_429(rl_client):
-    """Exceeding 5-per-minute limit on /register returns 429."""
-    # Hit the limit (5 requests allowed per minute)
+    """Exceeding 5-per-minute limit on POST /register returns 429."""
+    # Rate limit is scoped to POST so SEO/audit GETs don't burn quota.
     for i in range(5):
-        resp = rl_client.get('/register')
-        assert resp.status_code in (200, 302), f"Request {i+1} should not be rate-limited yet"
+        resp = rl_client.post('/register', data={})
+        assert resp.status_code != 429, f"Request {i+1} should not be rate-limited yet"
 
-    # 6th request must be rate-limited
-    resp = rl_client.get('/register')
+    resp = rl_client.post('/register', data={})
     assert resp.status_code == 429
 
 
 def test_password_reset_rate_limit_returns_429(rl_client):
-    """Exceeding 3-per-hour limit on /reset_password returns 429."""
-    # Hit the limit (3 requests allowed per hour)
+    """Exceeding 3-per-hour limit on POST /reset_password returns 429."""
     for i in range(3):
-        resp = rl_client.get('/reset_password')
-        assert resp.status_code in (200, 302), f"Request {i+1} should not be rate-limited yet"
+        resp = rl_client.post('/reset_password', data={})
+        assert resp.status_code != 429, f"Request {i+1} should not be rate-limited yet"
 
-    # 4th request must be rate-limited
-    resp = rl_client.get('/reset_password')
+    resp = rl_client.post('/reset_password', data={})
     assert resp.status_code == 429
 
 
 def test_login_not_rate_limited_under_threshold(rl_client):
-    """Login endpoint allows 10 requests per minute; 5 requests should pass."""
+    """Login endpoint allows 10 POSTs per minute; 5 POSTs should pass."""
     for i in range(5):
-        resp = rl_client.get('/login')
-        assert resp.status_code in (200, 302), f"Request {i+1} should not be rate-limited"
+        resp = rl_client.post('/login', data={})
+        assert resp.status_code != 429, f"Request {i+1} should not be rate-limited"

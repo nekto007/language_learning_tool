@@ -104,6 +104,12 @@
   padding: 0.375rem 0.75rem; background: var(--plvl-surface-alt);
   border-radius: 999px; font-size: 0.8rem; color: var(--plvl-text-muted);
 }
+.plvl-empty {
+  background: var(--plvl-surface); border: 1px solid var(--plvl-border);
+  border-radius: var(--plvl-radius); padding: 1.5rem; text-align: center;
+}
+.plvl-empty__title { font-size: 1.1rem; font-weight: 700; color: var(--plvl-text); margin: 0 0 0.5rem; }
+.plvl-empty__text { font-size: 0.95rem; color: var(--plvl-text-muted); margin: 0; line-height: 1.5; }
 
 @media (max-width: 640px) {
   .plvl-hero { padding: 1.5rem; }
@@ -141,6 +147,14 @@
   </div>
 
   <div class="plvl-modules">
+    {% if not modules_data %}
+    <div class="plvl-empty">
+      <h2 class="plvl-empty__title">{{ _('Материалы уровня готовятся') }}</h2>
+      <p class="plvl-empty__text">
+        {{ _('Этот уровень уже есть в программе LLT English, но публичный список модулей пока не опубликован.') }}
+      </p>
+    </div>
+    {% endif %}
     {% for item in modules_data %}
     <div class="plvl-module">
       <div class="plvl-module__header">

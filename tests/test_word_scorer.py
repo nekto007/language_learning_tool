@@ -54,7 +54,9 @@ class TestGetLevelIndex:
 
     def test_invalid_level(self):
         scorer = WordScorer()
-        assert scorer._get_level_index('Z9') == CEFR_LEVELS.index(DEFAULT_LEVEL)
+        # Unknown level codes are treated as "above any target" so they get
+        # filtered out of vocabulary selection.
+        assert scorer._get_level_index('Z9') == len(CEFR_LEVELS)
 
     def test_none_level(self):
         scorer = WordScorer()
@@ -144,7 +146,7 @@ class TestCalculateCefrScore:
 
     def test_max_distance(self):
         scorer = WordScorer(target_level='A1')
-        score = scorer.calculate_cefr_score('C2')
+        score = scorer.calculate_cefr_score('UNSUPPORTED')
         assert score == pytest.approx(0.0)
 
     def test_none_level_uses_default(self):
@@ -259,7 +261,7 @@ class TestCalculateWordScore:
 
     def test_poor_word_scores_low(self):
         scorer = WordScorer(target_level='B1')
-        word = _make_word(level='C2', frequency_rank=500)  # far level + very common
+        word = _make_word(level='UNSUPPORTED', frequency_rank=500)  # unsupported level + very common
         score = scorer.calculate_word_score(word, book_freq=1, max_freq=100)
         assert score < 0.6
 
@@ -296,7 +298,7 @@ class TestScoreAndRankWords:
         word_frequencies = Counter({'hello': 10, 'advanced': 5})
         word_cache = {
             'hello': _make_word(level='A1', frequency_rank=5000, word_id=1),
-            'advanced': _make_word(level='C2', frequency_rank=8000, word_id=2),
+            'advanced': _make_word(level='UNSUPPORTED', frequency_rank=8000, word_id=2),
         }
         result = scorer.score_and_rank_words(word_frequencies, word_cache, set(), max_words=10)
         assert len(result) == 1
@@ -357,7 +359,7 @@ class TestConstants:
         assert WEIGHT_BOOK_FREQ + WEIGHT_GLOBAL_FREQ + WEIGHT_CEFR + WEIGHT_TFIDF == pytest.approx(1.0)
 
     def test_cefr_levels_order(self):
-        assert CEFR_LEVELS == ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+        assert CEFR_LEVELS == ['A1', 'A2', 'B1', 'B2', 'C1']
 
     def test_limits(self):
         assert VOCABULARY_WORDS_PER_BLOCK == 20

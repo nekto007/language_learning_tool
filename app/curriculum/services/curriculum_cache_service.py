@@ -35,10 +35,14 @@ class CurriculumCacheService:
             List of level data dictionaries
         """
         try:
+            from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+
             # Step 1: Eager load all levels, modules, and lessons in ONE query
+            # Restrict to publicly navigable CEFR levels so /learn/ only surfaces
+            # cards that have a working detail page (/learn/<level>/).
             levels = db.session.query(CEFRLevel).options(
                 joinedload(CEFRLevel.modules).joinedload(Module.lessons)
-            ).order_by(CEFRLevel.order).all()
+            ).filter(CEFRLevel.code.in_(PUBLIC_CEFR_CODES)).order_by(CEFRLevel.order).all()
 
             if not levels:
                 return []

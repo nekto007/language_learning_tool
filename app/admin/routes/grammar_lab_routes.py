@@ -9,7 +9,7 @@ import logging
 import re
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
-from flask_login import current_user, login_required
+from flask_login import current_user
 from sqlalchemy.exc import IntegrityError
 
 from app.admin.utils.decorators import admin_required
@@ -20,9 +20,10 @@ from app.grammar_lab.models import GrammarTopic, GrammarExercise
 grammar_lab_bp = Blueprint('grammar_lab_admin', __name__)
 logger = logging.getLogger(__name__)
 
+ALLOWED_LEVELS = ('A1', 'A2', 'B1', 'B2', 'C1')
+
 
 @grammar_lab_bp.route('/grammar-lab')
-@login_required
 @admin_required
 def grammar_lab_index():
     """Grammar Lab admin dashboard"""
@@ -35,7 +36,7 @@ def grammar_lab_index():
         'by_level': {}
     }
 
-    for level in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']:
+    for level in ['A1', 'A2', 'B1', 'B2', 'C1']:
         count = sum(1 for t in topics if t.level == level)
         stats['by_level'][level] = count
 
@@ -47,7 +48,6 @@ def grammar_lab_index():
 
 
 @grammar_lab_bp.route('/grammar-lab/topics')
-@login_required
 @admin_required
 def topic_list():
     """List all grammar topics"""
@@ -67,7 +67,6 @@ def topic_list():
 
 
 @grammar_lab_bp.route('/grammar-lab/topics/create', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def create_topic():
     """Create a new grammar topic"""
@@ -78,6 +77,9 @@ def create_topic():
             title = request.form.get('title', '').strip()
             title_ru = request.form.get('title_ru', '').strip()
             level = request.form.get('level', 'A1')
+            if level not in ALLOWED_LEVELS:
+                flash(f'Invalid level "{level}". Allowed: {", ".join(ALLOWED_LEVELS)}.', 'danger')
+                return render_template('admin/grammar_lab/topic_form.html', topic=None)
             order = int(request.form.get('order', 0))
             estimated_time = int(request.form.get('estimated_time', 15))
             difficulty = int(request.form.get('difficulty', 1))
@@ -119,7 +121,6 @@ def create_topic():
 
 
 @grammar_lab_bp.route('/grammar-lab/topics/<int:topic_id>/edit', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def edit_topic(topic_id):
     """Edit a grammar topic"""
@@ -130,7 +131,13 @@ def edit_topic(topic_id):
             topic.slug = request.form.get('slug', topic.slug).strip()
             topic.title = request.form.get('title', topic.title).strip()
             topic.title_ru = request.form.get('title_ru', topic.title_ru).strip()
-            topic.level = request.form.get('level', topic.level)
+            submitted_level = request.form.get('level', topic.level)
+            # Preserve legacy CEFR values (e.g. C2) when admin saves an unrelated
+            # edit without touching the level dropdown.
+            if submitted_level not in ALLOWED_LEVELS and submitted_level != topic.level:
+                flash(f'Invalid level "{submitted_level}". Allowed: {", ".join(ALLOWED_LEVELS)}.', 'danger')
+                return render_template('admin/grammar_lab/topic_form.html', topic=topic)
+            topic.level = submitted_level
             topic.order = int(request.form.get('order', topic.order))
             topic.estimated_time = int(request.form.get('estimated_time', topic.estimated_time))
             topic.difficulty = int(request.form.get('difficulty', topic.difficulty))
@@ -164,7 +171,6 @@ def edit_topic(topic_id):
 
 
 @grammar_lab_bp.route('/grammar-lab/topics/<int:topic_id>/delete', methods=['POST'])
-@login_required
 @admin_required
 def delete_topic(topic_id):
     """Delete a grammar topic"""
@@ -172,13 +178,13 @@ def delete_topic(topic_id):
     title = topic.title
 
     try:
+        db.session.delete(topic)
         log_admin_action(
             admin_id=current_user.id,
             action='delete_grammar_topic',
             target_type='GrammarTopic',
             target_id=topic_id,
         )
-        db.session.delete(topic)
         db.session.commit()
         flash(f'Topic "{title}" deleted successfully!', 'success')
     except Exception as e:
@@ -191,7 +197,6 @@ def delete_topic(topic_id):
 # ============ Exercise Routes ============
 
 @grammar_lab_bp.route('/grammar-lab/topics/<int:topic_id>/exercises/create', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def create_exercise(topic_id):
     """Create a new exercise for a topic"""
@@ -233,7 +238,6 @@ def create_exercise(topic_id):
 
 
 @grammar_lab_bp.route('/grammar-lab/exercises/<int:exercise_id>/edit', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def edit_exercise(exercise_id):
     """Edit an exercise"""
@@ -273,7 +277,6 @@ def edit_exercise(exercise_id):
 
 
 @grammar_lab_bp.route('/grammar-lab/exercises/<int:exercise_id>/delete', methods=['POST'])
-@login_required
 @admin_required
 def delete_exercise(exercise_id):
     """Delete an exercise"""
@@ -282,6 +285,7 @@ def delete_exercise(exercise_id):
 
     try:
         db.session.delete(exercise)
+        log_admin_action(current_user.id, 'grammar_lab.delete_exercise', target_type='grammar_exercise', target_id=exercise_id)
         db.session.commit()
         flash('Exercise deleted successfully!', 'success')
     except Exception as e:
@@ -294,7 +298,6 @@ def delete_exercise(exercise_id):
 # ============ Import from Modules ============
 
 @grammar_lab_bp.route('/grammar-lab/import-from-modules', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def import_from_modules():
     """Import grammar topics from curriculum modules (from database)"""
@@ -674,7 +677,6 @@ def _import_exercises_json_file(file, deleted_topic_ids: set[int]) -> tuple[bool
     )
 
 @grammar_lab_bp.route('/grammar-lab/import-exercises-json', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def import_exercises_json():
     """Import extra exercises from one or more generated JSON files."""
@@ -710,7 +712,6 @@ def import_exercises_json():
 # ============ API Endpoints ============
 
 @grammar_lab_bp.route('/grammar-lab/api/topics', methods=['GET'])
-@login_required
 @admin_required
 def api_topics():
     """Get all topics as JSON"""
@@ -719,7 +720,6 @@ def api_topics():
 
 
 @grammar_lab_bp.route('/grammar-lab/api/topic/<int:topic_id>/exercises', methods=['GET'])
-@login_required
 @admin_required
 def api_topic_exercises(topic_id):
     """Get exercises for a topic"""

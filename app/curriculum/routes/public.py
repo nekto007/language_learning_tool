@@ -8,12 +8,18 @@ from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.utils.db import db
 
 courses_bp = Blueprint('courses', __name__)
+PUBLIC_CEFR_CODES = ('A1', 'A2', 'B1', 'B2', 'C1')
 
 
 @courses_bp.route('/')
 def catalog():
     """Public course catalog showing CEFR levels with stats."""
-    levels = CEFRLevel.query.order_by(CEFRLevel.order).all()
+    levels = (
+        CEFRLevel.query
+        .filter(CEFRLevel.code.in_(PUBLIC_CEFR_CODES))
+        .order_by(CEFRLevel.order)
+        .all()
+    )
 
     # Batch query: module count and lesson count per level
     stats_by_level = {}
@@ -51,7 +57,11 @@ def catalog():
 @courses_bp.route('/<string:level_code>')
 def level_detail(level_code: str):
     """Public level detail page with module list and sample lesson titles."""
-    level = CEFRLevel.query.filter_by(code=level_code.upper()).first()
+    normalized_code = level_code.upper()
+    if normalized_code not in PUBLIC_CEFR_CODES:
+        abort(404)
+
+    level = CEFRLevel.query.filter_by(code=normalized_code).first()
     if not level:
         abort(404)
 

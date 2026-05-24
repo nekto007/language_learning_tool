@@ -17,7 +17,7 @@ class CollectionWords(db.Model):
     russian_word = Column(String(255))
     listening = Column(Text)
     sentences = Column(Text)
-    level = Column(String(10))  # A1, A2, B1, B2, C1, C2
+    level = Column(String(10))  # A1, A2, B1, B2, C1
     brown = Column(Integer, default=0)
     get_download = Column(Integer, default=0)
     frequency_rank = Column(Integer, default=0)

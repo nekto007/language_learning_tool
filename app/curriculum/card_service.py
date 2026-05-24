@@ -782,7 +782,7 @@ def sync_lesson_cards_to_words(lesson):
                     russian_word=russian,
                     listening=normalize_listening(card.get('audio', ''), english),
                     sentences=sentences_text,
-                    level='A0',  # Default level
+                    level='A1',  # Default level
                     get_download=1 if card.get('audio') else 0
                 )
                 db.session.add(word)

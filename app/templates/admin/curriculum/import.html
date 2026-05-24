@@ -66,7 +66,7 @@
                     <div class="mb-3">
                         <label for="json_text" class="form-label">JSON Content</label>
                         <textarea name="json_text" id="json_text" class="form-control font-monospace" rows="15"
-                                  placeholder='{"level": "A0", "module": 1, "vocabulary": [...], ...}'></textarea>
+                                  placeholder='{"level": "A1", "module": 1, "vocabulary": [...], ...}'></textarea>
                         <small class="form-text text-muted">Paste valid JSON content for a complete module</small>
                     </div>
 
@@ -132,7 +132,7 @@
             <div class="card-body">
                 <p class="small mb-3">Required fields for import:</p>
                 <pre class="bg-light p-2 rounded small"><code>{
-  "level": "A0",
+  "level": "A1",
   "module": 1,
   "title": "Module title",
   "description": "Description",
@@ -321,7 +321,7 @@ function showValidation(isValid, message) {
 function downloadSample(type) {
     const samples = {
         basic: {
-            level: "A0",
+            level: "A1",
             module: 1,
             title: "Basic Module",
             description: "Sample module structure",
@@ -342,7 +342,7 @@ function downloadSample(type) {
             ]
         },
         complete: {
-            level: "A0",
+            level: "A1",
             module: 1,
             title: "Complete Module Example",
             description: "Full module with all components",

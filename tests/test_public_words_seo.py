@@ -80,6 +80,36 @@ class TestPublicWordRoute:
         assert 'test sentence' in html
 
 
+class TestPublicDictionaryRoute:
+    """Test GET /dictionary public index route."""
+
+    def test_public_dictionary_returns_200(self, client, sample_word):
+        response = client.get('/dictionary')
+        assert response.status_code == 200
+
+    def test_public_dictionary_no_login_required(self, client, sample_word):
+        response = client.get('/dictionary', follow_redirects=False)
+        assert response.status_code == 200
+        assert 'login' not in (response.headers.get('Location', '') or '').lower()
+
+    def test_public_dictionary_contains_sample_word(self, client, sample_word):
+        response = client.get('/dictionary')
+        html = response.data.decode()
+        assert sample_word.english_word in html
+        assert sample_word.russian_word in html
+
+    def test_public_dictionary_letter_page(self, client, sample_word):
+        letter = sample_word.english_word[0].lower()
+        response = client.get(f'/dictionary/letter/{letter}')
+        html = response.data.decode()
+        assert response.status_code == 200
+        assert sample_word.english_word in html
+
+    def test_public_dictionary_rejects_invalid_letter(self, client):
+        response = client.get('/dictionary/letter/ab')
+        assert response.status_code == 404
+
+
 class TestSitemap:
     """Test sitemap.xml generation."""
 
@@ -88,16 +118,22 @@ class TestSitemap:
         assert response.status_code == 200
         assert 'application/xml' in response.content_type
 
-    def test_sitemap_contains_root(self, client):
+    def test_sitemap_contains_root(self, app, client):
         response = client.get('/sitemap.xml')
         xml = response.data.decode()
-        assert 'https://llt-english.com/' in xml
+        site_url = (app.config.get('SITE_URL') or 'https://llt-english.com').rstrip('/')
+        assert f'<loc>{site_url}/</loc>' in xml
 
     def test_sitemap_contains_dictionary_words(self, client, sample_word):
         response = client.get('/sitemap.xml')
         xml = response.data.decode()
         slug = sample_word.english_word.lower().replace(' ', '-')
         assert f'/dictionary/{slug}' in xml
+
+    def test_sitemap_contains_dictionary_index(self, client):
+        response = client.get('/sitemap.xml')
+        xml = response.data.decode()
+        assert '/dictionary' in xml
 
     def test_sitemap_valid_xml_structure(self, client):
         response = client.get('/sitemap.xml')

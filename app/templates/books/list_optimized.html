@@ -53,7 +53,7 @@
                 {{ _('Все уровни') }}
             </a>
             
-            {% for level in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
+            {% for level in ['A1', 'A2', 'B1', 'B2', 'C1'] %}
             <a href="{{ url_for('books.book_list', level=level, search=request.args.get('search', '')) }}" 
                class="filter-chip {{ 'active' if request.args.get('level') == level else '' }}">
                 {{ level }}

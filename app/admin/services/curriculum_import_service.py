@@ -21,6 +21,8 @@ from app.words.models import Collection, CollectionWordLink, CollectionWords
 
 logger = logging.getLogger(__name__)
 
+ALLOWED_CEFR_LEVELS = ('A1', 'A2', 'B1', 'B2', 'C1')
+
 
 class CurriculumImportService:
     """Сервис для импорта и обработки учебных материалов"""
@@ -29,13 +31,11 @@ class CurriculumImportService:
     def get_level_name(level_code):
         """Возвращает название для кода уровня CEFR"""
         level_names = {
-            'A0': 'Pre-Beginner',
             'A1': 'Beginner',
             'A2': 'Elementary',
             'B1': 'Intermediate',
             'B2': 'Upper Intermediate',
-            'C1': 'Advanced',
-            'C2': 'Proficiency'
+            'C1': 'Advanced'
         }
         return level_names.get(level_code, f'Level {level_code}')
 
@@ -43,13 +43,11 @@ class CurriculumImportService:
     def get_level_order(level_code):
         """Возвращает порядок для уровня CEFR"""
         level_orders = {
-            'A0': 0,
             'A1': 1,
             'A2': 2,
             'B1': 3,
             'B2': 4,
-            'C1': 5,
-            'C2': 6
+            'C1': 5
         }
         return level_orders.get(level_code, 99)
 
@@ -257,6 +255,11 @@ class CurriculumImportService:
 
         # 1. Создаем или находим уровень CEFR
         level_code = data['level']
+        if level_code not in ALLOWED_CEFR_LEVELS:
+            raise ValueError(
+                f"Недопустимый уровень CEFR '{level_code}'. "
+                f"Разрешены: {', '.join(ALLOWED_CEFR_LEVELS)}."
+            )
         level = CEFRLevel.query.filter_by(code=level_code).first()
 
         if not level:
@@ -541,6 +544,10 @@ class CurriculumImportService:
                     _l.number = original_number
                     _l.order = original_order
                     _used_numbers.add(original_number)
+                    logger.warning(
+                        f"Урок id={_l.id} (number={_l.number}) не найден в источнике — "
+                        f"оставлен с исходным номером"
+                    )
                 else:
                     _max_used += 1
                     _l.number = _max_used
@@ -550,10 +557,6 @@ class CurriculumImportService:
                         f"Урок id={_l.id}: original number={original_number} занят новым уроком — "
                         f"смещён на number={_max_used}"
                     )
-                logger.warning(
-                    f"Урок id={_l.id} (number={_l.number}) не найден в источнике — "
-                    f"оставлен с исходным номером"
-                )
 
         # 4. Сохраняем все изменения
         db.session.commit()

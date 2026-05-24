@@ -490,6 +490,7 @@ def daily_plan():
                         add_route_steps_idempotent(user_id, _pk, _route_today, db.session)
             db.session.commit()
         except Exception:
+            logger.warning("mission route_step sync failed in daily_plan", exc_info=True)
             db.session.rollback()
     elif plan.get('_plan_meta', {}).get('effective_mode') == 'unified':
         _sync_unified_route_steps(user_id, plan, plan_completion, tz)
@@ -617,6 +618,7 @@ def daily_race_status():
         challenge_data = get_today_challenge(user_id, db)
         ch_bonus = CHALLENGE_BONUS_POINTS if challenge_data.get('is_completed') else 0
     except Exception:
+        logger.warning("daily race: challenge bonus lookup failed for user %s", user_id, exc_info=True)
         ch_bonus = 0
 
     phases = plan.get('phases') or []
@@ -629,6 +631,7 @@ def daily_race_status():
             )
             db.session.commit()
         except Exception:
+            logger.warning("update_race_points_from_plan failed for user %s", user_id, exc_info=True)
             db.session.rollback()
     elif baseline_slots and plan.get('mode') == 'linear':
         try:
@@ -638,6 +641,7 @@ def daily_race_status():
             )
             db.session.commit()
         except Exception:
+            logger.warning("update_race_points_from_linear_plan failed for user %s", user_id, exc_info=True)
             db.session.rollback()
 
     standings = get_race_standings(user_id, local_today, tz=tz)

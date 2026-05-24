@@ -889,7 +889,7 @@ a.test-errors-summary__topic-chip:hover {
       {{ _('Поделиться результатом') }} ↗
     </summary>
     <div style="margin-top: 0.6rem; text-align: center;">
-      {% set share_url = 'https://llt-english.com' %}
+      {% set share_url = url_for('landing.index', _external=True) %}
       {% set share_text = 'Я прошёл финальный тест с результатом ' ~ results.score|int ~ '%! LLT English' %}
       {% set share_compact = true %}
       {% include 'components/share_buttons.html' %}

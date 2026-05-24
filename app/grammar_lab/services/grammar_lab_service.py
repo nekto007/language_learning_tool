@@ -105,13 +105,19 @@ class GrammarLabService:
     def get_topics_by_level(self, level: str = None, user_id: int = None) -> List[Dict]:
         """
         Get all topics, optionally filtered by level, with user progress.
+
+        Restricted to publicly navigable CEFR levels so legacy levels (e.g. C2)
+        don't surface in the public topics listing — their detail and related
+        navigation are unsupported.
         """
-        query = GrammarTopic.query.order_by(GrammarTopic.level, GrammarTopic.order)
+        from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+
+        query = GrammarTopic.query.filter(GrammarTopic.level.in_(PUBLIC_CEFR_CODES))
 
         if level:
             query = query.filter(GrammarTopic.level == level)
 
-        topics = query.all()
+        topics = query.order_by(GrammarTopic.level, GrammarTopic.order).all()
 
         # Lazy sync curriculum progress for this user
         if user_id and topics:
@@ -173,7 +179,7 @@ class GrammarLabService:
 
     def get_levels_summary(self, user_id: int = None) -> List[Dict]:
         """Get summary of all levels with topic counts and progress."""
-        levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+        levels = ['A1', 'A2', 'B1', 'B2', 'C1']
         result = []
 
         for level in levels:
@@ -716,7 +722,7 @@ class GrammarLabService:
         if not user_id:
             return {}
 
-        levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+        levels = ['A1', 'A2', 'B1', 'B2', 'C1']
         result = {}
 
         for level in levels:

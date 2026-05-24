@@ -5,7 +5,7 @@
 {% set block_description = _('Развитие навыков восприятия речи на слух') %}
 
 {% set level_code = lesson.module.level.code if lesson.module and lesson.module.level else 'A1' %}
-{% set is_advanced = level_code in ('B1', 'B2', 'C1', 'C2') %}
+{% set is_advanced = level_code in ('B1', 'B2', 'C1') %}
 
 {% block extra_css %}
 <style>

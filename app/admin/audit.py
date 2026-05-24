@@ -33,9 +33,14 @@ def log_admin_action(
     target_type: Optional[str] = None,
     target_id: Optional[int] = None,
 ) -> None:
-    """Persist an audit log entry for a destructive admin action.
+    """Stage an audit log entry for a destructive admin action.
 
-    Failures are swallowed so the primary operation is never blocked.
+    The entry is added to the current session inside a SAVEPOINT so that
+    a write failure does not poison the caller's transaction. The caller
+    is responsible for committing the surrounding transaction — the entry
+    becomes durable together with the mutation it documents (or rolls
+    back with it). Failures while staging are swallowed so the primary
+    operation is never blocked.
     """
     nested = None
     try:
@@ -51,5 +56,8 @@ def log_admin_action(
         nested.commit()
     except Exception:
         if nested is not None:
-            nested.rollback()
+            try:
+                nested.rollback()
+            except Exception:
+                pass
         logger.exception('Failed to write admin audit log entry: action=%s', action)

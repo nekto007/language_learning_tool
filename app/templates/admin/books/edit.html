@@ -37,8 +37,12 @@
                         <div class="mb-3">
                             <label for="level" class="form-label">Уровень</label>
                             <select class="form-select" id="level" name="level">
-                                <option value="">Не указан</option>
-                                {% for lvl in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
+                                {% set canonical_levels = ['A1', 'A2', 'B1', 'B2', 'C1'] %}
+                                <option value="" {{ 'selected' if not book.level else '' }}>Не указан</option>
+                                {% if book.level and book.level not in canonical_levels %}
+                                <option value="{{ book.level }}" selected>{{ book.level }} (legacy)</option>
+                                {% endif %}
+                                {% for lvl in canonical_levels %}
                                 <option value="{{ lvl }}" {{ 'selected' if book.level == lvl else '' }}>{{ lvl }}</option>
                                 {% endfor %}
                             </select>

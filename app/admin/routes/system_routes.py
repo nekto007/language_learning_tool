@@ -9,9 +9,11 @@ import logging
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, url_for
 from flask_login import current_user
 
+from app.admin.audit import log_admin_action
 from app.admin.services.system_service import SystemService
 from app.admin.utils.decorators import admin_required
 from app.admin.utils.cache import clear_admin_cache
+from app.utils.db import db
 
 # Создаем blueprint для system routes
 system_bp = Blueprint('system_admin', __name__)
@@ -93,6 +95,8 @@ def init_database():
     try:
         from app.utils.db_init import init_db
         init_db(current_app)
+        log_admin_action(current_user.id, 'system.init_database')
+        db.session.commit()
         flash('База данных успешно инициализирована!', 'success')
         logger.info(f"Database initialized by admin user {current_user.username}")
     except Exception as e:

@@ -523,11 +523,13 @@ class TestGrammarLabServiceGetTopicsByLevel:
     @pytest.fixture(autouse=True)
     def _limit_query(self, grammar_topic):
         """Mock GrammarTopic.query to return only test topic — avoids timeout on large DBs."""
+        chain = MagicMock()
+        chain.all.return_value = [grammar_topic]
+        chain.filter.return_value = chain
+        chain.order_by.return_value = chain
         mock_query = MagicMock()
-        ordered = MagicMock()
-        ordered.all.return_value = [grammar_topic]
-        ordered.filter.return_value = ordered
-        mock_query.order_by.return_value = ordered
+        mock_query.filter.return_value = chain
+        mock_query.order_by.return_value = chain
         with patch('app.grammar_lab.services.grammar_lab_service.GrammarTopic') as MockTopic:
             MockTopic.query = mock_query
             MockTopic.level = GrammarTopic.level
@@ -566,9 +568,9 @@ class TestGrammarLabServiceGetLevelsSummary:
     def test_returns_all_levels(self, app, db_session):
         service = GrammarLabService()
         levels = service.get_levels_summary()
-        assert len(levels) == 6
+        assert len(levels) == 5
         level_names = [lv['level'] for lv in levels]
-        assert level_names == ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+        assert level_names == ['A1', 'A2', 'B1', 'B2', 'C1']
 
     def test_with_user(self, app, db_session, test_user, grammar_topic, grammar_exercises):
         service = GrammarLabService()
@@ -984,7 +986,7 @@ class TestGetAdjacentTopics:
                 slug=f'test-adj-{i}-{unique}',
                 title=title,
                 title_ru=title_ru,
-                level='C2',
+                level='C1',
                 order=base_order + i,
                 content={'introduction': f'Intro {i}', 'sections': []},
                 estimated_time=10,
@@ -1048,7 +1050,7 @@ class TestGetLevelMasteryStats:
     def test_returns_all_levels(self, db_session, test_user):
         service = GrammarLabService()
         result = service.get_level_mastery_stats(test_user.id)
-        for level in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']:
+        for level in ['A1', 'A2', 'B1', 'B2', 'C1']:
             assert level in result
             assert 'topics_total' in result[level]
             assert 'topics_mastered' in result[level]
@@ -1059,12 +1061,12 @@ class TestGetLevelMasteryStats:
         unique = uuid.uuid4().hex[:8]
         mastered_topic = GrammarTopic(
             slug=f'test-mastered-{unique}',
-            title='Mastered Topic', title_ru='Освоенная', level='C2',
+            title='Mastered Topic', title_ru='Освоенная', level='C1',
             order=70000, content={'introduction': 'Test', 'sections': []},
         )
         practicing_topic = GrammarTopic(
             slug=f'test-practicing-{unique}',
-            title='Practicing Topic', title_ru='Практика', level='C2',
+            title='Practicing Topic', title_ru='Практика', level='C1',
             order=70001, content={'introduction': 'Test', 'sections': []},
         )
         db_session.add_all([mastered_topic, practicing_topic])
@@ -1082,7 +1084,7 @@ class TestGetLevelMasteryStats:
 
         service = GrammarLabService()
         result = service.get_level_mastery_stats(test_user.id)
-        level_stats = result['C2']
+        level_stats = result['C1']
         assert level_stats['topics_total'] >= 2
         assert level_stats['topics_mastered'] >= 1
         # Practicing topic should NOT count toward mastered
@@ -1179,7 +1181,7 @@ class TestGrammarLabRouteNavigation:
                 slug=f'test-nav-{i}-{unique}',
                 title=f'Nav Topic {i}',
                 title_ru=f'Навигация {i}',
-                level='C2',
+                level='C1',
                 order=80000 + i,
                 content={'introduction': f'Intro {i}', 'sections': []},
                 estimated_time=10,
@@ -1210,7 +1212,7 @@ class TestGrammarLabRouteNavigation:
             slug=f'test-jump-{unique}',
             title='Jump Test',
             title_ru='Тест прыжка',
-            level='C2',
+            level='C1',
             order=85000,
             content={'introduction': 'Intro', 'sections': []},
             estimated_time=10,

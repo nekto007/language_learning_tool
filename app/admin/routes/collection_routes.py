@@ -8,8 +8,9 @@ import logging
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
-from flask_login import current_user, login_required
+from flask_login import current_user
 
+from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
 from app.utils.db import db
 from app.words.forms import CollectionForm
@@ -22,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 
 @collection_bp.route('/collections')
-@login_required
 @admin_required
 def collection_list():
     """Отображение списка всех коллекций"""
@@ -36,7 +36,6 @@ def collection_list():
 
 
 @collection_bp.route('/collections/create', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def create_collection():
     """Создание новой коллекции"""
@@ -75,7 +74,6 @@ def create_collection():
 
 
 @collection_bp.route('/collections/<int:collection_id>/edit', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def edit_collection(collection_id):
     """Редактирование коллекции"""
@@ -120,12 +118,12 @@ def edit_collection(collection_id):
 
 
 @collection_bp.route('/collections/<int:collection_id>/delete', methods=['POST'])
-@login_required
 @admin_required
 def delete_collection(collection_id):
     """Удаление коллекции"""
     collection = Collection.query.get_or_404(collection_id)
     db.session.delete(collection)
+    log_admin_action(current_user.id, 'collection.delete', target_type='collection', target_id=collection_id)
     db.session.commit()
 
     flash(_('Collection deleted successfully!'), 'success')
@@ -133,7 +131,6 @@ def delete_collection(collection_id):
 
 
 @collection_bp.route('/api/get_words_by_topic')
-@login_required
 @admin_required
 def get_words_by_topic():
     """API для получения слов по темам"""

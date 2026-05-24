@@ -12,10 +12,6 @@ from app.admin.services.curriculum_import_service import CurriculumImportService
 class TestGetLevelName:
     """Tests for get_level_name method"""
 
-    def test_get_level_name_a0(self):
-        """Test level name for A0"""
-        assert CurriculumImportService.get_level_name('A0') == 'Pre-Beginner'
-
     def test_get_level_name_a1(self):
         """Test level name for A1"""
         assert CurriculumImportService.get_level_name('A1') == 'Beginner'
@@ -36,10 +32,6 @@ class TestGetLevelName:
         """Test level name for C1"""
         assert CurriculumImportService.get_level_name('C1') == 'Advanced'
 
-    def test_get_level_name_c2(self):
-        """Test level name for C2"""
-        assert CurriculumImportService.get_level_name('C2') == 'Proficiency'
-
     def test_get_level_name_unknown(self):
         """Test level name for unknown level"""
         assert CurriculumImportService.get_level_name('X1') == 'Level X1'
@@ -47,10 +39,6 @@ class TestGetLevelName:
 
 class TestGetLevelOrder:
     """Tests for get_level_order method"""
-
-    def test_get_level_order_a0(self):
-        """Test order for A0"""
-        assert CurriculumImportService.get_level_order('A0') == 0
 
     def test_get_level_order_a1(self):
         """Test order for A1"""
@@ -71,10 +59,6 @@ class TestGetLevelOrder:
     def test_get_level_order_c1(self):
         """Test order for C1"""
         assert CurriculumImportService.get_level_order('C1') == 5
-
-    def test_get_level_order_c2(self):
-        """Test order for C2"""
-        assert CurriculumImportService.get_level_order('C2') == 6
 
     def test_get_level_order_unknown(self):
         """Test order for unknown level"""

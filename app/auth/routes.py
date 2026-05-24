@@ -170,7 +170,7 @@ def verify_reset_token(token: str, expiration: int = 3600):
 
 
 @auth.route('/reset_password', methods=['GET', 'POST'])
-@limiter.limit("3 per hour")
+@limiter.limit("3 per hour", methods=["POST"])
 def reset_request():
     if current_user.is_authenticated:
         return redirect(url_for(_default_fallback()))
@@ -245,7 +245,7 @@ def reset_password(token):
 
 
 @auth.route('/login', methods=['GET', 'POST'])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per minute", methods=["POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for(_default_fallback()))
@@ -301,7 +301,7 @@ def login():
 
 
 @auth.route('/register', methods=['GET', 'POST'])
-@limiter.limit("5 per minute")
+@limiter.limit("5 per minute", methods=["POST"])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for(_default_fallback()))
@@ -309,7 +309,12 @@ def register():
     # Capture ?ref= parameter and store in cookie so it survives form submission
     ref_code = request.args.get('ref', '').strip()
     if ref_code and len(ref_code) <= 16 and ref_code.isalnum() and request.method == 'GET':
-        resp = make_response(render_template('auth/register.html', form=RegistrationForm()))
+        resp = make_response(render_template(
+            'auth/register.html',
+            form=RegistrationForm(),
+            level_param=request.args.get('level', ''),
+            ref_param=ref_code,
+        ))
         resp.set_cookie('ref', ref_code, max_age=86400 * 30, httponly=True,
                        samesite='Lax', secure=not current_app.debug)
         return resp
@@ -338,9 +343,11 @@ def register():
         except Exception:
             current_app.logger.warning('Could not read feature flag defaults from SiteSettings', exc_info=True)
 
-        # Pre-fill onboarding level from param
+        # Pre-fill onboarding level from param (validated against canonical CEFR codes)
         if level_param:
-            user.onboarding_level = level_param.upper()
+            normalized_level = level_param.upper()
+            if normalized_level in ('A1', 'A2', 'B1', 'B2', 'C1'):
+                user.onboarding_level = normalized_level
 
         # Handle referral code
         ref_code = ref_param or request.form.get('ref')

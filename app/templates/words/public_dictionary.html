@@ -1,0 +1,461 @@
+{% extends 'base.html' %}
+
+{% block title %}Англо-русский словарь онлайн | LLT English{% endblock %}
+
+{% block meta_description %}<meta name="description" content="{{ meta_description | default('Англо-русский словарь LLT English: переводы, примеры и уровни CEFR.') }}">{% endblock %}
+
+{% block robots %}{% if should_noindex %}<meta name="robots" content="noindex, follow">{% else %}<meta name="robots" content="index, follow">{% endif %}{% endblock %}
+
+{% block head_extra %}
+<meta property="og:title" content="Англо-русский словарь | LLT English">
+<meta property="og:description" content="{{ meta_description | default('') }}">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://llt-english.com{% if selected_letter %}{{ url_for('words.public_dictionary', letter=selected_letter) }}{% else %}{{ url_for('words.public_dictionary') }}{% endif %}">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Англо-русский словарь LLT English",
+  "description": {{ (meta_description or '')|tojson }},
+  "url": {{ ('https://llt-english.com' ~ (url_for('words.public_dictionary', letter=selected_letter) if selected_letter else url_for('words.public_dictionary')))|tojson }},
+  "mainEntity": {
+    "@type": "ItemList",
+    "itemListElement": [
+      {% for word in words_page.items[:12] %}
+      {
+        "@type": "ListItem",
+        "position": {{ loop.index }},
+        "url": {{ ('https://llt-english.com/dictionary/' ~ (word.english_word|word_slug))|tojson }},
+        "name": {{ word.english_word|tojson }}
+      }{{ ',' if not loop.last }}
+      {% endfor %}
+    ]
+  }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<style>
+.pdict-page {
+  --pdict-primary: #2563eb;
+  --pdict-accent: #059669;
+  --pdict-warm: #b45309;
+  --pdict-surface: #ffffff;
+  --pdict-soft: #f8fafc;
+  --pdict-text: #0f172a;
+  --pdict-muted: #64748b;
+  --pdict-border: #e2e8f0;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+.pdict-hero {
+  padding: 2.25rem 0 1.5rem;
+}
+
+.pdict-kicker {
+  color: var(--pdict-accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.pdict-title {
+  color: var(--pdict-text);
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 0 0 0.75rem;
+}
+
+.pdict-desc {
+  color: var(--pdict-muted);
+  font-size: 1rem;
+  line-height: 1.65;
+  margin: 0;
+  max-width: 680px;
+}
+
+.pdict-search {
+  align-items: stretch;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr) 140px auto;
+  margin: 1.5rem 0 1rem;
+}
+
+.pdict-input,
+.pdict-select {
+  background: var(--pdict-surface);
+  border: 1px solid var(--pdict-border);
+  border-radius: 8px;
+  color: var(--pdict-text);
+  font-size: 0.95rem;
+  min-height: 44px;
+  padding: 0.7rem 0.85rem;
+}
+
+.pdict-input:focus,
+.pdict-select:focus {
+  border-color: var(--pdict-primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+  outline: none;
+}
+
+.pdict-btn {
+  align-items: center;
+  background: var(--pdict-primary);
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 0.45rem;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  text-decoration: none;
+}
+
+.pdict-btn:hover { background: #1d4ed8; color: #fff; }
+
+.pdict-alpha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1.5rem;
+}
+
+.pdict-alpha__item {
+  align-items: center;
+  border: 1px solid var(--pdict-border);
+  border-radius: 8px;
+  color: var(--pdict-text);
+  display: inline-flex;
+  font-size: 0.85rem;
+  font-weight: 800;
+  height: 34px;
+  justify-content: center;
+  text-decoration: none;
+  text-transform: uppercase;
+  width: 34px;
+}
+
+.pdict-alpha__item:hover,
+.pdict-alpha__item--active {
+  background: #ecfdf5;
+  border-color: #34d399;
+  color: #047857;
+}
+
+.pdict-layout {
+  align-items: start;
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1fr) 280px;
+}
+
+.pdict-panel {
+  background: var(--pdict-surface);
+  border: 1px solid var(--pdict-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pdict-panel__head {
+  align-items: center;
+  background: var(--pdict-soft);
+  border-bottom: 1px solid var(--pdict-border);
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+}
+
+.pdict-panel__title {
+  color: var(--pdict-text);
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.pdict-panel__meta {
+  color: var(--pdict-muted);
+  font-size: 0.82rem;
+}
+
+.pdict-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.pdict-word {
+  border-bottom: 1px solid var(--pdict-border);
+  border-right: 1px solid var(--pdict-border);
+  color: inherit;
+  min-height: 104px;
+  padding: 1rem;
+  text-decoration: none;
+}
+
+.pdict-word:hover {
+  background: #f8fafc;
+}
+
+.pdict-word__top {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.pdict-word__en {
+  color: var(--pdict-text);
+  font-size: 1rem;
+  font-weight: 800;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pdict-word__level {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  color: #1d4ed8;
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.16rem 0.45rem;
+}
+
+.pdict-word__ru {
+  color: var(--pdict-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.pdict-empty {
+  color: var(--pdict-muted);
+  padding: 2rem;
+  text-align: center;
+}
+
+.pdict-side {
+  display: grid;
+  gap: 1rem;
+}
+
+.pdict-side__body {
+  padding: 1rem;
+}
+
+.pdict-levels {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.pdict-level {
+  align-items: center;
+  border: 1px solid var(--pdict-border);
+  border-radius: 8px;
+  color: var(--pdict-text);
+  display: flex;
+  justify-content: space-between;
+  padding: 0.65rem 0.75rem;
+  text-decoration: none;
+}
+
+.pdict-level:hover,
+.pdict-level--active {
+  background: #fff7ed;
+  border-color: #fdba74;
+  color: #9a3412;
+}
+
+.pdict-level__code {
+  font-weight: 800;
+}
+
+.pdict-level__count {
+  color: var(--pdict-muted);
+  font-size: 0.8rem;
+}
+
+.pdict-popular {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.pdict-popular a {
+  color: var(--pdict-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pdict-popular span {
+  color: var(--pdict-muted);
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 500;
+  margin-top: 0.1rem;
+}
+
+.pdict-pagination {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.pdict-page-link {
+  border: 1px solid var(--pdict-border);
+  border-radius: 8px;
+  color: var(--pdict-text);
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 0.5rem 0.75rem;
+  text-decoration: none;
+}
+
+.pdict-page-link:hover {
+  border-color: var(--pdict-primary);
+  color: var(--pdict-primary);
+}
+
+@media (max-width: 860px) {
+  .pdict-search { grid-template-columns: 1fr; }
+  .pdict-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .pdict-page { padding-left: 0.75rem; padding-right: 0.75rem; }
+  .pdict-title { font-size: 1.55rem; }
+  .pdict-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+<main class="pdict-page">
+  <section class="pdict-hero">
+    <div class="pdict-kicker">LLT English Dictionary</div>
+    <h1 class="pdict-title">Англо-русский словарь</h1>
+    <p class="pdict-desc">
+      Переводы английских слов с уровнями CEFR, примерами употребления и ссылками на практику.
+    </p>
+
+    <form class="pdict-search" action="{{ url_for('words.public_dictionary') }}" method="get">
+      <input class="pdict-input" type="search" name="q" value="{{ search }}" placeholder="Найти слово или перевод" aria-label="Найти слово">
+      <select class="pdict-select" name="level" aria-label="Уровень">
+        <option value="">Все уровни</option>
+        {% for level in levels %}
+        <option value="{{ level }}" {% if selected_level == level %}selected{% endif %}>{{ level }}</option>
+        {% endfor %}
+      </select>
+      <button class="pdict-btn" type="submit">
+        <span>Найти</span>
+      </button>
+    </form>
+
+    <nav class="pdict-alpha" aria-label="Слова по буквам">
+      {% for letter in alphabet %}
+      <a class="pdict-alpha__item {% if selected_letter == letter %}pdict-alpha__item--active{% endif %}"
+         href="{{ url_for('words.public_dictionary', letter=letter) }}">{{ letter }}</a>
+      {% endfor %}
+    </nav>
+  </section>
+
+  <div class="pdict-layout">
+    <section class="pdict-panel">
+      <div class="pdict-panel__head">
+        <h2 class="pdict-panel__title">
+          {% if search %}Результаты поиска{% elif selected_letter %}Слова на {{ selected_letter|upper }}{% else %}Популярные слова{% endif %}
+        </h2>
+        <div class="pdict-panel__meta">{{ words_page.total }} слов</div>
+      </div>
+
+      {% if words_page.items %}
+      <div class="pdict-grid">
+        {% for word in words_page.items %}
+        <a class="pdict-word" href="{{ url_for('words.public_word', word_slug=word.english_word|word_slug) }}">
+          <div class="pdict-word__top">
+            <div class="pdict-word__en">{{ word.english_word }}</div>
+            {% if word.level %}<span class="pdict-word__level">{{ word.level }}</span>{% endif %}
+          </div>
+          <p class="pdict-word__ru">{{ word.russian_word or 'Перевод уточняется' }}</p>
+        </a>
+        {% endfor %}
+      </div>
+
+      {% if words_page.pages > 1 %}
+      <nav class="pdict-pagination" aria-label="Страницы словаря">
+        {% if words_page.has_prev %}
+          {% if selected_letter %}
+          <a class="pdict-page-link" href="{{ url_for('words.public_dictionary', letter=selected_letter, q=search or None, level=selected_level or None, page=words_page.prev_num) }}">Назад</a>
+          {% else %}
+          <a class="pdict-page-link" href="{{ url_for('words.public_dictionary', q=search or None, level=selected_level or None, page=words_page.prev_num) }}">Назад</a>
+          {% endif %}
+        {% endif %}
+        <span class="pdict-panel__meta">{{ words_page.page }} / {{ words_page.pages }}</span>
+        {% if words_page.has_next %}
+          {% if selected_letter %}
+          <a class="pdict-page-link" href="{{ url_for('words.public_dictionary', letter=selected_letter, q=search or None, level=selected_level or None, page=words_page.next_num) }}">Дальше</a>
+          {% else %}
+          <a class="pdict-page-link" href="{{ url_for('words.public_dictionary', q=search or None, level=selected_level or None, page=words_page.next_num) }}">Дальше</a>
+          {% endif %}
+        {% endif %}
+      </nav>
+      {% endif %}
+      {% else %}
+      <div class="pdict-empty">По этому запросу слов пока нет.</div>
+      {% endif %}
+    </section>
+
+    <aside class="pdict-side">
+      <section class="pdict-panel">
+        <div class="pdict-panel__head">
+          <h2 class="pdict-panel__title">Уровни</h2>
+        </div>
+        <div class="pdict-side__body">
+          <div class="pdict-levels">
+            {% for level in levels %}
+              {% if selected_letter %}
+              <a class="pdict-level {% if selected_level == level %}pdict-level--active{% endif %}"
+                 href="{{ url_for('words.public_dictionary', letter=selected_letter, level=level) }}">
+              {% else %}
+              <a class="pdict-level {% if selected_level == level %}pdict-level--active{% endif %}"
+                 href="{{ url_for('words.public_dictionary', level=level) }}">
+              {% endif %}
+              <span class="pdict-level__code">{{ level }}</span>
+              <span class="pdict-level__count">{{ level_counts.get(level, 0) }}</span>
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <section class="pdict-panel">
+        <div class="pdict-panel__head">
+          <h2 class="pdict-panel__title">Частотные слова</h2>
+        </div>
+        <div class="pdict-side__body">
+          <div class="pdict-popular">
+            {% for word in popular_words %}
+            <a href="{{ url_for('words.public_word', word_slug=word.english_word|word_slug) }}">
+              {{ word.english_word }}
+              <span>{{ word.russian_word }}</span>
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</main>
+{% endblock %}

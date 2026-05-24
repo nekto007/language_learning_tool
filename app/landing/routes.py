@@ -26,7 +26,7 @@ def index():
     stats = {
         'users': User.query.filter_by(active=True).count(),
         'words': CollectionWords.query.count(),
-        'levels': 7,  # A0, A1, A2, B1, B2, C1, C2
+        'levels': 5,  # A1, A2, B1, B2, C1
         'lessons_completed': db.session.query(func.count(LessonProgress.id)).filter(
             LessonProgress.status == 'completed'
         ).scalar() or 0,

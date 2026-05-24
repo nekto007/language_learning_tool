@@ -578,8 +578,8 @@
               </div>
             </li>
             {% endif %}
-            {# Difficulty based on CEFR level: A1=1, A2=2, B1=3, B2=4, C1/C2=5 #}
-            {% set level_difficulty = {'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 5} %}
+            {# Difficulty based on CEFR level: A1=1, A2=2, B1=3, B2=4, C1=5 #}
+            {% set level_difficulty = {'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5} %}
             {% set difficulty_stars = level_difficulty.get(topic.level, 3) %}
             <li class="info-item">
               <div class="info-item__icon info-item__icon--difficulty">
@@ -632,7 +632,7 @@
     <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--grammar-text); margin: 0 0 1rem;">Словарь уровня {{ topic.level }}</h3>
     <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
       {% for w in related_words %}
-      <a href="{{ url_for('words.public_word', word_slug=w.english_word|lower|replace(' ', '-')) }}" class="topic-related-word" style="padding: 0.5rem 0.875rem; background: var(--grammar-surface); border: 1px solid var(--grammar-border); border-radius: 999px; text-decoration: none; font-size: 0.85rem; color: var(--grammar-text); transition: all 0.2s;">
+      <a href="{{ url_for('words.public_word', word_slug=w.english_word|word_slug) }}" class="topic-related-word" style="padding: 0.5rem 0.875rem; background: var(--grammar-surface); border: 1px solid var(--grammar-border); border-radius: 999px; text-decoration: none; font-size: 0.85rem; color: var(--grammar-text); transition: all 0.2s;">
         {{ w.english_word }} <span style="color: var(--grammar-text-muted);">— {{ w.russian_word }}</span>
       </a>
       {% endfor %}

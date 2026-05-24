@@ -1190,6 +1190,12 @@ def import_curriculum_data(data):
 
     # 1. Создаем или находим уровень CEFR
     level_code = data['level']
+    allowed_levels = ('A1', 'A2', 'B1', 'B2', 'C1')
+    if level_code not in allowed_levels:
+        raise ValueError(
+            f"Недопустимый уровень CEFR '{level_code}'. "
+            f"Разрешены: {', '.join(allowed_levels)}."
+        )
     level = CEFRLevel.query.filter_by(code=level_code).first()
 
     if not level:
@@ -1402,13 +1408,11 @@ def process_grammar(grammar_data):
 def get_level_name(level_code):
     """Возвращает название для кода уровня CEFR"""
     level_names = {
-        'A0': 'Pre-Beginner',
         'A1': 'Beginner',
         'A2': 'Elementary',
         'B1': 'Intermediate',
         'B2': 'Upper Intermediate',
-        'C1': 'Advanced',
-        'C2': 'Proficiency'
+        'C1': 'Advanced'
     }
     return level_names.get(level_code, f'Level {level_code}')
 
@@ -1416,13 +1420,11 @@ def get_level_name(level_code):
 def get_level_order(level_code):
     """Возвращает порядок для уровня CEFR"""
     level_orders = {
-        'A0': 0,
         'A1': 1,
         'A2': 2,
         'B1': 3,
         'B2': 4,
-        'C1': 5,
-        'C2': 6
+        'C1': 5
     }
     return level_orders.get(level_code, 99)
 

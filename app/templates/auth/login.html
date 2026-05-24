@@ -4,8 +4,15 @@
 
 {% block meta_description %}<meta name="description" content="Войдите в LLT English, чтобы продолжить изучение английского языка: курсы, грамматика, карточки.">{% endblock %}
 
-{% block head_extra %}
-<link rel="canonical" href="https://llt-english.com/login">
+{% block robots %}<meta name="robots" content="noindex, follow">{% endblock %}
+
+{% block canonical %}<link rel="canonical" href="https://llt-english.com/login">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:title" content="Вход | LLT English">
+<meta property="og:description" content="Войдите в LLT English, чтобы продолжить изучение английского языка: курсы, грамматика, карточки.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://llt-english.com/login">
 {% endblock %}
 
 {% block content %}

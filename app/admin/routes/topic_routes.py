@@ -8,8 +8,9 @@ import logging
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
-from flask_login import login_required
+from flask_login import current_user
 
+from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
 from app.utils.db import db
 from app.words.forms import TopicForm
@@ -22,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 
 @topic_bp.route('/topics')
-@login_required
 @admin_required
 def topic_list():
     """Отображение списка всех тем"""
@@ -34,7 +34,6 @@ def topic_list():
 
 
 @topic_bp.route('/topics/create', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def create_topic():
     """Создание новой темы"""
@@ -55,7 +54,6 @@ def create_topic():
 
 
 @topic_bp.route('/topics/<int:topic_id>/edit', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def edit_topic(topic_id):
     """Редактирование темы"""
@@ -73,12 +71,12 @@ def edit_topic(topic_id):
 
 
 @topic_bp.route('/topics/<int:topic_id>/delete', methods=['POST'])
-@login_required
 @admin_required
 def delete_topic(topic_id):
     """Удаление темы"""
     topic = Topic.query.get_or_404(topic_id)
     db.session.delete(topic)
+    log_admin_action(current_user.id, 'topic.delete', target_type='topic', target_id=topic_id)
     db.session.commit()
 
     flash(_('Topic deleted successfully!'), 'success')
@@ -86,7 +84,6 @@ def delete_topic(topic_id):
 
 
 @topic_bp.route('/topics/<int:topic_id>/words')
-@login_required
 @admin_required
 def topic_words(topic_id):
     """Управление словами в теме"""
@@ -109,7 +106,6 @@ def topic_words(topic_id):
 
 
 @topic_bp.route('/topics/<int:topic_id>/add_word/<int:word_id>', methods=['POST'])
-@login_required
 @admin_required
 def add_word_to_topic(topic_id, word_id):
     """API для добавления слова в тему"""
@@ -127,7 +123,6 @@ def add_word_to_topic(topic_id, word_id):
 
 
 @topic_bp.route('/topics/<int:topic_id>/bulk_add_words', methods=['POST'])
-@login_required
 @admin_required
 def bulk_add_words_to_topic(topic_id):
     """API для массового добавления слов в тему только по точному совпадению."""
@@ -179,13 +174,13 @@ def bulk_add_words_to_topic(topic_id):
 
 
 @topic_bp.route('/topics/<int:topic_id>/remove_word/<int:word_id>', methods=['POST'])
-@login_required
 @admin_required
 def remove_word_from_topic(topic_id, word_id):
     """API для удаления слова из темы"""
     topic_word = TopicWord.query.filter_by(topic_id=topic_id, word_id=word_id).first_or_404()
 
     db.session.delete(topic_word)
+    log_admin_action(current_user.id, 'topic.remove_word', target_type='topic_word', target_id=topic_id)
     db.session.commit()
 
     return jsonify({'success': True})

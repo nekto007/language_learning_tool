@@ -5,6 +5,7 @@ from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user
 from sqlalchemy import func
 
+from app.admin.audit import log_admin_action
 from app.admin.main_routes import admin
 from app.admin.utils.decorators import admin_required
 from app.study.models import QuizDeck, QuizDeckWord, QuizResult
@@ -143,6 +144,7 @@ def quiz_deck_delete(deck_id):
     title = deck.title
 
     db.session.delete(deck)
+    log_admin_action(current_user.id, 'quiz_deck.delete', target_type='quiz_deck', target_id=deck_id)
     db.session.commit()
 
     # Check if AJAX request
@@ -324,6 +326,7 @@ def quiz_deck_remove_word(deck_id, word_id):
     deck_word = QuizDeckWord.query.filter_by(deck_id=deck_id, id=word_id).first_or_404()
 
     db.session.delete(deck_word)
+    log_admin_action(current_user.id, 'quiz_deck.remove_word', target_type='quiz_deck', target_id=deck_id)
     db.session.commit()
 
     # Check if AJAX request
@@ -349,6 +352,7 @@ def quiz_deck_reorder_words(deck_id):
         if word and word.deck_id == deck_id:
             word.order_index = index
 
+    log_admin_action(current_user.id, 'quiz_deck.reorder_words', target_type='quiz_deck', target_id=deck_id)
     db.session.commit()
 
     return jsonify({'success': True})

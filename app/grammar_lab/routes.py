@@ -6,13 +6,14 @@ Provides both HTML pages and JSON API endpoints.
 Uses UnifiedSRSService for Anki-like spaced repetition.
 """
 
-from flask import render_template, jsonify, request, redirect, url_for
+from flask import abort, render_template, jsonify, request, redirect, url_for
 from flask_login import login_required, current_user
 from sqlalchemy.exc import IntegrityError
 import logging
 
 from app.grammar_lab import grammar_lab_bp
 from app.grammar_lab.models import GrammarTopic, GrammarExercise, UserGrammarExercise
+from app.curriculum.routes.public import PUBLIC_CEFR_CODES
 from app.grammar_lab.services import GrammarLabService
 from app.utils.db import db
 
@@ -54,6 +55,11 @@ def index():
 @grammar_lab_bp.route('/topics/<level>')
 def topics(level=None):
     """Topics listing page — public, with progress for authenticated users"""
+    if level:
+        level = level.upper()
+        if level not in PUBLIC_CEFR_CODES:
+            abort(404)
+
     user_id = current_user.id if current_user.is_authenticated else None
     topics_list = grammar_service.get_topics_by_level(level, user_id)
     levels = grammar_service.get_levels_summary(user_id)
@@ -74,6 +80,11 @@ def topic_detail(topic_id):
 
     if not topic:
         return redirect(url_for('grammar_lab.topics'))
+
+    # Hide legacy/non-public CEFR topics: their related CTAs (/courses/<level>,
+    # /grammar-lab/topics/<level>) and related-word links 404 downstream.
+    if topic.get('level') not in PUBLIC_CEFR_CODES:
+        abort(404)
 
     # SEO meta description
     intro = (topic.get('content') or {}).get('introduction', '')
@@ -382,7 +393,7 @@ def api_create_topic():
         slug: str - unique slug identifier
         title: str - English title
         title_ru: str - Russian title
-        level: str - CEFR level (A1-C2)
+        level: str - CEFR level (A1-C1)
         order: int - display order (default 0)
         estimated_time: int - minutes (default 15)
         difficulty: int - 1-5 (default 1)

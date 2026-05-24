@@ -57,7 +57,7 @@ class GrammarTopic(db.Model):
     title_ru = Column(String(200), nullable=False)            # "Настоящее совершённое"
 
     # Level and order
-    level = Column(String(10), nullable=False)  # A1, A2, B1, B2, C1, C2
+    level = Column(String(10), nullable=False)  # A1, A2, B1, B2, C1
     order = Column(Integer, default=0)          # Order within level
 
     # Content (JSONB)

@@ -107,11 +107,11 @@ def test_cefr_code_to_order_none(app, db_session):
 # ---------------------------------------------------------------------------
 
 
-def test_new_user_no_progress_no_onboarding_returns_a0(app, db_session):
-    """User with no progress and no onboarding_level → 'A0'."""
+def test_new_user_no_progress_no_onboarding_returns_a1(app, db_session):
+    """User with no progress and no onboarding_level → 'A1'."""
     user = _make_user(db_session, onboarding_level=None)
     result = get_user_current_cefr_level(user.id, db)
-    assert result == "A0"
+    assert result == "A1"
 
 
 def test_onboarding_b1_no_progress_returns_b1(app, db_session):
@@ -122,11 +122,10 @@ def test_onboarding_b1_no_progress_returns_b1(app, db_session):
     assert result == "B1"
 
 
-def test_progress_a2_onboarding_a0_returns_a2(app, db_session):
-    """Progress at A2 is higher than onboarding A0 → 'A2'."""
-    a0 = _make_level(db_session, code="A0", order=0)
+def test_progress_a2_unsupported_onboarding_returns_a2(app, db_session):
+    """Progress at A2 wins over unsupported onboarding level."""
     a2 = _make_level(db_session, code="A2", order=2)
-    user = _make_user(db_session, onboarding_level="A0")
+    user = _make_user(db_session, onboarding_level="ZZ")
     module = _make_module(db_session, a2)
     lesson = _make_lesson(db_session, module)
     _complete_lesson(db_session, user, lesson)
@@ -170,8 +169,8 @@ def test_onboarding_level_not_in_db_falls_back_to_progress(app, db_session):
     assert result == "A1"
 
 
-def test_onboarding_level_not_in_db_and_no_progress_returns_a0(app, db_session):
-    """Non-existent onboarding code and no progress → 'A0'."""
+def test_onboarding_level_not_in_db_and_no_progress_returns_a1(app, db_session):
+    """Non-existent onboarding code and no progress → 'A1'."""
     user = _make_user(db_session, onboarding_level="XXXX")
     result = get_user_current_cefr_level(user.id, db)
-    assert result == "A0"
+    assert result == "A1"

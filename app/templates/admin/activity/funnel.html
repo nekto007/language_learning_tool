@@ -1,11 +1,11 @@
 {% extends 'admin/base.html' %}
 {% from 'admin/components.html' import page_header, breadcrumb %}
 
-{% macro heatmap_style(pct) %}
+{% macro heatmap_class(pct) %}
 {%- if pct is none -%}
-{%- elif pct >= 50 -%}background-color:#d4edda;
-{%- elif pct >= 25 -%}background-color:#fff3cd;
-{%- else -%}background-color:#f8d7da;
+{%- elif pct >= 50 -%}admin-funnel-heatmap--high
+{%- elif pct >= 25 -%}admin-funnel-heatmap--mid
+{%- else -%}admin-funnel-heatmap--low
 {%- endif -%}
 {% endmacro %}
 
@@ -38,7 +38,7 @@
         <form method="GET" action="{{ url_for('activity_admin.activity_funnel') }}" class="d-flex align-items-center gap-3 flex-wrap">
             <div class="d-flex align-items-center gap-2">
                 <label class="mb-0 text-nowrap">Окно регистрации:</label>
-                <select name="days" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                <select name="days" class="form-select form-select-sm admin-funnel-select" onchange="this.form.submit()">
                     {% for d in [7, 14, 30, 60, 90] %}
                     <option value="{{ d }}" {% if d == days %}selected{% endif %}>{{ d }} дней</option>
                     {% endfor %}
@@ -46,7 +46,7 @@
             </div>
             <div class="d-flex align-items-center gap-2">
                 <label class="mb-0 text-nowrap">Недели когорт:</label>
-                <select name="weeks" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                <select name="weeks" class="form-select form-select-sm admin-funnel-select" onchange="this.form.submit()">
                     {% for w in [4, 8, 12, 16] %}
                     <option value="{{ w }}" {% if w == weeks %}selected{% endif %}>{{ w }} нед.</option>
                     {% endfor %}
@@ -84,7 +84,7 @@
                     <th class="text-end">Пользователей</th>
                     <th class="text-end">от предыдущего</th>
                     <th class="text-end">от начала</th>
-                    <th style="min-width: 200px;">Доля</th>
+                    <th class="admin-funnel-share-col">Доля</th>
                 </tr>
             </thead>
             <tbody>
@@ -103,7 +103,7 @@
                     </td>
                     <td class="text-end text-muted small">{{ step.conversion_from_top }}%</td>
                     <td>
-                        <div class="progress" style="height: 8px;">
+                        <div class="progress admin-funnel-progress">
                             <div class="progress-bar
                                 {% if step.conversion_from_top >= 70 %}bg-success
                                 {% elif step.conversion_from_top >= 40 %}bg-warning
@@ -129,7 +129,7 @@
     <div class="card-body p-0">
         {% if cohorts %}
         <div class="table-responsive">
-            <table class="table table-bordered mb-0" style="font-size: 0.85rem;">
+            <table class="table table-bordered mb-0 admin-funnel-cohort-table">
                 <thead class="table-light">
                     <tr>
                         <th>Неделя</th>
@@ -146,13 +146,13 @@
                         <td class="text-center text-muted">
                             {% if cohort.cohort_size > 0 %}{{ cohort.cohort_size }}{% else %}<span class="text-muted">—</span>{% endif %}
                         </td>
-                        <td class="text-center" style="{{ heatmap_style(cohort.day1_pct) }}">
+                        <td class="text-center {{ heatmap_class(cohort.day1_pct) }}">
                             {% if cohort.day1_pct is not none %}{{ cohort.day1_pct }}%{% else %}<span class="text-muted small">—</span>{% endif %}
                         </td>
-                        <td class="text-center" style="{{ heatmap_style(cohort.day7_pct) }}">
+                        <td class="text-center {{ heatmap_class(cohort.day7_pct) }}">
                             {% if cohort.day7_pct is not none %}{{ cohort.day7_pct }}%{% else %}<span class="text-muted small">н/д</span>{% endif %}
                         </td>
-                        <td class="text-center" style="{{ heatmap_style(cohort.day30_pct) }}">
+                        <td class="text-center {{ heatmap_class(cohort.day30_pct) }}">
                             {% if cohort.day30_pct is not none %}{{ cohort.day30_pct }}%{% else %}<span class="text-muted small">н/д</span>{% endif %}
                         </td>
                     </tr>
@@ -163,9 +163,9 @@
         <div class="p-3 text-muted small">
             <i class="fas fa-info-circle me-1"></i>
             «н/д» — данных ещё недостаточно (нужно подождать 7 или 30 дней с момента окончания недели).
-            Цвет: <span style="background:#d4edda;padding:1px 6px;border-radius:3px;">зелёный</span> ≥ 50%,
-            <span style="background:#fff3cd;padding:1px 6px;border-radius:3px;">жёлтый</span> ≥ 25%,
-            <span style="background:#f8d7da;padding:1px 6px;border-radius:3px;">красный</span> < 25%.
+            Цвет: <span class="admin-funnel-legend-swatch admin-funnel-heatmap--high">зелёный</span> ≥ 50%,
+            <span class="admin-funnel-legend-swatch admin-funnel-heatmap--mid">жёлтый</span> ≥ 25%,
+            <span class="admin-funnel-legend-swatch admin-funnel-heatmap--low">красный</span> < 25%.
         </div>
         {% else %}
         <div class="text-center text-muted py-5">

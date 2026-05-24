@@ -16,6 +16,7 @@
 </div>
 
 <form method="POST" action="">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="row">
         <div class="col-lg-8">
             <!-- Text Source Selection -->
@@ -150,7 +151,7 @@
                                 <label for="meta_level" class="form-label">Difficulty Level</label>
                                 <input type="text" name="meta_level" id="meta_level" class="form-control"
                                        value="{{ metadata.get('level', component.module.level.code) }}"
-                                       placeholder="e.g., A0, A1, B1">
+                                       placeholder="e.g., A1, B1, C1">
                             </div>
                         </div>
                     </div>

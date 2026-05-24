@@ -36,7 +36,7 @@ VOCABULARY_WORDS_PER_LESSON = 8   # Было 10
 VOCABULARY_WORDS_PER_MODULE = 40  # Было 50
 
 # CEFR levels
-CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1']
 DEFAULT_LEVEL = 'B1'
 
 # Approximate global corpus size for TF-IDF
@@ -53,18 +53,24 @@ class WordScorer:
         Initialize the word scorer.
 
         Args:
-            target_level: Target CEFR level for the learner (A1-C2)
+            target_level: Target CEFR level for the learner (A1-C1)
             total_words_in_book: Total word count in the book (for TF calculation)
         """
         self.target_level = target_level
-        self.target_level_idx = self._get_level_index(target_level)
+        idx = self._get_level_index(target_level)
+        # A target above all known levels makes no sense — fall back to default.
+        if idx >= len(CEFR_LEVELS):
+            idx = CEFR_LEVELS.index(DEFAULT_LEVEL)
+        self.target_level_idx = idx
         self.total_words_in_book = total_words_in_book
 
     def _get_level_index(self, level: str) -> int:
         """Get numeric index for CEFR level"""
-        if level and level in CEFR_LEVELS:
+        if not level:
+            return CEFR_LEVELS.index(DEFAULT_LEVEL)
+        if level in CEFR_LEVELS:
             return CEFR_LEVELS.index(level)
-        return CEFR_LEVELS.index(DEFAULT_LEVEL)
+        return len(CEFR_LEVELS)
 
     def should_include_word(self, book_freq: int, all_frequencies: List[int]) -> bool:
         """
@@ -288,7 +294,7 @@ class WordScorer:
             word_level_idx = self._get_level_index(word_level)
 
             # Only include words at or below target level
-            # (Don't give B1 students C2 vocabulary)
+            # Don't give learners vocabulary above their current level.
             if word_level_idx > self.target_level_idx:
                 continue
 

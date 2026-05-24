@@ -12,9 +12,11 @@ from datetime import UTC, datetime
 
 from flask import (Blueprint, flash, jsonify, redirect, render_template,
                    request, url_for, current_app)
+from flask_login import current_user
 from sqlalchemy import func
 from werkzeug.utils import secure_filename
 
+from app.admin.audit import log_admin_action
 from app.admin.services.book_processing_service import BookProcessingService
 from app.admin.utils.cache import clear_admin_cache
 from app.admin.utils.decorators import admin_required, handle_admin_errors
@@ -429,8 +431,11 @@ def cleanup_books():
                     db.or_(Book.content.is_(None), Book.content == '')
                 ).all()
                 count = len(empty_books)
+                removed_ids = [b.id for b in empty_books]
                 for book in empty_books:
                     db.session.delete(book)
+                for removed_id in removed_ids:
+                    log_admin_action(current_user.id, 'book.cleanup_empty', target_type='book', target_id=removed_id)
                 db.session.commit()
                 results['details'].append(f"Удалено {count} книг без содержания")
 
@@ -444,6 +449,8 @@ def cleanup_books():
                             removed_files += 1
                         except Exception:
                             logger.exception("Failed to remove temp file: %s", filename)
+                log_admin_action(current_user.id, 'book.cleanup_temp_files', target_type='book')
+                db.session.commit()
                 results['details'].append(f"Удалено {removed_files} временных файлов")
 
             results['message'] = 'Очистка выполнена успешно'
@@ -470,7 +477,14 @@ def edit_book(book_id):
     if request.method == 'POST':
         book.title = request.form.get('title', book.title).strip()
         book.author = request.form.get('author', book.author).strip()
-        book.level = request.form.get('level', book.level)
+        submitted_level = request.form.get('level', book.level)
+        allowed_levels = (None, '', 'A1', 'A2', 'B1', 'B2', 'C1')
+        # Preserve legacy CEFR values (e.g. C2) when admin saves an unrelated
+        # edit without touching the level dropdown.
+        if submitted_level not in allowed_levels and submitted_level != book.level:
+            flash(f'Недопустимый уровень "{submitted_level}".', 'danger')
+            return render_template('admin/books/edit.html', book=book)
+        book.level = submitted_level
         book.summary = request.form.get('description', book.summary)
 
         db.session.commit()
@@ -494,6 +508,7 @@ def delete_book(book_id):
 
         # Delete the book
         db.session.delete(book)
+        log_admin_action(current_user.id, 'book.delete', target_type='book', target_id=book_id)
         db.session.commit()
 
         logger.info(f"Book deleted: {book_title} (ID: {book_id})")

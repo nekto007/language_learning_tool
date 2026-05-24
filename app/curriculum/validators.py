@@ -247,7 +247,7 @@ class TextContentSchema(Schema):
     exercises = fields.List(fields.Dict(), required=False)  # For reading lessons
     # Additional fields for dialogue content
     type = fields.Str(required=False)  # dialogue, text, etc.
-    ref = fields.Str(required=False)  # reference code like A0M1D1
+    ref = fields.Str(required=False)  # reference code like A1M1D1
     title = fields.Str(required=False)  # dialogue title
     audio = fields.Str(required=False)  # audio file name
 
@@ -260,13 +260,13 @@ class TextContentSchema(Schema):
 class DictationContentSchema(Schema):
     """Schema for dictation lesson content.
 
-    Difficulty ladder (single lesson type, four modes — A1→C2):
+    Difficulty ladder (single lesson type, four modes — A1→C1):
       * ``cloze`` — A1/A2: visible text with key-word gaps via ``gap_text`` +
         ``gaps[]``. Current default when ``gaps`` is present.
       * ``phrase_cloze`` — B1: multi-word phrase gaps (``gaps[].span_words``).
       * ``sentence_reconstruction`` — B2: numbered prompts, learner writes
         each sentence into its own textarea.
-      * ``full_dictation`` — C1/C2: single textarea, exact word-by-word
+      * ``full_dictation`` — C1: single textarea, exact word-by-word
         comparison with the transcript.
 
     ``mode`` is optional and auto-derived when absent: presence of ``gaps``
@@ -345,7 +345,7 @@ class TranslationContentSchema(Schema):
         подсказки» и используются как safety-net. Принимаются несколько
         правильных вариантов (``alternatives``). Цель: передавать смысл,
         не цепляясь за слово-в-слово.
-      * ``rubric`` — **C1–C2**. Без подсказок, рубричная оценка
+      * ``rubric`` — **C1**. Без подсказок, рубричная оценка
         (смысл / грамматика / естественность / стиль), несколько эталонных
         переводов. Цель: переводить как переводческое решение. Требует
         более гибкого грейдера (semantic similarity / AI feedback) —
@@ -443,7 +443,7 @@ class SentenceCorrectionContentSchema(Schema):
 class WritingPromptContentSchema(Schema):
     """Schema for writing prompt lesson content — user writes free-form response.
 
-    A1 → C2 ladder (single lesson type, varying support level via mode):
+    A1 → C1 ladder (single lesson type, varying support level via mode):
 
       * ``guided`` — **A1**. Russian task copy, template/example revealable,
         clickable hint chips that insert into textarea, count by sentences
@@ -456,8 +456,6 @@ class WritingPromptContentSchema(Schema):
         80-120 words. Goal: «абзац с причиной/мнением».
       * ``opinion`` — **B2**. Argument-oriented, linking-word hints, 150-220.
       * ``style`` — **C1**. Task context + audience + tone, rubric grading.
-      * ``rhetoric`` — **C2**. Nuance, register, adaptation. Minimal
-        scaffolding, rubric only.
 
     All new fields are optional — legacy content (``prompt`` + ``min_words``
     + ``checklist``) keeps working unchanged. Default mode derives from

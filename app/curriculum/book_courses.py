@@ -74,7 +74,7 @@ class BookCourse(db.Model):
     slug = Column(String(250), unique=True, nullable=True)  # URL-friendly identifier
     title = Column(String(200), nullable=False)
     description = Column(Text)
-    level = Column(String(10), nullable=False)  # A1, A2, B1, B2, C1, C2
+    level = Column(String(10), nullable=False)  # A1, A2, B1, B2, C1
     difficulty_score = Column(Float, default=0.0)  # 0-10 scale
     estimated_duration_weeks = Column(Integer, default=4)
     total_modules = Column(Integer, default=0)

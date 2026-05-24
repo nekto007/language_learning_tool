@@ -572,7 +572,7 @@ def audio_stats():
     modules = Module.query.join(CEFRLevel).order_by(CEFRLevel.order, Module.number).all()
 
     for module in modules:
-        level_code = module.level.code if module.level else 'A0'
+        level_code = module.level.code if module.level else 'A1'
         audio_refs: list[dict] = []
         missing_files: list[dict] = []
         seen_files: set[str] = set()

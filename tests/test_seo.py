@@ -42,14 +42,28 @@ class TestSitemap:
         xml_text = response.data.decode('utf-8')
         site_url = app.config.get('SITE_URL', 'https://llt-english.com')
         assert f'{site_url}/' in xml_text
-        assert f'{site_url}/register' in xml_text
         assert f'{site_url}/grammar-lab/topics' in xml_text
+        # /register is intentionally excluded — register.html sets noindex,
+        # so listing it in sitemap would trigger GSC "submitted URL marked noindex" warnings.
+        assert f'{site_url}/register' not in xml_text
 
     def test_sitemap_contains_grammar_topics(self, client, app, grammar_topic):
         response = client.get('/sitemap.xml')
         xml_text = response.data.decode('utf-8')
         site_url = app.config.get('SITE_URL', 'https://llt-english.com')
         assert f'{site_url}/grammar-lab/topic/{grammar_topic.id}' in xml_text
+
+    def test_sitemap_uses_single_configured_host(self, client, app):
+        original_site_url = app.config.get('SITE_URL', '')
+        app.config['SITE_URL'] = 'https://staging.llt-english.com'
+        try:
+            response = client.get('/sitemap.xml')
+            xml_text = response.data.decode('utf-8')
+
+            assert '<loc>https://staging.llt-english.com/' in xml_text
+            assert '<loc>https://llt-english.com/' not in xml_text
+        finally:
+            app.config['SITE_URL'] = original_site_url
 
 
 class TestRobots:
@@ -75,3 +89,15 @@ class TestRobots:
         text = response.data.decode('utf-8')
         site_url = app.config.get('SITE_URL', 'https://llt-english.com')
         assert f'Sitemap: {site_url}/sitemap.xml' in text
+
+    def test_robots_uses_single_configured_sitemap_host(self, client, app):
+        original_site_url = app.config.get('SITE_URL', '')
+        app.config['SITE_URL'] = 'https://staging.llt-english.com'
+        try:
+            response = client.get('/robots.txt')
+            text = response.data.decode('utf-8')
+
+            assert 'Sitemap: https://staging.llt-english.com/sitemap.xml' in text
+            assert 'Sitemap: https://llt-english.com/sitemap.xml' not in text
+        finally:
+            app.config['SITE_URL'] = original_site_url

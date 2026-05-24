@@ -623,6 +623,8 @@ def process_uploaded_book(file, title, format_type='enhanced'):
         if 'temp_path' in locals() and os.path.exists(temp_path):
             try:
                 os.remove(temp_path)
-            except:
-                pass
+            except OSError as cleanup_err:
+                logger.warning(
+                    "Failed to clean up temp file %s: %s", temp_path, cleanup_err
+                )
         raise e

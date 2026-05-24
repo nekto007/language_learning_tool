@@ -594,12 +594,15 @@ window.showSaveToast = function() {
 };
 
 // Lesson completion helper.
-// CTAs are rendered server-side via daily_plan_ctx (see
-// components/_lesson_completion_actions.html). This helper just shows the
-// completion block, fills in grade/score, and (optionally) refreshes the
-// plan CTAs when the API submit response carries an updated daily_plan_ctx —
-// e.g. when finishing the current slot turns the next-slot URL into the
-// dashboard "day secured" redirect.
+// Two paths:
+//   1. plan-aware: when linearPlanContext.isActive() returns true the helper
+//      calls fetchNextSlot() to ask the server for the next baseline slot
+//      (or whether the day is secured) and renders «Следующий слот плана» /
+//      «На дашборд» CTAs (data-plan-cta). On day_secured it redirects to
+//      /dashboard?day_secured=1 so the banner takes over.
+//   2. standalone: opts.daily_plan_ctx-driven refresh of server-rendered
+//      CTAs, or — when neither path applies — _revealCompletion('standalone')
+//      simply unhides the standalone completion block.
 window.showLessonCompletion = function(opts) {
   opts = opts || {};
   var el = document.getElementById('lesson-completion');
@@ -613,52 +616,109 @@ window.showLessonCompletion = function(opts) {
     scoreEl.textContent = Math.round(opts.score) + '%';
   }
 
-  // Optional CTA refresh from the API response. ``opts.daily_plan_ctx``
-  // mirrors the server dataclass shape: {is_daily_plan, next_slot_url,
-  // next_slot_title, day_secured, dashboard_url}.
-  if (opts.daily_plan_ctx && opts.daily_plan_ctx.is_daily_plan) {
-    var dp = opts.daily_plan_ctx;
-    // If finishing this slot closed the day, hand off to dashboard banner.
-    if (dp.day_secured && !dp.next_slot_url) {
-      try {
-        if (window.linearPlanContext && typeof window.linearPlanContext.clear === 'function') {
-          window.linearPlanContext.clear();
-        }
-      } catch (e) { /* ignore */ }
-      window.location.href = (dp.dashboard_url || '/dashboard') + '?day_secured=1';
-      return;
+  function _hideLegacyFooter() {
+    var legacyFooter = document.getElementById('lesson-footer');
+    if (legacyFooter) {
+      legacyFooter.classList.remove('lsn-footer--visible');
+      legacyFooter.style.display = 'none';
     }
-    var actions = document.getElementById('completion-actions');
-    if (actions) {
-      var nextBtn = actions.querySelector('[data-plan-cta="next-slot"]');
-      if (nextBtn && dp.next_slot_url) {
-        nextBtn.setAttribute('href', dp.next_slot_url);
-        // Preserve any icon by rebuilding text via the title attribute only.
-        var label = 'Дальше' + (dp.next_slot_title ? ': ' + dp.next_slot_title : '');
-        // Walk children: first text node (before svg) gets the new label.
-        var firstText = nextBtn.firstChild;
-        while (firstText && firstText.nodeType !== Node.TEXT_NODE) {
-          firstText = firstText.nextSibling;
-        }
-        if (firstText) {
-          firstText.nodeValue = label + ' ';
-        } else {
-          nextBtn.insertBefore(document.createTextNode(label + ' '), nextBtn.firstChild);
-        }
-      }
-      var dashBtn = actions.querySelector('[data-plan-cta="dashboard"]');
-      if (dashBtn && dp.dashboard_url) {
-        dashBtn.setAttribute('href', dp.dashboard_url);
-      }
+    var legacyDailyPlan = document.getElementById('daily-plan-next-step');
+    if (legacyDailyPlan) {
+      legacyDailyPlan.style.display = 'none';
     }
   }
 
-  el.setAttribute('data-completion-mode', (opts.daily_plan_ctx && opts.daily_plan_ctx.is_daily_plan) ? 'plan' : 'standalone');
-  el.style.display = 'block';
-  if (!opts.silent) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  function _revealCompletion(mode) {
+    el.setAttribute('data-completion-mode', mode);
+    el.style.display = 'block';
+    if (mode === 'plan') {
+      _hideLegacyFooter();
+    }
+    if (!opts.silent) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    document.dispatchEvent(new Event('dailyPlanStepComplete'));
   }
-  document.dispatchEvent(new Event('dailyPlanStepComplete'));
+
+  function _renderPlanCtas(nextUrl, nextTitle, dashboardUrl) {
+    var actions = document.getElementById('completion-actions');
+    if (!actions) return;
+    var nextBtn = actions.querySelector('[data-plan-cta="next-slot"]');
+    if (nextBtn && nextUrl) {
+      nextBtn.setAttribute('href', nextUrl);
+      var label = 'Следующий слот плана' + (nextTitle ? ': ' + nextTitle : '');
+      var firstText = nextBtn.firstChild;
+      while (firstText && firstText.nodeType !== Node.TEXT_NODE) {
+        firstText = firstText.nextSibling;
+      }
+      if (firstText) {
+        firstText.nodeValue = label + ' ';
+      } else {
+        nextBtn.insertBefore(document.createTextNode(label + ' '), nextBtn.firstChild);
+      }
+      nextBtn.style.display = '';
+    }
+    var dashBtn = actions.querySelector('[data-plan-cta="dashboard"]');
+    if (dashBtn) {
+      if (dashboardUrl) {
+        dashBtn.setAttribute('href', dashboardUrl);
+      }
+      var dashFirst = dashBtn.firstChild;
+      while (dashFirst && dashFirst.nodeType !== Node.TEXT_NODE) {
+        dashFirst = dashFirst.nextSibling;
+      }
+      if (dashFirst) {
+        dashFirst.nodeValue = 'На дашборд ';
+      }
+      dashBtn.style.display = '';
+    }
+  }
+
+  var ctx = window.linearPlanContext;
+  var inPlanContext = !!(ctx && typeof ctx.isActive === 'function' && ctx.isActive());
+
+  if (!inPlanContext) {
+    // Standalone path — optionally honour an inline daily_plan_ctx override
+    // (legacy callers pass it from the submit response).
+    if (opts.daily_plan_ctx && opts.daily_plan_ctx.is_daily_plan) {
+      var dp = opts.daily_plan_ctx;
+      if (dp.day_secured && !dp.next_slot_url) {
+        try { if (ctx && typeof ctx.clear === 'function') { ctx.clear(); } } catch (_e) {}
+        window.location.href = (dp.dashboard_url || '/dashboard') + '?day_secured=1';
+        return;
+      }
+      _renderPlanCtas(dp.next_slot_url, dp.next_slot_title, dp.dashboard_url);
+      _revealCompletion('plan');
+      return;
+    }
+    _revealCompletion('standalone');
+    return;
+  }
+
+  // Plan-aware branch — ask the server which baseline slot comes next.
+  var fetcher = (ctx && typeof ctx.fetchNextSlot === 'function')
+    ? ctx.fetchNextSlot
+    : null;
+  if (!fetcher) {
+    _revealCompletion('standalone');
+    return;
+  }
+  fetcher().then(function(data) {
+    if (!data) {
+      _revealCompletion('standalone');
+      return;
+    }
+    if (data.day_secured && !data.next) {
+      try { if (ctx && typeof ctx.clear === 'function') { ctx.clear(); } } catch (_e) {}
+      window.location.href = '/dashboard?day_secured=1';
+      return;
+    }
+    var next = data.next || {};
+    _renderPlanCtas(next.url, next.title, '/dashboard');
+    _revealCompletion('plan');
+  }).catch(function() {
+    _revealCompletion('standalone');
+  });
 };
 </script>
 <script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>

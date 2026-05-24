@@ -43,10 +43,6 @@ class TestGetDifficultyScore:
         """Test C1 level score"""
         assert get_difficulty_score('C1') == 8.0
 
-    def test_get_difficulty_score_c2(self):
-        """Test C2 level score"""
-        assert get_difficulty_score('C2') == 9.5
-
     def test_get_difficulty_score_unknown(self):
         """Test unknown level returns default"""
         assert get_difficulty_score('Z9') == 5.0

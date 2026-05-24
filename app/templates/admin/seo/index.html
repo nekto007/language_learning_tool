@@ -9,12 +9,10 @@
 
 {% block content %}
 {% set actions %}
-<form method="POST" action="{{ url_for('seo_admin.seo_refresh') }}" class="d-inline">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn btn-sm btn-outline-secondary">
-        <i class="fas fa-sync-alt me-1"></i> Обновить данные
-    </button>
-</form>
+<button type="button" class="btn btn-sm btn-outline-secondary" id="seo-refresh-btn"
+        data-refresh-url="{{ url_for('seo_admin.seo_refresh') }}">
+    <i class="fas fa-sync-alt me-1"></i> Обновить данные
+</button>
 {% if is_cached %}
 <span class="badge bg-secondary ms-2"><i class="fas fa-clock me-1"></i>из кэша</span>
 {% endif %}
@@ -148,6 +146,11 @@
             <dl class="row mb-0">
                 <dt class="col-sm-3">URL в сайтмапе</dt>
                 <dd class="col-sm-9"><strong>{{ report.sitemap.url_count }}</strong></dd>
+                <dt class="col-sm-3">Проверено из sitemap</dt>
+                <dd class="col-sm-9">
+                    {{ report.sitemap_audited_count or 0 }}
+                    <span class="text-muted small">дополнительно к ключевым страницам, лимит {{ report.sitemap_audit_limit or 0 }}</span>
+                </dd>
                 <dt class="col-sm-3">Последнее изменение</dt>
                 <dd class="col-sm-9">{{ report.sitemap.newest_lastmod or '—' }}</dd>
             </dl>
@@ -300,6 +303,39 @@
 
 {% block scripts %}
 {{ super() }}
+<script>
+(function() {
+    var btn = document.getElementById('seo-refresh-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+        var url = btn.getAttribute('data-refresh-url');
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        var token = meta ? meta.getAttribute('content') : '';
+        btn.disabled = true;
+        var original = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Обновляю...';
+        fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {'X-CSRFToken': token, 'Accept': 'text/html'},
+        }).then(function(r) {
+            if (r.redirected) {
+                window.location.href = r.url;
+            } else if (r.ok) {
+                window.location.reload();
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = original;
+                alert('Не удалось обновить SEO-аудит (HTTP ' + r.status + ').');
+            }
+        }).catch(function() {
+            btn.disabled = false;
+            btn.innerHTML = original;
+            alert('Сетевая ошибка при обновлении SEO-аудита.');
+        });
+    });
+})();
+</script>
 {% if gsc_connected and gsc_data and gsc_data.chart_dates %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>

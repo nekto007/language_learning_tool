@@ -186,6 +186,34 @@ class TestGSCRoutes:
             app.config.pop('GOOGLE_CLIENT_ID', None)
             app.config.pop('GOOGLE_CLIENT_SECRET', None)
 
+    def test_connect_uses_public_site_url_for_redirect_uri(self, app, client, admin_user):
+        """OAuth redirect_uri uses SITE_URL instead of proxy-local request scheme."""
+        app.config['GOOGLE_CLIENT_ID'] = 'test_client_id'
+        app.config['GOOGLE_CLIENT_SECRET'] = 'test_client_secret'
+        app.config['SITE_URL'] = 'https://llt-english.com'
+        try:
+            import app.admin.services.gsc_service as gsc_module
+            mock_flow = MagicMock()
+            mock_flow.authorization_url.return_value = (
+                'https://accounts.google.com/auth?state=xyz',
+                'xyz',
+            )
+            mock_flow_cls = MagicMock(
+                from_client_config=MagicMock(return_value=mock_flow)
+            )
+            with patch.object(gsc_module, 'Flow', mock_flow_cls):
+                response = client.get('/admin/seo/connect')
+
+            assert response.status_code == 302
+            assert (
+                mock_flow_cls.from_client_config.call_args.kwargs['redirect_uri']
+                == 'https://llt-english.com/admin/seo/callback'
+            )
+        finally:
+            app.config.pop('GOOGLE_CLIENT_ID', None)
+            app.config.pop('GOOGLE_CLIENT_SECRET', None)
+            app.config['SITE_URL'] = ''
+
     def test_callback_with_error_param_flashes_danger(self, app, client, admin_user):
         """GET /admin/seo/callback?error=access_denied flashes danger message."""
         response = client.get('/admin/seo/callback?error=access_denied', follow_redirects=True)
