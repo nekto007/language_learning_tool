@@ -3,23 +3,12 @@ Admin routes for module management
 """
 from flask import render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
-from functools import wraps
 
 from app.admin.audit import log_admin_action
+from app.admin.utils.decorators import admin_required
 from app.modules.service import ModuleService
 from app.auth.models import User
 from app.utils.db import db
-
-
-def admin_required(f):
-    """Decorator to require admin access"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
-            flash('У вас нет доступа к этой странице.', 'error')
-            return redirect(url_for('auth.login'))
-        return f(*args, **kwargs)
-    return decorated_function
 
 
 def register_module_admin_routes(admin_bp):

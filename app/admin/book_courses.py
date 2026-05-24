@@ -1636,23 +1636,3 @@ def register_book_course_routes(admin_bp):
     # Mark routes as registered
     admin_bp._book_course_routes_registered = True
     logger.info("[BOOK_COURSE_ROUTES] Routes registration completed")
-
-
-# Cache statistics for performance
-@cache_result('book_course_stats', timeout=300)  # 5 minutes cache
-def get_book_course_statistics():
-    """Get cached book course statistics"""
-
-    stats = {
-        'total_courses': BookCourse.query.count(),
-        'active_courses': BookCourse.query.filter_by(is_active=True).count(),
-        'featured_courses': BookCourse.query.filter_by(is_featured=True).count(),
-        'total_enrollments': BookCourseEnrollment.query.count(),
-        'active_enrollments': BookCourseEnrollment.query.filter_by(status='active').count(),
-        'completed_enrollments': BookCourseEnrollment.query.filter_by(status='completed').count(),
-        'total_modules': BookCourseModule.query.count(),
-        'total_daily_lessons': DailyLesson.query.count(),
-        'total_vocabulary_words': SliceVocabulary.query.count()
-    }
-
-    return stats

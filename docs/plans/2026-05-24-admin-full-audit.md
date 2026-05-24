@@ -299,9 +299,9 @@
 - Delete: `app/admin/main_routes.py.backup`, `app/templates/admin/book_courses` (если duplicate с books)
 - Modify: `app/admin/{book_courses,form,modules,quiz_decks,curriculum,secret_store}.py`
 
-- [ ] grep-аудит — найти неимпортируемые модули/функции в `app/admin/`
-- [ ] удалить с проверкой 0 ссылок (см. CLAUDE.md "перед удалением — grep ВСЕ импорты")
-- [ ] прогнать `pytest tests/admin/`
+- [x] grep-аудит — найти неимпортируемые модули/функции в `app/admin/`
+- [x] удалить с проверкой 0 ссылок (см. CLAUDE.md "перед удалением — grep ВСЕ импорты")
+- [x] прогнать `pytest tests/admin/`
 
 ### Task 28: Improve admin error pages
 
