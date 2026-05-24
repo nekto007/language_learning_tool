@@ -42,10 +42,10 @@
 **Files:**
 - Modify: `app/admin/main_routes.py`, `app/admin/routes/*.py`
 
-- [ ] прогнать тест из Task 1, зафиксить все роуты без admin-гейта
-- [ ] убедиться, что view-функции не возвращают 200 анонимам/обычным юзерам (curl smoke в `tests/admin/test_admin_access_control.py`)
-- [ ] добавить тест для каждой подгруппы blueprint (parametrize по URL)
-- [ ] прогнать `pytest tests/admin/test_admin_access_control.py`
+- [x] прогнать тест из Task 1, зафиксить все роуты без admin-гейта
+- [x] убедиться, что view-функции не возвращают 200 анонимам/обычным юзерам (curl smoke в `tests/admin/test_admin_access_control.py`)
+- [x] добавить тест для каждой подгруппы blueprint (parametrize по URL)
+- [x] прогнать `pytest tests/admin/test_admin_access_control.py`
 
 ### Task 3: CSRF coverage на всех POST/PUT/DELETE
 
