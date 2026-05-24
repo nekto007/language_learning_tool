@@ -20,12 +20,19 @@ from app.curriculum.models import Lessons
 from app.daily_plan.linear.progression import find_next_lesson_linear
 
 
-def find_next_lesson(user_id: int, db: Any) -> Optional[Lessons]:
+def find_next_lesson(
+    user_id: int,
+    db: Any,
+    exclude_lesson_ids: Optional[set[int]] = None,
+) -> Optional[Lessons]:
     """Return the user's canonical next lesson.
 
     Thin wrapper around `find_next_lesson_linear` so callers that do not
     otherwise depend on the linear daily-plan package can import a stable
     top-level function. The return value is a `Lessons` ORM object or
     `None` when nothing eligible remains.
+
+    ``exclude_lesson_ids`` is forwarded to ``find_next_lesson_linear`` so
+    callers can skip deferred lessons without reaching into the linear package.
     """
-    return find_next_lesson_linear(user_id, db)
+    return find_next_lesson_linear(user_id, db, exclude_lesson_ids=exclude_lesson_ids)

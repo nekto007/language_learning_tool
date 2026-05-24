@@ -24,10 +24,13 @@ from app.daily_plan.linear.xp import (
     LINEAR_XP_EVENT_TYPE,
     get_linear_event_local_date,
 )
-from app.utils.time_utils import get_user_local_day_bounds
+from app.utils.time_utils import get_user_local_day_bounds, get_user_local_date
 
 # All XP source keys that belong to a curriculum lesson completion.
 _CURRICULUM_XP_SOURCES: frozenset[str] = frozenset(LESSON_TYPE_TO_SOURCE.values())
+
+# Maximum number of lesson skips allowed per calendar day (user-local date).
+DAILY_SKIP_QUOTA = 1
 _CURRICULUM_LESSON_TYPES: frozenset[str] = frozenset(LESSON_TYPE_TO_SOURCE)
 
 # ETA estimates for each of the 12 curriculum lesson types plus legacy
@@ -56,6 +59,39 @@ _DEFAULT_ETA_MINUTES = 10
 # their URL so the card-lesson controller can enable SRS budget mixing
 # (see ``app/curriculum/routes/card_lessons.py``).
 _CARD_LESSON_TYPES = frozenset({'card', 'flashcards'})
+
+
+def get_deferred_lesson_ids(user_id: int, today: Any, db: Any) -> set[int]:
+    """Return lesson IDs that the user has deferred to a future date.
+
+    A lesson is considered "still deferred" when its defer_until_date is
+    strictly greater than today, meaning it should not appear today.
+    """
+    from app.daily_plan.models import LessonSkip
+
+    rows = (
+        db.session.query(LessonSkip.lesson_id)
+        .filter(
+            LessonSkip.user_id == user_id,
+            LessonSkip.defer_until_date > today,
+        )
+        .all()
+    )
+    return {row.lesson_id for row in rows}
+
+
+def get_skips_used_today(user_id: int, today: Any, db: Any) -> int:
+    """Return the number of skips the user has used on today's calendar date."""
+    from app.daily_plan.models import LessonSkip
+
+    return (
+        db.session.query(LessonSkip)
+        .filter(
+            LessonSkip.user_id == user_id,
+            LessonSkip.skipped_on_date == today,
+        )
+        .count()
+    )
 
 
 def _eta_minutes(lesson_type: Optional[str]) -> int:
@@ -236,8 +272,19 @@ def build_curriculum_slot(
     When the user has completed the curriculum, returns a completed empty
     slot with no URL.
     """
+    today = get_user_local_date(user_id, db)
+    deferred_ids = get_deferred_lesson_ids(user_id, today, db)
+    skips_used = get_skips_used_today(user_id, today, db)
+    skips_remaining = max(DAILY_SKIP_QUOTA - skips_used, 0)
+
+    # If the caller pre-resolved a lesson that is now deferred, discard it and
+    # re-resolve with the full exclusion set so the UI always shows the next
+    # non-deferred lesson.
+    if next_lesson is not None and next_lesson.id in deferred_ids:
+        next_lesson = None
+
     if next_lesson is None:
-        next_lesson = find_next_lesson_linear(user_id, db)
+        next_lesson = find_next_lesson_linear(user_id, db, exclude_lesson_ids=deferred_ids)
 
     if next_lesson is None:
         # ``next_lesson is None`` is overloaded — it could mean genuinely
@@ -328,12 +375,17 @@ def build_curriculum_slot(
     module = next_lesson.module
     level = module.level if module is not None else None
 
+    # skip_allowed: quota not exhausted AND this lesson is not already deferred
+    skip_allowed = skips_remaining > 0 and next_lesson.id not in deferred_ids
+
     data: dict[str, Any] = {
         'lesson_id': next_lesson.id,
         'lesson_number': next_lesson.number,
         'module_id': next_lesson.module_id,
         'module_number': module.number if module is not None else None,
         'level_code': level.code if level is not None else None,
+        'skip_allowed': skip_allowed,
+        'skips_remaining': skips_remaining,
     }
 
     weak_topics = _get_weak_grammar_topic_ids(user_id, db)
