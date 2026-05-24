@@ -5,12 +5,78 @@
 Обрабатывает статистику, обновление статусов загрузки и исправление аудио полей
 """
 import logging
+import os
+import re
 
 from app.words.models import CollectionWords
 from app.utils.audio import get_clean_audio_filename
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
+
+# Batch size for streaming bulk DB fixes — partial commits survive mid-loop failures.
+BULK_COMMIT_BATCH_SIZE = 200
+
+# Filename safety: allow only the characters our pipeline actually produces.
+_SAFE_AUDIO_FILENAME_RE = re.compile(r'^[A-Za-z0-9._-]+\.mp3$')
+_UNSAFE_WORD_CHARS_RE = re.compile(r'[^a-z0-9_-]+')
+
+
+def safe_audio_filename(filename):
+    """Return ``filename`` only if it is a plain mp3 basename — else None.
+
+    Rejects anything containing path separators, parent-traversal segments,
+    null bytes, leading dots, or characters outside ``[A-Za-z0-9._-]``. The
+    file must end with ``.mp3`` so the helper cannot be misused to allow
+    arbitrary extensions.
+    """
+    if not filename or not isinstance(filename, str):
+        return None
+    name = filename.strip()
+    if not name or '\x00' in name:
+        return None
+    if name != os.path.basename(name):
+        return None
+    if name.startswith('.') or '..' in name:
+        return None
+    if not _SAFE_AUDIO_FILENAME_RE.match(name):
+        return None
+    return name
+
+
+def safe_audio_path(media_folder, filename):
+    """Return absolute path inside ``media_folder`` or None when unsafe.
+
+    Combines :func:`safe_audio_filename` with realpath containment so callers
+    cannot read or delete files outside the configured media root even if a
+    legacy DB row carries crafted ``listening`` text.
+    """
+    safe_name = safe_audio_filename(filename)
+    if safe_name is None or not media_folder:
+        return None
+    media_root = os.path.realpath(media_folder)
+    candidate = os.path.realpath(os.path.join(media_root, safe_name))
+    if candidate != os.path.join(media_root, safe_name):
+        return None
+    if os.path.commonpath([media_root, candidate]) != media_root:
+        return None
+    return candidate
+
+
+def safe_audio_filename_for_word(english_word):
+    """Generate ``pronunciation_en_<slug>.mp3`` with traversal-safe slug.
+
+    Lowercases, replaces spaces with underscores, then strips every character
+    outside ``[a-z0-9_-]``. Returns None if the slug collapses to empty so the
+    caller never persists a junk filename.
+    """
+    if not english_word or not isinstance(english_word, str):
+        return None
+    slug = english_word.strip().lower().replace(' ', '_')
+    slug = _UNSAFE_WORD_CHARS_RE.sub('', slug)
+    if not slug:
+        return None
+    return f"pronunciation_en_{slug}.mp3"
 
 
 class AudioManagementService:
@@ -87,7 +153,8 @@ class AudioManagementService:
             logger.error(f"Error updating audio download status: {str(e)}")
             raise
 
-    # Backward-compatible alias
+    # Backward-compatible alias — kept for old call-sites; new code should use
+    # safe_audio_filename_for_word which sanitises the slug.
     _get_clean_audio_filename = staticmethod(get_clean_audio_filename)
 
     @staticmethod
@@ -112,17 +179,27 @@ class AudioManagementService:
             if not words_to_fix:
                 return True, 0, 'Нет записей с HTTP URL, требующих исправления'
 
-            # Исправляем поля listening - сохраняем чистое имя файла
+            # Исправляем поля listening - сохраняем чистое имя файла.
+            # Коммитим батчами, чтобы частичный сбой не откатил всю работу.
             count = 0
             for word in words_to_fix:
                 try:
-                    word.listening = AudioManagementService._get_clean_audio_filename(word.english_word)
+                    safe_name = safe_audio_filename_for_word(word.english_word)
+                    if safe_name is None:
+                        logger.warning(
+                            "Skipping unsafe english_word in fix_listening_fields: id=%s",
+                            word.id,
+                        )
+                        continue
+                    word.listening = safe_name
                     count += 1
+                    if count % BULK_COMMIT_BATCH_SIZE == 0:
+                        db.session.commit()
                 except Exception as e:
                     logger.warning(f"Error processing word {word.english_word}: {str(e)}")
                     continue
 
-            # Сохраняем изменения
+            # Финальный коммит для остатка батча
             db.session.commit()
 
             logger.info(f"Audio listening fields fixed (HTTP->clean): {count} records")
@@ -159,8 +236,18 @@ class AudioManagementService:
                     # Извлекаем чистое имя файла из [sound:filename.mp3]
                     match = re.search(r'\[sound:([^\]]+)\]', word.listening)
                     if match:
-                        word.listening = match.group(1)
+                        candidate = match.group(1).strip()
+                        safe_name = safe_audio_filename(candidate)
+                        if safe_name is None:
+                            logger.warning(
+                                "Skipping unsafe [sound:] payload for word id=%s",
+                                word.id,
+                            )
+                            continue
+                        word.listening = safe_name
                         count += 1
+                        if count % BULK_COMMIT_BATCH_SIZE == 0:
+                            db.session.commit()
                 except Exception as e:
                     logger.warning(f"Error normalizing word {word.english_word}: {str(e)}")
                     continue
@@ -203,8 +290,17 @@ class AudioManagementService:
             count = 0
             for word in words_to_fix:
                 try:
-                    word.listening = AudioManagementService._get_clean_audio_filename(word.english_word)
+                    safe_name = safe_audio_filename_for_word(word.english_word)
+                    if safe_name is None:
+                        logger.warning(
+                            "Skipping unsafe english_word in fill_empty_listening: id=%s",
+                            word.id,
+                        )
+                        continue
+                    word.listening = safe_name
                     count += 1
+                    if count % BULK_COMMIT_BATCH_SIZE == 0:
+                        db.session.commit()
                 except Exception as e:
                     logger.warning(f"Error processing word {word.english_word}: {str(e)}")
                     continue
@@ -360,3 +456,118 @@ class AudioManagementService:
         except Exception as e:
             logger.error(f"Error getting detailed audio statistics: {str(e)}")
             return {'error': str(e)}
+
+    @staticmethod
+    def _collect_referenced_filenames():
+        """Return a set of clean mp3 basenames currently referenced by DB rows."""
+        from app.utils.audio import parse_audio_filename
+
+        referenced = set()
+        rows = (
+            db.session.query(CollectionWords.listening)
+            .filter(CollectionWords.listening.isnot(None))
+            .filter(CollectionWords.listening != '')
+            .all()
+        )
+        for (raw,) in rows:
+            name = parse_audio_filename(raw)
+            if not name:
+                continue
+            safe_name = safe_audio_filename(name)
+            if safe_name is not None:
+                referenced.add(safe_name)
+        return referenced
+
+    @staticmethod
+    def find_orphan_audio_files(media_folder, limit=None):
+        """List mp3 files in ``media_folder`` not referenced by any DB row.
+
+        Refuses to scan when ``media_folder`` is missing or not a directory.
+        Skips filenames that fail :func:`safe_audio_filename` so traversal
+        artefacts in the folder cannot leak into the response. ``limit`` caps
+        the returned list (None = unlimited).
+
+        Returns: dict ``{folder, total_files, referenced, orphan_count,
+        orphans: [filename, ...]}`` — or ``{'error': str}``.
+        """
+        try:
+            if not media_folder or not os.path.isdir(media_folder):
+                return {'error': 'media_folder does not exist'}
+
+            referenced = AudioManagementService._collect_referenced_filenames()
+
+            orphans = []
+            total = 0
+            for entry in os.listdir(media_folder):
+                if not entry.lower().endswith('.mp3'):
+                    continue
+                safe_name = safe_audio_filename(entry)
+                if safe_name is None:
+                    continue
+                total += 1
+                if safe_name in referenced:
+                    continue
+                orphans.append(safe_name)
+                if limit is not None and len(orphans) >= limit:
+                    break
+
+            orphans.sort()
+            return {
+                'folder': media_folder,
+                'total_files': total,
+                'referenced': len(referenced),
+                'orphan_count': len(orphans),
+                'orphans': orphans,
+            }
+        except OSError as e:
+            logger.error(f"Error scanning media folder for orphans: {e}")
+            return {'error': str(e)}
+
+    @staticmethod
+    def delete_orphan_audio_files(media_folder, dry_run=True):
+        """Delete orphan mp3 files inside ``media_folder``.
+
+        Path containment is enforced per-file via :func:`safe_audio_path`;
+        anything that cannot be resolved inside ``media_folder`` is skipped
+        and counted in ``skipped``. When ``dry_run`` is True (default) the
+        method only enumerates orphans — no deletion happens.
+
+        Returns: dict ``{dry_run, deleted, skipped, errors, orphans}`` — or
+        ``{'error': str}`` on top-level failure.
+        """
+        scan = AudioManagementService.find_orphan_audio_files(media_folder)
+        if 'error' in scan:
+            return scan
+
+        orphans = scan['orphans']
+        if dry_run:
+            return {
+                'dry_run': True,
+                'deleted': 0,
+                'skipped': 0,
+                'errors': [],
+                'orphans': orphans,
+            }
+
+        deleted = 0
+        skipped = 0
+        errors = []
+        for name in orphans:
+            full_path = safe_audio_path(media_folder, name)
+            if full_path is None:
+                skipped += 1
+                continue
+            try:
+                os.remove(full_path)
+                deleted += 1
+            except OSError as e:
+                errors.append({'file': name, 'error': str(e)})
+                logger.warning(f"Failed to delete orphan audio {name}: {e}")
+
+        return {
+            'dry_run': False,
+            'deleted': deleted,
+            'skipped': skipped,
+            'errors': errors,
+            'orphans': orphans,
+        }

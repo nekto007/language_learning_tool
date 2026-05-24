@@ -355,3 +355,244 @@ class TestAudioStatistics:
         """Test that audio statistics requires admin authentication"""
         response = client.get('/admin/audio/statistics')
         assert response.status_code == 302
+
+
+class TestSafeFilenameHelpers:
+    """Filename / path traversal helpers — Task 14."""
+
+    def test_safe_audio_filename_accepts_plain_mp3(self):
+        from app.admin.services.audio_management_service import safe_audio_filename
+        assert safe_audio_filename('pronunciation_en_word.mp3') == 'pronunciation_en_word.mp3'
+        assert safe_audio_filename('foo-bar_baz.mp3') == 'foo-bar_baz.mp3'
+
+    @pytest.mark.parametrize('bad', [
+        '',
+        None,
+        '../escape.mp3',
+        '../../etc/passwd.mp3',
+        '/abs/path.mp3',
+        'sub/dir.mp3',
+        '.hidden.mp3',
+        'space name.mp3',
+        'with\x00null.mp3',
+        'no-extension',
+        'wrong.txt',
+        'tricky..mp3',
+    ])
+    def test_safe_audio_filename_rejects_unsafe(self, bad):
+        from app.admin.services.audio_management_service import safe_audio_filename
+        assert safe_audio_filename(bad) is None
+
+    def test_safe_audio_path_blocks_traversal(self, tmp_path):
+        from app.admin.services.audio_management_service import safe_audio_path
+        # Crafted inputs all rejected: separators stripped before resolve.
+        assert safe_audio_path(str(tmp_path), '../escape.mp3') is None
+        assert safe_audio_path(str(tmp_path), '/etc/passwd.mp3') is None
+        # Plain filename inside folder resolves cleanly even if file doesn't exist.
+        ok = safe_audio_path(str(tmp_path), 'pronunciation_en_word.mp3')
+        assert ok is not None
+        assert ok.endswith('pronunciation_en_word.mp3')
+
+    def test_safe_audio_path_rejects_missing_media_folder(self):
+        from app.admin.services.audio_management_service import safe_audio_path
+        assert safe_audio_path('', 'file.mp3') is None
+        assert safe_audio_path(None, 'file.mp3') is None
+
+    def test_safe_audio_filename_for_word_sanitises_slug(self):
+        from app.admin.services.audio_management_service import safe_audio_filename_for_word
+        assert safe_audio_filename_for_word('hello') == 'pronunciation_en_hello.mp3'
+        assert safe_audio_filename_for_word('two words') == 'pronunciation_en_two_words.mp3'
+        # Strips traversal chars instead of preserving them.
+        assert safe_audio_filename_for_word('../etc/passwd') == 'pronunciation_en_etcpasswd.mp3'
+        # Strips slashes / dots completely.
+        assert safe_audio_filename_for_word('a/b\\c') == 'pronunciation_en_abc.mp3'
+
+    def test_safe_audio_filename_for_word_rejects_empty_slug(self):
+        from app.admin.services.audio_management_service import safe_audio_filename_for_word
+        assert safe_audio_filename_for_word('') is None
+        assert safe_audio_filename_for_word(None) is None
+        assert safe_audio_filename_for_word('!!!') is None
+
+
+class TestOrphanAudioService:
+    """Service-level orphan listing/cleanup — Task 14."""
+
+    def _seed_word(self, db_session, listening):
+        from app.words.models import CollectionWords
+        import uuid
+        slug = uuid.uuid4().hex[:6]
+        w = CollectionWords(
+            english_word=f'orphan_test_{slug}',
+            russian_word='тест',
+            listening=listening,
+            level='A1',
+        )
+        db_session.add(w)
+        db_session.flush()
+        return w
+
+    def test_find_orphan_audio_files_lists_only_unreferenced(self, tmp_path, db_session):
+        from app.admin.services.audio_management_service import AudioManagementService
+        # Files: one referenced, one orphan, one with traversal-ish name (skipped via filename gate).
+        ref = tmp_path / 'pronunciation_en_keep.mp3'
+        ref.write_bytes(b'\x00')
+        orphan = tmp_path / 'pronunciation_en_orphan.mp3'
+        orphan.write_bytes(b'\x00')
+        self._seed_word(db_session, 'pronunciation_en_keep.mp3')
+
+        result = AudioManagementService.find_orphan_audio_files(str(tmp_path))
+        assert 'error' not in result
+        assert result['total_files'] == 2
+        assert 'pronunciation_en_orphan.mp3' in result['orphans']
+        assert 'pronunciation_en_keep.mp3' not in result['orphans']
+        assert result['orphan_count'] == 1
+
+    def test_find_orphan_audio_files_returns_error_for_missing_folder(self):
+        from app.admin.services.audio_management_service import AudioManagementService
+        result = AudioManagementService.find_orphan_audio_files('/nonexistent/path/xyz')
+        assert 'error' in result
+
+    def test_delete_orphan_audio_files_dry_run_keeps_files(self, tmp_path, db_session):
+        from app.admin.services.audio_management_service import AudioManagementService
+        orphan = tmp_path / 'pronunciation_en_orphan.mp3'
+        orphan.write_bytes(b'\x00')
+        result = AudioManagementService.delete_orphan_audio_files(str(tmp_path), dry_run=True)
+        assert result['dry_run'] is True
+        assert result['deleted'] == 0
+        assert orphan.exists()
+        assert 'pronunciation_en_orphan.mp3' in result['orphans']
+
+    def test_delete_orphan_audio_files_actually_deletes(self, tmp_path, db_session):
+        from app.admin.services.audio_management_service import AudioManagementService
+        orphan = tmp_path / 'pronunciation_en_orphan.mp3'
+        orphan.write_bytes(b'\x00')
+        result = AudioManagementService.delete_orphan_audio_files(str(tmp_path), dry_run=False)
+        assert result['dry_run'] is False
+        assert result['deleted'] == 1
+        assert not orphan.exists()
+
+    def test_delete_orphan_audio_files_skips_referenced(self, tmp_path, db_session):
+        from app.admin.services.audio_management_service import AudioManagementService
+        keep = tmp_path / 'pronunciation_en_keep.mp3'
+        keep.write_bytes(b'\x00')
+        self._seed_word(db_session, 'pronunciation_en_keep.mp3')
+        result = AudioManagementService.delete_orphan_audio_files(str(tmp_path), dry_run=False)
+        assert result['deleted'] == 0
+        assert keep.exists()
+
+
+class TestOrphanAudioRoutes:
+    """HTTP endpoints for orphan listing/cleanup — Task 14."""
+
+    def test_list_orphans_requires_admin(self, client):
+        response = client.get('/admin/audio/orphans')
+        assert response.status_code in (302, 401, 403)
+
+    def test_cleanup_orphans_requires_admin(self, client):
+        response = client.post('/admin/audio/orphans/cleanup', json={'confirm': 'yes'})
+        assert response.status_code in (302, 401, 403)
+
+    def test_list_orphans_returns_json(self, admin_client, mock_admin_user, tmp_path, db_session):
+        (tmp_path / 'pronunciation_en_orph.mp3').write_bytes(b'\x00')
+        with patch('config.settings.MEDIA_FOLDER', str(tmp_path)):
+            response = admin_client.get('/admin/audio/orphans')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert 'orphans' in data
+        assert 'pronunciation_en_orph.mp3' in data['orphans']
+
+    def test_list_orphans_rejects_invalid_limit(self, admin_client, mock_admin_user):
+        response = admin_client.get('/admin/audio/orphans?limit=not-a-number')
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['success'] is False
+
+    def test_cleanup_orphans_without_confirm_is_dry_run(
+        self, admin_client, mock_admin_user, tmp_path, db_session
+    ):
+        orphan = tmp_path / 'pronunciation_en_orph.mp3'
+        orphan.write_bytes(b'\x00')
+        with patch('config.settings.MEDIA_FOLDER', str(tmp_path)):
+            response = admin_client.post('/admin/audio/orphans/cleanup', json={})
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert data['dry_run'] is True
+        assert data['deleted'] == 0
+        assert orphan.exists()
+
+    def test_cleanup_orphans_with_confirm_deletes(
+        self, admin_client, mock_admin_user, tmp_path, db_session
+    ):
+        orphan = tmp_path / 'pronunciation_en_orph.mp3'
+        orphan.write_bytes(b'\x00')
+        with patch('config.settings.MEDIA_FOLDER', str(tmp_path)):
+            response = admin_client.post(
+                '/admin/audio/orphans/cleanup', json={'confirm': 'yes'}
+            )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert data['dry_run'] is False
+        assert data['deleted'] == 1
+        assert not orphan.exists()
+
+    def test_cleanup_orphans_writes_audit_log(
+        self, admin_client, mock_admin_user, tmp_path, db_session
+    ):
+        from app.admin.audit import AdminAuditLog
+        (tmp_path / 'pronunciation_en_orph.mp3').write_bytes(b'\x00')
+        before = db_session.query(AdminAuditLog).filter(
+            AdminAuditLog.action.like('audio.orphans%')
+        ).count()
+        with patch('config.settings.MEDIA_FOLDER', str(tmp_path)):
+            response = admin_client.post(
+                '/admin/audio/orphans/cleanup', json={'confirm': 'yes'}
+            )
+        assert response.status_code == 200
+        after = db_session.query(AdminAuditLog).filter(
+            AdminAuditLog.action.like('audio.orphans%')
+        ).count()
+        assert after == before + 1
+
+
+class TestFixListeningFieldsSafety:
+    """Bulk DB fixes must not crash on unsafe data — Task 14."""
+
+    def test_fix_listening_fields_skips_unsafe_word(self, db_session):
+        from app.admin.services.audio_management_service import AudioManagementService
+        from app.words.models import CollectionWords
+        # Seed a row with HTTP URL whose english_word contains traversal chars.
+        bad = CollectionWords(
+            english_word='../../etc/passwd',
+            russian_word='тест',
+            listening='http://example.com/audio.mp3',
+            level='A1',
+        )
+        db_session.add(bad)
+        db_session.commit()
+        ok, count, msg = AudioManagementService.fix_listening_fields()
+        assert ok is True
+        # The unsafe row is skipped — its listening remains the original HTTP value.
+        refreshed = db_session.get(CollectionWords, bad.id)
+        # Either skipped entirely or replaced with sanitised slug — never traversal.
+        assert refreshed.listening is None or '..' not in (refreshed.listening or '')
+        assert '/' not in (refreshed.listening or '')
+
+    def test_normalize_listening_fields_skips_unsafe_sound(self, db_session):
+        from app.admin.services.audio_management_service import AudioManagementService
+        from app.words.models import CollectionWords
+        bad = CollectionWords(
+            english_word='hello',
+            russian_word='привет',
+            listening='[sound:../escape.mp3]',
+            level='A1',
+        )
+        db_session.add(bad)
+        db_session.commit()
+        ok, count, msg = AudioManagementService.normalize_listening_fields()
+        assert ok is True
+        refreshed = db_session.get(CollectionWords, bad.id)
+        # Unsafe sound payload was rejected — original bracket form remains.
+        assert refreshed.listening == '[sound:../escape.mp3]'

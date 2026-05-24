@@ -9,6 +9,7 @@ import logging
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user
 
+from app import limiter
 from app.admin.audit import log_admin_action
 from app.admin.services.audio_management_service import AudioManagementService
 from app.admin.utils.decorators import admin_required, handle_admin_errors
@@ -52,6 +53,7 @@ def audio_management():
 
 @audio_bp.route('/audio/update-download-status', methods=['POST'])
 @admin_required
+@limiter.limit("5 per minute")
 def update_audio_download_status():
     """Обновление статуса загрузки аудио файлов"""
     try:
@@ -209,6 +211,7 @@ def fill_empty_listening_fields():
 
 @audio_bp.route('/audio/fix-all', methods=['POST'])
 @admin_required
+@limiter.limit("3 per minute")
 def fix_all_audio():
     """Комбинированная операция: обновить статус + исправить HTTP + нормализовать формат"""
     results: list[dict] = []
@@ -299,6 +302,78 @@ def get_audio_download_list():
         logger.error(f"Error getting download list: {str(e)}")
         flash(f'Ошибка при получении списка: {str(e)}', 'danger')
         return redirect(url_for('audio_admin.audio_management'))
+
+
+@audio_bp.route('/audio/orphans')
+@admin_required
+def list_orphan_audio_files():
+    """List mp3 files in MEDIA_FOLDER not referenced by any DB row (dry-run)."""
+    try:
+        from config.settings import MEDIA_FOLDER
+
+        try:
+            limit_raw = request.args.get('limit', '500')
+            limit = max(1, min(int(limit_raw), 5000))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'invalid_limit'}), 400
+
+        result = AudioManagementService.find_orphan_audio_files(MEDIA_FOLDER, limit=limit)
+        if 'error' in result:
+            return jsonify({'success': False, 'error': result['error']}), 500
+        return jsonify({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Error listing orphan audio files: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@audio_bp.route('/audio/orphans/cleanup', methods=['POST'])
+@admin_required
+@limiter.limit("3 per minute")
+def cleanup_orphan_audio_files():
+    """Delete orphan mp3 files.
+
+    Requires explicit confirmation: pass ``confirm=yes`` (form or JSON) — any
+    other value runs as dry-run and returns the would-delete list. Every
+    invocation is mirrored to :class:`AdminAuditLog`.
+    """
+    try:
+        from config.settings import MEDIA_FOLDER
+
+        payload = request.get_json(silent=True) or {}
+        confirm = (
+            payload.get('confirm')
+            or request.form.get('confirm')
+            or request.args.get('confirm')
+            or ''
+        )
+        dry_run = str(confirm).strip().lower() != 'yes'
+
+        result = AudioManagementService.delete_orphan_audio_files(
+            MEDIA_FOLDER, dry_run=dry_run
+        )
+        if 'error' in result:
+            return jsonify({'success': False, 'error': result['error']}), 500
+
+        action = 'audio.orphans_dry_run' if dry_run else 'audio.orphans_cleanup'
+        log_admin_action(
+            current_user.id,
+            action,
+            target_type='audio',
+        )
+        db.session.commit()
+        logger.info(
+            "Audio orphan cleanup by %s: dry_run=%s deleted=%s skipped=%s",
+            current_user.username, dry_run,
+            result.get('deleted', 0), result.get('skipped', 0),
+        )
+        return jsonify({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Error cleaning orphan audio files: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @audio_bp.route('/audio/statistics')

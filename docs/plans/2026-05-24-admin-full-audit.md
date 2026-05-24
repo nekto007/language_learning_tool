@@ -169,10 +169,10 @@
 **Files:**
 - Modify: `app/admin/routes/audio_routes.py`, `app/admin/services/audio_management_service.py`
 
-- [ ] аудит mass-generate: rate limit / progress feedback / fail-safe (частичный коммит)
-- [ ] проверка путей сохранения mp3 (no traversal), очистка orphan-файлов
-- [ ] тесты `tests/admin/routes/test_audio_routes.py`
-- [ ] прогнать тесты
+- [x] аудит mass-generate: rate limit / progress feedback / fail-safe (частичный коммит)
+- [x] проверка путей сохранения mp3 (no traversal), очистка orphan-файлов
+- [x] тесты `tests/admin/routes/test_audio_routes.py`
+- [x] прогнать тесты
 
 ### Task 15: SEO + GSC admin — OAuth и cache
 
