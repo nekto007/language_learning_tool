@@ -230,9 +230,9 @@
 **Files:**
 - Modify: `app/admin/routes/audit_routes.py`, `app/admin/audit.py`, `app/templates/admin/audit/index.html`
 
-- [ ] фильтры по admin/action/date, пагинация, CSV-export с `_sanitize_csv_cell`
-- [ ] обновить `tests/admin/test_audit.py`
-- [ ] прогнать тесты
+- [x] фильтры по admin/action/date, пагинация, CSV-export с `_sanitize_csv_cell`
+- [x] обновить `tests/admin/test_audit.py`
+- [x] прогнать тесты
 
 ### Task 21: Linear plan metrics + admin inspector
 
