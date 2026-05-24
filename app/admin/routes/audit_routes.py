@@ -40,7 +40,7 @@ def audit_index():
     admin_id_raw = request.args.get('admin_id', '').strip()
     admin_id = int(admin_id_raw) if admin_id_raw.isdigit() else None
 
-    action_filter = request.args.get('action', '').strip()
+    action_filter = request.args.get('action', '').strip()[:200]
     date_from = _parse_date(request.args.get('date_from', ''))
     date_to = _parse_date(request.args.get('date_to', ''))
 
@@ -126,7 +126,7 @@ def audit_export_csv():
     """Export filtered audit log to CSV (max MAX_EXPORT_ROWS rows)."""
     admin_id_raw = request.args.get('admin_id', '').strip()
     admin_id = int(admin_id_raw) if admin_id_raw.isdigit() else None
-    action_filter = request.args.get('action', '').strip()
+    action_filter = request.args.get('action', '').strip()[:200]
     date_from = _parse_date(request.args.get('date_from', ''))
     date_to = _parse_date(request.args.get('date_to', ''))
 

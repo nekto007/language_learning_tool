@@ -2,7 +2,7 @@
 Admin routes for module management
 """
 from flask import render_template, request, jsonify, flash, redirect, url_for
-from flask_login import login_required, current_user
+from flask_login import current_user
 
 from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
@@ -19,7 +19,6 @@ def register_module_admin_routes(admin_bp):
         return
 
     @admin_bp.route('/modules')
-    @login_required
     @admin_required
     def modules_list():
         """List all modules with statistics"""
@@ -28,7 +27,6 @@ def register_module_admin_routes(admin_bp):
         return render_template('admin/modules/list.html', modules=modules, stats=stats)
 
     @admin_bp.route('/modules/create', methods=['GET', 'POST'])
-    @login_required
     @admin_required
     def modules_create():
         """Create a new module"""
@@ -55,7 +53,6 @@ def register_module_admin_routes(admin_bp):
         return render_template('admin/modules/create.html')
 
     @admin_bp.route('/modules/<int:module_id>/edit', methods=['GET', 'POST'])
-    @login_required
     @admin_required
     def modules_edit(module_id):
         """Edit an existing module"""
@@ -111,7 +108,6 @@ def register_module_admin_routes(admin_bp):
                                user_modules_map=user_modules_map)
 
     @admin_bp.route('/modules/<int:module_id>/delete', methods=['POST'])
-    @login_required
     @admin_required
     def modules_delete(module_id):
         """Delete a module"""
@@ -129,7 +125,6 @@ def register_module_admin_routes(admin_bp):
             return jsonify({'success': False, 'error': str(e)}), 500
 
     @admin_bp.route('/modules/<int:module_id>/users')
-    @login_required
     @admin_required
     def modules_users(module_id):
         """View users with access to a module"""
@@ -145,7 +140,6 @@ def register_module_admin_routes(admin_bp):
         return render_template('admin/modules/users.html', module=module, user_modules=user_modules)
 
     @admin_bp.route('/modules/users/<int:user_id>')
-    @login_required
     @admin_required
     def user_modules(user_id):
         """View and manage modules for a specific user"""
@@ -167,7 +161,6 @@ def register_module_admin_routes(admin_bp):
                                available_modules=available_modules)
 
     @admin_bp.route('/modules/users/<int:user_id>/grant/<int:module_id>', methods=['POST'])
-    @login_required
     @admin_required
     def grant_module(user_id, module_id):
         """Grant a module to a user"""
@@ -180,7 +173,6 @@ def register_module_admin_routes(admin_bp):
             return jsonify({'success': False, 'error': str(e)}), 500
 
     @admin_bp.route('/modules/users/<int:user_id>/revoke/<int:module_id>', methods=['POST'])
-    @login_required
     @admin_required
     def revoke_module(user_id, module_id):
         """Revoke a module from a user"""
@@ -193,7 +185,6 @@ def register_module_admin_routes(admin_bp):
             return jsonify({'success': False, 'error': str(e)}), 500
 
     @admin_bp.route('/modules/grant-bulk', methods=['POST'])
-    @login_required
     @admin_required
     def grant_module_bulk():
         """Grant a module to multiple users"""
@@ -211,7 +202,6 @@ def register_module_admin_routes(admin_bp):
             return jsonify({'success': False, 'error': str(e)}), 500
 
     @admin_bp.route('/modules/statistics')
-    @login_required
     @admin_required
     def modules_statistics():
         """View module usage statistics"""
@@ -219,7 +209,6 @@ def register_module_admin_routes(admin_bp):
         return render_template('admin/modules/statistics.html', stats=stats)
 
     @admin_bp.route('/modules/<int:module_id>/users-data')
-    @login_required
     @admin_required
     def get_module_users_data(module_id):
         """Get users data for a module (AJAX endpoint)"""

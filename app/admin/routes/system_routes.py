@@ -78,7 +78,7 @@ def clear_cache_prefix():
         return redirect(url_for('system_admin.system'))
 
     removed = clear_cache_by_prefix(prefix)
-    log_admin_action(current_user.id, 'system.clear_cache_prefix', target_type=prefix)
+    log_admin_action(current_user.id, 'system.clear_cache_prefix', target_type=prefix[:64])
     db.session.commit()
     flash(f'Удалено {removed} записей кэша с префиксом «{prefix}»', 'success')
     logger.info(

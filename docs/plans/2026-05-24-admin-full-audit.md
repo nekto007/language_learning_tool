@@ -334,5 +334,5 @@
 ### Task 31: Update documentation
 
 - [x] обновить CLAUDE.md секцию "Admin sub-blueprints" если изменены paths — пути не менялись в tasks 29-30, обновление не требуется
-- [ ] обновить `docs/audits/2026-05-24-admin-audit/README.md` финальным резюме
-- [ ] переместить план в `docs/plans/completed/`
+- [x] обновить `docs/audits/2026-05-24-admin-audit/README.md` финальным резюме
+- [x] переместить план в `docs/plans/completed/`

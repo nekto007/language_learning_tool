@@ -215,10 +215,9 @@ class TestAudioRoutesRateLimitPresence:
             fix_all_audio,
             cleanup_orphan_audio_files,
         )
-        limited = limiter.limit("1 per day")
         for view_fn in (update_audio_download_status, fix_all_audio, cleanup_orphan_audio_files):
-            # Flask-Limiter stores the limits on the inner view; presence of
-            # _rate_limiting_complete or __wrapped__ signals the decorator ran.
-            assert hasattr(view_fn, '__wrapped__') or callable(view_fn), (
-                f"{view_fn.__name__} must be callable"
+            # Flask-Limiter wraps views with functools.wraps, setting __wrapped__.
+            # This verifies at least one outer decorator was applied (not a plain function).
+            assert hasattr(view_fn, '__wrapped__'), (
+                f"{view_fn.__name__} is not wrapped — @limiter.limit or @admin_required missing"
             )

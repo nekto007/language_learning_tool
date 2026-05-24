@@ -100,7 +100,7 @@ def test_admin_non_admin_user_gets_redirect(client, db_session):
 def test_admin_anonymous_gets_redirect(client):
     """Anonymous request to /admin/ → redirect (Flask-Login) not 403."""
     resp = client.get("/admin/", follow_redirects=False)
-    assert resp.status_code in (302, 403)
+    assert resp.status_code == 302
 
 
 # ---------------------------------------------------------------------------
@@ -113,7 +113,7 @@ def test_public_404_uses_generic_template(client):
     assert resp.status_code == 404
     body = resp.data.decode()
     # Generic error page should NOT contain admin sidebar chrome
-    assert "LLT Admin" not in body or "Вернуться в админку" not in body
+    assert "LLT Admin" not in body and "Вернуться в админку" not in body
 
 
 # ---------------------------------------------------------------------------

@@ -18,7 +18,8 @@ from wtforms import IntegerField, SelectField, StringField, SubmitField, TextAre
 from wtforms.validators import AnyOf, DataRequired, Length, NumberRange, Optional
 
 from app.admin.audit import log_admin_action
-from app.admin.main_routes import admin, admin_required
+from app.admin.main_routes import admin
+from app.admin.utils.decorators import admin_required
 from app.auth.models import User
 from app.books.models import Book
 from app.curriculum.models import CEFRLevel, CulturalNote, LessonProgress, Lessons, Module

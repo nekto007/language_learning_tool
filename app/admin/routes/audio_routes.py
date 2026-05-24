@@ -60,7 +60,7 @@ def update_audio_download_status():
         from config.settings import MEDIA_FOLDER, COLLECTIONS_TABLE
 
         # Получаем параметры
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         table_name = data.get('table', COLLECTIONS_TABLE)
 
         # Определяем имя колонки в зависимости от таблицы

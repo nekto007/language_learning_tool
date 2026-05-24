@@ -83,11 +83,11 @@
                         <i class="fas fa-home" aria-hidden="true"></i>
                         <span>Главная</span>
                     </a>
-                    <a href="{{ url_for('user_admin.users') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.users' }}">
+                    <a href="{{ url_for('user_admin.users') }}" class="nav-link {{ 'active' if request.endpoint == 'user_admin.users' }}">
                         <i class="fas fa-users" aria-hidden="true"></i>
                         <span>Пользователи</span>
                     </a>
-                    <a href="{{ url_for('user_admin.stats') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.stats' }}">
+                    <a href="{{ url_for('user_admin.stats') }}" class="nav-link {{ 'active' if request.endpoint == 'user_admin.stats' }}">
                         <i class="fas fa-chart-bar" aria-hidden="true"></i>
                         <span>Статистика</span>
                     </a>
@@ -100,39 +100,39 @@
                     <i class="fas fa-chevron-down nav-section-chevron" aria-hidden="true"></i>
                 </button>
                 <div class="nav-section-content" id="nav-content-content">
-                <a href="{{ url_for('admin_curriculum.curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.curriculum' }}">
+                <a href="{{ url_for('admin_curriculum.curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin_curriculum.curriculum' }}">
                     <i class="fas fa-graduation-cap" aria-hidden="true"></i>
                     <span>Учебный план</span>
                 </a>
                 <a href="{{ url_for('admin_curriculum.level_list') }}"
-                   class="nav-link ps-5 {{ 'active' if request.endpoint.startswith('admin.level_list') }}">
+                   class="nav-link ps-5 {{ 'active' if request.endpoint.startswith('admin_curriculum.level_list') }}">
                     <i class="fas fa-book-open" aria-hidden="true"></i>
                     <span>Уровни</span>
                 </a>
                 <!-- Подразделы для Curriculum -->
                 <a href="{{ url_for('admin_curriculum.module_list') }}"
-                   class="nav-link ps-5 {{ 'active' if request.endpoint.startswith('admin.module_list') }}">
+                   class="nav-link ps-5 {{ 'active' if request.endpoint.startswith('admin_curriculum.module_list') }}">
                     <i class="fas fa-book-open" aria-hidden="true"></i>
                     <span>Модули</span>
                 </a>
                 <a href="{{ url_for('admin_curriculum.lesson_list') }}"
-                   class="nav-link ps-5 {{ 'active' if request.endpoint == 'admin.lesson_list' }}">
+                   class="nav-link ps-5 {{ 'active' if request.endpoint == 'admin_curriculum.lesson_list' }}">
                     <i class="fas fa-file-alt" aria-hidden="true"></i>
                     <span>Уроки</span>
                 </a>
-                <a href="{{ url_for('topic_admin.topic_list') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.topic_list' }}">
+                <a href="{{ url_for('topic_admin.topic_list') }}" class="nav-link {{ 'active' if request.endpoint == 'topic_admin.topic_list' }}">
                     <i class="fas fa-tags" aria-hidden="true"></i>
                     <span>Темы</span>
                 </a>
-                <a href="{{ url_for('collection_admin.collection_list') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.collection_list' }}">
+                <a href="{{ url_for('collection_admin.collection_list') }}" class="nav-link {{ 'active' if request.endpoint == 'collection_admin.collection_list' }}">
                     <i class="fas fa-layer-group" aria-hidden="true"></i>
                     <span>Коллекции</span>
                 </a>
-                <a href="{{ url_for('word_admin.word_management') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.word_') }}">
+                <a href="{{ url_for('word_admin.word_management') }}" class="nav-link {{ 'active' if request.endpoint.startswith('word_admin.') }}">
                     <i class="fas fa-spell-check" aria-hidden="true"></i>
                     <span>Слова</span>
                 </a>
-                <a href="{{ url_for('book_admin.books') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.book_') and not request.endpoint.startswith('admin.book_courses') }}">
+                <a href="{{ url_for('book_admin.books') }}" class="nav-link {{ 'active' if request.endpoint.startswith('book_admin.') }}">
                     <i class="fas fa-book" aria-hidden="true"></i>
                     <span>Книги</span>
                 </a>
@@ -173,19 +173,19 @@
                         <i class="fas fa-puzzle-piece" aria-hidden="true"></i>
                         <span>JSON-модули</span>
                     </a>
-                    <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.import_curriculum' }}">
+                    <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin_curriculum.import_curriculum' }}">
                         <i class="fas fa-upload" aria-hidden="true"></i>
                         <span>Импорт программы</span>
                     </a>
-                    <a href="{{ url_for('system_admin.system') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.system' }}">
+                    <a href="{{ url_for('system_admin.system') }}" class="nav-link {{ 'active' if request.endpoint == 'system_admin.system' }}">
                         <i class="fas fa-cogs" aria-hidden="true"></i>
                         <span>Система</span>
                     </a>
-                    <a href="{{ url_for('system_admin.database_management') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.database_management' }}">
+                    <a href="{{ url_for('system_admin.database_management') }}" class="nav-link {{ 'active' if request.endpoint == 'system_admin.database_management' }}">
                         <i class="fas fa-database" aria-hidden="true"></i>
                         <span>База данных</span>
                     </a>
-                    <a href="{{ url_for('audio_admin.audio_management') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.audio_') }}">
+                    <a href="{{ url_for('audio_admin.audio_management') }}" class="nav-link {{ 'active' if request.endpoint.startswith('audio_admin.') }}">
                         <i class="fas fa-volume-up" aria-hidden="true"></i>
                         <span>Аудио</span>
                     </a>

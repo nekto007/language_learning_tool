@@ -22,6 +22,41 @@ Living findings journal for `docs/plans/2026-05-24-admin-full-audit.md`. Each ta
 
 Future tasks should append a `## Findings — Task N` section here.
 
+## Audit Complete — Final Summary (Task 31, 2026-05-24)
+
+All 31 tasks completed. 1188 admin tests pass. Key outcomes by area:
+
+### Security
+- Every admin route protected by `admin_required`; verified by parametrized URL-inventory test.
+- CSRF tokens confirmed in all POST forms and AJAX mutations; no `@csrf.exempt` in admin modules.
+- All destructive operations (delete, bulk-update, OAuth disconnect, cache clear, migrations) log via `AdminAuditLog`.
+- Input validation: enum/int cast with try/except, no raw f-string SQL, no unexplained `|safe` in templates.
+- Open-redirect protection: `get_safe_redirect_url` used for all `?next=` params.
+
+### Performance
+- DAU/WAU/MAU computed via UNION 7 activity sources with TTL cache; query-count test asserts ≤ N queries.
+- User-list N+1 eliminated via `joinedload` on statistics; pagination standardised (page/per_page, max=100).
+- Linear plan metrics aggregated in SQL (not Python loops); `chunk_ids` used for large IN() queries.
+- Activity feed uses keyset pagination for large offsets.
+
+### Code Quality
+- `app/admin/main_routes.py.backup` (3170 LOC) deleted.
+- Dead functions `get_book_course_statistics`, legacy `admin_required` in `modules.py` removed.
+- `app/admin/main_routes.py` refactored: dashboard/stats/cache routes moved to `app/admin/routes/dashboard_routes.py`.
+- Grammar Lab routes split into topic/exercise/attempt-review regions.
+- All `print()` replaced with `current_app.logger`.
+
+### UX / Templates
+- Breadcrumbs, flash messages, `.btn--loading` states confirmed across all admin sub-pages.
+- Custom 403/404/500 error pages for `/admin/*` with hub link.
+- Empty states and skeleton loaders added where async load occurs.
+- WCAG: aria-labels on icon-only buttons, focus-visible, keyboard navigation for dropdowns/dialogs.
+
+### Testing
+- 196 smoke tests (`pytest -m smoke`) run in 5.6 s.
+- Coverage: target modules ≥ 80%; gap noted in legacy shadow files (`main_routes.py`, `curriculum.py`, `grammar_lab_routes.py`) that are partially superseded by active sub-blueprints.
+- New test files: `test_admin_url_inventory`, `test_admin_access_control`, `test_task3_admin_audit_csrf`, `test_audit_log_coverage`, `test_input_validation`, `test_redirect_safety`, `test_dashboard_stats`, `test_user_list_pagination`, `test_batch_operations`, `test_linear_plan_metrics`, `test_templates_smoke`, `test_accessibility`, `test_observability`, `test_rate_limit`, `test_cache`, `test_error_pages`, and route-level files under `tests/admin/routes/`.
+
 ## Findings — Task 3 (CSRF coverage)
 
 Static-analysis sweep of `app/templates/admin/**/*.html` for `<form method="POST">` and `fetch()` AJAX calls. CSRFProtect is enabled in production via `config/settings.py`; tests rely on template/script audits because `tests/conftest.py` disables CSRF (`WTF_CSRF_ENABLED = False`) for the rest of the suite.
