@@ -52,9 +52,16 @@ class FlashcardSession {
 
         // Default completePayload if not provided
         if (!this.config.completePayload && this.config.completeUrl) {
-            this.config.completePayload = (sessionId) => ({
-                session_id: sessionId
-            });
+            this.config.completePayload = (sessionId) => {
+                const payload = { session_id: sessionId };
+                const fp = this.config.fetchCardsParams || {};
+                ['source', 'from', 'slot'].forEach((key) => {
+                    if (fp[key] !== null && fp[key] !== undefined) {
+                        payload[key] = fp[key];
+                    }
+                });
+                return payload;
+            };
         }
 
         // App state

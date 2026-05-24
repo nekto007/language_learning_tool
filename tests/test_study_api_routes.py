@@ -565,6 +565,80 @@ class TestCompleteSession:
             mock_calc.assert_called_once()
             mock_award.assert_called_once()
 
+    def test_non_plan_card_session_does_not_award_linear_srs_xp(
+        self, authenticated_client, study_session, test_user, db_session,
+    ):
+        """Linear users should not close the plan SRS slot from standalone cards."""
+        test_user.use_linear_plan = True
+        db_session.commit()
+
+        with patch('app.daily_plan.linear.xp.maybe_award_srs_global_xp') as mock_linear_award:
+            response = authenticated_client.post('/study/api/complete-session', json={
+                'session_id': study_session.id,
+                'source': 'auto',
+            })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        mock_linear_award.assert_not_called()
+
+    def test_linear_srs_completion_does_not_award_until_due_queue_empty(
+        self, authenticated_client, study_session, test_user, db_session,
+    ):
+        """The SRS plan slot stays open while plan-available due cards remain."""
+        test_user.use_linear_plan = True
+        db_session.commit()
+
+        with patch(
+            'app.daily_plan.linear.slots.srs_slot.count_linear_plan_srs_due_cards',
+            return_value=1,
+        ) as mock_due_count, patch(
+            'app.daily_plan.linear.xp.maybe_award_srs_global_xp',
+        ) as mock_linear_award:
+            response = authenticated_client.post('/study/api/complete-session', json={
+                'session_id': study_session.id,
+                'source': 'linear_plan',
+                'from': 'linear_plan',
+                'slot': 'srs',
+            })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        mock_due_count.assert_called_once()
+        mock_linear_award.assert_not_called()
+
+    def test_linear_srs_completion_awards_when_due_queue_empty(
+        self, authenticated_client, study_session, test_user, db_session,
+    ):
+        """The SRS plan slot can award XP after the available due queue is empty."""
+        test_user.use_linear_plan = True
+        db_session.commit()
+
+        with patch(
+            'app.daily_plan.linear.slots.srs_slot.count_linear_plan_srs_due_cards',
+            return_value=0,
+        ) as mock_due_count, patch(
+            'app.daily_plan.linear.xp.maybe_award_srs_global_xp',
+            return_value=object(),
+        ) as mock_linear_award, patch(
+            'app.daily_plan.linear.xp.maybe_award_linear_perfect_day',
+        ) as mock_perfect_day:
+            response = authenticated_client.post('/study/api/complete-session', json={
+                'session_id': study_session.id,
+                'source': 'linear_plan',
+                'from': 'linear_plan',
+                'slot': 'srs',
+            })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        mock_due_count.assert_called_once()
+        mock_linear_award.assert_called_once()
+        mock_perfect_day.assert_called_once()
+
     def test_invalid_session_id(self, authenticated_client):
         """Test with invalid session ID"""
         response = authenticated_client.post('/study/api/complete-session', json={

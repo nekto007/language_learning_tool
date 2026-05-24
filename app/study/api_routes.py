@@ -1,6 +1,7 @@
 import logging
 import random
 from datetime import datetime, timezone, timedelta
+from urllib.parse import parse_qs, urlsplit
 
 from flask import jsonify, request
 from flask_login import current_user, login_required
@@ -54,6 +55,29 @@ def _count_leech_suspended(user_id: int, now: datetime) -> int:
             UserCardDirection.buried_until > now,
         )
         .scalar() or 0
+    )
+
+
+def _is_linear_plan_srs_completion(data: dict) -> bool:
+    """Return whether a complete-session request belongs to the linear SRS slot."""
+    if (
+        data.get('source') == 'linear_plan'
+        and data.get('from') == 'linear_plan'
+        and data.get('slot') == 'srs'
+    ):
+        return True
+
+    ref = request.headers.get('Referer') or ''
+    if not ref:
+        return False
+    try:
+        query = parse_qs(urlsplit(ref).query or '')
+    except ValueError:
+        return False
+    return (
+        (query.get('source', [''])[0] or '') == 'linear_plan'
+        and (query.get('from', [''])[0] or '') == 'linear_plan'
+        and (query.get('slot', [''])[0] or '') == 'srs'
     )
 
 
@@ -607,6 +631,7 @@ def complete_session():
         return jsonify({'error': 'Content-Type must be application/json'}), 415
     data = request.json or {}
     session_id = data.get('session_id')
+    is_linear_plan_srs = _is_linear_plan_srs_completion(data)
 
     session = StudySession.query.get(session_id)
     if session and session.user_id == current_user.id:
@@ -630,20 +655,31 @@ def complete_session():
             xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_cards_session')
             db.session.commit()
 
-        try:
-            from app.daily_plan.linear.xp import (
-                maybe_award_srs_global_xp,
-                maybe_award_linear_perfect_day,
-            )
-            if maybe_award_srs_global_xp(current_user.id, db_session=db) is not None:
-                maybe_award_linear_perfect_day(current_user.id, db_session=db)
-                db.session.commit()
-        except Exception:
-            logger.warning(
-                "linear_xp: srs-session award failed user=%s",
-                current_user.id, exc_info=True,
-            )
-            db.session.rollback()
+        if is_linear_plan_srs:
+            try:
+                from app.daily_plan.linear.slots.srs_slot import count_linear_plan_srs_due_cards
+                from app.daily_plan.linear.xp import (
+                    maybe_award_srs_global_xp,
+                    maybe_award_linear_perfect_day,
+                )
+
+                remaining_due = count_linear_plan_srs_due_cards(current_user.id, db)
+                if remaining_due <= 0:
+                    if maybe_award_srs_global_xp(current_user.id, db_session=db) is not None:
+                        maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                        db.session.commit()
+                else:
+                    logger.info(
+                        "linear_xp: srs-session incomplete user=%s remaining_due=%s",
+                        current_user.id,
+                        remaining_due,
+                    )
+            except Exception:
+                logger.warning(
+                    "linear_xp: srs-session award failed user=%s",
+                    current_user.id, exc_info=True,
+                )
+                db.session.rollback()
 
         _stats = _UserStats.query.filter_by(user_id=current_user.id).first()
         _total_xp = int(_stats.total_xp or 0) if _stats else 0
