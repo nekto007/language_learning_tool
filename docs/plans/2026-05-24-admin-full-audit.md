@@ -116,11 +116,11 @@
 **Files:**
 - Modify: `app/admin/routes/user_routes.py`, `app/templates/admin/users.html`, `app/templates/admin/user_detail.html`
 
-- [ ] аудит на N+1 в списке юзеров (last_login, statistics joinedload)
-- [ ] стандартизировать пагинацию (limit/offset через `flask_sqlalchemy.Pagination`), параметры `page`, `per_page`, max=100
-- [ ] поиск по email/username с экранированием
-- [ ] обновить `tests/admin/test_user_list_pagination.py` и `test_user_management_detail.py`
-- [ ] прогнать тесты
+- [x] аудит на N+1 в списке юзеров (last_login, statistics joinedload)
+- [x] стандартизировать пагинацию (limit/offset через `flask_sqlalchemy.Pagination`), параметры `page`, `per_page`, max=100
+- [x] поиск по email/username с экранированием
+- [x] обновить `tests/admin/test_user_list_pagination.py` и `test_user_management_detail.py`
+- [x] прогнать тесты
 
 ### Task 10: Books admin (734 LOC route) — рефакторинг + аудит
 
