@@ -39,8 +39,9 @@ def _activity_date_expr(*columns):
 def _active_user_ids_for_date(target_date):
     """UNION DISTINCT user_id across all 7 activity tables for a single date.
 
-    This is the single source of truth for DAU — used by chart, DAU/WAU/MAU,
-    and retention calculations. See Key Definitions in plan.
+    Kept for compatibility with ``get_retention_metrics`` and external callers.
+    DAU/WAU/MAU and the daily activity chart use ``get_active_user_dates``
+    instead so they pay for one materialised UNION rather than 1 per date.
     """
     from app.study.models import StudySession
     from app.grammar_lab.models import UserGrammarExercise
@@ -76,10 +77,11 @@ def _active_user_ids_for_date(target_date):
     return q1.union(q2, q3, q4, q5, q6, q7)
 
 
-def _count_active_users_in_range(start_date, end_date) -> int:
-    """Count distinct active users in a date range using all 7 activity tables.
+def _build_active_user_date_pairs_query(start_date, end_date):
+    """UNION of ``(user_id, activity_date)`` pairs across the 7 activity tables.
 
-    Does NOT use User.last_login — that's visitor data, not learning activity.
+    Single round trip materialises the full window. Use ``get_active_user_dates``
+    to materialise into a ``{date: set(user_id)}`` dict.
     """
     from app.study.models import StudySession
     from app.grammar_lab.models import UserGrammarExercise
@@ -87,40 +89,90 @@ def _count_active_users_in_range(start_date, end_date) -> int:
     from app.curriculum.book_courses import BookCourseEnrollment
     from app.curriculum.daily_lessons import UserLessonProgress
 
-    q1 = db.session.query(LessonProgress.user_id).filter(
-        _activity_date_expr(LessonProgress.last_activity, LessonProgress.completed_at) >= start_date,
-        _activity_date_expr(LessonProgress.last_activity, LessonProgress.completed_at) <= end_date,
-    )
-    q2 = db.session.query(StudySession.user_id).filter(
-        func.date(StudySession.start_time) >= start_date,
-        func.date(StudySession.start_time) <= end_date,
-    )
-    q3 = db.session.query(UserGrammarExercise.user_id).filter(
+    date1 = _activity_date_expr(LessonProgress.last_activity, LessonProgress.completed_at)
+    q1 = db.session.query(
+        LessonProgress.user_id.label('user_id'),
+        date1.label('activity_date'),
+    ).filter(date1 >= start_date, date1 <= end_date)
+
+    date2 = func.date(StudySession.start_time)
+    q2 = db.session.query(
+        StudySession.user_id.label('user_id'),
+        date2.label('activity_date'),
+    ).filter(date2 >= start_date, date2 <= end_date)
+
+    date3 = func.date(UserGrammarExercise.last_reviewed)
+    q3 = db.session.query(
+        UserGrammarExercise.user_id.label('user_id'),
+        date3.label('activity_date'),
+    ).filter(
         UserGrammarExercise.last_reviewed.isnot(None),
-        func.date(UserGrammarExercise.last_reviewed) >= start_date,
-        func.date(UserGrammarExercise.last_reviewed) <= end_date,
+        date3 >= start_date, date3 <= end_date,
     )
-    q4 = db.session.query(UserChapterProgress.user_id).filter(
+
+    date4 = func.date(UserChapterProgress.updated_at)
+    q4 = db.session.query(
+        UserChapterProgress.user_id.label('user_id'),
+        date4.label('activity_date'),
+    ).filter(
         UserChapterProgress.updated_at.isnot(None),
-        func.date(UserChapterProgress.updated_at) >= start_date,
-        func.date(UserChapterProgress.updated_at) <= end_date,
+        date4 >= start_date, date4 <= end_date,
     )
-    q5 = db.session.query(BookCourseEnrollment.user_id).filter(
+
+    date5 = func.date(BookCourseEnrollment.last_activity)
+    q5 = db.session.query(
+        BookCourseEnrollment.user_id.label('user_id'),
+        date5.label('activity_date'),
+    ).filter(
         BookCourseEnrollment.last_activity.isnot(None),
-        func.date(BookCourseEnrollment.last_activity) >= start_date,
-        func.date(BookCourseEnrollment.last_activity) <= end_date,
+        date5 >= start_date, date5 <= end_date,
     )
-    q6 = db.session.query(LessonAttempt.user_id).filter(
-        func.date(LessonAttempt.started_at) >= start_date,
-        func.date(LessonAttempt.started_at) <= end_date,
-    )
-    q7 = db.session.query(UserLessonProgress.user_id).filter(
+
+    date6 = func.date(LessonAttempt.started_at)
+    q6 = db.session.query(
+        LessonAttempt.user_id.label('user_id'),
+        date6.label('activity_date'),
+    ).filter(date6 >= start_date, date6 <= end_date)
+
+    date7 = func.date(UserLessonProgress.completed_at)
+    q7 = db.session.query(
+        UserLessonProgress.user_id.label('user_id'),
+        date7.label('activity_date'),
+    ).filter(
         UserLessonProgress.completed_at.isnot(None),
-        func.date(UserLessonProgress.completed_at) >= start_date,
-        func.date(UserLessonProgress.completed_at) <= end_date,
+        date7 >= start_date, date7 <= end_date,
     )
-    union_q = q1.union(q2, q3, q4, q5, q6, q7).subquery()
-    return db.session.query(func.count()).select_from(union_q).scalar() or 0
+
+    return q1.union(q2, q3, q4, q5, q6, q7)
+
+
+def get_active_user_dates(start_date, end_date) -> dict:
+    """Materialise ``{date: set(user_id)}`` for the window in a single query.
+
+    Powers DAU/WAU/MAU and the 30-day activity chart without N+1 round trips:
+    one UNION query, in-Python aggregation instead of one query per day or one
+    per metric.
+    """
+    rows = _build_active_user_date_pairs_query(start_date, end_date).all()
+    bucket: dict = {}
+    for user_id, activity_date in rows:
+        if user_id is None or activity_date is None:
+            continue
+        bucket.setdefault(activity_date, set()).add(user_id)
+    return bucket
+
+
+def _count_active_users_in_range(start_date, end_date) -> int:
+    """Count distinct active users in ``[start_date, end_date]``.
+
+    Thin wrapper over ``get_active_user_dates`` so callers (retention, ad-hoc
+    queries) share the materialised UNION path.
+    """
+    bucket = get_active_user_dates(start_date, end_date)
+    users: set = set()
+    for ids in bucket.values():
+        users.update(ids)
+    return len(users)
 
 
 @cache_result('dashboard_stats', timeout=180)
@@ -198,11 +250,8 @@ def get_daily_activity_data(days: int = 30) -> dict:
     ).group_by(func.date(User.last_login)).all()
     login_map = {row[0]: row[1] for row in login_rows}
 
-    dau_map = {}
-    for i in range(days):
-        d = start_date + timedelta(days=i)
-        union_q = _active_user_ids_for_date(d).subquery()
-        dau_map[d] = db.session.query(func.count()).select_from(union_q).scalar() or 0
+    activity_bucket = get_active_user_dates(start_date, today)
+    dau_map = {d: len(ids) for d, ids in activity_bucket.items()}
 
     labels = []
     registrations = []
@@ -234,13 +283,25 @@ def get_engagement_metrics() -> dict:
     now = datetime.now(timezone.utc)
     today = now.date()
 
-    dau = _count_active_users_in_range(today, today)
-    wau = _count_active_users_in_range(today - timedelta(days=6), today)
-    mau = _count_active_users_in_range(today - timedelta(days=29), today)
+    # One UNION query covers the entire 60-day window. Previously this helper
+    # ran six separate UNION counts against the seven activity tables.
+    bucket = get_active_user_dates(today - timedelta(days=59), today)
 
-    prev_dau = _count_active_users_in_range(today - timedelta(days=1), today - timedelta(days=1))
-    prev_wau = _count_active_users_in_range(today - timedelta(days=13), today - timedelta(days=7))
-    prev_mau = _count_active_users_in_range(today - timedelta(days=59), today - timedelta(days=30))
+    def _count(start, end) -> int:
+        users: set = set()
+        d = start
+        while d <= end:
+            users.update(bucket.get(d, ()))
+            d += timedelta(days=1)
+        return len(users)
+
+    dau = _count(today, today)
+    wau = _count(today - timedelta(days=6), today)
+    mau = _count(today - timedelta(days=29), today)
+
+    prev_dau = _count(today - timedelta(days=1), today - timedelta(days=1))
+    prev_wau = _count(today - timedelta(days=13), today - timedelta(days=7))
+    prev_mau = _count(today - timedelta(days=59), today - timedelta(days=30))
 
     def _trend(current: int, previous: int) -> tuple:
         if previous == 0:

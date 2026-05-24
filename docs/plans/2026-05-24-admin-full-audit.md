@@ -106,10 +106,10 @@
 **Files:**
 - Modify: `app/admin/main_routes.py` (или новый `dashboard_routes.py`), `tests/admin/test_dau_wau_cache.py`
 
-- [ ] аудит `_count_active_users_in_range`, `_active_user_ids_for_date` на повторные UNION/timeouts
-- [ ] вынести расчёт в materialized helper с TTL-кэшем; проверить, что cache key не race-y
-- [ ] добавить query-counter тест (`SQLALCHEMY_RECORD_QUERIES`) — assert <= N запросов на dashboard
-- [ ] прогнать тесты
+- [x] аудит `_count_active_users_in_range`, `_active_user_ids_for_date` на повторные UNION/timeouts
+- [x] вынести расчёт в materialized helper с TTL-кэшем; проверить, что cache key не race-y
+- [x] добавить query-counter тест (`SQLALCHEMY_RECORD_QUERIES`) — assert <= N запросов на dashboard
+- [x] прогнать тесты
 
 ### Task 9: User-list pagination + поиск
 

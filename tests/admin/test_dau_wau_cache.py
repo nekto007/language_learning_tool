@@ -8,44 +8,26 @@ class TestEngagementMetricsCache:
     """Verify that get_engagement_metrics caches DAU/WAU results."""
 
     def test_second_call_hits_cache(self, app, db_session):
-        """Second call within TTL must not invoke _count_active_users_in_range again."""
+        """Second call within TTL must not invoke get_active_user_dates again."""
         from app.admin.utils.cache import clear_admin_cache
         from app.admin.routes.dashboard_routes import get_engagement_metrics
 
         clear_admin_cache()
 
-        dummy = {
-            'dau': 1, 'dau_trend': '', 'dau_trend_value': '',
-            'wau': 2, 'wau_trend': '', 'wau_trend_value': '',
-            'mau': 3, 'mau_trend': '', 'mau_trend_value': '',
-        }
-
         with patch(
-            'app.admin.routes.dashboard_routes._count_active_users_in_range',
-            return_value=1,
-        ) as mock_count:
-            result1 = get_engagement_metrics()
-            result2 = get_engagement_metrics()
-
-        # _count_active_users_in_range is called 6 times on first call (dau, wau, mau + prev each),
-        # and 0 times on second call because the result is cached.
-        call_count = mock_count.call_count
-        assert call_count > 0, "Expected at least one DB call on first invocation"
-
-        # On second call no new DB calls should happen (cache hit)
-        # Re-run with fresh mock to confirm cache was set
-        clear_admin_cache()
-
-        with patch(
-            'app.admin.routes.dashboard_routes._count_active_users_in_range',
-            return_value=1,
+            'app.admin.routes.dashboard_routes.get_active_user_dates',
+            return_value={},
         ) as mock_first:
             get_engagement_metrics()
             first_calls = mock_first.call_count
 
+        assert first_calls == 1, (
+            f"Expected exactly one materialised UNION call after refactor, got {first_calls}"
+        )
+
         with patch(
-            'app.admin.routes.dashboard_routes._count_active_users_in_range',
-            return_value=99,
+            'app.admin.routes.dashboard_routes.get_active_user_dates',
+            return_value={'should_not_be_used': 99},
         ) as mock_second:
             result_cached = get_engagement_metrics()
             second_calls = mock_second.call_count
@@ -53,8 +35,9 @@ class TestEngagementMetricsCache:
         assert second_calls == 0, (
             f"Expected 0 DB calls on cached second invocation, got {second_calls}"
         )
-        # Result should be the first (cached) data, not the second mock's value
-        assert result_cached['dau'] != 99, "Cached result should not use new mock value"
+        # Result should be the first (cached) data; if the second mock had run,
+        # _count() would have raised because the bucket key isn't a date object.
+        assert result_cached['dau'] == 0
 
     @pytest.mark.smoke
     def test_engagement_metrics_returns_expected_keys(self, app, db_session):
@@ -65,13 +48,40 @@ class TestEngagementMetricsCache:
         clear_admin_cache()
 
         with patch(
-            'app.admin.routes.dashboard_routes._count_active_users_in_range',
-            return_value=0,
+            'app.admin.routes.dashboard_routes.get_active_user_dates',
+            return_value={},
         ):
             result = get_engagement_metrics()
 
         expected_keys = {'dau', 'wau', 'mau', 'dau_trend', 'wau_trend', 'mau_trend'}
         assert expected_keys.issubset(result.keys())
+
+    def test_engagement_metrics_aggregates_from_single_bucket(self, app, db_session):
+        """A single materialised bucket is enough to compute dau/wau/mau + prev_* in Python."""
+        from datetime import datetime, timedelta, timezone
+
+        from app.admin.utils.cache import clear_admin_cache
+        from app.admin.routes.dashboard_routes import get_engagement_metrics
+
+        clear_admin_cache()
+        today = datetime.now(timezone.utc).date()
+        bucket = {
+            today: {1, 2, 3},
+            today - timedelta(days=1): {2, 4},
+            today - timedelta(days=10): {5},
+            today - timedelta(days=40): {6},
+        }
+        with patch(
+            'app.admin.routes.dashboard_routes.get_active_user_dates',
+            return_value=bucket,
+        ) as mock_helper:
+            result = get_engagement_metrics()
+
+        assert mock_helper.call_count == 1
+        assert result['dau'] == 3                   # today: {1,2,3}
+        assert result['wau'] == 4                   # 7-day window: {1,2,3,4}
+        assert result['mau'] == 5                   # 30-day window: {1,2,3,4,5}
+        assert result['dau_trend_value'] != ''      # prev_dau was 2 → trend computed
 
     def test_leaderboard_cache_ttl_is_5_minutes(self, app, db_session):
         """Verify leaderboard cache TTL constant is 300 seconds (5 min)."""
