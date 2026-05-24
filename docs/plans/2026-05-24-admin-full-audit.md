@@ -179,10 +179,10 @@
 **Files:**
 - Modify: `app/admin/routes/seo_routes.py`, `app/admin/services/{gsc_service,seo_audit_service}.py`
 
-- [ ] аудит OAuth flow: state parameter, токены хранятся через SiteSettings (не plaintext в логах), `disconnect` чистит все ключи
-- [ ] seo_audit_service: per-worker cache → переключить на общий backend (Redis/file) или явно задокументировать ограничение
-- [ ] тесты `tests/admin/test_gsc.py` + `tests/admin/routes/test_seo_routes.py` (флоу авторизации с моком)
-- [ ] прогнать тесты
+- [x] аудит OAuth flow: state parameter, токены хранятся через SiteSettings (не plaintext в логах), `disconnect` чистит все ключи
+- [x] seo_audit_service: per-worker cache → переключить на общий backend (Redis/file) или явно задокументировать ограничение
+- [x] тесты `tests/admin/test_gsc.py` + `tests/admin/routes/test_seo_routes.py` (флоу авторизации с моком)
+- [x] прогнать тесты
 
 ### Task 16: Settings/Feature-flags admin
 

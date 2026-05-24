@@ -16,6 +16,44 @@ SEO_AUDIT_CACHE_KEY = 'seo_audit_results'
 SEO_AUDIT_CACHE_TIMEOUT = 3600  # 1 hour
 SITEMAP_AUDIT_SAMPLE_LIMIT = 50
 
+# Cache strategy: in-memory per gunicorn worker (see app/admin/utils/cache.py).
+# Cross-worker invalidation: the `seo_audit_cache_version` SiteSettings row is
+# bumped by `seo_refresh` and read on every audit call; every worker forms a
+# versioned cache key, so a refresh forces all workers to recompute once.
+SEO_AUDIT_CACHE_VERSION_KEY = 'seo_audit_cache_version'
+
+
+def get_seo_audit_cache_key(db_session=None) -> str:
+    """Return the versioned cache key, honouring cross-worker invalidation.
+
+    Falls back to the unversioned base key when SiteSettings is unreachable
+    (e.g. unit tests without an app context); the audit still works, only the
+    cross-worker invalidation degrades to per-worker timeout behaviour.
+    """
+    try:
+        from app.admin.site_settings import get_site_setting
+
+        version = (
+            get_site_setting(SEO_AUDIT_CACHE_VERSION_KEY, '1', db_session=db_session)
+            or '1'
+        )
+    except Exception:
+        return SEO_AUDIT_CACHE_KEY
+    return f'{SEO_AUDIT_CACHE_KEY}:v{version}'
+
+
+def bump_seo_audit_cache_version(db_session=None) -> str:
+    """Increment the SiteSettings-backed cache version (caller commits)."""
+    from app.admin.site_settings import get_site_setting, set_site_setting
+
+    current = get_site_setting(SEO_AUDIT_CACHE_VERSION_KEY, '1', db_session=db_session) or '1'
+    try:
+        new_version = str(int(current) + 1)
+    except (TypeError, ValueError):
+        new_version = '1'
+    set_site_setting(SEO_AUDIT_CACHE_VERSION_KEY, new_version, db_session=db_session)
+    return new_version
+
 # Key public URLs to audit — static HTML paths only.  Sitemap is audited
 # separately via `_fetch_sitemap_stats` so meta-tag coverage stays consistent.
 # Auth-gated pages (e.g. /onboarding) are excluded since the test client would
@@ -237,7 +275,8 @@ def _build_audit_paths(sitemap_stats: dict) -> list[str]:
 
 def run_seo_audit(app) -> dict:
     """Run SEO audit on key public pages. Result is cached for 1 hour."""
-    cached = get_cache(SEO_AUDIT_CACHE_KEY, timeout=SEO_AUDIT_CACHE_TIMEOUT)
+    cache_key = get_seo_audit_cache_key()
+    cached = get_cache(cache_key, timeout=SEO_AUDIT_CACHE_TIMEOUT)
     if cached is not None and _cached_urls_match_current(cached):
         return cached
 
@@ -274,5 +313,5 @@ def run_seo_audit(app) -> dict:
         'sitemap_audit_limit': SITEMAP_AUDIT_SAMPLE_LIMIT,
     }
 
-    set_cache(SEO_AUDIT_CACHE_KEY, report)
+    set_cache(cache_key, report)
     return report

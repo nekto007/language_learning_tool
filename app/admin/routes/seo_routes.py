@@ -22,8 +22,9 @@ from flask_login import current_user
 from app.admin.audit import log_admin_action
 from app.admin.secret_store import decrypt_secret, encrypt_secret
 from app.admin.services.seo_audit_service import (
-    SEO_AUDIT_CACHE_KEY,
     SEO_AUDIT_CACHE_TIMEOUT,
+    bump_seo_audit_cache_version,
+    get_seo_audit_cache_key,
     run_seo_audit,
 )
 from app.admin.site_settings import get_site_setting, set_site_setting
@@ -111,7 +112,7 @@ def _gsc_sites_cache_key(refresh_token: str) -> str:
 @admin_required
 def seo_index():
     app = current_app._get_current_object()
-    is_cached = get_cache(SEO_AUDIT_CACHE_KEY, timeout=SEO_AUDIT_CACHE_TIMEOUT) is not None
+    is_cached = get_cache(get_seo_audit_cache_key(), timeout=SEO_AUDIT_CACHE_TIMEOUT) is not None
     try:
         report = run_seo_audit(app)
     except Exception:
@@ -185,7 +186,10 @@ def seo_index():
 @seo_bp.route('/seo/refresh', methods=['POST'])
 @admin_required
 def seo_refresh():
+    # Local clear handles the current worker's cache, version bump propagates
+    # to other gunicorn workers (they form a new cache key on next audit call).
     clear_cache_by_prefix('seo_audit')
+    bump_seo_audit_cache_version()
     log_admin_action(current_user.id, 'seo.refresh_cache', target_type='seo_audit')
     db.session.commit()
     flash('Кэш SEO аудита очищен. Данные обновятся при следующем открытии страницы.', 'success')
@@ -241,6 +245,12 @@ def gsc_callback():
     expected_state = session.pop('gsc_oauth_state', None)
     received_state = request.args.get('state') or ''
     if not expected_state or not hmac.compare_digest(expected_state, received_state):
+        logger.warning(
+            'GSC OAuth state mismatch (admin_id=%s, expected_present=%s, received_present=%s)',
+            getattr(current_user, 'id', None),
+            bool(expected_state),
+            bool(received_state),
+        )
         flash('Неверный state параметр. Повторите подключение.', 'danger')
         return redirect(url_for('seo_admin.seo_index'))
 
@@ -305,12 +315,14 @@ def gsc_callback():
 @seo_bp.route('/seo/disconnect', methods=['POST'])
 @admin_required
 def gsc_disconnect():
-    """Remove stored GSC credentials."""
+    """Remove stored GSC credentials and clear any pending OAuth state."""
     set_site_setting('gsc_refresh_token', '')
     set_site_setting('gsc_site_url', '')
     log_admin_action(current_user.id, 'gsc.disconnect', target_type='site_settings')
     db.session.commit()
     clear_cache_by_prefix('gsc_')
+    # Drop any pending OAuth handshake so a re-connect starts with a fresh state.
+    session.pop('gsc_oauth_state', None)
     flash('Google Search Console отключён.', 'info')
     return redirect(url_for('seo_admin.seo_index'))
 

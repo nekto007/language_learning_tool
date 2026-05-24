@@ -35,6 +35,10 @@ SETTING_DEFAULTS: dict[str, str] = {
     # Google Search Console (populated via OAuth flow)
     'gsc_refresh_token': '',
     'gsc_site_url': '',
+    # SEO audit cache version — bumped on admin refresh to invalidate the
+    # per-worker in-memory cache across all gunicorn workers (each worker
+    # recomputes once on next read instead of serving stale data).
+    'seo_audit_cache_version': '1',
 }
 
 
