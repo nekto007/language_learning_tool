@@ -27,6 +27,8 @@ def clear_cache():
     """Очистка административного кэша"""
     try:
         clear_admin_cache()
+        log_admin_action(current_user.id, 'system.clear_cache')
+        db.session.commit()
         flash('Кэш успешно очищен', 'success')
         logger.info(f"Cache cleared by admin user {current_user.username}")
     except Exception as e:

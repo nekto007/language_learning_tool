@@ -12,6 +12,7 @@ from flask_login import current_user
 from sqlalchemy import case, desc, distinct, func
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.admin.audit import log_admin_action
 from app.auth.models import User
 from app.books.models import Book
 from app.curriculum.models import CEFRLevel, LessonAttempt, LessonProgress, Lessons, Module
@@ -1140,6 +1141,13 @@ def import_curriculum():
             # Выполняем импорт
             try:
                 result = import_curriculum_data(json_data)
+                log_admin_action(
+                    current_user.id,
+                    'curriculum.lesson.import',
+                    target_type='lesson',
+                    target_id=result.get('lesson_id'),
+                )
+                db.session.commit()
                 flash(f'Материал успешно импортирован! Создан урок ID: {result["lesson_id"]}', 'success')
 
                 # Перенаправляем на страницу списка уроков модуля

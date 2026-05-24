@@ -186,6 +186,8 @@ def seo_index():
 @admin_required
 def seo_refresh():
     clear_cache_by_prefix('seo_audit')
+    log_admin_action(current_user.id, 'seo.refresh_cache', target_type='seo_audit')
+    db.session.commit()
     flash('Кэш SEO аудита очищен. Данные обновятся при следующем открытии страницы.', 'success')
     return redirect(url_for('seo_admin.seo_index'))
 
@@ -289,7 +291,7 @@ def gsc_callback():
 
     set_site_setting('gsc_refresh_token', encrypt_secret(refresh_token))
     set_site_setting('gsc_site_url', site_url)
-    log_admin_action(current_user.id, 'gsc_connect', target_type='site_settings')
+    log_admin_action(current_user.id, 'gsc.connect', target_type='site_settings')
     db.session.commit()
     clear_cache_by_prefix('gsc_')
 
@@ -306,7 +308,7 @@ def gsc_disconnect():
     """Remove stored GSC credentials."""
     set_site_setting('gsc_refresh_token', '')
     set_site_setting('gsc_site_url', '')
-    log_admin_action(current_user.id, 'gsc_disconnect', target_type='site_settings')
+    log_admin_action(current_user.id, 'gsc.disconnect', target_type='site_settings')
     db.session.commit()
     clear_cache_by_prefix('gsc_')
     flash('Google Search Console отключён.', 'info')
@@ -348,7 +350,7 @@ def gsc_select_site():
         return redirect(url_for('seo_admin.seo_index'))
 
     set_site_setting('gsc_site_url', desired)
-    log_admin_action(current_user.id, 'gsc_select_site', target_type='site_settings')
+    log_admin_action(current_user.id, 'gsc.select_site', target_type='site_settings')
     db.session.commit()
     clear_cache_by_prefix('gsc_')
     flash(f'Активный сайт GSC изменён на {desired}.', 'success')

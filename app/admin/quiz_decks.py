@@ -67,6 +67,8 @@ def quiz_deck_create():
             deck.generate_share_code()
 
         db.session.add(deck)
+        db.session.flush()
+        log_admin_action(current_user.id, 'quiz_deck.create', target_type='quiz_deck', target_id=deck.id)
         db.session.commit()
 
         flash(f'Колода "{title}" успешно создана', 'success')
@@ -113,6 +115,7 @@ def quiz_deck_edit(deck_id):
         if deck.is_public and not was_public and not deck.share_code:
             deck.generate_share_code()
 
+        log_admin_action(current_user.id, 'quiz_deck.update', target_type='quiz_deck', target_id=deck_id)
         db.session.commit()
 
         # Check if AJAX request
@@ -211,6 +214,7 @@ def quiz_deck_add_word(deck_id):
             deck_word.custom_russian = custom_russian
 
         db.session.add(deck_word)
+        log_admin_action(current_user.id, 'quiz_deck.add_word', target_type='quiz_deck', target_id=deck_id)
         db.session.commit()
 
         # Check if AJAX request
@@ -238,6 +242,7 @@ def quiz_deck_add_word(deck_id):
             order_index=max_order + 1
         )
         db.session.add(deck_word)
+        log_admin_action(current_user.id, 'quiz_deck.add_word', target_type='quiz_deck', target_id=deck_id)
         db.session.commit()
 
         # Check if AJAX request
@@ -279,6 +284,7 @@ def quiz_deck_update_word(deck_id, word_id):
     deck_word.custom_english = custom_english
     deck_word.custom_russian = custom_russian
 
+    log_admin_action(current_user.id, 'quiz_deck.update_word', target_type='quiz_deck', target_id=deck_id)
     db.session.commit()
 
     # Check if AJAX request
@@ -313,6 +319,7 @@ def quiz_deck_reset_word(deck_id, word_id):
     deck_word.custom_english = None
     deck_word.custom_russian = None
 
+    log_admin_action(current_user.id, 'quiz_deck.reset_word', target_type='quiz_deck', target_id=deck_id)
     db.session.commit()
 
     flash('Перевод сброшен к оригинальному', 'success')

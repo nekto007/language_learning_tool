@@ -9,9 +9,11 @@ import logging
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user
 
+from app.admin.audit import log_admin_action
 from app.admin.services.word_management_service import WordManagementService
 from app.admin.utils.decorators import admin_required, handle_admin_errors
 from app.admin.utils.cache import clear_admin_cache
+from app.utils.db import db
 from app.admin.utils.export_helpers import export_words_csv, export_words_json, export_words_txt
 from app.admin.utils.import_helpers import delete_import_data, load_import_data, save_import_data
 from app.auth.models import User
@@ -69,6 +71,12 @@ def bulk_status_update():
 
             # Очищаем кэш после массового обновления
             clear_admin_cache()
+            log_admin_action(
+                current_user.id,
+                'word.bulk_update_status',
+                target_type='word',
+            )
+            db.session.commit()
 
             return jsonify({
                 'success': True,
@@ -234,6 +242,14 @@ def import_translations():
                 else:
                     flash('Никаких изменений не было внесено', 'info')
 
+                if updated_count > 0 or added_count > 0:
+                    log_admin_action(
+                        current_user.id,
+                        'word.import_translations',
+                        target_type='word',
+                    )
+                    db.session.commit()
+
                 logger.info(
                     f"Translations import completed by {current_user.username}: "
                     f"{updated_count} updated, {added_count} added"
@@ -359,6 +375,14 @@ def import_phrasal_verbs():
                     flash('; '.join(messages), 'success')
                 else:
                     flash('Никаких изменений не было внесено', 'info')
+
+                if added_count > 0 or updated_count > 0:
+                    log_admin_action(
+                        current_user.id,
+                        'word.import_phrasal_verbs',
+                        target_type='word',
+                    )
+                    db.session.commit()
 
                 logger.info(
                     f"Phrasal verbs import by {current_user.username}: "

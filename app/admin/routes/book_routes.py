@@ -110,6 +110,9 @@ def scrape_website():
         # Запускаем scraping
         results = scraper.scrape_website(url, max_pages)
 
+        if results:
+            log_admin_action(current_user.id, 'book.scrape_website', target_type='book')
+            db.session.commit()
         logger.info(f"Website scraping completed by {current_user.username}: {len(results)} books processed")
 
         return jsonify({
@@ -183,6 +186,8 @@ def update_book_statistics():
                 continue
 
         admin_name = current_user.username
+        if updated_count > 0:
+            log_admin_action(current_user.id, 'book.update_statistics', target_type='book')
         db.session.commit()
 
         logger.info(f"Book statistics updated by {admin_name}: {updated_count} books")
@@ -279,6 +284,8 @@ def process_phrasal_verbs():
 
             processed_count += 1
 
+        if processed_count > 0:
+            log_admin_action(current_user.id, 'book.process_phrasal_verbs', target_type='word')
         db.session.commit()
 
         result = {
@@ -487,6 +494,7 @@ def edit_book(book_id):
         book.level = submitted_level
         book.summary = request.form.get('description', book.summary)
 
+        log_admin_action(current_user.id, 'book.update', target_type='book', target_id=book_id)
         db.session.commit()
         flash(f'Книга "{book.title}" обновлена', 'success')
         return redirect(url_for('book_admin.books'))
@@ -607,6 +615,13 @@ def add_book():
                 logger.info("[BOOK_ADD] Using chapter-based processing")
                 if not existing_book or not overwrite:
                     db.session.add(new_book)
+                db.session.flush()
+                log_admin_action(
+                    current_user.id,
+                    'book.update' if existing_book and overwrite else 'book.create',
+                    target_type='book',
+                    target_id=new_book.id,
+                )
                 db.session.commit()
 
                 temp_dir = os.path.join('app', 'temp')
@@ -690,6 +705,13 @@ def add_book():
                 os.path.splitext(secure_filename(form.file.data.filename))[1].lower() in ['.fb2', '.txt']):
             if not existing_book or not overwrite:
                 db.session.add(new_book)
+            db.session.flush()
+            log_admin_action(
+                current_user.id,
+                'book.update' if existing_book and overwrite else 'book.create',
+                target_type='book',
+                target_id=new_book.id,
+            )
             db.session.commit()
 
             clear_admin_cache()

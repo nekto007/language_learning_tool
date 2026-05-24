@@ -63,10 +63,10 @@
 **Files:**
 - Modify: `app/admin/routes/{user,book,word,topic,curriculum,collection,grammar_lab,audio,seo,settings,system}_routes.py`, `app/admin/main_routes.py`
 
-- [ ] найти все DELETE/UPDATE handlers (модели, пользователи, words, modules, lessons, collections, settings, OAuth tokens) и обеспечить вызов `log_admin_action(admin_id, action, target)`
-- [ ] унифицировать имена actions (snake_case, `entity.action`)
-- [ ] тесты `tests/admin/test_audit_log_coverage.py` — parametrize: дернуть каждый mutating endpoint, assert строка в `AdminAuditLog`
-- [ ] прогнать тесты
+- [x] найти все DELETE/UPDATE handlers (модели, пользователи, words, modules, lessons, collections, settings, OAuth tokens) и обеспечить вызов `log_admin_action(admin_id, action, target)`
+- [x] унифицировать имена actions (snake_case, `entity.action`)
+- [x] тесты `tests/admin/test_audit_log_coverage.py` — parametrize: дернуть каждый mutating endpoint, assert строка в `AdminAuditLog`
+- [x] прогнать тесты
 
 ### Task 5: Sanitize input + защита от SQL/HTML injection
 

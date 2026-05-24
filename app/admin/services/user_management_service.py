@@ -285,8 +285,8 @@ class UserManagementService:
         db.session.delete(user)
         log_admin_action(
             admin_id=admin_id,
-            action='delete_user',
-            target_type='User',
+            action='user.delete',
+            target_type='user',
             target_id=user_id,
         )
         db.session.commit()

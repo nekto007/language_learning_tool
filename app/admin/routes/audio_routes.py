@@ -9,10 +9,12 @@ import logging
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user
 
+from app.admin.audit import log_admin_action
 from app.admin.services.audio_management_service import AudioManagementService
 from app.admin.utils.decorators import admin_required, handle_admin_errors
 from app.admin.utils.cache import clear_admin_cache
 from app.admin.utils.export_helpers import export_audio_list_csv, export_audio_list_json, export_audio_list_txt
+from app.utils.db import db
 
 # Создаем blueprint для audio routes
 audio_bp = Blueprint('audio_admin', __name__)
@@ -67,6 +69,12 @@ def update_audio_download_status():
             table_name, column_name, MEDIA_FOLDER
         )
 
+        log_admin_action(
+            current_user.id,
+            'audio.update_download_status',
+            target_type='audio',
+        )
+        db.session.commit()
         logger.info(f"Audio download status updated by {current_user.username}: {updated_count} records")
 
         return jsonify({
@@ -95,6 +103,12 @@ def fix_audio_listening_fields():
             # Очищаем кэш после изменения данных
             clear_admin_cache()
 
+            log_admin_action(
+                current_user.id,
+                'audio.fix_listening_fields',
+                target_type='audio',
+            )
+            db.session.commit()
             logger.info(f"Audio listening fields fixed by {current_user.username}: {fixed_count} records")
 
             return jsonify({
@@ -129,6 +143,12 @@ def normalize_audio_listening_fields():
 
         if success:
             clear_admin_cache()
+            log_admin_action(
+                current_user.id,
+                'audio.normalize_listening_fields',
+                target_type='audio',
+            )
+            db.session.commit()
             logger.info(f"Audio listening fields normalized by {current_user.username}: {fixed_count} records")
 
             return jsonify({
@@ -160,6 +180,12 @@ def fill_empty_listening_fields():
 
         if success:
             clear_admin_cache()
+            log_admin_action(
+                current_user.id,
+                'audio.fill_empty_listening',
+                target_type='audio',
+            )
+            db.session.commit()
             logger.info(f"Empty listening fields filled by {current_user.username}: {fixed_count} records")
 
             return jsonify({
@@ -231,6 +257,12 @@ def fix_all_audio():
         results.append({'step': 'Заполнение пустых listening', 'success': False, 'error': str(e)})
 
     clear_admin_cache()
+    log_admin_action(
+        current_user.id,
+        'audio.fix_all',
+        target_type='audio',
+    )
+    db.session.commit()
 
     all_success = all(r['success'] for r in results)
     return jsonify({

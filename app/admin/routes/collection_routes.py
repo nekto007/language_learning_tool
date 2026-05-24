@@ -57,6 +57,7 @@ def create_collection():
                 link = CollectionWordLink(collection_id=collection.id, word_id=word_id)
                 db.session.add(link)
 
+        log_admin_action(current_user.id, 'collection.create', target_type='collection', target_id=collection.id)
         db.session.commit()
 
         flash(_('Collection created successfully!'), 'success')
@@ -96,6 +97,7 @@ def edit_collection(collection_id):
                 link = CollectionWordLink(collection_id=collection.id, word_id=word_id)
                 db.session.add(link)
 
+        log_admin_action(current_user.id, 'collection.update', target_type='collection', target_id=collection_id)
         db.session.commit()
 
         flash(_('Collection updated successfully!'), 'success')

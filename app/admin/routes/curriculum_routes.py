@@ -8,8 +8,10 @@ import json
 import logging
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import current_user
 from sqlalchemy import distinct, func
 
+from app.admin.audit import log_admin_action
 from app.admin.services.curriculum_import_service import CurriculumImportService
 from app.admin.utils.decorators import admin_required
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
@@ -240,6 +242,13 @@ def import_curriculum():
             # Выполняем импорт через сервис
             try:
                 result = CurriculumImportService.import_curriculum_data(json_data)
+                log_admin_action(
+                    current_user.id,
+                    'curriculum.lesson.import',
+                    target_type='lesson',
+                    target_id=result.get('lesson_id'),
+                )
+                db.session.commit()
                 flash(
                     f'Материал успешно импортирован! Создан урок ID: {result["lesson_id"]}',
                     'success'

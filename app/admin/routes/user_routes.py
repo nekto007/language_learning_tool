@@ -150,7 +150,7 @@ def linear_plan_user_inspector(user_id):
 
     log_admin_action(
         admin_id=current_user.id,
-        action='linear_plan_inspect',
+        action='user.linear_plan_inspect',
         target_type='user',
         target_id=user_id,
     )

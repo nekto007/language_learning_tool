@@ -155,6 +155,8 @@ def create_level():
         )
 
         db.session.add(level)
+        db.session.flush()
+        log_admin_action(current_user.id, 'curriculum.level.create', target_type='cefr_level', target_id=level.id)
         db.session.commit()
 
         flash(_('Уровень успешно создан!'), 'success')
@@ -176,6 +178,7 @@ def edit_level(level_id):
     if form.validate_on_submit():
         form.populate_obj(level)
         level.code = level.code.upper()  # Преобразуем в верхний регистр
+        log_admin_action(current_user.id, 'curriculum.level.update', target_type='cefr_level', target_id=level_id)
         db.session.commit()
 
         flash(_('Уровень успешно обновлен!'), 'success')
@@ -238,6 +241,8 @@ def create_module():
         )
 
         db.session.add(module)
+        db.session.flush()
+        log_admin_action(current_user.id, 'curriculum.module.create', target_type='module', target_id=module.id)
         db.session.commit()
 
         flash(_('Модуль успешно создан!'), 'success')
@@ -269,6 +274,7 @@ def edit_module(module_id):
             return render_template('admin/curriculum/edit_module.html', form=form, module=module)
 
         form.populate_obj(module)
+        log_admin_action(current_user.id, 'curriculum.module.update', target_type='module', target_id=module_id)
         db.session.commit()
 
         flash(_('Модуль успешно обновлен!'), 'success')
@@ -333,6 +339,8 @@ def create_lesson():
         )
 
         db.session.add(lesson)
+        db.session.flush()
+        log_admin_action(current_user.id, 'curriculum.lesson.create', target_type='lesson', target_id=lesson.id)
         db.session.commit()
 
         flash(_('Урок успешно создан!'), 'success')
@@ -364,6 +372,7 @@ def edit_lesson(lesson_id):
             return render_template('admin/curriculum/edit_lesson.html', form=form, lesson=lesson)
 
         form.populate_obj(lesson)
+        log_admin_action(current_user.id, 'curriculum.lesson.update', target_type='lesson', target_id=lesson_id)
         db.session.commit()
 
         flash(_('Урок успешно обновлен!'), 'success')
@@ -447,6 +456,7 @@ def edit_grammar_lesson(lesson_id):
             'exercises': exercises
         }
 
+        log_admin_action(current_user.id, 'curriculum.lesson.update_content', target_type='lesson', target_id=lesson_id)
         db.session.commit()
 
         flash(_('Грамматический урок успешно обновлен!'), 'success')
@@ -515,6 +525,7 @@ def edit_quiz_lesson(lesson_id):
             'passing_score': passing_score
         }
 
+        log_admin_action(current_user.id, 'curriculum.lesson.update_content', target_type='lesson', target_id=lesson_id)
         db.session.commit()
 
         flash(_('Урок-викторина успешно обновлен!'), 'success')
@@ -567,6 +578,7 @@ def edit_matching_lesson(lesson_id):
             'time_limit': time_limit
         }
 
+        log_admin_action(current_user.id, 'curriculum.lesson.update_content', target_type='lesson', target_id=lesson_id)
         db.session.commit()
 
         flash(_('Урок сопоставления успешно обновлен!'), 'success')
@@ -623,6 +635,7 @@ def edit_text_lesson(lesson_id):
             'metadata': metadata
         }
 
+        log_admin_action(current_user.id, 'curriculum.lesson.update_content', target_type='lesson', target_id=lesson_id)
         db.session.commit()
 
         flash(_('Текстовый урок успешно обновлен!'), 'success')
@@ -824,6 +837,8 @@ def cultural_note_add():
             return redirect(url_for('admin.cultural_note_add'))
         note = CulturalNote(word_id=word_id, note=note_text, context=context)
         db.session.add(note)
+        db.session.flush()
+        log_admin_action(current_user.id, 'cultural_note.create', target_type='cultural_note', target_id=note.id)
         db.session.commit()
         flash(_('Cultural note added.'), 'success')
         return redirect(url_for('admin.cultural_notes_list', word_id=word_id))
@@ -845,6 +860,7 @@ def cultural_note_edit(note_id):
         else:
             note.note = note_text
             note.context = context
+            log_admin_action(current_user.id, 'cultural_note.update', target_type='cultural_note', target_id=note_id)
             db.session.commit()
             flash(_('Cultural note updated.'), 'success')
             return redirect(url_for('admin.cultural_notes_list', word_id=note.word_id))
@@ -859,7 +875,7 @@ def cultural_note_delete(note_id):
     note = CulturalNote.query.get_or_404(note_id)
     word_id = note.word_id
     db.session.delete(note)
-    log_admin_action(current_user.id, 'delete_cultural_note', 'cultural_note', note_id)
+    log_admin_action(current_user.id, 'cultural_note.delete', target_type='cultural_note', target_id=note_id)
     db.session.commit()
     flash(_('Cultural note deleted.'), 'success')
     return redirect(url_for('admin.cultural_notes_list', word_id=word_id))

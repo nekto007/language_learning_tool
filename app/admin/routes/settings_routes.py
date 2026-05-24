@@ -61,7 +61,7 @@ def settings_save():
             else:
                 value = request.form.get(key, '').strip()
             set_site_setting(key, value)
-        log_admin_action(current_user.id, 'settings_update', target_type='site_settings')
+        log_admin_action(current_user.id, 'site_settings.update', target_type='site_settings')
         db.session.commit()
         flash('Настройки сохранены.', 'success')
         logger.info('Site settings updated')

@@ -103,6 +103,13 @@ def create_topic():
                 difficulty=difficulty
             )
             db.session.add(topic)
+            db.session.flush()
+            log_admin_action(
+                admin_id=current_user.id,
+                action='grammar_topic.create',
+                target_type='grammar_topic',
+                target_id=topic.id,
+            )
             db.session.commit()
 
             flash(f'Topic "{title}" created successfully!', 'success')
@@ -149,6 +156,12 @@ def edit_topic(topic_id):
             except json.JSONDecodeError:
                 logger.warning("Invalid JSON in grammar topic content, keeping existing")
 
+            log_admin_action(
+                admin_id=current_user.id,
+                action='grammar_topic.update',
+                target_type='grammar_topic',
+                target_id=topic_id,
+            )
             db.session.commit()
             flash('Topic updated successfully!', 'success')
 
@@ -181,8 +194,8 @@ def delete_topic(topic_id):
         db.session.delete(topic)
         log_admin_action(
             admin_id=current_user.id,
-            action='delete_grammar_topic',
-            target_type='GrammarTopic',
+            action='grammar_topic.delete',
+            target_type='grammar_topic',
             target_id=topic_id,
         )
         db.session.commit()
@@ -224,6 +237,13 @@ def create_exercise(topic_id):
                 order=order
             )
             db.session.add(exercise)
+            db.session.flush()
+            log_admin_action(
+                admin_id=current_user.id,
+                action='grammar_exercise.create',
+                target_type='grammar_exercise',
+                target_id=exercise.id,
+            )
             db.session.commit()
 
             flash('Exercise created successfully!', 'success')
@@ -265,6 +285,12 @@ def edit_exercise(exercise_id):
                 flash(f'Invalid exercise content: {ve}', 'danger')
                 return render_template('admin/grammar_lab/exercise_form.html', topic=topic, exercise=exercise)
 
+            log_admin_action(
+                admin_id=current_user.id,
+                action='grammar_exercise.update',
+                target_type='grammar_exercise',
+                target_id=exercise_id,
+            )
             db.session.commit()
             flash('Exercise updated successfully!', 'success')
             return redirect(url_for('grammar_lab_admin.edit_topic', topic_id=topic.id))
@@ -285,7 +311,7 @@ def delete_exercise(exercise_id):
 
     try:
         db.session.delete(exercise)
-        log_admin_action(current_user.id, 'grammar_lab.delete_exercise', target_type='grammar_exercise', target_id=exercise_id)
+        log_admin_action(current_user.id, 'grammar_exercise.delete', target_type='grammar_exercise', target_id=exercise_id)
         db.session.commit()
         flash('Exercise deleted successfully!', 'success')
     except Exception as e:
@@ -503,6 +529,12 @@ def import_from_modules():
                         db.session.add(exercise)
                         exercises_imported += 1
 
+            if imported or skipped or exercises_imported:
+                log_admin_action(
+                    current_user.id,
+                    'grammar_topic.import_from_modules',
+                    target_type='grammar_topic',
+                )
             db.session.commit()
             sync_msg = f', синхронизировано прогрессов: {total_synced}' if total_synced else ''
             flash(f'Создано: {imported} тем, обновлено: {skipped} тем, упражнений: {exercises_imported}{sync_msg}', 'success')
@@ -661,6 +693,13 @@ def _import_exercises_json_file(file, deleted_topic_ids: set[int]) -> tuple[bool
                 db.session.add(exercise)
                 exercises_imported += 1
 
+        if exercises_imported or deleted:
+            log_admin_action(
+                current_user.id,
+                'grammar_exercise.import_json',
+                target_type='grammar_topic',
+                target_id=topic.id,
+            )
         db.session.commit()
     except Exception as e:
         db.session.rollback()

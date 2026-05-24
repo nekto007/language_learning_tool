@@ -91,8 +91,8 @@ class TestAdminAuditLog:
 
         entry = db_session.query(AdminAuditLog).filter_by(
             admin_id=test_user.id,
-            action='delete_user',
-            target_type='User',
+            action='user.delete',
+            target_type='user',
             target_id=target_id,
         ).first()
 

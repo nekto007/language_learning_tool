@@ -5,8 +5,10 @@ from flask import render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
 from functools import wraps
 
+from app.admin.audit import log_admin_action
 from app.modules.service import ModuleService
 from app.auth.models import User
+from app.utils.db import db
 
 
 def admin_required(f):
@@ -54,6 +56,8 @@ def register_module_admin_routes(admin_bp):
                     blueprint_name=request.form.get('blueprint_name', ''),
                     url_prefix=request.form.get('url_prefix', '')
                 )
+                log_admin_action(current_user.id, 'app_module.create', target_type='app_module', target_id=module.id)
+                db.session.commit()
                 flash(f'Модуль "{module.name}" создан успешно!', 'success')
                 return redirect(url_for('admin.modules_list'))
             except Exception as e:
@@ -84,6 +88,8 @@ def register_module_admin_routes(admin_bp):
                     blueprint_name=request.form.get('blueprint_name', ''),
                     url_prefix=request.form.get('url_prefix', '')
                 )
+                log_admin_action(current_user.id, 'app_module.update', target_type='app_module', target_id=module_id)
+                db.session.commit()
                 flash(f'Модуль "{module.name}" обновлен успешно!', 'success')
                 return redirect(url_for('admin.modules_list'))
             except Exception as e:
@@ -126,6 +132,8 @@ def register_module_admin_routes(admin_bp):
 
         try:
             ModuleService.delete_module(module_id)
+            log_admin_action(current_user.id, 'app_module.delete', target_type='app_module', target_id=module_id)
+            db.session.commit()
             flash(f'Модуль "{module.name}" удален успешно!', 'success')
             return jsonify({'success': True})
         except Exception as e:
@@ -176,6 +184,8 @@ def register_module_admin_routes(admin_bp):
         """Grant a module to a user"""
         try:
             ModuleService.grant_module_to_user(user_id, module_id, granted_by_admin=True)
+            log_admin_action(current_user.id, 'app_module.grant', target_type='app_module', target_id=module_id)
+            db.session.commit()
             return jsonify({'success': True, 'message': 'Модуль выдан успешно'})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
@@ -187,6 +197,8 @@ def register_module_admin_routes(admin_bp):
         """Revoke a module from a user"""
         try:
             ModuleService.revoke_module_from_user(user_id, module_id)
+            log_admin_action(current_user.id, 'app_module.revoke', target_type='app_module', target_id=module_id)
+            db.session.commit()
             return jsonify({'success': True, 'message': 'Модуль отозван успешно'})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
@@ -203,6 +215,8 @@ def register_module_admin_routes(admin_bp):
 
             ModuleService.grant_modules_to_users(module_id, user_ids)
 
+            log_admin_action(current_user.id, 'app_module.grant_bulk', target_type='app_module', target_id=module_id)
+            db.session.commit()
             return jsonify({'success': True, 'message': f'Модуль выдан {len(user_ids)} пользователям'})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500

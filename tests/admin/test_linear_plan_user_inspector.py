@@ -104,11 +104,11 @@ class TestLinearPlanInspectorRender:
     def test_audit_log_written_on_access(self, app, admin_client, db_session):
         user = _make_user(db_session, linear=True)
         before = db_session.query(AdminAuditLog).filter_by(
-            action='linear_plan_inspect', target_id=user.id
+            action='user.linear_plan_inspect', target_id=user.id
         ).count()
         response = admin_client.get(f'/admin/linear-plan/{user.id}')
         assert response.status_code == 200
         after = db_session.query(AdminAuditLog).filter_by(
-            action='linear_plan_inspect', target_id=user.id
+            action='user.linear_plan_inspect', target_id=user.id
         ).count()
         assert after == before + 1

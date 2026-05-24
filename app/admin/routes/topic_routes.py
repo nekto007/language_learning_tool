@@ -45,6 +45,8 @@ def create_topic():
             description=form.description.data
         )
         db.session.add(topic)
+        db.session.flush()
+        log_admin_action(current_user.id, 'topic.create', target_type='topic', target_id=topic.id)
         db.session.commit()
 
         flash(_('Topic created successfully!'), 'success')
@@ -62,6 +64,7 @@ def edit_topic(topic_id):
 
     if form.validate_on_submit():
         form.populate_obj(topic)
+        log_admin_action(current_user.id, 'topic.update', target_type='topic', target_id=topic_id)
         db.session.commit()
 
         flash(_('Topic updated successfully!'), 'success')
@@ -116,6 +119,7 @@ def add_word_to_topic(topic_id, word_id):
     if word not in topic.words:
         topic_word = TopicWord(topic_id=topic_id, word_id=word_id)
         db.session.add(topic_word)
+        log_admin_action(current_user.id, 'topic.add_word', target_type='topic_word', target_id=topic_id)
         db.session.commit()
         return jsonify({'success': True})
 
@@ -162,6 +166,13 @@ def bulk_add_words_to_topic(topic_id):
         existing_word_ids.add(word.id)
         results['added'].append(word.english_word)
 
+    if results['added']:
+        log_admin_action(
+            current_user.id,
+            'topic.bulk_add_words',
+            target_type='topic',
+            target_id=topic_id,
+        )
     db.session.commit()
 
     return jsonify({
