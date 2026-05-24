@@ -201,6 +201,26 @@ class TestProcessUploadedBook:
         with pytest.raises(ValueError, match='Invalid file'):
             process_uploaded_book('not a file', 'Test')
 
+    def test_temp_dir_aligns_with_book_processing_service(self):
+        """Regression: parsers._BOOK_TEMP_DIR must match service.BOOK_TEMP_DIR so cleanup finds orphans."""
+        from app.books.parsers import _BOOK_TEMP_DIR
+        from app.admin.services.book_processing_service import BOOK_TEMP_DIR
+        assert os.path.normpath(_BOOK_TEMP_DIR) == os.path.normpath(BOOK_TEMP_DIR)
+
+    def test_process_uploaded_book_mkstemp_uses_book_temp_dir(self):
+        """Regression: mkstemp must be called with dir=_BOOK_TEMP_DIR, not the system default."""
+        from app.books.parsers import _BOOK_TEMP_DIR
+        mock_file = MagicMock()
+        mock_file.filename = 'test.txt'
+        with patch('app.books.parsers.tempfile.mkstemp', return_value=(5, '/fake/tmp/book.txt')) as mock_mkstemp, \
+                patch('app.books.parsers.os.makedirs'), \
+                patch('app.books.parsers.os.close'), \
+                patch('app.books.parsers.parse_book_file', return_value=('<p>text</p>', 5, 3)), \
+                patch('app.books.parsers.os.path.exists', return_value=False):
+            process_uploaded_book(mock_file, 'Test Book')
+        _, kwargs = mock_mkstemp.call_args
+        assert kwargs.get('dir') == _BOOK_TEMP_DIR
+
     def test_with_mock_file(self):
         mock_file = MagicMock()
         mock_file.filename = 'test.txt'

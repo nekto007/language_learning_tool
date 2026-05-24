@@ -991,3 +991,14 @@ class TestResetSessionAttempts:
         sig = inspect.signature(service.reset_session_attempts)
         # Check the method exists and has return type
         assert sig.return_annotation == int or sig.return_annotation == inspect._empty
+
+    def test_empty_word_ids_guard_is_none_check(self, service):
+        """Regression: guard must be `is not None`, not `if word_ids`.
+
+        With `if word_ids:`, an empty list [] is falsy and bypasses the filter,
+        causing reset_session_attempts(user_id, word_ids=[]) to reset ALL cards
+        instead of none.  The fix is `if word_ids is not None:`.
+        """
+        import inspect
+        source = inspect.getsource(service.reset_session_attempts)
+        assert 'word_ids is not None' in source

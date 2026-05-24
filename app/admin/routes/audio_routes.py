@@ -62,7 +62,12 @@ def update_audio_download_status():
         _ALLOWED_AUDIO_TABLES = frozenset({COLLECTIONS_TABLE, PHRASAL_VERB_TABLE})
 
         # Получаем параметры
-        data = request.get_json(silent=True) or {}
+        _raw = request.get_json(silent=True)
+        if request.is_json and _raw is None:
+            return jsonify({'success': False, 'error': 'invalid_request'}), 400
+        if _raw is not None and not isinstance(_raw, dict):
+            return jsonify({'success': False, 'error': 'invalid_request'}), 400
+        data = _raw or {}
         table_name = data.get('table', COLLECTIONS_TABLE)
 
         if table_name not in _ALLOWED_AUDIO_TABLES:

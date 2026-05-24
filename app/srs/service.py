@@ -1195,7 +1195,7 @@ class UnifiedSRSService:
             .filter(UserCardDirection.session_attempts > 0)
         )
 
-        if word_ids:
+        if word_ids is not None:
             query = query.filter(UserWord.word_id.in_(word_ids))
 
         cards = query.all()

@@ -153,6 +153,29 @@ class TestUpdateAudioDownloadStatus:
         response = client.post('/admin/audio/update-download-status', json={})
         assert response.status_code == 302
 
+    @patch('config.settings.COLLECTIONS_TABLE', 'collection_words')
+    @patch('config.settings.PHRASAL_VERB_TABLE', 'phrasal_verb')
+    def test_update_download_status_malformed_json_returns_400(self, admin_client, mock_admin_user):
+        """Regression: Content-Type application/json with invalid body must return 400, not 500."""
+        response = admin_client.post(
+            '/admin/audio/update-download-status',
+            data=b'{not valid json',
+            content_type='application/json',
+        )
+        assert response.status_code == 400
+        assert response.get_json()['error'] == 'invalid_request'
+
+    @patch('config.settings.COLLECTIONS_TABLE', 'collection_words')
+    @patch('config.settings.PHRASAL_VERB_TABLE', 'phrasal_verb')
+    def test_update_download_status_non_dict_json_returns_400(self, admin_client, mock_admin_user):
+        """Regression: JSON array body (not a dict) must return 400."""
+        response = admin_client.post(
+            '/admin/audio/update-download-status',
+            json=[1, 2, 3],
+        )
+        assert response.status_code == 400
+        assert response.get_json()['error'] == 'invalid_request'
+
 
 class TestFixAudioListeningFields:
     """Tests for fix_audio_listening_fields() route"""
