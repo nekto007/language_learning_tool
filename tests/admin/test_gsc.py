@@ -214,6 +214,75 @@ class TestGSCRoutes:
             app.config.pop('GOOGLE_CLIENT_SECRET', None)
             app.config['SITE_URL'] = ''
 
+    def test_connect_normalises_public_site_url_to_https(self, app, client, admin_user):
+        """OAuth redirect_uri is HTTPS for public domains even if SITE_URL is http."""
+        app.config['GOOGLE_CLIENT_ID'] = 'test_client_id'
+        app.config['GOOGLE_CLIENT_SECRET'] = 'test_client_secret'
+        app.config['SITE_URL'] = 'http://llt-english.com'
+        try:
+            import app.admin.services.gsc_service as gsc_module
+            mock_flow = MagicMock()
+            mock_flow.authorization_url.return_value = (
+                'https://accounts.google.com/auth?state=xyz',
+                'xyz',
+            )
+            mock_flow_cls = MagicMock(
+                from_client_config=MagicMock(return_value=mock_flow)
+            )
+            with patch.object(gsc_module, 'Flow', mock_flow_cls):
+                response = client.get('/admin/seo/connect')
+
+            assert response.status_code == 302
+            assert (
+                mock_flow_cls.from_client_config.call_args.kwargs['redirect_uri']
+                == 'https://llt-english.com/admin/seo/callback'
+            )
+        finally:
+            app.config.pop('GOOGLE_CLIENT_ID', None)
+            app.config.pop('GOOGLE_CLIENT_SECRET', None)
+            app.config['SITE_URL'] = ''
+
+    def test_callback_fetch_token_uses_public_https_url(
+        self, app, client, admin_user, db_session
+    ):
+        """Token exchange uses public callback URL, not proxy-local request.url."""
+        app.config['GOOGLE_CLIENT_ID'] = 'test_client_id'
+        app.config['GOOGLE_CLIENT_SECRET'] = 'test_client_secret'
+        app.config['SITE_URL'] = 'https://llt-english.com'
+        try:
+            import app.admin.services.gsc_service as gsc_module
+            mock_flow = MagicMock()
+            mock_flow.credentials.refresh_token = 'refresh-token'
+
+            mock_flow_cls = MagicMock(
+                from_client_config=MagicMock(return_value=mock_flow)
+            )
+            with client.session_transaction() as sess:
+                sess['gsc_oauth_state'] = 'state-123'
+
+            with patch.object(gsc_module, 'Flow', mock_flow_cls), \
+                 patch.object(
+                     gsc_module,
+                     'get_verified_sites',
+                     return_value=['https://llt-english.com/'],
+                 ):
+                response = client.get(
+                    '/admin/seo/callback?code=abc&state=state-123',
+                    follow_redirects=False,
+                )
+
+            assert response.status_code == 302
+            # The route must build authorization_response from SITE_URL — not from
+            # request.url — so a proxy-local hostname never leaks into the OAuth
+            # token exchange that Google validates against the registered redirect.
+            assert mock_flow.fetch_token.call_args.kwargs['authorization_response'] == (
+                'https://llt-english.com/admin/seo/callback?code=abc&state=state-123'
+            )
+        finally:
+            app.config.pop('GOOGLE_CLIENT_ID', None)
+            app.config.pop('GOOGLE_CLIENT_SECRET', None)
+            app.config['SITE_URL'] = ''
+
     def test_callback_with_error_param_flashes_danger(self, app, client, admin_user):
         """GET /admin/seo/callback?error=access_denied flashes danger message."""
         response = client.get('/admin/seo/callback?error=access_denied', follow_redirects=True)

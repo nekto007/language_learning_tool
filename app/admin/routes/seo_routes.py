@@ -5,6 +5,7 @@
 import hashlib
 import hmac
 import logging
+from urllib.parse import urlsplit, urlunsplit
 
 from flask import (
     Blueprint,
@@ -64,11 +65,34 @@ def _gsc_redirect_uri() -> str:
     Google will reject. SITE_URL is the public origin we already expose in
     config, so prefer it when present.
     """
-    site_url = (current_app.config.get('SITE_URL') or '').strip().rstrip('/')
+    site_url = _normalise_public_site_url(current_app.config.get('SITE_URL') or '')
     callback_path = url_for('seo_admin.gsc_callback')
     if site_url:
         return f'{site_url}{callback_path}'
     return url_for('seo_admin.gsc_callback', _external=True)
+
+
+def _normalise_public_site_url(site_url: str) -> str:
+    """Return a public origin suitable for Google OAuth redirects."""
+    site_url = (site_url or '').strip().rstrip('/')
+    if not site_url:
+        return ''
+
+    if '://' not in site_url:
+        site_url = f'https://{site_url}'
+
+    parts = urlsplit(site_url)
+    hostname = (parts.hostname or '').lower()
+    is_local = hostname in {'localhost', '127.0.0.1', '::1'}
+    scheme = 'https' if parts.scheme == 'http' and not is_local else parts.scheme
+    return urlunsplit((scheme, parts.netloc, '', '', '')).rstrip('/')
+
+
+def _gsc_authorization_response_url() -> str:
+    """Rebuild callback URL with the public HTTPS origin seen by Google."""
+    query = request.query_string.decode('utf-8')
+    redirect_uri = _gsc_redirect_uri()
+    return f'{redirect_uri}?{query}' if query else redirect_uri
 
 
 def _gsc_token_cache_suffix(refresh_token: str) -> str:
@@ -219,7 +243,7 @@ def gsc_callback():
         return redirect(url_for('seo_admin.seo_index'))
 
     try:
-        flow.fetch_token(authorization_response=request.url)
+        flow.fetch_token(authorization_response=_gsc_authorization_response_url())
     except Exception:
         logger.exception('GSC token exchange failed')
         flash('Ошибка получения токена. Подробности в логах сервера.', 'danger')
