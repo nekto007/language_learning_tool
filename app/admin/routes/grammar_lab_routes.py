@@ -216,6 +216,10 @@ def delete_topic(topic_id):
         flash(f'Topic "{title}" deleted successfully!', 'success')
     except Exception as e:
         db.session.rollback()
+        logger.error(
+            "Failed to delete grammar topic: admin_id=%s topic_id=%s error=%s",
+            current_user.id, topic_id, e, exc_info=True,
+        )
         flash(f'Error deleting topic: {str(e)}', 'danger')
 
     return redirect(url_for('grammar_lab_admin.topic_list'))
@@ -313,6 +317,10 @@ def edit_exercise(exercise_id):
 
         except Exception as e:
             db.session.rollback()
+            logger.error(
+                "Failed to update grammar exercise: admin_id=%s exercise_id=%s error=%s",
+                current_user.id, exercise_id, e, exc_info=True,
+            )
             flash(f'Error updating exercise: {str(e)}', 'danger')
 
     return render_template('admin/grammar_lab/exercise_form.html', topic=topic, exercise=exercise)
@@ -332,6 +340,10 @@ def delete_exercise(exercise_id):
         flash('Exercise deleted successfully!', 'success')
     except Exception as e:
         db.session.rollback()
+        logger.error(
+            "Failed to delete grammar exercise: admin_id=%s exercise_id=%s error=%s",
+            current_user.id, exercise_id, e, exc_info=True,
+        )
         flash(f'Error deleting exercise: {str(e)}', 'danger')
 
     return redirect(url_for('grammar_lab_admin.edit_topic', topic_id=topic_id))

@@ -364,7 +364,7 @@ with DST.open("w", encoding="utf-8") as out:
         """
 
         def _worker():
-            print(f"[BOOK PROCESSING] Начало обработки глав книги {book_id}", flush=True)
+            logger.info("Book chapter processing started: book_id=%s", book_id)
             success = False
             try:
                 with app.app_context():
@@ -372,15 +372,15 @@ with DST.open("w", encoding="utf-8") as out:
                     result = safe_process_book_chapters_words(book_id)
                     status = result.get('status', 'unknown')
                     success = (status == 'success')
-                    print(
-                        f"[BOOK PROCESSING] Результат обработки книги {book_id}: {status}",
-                        flush=True,
+                    logger.info(
+                        "Book chapter processing finished: book_id=%s status=%s",
+                        book_id, status,
                     )
             except Exception as exc:
                 if not success:
-                    print(
-                        f"[BOOK PROCESSING] Ошибка обработки книги {book_id}: {exc}",
-                        flush=True,
+                    logger.error(
+                        "Book chapter processing failed: book_id=%s error=%s",
+                        book_id, exc, exc_info=True,
                     )
 
         thread = threading.Thread(target=_worker, name=f"BookChapterProcessor-{book_id}", daemon=True)

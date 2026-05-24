@@ -269,10 +269,10 @@
 **Files:**
 - Modify: `app/admin/routes/*.py`, `app/admin/services/*.py`
 
-- [ ] везде где есть исключения / fallback'и — `current_app.logger.warning/error` с контекстом (admin_id, target, action)
-- [ ] заменить `print(...)` на logger
-- [ ] тесты `tests/admin/test_observability.py` (caplog: assert лог при критических операциях)
-- [ ] прогнать тесты
+- [x] везде где есть исключения / fallback'и — `current_app.logger.warning/error` с контекстом (admin_id, target, action)
+- [x] заменить `print(...)` на logger
+- [x] тесты `tests/admin/test_observability.py` (caplog: assert лог при критических операциях)
+- [x] прогнать тесты
 
 ### Task 25: Rate limiting на критических endpoints
 
