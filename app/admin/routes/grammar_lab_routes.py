@@ -2,7 +2,19 @@
 
 """
 Grammar Lab Admin Routes
-CRUD операции для управления грамматическими темами и упражнениями
+
+Маршруты сгруппированы по доменам через `# region`-комментарии:
+
+* TOPICS — CRUD по `GrammarTopic` (index, list, create, edit, delete).
+* EXERCISES — CRUD по `GrammarExercise` (create/edit/delete).
+* IMPORT — массовые операции импорта тем из curriculum-модулей и упражнений
+  из сгенерированных JSON-файлов.
+* API — read-only JSON-эндпоинты для админ-инструментов и автотестов.
+
+Cascade-deletion упражнений (lapses/attempts/SRS-rows) обеспечивается
+миграцией `20260425_grammar_exercise_cascade` (PostgreSQL) и
+`ondelete='CASCADE'` в `GrammarExercise`, `UserGrammarExercise`,
+`GrammarAttempt`. Не дублируем ручные `delete()` по дочерним таблицам.
 """
 import json
 import logging
@@ -22,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 ALLOWED_LEVELS = ('A1', 'A2', 'B1', 'B2', 'C1')
 
+
+# region TOPICS ===============================================================
 
 @grammar_lab_bp.route('/grammar-lab')
 @admin_required
@@ -207,7 +221,9 @@ def delete_topic(topic_id):
     return redirect(url_for('grammar_lab_admin.topic_list'))
 
 
-# ============ Exercise Routes ============
+# endregion TOPICS
+
+# region EXERCISES ============================================================
 
 @grammar_lab_bp.route('/grammar-lab/topics/<int:topic_id>/exercises/create', methods=['GET', 'POST'])
 @admin_required
@@ -321,7 +337,9 @@ def delete_exercise(exercise_id):
     return redirect(url_for('grammar_lab_admin.edit_topic', topic_id=topic_id))
 
 
-# ============ Import from Modules ============
+# endregion EXERCISES
+
+# region IMPORT ===============================================================
 
 @grammar_lab_bp.route('/grammar-lab/import-from-modules', methods=['GET', 'POST'])
 @admin_required
@@ -603,8 +621,6 @@ def import_from_modules():
     )
 
 
-# ============ Import Exercises from JSON ============
-
 def _candidate_topic_slugs(data: dict, filename: str) -> list[str]:
     """Return possible GrammarTopic slugs for generated extra exercise files."""
     candidates = []
@@ -748,7 +764,9 @@ def import_exercises_json():
     return render_template('admin/grammar_lab/import_exercises_json.html')
 
 
-# ============ API Endpoints ============
+# endregion IMPORT
+
+# region API ==================================================================
 
 @grammar_lab_bp.route('/grammar-lab/api/topics', methods=['GET'])
 @admin_required
@@ -766,3 +784,5 @@ def api_topic_exercises(topic_id):
         GrammarExercise.order
     ).all()
     return jsonify([e.to_dict() for e in exercises])
+
+# endregion API

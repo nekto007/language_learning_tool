@@ -159,10 +159,10 @@
 **Files:**
 - Modify: `app/admin/routes/grammar_lab_routes.py`, `app/templates/admin/grammar_lab/*.html`
 
-- [ ] разделить routes по domain (topics, exercises, attempts review) в подмодули или region-комментарии
-- [ ] аудит на cascade при удалении exercise (см. `20260425_grammar_exercise_cascade`)
-- [ ] тесты `tests/admin/routes/test_grammar_lab_routes.py`
-- [ ] прогнать тесты
+- [x] разделить routes по domain (topics, exercises, attempts review) в подмодули или region-комментарии
+- [x] аудит на cascade при удалении exercise (см. `20260425_grammar_exercise_cascade`)
+- [x] тесты `tests/admin/routes/test_grammar_lab_routes.py`
+- [x] прогнать тесты
 
 ### Task 14: Audio admin — длинные операции и safety
 
