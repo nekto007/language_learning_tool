@@ -165,10 +165,11 @@ class TestDailyPlanApiLinearShape:
         assert data['day_secured'] is True
         assert data['continuation']['available'] is True
 
-    def test_linear_day_secured_true_via_summary_signals(self, authenticated_client):
+    def test_linear_day_not_secured_by_srs_summary_signal(self, authenticated_client):
         # Curriculum completion is authoritative (slot.completed=True set by
         # build_curriculum_slot via XP StreakEvent) — no lessons_count fallback.
-        # SRS still has a summary fallback (srs_review_reviewed > 0).
+        # SRS is also authoritative: one reviewed card should not close the
+        # whole SRS slot while plan-available due cards remain.
         # Reading has no summary fallback; slot.completed must be True.
         plan = _linear_plan(curriculum_done=True, reading_done=True)
         summary = {
@@ -185,7 +186,7 @@ class TestDailyPlanApiLinearShape:
             response = authenticated_client.get('/api/daily-plan')
 
         assert response.status_code == 200
-        assert response.get_json()['day_secured'] is True
+        assert response.get_json()['day_secured'] is False
 
     def test_error_review_slot_blocks_day_secured(self, authenticated_client):
         plan = _linear_plan(

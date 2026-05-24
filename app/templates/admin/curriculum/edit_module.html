@@ -4,7 +4,7 @@
 {% block title %}Edit Module{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Curriculum', url_for('admin_curriculum.curriculum')), (module.level.code, url_for('admin_curriculum.module_list', level_id=module.level.id)), ('Edit Module ' ~ module.number, '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Curriculum', url_for('admin_curriculum.curriculum')), (module.level.code, url_for('admin_curriculum.module_list', level_id=module.level.id)), ('Edit Module ' ~ module.number, '')]) }}
 {% endblock %}
 
 {% block content %}

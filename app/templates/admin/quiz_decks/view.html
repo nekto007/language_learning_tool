@@ -4,7 +4,7 @@
 {% block title %}{{ deck.title }}{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Quiz Decks', url_for('admin.quiz_decks_list')), (deck.title|truncate(30), '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Quiz Decks', url_for('admin.quiz_decks_list')), (deck.title|truncate(30), '')]) }}
 {% endblock %}
 
 {% block content %}
@@ -148,7 +148,7 @@
 
 <script>
 function copyShareLink() {
-    const link = "{{ url_for('study.quiz_deck_shared', code=deck.share_code, _external=True) }}";
+    const link = "{% if deck.share_code %}{{ url_for('study.quiz_deck_shared', code=deck.share_code, _external=True) }}{% endif %}";
     navigator.clipboard.writeText(link).then(() => {
         alert('Ссылка скопирована!');
     });

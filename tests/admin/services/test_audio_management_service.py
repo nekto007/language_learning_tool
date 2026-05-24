@@ -67,54 +67,100 @@ class TestGetAudioStatistics:
 class TestUpdateDownloadStatus:
     """Tests for update_download_status method"""
 
+    def test_update_download_status_orm_no_words(self, db_session):
+        """ORM path (collection_words): empty DB → 0 updates."""
+        from config.settings import COLLECTIONS_TABLE
+        result = AudioManagementService.update_download_status(
+            COLLECTIONS_TABLE, 'english_word', '/nonexistent_media_folder_xyz'
+        )
+        assert result == 0
+
+    def test_update_download_status_orm_file_found(self, db_session, tmp_path):
+        """ORM path marks word as downloaded when the audio file exists on disk."""
+        from app.words.models import CollectionWords
+        from app.utils.db import db
+        from config.settings import COLLECTIONS_TABLE
+
+        audio_file = tmp_path / 'pronunciation_en_hello.mp3'
+        audio_file.write_bytes(b'')
+
+        word = CollectionWords(english_word='hello', get_download=0, listening=None)
+        db_session.add(word)
+        db_session.flush()
+
+        result = AudioManagementService.update_download_status(
+            COLLECTIONS_TABLE, 'english_word', str(tmp_path)
+        )
+        assert result == 1
+        assert word.get_download == 1
+
+    def test_update_download_status_orm_legacy_name_fallback(self, db_session, tmp_path):
+        """ORM path finds audio via legacy name when stored filename has stripped punctuation.
+
+        safe_audio_filename_for_word strips apostrophes (can't → cant), but audio
+        files produced by get_clean_audio_filename keep them (can't.mp3).
+        update_download_status must try the legacy name as a fallback.
+        """
+        from app.words.models import CollectionWords
+        from config.settings import COLLECTIONS_TABLE
+
+        # File on disk uses legacy name (apostrophe preserved)
+        audio_file = tmp_path / "pronunciation_en_can't.mp3"
+        audio_file.write_bytes(b'')
+
+        # Word has listening field set to stripped name (written by fix_listening_fields)
+        word = CollectionWords(
+            english_word="can't",
+            get_download=0,
+            listening="pronunciation_en_cant.mp3",
+        )
+        db_session.add(word)
+        db_session.flush()
+
+        result = AudioManagementService.update_download_status(
+            COLLECTIONS_TABLE, 'english_word', str(tmp_path)
+        )
+        assert result == 1
+        assert word.get_download == 1
+        assert word.listening == "pronunciation_en_can't.mp3"
+
     @patch('app.repository.DatabaseRepository')
-    def test_update_download_status_success(self, mock_repo_cls):
-        """Test successful download status update"""
-        # Setup
+    def test_update_download_status_psycopg2_path_success(self, mock_repo_cls):
+        """Non-collection_words tables use the legacy psycopg2 path via DatabaseRepository."""
         mock_repo = MagicMock()
         mock_repo.update_download_status.return_value = 150
         mock_repo_cls.return_value = mock_repo
 
-        # Execute
         result = AudioManagementService.update_download_status(
-            'collection_words',
-            'english_word',
-            '/media/folder'
+            'phrasal_verb', 'phrasal_verb', '/media/folder'
         )
 
-        # Assert
         assert result == 150
         mock_repo.update_download_status.assert_called_once_with(
-            'collection_words',
-            'english_word',
-            '/media/folder'
+            'phrasal_verb', 'phrasal_verb', '/media/folder'
         )
 
     @patch('app.repository.DatabaseRepository')
-    def test_update_download_status_error(self, mock_repo_cls):
-        """Test error handling in download status update"""
+    def test_update_download_status_psycopg2_path_error(self, mock_repo_cls):
+        """Test error propagation from the psycopg2 path."""
         mock_repo_cls.side_effect = Exception("Repository error")
 
         with pytest.raises(Exception) as exc_info:
             AudioManagementService.update_download_status(
-                'collection_words',
-                'english_word',
-                '/media'
+                'phrasal_verb', 'phrasal_verb', '/media'
             )
 
         assert "Repository error" in str(exc_info.value)
 
     @patch('app.repository.DatabaseRepository')
-    def test_update_download_status_zero_updates(self, mock_repo_cls):
-        """Test when no records are updated"""
+    def test_update_download_status_psycopg2_zero_updates(self, mock_repo_cls):
+        """Test when no records are updated via psycopg2 path."""
         mock_repo = MagicMock()
         mock_repo.update_download_status.return_value = 0
         mock_repo_cls.return_value = mock_repo
 
         result = AudioManagementService.update_download_status(
-            'collection_words',
-            'english_word',
-            '/media'
+            'phrasal_verb', 'phrasal_verb', '/media'
         )
 
         assert result == 0

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="{{ g.locale }}">
+{% set html_lang = g.locale|default('ru', true)|replace('_', '-') %}
+<html lang="{{ html_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -60,23 +61,23 @@
             {% if current_user.is_authenticated %}
                 {% if request.endpoint == 'words.dashboard' %}
                 <span class="navbar-brand fw-bold navbar-brand-custom navbar-brand-static">
-                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="LLT English">
+                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="" width="32" height="32" aria-hidden="true">
                     LLT English
                 </span>
                 {% elif has_module('words') %}
                 <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('words.dashboard') }}">
-                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="LLT English">
+                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="" width="32" height="32" aria-hidden="true">
                     LLT English
                 </a>
                 {% else %}
                 <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('landing.index') }}">
-                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="LLT English">
+                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="" width="32" height="32" aria-hidden="true">
                     LLT English
                 </a>
                 {% endif %}
             {% else %}
                 <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('landing.index') }}">
-                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="LLT English">
+                    <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="navbar-logo" alt="" width="32" height="32" aria-hidden="true">
                     LLT English
                 </a>
             {% endif %}
@@ -252,7 +253,7 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             {% if current_user.is_admin %}
-                            <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}"><i class="fas fa-shield-alt me-2"></i>Админ-панель</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard_admin.dashboard') }}"><i class="fas fa-shield-alt me-2"></i>Админ-панель</a></li>
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
                             {% if has_module('study') %}

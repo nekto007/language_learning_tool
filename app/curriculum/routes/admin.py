@@ -5,9 +5,10 @@ import logging
 from datetime import UTC, datetime
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import login_required
+from flask_login import current_user, login_required
 from sqlalchemy import or_
 
+from app.admin.audit import log_admin_action
 from app.admin.services.curriculum_import_service import CurriculumImportService
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.security import (safe_int, sanitize_json_content, validate_file_upload)
@@ -69,6 +70,13 @@ def import_curriculum():
         for data, source_name in datasets:
             try:
                 result = CurriculumImportService.import_curriculum_data(data)
+                log_admin_action(
+                    current_user.id,
+                    'curriculum.lesson.import',
+                    target_type='lesson',
+                    target_id=result.get('lesson_id') if isinstance(result, dict) else None,
+                )
+                db.session.commit()
                 results.append((source_name, result, None))
             except Exception as e:
                 # Полный rollback чтобы очистить broken state сессии
@@ -238,6 +246,12 @@ def edit_level(level_id):
             level.order = order
             level.updated_at = datetime.now(UTC)
 
+            log_admin_action(
+                current_user.id,
+                'curriculum.level.update',
+                target_type='cefr_level',
+                target_id=level_id,
+            )
             db.session.commit()
             flash('Уровень успешно обновлен', 'success')
             return redirect(url_for('curriculum_admin.admin_levels'))
@@ -277,6 +291,12 @@ def edit_module(module_id):
             module.description = sanitize_json_content(description)
             module.updated_at = datetime.now(UTC)
 
+            log_admin_action(
+                current_user.id,
+                'curriculum.module.update',
+                target_type='module',
+                target_id=module_id,
+            )
             db.session.commit()
             flash('Модуль успешно обновлен', 'success')
             return redirect('/learn/')
@@ -318,6 +338,12 @@ def edit_lesson(lesson_id):
                 lesson.content = content
                 lesson.updated_at = datetime.now(UTC)
 
+                log_admin_action(
+                    current_user.id,
+                    'curriculum.lesson.update_content',
+                    target_type='lesson',
+                    target_id=lesson_id,
+                )
                 db.session.commit()
                 flash('Содержимое урока успешно обновлено', 'success')
                 return redirect(url_for('curriculum_admin.view_lesson', lesson_id=lesson.id))
@@ -353,6 +379,12 @@ def edit_lesson(lesson_id):
                 lesson.number = number
                 lesson.updated_at = datetime.now(UTC)
 
+                log_admin_action(
+                    current_user.id,
+                    'curriculum.lesson.update',
+                    target_type='lesson',
+                    target_id=lesson_id,
+                )
                 db.session.commit()
                 flash('Урок успешно обновлен', 'success')
                 return redirect(url_for('curriculum_admin.view_lesson', lesson_id=lesson.id))
@@ -432,6 +464,12 @@ def delete_lesson(lesson_id):
             return redirect(get_safe_redirect_url(request.referrer, fallback='curriculum_admin.admin_lessons'))
 
         db.session.delete(lesson)
+        log_admin_action(
+            current_user.id,
+            'curriculum.lesson.delete',
+            target_type='lesson',
+            target_id=lesson_id,
+        )
         db.session.commit()
 
         flash('Урок успешно удален', 'success')

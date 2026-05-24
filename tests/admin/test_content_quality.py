@@ -91,7 +91,7 @@ class TestGetContentQualityDetail:
     """Unit tests for get_content_quality_detail function."""
 
     def test_returns_expected_keys(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         result = get_content_quality_detail()
 
@@ -104,7 +104,7 @@ class TestGetContentQualityDetail:
         assert 'no_completions_count' in result
 
     def test_counts_total_lessons_by_type(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -119,7 +119,7 @@ class TestGetContentQualityDetail:
         assert dictation_rows[0]['total'] >= 2
 
     def test_audio_pct_correct(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -137,7 +137,7 @@ class TestGetContentQualityDetail:
         assert row['audio_pct'] > 0
 
     def test_missing_audio_reported_for_audio_types(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -151,7 +151,7 @@ class TestGetContentQualityDetail:
         assert result['missing_audio_count'] >= 1
 
     def test_lesson_with_audio_not_in_missing(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -165,7 +165,7 @@ class TestGetContentQualityDetail:
         assert lesson.id not in missing_ids
 
     def test_vocabulary_lesson_without_collection_reported(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -180,7 +180,7 @@ class TestGetContentQualityDetail:
         assert result['no_vocabulary_count'] >= 1
 
     def test_completion_counted(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
         from datetime import datetime, timezone
 
         user = User(
@@ -213,7 +213,7 @@ class TestGetContentQualityDetail:
         assert quiz_row['completion_pct'] > 0
 
     def test_no_completions_count_correct(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         result = get_content_quality_detail()
 
@@ -222,7 +222,7 @@ class TestGetContentQualityDetail:
         assert result['no_completions_count'] <= result['total_lessons']
 
     def test_type_row_has_all_fields(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -252,7 +252,7 @@ class TestMissingAudioSorted:
     """Tests for missing audio sorting by module progression (Task 87)."""
 
     def test_missing_audio_entries_have_level_and_module_info(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -269,7 +269,7 @@ class TestMissingAudioSorted:
         assert 'lesson_number' in entry
 
     def test_missing_audio_sorted_by_level_order(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level1 = _make_level(db_session)
         level1.order = 5
@@ -376,7 +376,7 @@ class TestContentAuditCLI:
 
     def test_missing_audio_lessons_match_admin_detail(self, app, db_session):
         """CLI data and admin route both detect same missing audio entries."""
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
         from app.cli.content_commands import _get_missing_audio_lessons
 
         level = _make_level(db_session)
@@ -409,7 +409,7 @@ class TestImportedLessonTypesCounted:
     """Verify by_type in content quality detail includes all imported lesson types (Task 48)."""
 
     def test_dictation_counted_in_by_type(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -423,7 +423,7 @@ class TestImportedLessonTypesCounted:
         assert row['total'] >= 1
 
     def test_shadow_reading_counted_in_by_type(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -437,7 +437,7 @@ class TestImportedLessonTypesCounted:
         assert row['total'] >= 1
 
     def test_writing_prompt_counted_in_by_type(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -452,7 +452,7 @@ class TestImportedLessonTypesCounted:
 
     @pytest.mark.parametrize('lesson_type', ALL_NEW_LESSON_TYPES)
     def test_all_new_types_appear_in_by_type(self, app, db_session, lesson_type):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -464,7 +464,7 @@ class TestImportedLessonTypesCounted:
         assert lesson_type in types_present, f"Lesson type '{lesson_type}' missing from by_type"
 
     def test_all_new_type_rows_have_required_fields(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -483,7 +483,7 @@ class TestImportedLessonTypesCounted:
                     assert field in type_map[lt], f"Field '{field}' missing from row for type '{lt}'"
 
     def test_audio_lessons_with_url_counted_in_with_audio(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -505,7 +505,7 @@ class TestMissingAudioCountDrops:
     """Verify missing-audio count reduces when lessons receive audio_url (Task 48)."""
 
     def test_lesson_without_audio_counted_as_missing(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -517,7 +517,7 @@ class TestMissingAudioCountDrops:
         assert lesson.id in missing_ids
 
     def test_lesson_with_audio_not_counted_as_missing(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -530,7 +530,7 @@ class TestMissingAudioCountDrops:
         assert lesson.id not in missing_ids
 
     def test_missing_count_drops_when_audio_added(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -546,7 +546,7 @@ class TestMissingAudioCountDrops:
 
     @pytest.mark.parametrize('lesson_type', AUDIO_EXPECTED_TYPES)
     def test_all_audio_types_missing_without_url(self, app, db_session, lesson_type):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -559,7 +559,7 @@ class TestMissingAudioCountDrops:
 
     @pytest.mark.parametrize('lesson_type', AUDIO_EXPECTED_TYPES)
     def test_all_audio_types_not_missing_with_url(self, app, db_session, lesson_type):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -572,7 +572,7 @@ class TestMissingAudioCountDrops:
         assert lesson.id not in missing_ids, f"Expected {lesson_type} with audio_url to NOT be in missing_audio"
 
     def test_non_audio_type_never_appears_in_missing_audio(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -610,7 +610,7 @@ class TestVocabularyEnrichmentVisible:
         db_session.flush()
 
     def test_vocabulary_with_ipa_reflected_in_with_ipa(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         col = self._make_collection(db_session)
         word = self._make_word(db_session, ipa_transcription='ˈɛnrɪtʃt')
@@ -628,7 +628,7 @@ class TestVocabularyEnrichmentVisible:
         assert vocab_row['ipa_pct'] > 0
 
     def test_vocabulary_with_sentences_reflected_in_with_examples(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         col = self._make_collection(db_session)
         word = self._make_word(db_session, sentences='She enriched the text.')
@@ -646,7 +646,7 @@ class TestVocabularyEnrichmentVisible:
         assert vocab_row['examples_pct'] > 0
 
     def test_vocabulary_without_enrichment_shows_zero_ipa(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         col = self._make_collection(db_session)
         word = self._make_word(db_session)  # no IPA
@@ -691,7 +691,7 @@ class TestVocabularyEnrichmentVisible:
         assert enriched.antonyms == ['diminish', 'reduce']
 
     def test_no_vocabulary_section_empty_when_all_have_collections(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         col = self._make_collection(db_session)
         word = self._make_word(db_session, ipa_transcription='tɛst')
@@ -722,7 +722,7 @@ class TestFeedbackAggregationImportedLessons:
         return user
 
     def test_dictation_feedback_shows_avg_rating(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -741,7 +741,7 @@ class TestFeedbackAggregationImportedLessons:
         assert row['feedback_count'] >= 1
 
     def test_shadow_reading_feedback_aggregated(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -763,7 +763,7 @@ class TestFeedbackAggregationImportedLessons:
         assert row['avg_rating'] == 3.0
 
     def test_writing_prompt_feedback_aggregated(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -780,7 +780,7 @@ class TestFeedbackAggregationImportedLessons:
         assert row['feedback_count'] >= 1
 
     def test_lesson_without_feedback_has_none_avg_rating(self, app, db_session):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)
@@ -799,7 +799,7 @@ class TestFeedbackAggregationImportedLessons:
                                              'sentence_correction', 'sentence_completion',
                                              'collocation_matching', 'translation'])
     def test_various_imported_types_accept_feedback(self, app, db_session, lesson_type):
-        from app.admin.main_routes import get_content_quality_detail
+        from app.admin.routes.dashboard_routes import get_content_quality_detail
 
         level = _make_level(db_session)
         module = _make_module(db_session, level)

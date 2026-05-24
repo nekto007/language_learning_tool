@@ -11,7 +11,7 @@ Models:
 
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import Column, Integer, String, Text, Boolean, Float, DateTime, ForeignKey, UniqueConstraint, Index
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref, relationship
 from app.srs.constants import MATURE_THRESHOLD_DAYS as _MATURE_DAYS, DEFAULT_EASE_FACTOR, MIN_EASE_FACTOR
 from app.srs.mixins import SRSFieldsMixin
 from app.utils.db import db
@@ -251,8 +251,14 @@ class UserGrammarTopicStatus(db.Model):
                         onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
+    # ``passive_deletes=True`` aligns with ON DELETE CASCADE on ``topic_id``
+    # so deleting a GrammarTopic doesn't leave SQLAlchemy trying to NULL the
+    # non-nullable FK on associated user status rows.
     user = relationship('User', backref='grammar_topic_status')
-    topic = relationship('GrammarTopic', backref='user_status')
+    topic = relationship(
+        'GrammarTopic',
+        backref=backref('user_status', passive_deletes=True),
+    )
 
     __table_args__ = (
         UniqueConstraint('user_id', 'topic_id', name='uq_user_grammar_topic_status'),
@@ -326,8 +332,14 @@ class GrammarAttempt(db.Model):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
+    # ``passive_deletes=True`` lets PostgreSQL's ON DELETE CASCADE remove
+    # attempt rows when an exercise is deleted; otherwise SQLAlchemy would
+    # try to NULL the (non-nullable) ``exercise_id`` first and fail.
     user = relationship('User', backref='grammar_attempts')
-    exercise = relationship('GrammarExercise', backref='attempts')
+    exercise = relationship(
+        'GrammarExercise',
+        backref=backref('attempts', passive_deletes=True),
+    )
 
     __table_args__ = (
         Index('idx_grammar_attempts_user', 'user_id'),
@@ -391,8 +403,14 @@ class UserGrammarExercise(SRSFieldsMixin, db.Model):
                         onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
+    # ``passive_deletes=True`` matches ON DELETE CASCADE on ``exercise_id``
+    # so PG removes SRS rows when a GrammarExercise is deleted instead of
+    # SQLAlchemy trying to NULL the non-nullable FK first.
     user = relationship('User', backref='grammar_exercise_progress')
-    exercise = relationship('GrammarExercise', backref='user_progress')
+    exercise = relationship(
+        'GrammarExercise',
+        backref=backref('user_progress', passive_deletes=True),
+    )
 
     __table_args__ = (
         UniqueConstraint('user_id', 'exercise_id', name='uq_user_grammar_exercise'),

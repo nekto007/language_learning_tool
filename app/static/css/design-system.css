@@ -4809,6 +4809,20 @@ body.dark-theme #translationPopup {
     background: rgba(255, 255, 255, 0.03);
 }
 
+.admin-sidebar .nav-section-title {
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+}
+
+.nav-section-title:focus-visible {
+    outline: 2px solid var(--primary-400);
+    outline-offset: -2px;
+    color: var(--gray-200);
+    background: rgba(255, 255, 255, 0.06);
+}
+
 .admin-sidebar .nav-link {
     display: flex;
     align-items: center;
@@ -4826,6 +4840,13 @@ body.dark-theme #translationPopup {
 .admin-sidebar .nav-link:hover {
     color: var(--text-inverse);
     background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-sidebar .nav-link:focus-visible {
+    outline: 2px solid var(--primary-400);
+    outline-offset: -2px;
+    color: var(--text-inverse);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .admin-sidebar .nav-link.active {
@@ -5052,6 +5073,12 @@ body.dark-theme #translationPopup {
     color: var(--text-secondary);
     cursor: pointer;
     margin-right: var(--space-4);
+    border-radius: var(--radius-sm);
+}
+
+.sidebar-toggle:focus-visible {
+    outline: 2px solid var(--primary-500);
+    outline-offset: 2px;
 }
 
 /* Sidebar Overlay for Mobile */
@@ -10830,13 +10857,16 @@ textarea:focus-visible,
 
 /* Navbar Logo */
 .navbar-logo {
+    width: 32px;
     height: 32px;
     margin-right: 8px;
+    object-fit: contain;
 }
 
 /* Navbar Mobile Responsive */
 @media (max-width: 576px) {
     .navbar-logo {
+        width: 24px;
         height: 24px;
         margin-right: 6px;
     }
@@ -11412,6 +11442,13 @@ footer .col-md-4 {
 .nav-section-title:hover {
     color: var(--gray-600);
     background: var(--gray-50);
+}
+
+button.nav-section-title {
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
 }
 
 .nav-section-chevron {
@@ -17477,7 +17514,10 @@ body.dashboard-path-wide main.container {
     gap: 16px;
     grid-column: 2;
 }
-.dash-path__rail-wrap .dash-rail { width: 100%; }
+.dash-path__rail-wrap .dash-rail {
+    width: 100%;
+    position: static;
+}
 
 /* Achievements card in the rail */
 .dash-achievements--rail {
@@ -17543,6 +17583,82 @@ body.dashboard-path-wide main.container {
 .dash-achievements--rail .dash-achievements__cat-name {
     color: var(--color-text-muted, #666);
     text-align: center;
+}
+
+.dash-achievements__next,
+.dash-achievements__recent {
+    border-top: 1px solid var(--dash-border, var(--color-border, #e5e7eb));
+    margin-top: 12px;
+    padding-top: 12px;
+}
+
+.dash-achievements__next-title,
+.dash-achievements__recent-title {
+    margin: 0 0 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--dash-text-muted, var(--color-text-muted, #667085));
+}
+
+.dash-achievements__goal,
+.dash-achievements__unlock {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 8px;
+    color: var(--dash-text, var(--color-text, #111827));
+    cursor: help;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dash-achievements__goal:hover,
+.dash-achievements__goal:focus-visible,
+.dash-achievements__unlock:hover,
+.dash-achievements__unlock:focus-visible {
+    background: var(--dash-surface-muted, var(--color-surface-muted, #f8fafc));
+    box-shadow: inset 0 0 0 1px var(--dash-border, var(--color-border, #e5e7eb));
+    outline: none;
+}
+
+.dash-achievements__goal-icon,
+.dash-achievements__unlock-icon {
+    font-size: 1.1rem;
+    line-height: 1.2;
+}
+
+.dash-achievements__goal-copy,
+.dash-achievements__unlock-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dash-achievements__goal-name,
+.dash-achievements__unlock-name {
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.dash-achievements__goal-desc,
+.dash-achievements__unlock-desc {
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: var(--dash-text-muted, var(--color-text-muted, #667085));
+}
+
+.dash-achievements__goal-xp {
+    align-self: center;
+    white-space: nowrap;
+    border-radius: 999px;
+    background: var(--dash-accent-soft, var(--color-brand-soft, #eef2ff));
+    color: var(--dash-accent, var(--color-brand, #4f46e5));
+    padding: 2px 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
 }
 
 /* Leaderboard under the plan in the left column */

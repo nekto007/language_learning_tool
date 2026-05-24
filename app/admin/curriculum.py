@@ -12,14 +12,18 @@ from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _, lazy_gettext as _l
 from flask_login import current_user
 from flask_wtf import FlaskForm
+from marshmallow import ValidationError
+from sqlalchemy.exc import IntegrityError
 from wtforms import IntegerField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import AnyOf, DataRequired, Length, NumberRange, Optional
 
 from app.admin.audit import log_admin_action
-from app.admin.main_routes import admin, admin_required
+from app.admin.main_routes import admin
+from app.admin.utils.decorators import admin_required
 from app.auth.models import User
 from app.books.models import Book
 from app.curriculum.models import CEFRLevel, CulturalNote, LessonProgress, Lessons, Module
+from app.curriculum.validators import LessonContentValidator
 from app.utils.db import db
 from app.words.models import CollectionWordLink, CollectionWords
 
@@ -27,6 +31,23 @@ from app.words.models import CollectionWordLink, CollectionWords
 logger = logging.getLogger(__name__)
 
 ALLOWED_CEFR_LEVELS = ('A1', 'A2', 'B1', 'B2', 'C1')
+
+
+def _validate_lesson_content_or_flash(lesson_type, content):
+    """Validate lesson content against its type schema.
+
+    Returns True if valid (or unknown type — fallback to skip validation),
+    False if invalid (a flash error is set so caller can re-render the form).
+    """
+    try:
+        LessonContentValidator.validate(lesson_type, content)
+        return True
+    except ValidationError as e:
+        flash(_('Ошибка валидации контента: ') + str(e.messages), 'danger')
+        return False
+    except ValueError:
+        # Unknown lesson type — skip schema validation
+        return True
 
 
 # Формы для управления программой обучения
@@ -155,6 +176,8 @@ def create_level():
         )
 
         db.session.add(level)
+        db.session.flush()
+        log_admin_action(current_user.id, 'curriculum.level.create', target_type='cefr_level', target_id=level.id)
         db.session.commit()
 
         flash(_('Уровень успешно создан!'), 'success')
@@ -176,6 +199,7 @@ def edit_level(level_id):
     if form.validate_on_submit():
         form.populate_obj(level)
         level.code = level.code.upper()  # Преобразуем в верхний регистр
+        log_admin_action(current_user.id, 'curriculum.level.update', target_type='cefr_level', target_id=level_id)
         db.session.commit()
 
         flash(_('Уровень успешно обновлен!'), 'success')
@@ -238,7 +262,14 @@ def create_module():
         )
 
         db.session.add(module)
-        db.session.commit()
+        try:
+            db.session.flush()
+            log_admin_action(current_user.id, 'curriculum.module.create', target_type='module', target_id=module.id)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash(_('Модуль с таким номером уже существует для этого уровня.'), 'danger')
+            return render_template('admin/curriculum/create_module.html', form=form, level_id=level_id)
 
         flash(_('Модуль успешно создан!'), 'success')
         return redirect(url_for('admin.module_list'))
@@ -269,7 +300,13 @@ def edit_module(module_id):
             return render_template('admin/curriculum/edit_module.html', form=form, module=module)
 
         form.populate_obj(module)
-        db.session.commit()
+        try:
+            log_admin_action(current_user.id, 'curriculum.module.update', target_type='module', target_id=module_id)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash(_('Модуль с таким номером уже существует для этого уровня.'), 'danger')
+            return render_template('admin/curriculum/edit_module.html', form=form, module=module)
 
         flash(_('Модуль успешно обновлен!'), 'success')
         return redirect(url_for('admin.module_list'))
@@ -333,7 +370,14 @@ def create_lesson():
         )
 
         db.session.add(lesson)
-        db.session.commit()
+        try:
+            db.session.flush()
+            log_admin_action(current_user.id, 'curriculum.lesson.create', target_type='lesson', target_id=lesson.id)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash(_('Урок с таким номером уже существует для этого модуля.'), 'danger')
+            return render_template('admin/curriculum/create_lesson.html', form=form, module_id=module_id)
 
         flash(_('Урок успешно создан!'), 'success')
         return redirect(url_for('admin.edit_lesson', lesson_id=lesson.id))
@@ -364,7 +408,13 @@ def edit_lesson(lesson_id):
             return render_template('admin/curriculum/edit_lesson.html', form=form, lesson=lesson)
 
         form.populate_obj(lesson)
-        db.session.commit()
+        try:
+            log_admin_action(current_user.id, 'curriculum.lesson.update', target_type='lesson', target_id=lesson_id)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash(_('Урок с таким номером уже существует для этого модуля.'), 'danger')
+            return render_template('admin/curriculum/edit_lesson.html', form=form, lesson=lesson)
 
         flash(_('Урок успешно обновлен!'), 'success')
         return redirect(url_for('admin.edit_lesson', lesson_id=lesson.id))
@@ -441,12 +491,23 @@ def edit_grammar_lesson(lesson_id):
                 })
 
         # Обновляем контент
-        lesson.content = {
+        new_content = {
             'rule': rule,
             'examples': examples,
             'exercises': exercises
         }
 
+        if not _validate_lesson_content_or_flash('grammar', new_content):
+            return render_template(
+                'admin/curriculum/edit_grammar.html',
+                lesson=lesson,
+                rule=rule,
+                examples=examples,
+                exercises=exercises,
+            )
+
+        lesson.content = new_content
+        log_admin_action(current_user.id, 'curriculum.lesson.update_content', target_type='lesson', target_id=lesson_id)
         db.session.commit()
 
         flash(_('Грамматический урок успешно обновлен!'), 'success')
@@ -510,11 +571,22 @@ def edit_quiz_lesson(lesson_id):
                 })
 
         # Обновляем контент
-        lesson.content = {
+        new_content = {
             'questions': questions,
             'passing_score': passing_score
         }
 
+        if not _validate_lesson_content_or_flash('quiz', new_content):
+            return render_template(
+                'admin/curriculum/edit_quiz.html',
+                lesson=lesson,
+                component=lesson,
+                questions=questions,
+                passing_score=passing_score,
+            )
+
+        lesson.content = new_content
+        log_admin_action(current_user.id, 'curriculum.lesson.update_content', target_type='lesson', target_id=lesson_id)
         db.session.commit()
 
         flash(_('Урок-викторина успешно обновлен!'), 'success')
@@ -528,6 +600,7 @@ def edit_quiz_lesson(lesson_id):
     return render_template(
         'admin/curriculum/edit_quiz.html',
         lesson=lesson,
+        component=lesson,
         questions=questions,
         passing_score=passing_score
     )
@@ -562,11 +635,22 @@ def edit_matching_lesson(lesson_id):
                 })
 
         # Обновляем контент
-        lesson.content = {
+        new_content = {
             'pairs': pairs,
             'time_limit': time_limit
         }
 
+        if not _validate_lesson_content_or_flash('matching', new_content):
+            return render_template(
+                'admin/curriculum/edit_matching.html',
+                lesson=lesson,
+                component=lesson,
+                pairs=pairs,
+                time_limit=time_limit,
+            )
+
+        lesson.content = new_content
+        log_admin_action(current_user.id, 'curriculum.lesson.update_content', target_type='lesson', target_id=lesson_id)
         db.session.commit()
 
         flash(_('Урок сопоставления успешно обновлен!'), 'success')
@@ -580,6 +664,7 @@ def edit_matching_lesson(lesson_id):
     return render_template(
         'admin/curriculum/edit_matching.html',
         lesson=lesson,
+        component=lesson,
         pairs=pairs,
         time_limit=time_limit
     )
@@ -616,13 +701,32 @@ def edit_text_lesson(lesson_id):
         }
 
         # Обновляем контент
-        lesson.content = {
+        new_content = {
             'text': text if not lesson.book_id else '',
             'starting_paragraph': starting_paragraph,
             'ending_paragraph': ending_paragraph,
             'metadata': metadata
         }
 
+        # text_content schema requires `content` or `text`. When the lesson is
+        # backed by a book, the text body is delegated to the book reader, so
+        # skip schema validation to avoid false negatives on book-linked text.
+        if not lesson.book_id and not _validate_lesson_content_or_flash('text', new_content):
+            books = Book.query.order_by(Book.title).all()
+            return render_template(
+                'admin/curriculum/edit_text.html',
+                lesson=lesson,
+                component=lesson,
+                text=text,
+                starting_paragraph=starting_paragraph,
+                ending_paragraph=ending_paragraph,
+                metadata=metadata,
+                book=None,
+                books=books,
+            )
+
+        lesson.content = new_content
+        log_admin_action(current_user.id, 'curriculum.lesson.update_content', target_type='lesson', target_id=lesson_id)
         db.session.commit()
 
         flash(_('Текстовый урок успешно обновлен!'), 'success')
@@ -646,6 +750,7 @@ def edit_text_lesson(lesson_id):
     return render_template(
         'admin/curriculum/edit_text.html',
         lesson=lesson,
+        component=lesson,
         text=text,
         starting_paragraph=starting_paragraph,
         ending_paragraph=ending_paragraph,
@@ -824,6 +929,8 @@ def cultural_note_add():
             return redirect(url_for('admin.cultural_note_add'))
         note = CulturalNote(word_id=word_id, note=note_text, context=context)
         db.session.add(note)
+        db.session.flush()
+        log_admin_action(current_user.id, 'cultural_note.create', target_type='cultural_note', target_id=note.id)
         db.session.commit()
         flash(_('Cultural note added.'), 'success')
         return redirect(url_for('admin.cultural_notes_list', word_id=word_id))
@@ -845,6 +952,7 @@ def cultural_note_edit(note_id):
         else:
             note.note = note_text
             note.context = context
+            log_admin_action(current_user.id, 'cultural_note.update', target_type='cultural_note', target_id=note_id)
             db.session.commit()
             flash(_('Cultural note updated.'), 'success')
             return redirect(url_for('admin.cultural_notes_list', word_id=note.word_id))
@@ -859,7 +967,7 @@ def cultural_note_delete(note_id):
     note = CulturalNote.query.get_or_404(note_id)
     word_id = note.word_id
     db.session.delete(note)
-    log_admin_action(current_user.id, 'delete_cultural_note', 'cultural_note', note_id)
+    log_admin_action(current_user.id, 'cultural_note.delete', target_type='cultural_note', target_id=note_id)
     db.session.commit()
     flash(_('Cultural note deleted.'), 'success')
     return redirect(url_for('admin.cultural_notes_list', word_id=word_id))

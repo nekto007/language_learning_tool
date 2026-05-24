@@ -4,7 +4,7 @@
 {% block title %}Редактировать модуль{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Modules', url_for('admin.modules_list')), (module.name|truncate(20), '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Modules', url_for('admin.modules_list')), (module.name|truncate(20), '')]) }}
 {% endblock %}
 
 {% block content %}

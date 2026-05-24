@@ -1,5 +1,7 @@
 # tests/admin/routes/test_grammar_lab_routes.py
-"""Tests for admin grammar lab routes — duplicate detection (Task 22)."""
+"""Tests for admin grammar lab routes — duplicate detection (Task 22) and
+cascade-deletion guarantees (Task 13 of 2026-05-24 admin audit)."""
+import inspect
 import io
 import json
 
@@ -217,3 +219,145 @@ class TestImportExercisesJson:
             for ex in GrammarExercise.query.filter_by(topic_id=topic.id).all()
         }
         assert questions == {'New 1', 'New 2'}
+
+
+class TestGrammarRoutesStructure:
+    """Module-level structure smoke checks (Task 13)."""
+
+    def test_module_has_region_markers_for_all_domains(self):
+        from app.admin.routes import grammar_lab_routes
+
+        source = inspect.getsource(grammar_lab_routes)
+        for marker in (
+            '# region TOPICS',
+            '# endregion TOPICS',
+            '# region EXERCISES',
+            '# endregion EXERCISES',
+            '# region IMPORT',
+            '# endregion IMPORT',
+            '# region API',
+            '# endregion API',
+        ):
+            assert marker in source, f'missing region marker: {marker}'
+
+
+class TestExerciseDeletionCascade:
+    """Deleting a GrammarExercise must cascade to dependent SRS/attempt rows.
+
+    Guaranteed by ``ondelete='CASCADE'`` on
+    ``user_grammar_exercises.exercise_id`` and ``grammar_attempts.exercise_id``
+    plus migration ``20260425_grammar_exercise_cascade`` for legacy DBs.
+    """
+
+    def _make_topic(self, db_session, slug: str):
+        from app.grammar_lab.models import GrammarTopic
+
+        topic = GrammarTopic(
+            slug=slug,
+            title='Cascade Topic',
+            title_ru='Каскад',
+            level='A1',
+            order=1,
+            content={},
+        )
+        db_session.add(topic)
+        db_session.commit()
+        return topic
+
+    def _make_exercise(self, db_session, topic):
+        from app.grammar_lab.models import GrammarExercise
+
+        exercise = GrammarExercise(
+            topic_id=topic.id,
+            exercise_type='fill_blank',
+            content={'question': 'Q?', 'correct_answer': 'a'},
+            difficulty=1,
+            order=1,
+        )
+        db_session.add(exercise)
+        db_session.commit()
+        return exercise
+
+    @pytest.mark.smoke
+    def test_delete_exercise_cascades_to_user_progress_and_attempts(
+        self, admin_client, mock_admin_user, db_session, admin_user,
+    ):
+        from app.grammar_lab.models import (
+            GrammarAttempt,
+            GrammarExercise,
+            UserGrammarExercise,
+        )
+
+        topic = self._make_topic(db_session, slug='cascade-1')
+        exercise = self._make_exercise(db_session, topic)
+        exercise_id = exercise.id
+
+        UserGrammarExercise.get_or_create(admin_user.id, exercise.id)
+        attempt = GrammarAttempt(
+            user_id=admin_user.id,
+            exercise_id=exercise.id,
+            is_correct=True,
+            user_answer='a',
+            source='topic_practice',
+        )
+        db_session.add(attempt)
+        db_session.commit()
+
+        assert UserGrammarExercise.query.filter_by(exercise_id=exercise_id).count() == 1
+        assert GrammarAttempt.query.filter_by(exercise_id=exercise_id).count() == 1
+
+        response = admin_client.post(
+            f'/admin/grammar-lab/exercises/{exercise_id}/delete',
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        db_session.expire_all()
+        assert GrammarExercise.query.get(exercise_id) is None
+        assert UserGrammarExercise.query.filter_by(exercise_id=exercise_id).count() == 0
+        assert GrammarAttempt.query.filter_by(exercise_id=exercise_id).count() == 0
+
+    def test_delete_topic_cascades_to_exercises_and_their_children(
+        self, admin_client, mock_admin_user, db_session, admin_user,
+    ):
+        from app.grammar_lab.models import (
+            GrammarAttempt,
+            GrammarExercise,
+            GrammarTopic,
+            UserGrammarExercise,
+            UserGrammarTopicStatus,
+        )
+
+        topic = self._make_topic(db_session, slug='cascade-2')
+        exercise = self._make_exercise(db_session, topic)
+        topic_id = topic.id
+        exercise_id = exercise.id
+
+        UserGrammarExercise.get_or_create(admin_user.id, exercise.id)
+        db_session.add(GrammarAttempt(
+            user_id=admin_user.id,
+            exercise_id=exercise.id,
+            is_correct=False,
+            user_answer='wrong',
+            source='topic_practice',
+        ))
+        db_session.add(UserGrammarTopicStatus(
+            user_id=admin_user.id,
+            topic_id=topic.id,
+            status='theory_completed',
+            theory_completed=True,
+        ))
+        db_session.commit()
+
+        response = admin_client.post(
+            f'/admin/grammar-lab/topics/{topic_id}/delete',
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        db_session.expire_all()
+        assert GrammarTopic.query.get(topic_id) is None
+        assert GrammarExercise.query.filter_by(topic_id=topic_id).count() == 0
+        assert UserGrammarExercise.query.filter_by(exercise_id=exercise_id).count() == 0
+        assert GrammarAttempt.query.filter_by(exercise_id=exercise_id).count() == 0
+        assert UserGrammarTopicStatus.query.filter_by(topic_id=topic_id).count() == 0

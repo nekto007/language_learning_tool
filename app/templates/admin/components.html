@@ -30,7 +30,7 @@
 
 {# --------------------------------------------------------------------------
    Breadcrumb Navigation
-   Usage: {{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Users', '')]) }}
+   Usage: {{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Users', '')]) }}
    -------------------------------------------------------------------------- #}
 {% macro breadcrumb(items) %}
 <nav class="admin-breadcrumb" aria-label="Breadcrumb navigation">
@@ -214,7 +214,8 @@
             </div>
             <div class="modal-footer border-0">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form action="{{ action_url }}" method="POST" class="d-inline">
+                <form action="{{ action_url }}" method="POST" class="d-inline"
+                      onsubmit="this.querySelector('[type=submit]').classList.add('btn--loading');this.querySelector('[type=submit]').disabled=true;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" name="item_id" id="{{ modal_id }}_item_id" value=""/>
                     <button type="submit" class="btn btn-danger">
@@ -299,7 +300,8 @@
    -------------------------------------------------------------------------- #}
 {% macro form_actions(submit_text='Save', cancel_url='', submit_icon='fa-save') %}
 <div class="d-flex gap-2 mt-4">
-    <button type="submit" class="btn btn-primary">
+    <button type="submit" class="btn btn-primary"
+            onclick="this.classList.add('btn--loading');this.disabled=true;this.closest('form').submit();">
         <i class="fas {{ submit_icon }} me-2"></i>{{ submit_text }}
     </button>
     {% if cancel_url %}

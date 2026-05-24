@@ -16,6 +16,7 @@ from sqlalchemy import desc
 from app.admin.audit import log_admin_action
 from app.admin.services import UserManagementService
 from app.admin.utils.decorators import admin_required
+from app.admin.utils.request_validators import escape_like, get_int_arg
 from app.auth.models import User
 from app.utils.db import db
 
@@ -25,30 +26,33 @@ user_bp = Blueprint('user_admin', __name__)
 logger = logging.getLogger(__name__)
 
 
+MAX_USERS_PER_PAGE = 100
+
+
+
 @user_bp.route('/users')
 @admin_required
 def users():
     """Управление пользователями"""
-    page = request.args.get('page', 1, type=int)
-    per_page = min(request.args.get('per_page', 20, type=int), 50)
-    search = request.args.get('search', '')
+    page = get_int_arg('page', default=1, min_val=1)
+    per_page_raw = get_int_arg('per_page', default=20, min_val=1)
+    per_page = min(per_page_raw, MAX_USERS_PER_PAGE)
+    search = (request.args.get('search') or '').strip()[:120]
 
-    # Build query with search
     query = User.query
 
     if search:
+        like_pattern = f'%{escape_like(search)}%'
         query = query.filter(
-            (User.username.ilike(f'%{search}%')) |
-            (User.email.ilike(f'%{search}%'))
+            User.username.ilike(like_pattern, escape='\\') |
+            User.email.ilike(like_pattern, escape='\\')
         )
 
-    # Paginate
-    pagination = query.order_by(desc(User.last_login)).paginate(
+    pagination = query.order_by(desc(User.last_login).nullslast(), User.id.desc()).paginate(
         page=page, per_page=per_page, error_out=False
     )
 
     users = pagination.items
-    # Use datetime.now(UTC) and convert to naive for DB compatibility
     now = datetime.now(UTC).replace(tzinfo=None)
 
     return render_template(
@@ -56,6 +60,7 @@ def users():
         users=users,
         pagination=pagination,
         search=search,
+        per_page=per_page,
         now=now
     )
 
@@ -150,7 +155,7 @@ def linear_plan_user_inspector(user_id):
 
     log_admin_action(
         admin_id=current_user.id,
-        action='linear_plan_inspect',
+        action='user.linear_plan_inspect',
         target_type='user',
         target_id=user_id,
     )

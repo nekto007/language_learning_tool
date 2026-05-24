@@ -567,7 +567,7 @@ class TestComputePlanStepsLinear:
         assert steps_done == 1
         assert steps_total == 3
 
-    def test_summary_flags_promote_completion(self):
+    def test_srs_summary_signal_does_not_promote_slot(self):
         baseline_slots = [
             {'kind': 'curriculum', 'completed': False},
             {'kind': 'srs', 'completed': False},
@@ -588,10 +588,12 @@ class TestComputePlanStepsLinear:
         # Curriculum has no summary fallback: lessons_count is too broad
         # (fires on any lesson, not just the slot's target). Completion is
         # authoritative from slot.completed set by build_curriculum_slot().
+        # SRS has no summary fallback either: one reviewed card must not close
+        # the whole due-card slot while plan-available cards remain.
         # Reading has no summary fallback either; it relies on slot.completed
         # (gated on the linear_book_reading XP event).
-        assert plan_completion == {'curriculum': False, 'srs': True, 'reading': True}
-        assert steps_done == 2
+        assert plan_completion == {'curriculum': False, 'srs': False, 'reading': True}
+        assert steps_done == 1
         assert steps_total == 3
 
     def test_reading_summary_signal_does_not_promote_slot(self):

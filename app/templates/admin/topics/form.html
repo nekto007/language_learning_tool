@@ -4,7 +4,7 @@
 {% block title %}{{ title }} - Admin{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Topics', url_for('topic_admin.topic_list')), (title, '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Topics', url_for('topic_admin.topic_list')), (title, '')]) }}
 {% endblock %}
 
 {% block content %}

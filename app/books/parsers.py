@@ -3,12 +3,18 @@
 import logging
 import os
 import re
+import tempfile
 import xml.etree.ElementTree as ET
 
 from bs4 import BeautifulSoup
 from werkzeug.utils import secure_filename
 
 logger = logging.getLogger(__name__)
+
+# Temp dir for upload processing — must match BOOK_TEMP_DIR in book_processing_service.py
+# so that /admin/books/cleanup can find and remove orphaned files.
+_PARSERS_DIR = os.path.dirname(os.path.abspath(__file__))  # app/books
+_BOOK_TEMP_DIR = os.path.normpath(os.path.join(_PARSERS_DIR, '..', 'temp'))
 
 
 def clean_text(text):
@@ -598,10 +604,10 @@ def process_uploaded_book(file, title, format_type='enhanced'):
         filename = secure_filename(file.filename)
         file_ext = os.path.splitext(filename)[1].lower()
 
-        # Создаем временный файл
-        temp_dir = 'app/temp'
-        os.makedirs(temp_dir, exist_ok=True)
-        temp_path = os.path.join(temp_dir, filename)
+        # Создаем временный файл в BOOK_TEMP_DIR чтобы /admin/books/cleanup находил их
+        os.makedirs(_BOOK_TEMP_DIR, exist_ok=True)
+        fd, temp_path = tempfile.mkstemp(suffix=file_ext, dir=_BOOK_TEMP_DIR)
+        os.close(fd)
 
         file.save(temp_path)
 

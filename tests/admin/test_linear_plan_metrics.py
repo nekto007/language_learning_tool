@@ -6,7 +6,12 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.admin.services.linear_plan_metrics import get_linear_plan_metrics
+from app.admin.services.linear_plan_metrics import (
+    _active_user_sets,
+    _cohort_size,
+    _cohort_subquery,
+    get_linear_plan_metrics,
+)
 from app.auth.models import User
 from app.curriculum.models import LessonProgress
 from app.daily_plan.linear.models import QuizErrorLog, UserReadingPreference
@@ -47,6 +52,7 @@ def _make_book(db_session):
 
 
 class TestCohortIsolation:
+    @pytest.mark.smoke
     def test_empty_cohort_returns_zero_metrics(self, app, db_session):
         metrics = get_linear_plan_metrics(session=db_session)
         assert metrics['cohort_size'] == 0
@@ -61,6 +67,7 @@ class TestCohortIsolation:
         metrics = get_linear_plan_metrics(session=db_session)
         assert metrics['cohort_size'] == 0
 
+    @pytest.mark.smoke
     def test_cohort_counts_only_linear_users(self, app, db_session):
         _make_user(db_session, linear=True)
         _make_user(db_session, linear=True)
@@ -513,3 +520,91 @@ class TestFocusDistribution:
         assert metrics['focus_average_slots']['reading'] == 0.0
         # empty buckets stay 0.0
         assert metrics['focus_average_slots']['vocabulary'] == 0.0
+
+
+class TestSubqueryAggregation:
+    """Verify the subquery-based aggregation helpers work correctly.
+
+    These tests exercise ``_cohort_subquery``, ``_cohort_size``, and
+    ``_active_user_sets`` directly to confirm the SQL-aggregation path
+    that replaced the old chunked-IN approach.
+    """
+
+    def test_cohort_subquery_excludes_non_linear(self, app, db_session):
+        _make_user(db_session, linear=True)
+        _make_user(db_session, linear=False)
+        size = _cohort_size(db_session)
+        assert size == 1
+
+    def test_cohort_size_zero_on_empty(self, app, db_session):
+        assert _cohort_size(db_session) == 0
+
+    def test_active_user_sets_curriculum(self, app, db_session, test_lesson_vocabulary):
+        user = _make_user(db_session)
+        today = datetime.now(timezone.utc).date()
+        now = datetime.now(timezone.utc)
+        db_session.add(
+            LessonProgress(
+                user_id=user.id,
+                lesson_id=test_lesson_vocabulary.id,
+                status='completed',
+                completed_at=now,
+            )
+        )
+        db_session.commit()
+
+        cohort_subq = _cohort_subquery(db_session)
+        curriculum, srs, reading, error_rev = _active_user_sets(cohort_subq, today, db_session)
+
+        assert user.id in curriculum
+        assert user.id not in srs
+        assert user.id not in reading
+        assert user.id not in error_rev
+
+    def test_active_user_sets_srs(self, app, db_session):
+        user = _make_user(db_session)
+        today = datetime.now(timezone.utc).date()
+        now = datetime.now(timezone.utc)
+        db_session.add(StudySession(user_id=user.id, start_time=now))
+        db_session.commit()
+
+        cohort_subq = _cohort_subquery(db_session)
+        curriculum, srs, reading, error_rev = _active_user_sets(cohort_subq, today, db_session)
+
+        assert user.id not in curriculum
+        assert user.id in srs
+
+    def test_active_user_sets_non_linear_excluded(self, app, db_session):
+        non_linear = _make_user(db_session, linear=False)
+        today = datetime.now(timezone.utc).date()
+        now = datetime.now(timezone.utc)
+        db_session.add(StudySession(user_id=non_linear.id, start_time=now))
+        db_session.commit()
+
+        cohort_subq = _cohort_subquery(db_session)
+        curriculum, srs, reading, error_rev = _active_user_sets(cohort_subq, today, db_session)
+
+        assert non_linear.id not in srs
+
+    @pytest.mark.smoke
+    def test_full_metrics_with_mixed_cohort(self, app, db_session, test_lesson_vocabulary):
+        u1 = _make_user(db_session)
+        u2 = _make_user(db_session)
+        _make_user(db_session, linear=False)
+        today = datetime.now(timezone.utc).date()
+        now = datetime.now(timezone.utc)
+        db_session.add(
+            LessonProgress(
+                user_id=u1.id,
+                lesson_id=test_lesson_vocabulary.id,
+                status='completed',
+                completed_at=now,
+            )
+        )
+        db_session.add(StudySession(user_id=u2.id, start_time=now))
+        db_session.commit()
+
+        metrics = get_linear_plan_metrics(session=db_session, today=today)
+        assert metrics['cohort_size'] == 2
+        # 1 curriculum slot (u1) + 1 srs slot (u2) = 2 total / 2 users = 1.0
+        assert metrics['average_slots_completed'] == 1.0

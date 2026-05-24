@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'base.html' if current_user.is_authenticated else 'public_base.html' %}
 
 {% block title %}{{ level.code }} {{ level.name }} — Курс английского | LLT English{% endblock %}
 

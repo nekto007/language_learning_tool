@@ -14,10 +14,12 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, Lessons, Module
+from app.curriculum.validators import LessonContentValidator
 from app.study.models import UserWord
 from app.utils.audio import normalize_listening
 from app.utils.db import db
 from app.words.models import Collection, CollectionWordLink, CollectionWords
+from marshmallow import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -523,6 +525,20 @@ class CurriculumImportService:
             # Preserve external_key in persisted content so re-imports use key-based matching
             if src_external_key and isinstance(lesson.content, dict):
                 lesson.content['external_key'] = src_external_key.strip()
+
+            # Validate built content against the lesson-type schema. Unknown
+            # lesson types are tolerated (LessonContentValidator raises
+            # ValueError for those) — the import still wins for any type the
+            # validator knows about so malformed payloads surface early.
+            if isinstance(lesson.content, (dict, list)):
+                try:
+                    LessonContentValidator.validate(lesson_type, lesson.content)
+                except ValidationError as err:
+                    raise ValueError(
+                        f"Lesson #{number} ({lesson_type}) content failed validation: {err.messages}"
+                    ) from err
+                except ValueError:
+                    pass
 
             _used_numbers.add(number)
             # Явно помечаем content как изменённый для SQLAlchemy

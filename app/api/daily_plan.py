@@ -678,9 +678,9 @@ def daily_plan_next_slot():
     Query params:
         current (str, optional): LinearSlotKind value (curriculum/srs/book/
             error_review/listening/speaking/writing) identifying the slot the
-            caller just left. The
-            endpoint skips that kind when picking the next slot, even if
-            it is still incomplete — the caller has already engaged with it.
+            caller just left. The endpoint skips that kind when picking the
+            next slot, except for SRS: an incomplete SRS slot is returned
+            again until the plan-available due queue is actually empty.
         tz (str, optional): user timezone. Used to resolve the local day
             for the secured_at write.
 
@@ -727,7 +727,13 @@ def daily_plan_next_slot():
     if not day_secured:
         for slot in baseline_slots:
             slot_kind = slot.get('kind', '')
-            if slot_kind == current_slot_kind:
+            current_slot_incomplete = (
+                slot_kind == current_slot_kind
+                and not plan_completion.get(slot_kind, False)
+            )
+            if slot_kind == current_slot_kind and not (
+                current_slot_kind == 'srs' and current_slot_incomplete
+            ):
                 continue
             if plan_completion.get(slot_kind, False):
                 continue

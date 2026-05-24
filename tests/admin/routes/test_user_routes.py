@@ -1,11 +1,13 @@
 """Route tests for admin user management pages."""
 
+import pytest
 from unittest.mock import patch
 
 
 class TestToggleMissionPlanRoute:
     """Tests for mission plan admin toggle route."""
 
+    @pytest.mark.smoke
     @patch('app.admin.routes.user_routes.UserManagementService.toggle_mission_plan')
     def test_toggle_mission_plan_success(self, mock_toggle, admin_client, mock_admin_user):
         """Successful toggle redirects back to users list."""

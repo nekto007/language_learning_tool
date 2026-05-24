@@ -7,7 +7,6 @@ Book Management Routes для административной панели
 import logging
 import os
 import re
-import threading
 from datetime import UTC, datetime
 
 from flask import (Blueprint, flash, jsonify, redirect, render_template,
@@ -17,7 +16,13 @@ from sqlalchemy import func
 from werkzeug.utils import secure_filename
 
 from app.admin.audit import log_admin_action
-from app.admin.services.book_processing_service import BookProcessingService
+from app.admin.services.book_processing_service import (
+    ALLOWED_BOOK_EXTENSIONS,
+    BOOK_TEMP_DIR,
+    BookProcessingService,
+    BookUploadError,
+    save_uploaded_book_file,
+)
 from app.admin.utils.cache import clear_admin_cache
 from app.admin.utils.decorators import admin_required, handle_admin_errors
 from app.books.forms import BookContentForm
@@ -77,7 +82,7 @@ def books():
     except Exception as e:
         logger.error(f"Error in book management: {str(e)}")
         flash(f'Ошибка при загрузке данных: {str(e)}', 'danger')
-        return redirect(url_for('admin.dashboard'))
+        return redirect(url_for('dashboard_admin.dashboard'))
 
 
 @book_bp.route('/books/scrape-website', methods=['POST'])
@@ -87,7 +92,8 @@ def scrape_website():
     from flask_login import current_user
 
     try:
-        data = request.get_json()
+        _raw = request.get_json(silent=True)
+        data = _raw if isinstance(_raw, dict) else {}
         url = data.get('url')
         max_pages = data.get('max_pages', 10)
 
@@ -110,6 +116,9 @@ def scrape_website():
         # Запускаем scraping
         results = scraper.scrape_website(url, max_pages)
 
+        if results:
+            log_admin_action(current_user.id, 'book.scrape_website', target_type='book')
+            db.session.commit()
         logger.info(f"Website scraping completed by {current_user.username}: {len(results)} books processed")
 
         return jsonify({
@@ -134,7 +143,12 @@ def update_book_statistics():
     from flask_login import current_user
 
     try:
-        data = request.get_json()
+        _raw = request.get_json(silent=True)
+        if request.is_json and _raw is None:
+            return jsonify({'success': False, 'error': 'invalid_request'}), 400
+        if _raw is not None and not isinstance(_raw, dict):
+            return jsonify({'success': False, 'error': 'invalid_request'}), 400
+        data = _raw or {}
         book_id = data.get('book_id')  # Опционально для конкретной книги
 
         if book_id:
@@ -183,6 +197,8 @@ def update_book_statistics():
                 continue
 
         admin_name = current_user.username
+        if updated_count > 0:
+            log_admin_action(current_user.id, 'book.update_statistics', target_type='book')
         db.session.commit()
 
         logger.info(f"Book statistics updated by {admin_name}: {updated_count} books")
@@ -279,6 +295,8 @@ def process_phrasal_verbs():
 
             processed_count += 1
 
+        if processed_count > 0:
+            log_admin_action(current_user.id, 'book.process_phrasal_verbs', target_type='word')
         db.session.commit()
 
         result = {
@@ -357,40 +375,34 @@ def book_statistics():
 def extract_book_metadata():
     """API для извлечения метаданных из загруженного файла"""
     logger.info("[METADATA_EXTRACT] Starting metadata extraction process")
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'Файл не найден'}), 400
+
+    file = request.files['file']
     try:
-        if 'file' not in request.files:
-            return jsonify({'success': False, 'error': 'Файл не найден'}), 400
+        temp_file_path, filename, file_ext = save_uploaded_book_file(file)
+    except BookUploadError as e:
+        logger.warning(f"[METADATA_EXTRACT] Upload rejected: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 400
 
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'success': False, 'error': 'Файл не выбран'}), 400
-
-        filename = secure_filename(file.filename)
-        file_ext = os.path.splitext(filename)[1].lower()
-
-        temp_dir = os.path.join('app', 'temp')
-        os.makedirs(temp_dir, exist_ok=True)
-        temp_file_path = os.path.join(temp_dir, filename)
-        
-        file.save(temp_file_path)
-
-        try:
-            metadata = extract_file_metadata(temp_file_path, file_ext)
-            logger.info(f"[METADATA_EXTRACT] Extracted: {metadata.get('title', '')}")
-
-            return jsonify({
-                'success': True,
-                'metadata': metadata,
-                'filename': filename,
-                'file_ext': file_ext
-            })
-        finally:
-            if os.path.exists(temp_file_path):
-                os.remove(temp_file_path)
-
+    try:
+        metadata = extract_file_metadata(temp_file_path, file_ext)
+        logger.info(f"[METADATA_EXTRACT] Extracted: {metadata.get('title', '')}")
+        return jsonify({
+            'success': True,
+            'metadata': metadata,
+            'filename': filename,
+            'file_ext': file_ext,
+        })
     except Exception as e:
         logger.error(f"[METADATA_EXTRACT] Error: {str(e)}")
         return jsonify({'success': False, 'error': f'Ошибка при извлечении метаданных: {str(e)}'}), 500
+    finally:
+        if os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except OSError:
+                logger.warning(f"[METADATA_EXTRACT] Failed to remove temp file: {temp_file_path}")
 
 
 @book_bp.route('/books/cleanup', methods=['GET', 'POST'])
@@ -440,7 +452,7 @@ def cleanup_books():
                 results['details'].append(f"Удалено {count} книг без содержания")
 
             elif action == 'clean_temp_files':
-                temp_dir = os.path.join('app', 'temp')
+                temp_dir = BOOK_TEMP_DIR
                 removed_files = 0
                 if os.path.exists(temp_dir):
                     for filename in os.listdir(temp_dir):
@@ -487,6 +499,7 @@ def edit_book(book_id):
         book.level = submitted_level
         book.summary = request.form.get('description', book.summary)
 
+        log_admin_action(current_user.id, 'book.update', target_type='book', target_id=book_id)
         db.session.commit()
         flash(f'Книга "{book.title}" обновлена', 'success')
         return redirect(url_for('book_admin.books'))
@@ -597,8 +610,16 @@ def add_book():
         # Обрабатываем файл контента
         if form.file.data and hasattr(form.file.data, 'filename'):
             logger.info(f"[BOOK_ADD] Processing book content file")
-            filename = secure_filename(form.file.data.filename)
-            file_ext = os.path.splitext(filename)[1].lower()
+
+            # Safe upload: extension + size + path-traversal validation in service.
+            try:
+                temp_file_path, filename, file_ext = save_uploaded_book_file(form.file.data)
+            except BookUploadError as e:
+                logger.warning(f"[BOOK_ADD] Upload rejected: {e}")
+                if request.is_json or request.headers.get('Content-Type') == 'application/json':
+                    return jsonify({'success': False, 'error': str(e)}), 400
+                flash(str(e), 'danger')
+                return render_template('admin/books/add.html', form=form)
 
             chapter_formats = ['.fb2', '.txt']
             use_chapters = file_ext in chapter_formats
@@ -607,45 +628,25 @@ def add_book():
                 logger.info("[BOOK_ADD] Using chapter-based processing")
                 if not existing_book or not overwrite:
                     db.session.add(new_book)
+                db.session.flush()
+                log_admin_action(
+                    current_user.id,
+                    'book.update' if existing_book and overwrite else 'book.create',
+                    target_type='book',
+                    target_id=new_book.id,
+                )
                 db.session.commit()
-
-                temp_dir = os.path.join('app', 'temp')
-                os.makedirs(temp_dir, exist_ok=True)
-                temp_file_path = os.path.join(temp_dir, filename)
-                form.file.data.save(temp_file_path)
 
                 try:
                     success, message = BookProcessingService.process_book_into_chapters(
                         new_book.id, temp_file_path, file_ext
                     )
-                    
+
                     message_text = f'Книга успешно {"перезаписана" if existing_book and overwrite else "добавлена"}! {message}'
 
                     if success:
                         app = current_app._get_current_object()
-                        book_id_to_process = new_book.id
-
-                        def start_chapter_processing():
-                            print(f"[BOOK PROCESSING] Начало обработки глав книги {book_id_to_process}", flush=True)
-                            success = False
-                            try:
-                                with app.app_context():
-                                    from app.books.safe_processors import safe_process_book_chapters_words
-                                    result = safe_process_book_chapters_words(book_id_to_process)
-                                    status = result.get('status', 'unknown')
-                                    success = (status == 'success')
-                                    print(f"[BOOK PROCESSING] Результат обработки книги {book_id_to_process}: {status}", flush=True)
-                            except Exception as e:
-                                # Игнорируем ошибки соединения при закрытии контекста если обработка успешна
-                                if not success:
-                                    print(f"[BOOK PROCESSING] Ошибка обработки книги {book_id_to_process}: {str(e)}", flush=True)
-
-                        processing_thread = threading.Thread(
-                            target=start_chapter_processing,
-                            name=f"BookChapterProcessor-{new_book.id}"
-                        )
-                        processing_thread.daemon = True
-                        processing_thread.start()
+                        BookProcessingService.start_background_chapter_processing(app, new_book.id)
 
                         if request.is_json or request.headers.get('Content-Type') == 'application/json':
                             return jsonify({'success': True, 'message': message_text})
@@ -657,7 +658,10 @@ def add_book():
                         flash(error_text, 'warning')
                 finally:
                     if os.path.exists(temp_file_path):
-                        os.remove(temp_file_path)
+                        try:
+                            os.remove(temp_file_path)
+                        except OSError:
+                            logger.warning(f"[BOOK_ADD] Failed to remove temp file: {temp_file_path}")
 
                 clear_admin_cache()
                 action = "overwritten" if existing_book and overwrite else "added"
@@ -665,14 +669,21 @@ def add_book():
                 return redirect(url_for('book_admin.books'))
             else:
                 # Для других форматов используем старую логику
-                result = process_uploaded_book(
-                    file=form.file.data,
-                    title=form.title.data,
-                    format_type=form.format_type.data
-                )
-                new_book.content = result['content']
-                new_book.words_total = result['word_count']
-                new_book.unique_words = result['unique_words']
+                try:
+                    result = process_uploaded_book(
+                        file=form.file.data,
+                        title=form.title.data,
+                        format_type=form.format_type.data
+                    )
+                    new_book.content = result['content']
+                    new_book.words_total = result['word_count']
+                    new_book.unique_words = result['unique_words']
+                finally:
+                    if os.path.exists(temp_file_path):
+                        try:
+                            os.remove(temp_file_path)
+                        except OSError:
+                            logger.warning(f"[BOOK_ADD] Failed to remove temp file: {temp_file_path}")
 
         elif form.content.data:
             # Контент введен вручную
@@ -690,6 +701,13 @@ def add_book():
                 os.path.splitext(secure_filename(form.file.data.filename))[1].lower() in ['.fb2', '.txt']):
             if not existing_book or not overwrite:
                 db.session.add(new_book)
+            db.session.flush()
+            log_admin_action(
+                current_user.id,
+                'book.update' if existing_book and overwrite else 'book.create',
+                target_type='book',
+                target_id=new_book.id,
+            )
             db.session.commit()
 
             clear_admin_cache()
@@ -697,24 +715,9 @@ def add_book():
             # Запускаем обработку слов в фоне
             if new_book.content:
                 app = current_app._get_current_object()
-                book_id_to_process = new_book.id
-                book_content = new_book.content
-
-                def start_processing():
-                    try:
-                        with app.app_context():
-                            from app.books.safe_processors import safe_process_book_words
-                            result = safe_process_book_words(book_id_to_process, book_content)
-                            logger.info(f"[ADMIN] Processing result: {result}")
-                    except Exception as e:
-                        logger.error(f"[ADMIN] Error in word processing thread: {str(e)}")
-
-                processing_thread = threading.Thread(
-                    target=start_processing,
-                    name=f"BookWordProcessor-{new_book.id}"
+                BookProcessingService.start_background_word_processing(
+                    app, new_book.id, new_book.content
                 )
-                processing_thread.daemon = True
-                processing_thread.start()
 
                 success_message = f'Книга успешно {"перезаписана" if existing_book and overwrite else "добавлена"}! Обработка слов запущена в фоновом режиме.'
             else:

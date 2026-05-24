@@ -1,5 +1,7 @@
 """Regression tests for Task 3 admin findings (CSRF tokens + audit logging)."""
+import re
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -9,6 +11,76 @@ from app.utils.db import db
 
 
 CSRF_INPUT_MARKER = 'name="csrf_token"'
+ADMIN_TEMPLATE_DIR = Path('app/templates/admin')
+
+_FORM_POST_RE = re.compile(r'<form\b[^>]*method=["\']post["\'][^>]*>', re.IGNORECASE | re.DOTALL)
+_CSRF_MARKER_RE = re.compile(
+    r'csrf_token\s*\(\s*\)|form\.hidden_tag\s*\(\s*\)|form\.csrf_token|name=["\']csrf_token["\']'
+)
+_METHOD_RE = re.compile(r"method\s*:\s*['\"](POST|PUT|DELETE|PATCH)['\"]", re.IGNORECASE)
+_CSRF_HEADER_RE = re.compile(r"X-CSRFToken", re.IGNORECASE)
+_CSRF_BODY_RE = re.compile(r"['\"]csrf_token['\"]")
+
+
+def _all_admin_templates():
+    return sorted(p for p in ADMIN_TEMPLATE_DIR.rglob('*.html'))
+
+
+def _extract_fetch_call(text: str, start: int) -> str:
+    """Return the substring of a fetch(...) call starting at ``start``."""
+    i = start + len('fetch(')
+    depth = 1
+    while i < len(text) and depth > 0:
+        c = text[i]
+        if c == '(':
+            depth += 1
+        elif c == ')':
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+        i += 1
+    return text[start:i]
+
+
+def _iter_post_forms_without_csrf(text: str):
+    """Yield form-opening tags that have method=post but lack a CSRF marker before </form>."""
+    for m in _FORM_POST_RE.finditer(text):
+        end = text.find('</form>', m.end())
+        if end == -1:
+            end = len(text)
+        block = text[m.start():end]
+        if not _CSRF_MARKER_RE.search(block):
+            yield m.group(0)
+
+
+def _iter_unsafe_fetch_calls(text: str):
+    """Yield fetch(...) call substrings using POST/PUT/DELETE/PATCH without CSRF protection."""
+    pos = 0
+    while True:
+        idx = text.find('fetch(', pos)
+        if idx == -1:
+            break
+        block = _extract_fetch_call(text, idx)
+        pos = idx + 1
+        m = _METHOD_RE.search(block)
+        if not m:
+            continue
+        # CSRF can be in the fetch block (header or appended body field)
+        if _CSRF_HEADER_RE.search(block) or _CSRF_BODY_RE.search(block):
+            continue
+        # FormData(<form>) — passed directly into fetch — carries csrf_token from
+        # the form's own hidden input; template-level form scan catches any form
+        # that doesn't.
+        if re.search(r"new\s+FormData\s*\(\s*[a-zA-Z_$][\w$.]*\s*\)", block):
+            continue
+        # ...or appended to the surrounding scope before the call
+        # (e.g. formData.append('csrf_token', ...) on the preceding line).
+        ctx = text[max(0, idx - 1500):idx]
+        if _CSRF_BODY_RE.search(ctx):
+            continue
+        if re.search(r"new\s+FormData\s*\(\s*[a-zA-Z_$][\w$.]*\s*\)", ctx):
+            continue
+        yield block.replace('\n', ' ')[:200]
 
 
 @pytest.mark.smoke
@@ -178,3 +250,48 @@ class TestCurriculumDeleteAuditLog:
             target_id=progress_id,
         ).first()
         assert entry is not None
+
+
+class TestAdminTemplateCsrfCoverage:
+    """Static-analysis sweep: every admin template must protect its mutating UI with CSRF."""
+
+    @pytest.mark.smoke
+    @pytest.mark.parametrize('template', _all_admin_templates(), ids=lambda p: str(p))
+    def test_post_forms_have_csrf_token(self, template):
+        text = template.read_text(encoding='utf-8', errors='replace')
+        offenders = list(_iter_post_forms_without_csrf(text))
+        assert not offenders, (
+            f'{template}: {len(offenders)} POST form(s) without csrf protection. '
+            f'Add `<input type="hidden" name="csrf_token" value="{{{{ csrf_token() }}}}">` '
+            f'or use Flask-WTF `{{{{ form.hidden_tag() }}}}`.\n'
+            f'Offending opening tag(s): {offenders!r}'
+        )
+
+    @pytest.mark.parametrize('template', _all_admin_templates(), ids=lambda p: str(p))
+    def test_ajax_mutating_calls_carry_csrf(self, template):
+        text = template.read_text(encoding='utf-8', errors='replace')
+        offenders = list(_iter_unsafe_fetch_calls(text))
+        assert not offenders, (
+            f'{template}: AJAX fetch() call(s) using POST/PUT/DELETE/PATCH without CSRF. '
+            f"Send the token via `headers: {{'X-CSRFToken': ...}}` "
+            f"or append it to FormData under name='csrf_token'.\n"
+            f'Offending call(s): {offenders!r}'
+        )
+
+
+class TestAdminRoutesNoCsrfExempt:
+    """Admin blueprints must never disable CSRF via @csrf.exempt."""
+
+    @pytest.mark.smoke
+    def test_no_csrf_exempt_in_admin_modules(self):
+        admin_root = Path('app/admin')
+        offenders = []
+        for py in admin_root.rglob('*.py'):
+            text = py.read_text(encoding='utf-8', errors='replace')
+            # Strip comments to avoid matching the documentation in decorators.py
+            cleaned = re.sub(r'#.*', '', text)
+            if 'csrf.exempt' in cleaned or '@csrf_exempt' in cleaned:
+                offenders.append(str(py))
+        assert not offenders, (
+            f'Admin modules must not use @csrf.exempt; offenders: {offenders}'
+        )

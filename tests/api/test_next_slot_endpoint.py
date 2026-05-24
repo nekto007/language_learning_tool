@@ -208,6 +208,28 @@ class TestNextSlotSelection:
         assert data['next']['kind'] == 'book'
         assert data['next']['title'] == 'The Great Gatsby'
 
+    def test_current_srs_is_not_skipped_until_complete(
+        self, authenticated_client, linear_user,
+    ):
+        plan = _linear_plan(curriculum_done=True, srs_done=False)
+        summary = {
+            **_empty_summary(),
+            'srs_words_reviewed': 1,
+            'srs_review_reviewed': 1,
+        }
+        with patch(
+            'app.daily_plan.linear.plan.get_linear_plan', return_value=plan,
+        ), patch(
+            'app.telegram.queries.get_daily_summary', return_value=summary,
+        ):
+            response = authenticated_client.get('/api/daily-plan/next-slot?current=srs')
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['day_secured'] is False
+        assert data['next']['kind'] == 'srs'
+        assert data['next']['url'].startswith('/study')
+
     def test_current_book_maps_to_reading_and_is_skipped(
         self, authenticated_client, linear_user,
     ):

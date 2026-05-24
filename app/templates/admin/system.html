@@ -4,7 +4,7 @@
 {% block title %}Система{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('Система', '')]) }}
+{{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Система', '')]) }}
 {% endblock %}
 
 {% block content %}
@@ -120,14 +120,8 @@
     <!-- Database Statistics -->
     <div class="col-lg-6">
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header">
                 <h5 class="mb-0">Статистика базы данных</h5>
-                <form action="{{ url_for('system_admin.clear_cache') }}" method="POST" class="d-inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Очистить кэш?')">
-                        <i class="fas fa-broom"></i> Очистить кэш
-                    </button>
-                </form>
             </div>
             <div class="card-body">
                 <table class="table table-sm">
@@ -168,6 +162,55 @@
                 </table>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Cache Stats -->
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-database me-2"></i>Административный кэш
+            <span class="badge bg-secondary ms-2">{{ cache_stats.size }}/{{ cache_stats.max_size }}</span>
+        </h5>
+        <div class="d-flex gap-2">
+            <form action="{{ url_for('system_admin.clear_cache_prefix') }}" method="POST" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="input-group input-group-sm">
+                    <input type="text" name="prefix" class="form-control" placeholder="Префикс (напр. seo_)" style="width:130px">
+                    <button type="submit" class="btn btn-outline-secondary">Очистить по префиксу</button>
+                </div>
+            </form>
+            <form action="{{ url_for('system_admin.clear_cache') }}" method="POST" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="confirm" value="{{ clear_cache_confirm }}"/>
+                <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Очистить весь административный кэш?')">
+                    <i class="fas fa-broom"></i> Очистить всё
+                </button>
+            </form>
+        </div>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-2"><i class="fas fa-info-circle me-1"></i>{{ cache_stats.note }}</p>
+        {% if cache_stats.entries %}
+        <table class="table table-sm table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Ключ</th>
+                    <th class="text-end">Возраст (сек)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in cache_stats.entries %}
+                <tr>
+                    <td class="font-monospace small text-truncate" style="max-width:400px">{{ entry.key }}</td>
+                    <td class="text-end">{{ entry.age_seconds }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted mb-0">Кэш пуст</p>
+        {% endif %}
     </div>
 </div>
 

@@ -32,6 +32,12 @@ user base. Four aggregate ratios over the cohort of users with
 All metrics return floats in [0, 100] or absolute averages. When the
 cohort is empty the helpers short-circuit to 0 — callers can rely on a
 non-None payload regardless of rollout state.
+
+Performance note: all helpers use a SQLAlchemy subquery for the cohort
+definition (``SELECT id FROM users WHERE use_linear_plan = TRUE``) rather
+than materialising user IDs into Python. This avoids O(cohort_size)
+chunked IN() round-trips and keeps the query count constant regardless of
+cohort size.
 """
 from __future__ import annotations
 
@@ -54,33 +60,38 @@ from app.utils.db import db
 from app.utils.db_utils import chunk_ids
 
 
-def _cohort_user_ids(session: Any = None) -> list[int]:
-    """Return all user ids that currently have the linear plan enabled."""
-    s = session if session is not None else db.session
-    rows = s.query(User.id).filter(User.use_linear_plan.is_(True)).all()
-    return [row[0] for row in rows]
+def _cohort_subquery(session: Any):
+    """Subquery: SELECT id FROM users WHERE use_linear_plan = TRUE."""
+    return session.query(User.id).filter(User.use_linear_plan.is_(True)).subquery()
+
+
+def _cohort_size(session: Any) -> int:
+    return (
+        session.query(func.count(User.id))
+        .filter(User.use_linear_plan.is_(True))
+        .scalar()
+        or 0
+    )
 
 
 def _today_utc() -> date:
     return datetime.now(timezone.utc).date()
 
 
-def _day_secured_rate(user_ids: list[int], today: date, session: Any) -> float:
-    if not user_ids:
+def _day_secured_rate(cohort_subq: Any, total: int, today: date, session: Any) -> float:
+    if not total:
         return 0.0
-    secured = 0
-    for chunk in chunk_ids(user_ids):
-        secured += (
-            session.query(func.count(DailyPlanLog.id))
-            .filter(
-                DailyPlanLog.user_id.in_(chunk),
-                DailyPlanLog.plan_date == today,
-                DailyPlanLog.secured_at.isnot(None),
-            )
-            .scalar()
-            or 0
+    secured = (
+        session.query(func.count(DailyPlanLog.id))
+        .filter(
+            DailyPlanLog.user_id.in_(cohort_subq),
+            DailyPlanLog.plan_date == today,
+            DailyPlanLog.secured_at.isnot(None),
         )
-    return round(secured / len(user_ids) * 100, 1)
+        .scalar()
+        or 0
+    )
+    return round(secured / total * 100, 1)
 
 
 FOCUS_BUCKETS = ('grammar', 'vocabulary', 'reading', 'all', 'none')
@@ -99,129 +110,111 @@ def _classify_focus(raw: Optional[str]) -> str:
     return 'none'
 
 
-def _per_user_slot_counts(user_ids: list[int], today: date, session: Any) -> dict[int, int]:
-    """Return ``{user_id: slot_count}`` for activity-completed slots today.
+def _active_user_sets(
+    cohort_subq: Any, today: date, session: Any
+) -> tuple[set[int], set[int], set[int], set[int]]:
+    """Return four sets of cohort user IDs active in each slot type today.
 
-    Uses the same proxy signals as ``_average_slots_completed`` (curriculum
-    completion, study session, reading-progress update, error resolved).
+    Uses a single subquery IN() per activity source instead of chunked
+    IN() clauses, giving O(1) query count regardless of cohort size.
     """
-    if not user_ids:
-        return {}
-
-    curriculum_users: set[int] = set()
-    srs_users: set[int] = set()
-    reading_users: set[int] = set()
-    error_users: set[int] = set()
-
-    for chunk in chunk_ids(user_ids):
-        for row in (
-            session.query(LessonProgress.user_id)
-            .filter(
-                LessonProgress.user_id.in_(chunk),
-                LessonProgress.status == 'completed',
-                func.date(LessonProgress.completed_at) == today,
-            )
-            .distinct()
-            .all()
-        ):
-            curriculum_users.add(row[0])
-
-        for row in (
-            session.query(StudySession.user_id)
-            .filter(
-                StudySession.user_id.in_(chunk),
-                func.date(StudySession.start_time) == today,
-            )
-            .distinct()
-            .all()
-        ):
-            srs_users.add(row[0])
-
-        for row in (
-            session.query(UserChapterProgress.user_id)
-            .filter(
-                UserChapterProgress.user_id.in_(chunk),
-                UserChapterProgress.updated_at.isnot(None),
-                func.date(UserChapterProgress.updated_at) == today,
-            )
-            .distinct()
-            .all()
-        ):
-            reading_users.add(row[0])
-
-        # Error-review completion proxy: a resolved_at stamped today.
-        for row in (
-            session.query(QuizErrorLog.user_id)
-            .filter(
-                QuizErrorLog.user_id.in_(chunk),
-                QuizErrorLog.resolved_at.isnot(None),
-                func.date(QuizErrorLog.resolved_at) == today,
-            )
-            .distinct()
-            .all()
-        ):
-            error_users.add(row[0])
-
-    counts: dict[int, int] = {}
-    for uid in user_ids:
-        slots = 0
-        if uid in curriculum_users:
-            slots += 1
-        if uid in srs_users:
-            slots += 1
-        if uid in reading_users:
-            slots += 1
-        if uid in error_users:
-            slots += 1
-        counts[uid] = slots
-    return counts
+    curriculum: set[int] = {
+        row[0]
+        for row in session.query(LessonProgress.user_id)
+        .filter(
+            LessonProgress.user_id.in_(cohort_subq),
+            LessonProgress.status == 'completed',
+            func.date(LessonProgress.completed_at) == today,
+        )
+        .distinct()
+        .all()
+    }
+    srs: set[int] = {
+        row[0]
+        for row in session.query(StudySession.user_id)
+        .filter(
+            StudySession.user_id.in_(cohort_subq),
+            func.date(StudySession.start_time) == today,
+        )
+        .distinct()
+        .all()
+    }
+    reading: set[int] = {
+        row[0]
+        for row in session.query(UserChapterProgress.user_id)
+        .filter(
+            UserChapterProgress.user_id.in_(cohort_subq),
+            UserChapterProgress.updated_at.isnot(None),
+            func.date(UserChapterProgress.updated_at) == today,
+        )
+        .distinct()
+        .all()
+    }
+    error_rev: set[int] = {
+        row[0]
+        for row in session.query(QuizErrorLog.user_id)
+        .filter(
+            QuizErrorLog.user_id.in_(cohort_subq),
+            QuizErrorLog.resolved_at.isnot(None),
+            func.date(QuizErrorLog.resolved_at) == today,
+        )
+        .distinct()
+        .all()
+    }
+    return curriculum, srs, reading, error_rev
 
 
 def _average_slots_completed(
-    user_ids: list[int],
-    today: date,
-    session: Any,
-    slot_counts: Optional[dict[int, int]] = None,
+    total: int,
+    active_sets: tuple[set[int], set[int], set[int], set[int]],
 ) -> float:
-    """Proxy: count activity-completed baseline slots per user, average."""
-    if not user_ids:
+    """Compute average slots completed from pre-fetched active-user sets."""
+    if not total:
         return 0.0
-    counts = slot_counts if slot_counts is not None else _per_user_slot_counts(user_ids, today, session)
-    total = sum(counts.values())
-    return round(total / len(user_ids), 2)
+    curriculum, srs, reading, error_rev = active_sets
+    total_slots = len(curriculum) + len(srs) + len(reading) + len(error_rev)
+    return round(total_slots / total, 2)
 
 
 def _focus_distribution_and_avg_slots(
-    user_ids: list[int],
+    cohort_subq: Any,
     today: date,
     session: Any,
-    slot_counts: Optional[dict[int, int]] = None,
+    active_sets: Optional[tuple[set[int], set[int], set[int], set[int]]] = None,
 ) -> tuple[dict[str, int], dict[str, float]]:
-    """Return (counts_per_focus, avg_slots_per_focus) over the cohort."""
+    """Return (counts_per_focus, avg_slots_per_focus) over the cohort.
+
+    Fetches (user_id, onboarding_focus) for the whole cohort in a single
+    query, then classifies each user into a focus bucket. Active-user sets
+    are reused from ``active_sets`` when provided to avoid duplicate queries.
+    """
     counts: dict[str, int] = {bucket: 0 for bucket in FOCUS_BUCKETS}
     sums: dict[str, int] = {bucket: 0 for bucket in FOCUS_BUCKETS}
     averages: dict[str, float] = {bucket: 0.0 for bucket in FOCUS_BUCKETS}
 
-    if not user_ids:
+    cohort_rows = (
+        session.query(User.id, User.onboarding_focus)
+        .filter(User.use_linear_plan.is_(True))
+        .all()
+    )
+    if not cohort_rows:
         return counts, averages
 
-    user_focus: dict[int, str] = {}
-    for chunk in chunk_ids(user_ids):
-        rows = (
-            session.query(User.id, User.onboarding_focus)
-            .filter(User.id.in_(chunk))
-            .all()
-        )
-        for uid, raw in rows:
-            user_focus[int(uid)] = _classify_focus(raw)
+    if active_sets is None:
+        active_sets = _active_user_sets(cohort_subq, today, session)
 
-    if slot_counts is None:
-        slot_counts = _per_user_slot_counts(user_ids, today, session)
+    curriculum_users, srs_users, reading_users, error_users = active_sets
 
-    for uid in user_ids:
-        bucket = user_focus.get(uid, 'none')
+    for uid, raw_focus in cohort_rows:
+        bucket = _classify_focus(raw_focus)
         counts[bucket] += 1
-        sums[bucket] += slot_counts.get(uid, 0)
+        slot_count = (
+            (1 if uid in curriculum_users else 0)
+            + (1 if uid in srs_users else 0)
+            + (1 if uid in reading_users else 0)
+            + (1 if uid in error_users else 0)
+        )
+        sums[bucket] += slot_count
 
     for bucket, n in counts.items():
         if n > 0:
@@ -229,36 +222,34 @@ def _focus_distribution_and_avg_slots(
     return counts, averages
 
 
-def _triggered_user_ids(user_ids: list[int], session: Any) -> set[int]:
+def _triggered_user_ids(cohort_subq: Any, session: Any) -> set[int]:
     """Replicate the trigger SQL-side: ≥5 unresolved AND cooldown elapsed.
 
     Cooldown matches ``should_show_error_review`` — dynamic tiers via
     ``get_review_cooldown`` (3d default, 1d at ≥15 unresolved, 12h at ≥25).
-    """
-    if not user_ids:
-        return set()
 
+    Uses a single subquery IN() to scan QuizErrorLog for the full cohort,
+    then applies the time-based cooldown logic in Python.
+    """
     now = datetime.now(timezone.utc)
 
     unresolved_expr = func.sum(
         case((QuizErrorLog.resolved_at.is_(None), 1), else_=0)
     ).label('unresolved')
 
-    per_user = []
-    for chunk in chunk_ids(user_ids):
-        per_user.extend(
-            session.query(
-                QuizErrorLog.user_id.label('uid'),
-                unresolved_expr,
-                func.max(QuizErrorLog.resolved_at).label('last_resolved'),
-            )
-            .filter(QuizErrorLog.user_id.in_(chunk))
-            .group_by(QuizErrorLog.user_id)
-            .all()
+    rows = (
+        session.query(
+            QuizErrorLog.user_id.label('uid'),
+            unresolved_expr,
+            func.max(QuizErrorLog.resolved_at).label('last_resolved'),
         )
+        .filter(QuizErrorLog.user_id.in_(cohort_subq))
+        .group_by(QuizErrorLog.user_id)
+        .all()
+    )
 
     triggered: set[int] = set()
-    for row in per_user:
+    for row in rows:
         unresolved = int(row.unresolved or 0)
         if unresolved < REVIEW_TRIGGER_MIN_UNRESOLVED:
             continue
@@ -274,15 +265,17 @@ def _triggered_user_ids(user_ids: list[int], session: Any) -> set[int]:
     return triggered
 
 
-def _error_review_trigger_rate(user_ids: list[int], session: Any) -> float:
-    if not user_ids:
+def _error_review_trigger_rate(
+    cohort_subq: Any, total: int, session: Any
+) -> float:
+    if not total:
         return 0.0
-    triggered = _triggered_user_ids(user_ids, session)
-    return round(len(triggered) / len(user_ids) * 100, 1)
+    triggered = _triggered_user_ids(cohort_subq, session)
+    return round(len(triggered) / total * 100, 1)
 
 
 def _error_review_qualified_user_ids(
-    user_ids: list[int],
+    cohort_subq: Any,
     today: date,
     session: Any,
 ) -> set[int]:
@@ -293,42 +286,39 @@ def _error_review_qualified_user_ids(
     and were either still unresolved or resolved during today. Rows created
     today are excluded — they were not part of the start-of-day backlog,
     even if they were resolved on the same day.
+
+    Uses a single subquery IN() over the full cohort.
     """
-    if not user_ids:
-        return set()
     qualified: set[int] = set()
-    for chunk in chunk_ids(user_ids):
-        rows = (
-            session.query(
-                QuizErrorLog.user_id,
-                func.count().label('start_of_day'),
-            )
-            .filter(
-                QuizErrorLog.user_id.in_(chunk),
-                func.date(QuizErrorLog.created_at) < today,
-                case(
-                    (QuizErrorLog.resolved_at.is_(None), True),
-                    else_=func.date(QuizErrorLog.resolved_at) >= today,
-                ),
-            )
-            .group_by(QuizErrorLog.user_id)
-            .all()
+    rows = (
+        session.query(
+            QuizErrorLog.user_id,
+            func.count().label('start_of_day'),
         )
-        for uid, start_of_day in rows:
-            if int(start_of_day or 0) >= REVIEW_TRIGGER_MIN_UNRESOLVED:
-                qualified.add(int(uid))
+        .filter(
+            QuizErrorLog.user_id.in_(cohort_subq),
+            func.date(QuizErrorLog.created_at) < today,
+            case(
+                (QuizErrorLog.resolved_at.is_(None), True),
+                else_=func.date(QuizErrorLog.resolved_at) >= today,
+            ),
+        )
+        .group_by(QuizErrorLog.user_id)
+        .all()
+    )
+    for uid, start_of_day in rows:
+        if int(start_of_day or 0) >= REVIEW_TRIGGER_MIN_UNRESOLVED:
+            qualified.add(int(uid))
     return qualified
 
 
 def _error_review_completion_rate(
-    user_ids: list[int],
+    cohort_subq: Any,
     today: date,
     session: Any,
 ) -> float:
     """Fraction of qualified users who resolved at least one error today."""
-    if not user_ids:
-        return 0.0
-    qualified = _error_review_qualified_user_ids(user_ids, today, session)
+    qualified = _error_review_qualified_user_ids(cohort_subq, today, session)
     if not qualified:
         return 0.0
 
@@ -352,7 +342,7 @@ def _error_review_completion_rate(
 
 
 def _reading_gate_completion_rate(
-    user_ids: list[int], today: date, session: Any
+    cohort_subq: Any, total: int, today: date, session: Any
 ) -> float:
     """Fraction of cohort that earned ``linear_book_reading`` XP today.
 
@@ -360,67 +350,85 @@ def _reading_gate_completion_rate(
     gate (≥5% chapter delta AND ≥60s reading time) was satisfied at least
     once today.
     """
-    if not user_ids:
+    if not total:
         return 0.0
 
     from app.achievements.models import StreakEvent
 
-    completed = 0
-    for chunk in chunk_ids(user_ids):
-        rows = (
-            session.query(StreakEvent.user_id)
-            .filter(
-                StreakEvent.user_id.in_(chunk),
-                StreakEvent.event_type == 'xp_linear',
-                StreakEvent.event_date == today,
-                StreakEvent.details['source'].astext == 'linear_book_reading',
-            )
-            .distinct()
-            .all()
+    completed = (
+        session.query(func.count(func.distinct(StreakEvent.user_id)))
+        .filter(
+            StreakEvent.user_id.in_(cohort_subq),
+            StreakEvent.event_type == 'xp_linear',
+            StreakEvent.event_date == today,
+            StreakEvent.details['source'].astext == 'linear_book_reading',
         )
-        completed += len(rows)
-    return round(completed / len(user_ids) * 100, 1)
+        .scalar()
+        or 0
+    )
+    return round(completed / total * 100, 1)
 
 
-def _book_select_rate(user_ids: list[int], session: Any) -> float:
-    if not user_ids:
+def _book_select_rate(cohort_subq: Any, total: int, session: Any) -> float:
+    if not total:
         return 0.0
-    selected = 0
-    for chunk in chunk_ids(user_ids):
-        selected += (
-            session.query(func.count(UserReadingPreference.user_id))
-            .filter(UserReadingPreference.user_id.in_(chunk))
-            .scalar()
-            or 0
-        )
-    return round(selected / len(user_ids) * 100, 1)
+    selected = (
+        session.query(func.count(UserReadingPreference.user_id))
+        .filter(UserReadingPreference.user_id.in_(cohort_subq))
+        .scalar()
+        or 0
+    )
+    return round(selected / total * 100, 1)
 
 
 def get_linear_plan_metrics(session: Any = None, today: Optional[date] = None) -> dict:
     """Aggregate linear-plan metrics for the admin dashboard.
 
-    Returns a dict with four ratios plus ``cohort_size`` for context. All
+    Returns a dict with ratios plus ``cohort_size`` for context. All
     ratios default to 0.0 when the cohort is empty so the dashboard
     template can render unconditionally.
+
+    All queries use a cohort subquery (``SELECT id FROM users WHERE
+    use_linear_plan = TRUE``) so query count is O(1), not O(cohort / 1000).
     """
     s = session if session is not None else db.session
     eval_date = today if today is not None else _today_utc()
-    user_ids = _cohort_user_ids(s)
-    slot_counts = _per_user_slot_counts(user_ids, eval_date, s)
+
+    cohort_subq = _cohort_subquery(s)
+    total = _cohort_size(s)
+
+    if total == 0:
+        empty: dict[str, int] = {b: 0 for b in FOCUS_BUCKETS}
+        empty_avg: dict[str, float] = {b: 0.0 for b in FOCUS_BUCKETS}
+        return {
+            'cohort_size': 0,
+            'day_secured_rate': 0.0,
+            'average_slots_completed': 0.0,
+            'error_review_trigger_rate': 0.0,
+            'error_review_completion_rate': 0.0,
+            'book_select_rate': 0.0,
+            'reading_gate_completion_rate': 0.0,
+            'focus_distribution': empty,
+            'focus_average_slots': empty_avg,
+        }
+
+    active_sets = _active_user_sets(cohort_subq, eval_date, s)
     focus_counts, focus_avg_slots = _focus_distribution_and_avg_slots(
-        user_ids, eval_date, s, slot_counts=slot_counts
+        cohort_subq, eval_date, s, active_sets=active_sets
     )
 
     return {
-        'cohort_size': len(user_ids),
-        'day_secured_rate': _day_secured_rate(user_ids, eval_date, s),
-        'average_slots_completed': _average_slots_completed(
-            user_ids, eval_date, s, slot_counts=slot_counts
+        'cohort_size': total,
+        'day_secured_rate': _day_secured_rate(cohort_subq, total, eval_date, s),
+        'average_slots_completed': _average_slots_completed(total, active_sets),
+        'error_review_trigger_rate': _error_review_trigger_rate(cohort_subq, total, s),
+        'error_review_completion_rate': _error_review_completion_rate(
+            cohort_subq, eval_date, s
         ),
-        'error_review_trigger_rate': _error_review_trigger_rate(user_ids, s),
-        'error_review_completion_rate': _error_review_completion_rate(user_ids, eval_date, s),
-        'book_select_rate': _book_select_rate(user_ids, s),
-        'reading_gate_completion_rate': _reading_gate_completion_rate(user_ids, eval_date, s),
+        'book_select_rate': _book_select_rate(cohort_subq, total, s),
+        'reading_gate_completion_rate': _reading_gate_completion_rate(
+            cohort_subq, total, eval_date, s
+        ),
         'focus_distribution': focus_counts,
         'focus_average_slots': focus_avg_slots,
     }

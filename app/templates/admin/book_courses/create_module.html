@@ -4,7 +4,7 @@
 {% block title %}Create Course Module{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Book Courses', url_for('admin.book_courses')), (course.title|truncate(20), url_for('admin.view_book_course', course_id=course.id)), ('Create Module', '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Book Courses', url_for('admin.book_courses')), (course.title|truncate(20), url_for('admin.view_book_course', course_id=course.id)), ('Create Module', '')]) }}
 {% endblock %}
 
 {% block content %}

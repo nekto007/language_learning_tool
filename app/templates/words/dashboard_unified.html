@@ -89,7 +89,7 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
             {% set earned_in_cat = items|selectattr('earned')|list|length %}
             {% set total_in_cat = items|length %}
             {% set pct = (earned_in_cat / total_in_cat * 100)|round|int if total_in_cat > 0 else 0 %}
-            <div class="dash-achievements__cat">
+            <div class="dash-achievements__cat" title="{{ category }}: {{ earned_in_cat }} из {{ total_in_cat }} достижений">
               <div class="dash-achievements__ring" style="--pct: {{ pct }}">
                 <svg viewBox="0 0 36 36" class="dash-achievements__svg">
                   <circle cx="18" cy="18" r="15.9" class="dash-achievements__track"></circle>
@@ -101,6 +101,34 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
             </div>
           {% endfor %}
         </div>
+        {% set next_achievements = [] %}
+        {% for category, items in achievements_by_category.by_category.items() %}
+          {% for item in items if not item.earned %}
+            {% if next_achievements.append(item) %}{% endif %}
+          {% endfor %}
+        {% endfor %}
+        {% if next_achievements %}
+        <div class="dash-achievements__next">
+          <h4 class="dash-achievements__next-title">Следующие цели</h4>
+          {% for item in next_achievements[:4] %}
+            {% set ach = item.achievement %}
+            {% set ach_desc = ach.description or 'Описание пока не добавлено' %}
+            <div class="dash-achievements__goal"
+                 tabindex="0"
+                 title="{{ ach.name }} — {{ ach_desc }}"
+                 aria-label="{{ ach.name }}. {{ ach_desc }}">
+              <span class="dash-achievements__goal-icon" aria-hidden="true">{{ ach.icon or '🏆' }}</span>
+              <span class="dash-achievements__goal-copy">
+                <span class="dash-achievements__goal-name">{{ ach.name }}</span>
+                <span class="dash-achievements__goal-desc">{{ ach_desc }}</span>
+              </span>
+              {% if ach.xp_reward %}
+              <span class="dash-achievements__goal-xp">+{{ ach.xp_reward }} XP</span>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+        {% endif %}
       </div>
       {% endif %}
     </div>

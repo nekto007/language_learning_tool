@@ -236,3 +236,24 @@ class TestActivityRoutes:
         call_kwargs = mock_fn.call_args[1]
         assert call_kwargs.get('date_from') == datetime(2026, 5, 1)
         assert call_kwargs.get('date_to') == datetime(2026, 5, 31)
+
+    def test_activity_page_capped_to_max(self, client, mock_admin_user):
+        """page=99999 is capped to _MAX_PAGE to bound per-source LIMIT/OFFSET."""
+        from app.admin.routes.activity_routes import _MAX_PAGE, _PER_PAGE
+
+        with patch('app.admin.routes.activity_routes.get_recent_events', return_value=[]) as mock_fn:
+            response = client.get('/admin/activity?page=99999')
+
+        assert response.status_code == 200
+        call_kwargs = mock_fn.call_args[1]
+        # offset must equal (capped_page - 1) * per_page, not 99998 * per_page
+        expected_offset = (_MAX_PAGE - 1) * _PER_PAGE
+        assert call_kwargs.get('offset') == expected_offset
+
+    def test_activity_page_negative_clamped_to_one(self, client, mock_admin_user):
+        with patch('app.admin.routes.activity_routes.get_recent_events', return_value=[]) as mock_fn:
+            response = client.get('/admin/activity?page=-5')
+
+        assert response.status_code == 200
+        call_kwargs = mock_fn.call_args[1]
+        assert call_kwargs.get('offset') == 0

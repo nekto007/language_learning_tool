@@ -2,7 +2,19 @@
 
 """
 Grammar Lab Admin Routes
-CRUD операции для управления грамматическими темами и упражнениями
+
+Маршруты сгруппированы по доменам через `# region`-комментарии:
+
+* TOPICS — CRUD по `GrammarTopic` (index, list, create, edit, delete).
+* EXERCISES — CRUD по `GrammarExercise` (create/edit/delete).
+* IMPORT — массовые операции импорта тем из curriculum-модулей и упражнений
+  из сгенерированных JSON-файлов.
+* API — read-only JSON-эндпоинты для админ-инструментов и автотестов.
+
+Cascade-deletion упражнений (lapses/attempts/SRS-rows) обеспечивается
+миграцией `20260425_grammar_exercise_cascade` (PostgreSQL) и
+`ondelete='CASCADE'` в `GrammarExercise`, `UserGrammarExercise`,
+`GrammarAttempt`. Не дублируем ручные `delete()` по дочерним таблицам.
 """
 import json
 import logging
@@ -22,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 ALLOWED_LEVELS = ('A1', 'A2', 'B1', 'B2', 'C1')
 
+
+# region TOPICS ===============================================================
 
 @grammar_lab_bp.route('/grammar-lab')
 @admin_required
@@ -103,6 +117,13 @@ def create_topic():
                 difficulty=difficulty
             )
             db.session.add(topic)
+            db.session.flush()
+            log_admin_action(
+                admin_id=current_user.id,
+                action='grammar_topic.create',
+                target_type='grammar_topic',
+                target_id=topic.id,
+            )
             db.session.commit()
 
             flash(f'Topic "{title}" created successfully!', 'success')
@@ -149,6 +170,12 @@ def edit_topic(topic_id):
             except json.JSONDecodeError:
                 logger.warning("Invalid JSON in grammar topic content, keeping existing")
 
+            log_admin_action(
+                admin_id=current_user.id,
+                action='grammar_topic.update',
+                target_type='grammar_topic',
+                target_id=topic_id,
+            )
             db.session.commit()
             flash('Topic updated successfully!', 'success')
 
@@ -181,20 +208,26 @@ def delete_topic(topic_id):
         db.session.delete(topic)
         log_admin_action(
             admin_id=current_user.id,
-            action='delete_grammar_topic',
-            target_type='GrammarTopic',
+            action='grammar_topic.delete',
+            target_type='grammar_topic',
             target_id=topic_id,
         )
         db.session.commit()
         flash(f'Topic "{title}" deleted successfully!', 'success')
     except Exception as e:
         db.session.rollback()
+        logger.error(
+            "Failed to delete grammar topic: admin_id=%s topic_id=%s error=%s",
+            current_user.id, topic_id, e, exc_info=True,
+        )
         flash(f'Error deleting topic: {str(e)}', 'danger')
 
     return redirect(url_for('grammar_lab_admin.topic_list'))
 
 
-# ============ Exercise Routes ============
+# endregion TOPICS
+
+# region EXERCISES ============================================================
 
 @grammar_lab_bp.route('/grammar-lab/topics/<int:topic_id>/exercises/create', methods=['GET', 'POST'])
 @admin_required
@@ -224,6 +257,13 @@ def create_exercise(topic_id):
                 order=order
             )
             db.session.add(exercise)
+            db.session.flush()
+            log_admin_action(
+                admin_id=current_user.id,
+                action='grammar_exercise.create',
+                target_type='grammar_exercise',
+                target_id=exercise.id,
+            )
             db.session.commit()
 
             flash('Exercise created successfully!', 'success')
@@ -265,12 +305,22 @@ def edit_exercise(exercise_id):
                 flash(f'Invalid exercise content: {ve}', 'danger')
                 return render_template('admin/grammar_lab/exercise_form.html', topic=topic, exercise=exercise)
 
+            log_admin_action(
+                admin_id=current_user.id,
+                action='grammar_exercise.update',
+                target_type='grammar_exercise',
+                target_id=exercise_id,
+            )
             db.session.commit()
             flash('Exercise updated successfully!', 'success')
             return redirect(url_for('grammar_lab_admin.edit_topic', topic_id=topic.id))
 
         except Exception as e:
             db.session.rollback()
+            logger.error(
+                "Failed to update grammar exercise: admin_id=%s exercise_id=%s error=%s",
+                current_user.id, exercise_id, e, exc_info=True,
+            )
             flash(f'Error updating exercise: {str(e)}', 'danger')
 
     return render_template('admin/grammar_lab/exercise_form.html', topic=topic, exercise=exercise)
@@ -285,17 +335,23 @@ def delete_exercise(exercise_id):
 
     try:
         db.session.delete(exercise)
-        log_admin_action(current_user.id, 'grammar_lab.delete_exercise', target_type='grammar_exercise', target_id=exercise_id)
+        log_admin_action(current_user.id, 'grammar_exercise.delete', target_type='grammar_exercise', target_id=exercise_id)
         db.session.commit()
         flash('Exercise deleted successfully!', 'success')
     except Exception as e:
         db.session.rollback()
+        logger.error(
+            "Failed to delete grammar exercise: admin_id=%s exercise_id=%s error=%s",
+            current_user.id, exercise_id, e, exc_info=True,
+        )
         flash(f'Error deleting exercise: {str(e)}', 'danger')
 
     return redirect(url_for('grammar_lab_admin.edit_topic', topic_id=topic_id))
 
 
-# ============ Import from Modules ============
+# endregion EXERCISES
+
+# region IMPORT ===============================================================
 
 @grammar_lab_bp.route('/grammar-lab/import-from-modules', methods=['GET', 'POST'])
 @admin_required
@@ -503,6 +559,12 @@ def import_from_modules():
                         db.session.add(exercise)
                         exercises_imported += 1
 
+            if imported or skipped or exercises_imported:
+                log_admin_action(
+                    current_user.id,
+                    'grammar_topic.import_from_modules',
+                    target_type='grammar_topic',
+                )
             db.session.commit()
             sync_msg = f', синхронизировано прогрессов: {total_synced}' if total_synced else ''
             flash(f'Создано: {imported} тем, обновлено: {skipped} тем, упражнений: {exercises_imported}{sync_msg}', 'success')
@@ -570,8 +632,6 @@ def import_from_modules():
         modules_with_grammar=modules_with_grammar
     )
 
-
-# ============ Import Exercises from JSON ============
 
 def _candidate_topic_slugs(data: dict, filename: str) -> list[str]:
     """Return possible GrammarTopic slugs for generated extra exercise files."""
@@ -661,6 +721,13 @@ def _import_exercises_json_file(file, deleted_topic_ids: set[int]) -> tuple[bool
                 db.session.add(exercise)
                 exercises_imported += 1
 
+        if exercises_imported or deleted:
+            log_admin_action(
+                current_user.id,
+                'grammar_exercise.import_json',
+                target_type='grammar_topic',
+                target_id=topic.id,
+            )
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -709,7 +776,9 @@ def import_exercises_json():
     return render_template('admin/grammar_lab/import_exercises_json.html')
 
 
-# ============ API Endpoints ============
+# endregion IMPORT
+
+# region API ==================================================================
 
 @grammar_lab_bp.route('/grammar-lab/api/topics', methods=['GET'])
 @admin_required
@@ -727,3 +796,5 @@ def api_topic_exercises(topic_id):
         GrammarExercise.order
     ).all()
     return jsonify([e.to_dict() for e in exercises])
+
+# endregion API

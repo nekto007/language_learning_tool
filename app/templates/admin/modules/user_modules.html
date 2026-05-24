@@ -4,7 +4,7 @@
 {% block title %}Модули пользователя{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Users', url_for('user_admin.users')), (user.username, ''), ('Modules', '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Users', url_for('user_admin.users')), (user.username, ''), ('Modules', '')]) }}
 {% endblock %}
 
 {% block content %}

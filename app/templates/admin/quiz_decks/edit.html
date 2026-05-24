@@ -4,7 +4,7 @@
 {% block title %}Редактировать: {{ deck.title }}{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Quiz Decks', url_for('admin.quiz_decks_list')), (deck.title|truncate(20), url_for('admin.quiz_deck_view', deck_id=deck.id)), ('Edit', '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Quiz Decks', url_for('admin.quiz_decks_list')), (deck.title|truncate(20), url_for('admin.quiz_deck_view', deck_id=deck.id)), ('Edit', '')]) }}
 {% endblock %}
 
 {% block content %}

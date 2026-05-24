@@ -4,7 +4,7 @@
 {% block title %}Edit Course Module{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Book Courses', url_for('admin.book_courses')), (course.title|truncate(20), url_for('admin.view_book_course', course_id=course.id)), ('Edit Module ' ~ module.module_number, '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Book Courses', url_for('admin.book_courses')), (course.title|truncate(20), url_for('admin.view_book_course', course_id=course.id)), ('Edit Module ' ~ module.module_number, '')]) }}
 {% endblock %}
 
 {% block content %}

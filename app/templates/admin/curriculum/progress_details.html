@@ -1,6 +1,15 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import breadcrumb %}
 
 {% block title %}Progress Details - {{ user.username }}{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Dashboard', url_for('dashboard_admin.dashboard')),
+    ('Учебный план', url_for('admin_curriculum.curriculum')),
+    ('Прогресс', '')
+]) }}
+{% endblock %}
                                 Module {{ module.number }}: {{ module.title }}
                             </dd>
 

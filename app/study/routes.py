@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_babel import gettext as _
@@ -460,6 +460,22 @@ def _get_custom_list_word_ids(list_id: int, user_id: int):
     return [w.id for w in matched]
 
 
+def _reset_flashcard_attempts_for_new_session(user_id: int, word_ids=None) -> None:
+    """Start a browser flashcard session with a fresh per-session attempt count."""
+    try:
+        from app.srs.service import unified_srs_service
+
+        unified_srs_service.reset_session_attempts(user_id, word_ids=word_ids)
+    except SQLAlchemyError as exc:
+        db.session.rollback()
+        logger.exception(
+            "Failed to reset flashcard session attempts user=%s word_ids=%s: %s",
+            user_id,
+            "scoped" if word_ids else "all",
+            exc,
+        )
+
+
 @study.route('/cards')
 @login_required
 @module_required('study')
@@ -498,6 +514,7 @@ def cards():
     else:
         counts = SRSService.get_card_counts(current_user.id, deck_word_ids=deck_word_ids)
 
+    _reset_flashcard_attempts_for_new_session(current_user.id, word_ids=deck_word_ids)
     session = SessionService.start_session(current_user.id, 'cards')
 
     return render_template(
@@ -554,6 +571,8 @@ def cards_deck(deck_id):
 
     settings = StudySettings.get_settings(current_user.id)
     counts = SRSService.get_card_counts(current_user.id, deck_word_ids)
+
+    _reset_flashcard_attempts_for_new_session(current_user.id, word_ids=deck_word_ids)
 
     deck.times_played += 1
     db.session.commit()

@@ -1,6 +1,15 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import breadcrumb %}
 
 {% block title %}Curriculum Overview{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Dashboard', url_for('dashboard_admin.dashboard')),
+    ('Учебный план', url_for('admin_curriculum.curriculum')),
+    ('Обзор', '')
+]) }}
+{% endblock %}
 
 {% block content %}
             <div class="stat-label">Modules</div>

@@ -4,7 +4,7 @@
 {% block title %}Управление базой данных{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Главная', url_for('admin.dashboard')), ('База данных', '')]) }}
+{{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('База данных', '')]) }}
 {% endblock %}
 
 {% block content %}
@@ -233,24 +233,31 @@
                 <h5 class="modal-title" id="initDbModalLabel">Инициализация базы данных</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <strong>Внимание!</strong> 
-                    Эта операция создаст недостающие таблицы и схемы в базе данных. 
-                    Убедитесь, что база данных доступна и у вас есть права администратора.
-                </div>
-                <p>Вы уверены, что хотите инициализировать базу данных?</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <form method="POST" action="{{ url_for('system_admin.init_database') }}" class="d-inline">
+            <form method="POST" action="{{ url_for('system_admin.init_database') }}" id="initDbForm">
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Внимание!</strong>
+                        Эта операция создаст недостающие таблицы и схемы в базе данных.
+                        Убедитесь, что база данных доступна и у вас есть права администратора.
+                    </div>
+                    <p>Для подтверждения введите <code>{{ init_db_confirm }}</code> в поле ниже:</p>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="text"
+                           name="confirm"
+                           class="form-control"
+                           autocomplete="off"
+                           placeholder="{{ init_db_confirm }}"
+                           required
+                           pattern="{{ init_db_confirm }}"/>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                     <button type="submit" class="btn btn-warning">
                         <i class="fas fa-database"></i> Инициализировать
                     </button>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>

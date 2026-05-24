@@ -20,45 +20,50 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <a href="#main-content" class="skip-to-content">Перейти к содержимому</a>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Header -->
     <header class="admin-header">
-        <button class="sidebar-toggle" onclick="toggleSidebar()">
-            <i class="fas fa-bars"></i>
+        <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Открыть меню навигации" aria-expanded="false" aria-controls="sidebar">
+            <i class="fas fa-bars" aria-hidden="true"></i>
         </button>
 
-        <a href="{{ url_for('admin.dashboard') }}" class="header-brand">
-            <img src="{{ url_for('static', filename='media/logo_mini.png') }}" alt="Logo">
+        <a href="{{ url_for('dashboard_admin.dashboard') }}" class="header-brand" aria-label="LLT Admin — на главную">
+            <img src="{{ url_for('static', filename='media/logo_mini.png') }}" alt="">
             <span>LLT Admin</span>
         </a>
 
         <!-- Global Search -->
-        <div class="admin-search-container">
+        <div class="admin-search-container" role="search">
+            <label for="admin-global-search" class="visually-hidden">Поиск по панели управления</label>
             <div class="admin-search-input-wrapper">
-                <i class="fas fa-search admin-search-icon"></i>
+                <i class="fas fa-search admin-search-icon" aria-hidden="true"></i>
                 <input type="text"
                        id="admin-global-search"
                        class="admin-search-input"
-                       placeholder="Поиск... (⌘K)"
-                       autocomplete="off">
-                <kbd class="admin-search-kbd">⌘K</kbd>
+                       placeholder="Поиск..."
+                       autocomplete="off"
+                       aria-autocomplete="list"
+                       aria-controls="admin-search-results"
+                       aria-expanded="false">
+                <kbd class="admin-search-kbd" aria-label="Горячая клавиша: Ctrl+K или Cmd+K">⌘K</kbd>
             </div>
-            <div id="admin-search-results" class="admin-search-results"></div>
+            <div id="admin-search-results" class="admin-search-results" role="listbox" aria-label="Результаты поиска"></div>
         </div>
 
         <div class="header-actions">
-            <a href="{{ url_for('words.dashboard') }}" class="btn btn-sm btn-outline-primary" target="_blank">
-                <i class="fas fa-external-link-alt me-1"></i> На сайт
+            <a href="{{ url_for('words.dashboard') }}" class="btn btn-sm btn-outline-primary" target="_blank" aria-label="Открыть сайт в новой вкладке">
+                <i class="fas fa-external-link-alt me-1" aria-hidden="true"></i> На сайт
             </a>
 
             <div class="dropdown">
-                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <i class="fas fa-user-circle me-1"></i> {{ current_user.username }}
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Меню пользователя {{ current_user.username }}">
+                    <i class="fas fa-user-circle me-1" aria-hidden="true"></i> {{ current_user.username }}
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
-                        <i class="fas fa-sign-out-alt me-2"></i> Выход
+                        <i class="fas fa-sign-out-alt me-2" aria-hidden="true"></i> Выход
                     </a></li>
                 </ul>
             </div>
@@ -66,160 +71,160 @@
     </header>
 
     <!-- Sidebar -->
-    <nav class="admin-sidebar" id="sidebar">
+    <nav class="admin-sidebar" id="sidebar" aria-label="Основная навигация">
         <div class="sidebar-nav">
             <div class="nav-section" data-section="main">
-                <div class="nav-section-title" onclick="toggleNavSection('main')">
+                <button class="nav-section-title" type="button" onclick="toggleNavSection('main')" aria-expanded="true" aria-controls="nav-content-main">
                     <span>Главное</span>
-                    <i class="fas fa-chevron-down nav-section-chevron"></i>
-                </div>
-                <div class="nav-section-content">
-                    <a href="{{ url_for('admin.dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.dashboard' }}">
-                        <i class="fas fa-home"></i>
+                    <i class="fas fa-chevron-down nav-section-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="nav-section-content" id="nav-content-main">
+                    <a href="{{ url_for('dashboard_admin.dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard_admin.dashboard' }}" {{ 'aria-current="page"' if request.endpoint == 'dashboard_admin.dashboard' }}>
+                        <i class="fas fa-home" aria-hidden="true"></i>
                         <span>Главная</span>
                     </a>
-                    <a href="{{ url_for('user_admin.users') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.users' }}">
-                        <i class="fas fa-users"></i>
+                    <a href="{{ url_for('user_admin.users') }}" class="nav-link {{ 'active' if request.endpoint == 'user_admin.users' }}">
+                        <i class="fas fa-users" aria-hidden="true"></i>
                         <span>Пользователи</span>
                     </a>
-                    <a href="{{ url_for('user_admin.stats') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.stats' }}">
-                        <i class="fas fa-chart-bar"></i>
+                    <a href="{{ url_for('user_admin.stats') }}" class="nav-link {{ 'active' if request.endpoint == 'user_admin.stats' }}">
+                        <i class="fas fa-chart-bar" aria-hidden="true"></i>
                         <span>Статистика</span>
                     </a>
                 </div>
             </div>
 
             <div class="nav-section" data-section="content">
-                <div class="nav-section-title" onclick="toggleNavSection('content')">
+                <button class="nav-section-title" type="button" onclick="toggleNavSection('content')" aria-expanded="true" aria-controls="nav-content-content">
                     <span>Контент</span>
-                    <i class="fas fa-chevron-down nav-section-chevron"></i>
-                </div>
-                <div class="nav-section-content">
-                <a href="{{ url_for('admin_curriculum.curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.curriculum' }}">
-                    <i class="fas fa-graduation-cap"></i>
+                    <i class="fas fa-chevron-down nav-section-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="nav-section-content" id="nav-content-content">
+                <a href="{{ url_for('admin_curriculum.curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin_curriculum.curriculum' }}">
+                    <i class="fas fa-graduation-cap" aria-hidden="true"></i>
                     <span>Учебный план</span>
                 </a>
                 <a href="{{ url_for('admin_curriculum.level_list') }}"
-                   class="nav-link ps-5 {{ 'active' if request.endpoint.startswith('admin.level_list') }}">
-                    <i class="fas fa-book-open"></i>
+                   class="nav-link ps-5 {{ 'active' if request.endpoint.startswith('admin_curriculum.level_list') }}">
+                    <i class="fas fa-book-open" aria-hidden="true"></i>
                     <span>Уровни</span>
                 </a>
                 <!-- Подразделы для Curriculum -->
                 <a href="{{ url_for('admin_curriculum.module_list') }}"
-                   class="nav-link ps-5 {{ 'active' if request.endpoint.startswith('admin.module_list') }}">
-                    <i class="fas fa-book-open"></i>
+                   class="nav-link ps-5 {{ 'active' if request.endpoint.startswith('admin_curriculum.module_list') }}">
+                    <i class="fas fa-book-open" aria-hidden="true"></i>
                     <span>Модули</span>
                 </a>
                 <a href="{{ url_for('admin_curriculum.lesson_list') }}"
-                   class="nav-link ps-5 {{ 'active' if request.endpoint == 'admin.lesson_list' }}">
-                    <i class="fas fa-file-alt"></i>
+                   class="nav-link ps-5 {{ 'active' if request.endpoint == 'admin_curriculum.lesson_list' }}">
+                    <i class="fas fa-file-alt" aria-hidden="true"></i>
                     <span>Уроки</span>
                 </a>
-                <a href="{{ url_for('topic_admin.topic_list') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.topic_list' }}">
-                    <i class="fas fa-tags"></i>
+                <a href="{{ url_for('topic_admin.topic_list') }}" class="nav-link {{ 'active' if request.endpoint == 'topic_admin.topic_list' }}">
+                    <i class="fas fa-tags" aria-hidden="true"></i>
                     <span>Темы</span>
                 </a>
-                <a href="{{ url_for('collection_admin.collection_list') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.collection_list' }}">
-                    <i class="fas fa-layer-group"></i>
+                <a href="{{ url_for('collection_admin.collection_list') }}" class="nav-link {{ 'active' if request.endpoint == 'collection_admin.collection_list' }}">
+                    <i class="fas fa-layer-group" aria-hidden="true"></i>
                     <span>Коллекции</span>
                 </a>
-                <a href="{{ url_for('word_admin.word_management') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.word_') }}">
-                    <i class="fas fa-spell-check"></i>
+                <a href="{{ url_for('word_admin.word_management') }}" class="nav-link {{ 'active' if request.endpoint.startswith('word_admin.') }}">
+                    <i class="fas fa-spell-check" aria-hidden="true"></i>
                     <span>Слова</span>
                 </a>
-                <a href="{{ url_for('book_admin.books') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.book_') and not request.endpoint.startswith('admin.book_courses') }}">
-                    <i class="fas fa-book"></i>
+                <a href="{{ url_for('book_admin.books') }}" class="nav-link {{ 'active' if request.endpoint.startswith('book_admin.') }}">
+                    <i class="fas fa-book" aria-hidden="true"></i>
                     <span>Книги</span>
                 </a>
                 <a href="{{ url_for('admin.book_courses') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.book_courses') }}">
-                    <i class="fas fa-graduation-cap"></i>
+                    <i class="fas fa-graduation-cap" aria-hidden="true"></i>
                     <span>Книжные курсы</span>
                 </a>
                 <a href="{{ url_for('admin.quiz_decks_list') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.quiz_deck') }}">
-                    <i class="fas fa-layer-group"></i>
+                    <i class="fas fa-layer-group" aria-hidden="true"></i>
                     <span>Quiz-колоды</span>
                 </a>
                 <a href="{{ url_for('grammar_lab_admin.grammar_lab_index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('grammar_lab_admin.') }}">
-                    <i class="fas fa-pencil-ruler"></i>
+                    <i class="fas fa-pencil-ruler" aria-hidden="true"></i>
                     <span>Grammar Lab</span>
                 </a>
                 <a href="{{ url_for('admin.cultural_notes_list') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.cultural_notes_list' or request.endpoint == 'admin.cultural_note_add' or request.endpoint == 'admin.cultural_note_edit' }}">
-                    <i class="fas fa-globe"></i>
+                    <i class="fas fa-globe" aria-hidden="true"></i>
                     <span>Культурные заметки</span>
                 </a>
-                <a href="{{ url_for('admin.content_quality_page') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.content_quality_page' or request.endpoint == 'admin.content_quality_export' }}">
-                    <i class="fas fa-chart-bar"></i>
+                <a href="{{ url_for('dashboard_admin.content_quality_page') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard_admin.content_quality_page' or request.endpoint == 'dashboard_admin.content_quality_export' }}">
+                    <i class="fas fa-chart-bar" aria-hidden="true"></i>
                     <span>Качество контента</span>
                 </a>
                 </div>
             </div>
 
             <div class="nav-section" data-section="tools">
-                <div class="nav-section-title" onclick="toggleNavSection('tools')">
+                <button class="nav-section-title" type="button" onclick="toggleNavSection('tools')" aria-expanded="true" aria-controls="nav-content-tools">
                     <span>Инструменты</span>
-                    <i class="fas fa-chevron-down nav-section-chevron"></i>
-                </div>
-                <div class="nav-section-content">
+                    <i class="fas fa-chevron-down nav-section-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="nav-section-content" id="nav-content-tools">
                     <a href="{{ url_for('reminders.reminder_dashboard') }}" class="nav-link {{ 'active' if request.endpoint.startswith('reminders.') }}">
-                        <i class="fas fa-bell"></i>
+                        <i class="fas fa-bell" aria-hidden="true"></i>
                         <span>Напоминания</span>
                     </a>
                     <a href="{{ url_for('admin.modules_list') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.modules_') }}">
-                        <i class="fas fa-puzzle-piece"></i>
+                        <i class="fas fa-puzzle-piece" aria-hidden="true"></i>
                         <span>JSON-модули</span>
                     </a>
-                    <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.import_curriculum' }}">
-                        <i class="fas fa-upload"></i>
+                    <a href="{{ url_for('admin_curriculum.import_curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin_curriculum.import_curriculum' }}">
+                        <i class="fas fa-upload" aria-hidden="true"></i>
                         <span>Импорт программы</span>
                     </a>
-                    <a href="{{ url_for('system_admin.system') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.system' }}">
-                        <i class="fas fa-cogs"></i>
+                    <a href="{{ url_for('system_admin.system') }}" class="nav-link {{ 'active' if request.endpoint == 'system_admin.system' }}">
+                        <i class="fas fa-cogs" aria-hidden="true"></i>
                         <span>Система</span>
                     </a>
-                    <a href="{{ url_for('system_admin.database_management') }}" class="nav-link {{ 'active' if request.endpoint == 'admin.database_management' }}">
-                        <i class="fas fa-database"></i>
+                    <a href="{{ url_for('system_admin.database_management') }}" class="nav-link {{ 'active' if request.endpoint == 'system_admin.database_management' }}">
+                        <i class="fas fa-database" aria-hidden="true"></i>
                         <span>База данных</span>
                     </a>
-                    <a href="{{ url_for('audio_admin.audio_management') }}" class="nav-link {{ 'active' if request.endpoint.startswith('admin.audio_') }}">
-                        <i class="fas fa-volume-up"></i>
+                    <a href="{{ url_for('audio_admin.audio_management') }}" class="nav-link {{ 'active' if request.endpoint.startswith('audio_admin.') }}">
+                        <i class="fas fa-volume-up" aria-hidden="true"></i>
                         <span>Аудио</span>
                     </a>
                     <a href="{{ url_for('curriculum_admin.audio_stats') }}" class="nav-link {{ 'active' if request.endpoint == 'curriculum_admin.audio_stats' }}">
-                        <i class="fas fa-chart-pie"></i>
+                        <i class="fas fa-chart-pie" aria-hidden="true"></i>
                         <span>Аудио статистика</span>
                     </a>
                     <a href="{{ url_for('audit_admin.audit_index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('audit_admin.') }}">
-                        <i class="fas fa-history"></i>
+                        <i class="fas fa-history" aria-hidden="true"></i>
                         <span>Аудит-лог</span>
                     </a>
                 </div>
             </div>
 
             <div class="nav-section" data-section="analytics">
-                <div class="nav-section-title" onclick="toggleNavSection('analytics')">
+                <button class="nav-section-title" type="button" onclick="toggleNavSection('analytics')" aria-expanded="true" aria-controls="nav-content-analytics">
                     <span>Аналитика</span>
-                    <i class="fas fa-chevron-down nav-section-chevron"></i>
-                </div>
-                <div class="nav-section-content">
+                    <i class="fas fa-chevron-down nav-section-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="nav-section-content" id="nav-content-analytics">
                     <a href="{{ url_for('seo_admin.seo_index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('seo_admin.') }}">
-                        <i class="fas fa-chart-line"></i>
+                        <i class="fas fa-chart-line" aria-hidden="true"></i>
                         <span>SEO Аналитика</span>
                     </a>
                     <a href="{{ url_for('activity_admin.activity_index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('activity_admin.') }}">
-                        <i class="fas fa-stream"></i>
+                        <i class="fas fa-stream" aria-hidden="true"></i>
                         <span>Активность</span>
                     </a>
                 </div>
             </div>
 
             <div class="nav-section" data-section="config">
-                <div class="nav-section-title" onclick="toggleNavSection('config')">
+                <button class="nav-section-title" type="button" onclick="toggleNavSection('config')" aria-expanded="true" aria-controls="nav-content-config">
                     <span>Настройки</span>
-                    <i class="fas fa-chevron-down nav-section-chevron"></i>
-                </div>
-                <div class="nav-section-content">
+                    <i class="fas fa-chevron-down nav-section-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="nav-section-content" id="nav-content-config">
                     <a href="{{ url_for('settings_admin.settings_index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('settings_admin.') }}">
-                        <i class="fas fa-sliders-h"></i>
+                        <i class="fas fa-sliders-h" aria-hidden="true"></i>
                         <span>Настройки сайта</span>
                     </a>
                 </div>
@@ -228,10 +233,10 @@
     </nav>
 
     <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()" aria-hidden="true"></div>
 
     <!-- Main Content -->
-    <main class="admin-main">
+    <main class="admin-main" id="main-content">
         <!-- Breadcrumb Navigation -->
         {% block breadcrumb %}{% endblock %}
 
@@ -241,7 +246,7 @@
                 {% for category, message in messages %}
                     <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
                         {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
                     </div>
                 {% endfor %}
             {% endif %}
@@ -258,8 +263,14 @@
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');
+            const toggleBtn = document.getElementById('sidebar-toggle');
             sidebar.classList.toggle('show');
             overlay.classList.toggle('show');
+            const isOpen = sidebar.classList.contains('show');
+            if (toggleBtn) {
+                toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                toggleBtn.setAttribute('aria-label', isOpen ? 'Закрыть меню навигации' : 'Открыть меню навигации');
+            }
         }
 
         // Collapsible Nav Sections with localStorage
@@ -268,10 +279,14 @@
             if (!section) return;
 
             section.classList.toggle('collapsed');
+            const isCollapsed = section.classList.contains('collapsed');
+
+            // Update aria-expanded on the button
+            const btn = section.querySelector('.nav-section-title');
+            if (btn) btn.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
 
             // Save state to localStorage
             const collapsedSections = JSON.parse(localStorage.getItem('adminNavCollapsed') || '[]');
-            const isCollapsed = section.classList.contains('collapsed');
 
             if (isCollapsed && !collapsedSections.includes(sectionId)) {
                 collapsedSections.push(sectionId);
@@ -288,13 +303,17 @@
             const collapsedSections = JSON.parse(localStorage.getItem('adminNavCollapsed') || '[]');
             collapsedSections.forEach(sectionId => {
                 const section = document.querySelector(`.nav-section[data-section="${sectionId}"]`);
-                if (section) section.classList.add('collapsed');
+                if (section) {
+                    section.classList.add('collapsed');
+                    const btn = section.querySelector('.nav-section-title');
+                    if (btn) btn.setAttribute('aria-expanded', 'false');
+                }
             });
         }
 
         // Global Search
         const adminSearchData = [
-            { title: 'Dashboard', url: '{{ url_for("admin.dashboard") }}', icon: 'fa-home', section: 'Main' },
+            { title: 'Dashboard', url: '{{ url_for("dashboard_admin.dashboard") }}', icon: 'fa-home', section: 'Main' },
             { title: 'Users', url: '{{ url_for("user_admin.users") }}', icon: 'fa-users', section: 'Main' },
             { title: 'Statistics', url: '{{ url_for("user_admin.stats") }}', icon: 'fa-chart-bar', section: 'Main' },
             { title: 'Curriculum', url: '{{ url_for("admin_curriculum.curriculum") }}', icon: 'fa-graduation-cap', section: 'Content' },

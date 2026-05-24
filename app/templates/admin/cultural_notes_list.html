@@ -1,6 +1,14 @@
 {% extends 'admin/base.html' %}
+{% from 'admin/components.html' import breadcrumb %}
 
 {% block title %}Культурные заметки{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Dashboard', url_for('dashboard_admin.dashboard')),
+    ('Культурные заметки', '')
+]) }}
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">

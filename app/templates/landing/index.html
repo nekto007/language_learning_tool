@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'base.html' if current_user.is_authenticated else 'public_base.html' %}
 
 {% block title %}LLT English — Платформа для изучения английского языка{% endblock %}
 
@@ -55,12 +55,12 @@
     --land-primary: #2563eb;
     --land-primary-dark: #1d4ed8;
     --land-primary-light: #60a5fa;
-    --land-gradient: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+    --land-gradient: linear-gradient(135deg, #1d4ed8 0%, #075985 100%);
     --land-surface: #ffffff;
     --land-surface-alt: #f8fafc;
     --land-text: #0f172a;
     --land-text-muted: #64748b;
-    --land-text-light: #94a3b8;
+    --land-text-light: #475569;
     --land-border: #e2e8f0;
     --land-radius: 16px;
     --land-radius-sm: 10px;
@@ -148,7 +148,7 @@
 .land-hero__desc {
     position: relative;
     font-size: 1.125rem;
-    color: rgba(255,255,255,.85);
+    color: #fff;
     max-width: 560px;
     margin: 0 auto 2.5rem;
     line-height: 1.7;
@@ -189,15 +189,15 @@
 }
 
 .land-btn--secondary {
-    background: rgba(255,255,255,.15);
+    background: rgba(15,23,42,.18);
     color: #fff;
-    border: 1px solid rgba(255,255,255,.3);
+    border: 1px solid rgba(255,255,255,.65);
     backdrop-filter: blur(4px);
 }
 .land-btn--secondary:hover {
-    background: rgba(255,255,255,.25);
+    background: rgba(15,23,42,.28);
     color: #fff;
-    border-color: rgba(255,255,255,.5);
+    border-color: rgba(255,255,255,.85);
 }
 
 .land-btn__icon {
@@ -451,7 +451,7 @@
 
 .land-cta__desc {
     position: relative;
-    color: rgba(255,255,255,.8);
+    color: #fff;
     font-size: 1rem;
     margin: 0 0 1.5rem;
 }

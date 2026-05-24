@@ -9,12 +9,16 @@ import logging
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user
 
+from app.admin.audit import log_admin_action
 from app.admin.services.word_management_service import WordManagementService
 from app.admin.utils.decorators import admin_required, handle_admin_errors
 from app.admin.utils.cache import clear_admin_cache
+from app.utils.db import db
 from app.admin.utils.export_helpers import export_words_csv, export_words_json, export_words_txt
 from app.admin.utils.import_helpers import delete_import_data, load_import_data, save_import_data
+from app.admin.utils.request_validators import get_choice_arg, get_enum_arg, get_int_arg
 from app.auth.models import User
+from app.utils.validators import WordStatus
 
 # Создаем blueprint для word routes
 word_bp = Blueprint('word_admin', __name__)
@@ -31,7 +35,7 @@ def word_management():
 
         if 'error' in stats:
             flash(f'Ошибка при загрузке данных: {stats["error"]}', 'danger')
-            return redirect(url_for('admin.dashboard'))
+            return redirect(url_for('dashboard_admin.dashboard'))
 
         return render_template(
             'admin/words/index.html',
@@ -43,7 +47,7 @@ def word_management():
     except Exception as e:
         logger.error(f"Error in word management: {str(e)}")
         flash(f'Ошибка при загрузке данных: {str(e)}', 'danger')
-        return redirect(url_for('admin.dashboard'))
+        return redirect(url_for('dashboard_admin.dashboard'))
 
 
 @word_bp.route('/words/bulk-status-update', methods=['GET', 'POST'])
@@ -53,7 +57,7 @@ def bulk_status_update():
     """Массовое обновление статусов слов"""
     if request.method == 'POST':
         try:
-            data = request.get_json()
+            data = request.get_json(silent=True) or {}
             words = data.get('words', [])  # Список английских слов
             status = data.get('status')  # Новый статус
             user_id = data.get('user_id')  # ID пользователя (опционально)
@@ -62,12 +66,21 @@ def bulk_status_update():
                 WordManagementService.bulk_update_word_status(words, status, user_id)
 
             if not success:
+                db.session.rollback()
                 return jsonify({
                     'success': False,
                     'error': error
                 }), 400 if error == 'Требуются words и status' else 500
 
-            # Очищаем кэш после массового обновления
+            # Audit log + bulk update commit atomically: log_admin_action
+            # stages a row in a SAVEPOINT, then a single commit makes both
+            # the status mutations and the audit entry durable together.
+            log_admin_action(
+                current_user.id,
+                'word.bulk_update_status',
+                target_type='word',
+            )
+            db.session.commit()
             clear_admin_cache()
 
             return jsonify({
@@ -78,6 +91,7 @@ def bulk_status_update():
 
         except Exception as e:
             logger.error(f"Error in bulk status update: {str(e)}")
+            db.session.rollback()
             return jsonify({
                 'success': False,
                 'error': str(e)
@@ -92,9 +106,9 @@ def bulk_status_update():
 @admin_required
 def export_words():
     """Экспорт слов по различным критериям"""
-    status = request.args.get('status')
-    format_type = request.args.get('format', 'json')  # json, csv, txt
-    user_id = request.args.get('user_id', type=int)
+    status = get_enum_arg('status', WordStatus)
+    format_type = get_choice_arg('format', ('json', 'csv', 'txt'), default='json')
+    user_id = get_int_arg('user_id', min_val=1)
 
     try:
         words = WordManagementService.get_words_for_export(status, user_id)
@@ -103,11 +117,8 @@ def export_words():
             return export_words_json(words, status)
         elif format_type == 'csv':
             return export_words_csv(words, status)
-        elif format_type == 'txt':
+        else:  # 'txt' — only remaining choice (validated above)
             return export_words_txt(words, status)
-        else:
-            flash('Неподдерживаемый формат экспорта', 'danger')
-            return redirect(url_for('word_admin.word_management'))
 
     except Exception as e:
         logger.error(f"Error exporting words: {str(e)}")
@@ -147,7 +158,13 @@ def import_translations():
                     return redirect(request.url)
 
                 # Читаем содержимое файла
-                content = file.read().decode('utf-8')
+                # utf-8-sig strips a leading BOM if present (Excel/Notepad).
+                try:
+                    content = file.read().decode('utf-8-sig')
+                except UnicodeDecodeError as exc:
+                    logger.warning("Import file decode failed: %s", exc)
+                    flash('Файл должен быть в UTF-8', 'danger')
+                    return redirect(request.url)
 
                 # Парсим файл через сервис
                 existing_words, missing_words, errors = \
@@ -234,6 +251,14 @@ def import_translations():
                 else:
                     flash('Никаких изменений не было внесено', 'info')
 
+                if updated_count > 0 or added_count > 0:
+                    log_admin_action(
+                        current_user.id,
+                        'word.import_translations',
+                        target_type='word',
+                    )
+                    db.session.commit()
+
                 logger.info(
                     f"Translations import completed by {current_user.username}: "
                     f"{updated_count} updated, {added_count} added"
@@ -302,7 +327,13 @@ def import_phrasal_verbs():
                     return redirect(request.url)
 
                 # Read and parse file
-                content = file.read().decode('utf-8')
+                # utf-8-sig strips a leading BOM if present (Excel/Notepad).
+                try:
+                    content = file.read().decode('utf-8-sig')
+                except UnicodeDecodeError as exc:
+                    logger.warning("Import file decode failed: %s", exc)
+                    flash('Файл должен быть в UTF-8', 'danger')
+                    return redirect(request.url)
                 new_verbs, existing_verbs, errors = \
                     WordManagementService.parse_phrasal_verbs_file(content)
 
@@ -359,6 +390,14 @@ def import_phrasal_verbs():
                     flash('; '.join(messages), 'success')
                 else:
                     flash('Никаких изменений не было внесено', 'info')
+
+                if added_count > 0 or updated_count > 0:
+                    log_admin_action(
+                        current_user.id,
+                        'word.import_phrasal_verbs',
+                        target_type='word',
+                    )
+                    db.session.commit()
 
                 logger.info(
                     f"Phrasal verbs import by {current_user.username}: "

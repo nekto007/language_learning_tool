@@ -4,9 +4,12 @@ import pytest
 from app.admin.site_settings import (
     SiteSettings,
     SETTING_DEFAULTS,
+    SETTING_META,
+    SettingValidationError,
     get_site_setting,
     set_site_setting,
     ensure_defaults_seeded,
+    validate_setting_value,
 )
 from app.utils.db import db
 
@@ -103,3 +106,87 @@ class TestEnsureDefaultsSeeded:
         ensure_defaults_seeded(db_session=db_session)
         count = db_session.query(SiteSettings).count()
         assert count >= len(SETTING_DEFAULTS)
+
+
+class TestSettingMeta:
+    """SETTING_META mirrors SETTING_DEFAULTS and carries metadata for the UI."""
+
+    def test_meta_covers_every_default_key(self):
+        for key in SETTING_DEFAULTS:
+            assert key in SETTING_META, f'Missing SETTING_META entry for {key!r}'
+            assert 'type' in SETTING_META[key]
+            assert 'description' in SETTING_META[key]
+            assert SETTING_META[key]['description']
+
+    def test_meta_types_are_known(self):
+        allowed_types = {'bool', 'int', 'str', 'email', 'url'}
+        for key, meta in SETTING_META.items():
+            assert meta['type'] in allowed_types, (
+                f'{key!r} has unknown type {meta["type"]!r}'
+            )
+
+
+class TestValidateSettingValue:
+    """validate_setting_value coerces and validates raw form input."""
+
+    @pytest.mark.parametrize('raw,expected', [
+        ('true', 'true'),
+        ('false', 'false'),
+        ('1', 'true'),
+        ('0', 'false'),
+        ('on', 'true'),
+        ('off', 'false'),
+        ('', 'false'),
+        (' YES ', 'true'),
+        ('No', 'false'),
+    ])
+    def test_bool_normalisation(self, raw, expected):
+        assert validate_setting_value('default_linear_plan', raw) == expected
+
+    def test_bool_invalid_raises(self):
+        with pytest.raises(SettingValidationError):
+            validate_setting_value('default_linear_plan', 'maybe')
+
+    def test_int_basic(self):
+        assert validate_setting_value('referral_bonus_xp', '42') == '42'
+
+    def test_int_empty_falls_back_to_default(self):
+        assert validate_setting_value('referral_bonus_xp', '') == '100'
+
+    def test_int_clamps_to_min(self):
+        assert validate_setting_value('referral_bonus_xp', '-50') == '0'
+
+    def test_int_clamps_to_max(self):
+        assert validate_setting_value('referral_bonus_xp', '99999') == '10000'
+
+    def test_int_invalid_raises(self):
+        with pytest.raises(SettingValidationError):
+            validate_setting_value('referral_bonus_xp', 'abc')
+
+    def test_email_valid(self):
+        assert validate_setting_value('support_email', 'help@x.com') == 'help@x.com'
+
+    def test_email_empty_allowed(self):
+        assert validate_setting_value('support_email', '') == ''
+
+    def test_email_invalid_raises(self):
+        with pytest.raises(SettingValidationError):
+            validate_setting_value('support_email', 'not-an-email')
+
+    def test_url_valid(self):
+        assert (
+            validate_setting_value('og_image_url', 'https://example.com/og.png')
+            == 'https://example.com/og.png'
+        )
+
+    def test_url_invalid_scheme_raises(self):
+        with pytest.raises(SettingValidationError):
+            validate_setting_value('og_image_url', 'example.com/og.png')
+
+    def test_str_max_length(self):
+        with pytest.raises(SettingValidationError):
+            validate_setting_value('site_title', 'a' * 250)
+
+    def test_unknown_key_treated_as_string(self):
+        # An unknown key falls back to type='str' with no max_length.
+        assert validate_setting_value('totally_unknown_key', '  hi  ') == 'hi'

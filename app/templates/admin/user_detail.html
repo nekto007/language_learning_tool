@@ -5,7 +5,7 @@
 
 {% block breadcrumb %}
 {{ breadcrumb([
-    ('Панель управления', url_for('admin.dashboard')),
+    ('Панель управления', url_for('dashboard_admin.dashboard')),
     ('Пользователи', url_for('user_admin.users')),
     (detail.username, '')
 ]) }}

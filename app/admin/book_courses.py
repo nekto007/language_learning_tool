@@ -231,6 +231,12 @@ def register_book_course_routes(admin_bp):
 
                 # Set featured status
                 course.is_featured = is_featured
+                log_admin_action(
+                    admin_id=current_user.id,
+                    action='book_course.create',
+                    target_type='book_course',
+                    target_id=course.id,
+                )
                 db.session.commit()
 
                 logger.info(f"[BOOK_COURSE] Course created successfully: {course.id}")
@@ -254,6 +260,13 @@ def register_book_course_routes(admin_bp):
                 )
 
                 db.session.add(course)
+                db.session.flush()
+                log_admin_action(
+                    admin_id=current_user.id,
+                    action='book_course.create',
+                    target_type='book_course',
+                    target_id=course.id,
+                )
                 db.session.commit()
 
                 logger.info(f"[BOOK_COURSE] Manual course structure created: {course.id}")
@@ -369,6 +382,12 @@ def register_book_course_routes(admin_bp):
             # Use datetime.now(UTC) and convert to naive for DB compatibility
             course.updated_at = datetime.now(UTC).replace(tzinfo=None)
 
+            log_admin_action(
+                admin_id=current_user.id,
+                action='book_course.update',
+                target_type='book_course',
+                target_id=course_id,
+            )
             db.session.commit()
 
             flash(f'Курс "{course.title}" успешно обновлен!', 'success')
@@ -454,8 +473,8 @@ def register_book_course_routes(admin_bp):
                 db.session.delete(course)
                 log_admin_action(
                     admin_id=current_user.id,
-                    action='delete_book_course',
-                    target_type='BookCourse',
+                    action='book_course.delete',
+                    target_type='book_course',
                     target_id=course_id,
                 )
                 db.session.commit()
@@ -476,8 +495,8 @@ def register_book_course_routes(admin_bp):
                 course.updated_at = datetime.now(UTC).replace(tzinfo=None)
                 log_admin_action(
                     admin_id=current_user.id,
-                    action='deactivate_book_course',
-                    target_type='BookCourse',
+                    action='book_course.deactivate',
+                    target_type='book_course',
                     target_id=course_id,
                 )
                 db.session.commit()
@@ -623,6 +642,12 @@ def register_book_course_routes(admin_bp):
             # Use datetime.now(UTC) and convert to naive for DB compatibility
             course.updated_at = datetime.now(UTC).replace(tzinfo=None)
 
+            log_admin_action(
+                admin_id=current_user.id,
+                action='book_course.generate_modules',
+                target_type='book_course',
+                target_id=course_id,
+            )
             db.session.commit()
 
             # Get updated module count
@@ -750,6 +775,12 @@ def register_book_course_routes(admin_bp):
             course.is_active = True
             course.updated_at = datetime.now(UTC).replace(tzinfo=None)
 
+            log_admin_action(
+                admin_id=current_user.id,
+                action='book_course.regenerate',
+                target_type='book_course',
+                target_id=course_id,
+            )
             db.session.commit()
 
             # Get statistics
@@ -883,8 +914,8 @@ def register_book_course_routes(admin_bp):
                     course.is_active = True
                     log_admin_action(
                         admin_id=current_user.id,
-                        action='activate_book_course',
-                        target_type='BookCourse',
+                        action='book_course.activate',
+                        target_type='book_course',
                         target_id=course.id,
                     )
 
@@ -892,8 +923,8 @@ def register_book_course_routes(admin_bp):
                     course.is_active = False
                     log_admin_action(
                         admin_id=current_user.id,
-                        action='deactivate_book_course',
-                        target_type='BookCourse',
+                        action='book_course.deactivate',
+                        target_type='book_course',
                         target_id=course.id,
                     )
 
@@ -901,8 +932,8 @@ def register_book_course_routes(admin_bp):
                     course.is_featured = True
                     log_admin_action(
                         admin_id=current_user.id,
-                        action='feature_book_course',
-                        target_type='BookCourse',
+                        action='book_course.feature',
+                        target_type='book_course',
                         target_id=course.id,
                     )
 
@@ -910,8 +941,8 @@ def register_book_course_routes(admin_bp):
                     course.is_featured = False
                     log_admin_action(
                         admin_id=current_user.id,
-                        action='unfeature_book_course',
-                        target_type='BookCourse',
+                        action='book_course.unfeature',
+                        target_type='book_course',
                         target_id=course.id,
                     )
 
@@ -920,8 +951,8 @@ def register_book_course_routes(admin_bp):
                     course.is_active = False
                     log_admin_action(
                         admin_id=current_user.id,
-                        action='deactivate_book_course',
-                        target_type='BookCourse',
+                        action='book_course.deactivate',
+                        target_type='book_course',
                         target_id=course.id,
                     )
 
@@ -953,8 +984,8 @@ def register_book_course_routes(admin_bp):
 
                     log_admin_action(
                         admin_id=current_user.id,
-                        action='delete_book_course',
-                        target_type='BookCourse',
+                        action='book_course.delete',
+                        target_type='book_course',
                         target_id=course.id,
                     )
                     db.session.delete(course)
@@ -1052,6 +1083,12 @@ def register_book_course_routes(admin_bp):
 
                 lesson.updated_at = datetime.now(UTC).replace(tzinfo=None)
 
+                log_admin_action(
+                    admin_id=current_user.id,
+                    action='book_course.update_daily_lesson',
+                    target_type='daily_lesson',
+                    target_id=lesson_id,
+                )
                 db.session.commit()
 
                 flash(f'Урок День {lesson.day_number} успешно обновлен!', 'success')
@@ -1114,6 +1151,13 @@ def register_book_course_routes(admin_bp):
             )
 
             db.session.add(lesson)
+            db.session.flush()
+            log_admin_action(
+                admin_id=current_user.id,
+                action='book_course.add_daily_lesson',
+                target_type='daily_lesson',
+                target_id=lesson.id,
+            )
             db.session.commit()
 
             flash(f'Добавлен новый урок День {lesson.day_number}', 'success')
@@ -1295,6 +1339,12 @@ def register_book_course_routes(admin_bp):
                 lesson.task_id = task.id
 
             lesson.updated_at = datetime.now(UTC).replace(tzinfo=None)
+            log_admin_action(
+                admin_id=current_user.id,
+                action='book_course.edit_lesson_task',
+                target_type='daily_lesson',
+                target_id=lesson_id,
+            )
             db.session.commit()
 
             flash('Задание успешно обновлено!', 'success')
@@ -1358,6 +1408,7 @@ def register_book_course_routes(admin_bp):
 
             from app.curriculum.daily_lessons import SliceVocabulary
 
+            updated = False
             for word_data in words_data:
                 vocab_id = word_data.get('id')
                 if vocab_id:
@@ -1366,7 +1417,15 @@ def register_book_course_routes(admin_bp):
                         vocab.custom_translation = word_data.get('translation') or None
                         vocab.context_sentence = word_data.get('context_sentence') or None
                         vocab.priority = word_data.get('priority', 0)
+                        updated = True
 
+            if updated:
+                log_admin_action(
+                    admin_id=current_user.id,
+                    action='book_course.save_vocabulary_words',
+                    target_type='daily_lesson',
+                    target_id=lesson_id,
+                )
             db.session.commit()
 
             return jsonify({
@@ -1461,6 +1520,13 @@ def register_book_course_routes(admin_bp):
                 priority=max_priority + 1
             )
             db.session.add(vocab)
+            db.session.flush()
+            log_admin_action(
+                admin_id=current_user.id,
+                action='book_course.add_lesson_word',
+                target_type='slice_vocabulary',
+                target_id=vocab.id,
+            )
             db.session.commit()
 
             # Return the new word data
@@ -1542,6 +1608,12 @@ def register_book_course_routes(admin_bp):
             flag_modified(module, 'lessons_data')
             module.updated_at = datetime.now(UTC).replace(tzinfo=None)
 
+            log_admin_action(
+                admin_id=current_user.id,
+                action='book_course.update_module_lessons_data',
+                target_type='book_course_module',
+                target_id=module_id,
+            )
             db.session.commit()
 
             flash('Структура уроков модуля обновлена!', 'success')
@@ -1564,23 +1636,3 @@ def register_book_course_routes(admin_bp):
     # Mark routes as registered
     admin_bp._book_course_routes_registered = True
     logger.info("[BOOK_COURSE_ROUTES] Routes registration completed")
-
-
-# Cache statistics for performance
-@cache_result('book_course_stats', timeout=300)  # 5 minutes cache
-def get_book_course_statistics():
-    """Get cached book course statistics"""
-
-    stats = {
-        'total_courses': BookCourse.query.count(),
-        'active_courses': BookCourse.query.filter_by(is_active=True).count(),
-        'featured_courses': BookCourse.query.filter_by(is_featured=True).count(),
-        'total_enrollments': BookCourseEnrollment.query.count(),
-        'active_enrollments': BookCourseEnrollment.query.filter_by(status='active').count(),
-        'completed_enrollments': BookCourseEnrollment.query.filter_by(status='completed').count(),
-        'total_modules': BookCourseModule.query.count(),
-        'total_daily_lessons': DailyLesson.query.count(),
-        'total_vocabulary_words': SliceVocabulary.query.count()
-    }
-
-    return stats

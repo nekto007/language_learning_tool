@@ -1,6 +1,15 @@
 {% extends "admin/base.html" %}
+{% from 'admin/components.html' import breadcrumb %}
 
 {% block title %}Импорт упражнений из JSON{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Dashboard', url_for('dashboard_admin.dashboard')),
+    ('Grammar Lab', url_for('grammar_lab_admin.grammar_lab_index')),
+    ('Импорт JSON', '')
+]) }}
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">

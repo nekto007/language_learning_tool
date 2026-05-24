@@ -10,8 +10,15 @@ from sqlalchemy import desc
 
 from app.admin.audit import AdminAuditLog
 from app.admin.utils.decorators import admin_required
+from app.admin.utils.export_helpers import (
+    MAX_EXPORT_ROWS,
+    _sanitize_csv_cell,
+    _stream_csv_rows,
+)
 from app.auth.models import User
 from app.utils.db import db
+from flask import Response
+from flask import stream_with_context
 
 audit_bp = Blueprint('audit_admin', __name__)
 
@@ -33,7 +40,7 @@ def audit_index():
     admin_id_raw = request.args.get('admin_id', '').strip()
     admin_id = int(admin_id_raw) if admin_id_raw.isdigit() else None
 
-    action_filter = request.args.get('action', '').strip()
+    action_filter = request.args.get('action', '').strip()[:200]
     date_from = _parse_date(request.args.get('date_from', ''))
     date_to = _parse_date(request.args.get('date_to', ''))
 
@@ -111,6 +118,59 @@ def _get_audit_entries(
         })
 
     return entries, has_more
+
+
+@audit_bp.route('/audit-log/export.csv')
+@admin_required
+def audit_export_csv():
+    """Export filtered audit log to CSV (max MAX_EXPORT_ROWS rows)."""
+    admin_id_raw = request.args.get('admin_id', '').strip()
+    admin_id = int(admin_id_raw) if admin_id_raw.isdigit() else None
+    action_filter = request.args.get('action', '').strip()[:200]
+    date_from = _parse_date(request.args.get('date_from', ''))
+    date_to = _parse_date(request.args.get('date_to', ''))
+
+    query = (
+        db.session.query(AdminAuditLog, User)
+        .outerjoin(User, AdminAuditLog.admin_id == User.id)
+        .order_by(desc(AdminAuditLog.created_at))
+    )
+    if admin_id is not None:
+        query = query.filter(AdminAuditLog.admin_id == admin_id)
+    if action_filter:
+        query = query.filter(AdminAuditLog.action.ilike(f'%{action_filter}%'))
+    if date_from:
+        query = query.filter(AdminAuditLog.created_at >= date_from)
+    if date_to:
+        query = query.filter(AdminAuditLog.created_at < date_to + timedelta(days=1))
+
+    rows = query.limit(MAX_EXPORT_ROWS).all()
+
+    headers = ['ID', 'Timestamp', 'Admin Email', 'Action', 'Target Type', 'Target ID']
+
+    def row_iter():
+        for log, user in rows:
+            yield [
+                _sanitize_csv_cell(log.id),
+                _sanitize_csv_cell(
+                    log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else ''
+                ),
+                _sanitize_csv_cell(user.email if user else '(deleted)'),
+                _sanitize_csv_cell(log.action),
+                _sanitize_csv_cell(log.target_type or ''),
+                _sanitize_csv_cell(log.target_id),
+            ]
+
+    from datetime import timezone as _tz
+    ts = datetime.now(_tz.utc).strftime('%Y%m%d_%H%M%S')
+    filename = f'admin_audit_log_{ts}.csv'
+    response = Response(
+        stream_with_context(_stream_csv_rows(headers, row_iter())),
+        mimetype='text/csv; charset=utf-8',
+    )
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    return response
 
 
 def _parse_date(value: str) -> datetime | None:

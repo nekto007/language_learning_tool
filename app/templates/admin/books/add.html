@@ -4,7 +4,7 @@
 {% block title %}Добавить книгу{% endblock %}
 
 {% block breadcrumb %}
-{{ breadcrumb([('Dashboard', url_for('admin.dashboard')), ('Books', url_for('book_admin.books')), ('Add', '')]) }}
+{{ breadcrumb([('Dashboard', url_for('dashboard_admin.dashboard')), ('Books', url_for('book_admin.books')), ('Add', '')]) }}
 {% endblock %}
 
 {% block content %}
@@ -246,7 +246,8 @@
         {% if book.content %}
         <div class="mt-3">
             <form action="{{ url_for('books.reprocess_book_words', book_id=book.id) }}" method="POST" class="d-inline">
-                <button type="submit" class="btn btn-sm btn-outline-info" 
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-info"
                         onclick="return confirm('Перезапустить обработку слов для этой книги?')">
                     <i class="fas fa-sync-alt"></i> Перезапустить обработку слов
                 </button>
