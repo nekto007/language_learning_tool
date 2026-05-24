@@ -30,6 +30,7 @@ from app.admin.services.seo_audit_service import (
 from app.admin.site_settings import get_site_setting, set_site_setting
 from app.admin.utils.cache import clear_cache_by_prefix, get_cache, set_cache
 from app.admin.utils.decorators import admin_required
+from app.curriculum.rate_limiter import rate_limit
 from app.utils.db import db
 
 seo_bp = Blueprint('seo_admin', __name__)
@@ -185,6 +186,7 @@ def seo_index():
 
 @seo_bp.route('/seo/refresh', methods=['POST'])
 @admin_required
+@rate_limit(limit=10, window=60, per='user')
 def seo_refresh():
     # Local clear handles the current worker's cache, version bump propagates
     # to other gunicorn workers (they form a new cache key on next audit call).
@@ -198,6 +200,7 @@ def seo_refresh():
 
 @seo_bp.route('/seo/connect')
 @admin_required
+@rate_limit(limit=5, window=300, per='user')
 def gsc_connect():
     """Redirect admin to Google OAuth2 consent screen for GSC read-only access."""
     if not _google_config_present():
@@ -223,6 +226,7 @@ def gsc_connect():
 
 @seo_bp.route('/seo/callback')
 @admin_required
+@rate_limit(limit=5, window=300, per='user')
 def gsc_callback():
     """Handle Google OAuth2 callback — exchange code for tokens and store them."""
     if 'error' in request.args:
@@ -314,6 +318,7 @@ def gsc_callback():
 
 @seo_bp.route('/seo/disconnect', methods=['POST'])
 @admin_required
+@rate_limit(limit=5, window=300, per='user')
 def gsc_disconnect():
     """Remove stored GSC credentials and clear any pending OAuth state."""
     set_site_setting('gsc_refresh_token', '')
@@ -329,6 +334,7 @@ def gsc_disconnect():
 
 @seo_bp.route('/seo/select-site', methods=['POST'])
 @admin_required
+@rate_limit(limit=10, window=60, per='user')
 def gsc_select_site():
     """Switch the active GSC property to one of the admin's verified sites."""
     if not _gsc_is_connected():

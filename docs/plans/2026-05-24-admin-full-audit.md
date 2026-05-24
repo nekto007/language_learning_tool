@@ -279,9 +279,9 @@
 **Files:**
 - Modify: `app/admin/utils/decorators.py`, `app/admin/routes/{audio,system,seo}_routes.py`
 
-- [ ] подключить Flask-Limiter (если ещё нет) для генерации аудио, миграций, OAuth callback
-- [ ] тесты `tests/admin/test_rate_limit.py` (превышение → 429)
-- [ ] прогнать тесты
+- [x] подключить Flask-Limiter (если ещё нет) для генерации аудио, миграций, OAuth callback
+- [x] тесты `tests/admin/test_rate_limit.py` (превышение → 429)
+- [x] прогнать тесты
 
 ### Task 26: Кэш-инвалидация и cache.py review
 
