@@ -220,10 +220,10 @@
 **Files:**
 - Modify: `app/admin/routes/activity_routes.py`, `app/admin/services/{activity_feed_service,cohort_service}.py`
 
-- [ ] аудит agg-запросов: индексы, LIMIT/OFFSET на больших таблицах, naive vs aware datetime (см. CLAUDE.md)
-- [ ] корректность funnel monotonicity (тесты edge: 0 пользователей, 1 пользователь)
-- [ ] обновить `tests/admin/test_cohort_service.py`, `test_activity_metrics.py`
-- [ ] прогнать тесты
+- [x] аудит agg-запросов: индексы, LIMIT/OFFSET на больших таблицах, naive vs aware datetime (см. CLAUDE.md)
+- [x] корректность funnel monotonicity (тесты edge: 0 пользователей, 1 пользователь)
+- [x] обновить `tests/admin/test_cohort_service.py`, `test_activity_metrics.py`
+- [x] прогнать тесты
 
 ### Task 20: Audit log UI — пагинация, фильтры, экспорт
 

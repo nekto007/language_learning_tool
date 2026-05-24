@@ -17,13 +17,15 @@ activity_bp = Blueprint('activity_admin', __name__)
 logger = logging.getLogger(__name__)
 
 _PER_PAGE = 50
-_MAX_PAGE = 1000
+# Each source fetches `offset + limit` rows then merges in Python; capping at
+# 100 pages bounds per-request memory at ~25k rows across five sources.
+_MAX_PAGE = 100
 
 
 @activity_bp.route('/activity')
 @admin_required
 def activity_index():
-    page = request.args.get('page', 1, type=int)
+    page = request.args.get('page', 1, type=int) or 1
     if page < 1:
         page = 1
     elif page > _MAX_PAGE:

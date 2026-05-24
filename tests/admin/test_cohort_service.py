@@ -173,6 +173,65 @@ class TestGetFunnelData:
         # Admin user should not be counted
         assert result.steps[0].count == 0
 
+    def test_zero_users_monotonic_and_safe(self, app, db_session):
+        """With zero users, all counts are 0 and conversions are safe (no div-by-zero)."""
+        from app.admin.services.cohort_service import get_funnel_data
+
+        result = get_funnel_data(db_session, days=30)
+        counts = [s.count for s in result.steps]
+        assert counts == [0, 0, 0, 0, 0, 0]
+        # First step has no prev; all conv_top must be 0 (no users at top)
+        assert result.steps[0].conversion_from_prev is None
+        for step in result.steps:
+            assert step.conversion_from_top == 0.0
+
+    def test_single_user_full_path_monotonic(self, app, db_session):
+        """A single user who registered, onboarded, built a plan, and secured a day
+        produces a strictly non-increasing funnel (each ≤ previous).
+        """
+        from app.admin.services.cohort_service import get_funnel_data
+
+        u = _make_user(db_session, registered_days_ago=2, onboarding_done=True)
+        _make_secured_plan_log(db_session, u.id)
+        db_session.commit()
+
+        result = get_funnel_data(db_session, days=30)
+        counts = [s.count for s in result.steps]
+        # Step counts: registered, onboarding, first_plan, day_secured, ret7, ret30
+        # First four should be 1, retention windows depend on activity timing but
+        # must stay ≤ day_secured.
+        assert counts[0] == 1
+        assert counts[1] == 1
+        assert counts[2] == 1
+        assert counts[3] == 1
+        for i in range(1, len(counts)):
+            assert counts[i] <= counts[i - 1], (
+                f'Step {i} ({counts[i]}) exceeds previous step ({counts[i-1]})'
+            )
+
+    def test_mixed_cohort_monotonic(self, app, db_session):
+        """Several users at various funnel depths still produce monotonic counts."""
+        from app.admin.services.cohort_service import get_funnel_data
+
+        # u1: registered only
+        _make_user(db_session, registered_days_ago=2, onboarding_done=False)
+        # u2: onboarded
+        _make_user(db_session, registered_days_ago=2, onboarding_done=True)
+        # u3: onboarded + plan
+        u3 = _make_user(db_session, registered_days_ago=3, onboarding_done=True)
+        _make_plan_log(db_session, u3.id)
+        # u4: onboarded + secured
+        u4 = _make_user(db_session, registered_days_ago=4, onboarding_done=True)
+        _make_secured_plan_log(db_session, u4.id)
+        db_session.commit()
+
+        result = get_funnel_data(db_session, days=30)
+        counts = [s.count for s in result.steps]
+        for i in range(1, len(counts)):
+            assert counts[i] <= counts[i - 1], (
+                f'Step {i} ({counts[i]}) exceeds previous step ({counts[i-1]}); counts={counts}'
+            )
+
 
 class TestGetCohortRetention:
     """Verify get_cohort_retention returns correct structure."""
