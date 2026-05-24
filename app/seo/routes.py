@@ -31,7 +31,6 @@ def sitemap() -> Response:
     # Static pages
     static_pages = [
         ('/', '1.0', 'weekly'),
-        ('/register', '0.8', 'monthly'),
         ('/grammar-lab/topics', '0.9', 'weekly'),
         ('/dictionary', '0.8', 'weekly'),
         ('/privacy', '0.3', 'yearly'),

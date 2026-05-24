@@ -42,8 +42,10 @@ class TestSitemap:
         xml_text = response.data.decode('utf-8')
         site_url = app.config.get('SITE_URL', 'https://llt-english.com')
         assert f'{site_url}/' in xml_text
-        assert f'{site_url}/register' in xml_text
         assert f'{site_url}/grammar-lab/topics' in xml_text
+        # /register is intentionally excluded — register.html sets noindex,
+        # so listing it in sitemap would trigger GSC "submitted URL marked noindex" warnings.
+        assert f'{site_url}/register' not in xml_text
 
     def test_sitemap_contains_grammar_topics(self, client, app, grammar_topic):
         response = client.get('/sitemap.xml')
