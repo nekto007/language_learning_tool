@@ -683,9 +683,13 @@ function toggleCourseStatus(newStatus) {
     const formData = new FormData();
     formData.append('operation', newStatus ? 'activate' : 'deactivate');
     formData.append('course_ids', {{ course.id }});
-    
+    formData.append('csrf_token', document.querySelector('meta[name=csrf-token]').getAttribute('content'));
+
     fetch('/admin/book-courses/bulk-operations', {
         method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
         body: formData
     })
     .then(response => response.json())

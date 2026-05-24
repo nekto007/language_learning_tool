@@ -21,3 +21,22 @@ Living findings journal for `docs/plans/2026-05-24-admin-full-audit.md`. Each ta
 5. Several sub-blueprints have no dedicated unit-tests (see `inventory.md` § "Missing coverage").
 
 Future tasks should append a `## Findings — Task N` section here.
+
+## Findings — Task 3 (CSRF coverage)
+
+Static-analysis sweep of `app/templates/admin/**/*.html` for `<form method="POST">` and `fetch()` AJAX calls. CSRFProtect is enabled in production via `config/settings.py`; tests rely on template/script audits because `tests/conftest.py` disables CSRF (`WTF_CSRF_ENABLED = False`) for the rest of the suite.
+
+Gaps found and fixed:
+
+1. `app/templates/admin/books/add.html` — the inline "Перезапустить обработку слов" form (action `books.reprocess_book_words`) submitted POST without `csrf_token()`; added a hidden `csrf_token` input.
+2. `app/templates/admin/book_courses/detail.html` — `toggleCourseStatus` and `toggleFeatured` built an empty `FormData()` for `/admin/book-courses/bulk-operations` without any CSRF marker. Added `csrf_token` to the body and `X-CSRFToken` header (token sourced from the existing `<meta name="csrf-token">` injected by `admin/base.html`).
+3. `app/templates/admin/book_courses/edit.html` — same `toggleCourseStatus` pattern, same fix.
+
+No admin route uses `@csrf.exempt`. `grep csrf.exempt app/admin/**/*.py` returns only documentation comments in `app/api/decorators.py` (out of scope).
+
+Regression tests live in `tests/admin/test_task3_admin_audit_csrf.py`:
+
+- `TestAdminTemplateCsrfCoverage.test_post_forms_have_csrf_token` — parametrized over every `app/templates/admin/**/*.html`; asserts each POST `<form>` carries one of `csrf_token()`, `form.hidden_tag()`, `form.csrf_token`, or `name="csrf_token"` before `</form>`.
+- `TestAdminTemplateCsrfCoverage.test_ajax_mutating_calls_carry_csrf` — parametrized over the same templates; asserts every `fetch(...)` POST/PUT/DELETE/PATCH either sends `X-CSRFToken`, appends `csrf_token` to the body, or is given a `new FormData(<formEl>)` whose form is already covered by the previous test.
+- `TestAdminRoutesNoCsrfExempt.test_no_csrf_exempt_in_admin_modules` — greps `app/admin/**/*.py` for `csrf.exempt` / `@csrf_exempt` outside comments.
+

@@ -52,11 +52,11 @@
 **Files:**
 - Modify: `app/templates/admin/**/*.html`, `app/admin/routes/*.py`
 
-- [ ] аудит каждой формы и AJAX POST: убедиться, что `{{ csrf_token() }}` присутствует, JS отправляет `X-CSRFToken`
-- [ ] для JSON endpoints — `@csrf.exempt` запрещён; использовать `validate_csrf`
-- [ ] починить найденные пропуски
-- [ ] обновить/добавить тесты в `tests/admin/test_task3_admin_audit_csrf.py` (parametrize по всем mutating endpoints)
-- [ ] прогнать `pytest tests/admin/test_task3_admin_audit_csrf.py`
+- [x] аудит каждой формы и AJAX POST: убедиться, что `{{ csrf_token() }}` присутствует, JS отправляет `X-CSRFToken`
+- [x] для JSON endpoints — `@csrf.exempt` запрещён; использовать `validate_csrf`
+- [x] починить найденные пропуски
+- [x] обновить/добавить тесты в `tests/admin/test_task3_admin_audit_csrf.py` (parametrize по всем mutating endpoints)
+- [x] прогнать `pytest tests/admin/test_task3_admin_audit_csrf.py`
 
 ### Task 4: Покрытие деструктивных операций AdminAuditLog
 
