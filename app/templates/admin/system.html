@@ -124,7 +124,8 @@
                 <h5 class="mb-0">Статистика базы данных</h5>
                 <form action="{{ url_for('system_admin.clear_cache') }}" method="POST" class="d-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Очистить кэш?')">
+                    <input type="hidden" name="confirm" value="{{ clear_cache_confirm }}"/>
+                    <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Очистить административный кэш?')">
                         <i class="fas fa-broom"></i> Очистить кэш
                     </button>
                 </form>

@@ -5,7 +5,9 @@
 Обрабатывает системную информацию, БД и статистику
 """
 import logging
+import re
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlparse
 
 from sqlalchemy import func
 
@@ -16,6 +18,39 @@ from app.utils.db import db
 from app.words.models import Collection, CollectionWords, Topic
 
 logger = logging.getLogger(__name__)
+
+
+def mask_database_uri(uri: str) -> str:
+    """Strip credentials and reveal only driver + dbname.
+
+    Returns 'driver://host/dbname' for network URIs or 'sqlite' for sqlite.
+    Never returns the original password or username.
+    """
+    if not uri:
+        return 'unknown'
+    try:
+        parsed = urlparse(uri)
+        scheme = (parsed.scheme or 'unknown').split('+')[0]
+        if scheme.startswith('sqlite'):
+            return 'sqlite'
+        host = parsed.hostname or 'localhost'
+        dbname = (parsed.path or '/').lstrip('/').split('?')[0] or 'default'
+        return f'{scheme}://{host}/{dbname}'
+    except Exception:
+        return 'masked'
+
+
+def sanitize_db_version(version: str) -> str:
+    """Reduce verbose DB version banner to a short identifier.
+
+    e.g. 'PostgreSQL 16.0 on x86_64-pc-linux-gnu, compiled by gcc ...' -> 'PostgreSQL 16.0'.
+    """
+    if not version:
+        return 'unknown'
+    match = re.match(r'^([A-Za-z][A-Za-z0-9_-]*)\s+([\d.]+)', version.strip())
+    if match:
+        return f'{match.group(1)} {match.group(2)}'
+    return version.split(',')[0].split(' on ')[0].strip()
 
 
 class SystemService:
@@ -68,12 +103,12 @@ class SystemService:
                 'lessons': Lessons.query.count()
             }
 
-            # Application info
+            # Application info — masked URI never reveals credentials.
+            raw_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI', '')
             app_info = {
                 'debug': current_app.debug,
                 'environment': os.environ.get('FLASK_ENV', 'production'),
-                'database_url': current_app.config.get('SQLALCHEMY_DATABASE_URI', '').split('@')[
-                    -1] if '@' in current_app.config.get('SQLALCHEMY_DATABASE_URI', '') else 'Local SQLite'
+                'database_url': mask_database_uri(raw_uri),
             }
 
             return {
@@ -113,7 +148,7 @@ class SystemService:
             return {
                 'status': 'success',
                 'message': 'Подключение успешно',
-                'version': version,
+                'version': sanitize_db_version(version),
                 'table_count': table_count,
                 'database_size': db_size
             }

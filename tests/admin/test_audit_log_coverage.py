@@ -282,7 +282,11 @@ class TestAuditLogRuntimeCoverage:
         db_session.commit()
         _login(client, admin)
 
-        resp = client.post('/admin/system/clear-cache', follow_redirects=False)
+        resp = client.post(
+            '/admin/system/clear-cache',
+            data={'confirm': 'CLEAR_CACHE'},
+            follow_redirects=False,
+        )
         assert resp.status_code in (302, 303)
 
         entry = (

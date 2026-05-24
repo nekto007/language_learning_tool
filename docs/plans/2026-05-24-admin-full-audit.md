@@ -200,10 +200,10 @@
 **Files:**
 - Modify: `app/admin/routes/system_routes.py`, `app/admin/services/system_service.py`, `app/templates/admin/{system,database}.html`
 
-- [ ] аудит endpoints запускающих миграции/cache-clear/db-dump — требовать confirmation token, rate limit
-- [ ] hide raw connection strings
-- [ ] тесты `tests/admin/routes/test_system_routes.py`
-- [ ] прогнать тесты
+- [x] аудит endpoints запускающих миграции/cache-clear/db-dump — требовать confirmation token, rate limit
+- [x] hide raw connection strings
+- [x] тесты `tests/admin/routes/test_system_routes.py`
+- [x] прогнать тесты
 
 ### Task 18: Topics + Collections admin
 
