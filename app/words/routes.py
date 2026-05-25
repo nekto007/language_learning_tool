@@ -3,7 +3,7 @@ import time
 import threading
 from datetime import datetime
 
-from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import case, func, or_
@@ -86,6 +86,10 @@ def _public_dictionary_query():
         CollectionWords.item_type == 'word',
         CollectionWords.level.in_(PUBLIC_CEFR_CODES),
     )
+
+
+def _public_site_url() -> str:
+    return (current_app.config.get('SITE_URL') or 'https://llt-english.com').rstrip('/')
 
 
 @words.route('/dictionary')
@@ -205,6 +209,10 @@ def public_word(word_slug: str):
         f'{word.english_word} — перевод: {word.russian_word}. '
         f'Уровень {word.level or ""}. Примеры, произношение и упражнения.'
     )
+    canonical_url = (
+        f'{_public_site_url()}'
+        f'{url_for("words.public_word", word_slug=encode_word_slug(word.english_word))}'
+    )
 
     return render_template(
         'words/public_word.html',
@@ -214,6 +222,7 @@ def public_word(word_slug: str):
         related_words=related_words,
         related_grammar=related_grammar,
         meta_description=meta_description,
+        canonical_url=canonical_url,
     )
 
 

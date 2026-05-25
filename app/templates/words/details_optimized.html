@@ -770,7 +770,8 @@
       <div class="wdet-hero__actions">
         {% set primary_study_url = url_for('study.cards', source='word_detail', word_id=word.id, extra_study='true') if summary.primary_action_extra_study else url_for('study.cards', source='word_detail', word_id=word.id) %}
         {% if word.get_download and word.listening %}
-        <button class="wdet-hero__btn wdet-hero__btn--glass" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')">
+        {% set audio_url = url_for('static', filename='audio/' + (word.listening|audio_filename)) %}
+        <button class="wdet-hero__btn wdet-hero__btn--glass" onclick='playAudio({{ audio_url|tojson }})'>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
           {{ _('Произношение') }}
         </button>

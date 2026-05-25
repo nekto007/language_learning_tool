@@ -55,13 +55,16 @@ Date: 2026-05-25
 | HRW-008 | P1 | `app/words/detail_service.py` | Dirty synonym/antonym lists can render duplicate chips after placeholder cleanup. | TDD regression showed `normalise_word_list(['learn', 'learn', 'Learn'])` returned duplicates. | Deduplicate normalized list values case-insensitively while preserving first display text. | `TestWordProfileDataNormalization::test_normalise_word_list_removes_placeholders_and_duplicates` | fixed |
 | HRW-009 | P1 | `app/words/detail_service.py` | Imported frequency bands can arrive as string values and display as unknown. | TDD regression showed `frequency_band_label('2')` returned `Не указана`. | Coerce band values to `int` before label lookup and fall back safely for invalid values. | `TestWordProfileDataNormalization::test_frequency_band_label_handles_missing_and_string_values` | fixed |
 | HRW-010 | P0 | `app/words/detail_service.py`, `app/words/routes.py` | Public word profile helper can expose non-public related forms through shared base/phrasal data. | Regression test creates an A1 public word with a C2 phrasal variant; the public page must not render the C2 form. | Add `public_only` profile filtering for base words and phrasal variants; call it from the public route. | `TestPublicWord::test_public_word_does_not_expose_private_profile_data` | fixed |
+| HRW-011 | P1 | `app/templates/words/public_word.html`, `app/words/routes.py` | Public word SEO can emit production hardcoded canonical/JSON-LD URLs and entity-escaped JSON-LD values on staging/custom domains. | TDD regression showed `SITE_URL=https://staging.llt-english.com` was ignored and JSON-LD preserved `"` as `&#34;`. | Build canonical URLs from `SITE_URL` plus `url_for`, and serialize JSON-LD values with `tojson`. | `TestPublicWordRoute::test_public_word_has_title_meta_canonical_and_no_private_controls`, `TestPublicWordRoute::test_public_word_json_ld_preserves_unescaped_text_values` | fixed |
+| HRW-012 | P0 | `app/templates/words/details_optimized.html`, `app/templates/words/list_optimized.html`, `app/templates/words/public_word.html` | Audio filenames are interpolated into inline JavaScript string literals; a quote in stored audio metadata can break out after HTML entity decoding. | TDD regression rendered `playAudio('/static/audio/bad&#39;);alert(1);//.mp3')`. | Pass audio URLs through `tojson` in single-quoted event attributes. | `test_public_word_audio_url_uses_json_encoded_handler_argument`, `test_word_list_audio_url_uses_json_encoded_handler_argument`, `test_word_detail_audio_url_uses_json_encoded_handler_argument` | fixed |
+| HRW-013 | P1 | `app/templates/words/public_word.html` | Public word page can expose private word-detail CTAs to authenticated visitors, making the SEO route render different private controls. | Regression asserts public word HTML does not contain `/words/<id>`, status controls, or `startLearningWord`. | Render the public word template with `public_base.html` and public registration CTAs consistently. | `TestPublicWordRoute::test_public_word_has_title_meta_canonical_and_no_private_controls`, `TestPublicWordRoute::test_public_word_hides_empty_profile_sections_audio_and_private_controls` | fixed |
 
 ## Baseline coverage map
 
 - Covered now: dictionary word list 200 plus rendered word content, authenticated word detail 200 plus profile content, public word page 200 plus public content, title, meta description, canonical, OG, and JSON-LD markers.
 - Covered in Task 2: Study API `word_source=word_detail` missing `word_id`, current-user scoping, `extra_study` future-card behavior, `due_filter = None` scoping, buried cards, and standardized `api_error` format for the confirmed invalid request.
 - Deferred to Task 3: dirty profile data normalization, route filters, authorization boundaries in service data, and confirmed N+1 issues.
-- Deferred to Task 4: template escaping, empty states, private controls on public pages, hardcoded public URLs, and broken links.
+- Covered in Task 4: template escaping for word/profile/book/related text, empty states for missing semantic fields/audio/books/related words, private controls on public word pages, hardcoded public word canonical URLs, and inline audio handler escaping.
 - Deferred to Task 5: unresolved findings sweep, stale helper/import checks, and regression coverage consolidation.
 
 ## Commands
@@ -72,6 +75,10 @@ Date: 2026-05-25
 - Task 3 TDD failure reproduced: `pytest tests/test_words_routes.py::TestWordProfileDataNormalization tests/test_words_routes.py::TestPublicWord::test_public_word_does_not_expose_private_profile_data -q`
 - Task 3 focused regression validation passed: `pytest tests/test_words_routes.py::TestWordProfileDataNormalization tests/test_words_routes.py::TestWordList::test_combined_search_type_level_and_pagination_filters_results tests/test_words_routes.py::TestPublicWord::test_public_word_does_not_expose_private_profile_data -q`
 - Task 3 validation passed: `pytest tests/test_words_routes.py -q`
+- Task 4 TDD failures reproduced: `pytest tests/test_public_words_seo.py::TestPublicWordRoute::test_public_word_has_title_meta_canonical_and_no_private_controls tests/test_public_words_seo.py::TestPublicWordRoute::test_public_word_json_ld_preserves_unescaped_text_values tests/test_public_words_seo.py::TestPublicWordRoute::test_public_word_audio_url_uses_json_encoded_handler_argument tests/test_words_routes.py::TestWordList::test_word_list_audio_url_uses_json_encoded_handler_argument tests/test_words_routes.py::TestWordDetail::test_word_detail_audio_url_uses_json_encoded_handler_argument -q`
+- Task 4 focused regression validation passed: `pytest tests/test_public_words_seo.py::TestPublicWordRoute::test_public_word_has_title_meta_canonical_and_no_private_controls tests/test_public_words_seo.py::TestPublicWordRoute::test_public_word_json_ld_preserves_unescaped_text_values tests/test_public_words_seo.py::TestPublicWordRoute::test_public_word_audio_url_uses_json_encoded_handler_argument tests/test_words_routes.py::TestWordList::test_word_list_audio_url_uses_json_encoded_handler_argument tests/test_words_routes.py::TestWordDetail::test_word_detail_audio_url_uses_json_encoded_handler_argument -q`
+- Task 4 escaping/empty-state validation passed: `pytest tests/test_public_words_seo.py::TestPublicWordRoute::test_public_word_escapes_profile_and_related_word_text tests/test_public_words_seo.py::TestPublicWordRoute::test_public_word_hides_empty_profile_sections_audio_and_private_controls tests/test_words_routes.py::TestWordList::test_word_list_escapes_word_and_book_text tests/test_words_routes.py::TestWordDetail::test_word_detail_escapes_profile_related_and_book_text tests/test_words_routes.py::TestWordDetail::test_word_detail_hides_empty_profile_audio_books_and_related_sections -q`
+- Task 4 validation passed: `pytest tests/test_public_words_seo.py tests/test_words_routes.py -q`
 
 ## Task 2 brainstorm: Study API word_detail
 
@@ -97,3 +104,16 @@ Date: 2026-05-25
 - Query-string routes: combined search, type, level, sort, page, and per-page filters should keep the intended result set and avoid 500s.
 - Authorization boundaries: public word pages must not render private status blocks, `/words/<id>` links, admin facts, or non-public related forms from the shared profile helper.
 - N+1 review: word list uses set-based joins/subqueries for user status, decks, mastered state, and next review; detail pages load one source word, and related-word candidate queries use `selectinload` for topics, collections, base word, and phrasal variants. No new per-row N+1 defect was confirmed in Task 3.
+
+## Task 4 brainstorm: templates XSS, UX, and SEO
+
+- English word: rendered in page titles, hero headings, breadcrumbs, links, OG, and JSON-LD; must stay escaped in HTML and correctly serialized in JSON-LD.
+- Translation: rendered in hero blocks, profile translations, related-word cards, and meta descriptions; HTML-like translations must not become markup.
+- Usage context and etymology: shared profile template renders these as prose; dirty HTML-like strings should be escaped and missing values should hide the section.
+- Synonyms and antonyms: rendered as chips; tags, SVG payloads, and duplicate/dirty values must not become executable markup.
+- User notes: not rendered by the reviewed word templates; no Task 4 template surface found.
+- Book titles: private detail/list templates render book titles and status titles; malicious titles must be escaped.
+- Topic names: related-word scoring uses topic relations, but the reviewed templates render reason labels rather than raw topic names.
+- Audio metadata: `listening` is stored data and was used inside inline JavaScript string literals; quote payloads can break handlers if not JSON-encoded.
+- Empty states: missing audio, synonyms, antonyms, etymology, books, and related words should avoid broken empty sections; private detail should show an explicit related-word empty message.
+- SEO/private UI: public word pages need canonical URLs from configured `SITE_URL`, valid JSON-LD, and no `/words/<id>` private controls.

@@ -101,12 +101,12 @@
 - Modify: `tests/test_public_words_seo.py`
 - Modify: `tests/test_words_routes.py`
 
-- [ ] Брейншторм: перечислить dangerous template inputs: English word, translation, usage context, etymology, synonyms, antonyms, user notes, book titles, topic names.
-- [ ] Добавить render tests с HTML-like payload в слове и проверить, что пользовательский текст escaped, а не исполняется как markup.
-- [ ] Добавить tests на empty states: нет synonyms, нет etymology, нет audio, нет related books/topics.
-- [ ] Добавить SEO tests для public word page: canonical, title, description, no private-only controls.
-- [ ] Исправить template defects: убрать небезопасный `safe`, broken links, hardcoded URLs, private UI на публичной странице, если найдено.
-- [ ] Run `pytest tests/test_public_words_seo.py tests/test_words_routes.py -q`.
+- [x] Брейншторм: перечислить dangerous template inputs: English word, translation, usage context, etymology, synonyms, antonyms, user notes, book titles, topic names.
+- [x] Добавить render tests с HTML-like payload в слове и проверить, что пользовательский текст escaped, а не исполняется как markup.
+- [x] Добавить tests на empty states: нет synonyms, нет etymology, нет audio, нет related books/topics.
+- [x] Добавить SEO tests для public word page: canonical, title, description, no private-only controls.
+- [x] Исправить template defects: убрать небезопасный `safe`, broken links, hardcoded URLs, private UI на публичной странице, если найдено.
+- [x] Run `pytest tests/test_public_words_seo.py tests/test_words_routes.py -q`.
 
 ### Task 5: Свести findings, убрать мертвый код и закрыть регрессии
 

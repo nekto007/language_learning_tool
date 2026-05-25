@@ -12,6 +12,7 @@ from app.words.detail_service import (
     get_related_words,
     normalise_word_list,
 )
+from app.books.models import Book
 from app.modules.models import SystemModule, UserModule
 
 
@@ -342,6 +343,63 @@ class TestWordList:
         assert sample_words[1].english_word not in html
         assert sample_words[3].english_word not in html
 
+    def test_word_list_escapes_word_and_book_text(
+        self,
+        authenticated_client,
+        db_session,
+        words_module,
+    ):
+        suffix = uuid.uuid4().hex[:8]
+        word = CollectionWords(
+            english_word=f'<script>alert("en")</script>{suffix}',
+            russian_word='<img src=x onerror=alert(1)>',
+            level='A1',
+            item_type='word',
+        )
+        book = Book(
+            title='<script>alert("book")</script>',
+            author='Author',
+            chapters_cnt=1,
+        )
+        book.words.append(word)
+        db_session.add_all([word, book])
+        db_session.commit()
+
+        resp = authenticated_client.get('/words?sort=alpha&per_page=200')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert '<script>alert("en")</script>' not in html
+        assert '<script>alert("book")</script>' not in html
+        assert '<img src=x onerror=alert(1)>' not in html
+        assert '&lt;script&gt;alert' in html
+        assert '&lt;img src=x onerror=alert(1)&gt;' in html
+
+    def test_word_list_audio_url_uses_json_encoded_handler_argument(
+        self,
+        authenticated_client,
+        db_session,
+        words_module,
+    ):
+        suffix = uuid.uuid4().hex[:8]
+        word = CollectionWords(
+            english_word=f'listaudioxss{suffix}',
+            russian_word='аудио',
+            level='A1',
+            get_download=1,
+            listening="[sound:bad');alert(1);//.mp3]",
+            item_type='word',
+        )
+        db_session.add(word)
+        db_session.commit()
+
+        resp = authenticated_client.get(f'/words?search={word.english_word}')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert "playAudio('" not in html
+        assert 'onclick=\'playAudio("' in html
+
 
 # ==================== WORD DETAIL ====================
 
@@ -488,6 +546,109 @@ class TestWordDetail:
         assert 'From Old English leornian' in html
         assert f'learn about{suffix}' in html
         assert 'синоним' in html
+
+    def test_word_detail_escapes_profile_related_and_book_text(
+        self,
+        authenticated_client,
+        db_session,
+        words_module,
+    ):
+        suffix = uuid.uuid4().hex[:8]
+        related = CollectionWords(
+            english_word=f'relateddetailxss{suffix}',
+            russian_word='<script>alert("related")</script>',
+            level='A1',
+            frequency_band=1,
+            item_type='word',
+        )
+        word = CollectionWords(
+            english_word=f'<script>alert("en")</script>{suffix}',
+            russian_word='<img src=x onerror=alert(1)>',
+            level='A1',
+            frequency_band=1,
+            sentences='Example without markup.',
+            item_type='word',
+            usage_context='<img src=x onerror=alert(2)>',
+            synonyms=[related.english_word, '<b>same</b>'],
+            antonyms=['<svg onload=alert(1)>'],
+            etymology='<iframe src=x></iframe>',
+        )
+        book = Book(
+            title='<script>alert("book")</script>',
+            author='Author',
+            chapters_cnt=1,
+        )
+        book.words.append(word)
+        db_session.add_all([word, related, book])
+        db_session.commit()
+
+        resp = authenticated_client.get(f'/words/{word.id}')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert '<script>alert("en")</script>' not in html
+        assert '<script>alert("related")</script>' not in html
+        assert '<script>alert("book")</script>' not in html
+        assert '<img src=x onerror=alert(1)>' not in html
+        assert '<img src=x onerror=alert(2)>' not in html
+        assert '<b>same</b>' not in html
+        assert '<svg onload=alert(1)>' not in html
+        assert '<iframe src=x></iframe>' not in html
+        assert '&lt;script&gt;alert' in html
+        assert '&lt;img src=x onerror=alert(1)&gt;' in html
+        assert '&lt;img src=x onerror=alert(2)&gt;' in html
+
+    def test_word_detail_hides_empty_profile_audio_books_and_related_sections(
+        self,
+        authenticated_client,
+        db_session,
+        words_module,
+    ):
+        suffix = uuid.uuid4().hex[:8]
+        word = CollectionWords(
+            english_word=f'emptydetail{suffix}',
+            russian_word='пустой профиль',
+            level='B2',
+            item_type='word',
+        )
+        db_session.add(word)
+        db_session.commit()
+
+        resp = authenticated_client.get(f'/words/{word.id}')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'Синонимы' not in html
+        assert 'Антонимы' not in html
+        assert 'Происхождение' not in html
+        assert 'Произношение' not in html
+        assert 'Похожие слова не найдены' in html
+        assert 'Встречается в книгах' not in html
+
+    def test_word_detail_audio_url_uses_json_encoded_handler_argument(
+        self,
+        authenticated_client,
+        db_session,
+        words_module,
+    ):
+        suffix = uuid.uuid4().hex[:8]
+        word = CollectionWords(
+            english_word=f'detailaudioxss{suffix}',
+            russian_word='аудио',
+            level='A1',
+            get_download=1,
+            listening="[sound:bad');alert(1);//.mp3]",
+            item_type='word',
+        )
+        db_session.add(word)
+        db_session.commit()
+
+        resp = authenticated_client.get(f'/words/{word.id}')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert "playAudio('" not in html
+        assert 'onclick=\'playAudio("' in html
 
 
 # ==================== UPDATE WORD STATUS ====================
