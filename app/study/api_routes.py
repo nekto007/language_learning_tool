@@ -118,6 +118,9 @@ def get_study_items():
             return api_error('deck_not_found', 'Deck not found or access denied', 404)
     elif word_source == 'daily_plan_mix':
         deck_word_ids = get_daily_plan_mix_word_ids(current_user.id)
+    elif word_source == 'word_detail':
+        word_id_param = request.args.get('word_id', type=int)
+        deck_word_ids = [word_id_param] if word_id_param else []
     elif word_source == 'custom_list':
         list_id_param = request.args.get('list_id', type=int)
         if list_id_param:
@@ -199,6 +202,7 @@ def get_study_items():
 
     remaining_new = new_limit
     remaining_reviews = review_limit
+    is_word_detail_study = word_source == 'word_detail' and deck_word_ids is not None
 
     def format_card(direction, word, state_type):
         audio_url = get_audio_url_for_word(word)
@@ -249,27 +253,32 @@ def get_study_items():
     end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
     def base_due_query(include_learning_grace=False, include_today=False):
-        if include_today:
+        if is_word_detail_study and extra_study:
+            due_filter = None
+        elif include_today:
             due_filter = UserCardDirection.next_review <= end_of_today
         elif include_learning_grace:
             due_filter = UserCardDirection.next_review <= (now + learning_grace_period)
         else:
             due_filter = UserCardDirection.next_review <= now
 
+        filters = [
+            UserWord.user_id == current_user.id,
+            UserWord.status.in_(['new', 'learning', 'review']),
+            or_(
+                UserCardDirection.buried_until.is_(None),
+                UserCardDirection.buried_until <= now
+            ),
+        ]
+        if due_filter is not None:
+            filters.append(due_filter)
+
         query = UserCardDirection.query \
             .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
             .options(
                 joinedload(UserCardDirection.user_word).joinedload(UserWord.word)
             ) \
-            .filter(
-                UserWord.user_id == current_user.id,
-                UserWord.status.in_(['new', 'learning', 'review']),
-                due_filter,
-                or_(
-                    UserCardDirection.buried_until.is_(None),
-                    UserCardDirection.buried_until <= now
-                )
-            )
+            .filter(*filters)
         if deck_word_ids is not None:
             query = query.filter(UserWord.word_id.in_(deck_word_ids))
         if exclude_card_ids:

@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 
 class WordSearchForm(FlaskForm):
-    search = StringField(_l('Search'), validators=[Optional()])
-    submit = SubmitField(_l('Search'))
+    search = StringField(_l('Поиск'), validators=[Optional()])
+    submit = SubmitField(_l('Найти'))
 
     class Meta:
         csrf = False  # Disable CSRF for GET forms
@@ -17,15 +17,32 @@ class WordSearchForm(FlaskForm):
 
 class WordFilterForm(FlaskForm):
     status = SelectField(_l('Статус'), choices=[
-        ('all', _l('Все')),
-        ('new', _l('Новые')),
-        ('learning', _l('Изучаемые')),
-        ('review', _l('На повторении')),
-        ('mastered', _l('Выученные'))
+        ('all', _l('Все слова')),
+        ('mine', _l('Мои слова')),
+        ('not_added', _l('Не добавлено')),
+        ('new', _l('Новое')),
+        ('learning', _l('Изучаю')),
+        ('review', _l('Повторение')),
+        ('mastered', _l('Знаю'))
     ], default='all', validators=[Optional()])
 
-    letter = StringField(_l('Letter'), validators=[Optional()])
-    book_id = SelectField(_l('Book'), coerce=int, validators=[Optional()])
+    level = SelectField(_l('Уровень'), choices=[
+        ('', _l('Все уровни')),
+        ('A1', 'A1'),
+        ('A2', 'A2'),
+        ('B1', 'B1'),
+        ('B2', 'B2'),
+        ('C1', 'C1'),
+    ], default='', validators=[Optional()])
+    sort = SelectField(_l('Сортировка'), choices=[
+        ('frequency', _l('Частые сначала')),
+        ('alpha', 'A-Z'),
+        ('level', _l('По уровню')),
+        ('status', _l('Сначала мои')),
+        ('due', _l('К повторению')),
+    ], default='frequency', validators=[Optional()])
+    letter = StringField(_l('Буква'), validators=[Optional()])
+    book_id = SelectField(_l('Книга'), coerce=int, validators=[Optional()])
 
     class Meta:
         csrf = False  # Disable CSRF for GET forms
@@ -35,7 +52,7 @@ class WordFilterForm(FlaskForm):
         from app.books.models import Book
 
         # Populate book choices dynamically
-        books = [(0, _l('All Books'))]
+        books = [(0, _l('Все книги'))]
         try:
             from app.utils.db import db
             # Получаем книги отсортированные по названию

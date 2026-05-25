@@ -55,9 +55,9 @@ class TestWordFilterForm:
         """Тест инициализации формы с книгами"""
         with app.app_context():
             form = WordFilterForm()
-            # Should have at least the default "All Books" option
+            # Should have at least the default "Все книги" option
             assert len(form.book_id.choices) >= 1
-            assert form.book_id.choices[0] == (0, 'All Books')
+            assert form.book_id.choices[0] == (0, 'Все книги')
 
     def test_form_init_populates_book_choices(self, app, db_session, test_book):
         """Тест заполнения списка книг"""
@@ -84,7 +84,7 @@ class TestWordFilterForm:
             # Form should still be created with default choices only
             form = WordFilterForm()
             # Should only have default choice since DB query failed
-            assert form.book_id.choices == [(0, 'All Books')]
+            assert form.book_id.choices == [(0, 'Все книги')]
 
 
 class TestTopicForm:

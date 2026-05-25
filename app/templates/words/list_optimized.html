@@ -298,7 +298,7 @@
 
 .vocab-filters__grid {
     display: grid;
-    grid-template-columns: 2fr 1.25fr 1.25fr auto;
+    grid-template-columns: minmax(220px, 2fr) minmax(130px, 1fr) minmax(115px, 0.8fr) minmax(145px, 1fr) minmax(155px, 1fr) auto;
     gap: 1rem;
     align-items: end;
 }
@@ -379,6 +379,45 @@
     margin-top: 1rem;
     padding-top: 1rem;
     border-top: 1px solid #f1f5f9;
+}
+
+.vocab-quick-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.vocab-quick-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: var(--vocab-radius-pill);
+    border: 1px solid var(--vocab-border);
+    background: #fff;
+    color: var(--vocab-text-secondary);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 700;
+    transition: all 0.15s;
+}
+
+.vocab-quick-filter:hover {
+    border-color: var(--vocab-primary);
+    color: var(--vocab-primary-dark);
+}
+
+.vocab-quick-filter--active {
+    border-color: transparent;
+    background: var(--vocab-gradient);
+    color: #fff;
+}
+
+.vocab-quick-filter--active:hover {
+    color: #fff;
 }
 
 .vocab-letters__label {
@@ -594,18 +633,43 @@
     transform: rotate(45deg);
 }
 
-/* Status dot */
-.vocab-table__status-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    display: inline-block;
+/* Status badge */
+.vocab-table__status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.28rem 0.62rem;
+    border-radius: var(--vocab-radius-pill);
+    font-size: 0.72rem;
+    font-weight: 800;
+    white-space: nowrap;
 }
 
-.vocab-table__status-dot--learning { background: var(--vocab-success); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15); }
-.vocab-table__status-dot--review { background: var(--vocab-info); box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15); }
-.vocab-table__status-dot--mastered { background: var(--vocab-warning); box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15); }
-.vocab-table__status-dot--new { background: #cbd5e1; box-shadow: 0 0 0 3px rgba(203, 213, 225, 0.15); }
+.vocab-table__status-badge--not_added {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+.vocab-table__status-badge--new {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+.vocab-table__status-badge--learning {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #bbf7d0;
+}
+.vocab-table__status-badge--review {
+    background: #ecfeff;
+    color: #0e7490;
+    border: 1px solid #a5f3fc;
+}
+.vocab-table__status-badge--mastered {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
 
 /* English word */
 .vocab-table__english {
@@ -614,6 +678,11 @@
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-decoration: none;
+}
+
+.vocab-table__english:hover {
+    color: var(--vocab-primary-dark);
 }
 
 /* Translation */
@@ -738,6 +807,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.35rem;
     padding: 0.35rem 0.625rem;
     background: var(--vocab-gradient);
     color: #fff;
@@ -750,6 +820,28 @@
 }
 
 .vocab-table__add-btn:hover { opacity: 0.88; }
+
+.vocab-table__train-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.625rem;
+    background: #eef2ff;
+    color: #3730a3;
+    border: 1px solid #c7d2fe;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+
+.vocab-table__train-btn:hover {
+    color: #312e81;
+    background: #e0e7ff;
+}
 
 .vocab-table__add-split {
     display: inline-flex;
@@ -830,9 +922,9 @@
 
 /* Column widths — hints for auto layout */
 .vocab-table .col-check { width: 2.5%; }
-.vocab-table .col-status { width: 4%; }
-.vocab-table .col-english { width: 22%; }
-.vocab-table .col-translation { width: 24%; }
+.vocab-table .col-status { width: 12%; }
+.vocab-table .col-english { width: 20%; }
+.vocab-table .col-translation { width: 22%; }
 .vocab-table .col-level { width: 6%; }
 .vocab-table .col-audio { width: 5%; }
 .vocab-table .col-actions { width: auto; }
@@ -862,6 +954,7 @@
 .vocab-mobile-card--review { border-left-color: var(--vocab-info); }
 .vocab-mobile-card--mastered { border-left-color: var(--vocab-warning); }
 .vocab-mobile-card--new { border-left-color: #cbd5e1; }
+.vocab-mobile-card--not_added { border-left-color: #cbd5e1; }
 
 .vocab-mobile-card__header {
     display: flex;
@@ -875,10 +968,16 @@
 }
 
 .vocab-mobile-card__english {
+    display: inline-flex;
     font-size: 1.2rem;
     font-weight: 700;
     color: var(--vocab-text);
     margin-bottom: 0.2rem;
+    text-decoration: none;
+}
+
+.vocab-mobile-card__english:hover {
+    color: var(--vocab-primary-dark);
 }
 
 .vocab-mobile-card__russian {
@@ -1253,22 +1352,22 @@
 
     <!-- Type Switcher -->
     <div class="vocab-types vocab-animate vocab-animate--d1">
-        <a href="{{ url_for('words.word_list', type='all', search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}"
+        <a href="{{ url_for('words.word_list', type='all', search=request.args.get('search', ''), status=request.args.get('status', ''), level=selected_level, sort=sort, letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}"
            class="vocab-types__btn {{ 'vocab-types__btn--active' if item_type == 'all' }}">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
             {{ _('Все') }}
             <span class="vocab-types__count">{{ type_counts.all }}</span>
         </a>
-        <a href="{{ url_for('words.word_list', type='word', search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}"
+        <a href="{{ url_for('words.word_list', type='word', search=request.args.get('search', ''), status=request.args.get('status', ''), level=selected_level, sort=sort, letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}"
            class="vocab-types__btn {{ 'vocab-types__btn--active' if item_type == 'word' }}">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
             {{ _('Слова') }}
             <span class="vocab-types__count">{{ type_counts.word }}</span>
         </a>
-        <a href="{{ url_for('words.word_list', type='phrasal_verb', search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}"
+        <a href="{{ url_for('words.word_list', type='phrasal_verb', search=request.args.get('search', ''), status=request.args.get('status', ''), level=selected_level, sort=sort, letter=request.args.get('letter', ''), book_id=request.args.get('book_id', '')) }}"
            class="vocab-types__btn {{ 'vocab-types__btn--active' if item_type == 'phrasal_verb' }}">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-            {{ _('Phrasal Verbs') }}
+            {{ _('Фразовые глаголы') }}
             <span class="vocab-types__count">{{ type_counts.phrasal_verb }}</span>
         </a>
     </div>
@@ -1290,10 +1389,22 @@
                     {{ filter_form.status(class="vocab-filter__select") }}
                 </div>
 
+                <!-- Level Filter -->
+                <div class="vocab-filter__group">
+                    {{ filter_form.level.label(class="vocab-filter__label") }}
+                    {{ filter_form.level(class="vocab-filter__select") }}
+                </div>
+
                 <!-- Book Filter -->
                 <div class="vocab-filter__group">
                     {{ filter_form.book_id.label(class="vocab-filter__label") }}
                     {{ filter_form.book_id(class="vocab-filter__select") }}
+                </div>
+
+                <!-- Sort Filter -->
+                <div class="vocab-filter__group">
+                    {{ filter_form.sort.label(class="vocab-filter__label") }}
+                    {{ filter_form.sort(class="vocab-filter__select") }}
                 </div>
 
                 <!-- Submit Button -->
@@ -1303,16 +1414,40 @@
                 </button>
             </div>
 
+            <div class="vocab-quick-filters">
+                {% set quick_status = request.args.get('status', 'all') or 'all' %}
+                <a href="{{ url_for('words.word_list', type=item_type, search=request.args.get('search', ''), level=selected_level, sort=sort, letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), status='all') }}"
+                   class="vocab-quick-filter {{ 'vocab-quick-filter--active' if quick_status == 'all' }}">
+                    {{ _('Все слова') }}
+                </a>
+                <a href="{{ url_for('words.word_list', type=item_type, search=request.args.get('search', ''), level=selected_level, sort=sort, letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), status='mine') }}"
+                   class="vocab-quick-filter {{ 'vocab-quick-filter--active' if quick_status == 'mine' }}">
+                    {{ _('Мои слова') }} <span>{{ status_counts.get('mine', 0) }}</span>
+                </a>
+                <a href="{{ url_for('words.word_list', type=item_type, search=request.args.get('search', ''), level=selected_level, sort=sort, letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), status='review') }}"
+                   class="vocab-quick-filter {{ 'vocab-quick-filter--active' if quick_status == 'review' }}">
+                    {{ _('К повторению') }} <span>{{ status_counts.get('review', 0) }}</span>
+                </a>
+                <a href="{{ url_for('words.word_list', type=item_type, search=request.args.get('search', ''), level=selected_level, sort=sort, letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), status='learning') }}"
+                   class="vocab-quick-filter {{ 'vocab-quick-filter--active' if quick_status == 'learning' }}">
+                    {{ _('Изучаю') }} <span>{{ status_counts.get('learning', 0) }}</span>
+                </a>
+                <a href="{{ url_for('words.word_list', type=item_type, search=request.args.get('search', ''), level=selected_level, sort=sort, letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), status='mastered') }}"
+                   class="vocab-quick-filter {{ 'vocab-quick-filter--active' if quick_status == 'mastered' }}">
+                    {{ _('Знаю') }} <span>{{ status_counts.get('mastered', 0) }}</span>
+                </a>
+            </div>
+
             <!-- Letter Filter -->
             <div class="vocab-letters">
                 <div class="vocab-letters__label">{{ _('Фильтр по букве') }}</div>
                 <div class="vocab-letters__list">
-                    <a href="{{ url_for('words.word_list', type=item_type) }}"
+                    <a href="{{ url_for('words.word_list', type=item_type, search=request.args.get('search', ''), status=request.args.get('status', ''), level=selected_level, sort=sort, book_id=request.args.get('book_id', '')) }}"
                        class="vocab-letters__btn vocab-letters__btn--all {{ 'vocab-letters__btn--active' if not filter_form.letter.data }}">
                         {{ _('Все') }}
                     </a>
                     {% for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}
-                    <a href="{{ url_for('words.word_list', type=item_type, letter=letter) }}"
+                    <a href="{{ url_for('words.word_list', type=item_type, search=request.args.get('search', ''), status=request.args.get('status', ''), level=selected_level, sort=sort, book_id=request.args.get('book_id', ''), letter=letter) }}"
                        class="vocab-letters__btn {{ 'vocab-letters__btn--active' if filter_form.letter.data == letter }}">
                         {{ letter }}
                     </a>
@@ -1369,11 +1504,11 @@
                         <input type="checkbox" class="vocab-table__checkbox word-checkbox" value="{{ word.id }}" data-word-id="{{ word.id }}">
                     </td>
                     <td>
-                        <span class="vocab-table__status-dot vocab-table__status-dot--{{ word.user_status or 'new' }}"
-                              title="{{ _('Изучается') if word.user_status == 'learning' else _('На повторении') if word.user_status == 'review' else _('Новое') }}"></span>
+                        <span class="vocab-table__status-badge vocab-table__status-badge--{{ word.user_status or 'not_added' }}"
+                              title="{{ word.status_title }}">{{ word.status_label }}</span>
                     </td>
                     <td>
-                        <span class="vocab-table__english">{{ word.english_word }}</span>
+                        <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="vocab-table__english">{{ word.english_word }}</a>
                     </td>
                     <td>
                         <span class="vocab-table__translation">{{ word.russian_word }}</span>
@@ -1401,37 +1536,35 @@
                             </a>
                             {% if word.user_status == 'mastered' %}
                             <!-- Word is mastered -->
-                            <span class="vocab-table__mastered-badge" title="{{ _('Изучено') }}">
+                            <span class="vocab-table__mastered-badge" title="{{ _('Слово отмечено как известное') }}">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-                                {{ _('Изучено') }}
+                                {{ _('Знаю') }}
                             </span>
-                            {% elif word.deck_id or word.user_status in ['learning', 'review'] %}
+                            <a href="{{ url_for('study.cards', source='word_detail', word_id=word.id, extra_study='true') }}" class="vocab-table__train-btn" title="{{ _('Повторить это слово') }}">
+                                <i class="fas fa-redo"></i>{{ _('Повторить') }}
+                            </a>
+                            {% elif word.in_study %}
                             <!-- Word is in study/deck -->
-                            <span class="vocab-table__deck-badge" title="{{ _('В изучении') }}{% if word.deck_title %}: {{ word.deck_title }}{% endif %}">
-                                {% if word.deck_title %}
-                                <i class="fas fa-layer-group me-1"></i>{{ word.deck_title[:15] }}{% if word.deck_title|length > 15 %}…{% endif %}
-                                {% else %}
-                                <i class="fas fa-graduation-cap me-1"></i>{{ _('В изучении') }}
-                                {% endif %}
-                            </span>
+                            <a href="{{ url_for('study.cards', source='word_detail', word_id=word.id, extra_study='true') }}" class="vocab-table__train-btn" title="{{ _('Тренировать это слово') }}{% if word.deck_title %}: {{ word.deck_title }}{% endif %}">
+                                <i class="fas fa-play"></i>{{ _('Тренировать') }}
+                            </a>
                             {% else %}
                             <!-- New word - show add buttons -->
                             <div class="btn-group btn-group-sm" style="display:inline-flex;">
                                 <button class="vocab-table__add-btn" onclick="addToStudyDefault({{ word.id }})" title="{{ _('Добавить в изучение') }}">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    {{ _('Изучать') }}
                                 </button>
                                 <button type="button" class="vocab-table__add-split dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('Выбрать колоду') }}">
                                     <span class="visually-hidden">{{ _('Выбрать') }}</span>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end add-word-dropdown">
                                     <li><a class="dropdown-item" href="#" onclick="addToStudyChooseDeck({{ word.id }}); return false;"><i class="fas fa-layer-group me-2 text-primary"></i>{{ _('В колоду...') }}</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="markAsKnown({{ word.id }}); return false;"><i class="fas fa-star me-2 text-warning"></i>{{ _('Уже знаю') }}</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item text-muted small" href="#" onclick="openDefaultDeckSettings(); return false;"><i class="fas fa-cog me-2"></i>{{ _('Настроить по умолчанию') }}</a></li>
                                 </ul>
                             </div>
-                            <button class="vocab-table__known-btn" onclick="markAsKnown({{ word.id }})" title="{{ _('Уже знаю') }}">
-                                <i class="fas fa-star"></i>
-                            </button>
                             {% endif %}
                         </div>
                     </td>
@@ -1447,13 +1580,16 @@
         <div class="vocab-mobile-card vocab-mobile-card--{{ word.user_status or 'new' }}">
             <div class="vocab-mobile-card__header">
                 <div class="vocab-mobile-card__main">
-                    <div class="vocab-mobile-card__english">{{ word.english_word }}</div>
+                    <a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="vocab-mobile-card__english">{{ word.english_word }}</a>
                     <div class="vocab-mobile-card__russian">{{ word.russian_word }}</div>
                 </div>
                 <input type="checkbox" class="vocab-mobile-card__checkbox word-checkbox" value="{{ word.id }}" data-word-id="{{ word.id }}">
             </div>
 
             <div class="vocab-mobile-card__meta">
+                <span class="vocab-table__status-badge vocab-table__status-badge--{{ word.user_status or 'not_added' }}"
+                      title="{{ word.status_title }}">{{ word.status_label }}</span>
+
                 {% if word.level %}
                 <span class="vocab-table__level {% if word.level in ['A1', 'A2'] %}vocab-table__level--a{% elif word.level in ['B1', 'B2'] %}vocab-table__level--b{% elif word.level == 'C1' %}vocab-table__level--c{% endif %}">{{ word.level }}</span>
                 {% endif %}
@@ -1479,16 +1615,15 @@
                 {% if word.user_status == 'mastered' %}
                 <span class="vocab-table__mastered-badge">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-                    {{ _('Изучено') }}
+                    {{ _('Знаю') }}
                 </span>
-                {% elif word.deck_id or word.user_status in ['learning', 'review'] %}
-                <span class="vocab-table__deck-badge" title="{{ _('В изучении') }}{% if word.deck_title %}: {{ word.deck_title }}{% endif %}">
-                    {% if word.deck_title %}
-                    <i class="fas fa-layer-group me-1"></i>{{ word.deck_title[:12] }}{% if word.deck_title|length > 12 %}…{% endif %}
-                    {% else %}
-                    <i class="fas fa-graduation-cap me-1"></i>{{ _('В изучении') }}
-                    {% endif %}
-                </span>
+                <a href="{{ url_for('study.cards', source='word_detail', word_id=word.id, extra_study='true') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-redo me-1"></i>{{ _('Повторить') }}
+                </a>
+                {% elif word.in_study %}
+                <a href="{{ url_for('study.cards', source='word_detail', word_id=word.id, extra_study='true') }}" class="btn btn-sm btn-outline-primary" title="{% if word.deck_title %}{{ word.deck_title }}{% endif %}">
+                    <i class="fas fa-play me-1"></i>{{ _('Тренировать') }}
+                </a>
                 {% else %}
                 <div class="btn-group btn-group-sm" style="display:inline-flex;">
                     <button class="btn btn-primary" onclick="addToStudyDefault({{ word.id }})">
@@ -1499,11 +1634,9 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end add-word-dropdown">
                         <li><a class="dropdown-item" href="#" onclick="addToStudyChooseDeck({{ word.id }}); return false;"><i class="fas fa-layer-group me-2 text-primary"></i>{{ _('В колоду...') }}</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="markAsKnown({{ word.id }}); return false;"><i class="fas fa-star me-2 text-warning"></i>{{ _('Уже знаю') }}</a></li>
                     </ul>
                 </div>
-                <button class="btn btn-sm btn-warning" onclick="markAsKnown({{ word.id }})" title="{{ _('Уже знаю') }}">
-                    <i class="fas fa-star me-1"></i>{{ _('Знаю') }}
-                </button>
                 {% endif %}
             </div>
         </div>
@@ -1517,7 +1650,7 @@
             <ul class="vocab-pagination__list">
                 {% if words.has_prev %}
                 <li>
-                    <a class="vocab-pagination__link" href="{{ url_for('words.word_list', page=words.prev_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), per_page=request.args.get('per_page', '')) }}">
+                    <a class="vocab-pagination__link" href="{{ url_for('words.word_list', page=words.prev_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), level=selected_level, sort=sort, letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), per_page=request.args.get('per_page', '')) }}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
                     </a>
                 </li>
@@ -1527,7 +1660,7 @@
                     {% if page_num %}
                         {% if page_num != words.page %}
                         <li>
-                            <a class="vocab-pagination__link" href="{{ url_for('words.word_list', page=page_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), per_page=request.args.get('per_page', '')) }}">{{ page_num }}</a>
+                            <a class="vocab-pagination__link" href="{{ url_for('words.word_list', page=page_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), level=selected_level, sort=sort, letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), per_page=request.args.get('per_page', '')) }}">{{ page_num }}</a>
                         </li>
                         {% else %}
                         <li>
@@ -1543,7 +1676,7 @@
 
                 {% if words.has_next %}
                 <li>
-                    <a class="vocab-pagination__link" href="{{ url_for('words.word_list', page=words.next_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), per_page=request.args.get('per_page', '')) }}">
+                    <a class="vocab-pagination__link" href="{{ url_for('words.word_list', page=words.next_num, type=request.args.get('type', 'all'), search=request.args.get('search', ''), status=request.args.get('status', ''), level=selected_level, sort=sort, letter=request.args.get('letter', ''), book_id=request.args.get('book_id', ''), per_page=request.args.get('per_page', '')) }}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
                     </a>
                 </li>
@@ -1714,6 +1847,8 @@ function addToStudyChooseDeck(wordId) {
  * Mark word as known (mastered) and add to deck
  */
 async function markAsKnown(wordId) {
+    const confirmed = window.confirm('{{ _("Отметить слово как известное? Оно получит длинный интервал повторения.") }}');
+    if (!confirmed) return;
     await ensureDeckAndExecute(wordId, 'mastered');
 }
 
@@ -1897,6 +2032,11 @@ function bulkUpdateStatus(status) {
     if (!validStatuses.includes(status)) {
         alert('{{ _("Ошибка: некорректный статус") }}');
         return;
+    }
+
+    if (status === 'mastered') {
+        const confirmed = window.confirm('{{ _("Отметить выбранные слова как известные? Они получат длинный интервал повторения.") }}');
+        if (!confirmed) return;
     }
 
     const wordIds = Array.from(checkedBoxes).map(checkbox => {

@@ -102,7 +102,7 @@ class TestPublicWordRoute:
         )
         related = CollectionWords(
             english_word=f'pupil{suffix}',
-            russian_word='ученик',
+            russian_word='ученик, зрачок',
             level='B1',
             frequency_rank=380,
             frequency_band=1,
@@ -119,12 +119,42 @@ class TestPublicWordRoute:
         assert response.status_code == 200
         assert '/ˈstjuːdənt/' in html
         assert 'Top 1000' in html
-        assert 'Brown corpus' in html
+        assert 'Brown corpus' not in html
+        assert 'ID' not in html
         assert 'Used for a person who studies' in html
         assert f'pupil{suffix}' in html
+        assert 'ученик' in html
+        assert 'зрачок' not in html
         assert f'teacher{suffix}' in html
         assert 'From Latin studere' in html
         assert 'синоним' in html
+
+    def test_public_word_filters_null_values_and_shows_common_article_error(self, client, db_session):
+        word = CollectionWords(
+            english_word='student',
+            russian_word='студент, ученик',
+            level='A1',
+            frequency_band=1,
+            sentences='I am a student.<br>Я студент.',
+            item_type='word',
+            usage_context='null',
+            synonyms=['null', None, ''],
+            antonyms=['null'],
+            etymology='null',
+        )
+        db_session.add(word)
+        db_session.commit()
+
+        response = client.get('/dictionary/student')
+        html = response.data.decode()
+
+        assert response.status_code == 200
+        assert 'Антонимы' not in html
+        assert 'Синонимы' not in html
+        assert 'Происхождение' not in html
+        assert '>null<' not in html
+        assert 'I am student.' in html
+        assert 'I am a student.' in html
 
 
 class TestPublicDictionaryRoute:

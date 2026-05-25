@@ -148,7 +148,8 @@
   font-weight: 800;
   margin: 0 0 0.25rem;
   line-height: 1.15;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
+  color: #fff;
 }
 
 .wdet-hero__translation {
@@ -156,6 +157,19 @@
   font-weight: 500;
   opacity: 0.9;
   margin: 0 0 1rem;
+}
+
+.wdet-hero__pronunciation {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--wdet-radius-pill);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.92rem;
+  font-weight: 700;
 }
 
 .wdet-hero__badges {
@@ -221,6 +235,31 @@
   color: var(--wdet-primary-dark);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.wdet-hero__btn--muted {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.86);
+  cursor: default;
+}
+
+.wdet-hero__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.625rem 0.9rem;
+  border-radius: var(--wdet-radius-sm);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.wdet-hero__status strong {
+  color: #fff;
+  font-weight: 800;
 }
 
 /* ── Content Layout ── */
@@ -436,6 +475,93 @@
   line-height: 1.5;
 }
 
+.wdet-status__headline {
+  color: var(--wdet-text);
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin-bottom: 0.25rem;
+}
+
+.wdet-srs-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0 1.25rem;
+  text-align: left;
+}
+
+.wdet-srs-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--wdet-border);
+  color: var(--wdet-text-muted);
+  font-size: 0.84rem;
+}
+
+.wdet-srs-row:first-child {
+  border-top: 0;
+}
+
+.wdet-srs-row strong {
+  color: var(--wdet-text);
+  font-weight: 760;
+  text-align: right;
+}
+
+.wdet-directions {
+  margin-top: 1.25rem;
+  text-align: left;
+}
+
+.wdet-directions__title,
+.wdet-status__actions-title {
+  color: var(--wdet-text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  margin-bottom: 0.7rem;
+  text-transform: uppercase;
+}
+
+.wdet-direction {
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--wdet-border);
+}
+
+.wdet-direction__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+  color: var(--wdet-text);
+  font-weight: 800;
+}
+
+.wdet-direction__state {
+  color: var(--wdet-text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.wdet-direction__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 0.75rem;
+  color: var(--wdet-text-muted);
+  font-size: 0.8rem;
+}
+
+.wdet-direction__grid span:nth-child(even) {
+  color: var(--wdet-text);
+  font-weight: 700;
+  text-align: right;
+}
+
+.wdet-status__actions-title {
+  margin-top: 1.25rem;
+  text-align: left;
+}
+
 .wdet-status__btns {
   display: flex;
   gap: 0.5rem;
@@ -509,6 +635,32 @@
   font-weight: 700;
 }
 
+.wdet-book-row__link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--wdet-text);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+
+.wdet-book-row__link:hover {
+  color: var(--wdet-primary);
+}
+
+.wdet-book-row__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.wdet-book-row__open {
+  color: var(--wdet-primary);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .wdet-grid {
@@ -556,6 +708,7 @@
 </style>
 
 <div class="wdet-page">
+  {% set summary = study_summary or {} %}
 
   <!-- Breadcrumb -->
   <nav class="wdet-breadcrumb wdet-animate">
@@ -581,6 +734,9 @@
     <div class="wdet-hero__content">
       <h1 class="wdet-hero__word">{{ word.english_word }}</h1>
       <p class="wdet-hero__translation">{{ word.russian_word }}</p>
+      {% if word.ipa_transcription %}
+      <div class="wdet-hero__pronunciation">/{{ word.ipa_transcription }}/</div>
+      {% endif %}
 
       <div class="wdet-hero__badges">
         {% if word.level %}
@@ -590,31 +746,29 @@
         </span>
         {% endif %}
 
-        {% if word.books %}
+        {% if books %}
         <span class="wdet-badge">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
-          {{ word.books[0].title }}
+          {{ books[0][0].title }}
         </span>
         {% endif %}
 
         <span class="wdet-badge">
-          {% if word.is_mastered %}
+          {% if summary.status == 'mastered' %}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            {{ _('Выучено') }}
-          {% elif word.user_status == 'learning' %}
+          {% elif summary.status == 'learning' %}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
-            {{ _('Изучается') }}
-          {% elif word.user_status == 'review' %}
+          {% elif summary.status == 'review' %}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
-            {{ _('Повторение') }}
           {% else %}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            {{ _('Новое') }}
           {% endif %}
+          {{ _(summary.badge_label or 'Новое') }}
         </span>
       </div>
 
       <div class="wdet-hero__actions">
+        {% set primary_study_url = url_for('study.cards', source='word_detail', word_id=word.id, extra_study='true') if summary.primary_action_extra_study else url_for('study.cards', source='word_detail', word_id=word.id) %}
         {% if word.get_download and word.listening %}
         <button class="wdet-hero__btn wdet-hero__btn--glass" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
@@ -622,10 +776,28 @@
         </button>
         {% endif %}
 
-        <a href="{{ url_for('study.index') }}" class="wdet-hero__btn wdet-hero__btn--white">
+        {% if summary.primary_action_kind == 'set_learning' %}
+        <button class="wdet-hero__btn wdet-hero__btn--white" onclick="startLearningWord()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          {{ _('Изучать') }}
+          {{ _(summary.primary_action_label or 'Изучать') }}
+        </button>
+        {% elif summary.primary_action_kind == 'study' %}
+        <a href="{{ primary_study_url }}" class="wdet-hero__btn wdet-hero__btn--white">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          {{ _(summary.primary_action_label or 'Повторить') }}
         </a>
+        {% else %}
+        <span class="wdet-hero__status">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          {{ _('Следующее повторение') }}: <strong>{{ summary.next_review_label or _('не запланировано') }}</strong>
+        </span>
+        {% endif %}
+
+        {% if summary.secondary_action_label %}
+        <a href="{{ url_for('study.cards', source='word_detail', word_id=word.id, extra_study='true') }}" class="wdet-hero__btn wdet-hero__btn--glass">
+          {{ _(summary.secondary_action_label) }}
+        </a>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -634,63 +806,9 @@
   <div class="wdet-grid">
     <!-- Left Column -->
     <div>
+      {% set word_profile_mode = 'study' %}
+      {% set word_profile_show_facts = false %}
       {% include 'words/_word_profile.html' %}
-
-      <!-- Audio Section -->
-      {% if word.get_download and word.listening %}
-      <div class="wdet-card wdet-animate wdet-animate--d2">
-        <div class="wdet-card__header">
-          <div class="wdet-card__icon wdet-card__icon--audio">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
-          </div>
-          <h3 class="wdet-card__title">{{ _('Произношение') }}</h3>
-        </div>
-        <div class="wdet-audio">
-          <button class="wdet-audio__play" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')" title="{{ _('Воспроизвести') }}">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          </button>
-          <div>
-            <div class="wdet-audio__info-word">{{ word.english_word }}</div>
-            <div class="wdet-audio__info-hint">{{ _('Нажмите для воспроизведения') }}</div>
-          </div>
-        </div>
-      </div>
-      {% else %}
-      <div class="wdet-card wdet-animate wdet-animate--d2">
-        <div class="wdet-card__header">
-          <div class="wdet-card__icon wdet-card__icon--audio">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
-          </div>
-          <h3 class="wdet-card__title">{{ _('Произношение') }}</h3>
-        </div>
-        <p class="wdet-empty-text">{{ _('Произношение недоступно') }}</p>
-      </div>
-      {% endif %}
-
-      <!-- Examples Section -->
-      {% if word.sentences %}
-      <div class="wdet-card wdet-animate wdet-animate--d3">
-        <div class="wdet-card__header">
-          <div class="wdet-card__icon wdet-card__icon--examples">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/></svg>
-          </div>
-          <h3 class="wdet-card__title">{{ _('Примеры использования') }}</h3>
-        </div>
-        <div class="wdet-examples">
-          {{ word.sentences|sanitize }}
-        </div>
-      </div>
-      {% else %}
-      <div class="wdet-card wdet-animate wdet-animate--d3">
-        <div class="wdet-card__header">
-          <div class="wdet-card__icon wdet-card__icon--examples">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/></svg>
-          </div>
-          <h3 class="wdet-card__title">{{ _('Примеры использования') }}</h3>
-        </div>
-        <p class="wdet-empty-text">{{ _('Примеры недоступны') }}</p>
-      </div>
-      {% endif %}
 
       <!-- Related Words -->
       {% if related_words %}
@@ -705,7 +823,7 @@
           {% for related in related_words[:6] %}
           <a href="{{ url_for('words.word_detail', word_id=related.id) }}" class="wdet-related">
             <div class="wdet-related__en">{{ related.english_word }}</div>
-            <div class="wdet-related__ru">{{ related.russian_word }}</div>
+            <div class="wdet-related__ru">{{ related.related_translation or related.russian_word }}</div>
             {% if related.related_reason %}
             <div class="wdet-related__reason">{{ related.related_reason }}</div>
             {% endif %}
@@ -730,26 +848,74 @@
     <div>
       <!-- Status Card -->
       <div class="wdet-status wdet-animate wdet-animate--d2">
-        <div class="wdet-status__icon wdet-status__icon--{{ 'mastered' if word.is_mastered else word.user_status or 'new' }}">
-          {% if word.is_mastered %}
+        <div class="wdet-status__icon wdet-status__icon--{{ summary.status_css or 'new' }}">
+          {% if summary.status == 'mastered' %}
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          {% elif word.user_status == 'learning' %}
+          {% elif summary.status == 'learning' %}
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
-          {% elif word.user_status == 'review' %}
+          {% elif summary.status == 'review' %}
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
           {% else %}
             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           {% endif %}
         </div>
 
-        <h4 class="wdet-status__title">
-          {{ _('Выученное слово') if word.is_mastered else _('Изучается') if word.user_status == 'learning' else _('На повторении') if word.user_status == 'review' else _('Новое слово') }}
-        </h4>
+        <h4 class="wdet-status__title">{{ _('Статус слова') }}</h4>
+        <div class="wdet-status__headline">{{ _(summary.status_label or 'Новое слово') }}</div>
+        <p class="wdet-status__desc">{{ _(summary.status_description or 'Начните изучение этого слова') }}</p>
 
-        <p class="wdet-status__desc">
-          {{ _('Вы знаете это слово хорошо') if word.is_mastered else _('Это слово в процессе изучения') if word.user_status == 'learning' else _('Нужно повторить это слово') if word.user_status == 'review' else _('Начните изучение этого слова') }}
-        </p>
+        <div class="wdet-srs-list">
+          <div class="wdet-srs-row">
+            <span>{{ _('Следующее повторение') }}</span>
+            <strong>{{ summary.next_review_label or _('не запланировано') }}</strong>
+          </div>
+          <div class="wdet-srs-row">
+            <span>{{ _('Точность') }}</span>
+            <strong>{{ summary.accuracy_label or '0%' }}</strong>
+          </div>
+          <div class="wdet-srs-row">
+            <span>{{ _('Ответы') }}</span>
+            <strong>{{ summary.correct_total or 0 }} {{ _('правильно') }} / {{ summary.incorrect_total or 0 }} {{ _('ошибки') }}</strong>
+          </div>
+          <div class="wdet-srs-row">
+            <span>{{ _('Повторы') }}</span>
+            <strong>{{ summary.repetitions_total or 0 }}</strong>
+          </div>
+          <div class="wdet-srs-row">
+            <span>{{ _('Ошибочные возвраты') }}</span>
+            <strong>{{ summary.lapses_total or 0 }}</strong>
+          </div>
+          <div class="wdet-srs-row">
+            <span>{{ _('Интервал') }}</span>
+            <strong>{{ summary.interval_label or _('нет') }}</strong>
+          </div>
+        </div>
 
+        {% if summary.directions %}
+        <div class="wdet-directions">
+          <div class="wdet-directions__title">{{ _('Направления') }}</div>
+          {% for direction in summary.directions %}
+          <div class="wdet-direction">
+            <div class="wdet-direction__head">
+              <span>{{ direction.label }}</span>
+              <span class="wdet-direction__state">{{ direction.state_label }}</span>
+            </div>
+            <div class="wdet-direction__grid">
+              <span>{{ _('Следующее') }}</span>
+              <span>{{ direction.next_review_label }}</span>
+              <span>{{ _('Точность') }}</span>
+              <span>{{ direction.accuracy_label }}</span>
+              <span>{{ _('Ответы') }}</span>
+              <span>{{ direction.answers_label }}</span>
+              <span>{{ _('Интервал') }}</span>
+              <span>{{ direction.interval_label }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="wdet-status__actions-title">{{ _('Изменить статус') }}</div>
         <div class="wdet-status__btns">
           <button class="wdet-status__btn {{ 'wdet-status__btn--active' if word.user_status == 'learning' }}"
                   onclick="changeStatus('learning')">
@@ -760,7 +926,7 @@
             {{ _('Повторяю') }}
           </button>
           <button class="wdet-status__btn {{ 'wdet-status__btn--active' if word.is_mastered }}"
-                  onclick="changeStatus('mastered')">
+                  onclick="confirmKnownStatus()">
             {{ _('Знаю') }}
           </button>
         </div>
@@ -777,12 +943,24 @@
         </div>
         {% for book, frequency in books %}
         <div class="wdet-book-row">
-          <a href="{{ url_for('books.book_details', book_id=book.id) }}">{{ book.title }}</a>
-          <span class="wdet-book-row__freq">{{ frequency }}x</span>
+          <a class="wdet-book-row__link" href="{{ url_for('books.book_details', book_id=book.id) }}">{{ book.title }}</a>
+          <span class="wdet-book-row__meta">
+            <span class="wdet-book-row__open">{{ _('Открыть') }}</span>
+            <span class="wdet-book-row__freq">{{ frequency }}x</span>
+          </span>
         </div>
         {% endfor %}
       </div>
       {% endif %}
+
+      {% set word_profile_include_styles = false %}
+      {% set word_profile_show_meaning = false %}
+      {% set word_profile_show_forms = false %}
+      {% set word_profile_show_facts = true %}
+      {% set word_profile_facts = word_profile.admin_facts if current_user.is_admin else word_profile.study_facts %}
+      {% set word_profile_facts_title = _('Технические данные') if current_user.is_admin else _('Данные слова') %}
+      {% set word_profile_facts_collapsible = current_user.is_admin %}
+      {% include 'words/_word_profile.html' %}
     </div>
   </div>
 
@@ -796,7 +974,9 @@
 
 <script>
 const currentWordStatus = '{{ word.user_status or "new" }}';
+const currentStudyStatus = '{{ summary.status or "new" }}';
 const wordId = {{ word.id }};
+const wordStudyUrl = {{ url_for('study.cards', source='word_detail', word_id=word.id, extra_study='true')|tojson }};
 
 let defaultDeckCache = null;
 let defaultDeckLoaded = false;
@@ -846,11 +1026,23 @@ async function saveDefaultDeck(deckId, deckName) {
     }
 }
 
-async function changeStatus(newStatus) {
+function startLearningWord() {
+    changeStatus('learning', wordStudyUrl);
+}
+
+function confirmKnownStatus() {
+    if (currentStudyStatus === 'mastered') return;
+    const confirmed = window.confirm('{{ _("Отметить слово как известное? Оно получит длинный интервал повторения.") }}');
+    if (confirmed) {
+        changeStatus('mastered');
+    }
+}
+
+async function changeStatus(newStatus, redirectUrl = null) {
     if (currentWordStatus === 'new' && (newStatus === 'learning' || newStatus === 'mastered')) {
         const defaultDeck = await loadDefaultDeck();
         if (defaultDeck && defaultDeck.id) {
-            updateWordStatus(newStatus, defaultDeck.id);
+            updateWordStatus(newStatus, defaultDeck.id, redirectUrl);
             return;
         }
         try {
@@ -860,29 +1052,29 @@ async function changeStatus(newStatus) {
             if (decks.length === 0) {
                 deckSelectModal.showCreateFirst(async function(result) {
                     await saveDefaultDeck(result.deckId, result.deckName);
-                    updateWordStatus(newStatus, result.deckId);
+                    updateWordStatus(newStatus, result.deckId, redirectUrl);
                 });
             } else if (decks.length === 1) {
                 await saveDefaultDeck(decks[0].id, decks[0].name);
-                updateWordStatus(newStatus, decks[0].id);
+                updateWordStatus(newStatus, decks[0].id, redirectUrl);
             } else {
                 deckSelectModal.showWithCallback(wordId, async function(result) {
                     await saveDefaultDeck(result.deckId, result.deckName);
-                    updateWordStatus(newStatus, result.deckId);
+                    updateWordStatus(newStatus, result.deckId, redirectUrl);
                 }, true, { forceDecks: true });
             }
         } catch (error) {
             console.error('Error fetching decks:', error);
             deckSelectModal.show(wordId, function(result) {
-                updateWordStatus(newStatus, result.deckId);
+                updateWordStatus(newStatus, result.deckId, redirectUrl);
             }, { forceDecks: true });
         }
     } else {
-        updateWordStatus(newStatus, null);
+        updateWordStatus(newStatus, null, redirectUrl);
     }
 }
 
-function updateWordStatus(newStatus, deckId) {
+function updateWordStatus(newStatus, deckId, redirectUrl = null) {
     const payload = { status: newStatus };
     if (deckId) payload.deck_id = deckId;
     fetch(`/api/words/${wordId}/status`, {
@@ -896,7 +1088,11 @@ function updateWordStatus(newStatus, deckId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            if (redirectUrl) {
+                window.location.href = redirectUrl;
+            } else {
+                location.reload();
+            }
         } else {
             alert('{{ _("Ошибка при обновлении статуса") }}');
         }

@@ -1,4 +1,5 @@
 """Tests for words routes: word list, word detail, status update, API endpoints."""
+from datetime import datetime, timedelta, timezone
 import uuid
 
 import pytest
@@ -115,6 +116,37 @@ class TestWordList:
         resp = authenticated_client.get('/words?type=phrasal_verb')
         assert resp.status_code == 200
 
+    def test_level_filter(self, authenticated_client, words_module, sample_words):
+        resp = authenticated_client.get('/words?level=A2')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert sample_words[2].english_word in html
+        assert sample_words[0].english_word not in html
+
+    def test_word_list_hides_empty_and_out_of_product_levels(self, authenticated_client, db_session, words_module):
+        empty_word = CollectionWords(
+            english_word='   ',
+            russian_word='битая пустая строка',
+            level='B1',
+            item_type='word',
+        )
+        c2_word = CollectionWords(
+            english_word=f'c2hidden{uuid.uuid4().hex[:8]}',
+            russian_word='скрытый C2',
+            level='C2',
+            item_type='word',
+        )
+        db_session.add_all([empty_word, c2_word])
+        db_session.commit()
+
+        resp = authenticated_client.get('/words')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'битая пустая строка' not in html
+        assert c2_word.english_word not in html
+
     def test_pagination(self, authenticated_client, words_module, sample_words):
         resp = authenticated_client.get('/words?page=1')
         assert resp.status_code == 200
@@ -168,6 +200,61 @@ class TestWordDetail:
         resp = authenticated_client.get(f'/words/{word.id}')
         assert resp.status_code == 200
 
+    def test_word_detail_shows_srs_summary(self, authenticated_client, db_session, test_user, words_module):
+        from app.study.models import UserCardDirection, UserWord
+
+        word = CollectionWords(
+            english_word=f'student{uuid.uuid4().hex[:8]}',
+            russian_word='студент',
+            level='A1',
+            item_type='word',
+        )
+        db_session.add(word)
+        db_session.flush()
+
+        user_word = UserWord(user_id=test_user.id, word_id=word.id)
+        user_word.status = 'review'
+        db_session.add(user_word)
+        db_session.flush()
+
+        now = datetime.now(timezone.utc)
+        db_session.add_all([
+            UserCardDirection(
+                user_word_id=user_word.id,
+                direction='eng-rus',
+                state='review',
+                next_review=now - timedelta(minutes=5),
+                correct_count=10,
+                incorrect_count=2,
+                repetitions=6,
+                interval=5,
+            ),
+            UserCardDirection(
+                user_word_id=user_word.id,
+                direction='rus-eng',
+                state='review',
+                next_review=now + timedelta(days=1),
+                correct_count=5,
+                incorrect_count=1,
+                repetitions=2,
+                interval=2,
+                lapses=1,
+            ),
+        ])
+        db_session.commit()
+
+        resp = authenticated_client.get(f'/words/{word.id}')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'Статус слова' in html
+        assert 'На повторении' in html
+        assert 'Повторить сейчас' in html
+        assert '83%' in html
+        assert '15 правильно / 3 ошибки' in html
+        assert 'EN → RU' in html
+        assert 'RU → EN' in html
+
     def test_word_detail_not_found(self, authenticated_client, words_module):
         resp = authenticated_client.get('/words/999999')
         assert resp.status_code == 404
@@ -215,7 +302,9 @@ class TestWordDetail:
         assert resp.status_code == 200
         assert '/lɜːn/' in html
         assert 'Top 1000' in html
-        assert 'Brown corpus' in html
+        assert 'Данные слова' in html
+        assert 'Brown corpus' not in html
+        assert 'ID' not in html
         assert 'Used when someone studies' in html
         assert f'study{suffix}' in html
         assert f'forget{suffix}' in html

@@ -3,7 +3,17 @@
 {% set antonyms = profile.antonyms or [] %}
 {% set base_word = profile.base_word %}
 {% set phrasal_verbs = profile.phrasal_verbs or [] %}
+{% set profile_mode = word_profile_mode|default('study') %}
+{% set facts = word_profile_facts if word_profile_facts is defined and word_profile_facts is not none else (profile.public_facts if word_profile_public else profile.facts) %}
+{% set facts_title = word_profile_facts_title|default(_('Кратко') if word_profile_public else _('Служебная информация')) %}
+{% set facts_collapsible = word_profile_facts_collapsible|default(false) %}
+{% set common_mistake = profile.common_mistake %}
+{% set include_styles = word_profile_include_styles|default(true) %}
+{% set show_meaning = word_profile_show_meaning|default(true) %}
+{% set show_forms = word_profile_show_forms|default(true) %}
+{% set show_facts = word_profile_show_facts|default(true) %}
 
+{% if include_styles %}
 <style>
 .wprof {
   display: grid;
@@ -16,6 +26,9 @@
   border-radius: 12px;
   padding: 1.25rem;
 }
+.wprof-panel--support {
+  background: #f8fafc;
+}
 .wprof-title {
   margin: 0 0 1rem;
   color: #0f172a;
@@ -25,7 +38,7 @@
 }
 .wprof-facts {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 0.75rem;
   margin: 0;
 }
@@ -48,26 +61,6 @@
   font-size: 0.95rem;
   font-weight: 700;
   overflow-wrap: anywhere;
-}
-.wprof-pronunciation {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.875rem 1rem;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 10px;
-}
-.wprof-pronunciation__label {
-  color: #1e40af;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-.wprof-pronunciation__value {
-  color: #0f172a;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 1rem;
 }
 .wprof-section {
   display: grid;
@@ -121,6 +114,64 @@
   font-size: 0.95rem;
   line-height: 1.65;
 }
+.wprof-translation {
+  display: grid;
+  gap: 0.375rem;
+  padding: 1rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+}
+.wprof-translation__label {
+  color: #1e40af;
+  font-size: 0.78rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+.wprof-translation__value {
+  color: #0f172a;
+  font-size: 1.1rem;
+  font-weight: 750;
+}
+.wprof-example {
+  padding: 1rem;
+  background: #fff7ed;
+  border-left: 3px solid #f59e0b;
+  border-radius: 10px;
+  color: #334155;
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+.wprof-example p {
+  margin: 0;
+}
+.wprof-mistake {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+}
+.wprof-mistake__row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.wprof-mistake__mark {
+  width: 1.25rem;
+  flex: 0 0 1.25rem;
+  font-weight: 850;
+}
+.wprof-mistake__mark--bad {
+  color: #dc2626;
+}
+.wprof-mistake__mark--good {
+  color: #16a34a;
+}
 .wprof-link-row {
   display: flex;
   align-items: center;
@@ -149,47 +200,86 @@
   color: #64748b;
   font-size: 0.9rem;
 }
+.wprof-details {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0;
+}
+.wprof-details summary {
+  cursor: pointer;
+  padding: 1rem 1.25rem;
+  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 750;
+  list-style: none;
+}
+.wprof-details summary::-webkit-details-marker {
+  display: none;
+}
+.wprof-details summary::after {
+  content: '+';
+  float: right;
+  color: #64748b;
+  font-weight: 850;
+}
+.wprof-details[open] summary::after {
+  content: '-';
+}
+.wprof-details__body {
+  padding: 0 1.25rem 1.25rem;
+}
 @media (max-width: 640px) {
   .wprof-facts {
     grid-template-columns: 1fr;
   }
-  .wprof-pronunciation {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
 </style>
+{% endif %}
 
 <div class="wprof">
+  {% if show_meaning %}
   <section class="wprof-panel">
-    <h2 class="wprof-title">{{ _('Словарная карточка') }}</h2>
-    <dl class="wprof-facts">
-      {% for fact in profile.facts or [] %}
-      <div class="wprof-fact">
-        <dt>{{ fact.label }}</dt>
-        <dd>{{ fact.value }}</dd>
-      </div>
-      {% endfor %}
-    </dl>
+    <h2 class="wprof-title">{{ _('Значение и употребление') if profile_mode == 'public' else _('Как использовать') }}</h2>
 
-    {% if word.ipa_transcription %}
+    {% if word.russian_word %}
     <div class="wprof-section">
-      <div class="wprof-pronunciation">
-        <span class="wprof-pronunciation__label">IPA</span>
-        <span class="wprof-pronunciation__value">/{{ word.ipa_transcription }}/</span>
+      <div class="wprof-translation">
+        <span class="wprof-translation__label">{{ _('Перевод') }}</span>
+        <span class="wprof-translation__value">{{ word.russian_word }}</span>
       </div>
     </div>
     {% endif %}
-  </section>
 
-  {% if word.usage_context or synonyms or antonyms or word.etymology %}
-  <section class="wprof-panel">
-    <h2 class="wprof-title">{{ _('Значение и употребление') }}</h2>
-
-    {% if word.usage_context %}
+    {% if profile.usage_context %}
     <div class="wprof-section">
       <div class="wprof-label">{{ _('Контекст употребления') }}</div>
-      <p class="wprof-copy">{{ word.usage_context }}</p>
+      <p class="wprof-copy">{{ profile.usage_context }}</p>
+    </div>
+    {% endif %}
+
+    {% if word.sentences %}
+    <div class="wprof-section">
+      <div class="wprof-label">{{ _('Примеры') }}</div>
+      <div class="wprof-example">
+        {{ word.sentences|sanitize }}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if common_mistake %}
+    <div class="wprof-section">
+      <div class="wprof-label">{{ _(common_mistake.title) }}</div>
+      <div class="wprof-mistake">
+        <div class="wprof-mistake__row">
+          <span class="wprof-mistake__mark wprof-mistake__mark--bad">x</span>
+          <span>{{ common_mistake.wrong }}</span>
+        </div>
+        <div class="wprof-mistake__row">
+          <span class="wprof-mistake__mark wprof-mistake__mark--good">✓</span>
+          <span>{{ common_mistake.correct }}</span>
+        </div>
+      </div>
     </div>
     {% endif %}
 
@@ -215,16 +305,16 @@
     </div>
     {% endif %}
 
-    {% if word.etymology %}
+    {% if profile.etymology %}
     <div class="wprof-section">
       <div class="wprof-label">{{ _('Происхождение') }}</div>
-      <p class="wprof-copy">{{ word.etymology }}</p>
+      <p class="wprof-copy">{{ profile.etymology }}</p>
     </div>
     {% endif %}
   </section>
   {% endif %}
 
-  {% if base_word or phrasal_verbs %}
+  {% if show_forms and (base_word or phrasal_verbs) %}
   <section class="wprof-panel">
     <h2 class="wprof-title">{{ _('Связанные формы') }}</h2>
 
@@ -250,5 +340,35 @@
     </div>
     {% endif %}
   </section>
+  {% endif %}
+
+  {% if show_facts and facts %}
+  {% if facts_collapsible %}
+  <details class="wprof-details">
+    <summary>{{ facts_title }}</summary>
+    <div class="wprof-details__body">
+      <dl class="wprof-facts">
+        {% for fact in facts or [] %}
+        <div class="wprof-fact">
+          <dt>{{ fact.label }}</dt>
+          <dd>{{ fact.value }}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+    </div>
+  </details>
+  {% else %}
+  <section class="wprof-panel wprof-panel--support">
+    <h2 class="wprof-title">{{ facts_title }}</h2>
+    <dl class="wprof-facts">
+      {% for fact in facts or [] %}
+      <div class="wprof-fact">
+        <dt>{{ fact.label }}</dt>
+        <dd>{{ fact.value }}</dd>
+      </div>
+      {% endfor %}
+    </dl>
+  </section>
+  {% endif %}
   {% endif %}
 </div>

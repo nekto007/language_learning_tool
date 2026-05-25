@@ -10,7 +10,7 @@ from sqlalchemy import case, func, or_
 
 from app.study.models import GameScore
 from app.utils.db import db
-from app.words.detail_service import build_word_profile, get_related_words
+from app.words.detail_service import build_word_profile, build_word_study_summary, get_related_words
 from app.words.forms import WordFilterForm, WordSearchForm
 from app.words.models import CollectionWords
 from app.modules.decorators import module_required
@@ -1839,7 +1839,8 @@ def dashboard():
 @login_required
 @module_required('words')
 def word_list():
-    from app.study.models import UserWord
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+    from app.study.models import UserCardDirection, UserWord
 
     # Получение параметров фильтра
     search = request.args.get('search', '')
@@ -1847,6 +1848,12 @@ def word_list():
     letter = request.args.get('letter', '')
     book_id = request.args.get('book_id', type=int)
     item_type = request.args.get('type', 'all')  # 'all', 'word', 'phrasal_verb'
+    selected_level = request.args.get('level', '').strip().upper()
+    if selected_level not in PUBLIC_CEFR_CODES:
+        selected_level = ''
+    sort = request.args.get('sort', 'frequency')
+    if sort not in {'frequency', 'alpha', 'level', 'status', 'due'}:
+        sort = 'frequency'
 
     # Параметры пагинации
     page = request.args.get('page', 1, type=int)
@@ -1870,17 +1877,54 @@ def word_list():
         QuizDeck.user_id == current_user.id
     ).distinct(QuizDeckWord.word_id).subquery()
 
+    mastered_subquery = db.session.query(
+        UserWord.word_id.label('word_id')
+    ).join(
+        CollectionWords, CollectionWords.id == UserWord.word_id
+    ).join(
+        UserCardDirection, UserCardDirection.user_word_id == UserWord.id
+    ).filter(
+        UserWord.user_id == current_user.id,
+        UserWord.status == 'review',
+        CollectionWords.english_word.isnot(None),
+        func.trim(CollectionWords.english_word) != '',
+        CollectionWords.level.in_(PUBLIC_CEFR_CODES),
+    ).group_by(UserWord.word_id).having(
+        func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
+    ).subquery()
+
+    next_review_subquery = db.session.query(
+        UserWord.word_id.label('word_id'),
+        func.min(UserCardDirection.next_review).label('next_review_at')
+    ).filter(
+        UserWord.user_id == current_user.id
+    ).join(
+        UserCardDirection, UserCardDirection.user_word_id == UserWord.id
+    ).group_by(UserWord.word_id).subquery()
+
     query = db.session.query(
         CollectionWords,
         UserWord.status.label('user_status'),
         deck_subquery.c.deck_id.label('deck_id'),
-        deck_subquery.c.deck_title.label('deck_title')
+        deck_subquery.c.deck_title.label('deck_title'),
+        mastered_subquery.c.word_id.label('mastered_word_id'),
+        next_review_subquery.c.next_review_at.label('next_review_at')
     ).outerjoin(
         UserWord,
         (CollectionWords.id == UserWord.word_id) & (UserWord.user_id == current_user.id)
     ).outerjoin(
         deck_subquery,
         CollectionWords.id == deck_subquery.c.word_id
+    ).outerjoin(
+        mastered_subquery,
+        CollectionWords.id == mastered_subquery.c.word_id
+    ).outerjoin(
+        next_review_subquery,
+        CollectionWords.id == next_review_subquery.c.word_id
+    ).filter(
+        CollectionWords.english_word.isnot(None),
+        func.trim(CollectionWords.english_word) != '',
+        CollectionWords.level.in_(PUBLIC_CEFR_CODES),
     )
 
     # Применяем фильтр по типу (word/phrasal_verb)
@@ -1901,29 +1945,24 @@ def word_list():
 
     # Применяем фильтр статуса
     if status and status != 'all':
-        if status == 'new':
-            # Слова без записи в UserWord или со статусом 'new'
-            query = query.filter(
-                or_(
-                    UserWord.status.is_(None),
-                    UserWord.status == 'new'
-                )
-            )
+        if status == 'mine':
+            query = query.filter(UserWord.id.isnot(None))
+        elif status == 'not_added':
+            query = query.filter(UserWord.id.is_(None))
+        elif status == 'new':
+            query = query.filter(UserWord.status == 'new')
         elif status == 'mastered':
-            # Mastered = review status + min_interval >= MASTERED_THRESHOLD_DAYS
-            # Используем подзапрос для фильтрации
-            from app.study.models import UserCardDirection
-            mastered_subquery = db.session.query(UserWord.word_id).filter(
-                UserWord.user_id == current_user.id,
-                UserWord.status == 'review'
-            ).join(
-                UserCardDirection, UserCardDirection.user_word_id == UserWord.id
-            ).group_by(UserWord.word_id).having(
-                func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
-            ).scalar_subquery()
-            query = query.filter(CollectionWords.id.in_(mastered_subquery))
+            query = query.filter(mastered_subquery.c.word_id.isnot(None))
+        elif status == 'review':
+            query = query.filter(
+                UserWord.status == 'review',
+                mastered_subquery.c.word_id.is_(None),
+            )
         else:
             query = query.filter(UserWord.status == status)
+
+    if selected_level:
+        query = query.filter(CollectionWords.level == selected_level)
 
     # Применяем фильтр по букве
     if letter:
@@ -1937,10 +1976,29 @@ def word_list():
             CollectionWords.id == word_book_link.c.word_id
         ).filter(word_book_link.c.book_id == book_id)
 
+    level_order = case(
+        (CollectionWords.level == 'A1', 1),
+        (CollectionWords.level == 'A2', 2),
+        (CollectionWords.level == 'B1', 3),
+        (CollectionWords.level == 'B2', 4),
+        (CollectionWords.level == 'C1', 5),
+        else_=10,
+    )
+    frequency_order = (
+        case((CollectionWords.frequency_rank > 0, 0), else_=1),
+        CollectionWords.frequency_rank.asc(),
+        CollectionWords.english_word.asc(),
+    )
+    status_order = case(
+        (mastered_subquery.c.word_id.isnot(None), 1),
+        (UserWord.status == 'review', 2),
+        (UserWord.status == 'learning', 3),
+        (UserWord.status == 'new', 4),
+        else_=10,
+    )
+
     # Smart sorting: prioritize exact matches when searching
     if search:
-        from sqlalchemy import case
-
         search_lower = search.lower()
         query = query.order_by(
             # Priority 1: Exact match (case-insensitive)
@@ -1958,9 +2016,20 @@ def word_list():
             # Priority 3: Alphabetically by English word
             CollectionWords.english_word.asc()
         )
-    else:
-        # Default sorting when not searching
+    elif sort == 'alpha':
         query = query.order_by(CollectionWords.english_word.asc())
+    elif sort == 'level':
+        query = query.order_by(level_order, *frequency_order)
+    elif sort == 'status':
+        query = query.order_by(status_order, *frequency_order)
+    elif sort == 'due':
+        query = query.order_by(
+            case((next_review_subquery.c.next_review_at.isnot(None), 0), else_=1),
+            next_review_subquery.c.next_review_at.asc(),
+            *frequency_order,
+        )
+    else:
+        query = query.order_by(*frequency_order)
 
     # Пагинация
     words = query.paginate(
@@ -1971,10 +2040,38 @@ def word_list():
 
     # Преобразуем результат для шаблона
     word_list = []
-    for word_obj, user_status, deck_id, deck_title in words.items:
-        word_obj.user_status = user_status or 'new'
+    for word_obj, user_status, deck_id, deck_title, mastered_word_id, next_review_at in words.items:
+        is_mastered = mastered_word_id is not None
+        if is_mastered:
+            display_status = 'mastered'
+            status_label = 'Знаю'
+            status_title = 'Слово отмечено как известное'
+        elif user_status == 'review':
+            display_status = 'review'
+            status_label = 'Повторение'
+            status_title = 'Слово в интервальном повторении'
+        elif user_status == 'learning':
+            display_status = 'learning'
+            status_label = 'Изучаю'
+            status_title = 'Слово сейчас изучается'
+        elif user_status == 'new':
+            display_status = 'new'
+            status_label = 'Новое'
+            status_title = 'Слово добавлено, но еще не отвечалось'
+        else:
+            display_status = 'not_added'
+            status_label = 'Не добавлено'
+            status_title = 'Слово еще не в ваших карточках'
+
+        word_obj.user_status = display_status
+        word_obj.action_status = user_status or 'new'
+        word_obj.status_label = status_label
+        word_obj.status_title = f'{status_title}. Колода: {deck_title}' if deck_title else status_title
+        word_obj.is_mastered = is_mastered
+        word_obj.in_study = bool(user_status) or bool(deck_id)
         word_obj.deck_id = deck_id
         word_obj.deck_title = deck_title
+        word_obj.next_review_at = next_review_at
         word_list.append(word_obj)
 
     # Обновляем words.items
@@ -1983,21 +2080,47 @@ def word_list():
     # Получаем статистику по статусам
     status_counts = {}
     if current_user.is_authenticated:
-        counts = db.session.query(
-            UserWord.status,
-            func.count(UserWord.id).label('count')
+        base_user_words = db.session.query(UserWord).join(
+            CollectionWords, CollectionWords.id == UserWord.word_id
         ).filter(
-            UserWord.user_id == current_user.id
-        ).group_by(UserWord.status).all()
-        
-        for status_val, count in counts:
-            status_counts[status_val] = count
+            UserWord.user_id == current_user.id,
+            CollectionWords.english_word.isnot(None),
+            func.trim(CollectionWords.english_word) != '',
+            CollectionWords.level.in_(PUBLIC_CEFR_CODES),
+        )
+        status_counts['new'] = base_user_words.filter(UserWord.status == 'new').count()
+        status_counts['learning'] = base_user_words.filter(UserWord.status == 'learning').count()
+        status_counts['mastered'] = db.session.query(func.count()).select_from(mastered_subquery).scalar() or 0
+        status_counts['review'] = base_user_words.filter(
+            UserWord.status == 'review',
+            ~UserWord.word_id.in_(db.session.query(mastered_subquery.c.word_id)),
+        ).count()
+        status_counts['mine'] = (
+            status_counts['new']
+            + status_counts['learning']
+            + status_counts['review']
+            + status_counts['mastered']
+        )
 
     # Получаем количество по типам
     type_counts = {
-        'all': CollectionWords.query.count(),
-        'word': CollectionWords.query.filter_by(item_type='word').count(),
-        'phrasal_verb': CollectionWords.query.filter_by(item_type='phrasal_verb').count()
+        'all': CollectionWords.query.filter(
+            CollectionWords.english_word.isnot(None),
+            func.trim(CollectionWords.english_word) != '',
+            CollectionWords.level.in_(PUBLIC_CEFR_CODES),
+        ).count(),
+        'word': CollectionWords.query.filter(
+            CollectionWords.item_type == 'word',
+            CollectionWords.english_word.isnot(None),
+            func.trim(CollectionWords.english_word) != '',
+            CollectionWords.level.in_(PUBLIC_CEFR_CODES),
+        ).count(),
+        'phrasal_verb': CollectionWords.query.filter(
+            CollectionWords.item_type == 'phrasal_verb',
+            CollectionWords.english_word.isnot(None),
+            func.trim(CollectionWords.english_word) != '',
+            CollectionWords.level.in_(PUBLIC_CEFR_CODES),
+        ).count()
     }
 
     return render_template(
@@ -2007,7 +2130,10 @@ def word_list():
         filter_form=filter_form,
         status_counts=status_counts,
         item_type=item_type,
-        type_counts=type_counts
+        type_counts=type_counts,
+        selected_level=selected_level,
+        sort=sort,
+        levels=PUBLIC_CEFR_CODES,
     )
 
 
@@ -2016,6 +2142,8 @@ def word_list():
 @module_required('words')
 def word_detail(word_id):
     from app.study.models import UserWord
+    from app.books.models import Book
+    from app.words.models import word_book_link
 
     word = CollectionWords.query.get_or_404(word_id)
 
@@ -2034,13 +2162,16 @@ def word_detail(word_id):
         word.user_status = 'new'
         word.is_mastered = False
 
-    # Получаем книги, содержащие это слово
-    books = []
-    if word.books:
-        # Простое решение - берем книги без частоты
-        books = [(book, 1) for book in word.books]
+    books = (
+        db.session.query(Book, word_book_link.c.frequency)
+        .join(word_book_link, Book.id == word_book_link.c.book_id)
+        .filter(word_book_link.c.word_id == word.id)
+        .order_by(word_book_link.c.frequency.desc(), Book.title.asc())
+        .all()
+    )
 
     word_profile = build_word_profile(word)
+    study_summary = build_word_study_summary(user_word)
     related_words = get_related_words(word, limit=6)
 
     return render_template(
@@ -2048,6 +2179,7 @@ def word_detail(word_id):
         word=word,
         word_profile=word_profile,
         word_profile_public=False,
+        study_summary=study_summary,
         books=books,
         related_words=related_words
     )

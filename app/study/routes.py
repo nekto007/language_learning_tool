@@ -482,17 +482,25 @@ def _reset_flashcard_attempts_for_new_session(user_id: int, word_ids=None) -> No
 def cards():
     settings = StudySettings.get_settings(current_user.id)
     source = request.args.get('source', 'auto')
+    extra_study = request.args.get('extra_study', 'false').lower() == 'true'
     from_daily_plan = request.args.get('from') == 'daily_plan'
     list_id_arg = request.args.get('list_id', type=int)
+    word_id_arg = request.args.get('word_id', type=int)
     if source == 'custom_list' and list_id_arg:
         deck_word_ids = _get_custom_list_word_ids(list_id_arg, current_user.id)
     elif source == 'daily_plan_mix':
         deck_word_ids = get_daily_plan_mix_word_ids(current_user.id)
+    elif source == 'word_detail' and word_id_arg:
+        deck_word_ids = [word_id_arg]
     else:
         deck_word_ids = None
     fetch_cards_params = {'source': source}
     if list_id_arg and source == 'custom_list':
         fetch_cards_params['list_id'] = str(list_id_arg)
+    if word_id_arg and source == 'word_detail':
+        fetch_cards_params['word_id'] = str(word_id_arg)
+    if extra_study:
+        fetch_cards_params['extra_study'] = 'true'
     if request.args.get('from'):
         fetch_cards_params['from'] = request.args['from']
     if request.args.get('slot'):
@@ -513,9 +521,16 @@ def cards():
         }
     else:
         counts = SRSService.get_card_counts(current_user.id, deck_word_ids=deck_word_ids)
+        if source == 'word_detail' and extra_study:
+            counts['nothing_to_study'] = False
+            counts['limit_reached'] = False
 
     _reset_flashcard_attempts_for_new_session(current_user.id, word_ids=deck_word_ids)
     session = SessionService.start_session(current_user.id, 'cards')
+    from_word_detail = source == 'word_detail' and bool(word_id_arg)
+    back_url = url_for('words.word_detail', word_id=word_id_arg) if from_word_detail else (
+        url_for('words.dashboard') if from_daily_plan else url_for('study.index')
+    )
 
     return render_template(
         'study/cards.html',
@@ -526,15 +541,17 @@ def cards():
         limit_reached=counts['limit_reached'],
         daily_limit=counts['new_limit'],
         new_cards_today=counts['new_today'],
-        fc_title='Дневной микс' if source == 'daily_plan_mix' else ('Мой список' if source == 'custom_list' else 'Карточки'),
-        fc_back_url=url_for('words.dashboard') if from_daily_plan else url_for('study.index'),
+        fc_title='Повторение слова' if from_word_detail else (
+            'Дневной микс' if source == 'daily_plan_mix' else ('Мой список' if source == 'custom_list' else 'Карточки')
+        ),
+        fc_back_url=back_url,
         fc_cards=[],
         fc_fetch_cards_url='/study/api/get-study-items',
         fc_fetch_cards_params=fetch_cards_params,
         fc_grade_url='/study/api/update-study-item',
         fc_complete_url='/study/api/complete-session',
-        fc_on_complete_url=url_for('words.dashboard') if from_daily_plan else url_for('study.index'),
-        fc_on_complete_text='К плану дня' if from_daily_plan else 'К колодам',
+        fc_on_complete_url=back_url,
+        fc_on_complete_text='К слову' if from_word_detail else ('К плану дня' if from_daily_plan else 'К колодам'),
         fc_session_id=session.id,
         fc_show_examples=settings.include_examples if settings else True,
         fc_show_audio=settings.include_audio if settings else True,

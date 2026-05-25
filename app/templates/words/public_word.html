@@ -83,8 +83,15 @@
 .pubw-hero__circle--1 { width: 200px; height: 200px; top: -60px; right: -40px; }
 .pubw-hero__circle--2 { width: 120px; height: 120px; bottom: -40px; left: 8%; }
 .pubw-hero__content { position: relative; z-index: 1; }
-.pubw-hero__word { font-size: 2.5rem; font-weight: 800; margin: 0 0 0.25rem; line-height: 1.15; letter-spacing: -0.02em; }
+.pubw-hero__word { font-size: 2.5rem; font-weight: 800; margin: 0 0 0.25rem; line-height: 1.15; letter-spacing: 0; color: #fff; }
 .pubw-hero__translation { font-size: 1.35rem; font-weight: 500; opacity: 0.9; margin: 0 0 1rem; }
+.pubw-hero__pronunciation {
+  display: inline-flex; align-items: center; margin-bottom: 1rem;
+  padding: 0.35rem 0.7rem; border-radius: 999px;
+  background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.22);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.92rem; font-weight: 700;
+}
 .pubw-hero__badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
 .pubw-badge {
   display: inline-flex; align-items: center; gap: 0.375rem;
@@ -94,6 +101,7 @@
 }
 
 /* CTA */
+.pubw-hero__actions { display: flex; flex-wrap: wrap; gap: 0.625rem; }
 .pubw-cta {
   display: inline-flex; align-items: center; gap: 0.5rem;
   padding: 0.75rem 1.5rem; background: #fff; color: var(--pubw-primary);
@@ -101,6 +109,11 @@
   text-decoration: none; transition: all 0.2s; border: none; cursor: pointer;
 }
 .pubw-cta:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); color: var(--pubw-primary-dark); }
+.pubw-cta--glass {
+  background: rgba(255,255,255,0.18); color: #fff;
+  border: 1px solid rgba(255,255,255,0.3); backdrop-filter: blur(5px);
+}
+.pubw-cta--glass:hover { color: #fff; background: rgba(255,255,255,0.26); }
 
 /* Cards */
 .pubw-card {
@@ -207,6 +220,9 @@
     <div class="pubw-hero__content">
       <h1 class="pubw-hero__word">{{ word.english_word }}</h1>
       <p class="pubw-hero__translation">{{ word.russian_word }}</p>
+      {% if word.ipa_transcription %}
+      <div class="pubw-hero__pronunciation">/{{ word.ipa_transcription }}/</div>
+      {% endif %}
 
       <div class="pubw-hero__badges">
         {% if word.level %}
@@ -220,50 +236,24 @@
         {% endif %}
       </div>
 
-      <a href="{{ url_for('auth.register') }}" class="pubw-cta">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        {{ _('Начни учить это слово') }}
-      </a>
+      <div class="pubw-hero__actions">
+        {% if word.get_download and word.listening %}
+        <button class="pubw-cta pubw-cta--glass" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+          {{ _('Произношение') }}
+        </button>
+        {% endif %}
+        <a href="{{ url_for('words.word_detail', word_id=word.id) if current_user.is_authenticated else url_for('auth.register') }}" class="pubw-cta">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          {{ _('Изучать слово') if current_user.is_authenticated else _('Начни учить это слово') }}
+        </a>
+      </div>
     </div>
   </div>
 
+  {% set word_profile_mode = 'public' %}
+  {% set word_profile_show_facts = false %}
   {% include 'words/_word_profile.html' %}
-
-  <!-- Audio Section -->
-  {% if word.get_download and word.listening %}
-  <div class="pubw-card pubw-animate pubw-animate--d2">
-    <div class="pubw-card__header">
-      <div class="pubw-card__icon pubw-card__icon--audio">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
-      </div>
-      <h2 class="pubw-card__title">{{ _('Произношение') }}</h2>
-    </div>
-    <div class="pubw-audio">
-      <button class="pubw-audio__play" onclick="playAudio('{{ url_for('static', filename='audio/' + word.listening|audio_filename) }}')" title="{{ _('Воспроизвести') }}">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-      </button>
-      <div>
-        <div class="pubw-audio__info-word">{{ word.english_word }}</div>
-        <div class="pubw-audio__info-hint">{{ _('Нажмите для воспроизведения') }}</div>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- Examples Section -->
-  {% if word.sentences %}
-  <div class="pubw-card pubw-animate pubw-animate--d2">
-    <div class="pubw-card__header">
-      <div class="pubw-card__icon pubw-card__icon--examples">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/></svg>
-      </div>
-      <h2 class="pubw-card__title">{{ _('Примеры использования') }}</h2>
-    </div>
-    <div class="pubw-examples">
-      {{ word.sentences|sanitize }}
-    </div>
-  </div>
-  {% endif %}
 
   <!-- Related Words -->
   {% if related_words %}
@@ -278,7 +268,7 @@
       {% for related in related_words %}
       <a href="{{ url_for('words.public_word', word_slug=related.english_word|word_slug) }}" class="pubw-related">
         <div class="pubw-related__en">{{ related.english_word }}</div>
-        <div class="pubw-related__ru">{{ related.russian_word }}</div>
+        <div class="pubw-related__ru">{{ related.related_translation or related.russian_word }}</div>
         {% if related.related_reason %}
         <div class="pubw-related__reason">{{ related.related_reason }}</div>
         {% endif %}
@@ -320,12 +310,18 @@
     </a>
   </div>
 
+  {% set word_profile_include_styles = false %}
+  {% set word_profile_show_meaning = false %}
+  {% set word_profile_show_forms = false %}
+  {% set word_profile_show_facts = true %}
+  {% include 'words/_word_profile.html' %}
+
   <!-- Bottom CTA -->
   <div class="pubw-banner pubw-animate pubw-animate--d3">
     <h2 class="pubw-banner__title">{{ _('Хочешь выучить это слово?') }}</h2>
     <p class="pubw-banner__desc">{{ _('Зарегистрируйся и начни учить английский с персональным планом') }}</p>
-    <a href="{{ url_for('auth.register') }}" class="pubw-banner__btn">
-      {{ _('Начать бесплатно') }}
+    <a href="{{ url_for('words.word_detail', word_id=word.id) if current_user.is_authenticated else url_for('auth.register') }}" class="pubw-banner__btn">
+      {{ _('Изучать слово') if current_user.is_authenticated else _('Начать бесплатно') }}
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
     </a>
   </div>
