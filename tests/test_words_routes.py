@@ -343,6 +343,44 @@ class TestWordList:
         assert sample_words[1].english_word not in html
         assert sample_words[3].english_word not in html
 
+    def test_word_list_default_and_invalid_sort_use_recommended_level_order(
+        self,
+        authenticated_client,
+        db_session,
+        words_module,
+    ):
+        suffix = uuid.uuid4().hex[:8]
+        beginner_word = CollectionWords(
+            english_word=f'qxbeginner{suffix}',
+            russian_word='начальный',
+            level='A1',
+            frequency_rank=9000,
+            item_type='word',
+        )
+        advanced_word = CollectionWords(
+            english_word=f'qxadvanced{suffix}',
+            russian_word='продвинутый',
+            level='B2',
+            frequency_rank=1,
+            item_type='word',
+        )
+        db_session.add_all([beginner_word, advanced_word])
+        db_session.commit()
+
+        default_resp = authenticated_client.get('/words?letter=qx&per_page=200')
+        default_html = default_resp.get_data(as_text=True)
+        invalid_resp = authenticated_client.get('/words?letter=qx&sort=unknown&per_page=200')
+        invalid_html = invalid_resp.get_data(as_text=True)
+
+        assert default_resp.status_code == 200
+        assert invalid_resp.status_code == 200
+        assert default_html.index(beginner_word.english_word) < default_html.index(
+            advanced_word.english_word
+        )
+        assert invalid_html.index(beginner_word.english_word) < invalid_html.index(
+            advanced_word.english_word
+        )
+
     def test_word_list_escapes_word_and_book_text(
         self,
         authenticated_client,

@@ -1860,9 +1860,9 @@ def word_list():
     selected_level = request.args.get('level', '').strip().upper()
     if selected_level not in PUBLIC_CEFR_CODES:
         selected_level = ''
-    sort = request.args.get('sort', 'frequency')
-    if sort not in {'frequency', 'alpha', 'level', 'status', 'due'}:
-        sort = 'frequency'
+    sort = request.args.get('sort', 'recommended')
+    if sort not in {'recommended', 'frequency', 'alpha', 'level', 'status', 'due'}:
+        sort = 'recommended'
 
     # Параметры пагинации
     page = request.args.get('page', 1, type=int)
@@ -2037,8 +2037,10 @@ def word_list():
             next_review_subquery.c.next_review_at.asc(),
             *frequency_order,
         )
-    else:
+    elif sort == 'frequency':
         query = query.order_by(*frequency_order)
+    else:
+        query = query.order_by(level_order, *frequency_order)
 
     # Пагинация
     words = query.paginate(

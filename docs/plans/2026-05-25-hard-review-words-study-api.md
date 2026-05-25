@@ -120,12 +120,12 @@
 - Modify: `tests/test_words_routes.py`
 - Modify: `tests/test_public_words_seo.py`
 
-- [ ] Брейншторм: пройти все unresolved findings и решить для каждого: fix now, false positive with evidence, or defer with explicit reason.
-- [ ] Проверить `rg` по новым helper names и template variables: нет неиспользуемых функций, дублирующих branches, stale imports.
-- [ ] Добавить regression tests для каждого исправленного P0/P1 finding, если они не были добавлены в предыдущих Task.
-- [ ] Выполнить import checks: `python -c "import app.words.detail_service; import app.words.routes; import app.study.api_routes"`.
-- [ ] Обновить audit-журнал: все fixed findings должны ссылаться на test name или команду проверки.
-- [ ] Run `pytest tests/test_words_routes.py tests/test_public_words_seo.py -q`.
+- [x] Брейншторм: пройти все unresolved findings и решить для каждого: fix now, false positive with evidence, or defer with explicit reason.
+- [x] Проверить `rg` по новым helper names и template variables: нет неиспользуемых функций, дублирующих branches, stale imports.
+- [x] Добавить regression tests для каждого исправленного P0/P1 finding, если они не были добавлены в предыдущих Task.
+- [x] Выполнить import checks: `python -c "import app.words.detail_service; import app.words.routes; import app.study.api_routes"`.
+- [x] Обновить audit-журнал: все fixed findings должны ссылаться на test name или команду проверки.
+- [x] Run `pytest tests/test_words_routes.py tests/test_public_words_seo.py -q`.
 
 ### Task 6: Verify acceptance criteria
 

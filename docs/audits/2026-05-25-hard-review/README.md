@@ -58,6 +58,7 @@ Date: 2026-05-25
 | HRW-011 | P1 | `app/templates/words/public_word.html`, `app/words/routes.py` | Public word SEO can emit production hardcoded canonical/JSON-LD URLs and entity-escaped JSON-LD values on staging/custom domains. | TDD regression showed `SITE_URL=https://staging.llt-english.com` was ignored and JSON-LD preserved `"` as `&#34;`. | Build canonical URLs from `SITE_URL` plus `url_for`, and serialize JSON-LD values with `tojson`. | `TestPublicWordRoute::test_public_word_has_title_meta_canonical_and_no_private_controls`, `TestPublicWordRoute::test_public_word_json_ld_preserves_unescaped_text_values` | fixed |
 | HRW-012 | P0 | `app/templates/words/details_optimized.html`, `app/templates/words/list_optimized.html`, `app/templates/words/public_word.html` | Audio filenames are interpolated into inline JavaScript string literals; a quote in stored audio metadata can break out after HTML entity decoding. | TDD regression rendered `playAudio('/static/audio/bad&#39;);alert(1);//.mp3')`. | Pass audio URLs through `tojson` in single-quoted event attributes. | `test_public_word_audio_url_uses_json_encoded_handler_argument`, `test_word_list_audio_url_uses_json_encoded_handler_argument`, `test_word_detail_audio_url_uses_json_encoded_handler_argument` | fixed |
 | HRW-013 | P1 | `app/templates/words/public_word.html` | Public word page can expose private word-detail CTAs to authenticated visitors, making the SEO route render different private controls. | Regression asserts public word HTML does not contain `/words/<id>`, status controls, or `startLearningWord`. | Render the public word template with `public_base.html` and public registration CTAs consistently. | `TestPublicWordRoute::test_public_word_has_title_meta_canonical_and_no_private_controls`, `TestPublicWordRoute::test_public_word_hides_empty_profile_sections_audio_and_private_controls` | fixed |
+| HRW-014 | P2 | `app/words/routes.py`, `app/words/forms.py` | The current word-list default sort can regress to raw frequency ordering or invalid `sort` values can bypass the recommended fallback. | Current route/form diff introduces `recommended`; without a route assertion, the default and invalid fallback behavior is easy to drift. | Keep `recommended` as the default and invalid-sort fallback, ordering by CEFR level then frequency. | `TestWordList::test_word_list_default_and_invalid_sort_use_recommended_level_order` | covered |
 
 ## Baseline coverage map
 
@@ -65,7 +66,7 @@ Date: 2026-05-25
 - Covered in Task 2: Study API `word_source=word_detail` missing `word_id`, current-user scoping, `extra_study` future-card behavior, `due_filter = None` scoping, buried cards, and standardized `api_error` format for the confirmed invalid request.
 - Deferred to Task 3: dirty profile data normalization, route filters, authorization boundaries in service data, and confirmed N+1 issues.
 - Covered in Task 4: template escaping for word/profile/book/related text, empty states for missing semantic fields/audio/books/related words, private controls on public word pages, hardcoded public word canonical URLs, and inline audio handler escaping.
-- Deferred to Task 5: unresolved findings sweep, stale helper/import checks, and regression coverage consolidation.
+- Covered in Task 5: unresolved findings sweep, stale helper/import checks, and regression coverage consolidation for the current recommended word-list sort.
 
 ## Commands
 
@@ -79,6 +80,10 @@ Date: 2026-05-25
 - Task 4 focused regression validation passed: `pytest tests/test_public_words_seo.py::TestPublicWordRoute::test_public_word_has_title_meta_canonical_and_no_private_controls tests/test_public_words_seo.py::TestPublicWordRoute::test_public_word_json_ld_preserves_unescaped_text_values tests/test_public_words_seo.py::TestPublicWordRoute::test_public_word_audio_url_uses_json_encoded_handler_argument tests/test_words_routes.py::TestWordList::test_word_list_audio_url_uses_json_encoded_handler_argument tests/test_words_routes.py::TestWordDetail::test_word_detail_audio_url_uses_json_encoded_handler_argument -q`
 - Task 4 escaping/empty-state validation passed: `pytest tests/test_public_words_seo.py::TestPublicWordRoute::test_public_word_escapes_profile_and_related_word_text tests/test_public_words_seo.py::TestPublicWordRoute::test_public_word_hides_empty_profile_sections_audio_and_private_controls tests/test_words_routes.py::TestWordList::test_word_list_escapes_word_and_book_text tests/test_words_routes.py::TestWordDetail::test_word_detail_escapes_profile_related_and_book_text tests/test_words_routes.py::TestWordDetail::test_word_detail_hides_empty_profile_audio_books_and_related_sections -q`
 - Task 4 validation passed: `pytest tests/test_public_words_seo.py tests/test_words_routes.py -q`
+- Task 5 helper/template usage check passed: `rg -n "normalise_word_list|frequency_band_label|build_word_profile|build_word_study_summary|get_related_words|word_profile_|public_only|canonical_url|meta_description|recommended" app tests docs/audits/2026-05-25-hard-review/README.md`
+- Task 5 import check passed: `python -c "import app.words.detail_service; import app.words.routes; import app.study.api_routes"`
+- Task 5 focused regression validation passed: `pytest tests/test_words_routes.py::TestWordList::test_word_list_default_and_invalid_sort_use_recommended_level_order -q`
+- Task 5 validation passed: `pytest tests/test_words_routes.py tests/test_public_words_seo.py -q`
 
 ## Task 2 brainstorm: Study API word_detail
 
@@ -117,3 +122,12 @@ Date: 2026-05-25
 - Audio metadata: `listening` is stored data and was used inside inline JavaScript string literals; quote payloads can break handlers if not JSON-encoded.
 - Empty states: missing audio, synonyms, antonyms, etymology, books, and related words should avoid broken empty sections; private detail should show an explicit related-word empty message.
 - SEO/private UI: public word pages need canonical URLs from configured `SITE_URL`, valid JSON-LD, and no `/words/<id>` private controls.
+
+## Task 5 brainstorm: unresolved findings and stale code
+
+- HRW-001 through HRW-004 are baseline coverage findings and remain covered by route/SEO assertions; no code fix is pending.
+- HRW-005, HRW-008, HRW-009, HRW-010, HRW-011, HRW-012, and HRW-013 are fixed and each row links to a regression test.
+- HRW-006 and HRW-007 are high-risk Study API boundaries that were covered without a new code change; the tests still document the expected scoping and buried-card behavior.
+- No false-positive P0/P1 finding remains unresolved after the sweep.
+- The `rg` pass over profile helpers, public-only flags, canonical/meta variables, and the new `recommended` sort found active references only; no stale helper, duplicate branch, or stale import needed removal.
+- The only extra consolidation coverage needed in this pass is HRW-014, which locks the current default/invalid word-list sort behavior to the recommended CEFR-first ordering.
