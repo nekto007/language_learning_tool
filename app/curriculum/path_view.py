@@ -156,6 +156,8 @@ class PathNode:
     label: Optional[str] = None          # short kind label (e.g. «Повторение слов»)
     locked_reason: Optional[str] = None  # «Откроется после повторения»
     xp_reward: Optional[int] = None      # est. XP for current/preview nodes
+    skip_allowed: Optional[bool] = None  # curriculum-only: can defer lesson today
+    skips_remaining: Optional[int] = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -173,6 +175,8 @@ class PathNode:
             'label': self.label,
             'locked_reason': self.locked_reason,
             'xp_reward': self.xp_reward,
+            'skip_allowed': self.skip_allowed,
+            'skips_remaining': self.skips_remaining,
         }
 
 
@@ -248,6 +252,7 @@ def _slot_to_node(
     kind = slot.get('kind') or ''
     title = _slot_title_localised(slot)
     label = SLOT_KIND_LABELS_RU.get(kind)
+    data = slot.get('data') or {}
 
     # Milestone state: curriculum slot whose title marks «finished» AND
     # the caller has confirmed the user has real completion history.
@@ -279,9 +284,12 @@ def _slot_to_node(
         segment='today',
         offset_px=PATH_OFFSET_PATTERN[offset_idx % len(PATH_OFFSET_PATTERN)],
         slot_kind=kind,
+        lesson_id=data.get('lesson_id'),
         eta_minutes=slot.get('eta_minutes'),
         label=label,
         locked_reason=locked_reason,
+        skip_allowed=data.get('skip_allowed') if kind == 'curriculum' else None,
+        skips_remaining=data.get('skips_remaining') if kind == 'curriculum' else None,
     )
 
 

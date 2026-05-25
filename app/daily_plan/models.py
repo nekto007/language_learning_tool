@@ -225,6 +225,30 @@ class MissionPlan:
                 seen_categories[cat] = i
 
 
+# ── Lesson skip ─────────────────────────────────────────────────────────────
+
+class LessonSkip(db.Model):
+    """Records a user deferring a curriculum lesson to the next calendar day.
+
+    One skip per (user, lesson, skipped_on_date). The defer_until_date is
+    always skipped_on_date + 1 day. The unique constraint prevents recording
+    the same deferral twice for the same lesson on the same day.
+    """
+    __tablename__ = 'lesson_skips'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='CASCADE'), nullable=False)
+    skipped_on_date = Column(Date, nullable=False)
+    defer_until_date = Column(Date, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'lesson_id', 'skipped_on_date', name='uq_lesson_skip_user_lesson_date'),
+        Index('idx_lesson_skips_user_defer', 'user_id', 'defer_until_date'),
+    )
+
+
 # ── Daily challenge ──────────────────────────────────────────────────────────
 
 CHALLENGE_CATEGORIES = ('speed_run', 'accuracy_focus', 'listening_deep')

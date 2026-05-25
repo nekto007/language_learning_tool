@@ -4,10 +4,14 @@
 
 {% block meta_description %}<meta name="description" content="{{ meta_description | default('') }}">{% endblock %}
 
-{% block head_extra %}
+{% block og_tags %}
 <meta property="og:title" content="{{ word.english_word }} — перевод на русский | LLT English">
 <meta property="og:description" content="{{ meta_description | default('') }}">
 <meta property="og:type" content="article">
+<meta property="og:url" content="{{ request.base_url }}">
+{% endblock %}
+
+{% block head_extra %}
 <link rel="canonical" href="https://llt-english.com/dictionary/{{ word.english_word|word_slug }}">
 <script type="application/ld+json">
 {

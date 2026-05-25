@@ -4,10 +4,14 @@
 
 {% block meta_description %}<meta name="description" content="{{ meta_description | default('')}}">{% endblock %}
 
-{% block head_extra %}
+{% block og_tags %}
 <meta property="og:title" content="Quiz: {{ deck.title }} — {{ word_count }} слов{% if deck_level %}, {{ deck_level }}{% endif %} | LLT English">
 <meta property="og:description" content="{{ meta_description | default('')}}">
 <meta property="og:type" content="website">
+<meta property="og:url" content="{{ request.base_url }}">
+{% endblock %}
+
+{% block head_extra %}
 <link rel="canonical" href="https://llt-english.com/study/quiz/shared/{{ deck.share_code }}">
 {% endblock %}
 

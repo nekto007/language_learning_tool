@@ -512,6 +512,99 @@ def daily_plan():
     return jsonify(payload)
 
 
+@api_daily_plan.route('/daily-plan/skip-lesson', methods=['POST'])
+@csrf.exempt
+@api_auth_required
+def skip_daily_plan_lesson():
+    """Defer the current linear curriculum lesson until tomorrow.
+
+    The endpoint is intentionally narrow: only the current curriculum lesson
+    can be deferred, and only once per user-local day.
+    """
+    from datetime import timedelta
+    from sqlalchemy.exc import IntegrityError
+
+    from app.daily_plan.linear.progression import find_next_lesson_linear
+    from app.daily_plan.linear.slots.curriculum_slot import (
+        DAILY_SKIP_QUOTA,
+        get_deferred_lesson_ids,
+        get_skips_used_today,
+    )
+    from app.daily_plan.models import LessonSkip
+    from app.utils.time_utils import get_user_local_date
+
+    if not request.is_json:
+        return api_error('invalid_content_type', 'Request must be JSON', 400)
+
+    body = request.get_json(silent=True) or {}
+    lesson_id = body.get('lesson_id')
+    if isinstance(lesson_id, bool) or not isinstance(lesson_id, int):
+        return api_error('invalid_lesson', 'lesson_id must be an integer', 400)
+
+    user_id = current_user.id
+    today = get_user_local_date(user_id, db)
+    deferred_ids = get_deferred_lesson_ids(user_id, today, db)
+
+    if lesson_id in deferred_ids:
+        return api_error(
+            'already_deferred',
+            'Этот урок уже перенесён на завтра',
+            400,
+        )
+
+    skips_used = get_skips_used_today(user_id, today, db)
+    if skips_used >= DAILY_SKIP_QUOTA:
+        return api_error(
+            'skip_quota_exhausted',
+            'Лимит пропусков на сегодня исчерпан',
+            429,
+        )
+
+    current_lesson = find_next_lesson_linear(
+        user_id, db, exclude_lesson_ids=deferred_ids,
+    )
+    if current_lesson is None or current_lesson.id != lesson_id:
+        return api_error(
+            'invalid_lesson',
+            'Можно пропустить только текущий урок плана',
+            400,
+        )
+
+    skip = LessonSkip(
+        user_id=user_id,
+        lesson_id=lesson_id,
+        skipped_on_date=today,
+        defer_until_date=today + timedelta(days=1),
+    )
+    db.session.add(skip)
+
+    try:
+        db.session.flush()
+        next_lesson = find_next_lesson_linear(
+            user_id,
+            db,
+            exclude_lesson_ids=deferred_ids | {lesson_id},
+        )
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return api_error(
+            'already_deferred',
+            'Этот урок уже перенесён на завтра',
+            400,
+        )
+    except Exception:
+        logger.warning("skip_daily_plan_lesson failed for user %s", user_id, exc_info=True)
+        db.session.rollback()
+        return api_error('db_error', 'Не удалось пропустить урок', 500)
+
+    return jsonify({
+        'success': True,
+        'skips_remaining': max(DAILY_SKIP_QUOTA - skips_used - 1, 0),
+        'next_lesson_id': next_lesson.id if next_lesson is not None else None,
+    })
+
+
 @api_daily_plan.route('/daily-summary')
 @api_auth_required
 def daily_summary():

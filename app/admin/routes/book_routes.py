@@ -670,6 +670,7 @@ def add_book():
             else:
                 # Для других форматов используем старую логику
                 try:
+                    form.file.data.seek(0)
                     result = process_uploaded_book(
                         file=form.file.data,
                         title=form.title.data,

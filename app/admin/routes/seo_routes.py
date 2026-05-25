@@ -192,7 +192,7 @@ def seo_refresh():
     # to other gunicorn workers (they form a new cache key on next audit call).
     clear_cache_by_prefix('seo_audit')
     bump_seo_audit_cache_version()
-    log_admin_action(current_user.id, 'seo.refresh_cache', target_type='seo_audit')
+    log_admin_action(getattr(current_user, 'id', None), 'seo.refresh_cache', target_type='seo_audit')
     db.session.commit()
     flash('Кэш SEO аудита очищен. Данные обновятся при следующем открытии страницы.', 'success')
     return redirect(url_for('seo_admin.seo_index'))

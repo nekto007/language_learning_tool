@@ -41,7 +41,11 @@ def _user_min_level_order(user_id: int, db: Any) -> int:
     return max(order, 0)
 
 
-def find_next_lesson_linear(user_id: int, db: Any) -> Optional[Lessons]:
+def find_next_lesson_linear(
+    user_id: int,
+    db: Any,
+    exclude_lesson_ids: Optional[set[int]] = None,
+) -> Optional[Lessons]:
     """Return the next incomplete lesson on the linear curriculum spine.
 
     Lessons are ordered by (CEFRLevel.order, Module.number, Lessons.number).
@@ -49,6 +53,9 @@ def find_next_lesson_linear(user_id: int, db: Any) -> Optional[Lessons]:
     Any module whose prerequisites are not satisfied for the user is skipped
     so users cannot bypass checkpoints by URL manipulation — if that leaves
     nothing accessible, returns None.
+
+    ``exclude_lesson_ids`` may be provided to skip lessons that have been
+    deferred by the user (e.g. via the skip-lesson mechanism).
 
     Returns None when the user has completed every eligible lesson.
     """
@@ -63,6 +70,8 @@ def find_next_lesson_linear(user_id: int, db: Any) -> Optional[Lessons]:
         .subquery()
     )
 
+    skip_ids: set[int] = exclude_lesson_ids or set()
+
     candidates = (
         db.session.query(Lessons)
         .join(Module, Module.id == Lessons.module_id)
@@ -70,6 +79,7 @@ def find_next_lesson_linear(user_id: int, db: Any) -> Optional[Lessons]:
         .filter(
             CEFRLevel.order >= min_order,
             Lessons.id.notin_(db.session.query(completed_subq.c.lesson_id)),
+            *([Lessons.id.notin_(list(skip_ids))] if skip_ids else []),
         )
         .order_by(
             CEFRLevel.order.asc(),

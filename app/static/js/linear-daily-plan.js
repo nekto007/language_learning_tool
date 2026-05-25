@@ -194,11 +194,53 @@
         return target.closest('[data-slot-state="locked"]');
     }
 
+    function _findSkipLessonButton(target) {
+        if (!target || !target.closest) return null;
+        return target.closest('[data-skip-lesson-button="true"]');
+    }
+
+    function _skipLesson(button) {
+        var lessonId = parseInt(button.getAttribute('data-lesson-id') || '', 10);
+        if (!lessonId || isNaN(lessonId)) {
+            _showLockedToast('Не удалось определить урок');
+            return;
+        }
+        button.disabled = true;
+        fetch('/api/daily-plan/skip-lesson', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ lesson_id: lessonId })
+        }).then(function (resp) {
+            if (!resp.ok) {
+                return resp.json().catch(function () { return {}; }).then(function (data) {
+                    throw new Error(data.message || 'Не удалось пропустить урок');
+                });
+            }
+            return resp.json();
+        }).then(function () {
+            window.location.reload();
+        }).catch(function (err) {
+            button.disabled = false;
+            _showLockedToast(err && err.message ? err.message : 'Не удалось пропустить урок');
+        });
+    }
+
     document.addEventListener('click', function (event) {
         var closeTarget = event.target.closest && event.target.closest('[data-linear-close="' + MODAL_ID + '"]');
         if (closeTarget) {
             event.preventDefault();
             closeModal();
+            return;
+        }
+        var skipLesson = _findSkipLessonButton(event.target);
+        if (skipLesson) {
+            event.preventDefault();
+            event.stopPropagation();
+            _skipLesson(skipLesson);
             return;
         }
         var lockedSlot = _findLockedSlot(event.target);

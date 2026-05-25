@@ -4,10 +4,14 @@
 
 {% block meta_description %}<meta name="description" content="Полный справочник грамматики английского языка: правила, таблицы, примеры. Уровни A1–C1. Бесплатная теория + упражнения для практики.">{% endblock %}
 
-{% block head_extra %}
+{% block og_tags %}
 <meta property="og:title" content="Грамматика английского языка A1–C1 | LLT English">
 <meta property="og:description" content="Полный справочник грамматики английского языка: правила, таблицы, примеры. Уровни A1–C1.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="{{ request.base_url }}">
+{% endblock %}
+
+{% block head_extra %}
 <link rel="canonical" href="https://llt-english.com/grammar-lab/">
 <link rel="alternate" hreflang="ru" href="https://llt-english.com/grammar-lab/">
 <script type="application/ld+json">
