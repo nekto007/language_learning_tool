@@ -37,6 +37,7 @@ card (.path-card), варианты по state class:
       and node.slot_kind
       and node.slot_skips_remaining is not none
   ) %}
+  {% set _skip_aria = 'Пропустить урок' if node.slot_kind in ['curriculum', 'listening', 'speaking', 'writing'] and node.lesson_id else 'Пропустить задание' %}
   {% set _is_clickable = node.state in ('current', 'skipped', 'done', 'preview', 'bonus') and node.url and not _has_slot_skip_action %}
   {% set _tag = 'a' if _is_clickable else 'div' %}
   <div class="path-node path-node--{{ node.state }}"
@@ -93,8 +94,8 @@ card (.path-card), варианты по state class:
                 data-skip-slot-button="true"
                 data-skip-kind="{{ node.slot_kind }}"
                 data-skip-reason="not_today"
-                aria-label="Сделать другое задание">
-          Сделать другое
+                aria-label="{{ _skip_aria }}">
+          Пропустить
         </button>
         <span class="path-card__skip-hint">доступен {{ node.slot_skips_remaining }} пропуск сегодня</span>
         {% else %}
@@ -103,7 +104,7 @@ card (.path-card), варианты по state class:
                 disabled
                 title="Лимит пропусков исчерпан"
                 aria-label="Лимит пропусков исчерпан">
-          Сделать другое
+          Пропустить
         </button>
         {% endif %}
       </span>

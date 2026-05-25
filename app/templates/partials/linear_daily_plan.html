@@ -478,6 +478,7 @@
                            data-linear-event="reading_slot_select_open">Выбрать книгу</a>
                         {% elif slot.url %}
                         <div class="linear-slot__action-group">
+                            {% set _skip_aria = 'Пропустить урок' if _kind in ['curriculum', 'listening', 'speaking', 'writing'] and _data.get('lesson_id') else 'Пропустить задание' %}
                             <a href="{{ slot.url }}"
                                class="linear-slot__btn{% if _state == 'current' %} linear-slot__btn--primary{% endif %}"
                                data-linear-event="slot_start"
@@ -489,8 +490,8 @@
                             <button type="button"
                                     class="linear-slot__skip-btn"
                                     data-skip-kind="{{ _kind }}"
-                                    aria-label="Сделать другое задание">
-                                Сделать другое
+                                    aria-label="{{ _skip_aria }}">
+                                Пропустить
                             </button>
                             <span class="linear-slot__skip-hint">доступен {{ _data.get('slot_skips_remaining', 0) }} пропуск сегодня</span>
                             {% elif _data.get('slot_skips_remaining') is not none %}
@@ -499,7 +500,7 @@
                                     disabled
                                     title="Лимит пропусков исчерпан"
                                     aria-label="Лимит пропусков исчерпан">
-                                Сделать другое
+                                Пропустить
                             </button>
                             {% endif %}
                             {% endif %}

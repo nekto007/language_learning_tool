@@ -625,7 +625,8 @@ class TestLinearPlanChainExtension:
         html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
 
         assert 'data-skip-kind="srs"' in html
-        assert 'Сделать другое' in html
+        assert 'Пропустить' in html
+        assert 'Сделать другое' not in html
         assert 'доступен 1 пропуск сегодня' in html
         assert 'data-skip-reasons="srs"' in html
 
@@ -640,7 +641,8 @@ class TestLinearPlanChainExtension:
 
         html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
 
-        assert 'Сделать другое' in html
+        assert 'Пропустить' in html
+        assert 'Сделать другое' not in html
         assert 'Лимит пропусков исчерпан' in html
         assert 'disabled' in html
 
