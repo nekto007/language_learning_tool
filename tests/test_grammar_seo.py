@@ -68,3 +68,25 @@ class TestSitemapGrammarLevels:
         response = client.get('/sitemap.xml')
         xml = response.data.decode()
         assert '/grammar-lab/topics/b1' in xml
+
+
+class TestGrammarTopicsOpenGraph:
+    """Test Open Graph tags for grammar topic listing pages."""
+
+    def test_topics_index_has_page_specific_open_graph(self, client):
+        response = client.get('/grammar-lab/topics')
+        html = response.data.decode()
+
+        assert response.status_code == 200
+        assert '<meta property="og:title" content="Темы грамматики английского языка | LLT English">' in html
+        assert '<meta property="og:description" content="Грамматика английского языка: правила, таблицы, примеры и упражнения для практики.">' in html
+        assert '<meta property="og:image"' in html
+
+    def test_topics_level_has_page_specific_open_graph(self, client, grammar_topics):
+        response = client.get('/grammar-lab/topics/b1')
+        html = response.data.decode()
+
+        assert response.status_code == 200
+        assert '<meta property="og:title" content="Грамматика английского языка B1 — темы и правила | LLT English">' in html
+        assert '<meta property="og:description" content="Грамматика английского языка уровня B1: правила, таблицы, примеры и упражнения для практики.">' in html
+        assert '<meta property="og:image"' in html
