@@ -120,7 +120,9 @@ def get_study_items():
         deck_word_ids = get_daily_plan_mix_word_ids(current_user.id)
     elif word_source == 'word_detail':
         word_id_param = request.args.get('word_id', type=int)
-        deck_word_ids = [word_id_param] if word_id_param else []
+        if not word_id_param:
+            return api_error('invalid_input', 'word_id is required for word_detail study', 400)
+        deck_word_ids = [word_id_param]
     elif word_source == 'custom_list':
         list_id_param = request.args.get('list_id', type=int)
         if list_id_param:

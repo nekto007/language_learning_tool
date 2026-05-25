@@ -68,12 +68,12 @@
 - Modify: `tests/test_words_routes.py`
 - Modify: `tests/api/test_study_api.py` if the existing test layout fits better
 
-- [ ] Брейншторм: перечислить состояния `word_source=word_detail`: отсутствующий `word_id`, чужое слово, несуществующее слово, buried card, overdue card, future due card, `extra_study=true`, new/review limits.
-- [ ] Добавить tests на `word_source=word_detail`: не возвращает чужие слова, не падает без `word_id`, корректно работает с `extra_study`, не обходит buried cards.
-- [ ] Проверить, что `due_filter = None` не открывает лишние карточки вне выбранного `word_id`.
-- [ ] Проверить, что API использует существующий формат ошибок через `api_error`, без ad-hoc JSON.
-- [ ] Исправить найденные дефекты минимально в API/routes, не меняя публичный контракт без необходимости.
-- [ ] Run `pytest tests/test_words_routes.py tests/api/test_study_api.py -q`.
+- [x] Брейншторм: перечислить состояния `word_source=word_detail`: отсутствующий `word_id`, чужое слово, несуществующее слово, buried card, overdue card, future due card, `extra_study=true`, new/review limits.
+- [x] Добавить tests на `word_source=word_detail`: не возвращает чужие слова, не падает без `word_id`, корректно работает с `extra_study`, не обходит buried cards.
+- [x] Проверить, что `due_filter = None` не открывает лишние карточки вне выбранного `word_id`.
+- [x] Проверить, что API использует существующий формат ошибок через `api_error`, без ad-hoc JSON.
+- [x] Исправить найденные дефекты минимально в API/routes, не меняя публичный контракт без необходимости.
+- [x] Run `pytest tests/test_words_routes.py tests/api/test_study_api.py -q`.
 
 ### Task 3: Проверить words service/forms/routes на корректность данных
 
