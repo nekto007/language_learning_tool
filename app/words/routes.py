@@ -186,7 +186,7 @@ def public_word(word_slug: str):
     if word.level and word.level not in PUBLIC_CEFR_CODES:
         abort(404)
 
-    word_profile = build_word_profile(word)
+    word_profile = build_word_profile(word, public_only=True)
     related_words = get_related_words(word, limit=6, public_only=True)
 
     # Related grammar topics (same level)

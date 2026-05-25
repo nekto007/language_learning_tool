@@ -83,13 +83,13 @@
 - Modify: `app/words/routes.py`
 - Modify: `tests/test_words_routes.py`
 
-- [ ] Брейншторм: перечислить грязные данные для словаря: `None`, пустые строки, `"null"`, `"[]"`, дубли synonyms/antonyms, нет audio, нет level/frequency, слово без связей с books/topics/collections.
-- [ ] Добавить unit tests для нормализации profile data: empty text cleanup, list cleanup, frequency labels, review time formatting, semantic hints.
-- [ ] Добавить route tests для поиска/фильтров/пагинации словаря, если измененный код влияет на query-string или форму.
-- [ ] Проверить routes на authorization boundaries: private user word detail не должен стать публичным через новые helper-данные.
-- [ ] Проверить запросы на явные N+1 в новых связанных данных; использовать существующие eager-loading patterns, если дефект подтвержден.
-- [ ] Исправить найденные дефекты в сервисе/forms/routes.
-- [ ] Run `pytest tests/test_words_routes.py -q`.
+- [x] Брейншторм: перечислить грязные данные для словаря: `None`, пустые строки, `"null"`, `"[]"`, дубли synonyms/antonyms, нет audio, нет level/frequency, слово без связей с books/topics/collections.
+- [x] Добавить unit tests для нормализации profile data: empty text cleanup, list cleanup, frequency labels, review time formatting, semantic hints.
+- [x] Добавить route tests для поиска/фильтров/пагинации словаря, если измененный код влияет на query-string или форму.
+- [x] Проверить routes на authorization boundaries: private user word detail не должен стать публичным через новые helper-данные.
+- [x] Проверить запросы на явные N+1 в новых связанных данных; использовать существующие eager-loading patterns, если дефект подтвержден.
+- [x] Исправить найденные дефекты в сервисе/forms/routes.
+- [x] Run `pytest tests/test_words_routes.py -q`.
 
 ### Task 4: Проверить templates на XSS, UX-регрессии и SEO
 

@@ -5,6 +5,13 @@ import uuid
 import pytest
 
 from app.words.models import CollectionWords
+from app.words.detail_service import (
+    _format_review_time,
+    build_word_profile,
+    frequency_band_label,
+    get_related_words,
+    normalise_word_list,
+)
 from app.modules.models import SystemModule, UserModule
 
 
@@ -69,6 +76,135 @@ def user_word_statuses(db_session, test_user, sample_words):
         user_words.append(uw)
     db_session.commit()
     return user_words
+
+
+# ==================== WORD PROFILE DATA ====================
+
+class TestWordProfileDataNormalization:
+    """Service-level profile helpers used by public and private word pages."""
+
+    def test_normalise_word_list_removes_placeholders_and_duplicates(self):
+        assert normalise_word_list([
+            ' learn ',
+            None,
+            '',
+            'null',
+            '[]',
+            'learn',
+            'Learn',
+            'study',
+        ]) == ['learn', 'study']
+
+        assert normalise_word_list('run; jump, null, run') == ['run', 'jump']
+
+    def test_frequency_band_label_handles_missing_and_string_values(self):
+        assert frequency_band_label(1) == 'Top 1000'
+        assert frequency_band_label('2') == 'Top 3000'
+        assert frequency_band_label(3.0) == 'Top 10000'
+        assert frequency_band_label(None) == 'Не указана'
+        assert frequency_band_label('not-a-band') == 'Не указана'
+
+    def test_build_word_profile_cleans_dirty_optional_data_and_semantic_hints(self, app):
+        word = CollectionWords(
+            english_word='student',
+            russian_word='студент',
+            level=None,
+            frequency_band=None,
+            get_download=0,
+            listening=None,
+            item_type='word',
+            usage_context=' null ',
+            synonyms=[' study ', '', '[]', 'study', 'Study', 'learner'],
+            antonyms='opponent; opposite; opponent',
+            etymology='[]',
+        )
+
+        profile = build_word_profile(word)
+
+        assert profile['usage_context'] == ''
+        assert profile['etymology'] == ''
+        assert profile['synonyms'] == ['study', 'learner']
+        assert profile['antonyms'] == ['opponent', 'opposite']
+        assert profile['frequency_band_label'] == 'Не указана'
+        assert profile['audio_available'] is False
+        assert profile['study_facts'] == []
+        assert profile['common_mistake']['correct'] == 'I am a student.'
+
+    def test_format_review_time_labels_relative_dates(self):
+        now = datetime(2026, 5, 25, 12, 0, 0)
+
+        assert _format_review_time(None, now) == 'не запланировано'
+        assert _format_review_time(now - timedelta(minutes=1), now) == 'сейчас'
+        assert _format_review_time(now.replace(hour=18), now) == 'сегодня'
+        assert _format_review_time(now + timedelta(days=1), now) == 'завтра'
+        assert _format_review_time(now + timedelta(days=3), now) == 'через 3 дня'
+        assert _format_review_time(now + timedelta(days=10), now) == '04.06.2026'
+
+    def test_get_related_words_uses_semantic_hints(self, db_session):
+        source = CollectionWords(
+            english_word='student',
+            russian_word='студент',
+            level='A1',
+            frequency_band=1,
+            item_type='word',
+        )
+        semantic_match = CollectionWords(
+            english_word='teacher',
+            russian_word='учитель',
+            level='A1',
+            frequency_band=1,
+            item_type='word',
+        )
+        weak_match = CollectionWords(
+            english_word='orange',
+            russian_word='апельсин',
+            level='A1',
+            frequency_band=1,
+            item_type='word',
+        )
+        db_session.add_all([source, semantic_match, weak_match])
+        db_session.commit()
+
+        related = get_related_words(source, limit=3)
+
+        assert [word.english_word for word in related] == ['teacher']
+        assert related[0].related_reason in {'люди и роли', 'учеба'}
+
+    def test_public_profile_filters_non_public_related_forms(self, db_session):
+        public_word = CollectionWords(
+            english_word='clean',
+            russian_word='чистить',
+            level='A1',
+            item_type='word',
+        )
+        private_phrasal = CollectionWords(
+            english_word='clean up private',
+            russian_word='закрытая форма',
+            level='C2',
+            item_type='phrasal_verb',
+            base_word=public_word,
+        )
+        private_base = CollectionWords(
+            english_word='private base',
+            russian_word='закрытая база',
+            level='C2',
+            item_type='word',
+        )
+        public_phrasal = CollectionWords(
+            english_word='public phrase',
+            russian_word='публичная фраза',
+            level='A1',
+            item_type='phrasal_verb',
+            base_word=private_base,
+        )
+        db_session.add_all([public_word, private_phrasal, private_base, public_phrasal])
+        db_session.commit()
+
+        word_profile = build_word_profile(public_word, public_only=True)
+        phrasal_profile = build_word_profile(public_phrasal, public_only=True)
+
+        assert word_profile['phrasal_verbs'] == []
+        assert phrasal_profile['base_word'] is None
 
 
 # ==================== WORD LIST ====================
@@ -188,6 +324,23 @@ class TestWordList:
         # With 5 sample words and per_page=2, there should be a page 2
         resp2 = authenticated_client.get('/words?page=2&per_page=2')
         assert resp2.status_code == 200
+
+    def test_combined_search_type_level_and_pagination_filters_results(
+        self,
+        authenticated_client,
+        words_module,
+        sample_words,
+    ):
+        target = sample_words[0]
+        resp = authenticated_client.get(
+            f'/words?search={target.english_word}&type=word&level=A1&sort=alpha&page=1&per_page=2'
+        )
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert target.english_word in html
+        assert sample_words[1].english_word not in html
+        assert sample_words[3].english_word not in html
 
 
 # ==================== WORD DETAIL ====================
@@ -473,6 +626,42 @@ class TestPublicWord:
         assert 'Начни учить это слово' in html
         assert f'/dictionary/{slug}' in html
         assert f'/words/{word.id}' not in html
+
+    def test_public_word_does_not_expose_private_profile_data(self, client, db_session, test_user):
+        from app.study.models import UserWord
+
+        suffix = uuid.uuid4().hex[:8]
+        word = CollectionWords(
+            english_word=f'publicclean{suffix}',
+            russian_word='публичное слово',
+            level='A1',
+            frequency_band=1,
+            brown=1,
+            item_type='word',
+        )
+        private_phrasal = CollectionWords(
+            english_word=f'publicclean private {suffix}',
+            russian_word='закрытая форма',
+            level='C2',
+            item_type='phrasal_verb',
+            base_word=word,
+        )
+        db_session.add_all([word, private_phrasal])
+        db_session.flush()
+        user_word = UserWord(user_id=test_user.id, word_id=word.id)
+        user_word.status = 'review'
+        db_session.add(user_word)
+        db_session.commit()
+
+        resp = client.get(f'/dictionary/{word.english_word}')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert 'Статус слова' not in html
+        assert 'Служебная информация' not in html
+        assert 'Brown corpus' not in html
+        assert f'/words/{word.id}' not in html
+        assert private_phrasal.english_word not in html
 
 
 # ==================== PHRASAL VERBS REDIRECT ====================

@@ -52,6 +52,9 @@ Date: 2026-05-25
 | HRW-005 | P1 | `app/study/api_routes.py` | `word_source=word_detail` without `word_id` can look like a successful empty session instead of a client error. | TDD regression initially failed: `/study/api/get-study-items?source=word_detail` returned 200. | Return `api_error('invalid_input', ...)` before building study queries. | `test_get_study_items_word_detail_requires_word_id` | fixed |
 | HRW-006 | P0 | `app/study/api_routes.py` | `word_detail&extra_study=true` sets `due_filter = None`; if word scoping regresses it could expose other due/future cards. | Regression test creates target future card, another current-user future card, and another user's due card. Only the selected word's card is returned. | Existing `UserWord.user_id == current_user.id` and `UserWord.word_id.in_(deck_word_ids)` filters are retained. | `test_get_study_items_word_detail_extra_study_stays_scoped_to_word_id` | covered |
 | HRW-007 | P1 | `app/study/api_routes.py` | `word_detail` study might bypass session-buried cards for the selected word. | Regression test creates a due target card with future `buried_until`; API returns no items. | Existing buried-card filter is covered and left unchanged. | `test_get_study_items_word_detail_skips_buried_target_card` | covered |
+| HRW-008 | P1 | `app/words/detail_service.py` | Dirty synonym/antonym lists can render duplicate chips after placeholder cleanup. | TDD regression showed `normalise_word_list(['learn', 'learn', 'Learn'])` returned duplicates. | Deduplicate normalized list values case-insensitively while preserving first display text. | `TestWordProfileDataNormalization::test_normalise_word_list_removes_placeholders_and_duplicates` | fixed |
+| HRW-009 | P1 | `app/words/detail_service.py` | Imported frequency bands can arrive as string values and display as unknown. | TDD regression showed `frequency_band_label('2')` returned `Не указана`. | Coerce band values to `int` before label lookup and fall back safely for invalid values. | `TestWordProfileDataNormalization::test_frequency_band_label_handles_missing_and_string_values` | fixed |
+| HRW-010 | P0 | `app/words/detail_service.py`, `app/words/routes.py` | Public word profile helper can expose non-public related forms through shared base/phrasal data. | Regression test creates an A1 public word with a C2 phrasal variant; the public page must not render the C2 form. | Add `public_only` profile filtering for base words and phrasal variants; call it from the public route. | `TestPublicWord::test_public_word_does_not_expose_private_profile_data` | fixed |
 
 ## Baseline coverage map
 
@@ -66,6 +69,9 @@ Date: 2026-05-25
 - Task 1 validation passed: `pytest tests/test_words_routes.py tests/test_public_words_seo.py -q`
 - Task 2 TDD failure reproduced: `pytest tests/api/test_study_api.py -q`
 - Task 2 focused validation passed: `pytest tests/api/test_study_api.py -q`
+- Task 3 TDD failure reproduced: `pytest tests/test_words_routes.py::TestWordProfileDataNormalization tests/test_words_routes.py::TestPublicWord::test_public_word_does_not_expose_private_profile_data -q`
+- Task 3 focused regression validation passed: `pytest tests/test_words_routes.py::TestWordProfileDataNormalization tests/test_words_routes.py::TestWordList::test_combined_search_type_level_and_pagination_filters_results tests/test_words_routes.py::TestPublicWord::test_public_word_does_not_expose_private_profile_data -q`
+- Task 3 validation passed: `pytest tests/test_words_routes.py -q`
 
 ## Task 2 brainstorm: Study API word_detail
 
@@ -79,3 +85,15 @@ Date: 2026-05-25
 - New/review limits: normal study still honors daily limits; extra study keeps the existing small extra-study batch limits.
 - `due_filter = None`: this is safe only while `deck_word_ids` is non-null and applied to all existing-card queries.
 - API errors: confirmed invalid input now returns `api_error('invalid_input', ..., 400)`; business state `daily_limit_reached` intentionally keeps the legacy success response shape.
+
+## Task 3 brainstorm: words service/forms/routes data correctness
+
+- Dirty optional text: `None`, whitespace, `null`, `none`, `undefined`, `nan`, `[]`, `{}`, and `-` should not render as meaningful usage context or etymology.
+- Dirty semantic lists: synonyms and antonyms may arrive as JSON arrays, comma/semicolon strings, placeholders, or duplicate values with different casing.
+- Frequency labels: missing frequency band should render `Не указана`; numeric strings from import/forms should map to the same labels as integers.
+- Review labels: missing, overdue, same-day, tomorrow, near-future, and later review timestamps need stable Russian labels.
+- Semantic hints: role nouns such as `student`/`teacher` should still produce useful common-mistake and related-word hints after cleanup.
+- Missing media and metadata: no audio, no level, no frequency, and no book/topic/collection relations should produce empty facts rather than dirty placeholder text.
+- Query-string routes: combined search, type, level, sort, page, and per-page filters should keep the intended result set and avoid 500s.
+- Authorization boundaries: public word pages must not render private status blocks, `/words/<id>` links, admin facts, or non-public related forms from the shared profile helper.
+- N+1 review: word list uses set-based joins/subqueries for user status, decks, mastered state, and next review; detail pages load one source word, and related-word candidate queries use `selectinload` for topics, collections, base word, and phrasal variants. No new per-row N+1 defect was confirmed in Task 3.
