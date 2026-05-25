@@ -571,9 +571,26 @@ def _handle_plan(chat_id: int, telegram_id: int) -> None:
         buttons: list[list[dict]] = []
         chain_slots = plan.get('slots') or plan.get('baseline_slots') or []
         next_slot = next(
-            (slot for slot in chain_slots if not slot.get('completed') and slot.get('url')),
+            (
+                slot for slot in chain_slots
+                if not slot.get('completed')
+                and not slot.get('skipped')
+                and not slot.get('blocked')
+                and slot.get('url')
+            ),
             None,
         )
+        if next_slot is None:
+            next_slot = next(
+                (
+                    slot for slot in chain_slots
+                    if not slot.get('completed')
+                    and slot.get('skipped')
+                    and not slot.get('blocked')
+                    and slot.get('url')
+                ),
+                None,
+            )
         if site_url and next_slot:
             buttons.append([{
                 'text': '\U0001f3af Продолжить',

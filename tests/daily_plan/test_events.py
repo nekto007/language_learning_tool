@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 from datetime import date, datetime, timezone
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -27,7 +27,7 @@ def _make_mock_event(step_kind='curriculum', reason_text='no_time', plan_date=No
     return ev
 
 
-def _make_slot(kind='curriculum', completed=False, skipped=False):
+def _make_slot(kind='curriculum', completed=False, skipped=False, blocked=False):
     return {
         'kind': kind,
         'title': f'{kind} title',
@@ -36,7 +36,18 @@ def _make_slot(kind='curriculum', completed=False, skipped=False):
         'url': '/learn/1/?from=linear_plan',
         'completed': completed,
         'skipped': skipped,
+        'blocked': blocked,
         'data': {},
+    }
+
+
+def _plan_for_current(kind='curriculum'):
+    slots = [_make_slot(kind)]
+    return {
+        'mode': 'linear',
+        'slots': slots,
+        'baseline_slots': slots,
+        'chain_meta': {'baseline_count': len(slots)},
     }
 
 
@@ -49,6 +60,8 @@ def _compute_states(slots):
             states.append('done')
         elif slot.get('skipped'):
             states.append('skipped')
+        elif slot.get('blocked'):
+            states.append('locked')
         elif not current_found:
             states.append('current')
             current_found = True
@@ -83,40 +96,47 @@ class TestClientEventsSet:
 
 class TestSlotSkipEndpoint:
     def test_valid_skip_top_level_fields(self, authenticated_client, db_session):
-        r = authenticated_client.post(
-            '/api/daily-plan/events',
-            json={
-                'event_type': 'slot_skipped',
-                'step_kind': 'curriculum',
-                'reason_text': 'no_time',
-            },
-        )
+        with patch('app.daily_plan.linear.plan.get_linear_plan',
+                   return_value=_plan_for_current('curriculum')):
+            r = authenticated_client.post(
+                '/api/daily-plan/events',
+                json={
+                    'event_type': 'slot_skipped',
+                    'step_kind': 'curriculum',
+                    'reason_text': 'no_time',
+                },
+            )
         assert r.status_code == 200
         data = r.get_json()
         assert data['success'] is True
         assert data['event_type'] == 'slot_skipped'
 
     def test_valid_skip_meta_format(self, authenticated_client, db_session):
-        r = authenticated_client.post(
-            '/api/daily-plan/events',
-            json={
-                'event_type': 'slot_skipped',
-                'meta': {'kind': 'srs', 'reason': 'too_hard'},
-            },
-        )
-        assert r.status_code == 200
-
-    def test_all_valid_reasons_accepted(self, authenticated_client, db_session):
-        for reason in ('no_time', 'too_hard', 'not_today'):
+        with patch('app.daily_plan.linear.plan.get_linear_plan',
+                   return_value=_plan_for_current('srs')):
             r = authenticated_client.post(
                 '/api/daily-plan/events',
                 json={
                     'event_type': 'slot_skipped',
-                    'step_kind': 'reading',
-                    'reason_text': reason,
+                    'meta': {'kind': 'srs', 'reason': 'too_hard'},
                 },
             )
-            assert r.status_code == 200, f"reason={reason} returned {r.status_code}"
+        assert r.status_code == 200
+
+    def test_all_valid_reasons_accepted(self, authenticated_client, db_session):
+        with patch('app.daily_plan.linear.plan.get_slot_skips_used_today', return_value=0), \
+             patch('app.daily_plan.linear.plan.get_linear_plan',
+                   return_value=_plan_for_current('reading')):
+            for reason in ('no_time', 'too_hard', 'not_today'):
+                r = authenticated_client.post(
+                    '/api/daily-plan/events',
+                    json={
+                        'event_type': 'slot_skipped',
+                        'step_kind': 'reading',
+                        'reason_text': reason,
+                    },
+                )
+                assert r.status_code == 200, f"reason={reason} returned {r.status_code}"
 
     def test_invalid_reason_returns_400(self, authenticated_client):
         r = authenticated_client.post(
@@ -197,6 +217,58 @@ class TestGetSkippedSlotKinds:
             assert result == set()
 
 
+class TestApplySkippedSlots:
+    def test_curriculum_skip_blocks_later_curriculum_dependent_slots(self, app):
+        with app.app_context():
+            from app.daily_plan.linear.plan import _apply_skipped_slots
+            slots = [
+                _make_slot('curriculum'),
+                _make_slot('reading'),
+                _make_slot('listening'),
+            ]
+            slots[0]['data'] = {'lesson_id': 10}
+            slots[2]['data'] = {'lesson_id': 11}
+
+            _apply_skipped_slots(slots, [('curriculum', 'lesson:10')])
+
+            assert slots[0]['skipped'] is True
+            assert slots[1].get('skipped') is not True
+            assert slots[1].get('blocked') is not True
+            assert slots[2]['blocked'] is True
+
+    def test_any_curriculum_backed_skip_blocks_later_curriculum_slots(self, app):
+        with app.app_context():
+            from app.daily_plan.linear.plan import _apply_skipped_slots
+            slots = [
+                _make_slot('listening'),
+                _make_slot('reading'),
+                _make_slot('writing'),
+            ]
+            slots[0]['data'] = {'lesson_id': 10}
+            slots[2]['data'] = {'lesson_id': 11}
+
+            _apply_skipped_slots(slots, [('listening', 'lesson:10')])
+
+            assert slots[0]['skipped'] is True
+            assert slots[1].get('blocked') is not True
+            assert slots[2]['blocked'] is True
+
+    def test_completed_skipped_lesson_does_not_skip_next_curriculum(self, app):
+        with app.app_context():
+            from app.daily_plan.linear.plan import _apply_skipped_slots
+            slots = [
+                _make_slot('curriculum', completed=True),
+                _make_slot('curriculum'),
+            ]
+            slots[0]['data'] = {'lesson_id': 10}
+            slots[1]['data'] = {'lesson_id': 11}
+
+            _apply_skipped_slots(slots, [('curriculum', 'lesson:10')])
+
+            assert slots[0].get('skipped') is not True
+            assert slots[1].get('skipped') is not True
+
+
 # ── compute_linear_day_secured with skipped slots ────────────────────────────
 
 
@@ -246,6 +318,14 @@ class TestSkippedSlotStateLogic:
             _make_slot('reading'),
         ]
         assert _compute_states(slots) == ['done', 'skipped', 'current']
+
+    def test_blocked_slot_does_not_consume_current(self):
+        slots = [
+            _make_slot('curriculum', skipped=True),
+            _make_slot('listening', blocked=True),
+            _make_slot('reading'),
+        ]
+        assert _compute_states(slots) == ['skipped', 'locked', 'current']
 
     def test_all_skipped_no_current(self):
         slots = [

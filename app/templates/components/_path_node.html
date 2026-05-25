@@ -30,15 +30,14 @@ card (.path-card), варианты по state class:
   </div>
 
 {% else %}
-  {# Card-based nodes: current / done / locked / preview / bonus.
+  {# Card-based nodes: current / skipped / done / locked / preview / bonus.
      Single layout, the state-class drives the visual styling. #}
-  {% set _has_curriculum_skip = (
+  {% set _has_slot_skip_action = (
       node.state == 'current'
-      and node.slot_kind == 'curriculum'
-      and node.skips_remaining is not none
-      and node.lesson_id
+      and node.slot_kind
+      and node.slot_skips_remaining is not none
   ) %}
-  {% set _is_clickable = node.state in ('current', 'done', 'preview', 'bonus') and node.url and not _has_curriculum_skip %}
+  {% set _is_clickable = node.state in ('current', 'skipped', 'done', 'preview', 'bonus') and node.url and not _has_slot_skip_action %}
   {% set _tag = 'a' if _is_clickable else 'div' %}
   <div class="path-node path-node--{{ node.state }}"
        style="--node-offset: {{ node.offset_px }}px;"
@@ -77,7 +76,7 @@ card (.path-card), варианты по state class:
         </div>
       </div>
 
-      {% if _has_curriculum_skip %}
+      {% if _has_slot_skip_action %}
       <span class="path-card__actions">
         {% if node.url %}
         <a class="path-card__cta"
@@ -88,22 +87,23 @@ card (.path-card), варианты по state class:
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
         </a>
         {% endif %}
-        {% if node.skip_allowed %}
+        {% if node.slot_skip_allowed %}
         <button type="button"
                 class="path-card__skip"
-                data-skip-lesson-button="true"
-                data-lesson-id="{{ node.lesson_id }}"
-                aria-label="Пропустить урок до завтра">
-          Пропустить урок
+                data-skip-slot-button="true"
+                data-skip-kind="{{ node.slot_kind }}"
+                data-skip-reason="not_today"
+                aria-label="Сделать другое задание">
+          Сделать другое
         </button>
-        <span class="path-card__skip-hint">доступен {{ node.skips_remaining }} пропуск сегодня</span>
+        <span class="path-card__skip-hint">доступен {{ node.slot_skips_remaining }} пропуск сегодня</span>
         {% else %}
         <button type="button"
                 class="path-card__skip path-card__skip--disabled"
                 disabled
                 title="Лимит пропусков исчерпан"
                 aria-label="Лимит пропусков исчерпан">
-          Пропустить урок
+          Сделать другое
         </button>
         {% endif %}
       </span>
@@ -114,6 +114,9 @@ card (.path-card), варианты по state class:
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         {% elif node.state == 'done' %}
           Пройдено
+        {% elif node.state == 'skipped' %}
+          Выполнить
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         {% elif node.state == 'preview' %}
           Открыть
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>

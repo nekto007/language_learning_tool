@@ -54,8 +54,8 @@ def find_next_lesson_linear(
     so users cannot bypass checkpoints by URL manipulation — if that leaves
     nothing accessible, returns None.
 
-    ``exclude_lesson_ids`` may be provided to skip lessons that have been
-    deferred by the user (e.g. via the skip-lesson mechanism).
+    ``exclude_lesson_ids`` may be provided by callers that need to omit
+    lessons already represented elsewhere in the current chain.
 
     Returns None when the user has completed every eligible lesson.
     """

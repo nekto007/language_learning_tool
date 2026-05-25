@@ -104,10 +104,32 @@ def format_morning_reminder(user_name: str, streak: int,
         buttons: list[list[dict]] = []
         next_url = None
         chain_slots = plan.get('slots') or plan.get('baseline_slots') or []
-        next_slot = next((slot for slot in chain_slots if not slot.get('completed')), None)
+        next_slot = next(
+            (
+                slot for slot in chain_slots
+                if not slot.get('completed')
+                and not slot.get('skipped')
+                and not slot.get('blocked')
+            ),
+            None,
+        )
+        if next_slot is None:
+            next_slot = next(
+                (
+                    slot for slot in chain_slots
+                    if not slot.get('completed')
+                    and slot.get('skipped')
+                    and not slot.get('blocked')
+                ),
+                None,
+            )
+        has_pending_gate = any(
+            not slot.get('completed') and (slot.get('skipped') or slot.get('blocked'))
+            for slot in chain_slots
+        )
         if next_slot and next_slot.get('url') and site_url:
             next_url = site_url.rstrip('/') + next_slot['url']
-        elif site_url:
+        elif site_url and not has_pending_gate:
             continuation = plan.get('continuation') or {}
             next_lessons = continuation.get('next_lessons') or []
             if next_lessons and next_lessons[0].get('lesson_id'):

@@ -137,7 +137,7 @@ class PathNode:
     """One renderable bubble (or task-card) on the path.
 
     ``segment`` plus ``state`` together drive the visuals:
-      - segment='today' / state in {done, current, locked, milestone}
+      - segment='today' / state in {done, current, skipped, locked, milestone}
       - segment='challenge' / state='bonus'
       - segment='preview' / state='preview'
     """
@@ -156,8 +156,8 @@ class PathNode:
     label: Optional[str] = None          # short kind label (e.g. «Повторение слов»)
     locked_reason: Optional[str] = None  # «Откроется после повторения»
     xp_reward: Optional[int] = None      # est. XP for current/preview nodes
-    skip_allowed: Optional[bool] = None  # curriculum-only: can defer lesson today
-    skips_remaining: Optional[int] = None
+    slot_skip_allowed: Optional[bool] = None
+    slot_skips_remaining: Optional[int] = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -175,8 +175,8 @@ class PathNode:
             'label': self.label,
             'locked_reason': self.locked_reason,
             'xp_reward': self.xp_reward,
-            'skip_allowed': self.skip_allowed,
-            'skips_remaining': self.skips_remaining,
+            'slot_skip_allowed': self.slot_skip_allowed,
+            'slot_skips_remaining': self.slot_skips_remaining,
         }
 
 
@@ -274,7 +274,9 @@ def _slot_to_node(
     else:
         icon_key = SLOT_KIND_ICONS.get(kind, DEFAULT_ICON)
 
-    locked_reason = _build_locked_reason(prev_slot_kind) if state == 'locked' else None
+    locked_reason = None
+    if state == 'locked':
+        locked_reason = data.get('locked_reason') or _build_locked_reason(prev_slot_kind)
 
     return PathNode(
         title=title,
@@ -288,8 +290,8 @@ def _slot_to_node(
         eta_minutes=slot.get('eta_minutes'),
         label=label,
         locked_reason=locked_reason,
-        skip_allowed=data.get('skip_allowed') if kind == 'curriculum' else None,
-        skips_remaining=data.get('skips_remaining') if kind == 'curriculum' else None,
+        slot_skip_allowed=data.get('slot_skip_allowed'),
+        slot_skips_remaining=data.get('slot_skips_remaining'),
     )
 
 
@@ -355,8 +357,9 @@ def _build_today_segment(
 
     State priority:
       1. ``done``    — slot.completed OR plan_completion[kind] True (baseline).
-      2. ``current`` — first non-done slot.
-      3. ``locked``  — every subsequent slot.
+      2. ``skipped`` — explicitly skipped today but still openable.
+      3. ``locked``  — blocked by a skipped prerequisite or later in chain.
+      4. ``current`` — first non-done, non-skipped, non-blocked slot.
 
     Extension slots (beyond ``baseline_count``) trust slot.completed only;
     plan_completion is keyed by kind and would falsely mark an extension
@@ -374,10 +377,6 @@ def _build_today_segment(
     current_assigned = False
     prev_kind: Optional[str] = None
     for idx, slot in enumerate(slots):
-        if slot.get('skipped'):
-            # Skipped slots simply don't appear in the path — they
-            # already have their own «Пропустить» action in the rail.
-            continue
         kind = slot.get('kind') or ''
         is_baseline = idx < baseline_count
         completed = bool(slot.get('completed')) or (
@@ -385,6 +384,10 @@ def _build_today_segment(
         )
         if completed:
             state = 'done'
+        elif slot.get('skipped'):
+            state = 'skipped'
+        elif slot.get('blocked'):
+            state = 'locked'
         elif not current_assigned:
             state = 'current'
             current_assigned = True

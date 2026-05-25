@@ -1,115 +1,90 @@
-"""Tests for POST /api/daily-plan/skip-lesson."""
+"""Tests for daily-plan slot skip semantics."""
 from __future__ import annotations
 
-from datetime import date, timedelta
+from unittest.mock import patch
 
-from app.curriculum.models import Lessons
-from app.daily_plan.models import LessonSkip
-
-
-def _make_lesson(db_session, module, number: int, title: str) -> Lessons:
-    lesson = Lessons(
-        module_id=module.id,
-        number=number,
-        title=title,
-        type='quiz',
-        order=number,
-        content={},
-    )
-    db_session.add(lesson)
-    db_session.commit()
-    return lesson
+from app.daily_plan.models import DailyPlanEvent
 
 
-def _make_two_lesson_spine(db_session, module) -> tuple[Lessons, Lessons]:
-    return (
-        _make_lesson(db_session, module, 1, 'First lesson'),
-        _make_lesson(db_session, module, 2, 'Second lesson'),
-    )
+def _plan(*, first='srs') -> dict:
+    slots = [
+        {
+            'kind': first,
+            'title': first,
+            'completed': False,
+            'url': f'/{first}',
+            'data': {'slot_skip_allowed': True, 'slot_skips_remaining': 1},
+        },
+        {
+            'kind': 'curriculum',
+            'title': 'Course lesson',
+            'completed': False,
+            'url': '/learn/1/',
+            'data': {},
+        },
+    ]
+    return {
+        'mode': 'linear',
+        'slots': slots,
+        'baseline_slots': slots,
+        'chain_meta': {'baseline_count': len(slots)},
+    }
 
 
-def test_skip_lesson_records_deferral_and_returns_next(
-    authenticated_client, db_session, test_user, test_module,
-):
-    lesson1, lesson2 = _make_two_lesson_spine(db_session, test_module)
-
-    response = authenticated_client.post(
-        '/api/daily-plan/skip-lesson',
-        json={'lesson_id': lesson1.id},
-    )
+def test_slot_skip_records_current_slot(authenticated_client, db_session, test_user):
+    with patch('app.daily_plan.linear.plan.get_linear_plan', return_value=_plan(first='srs')):
+        response = authenticated_client.post(
+            '/api/daily-plan/events',
+            json={
+                'event_type': 'slot_skipped',
+                'step_kind': 'srs',
+                'reason_text': 'not_today',
+            },
+        )
 
     assert response.status_code == 200
-    data = response.get_json()
-    assert data['success'] is True
-    assert data['skips_remaining'] == 0
-    assert data['next_lesson_id'] == lesson2.id
-
-    row = db_session.query(LessonSkip).filter_by(
+    event = db_session.query(DailyPlanEvent).filter_by(
         user_id=test_user.id,
-        lesson_id=lesson1.id,
+        event_type='slot_skipped',
     ).one()
-    assert row.skipped_on_date == date.today()
-    assert row.defer_until_date == date.today() + timedelta(days=1)
+    assert event.step_kind == 'srs'
+    assert event.mission_type == 'slot:0:srs'
 
 
-def test_skip_lesson_rejects_non_current_lesson(
-    authenticated_client, db_session, test_module,
-):
-    lesson1, lesson2 = _make_two_lesson_spine(db_session, test_module)
+def test_slot_skip_rejects_non_current_slot(authenticated_client):
+    with patch('app.daily_plan.linear.plan.get_linear_plan', return_value=_plan(first='srs')):
+        response = authenticated_client.post(
+            '/api/daily-plan/events',
+            json={
+                'event_type': 'slot_skipped',
+                'step_kind': 'curriculum',
+                'reason_text': 'not_today',
+            },
+        )
 
-    response = authenticated_client.post(
-        '/api/daily-plan/skip-lesson',
-        json={'lesson_id': lesson2.id},
-    )
-
-    assert lesson1.id != lesson2.id
     assert response.status_code == 400
-    assert response.get_json()['error'] == 'invalid_lesson'
+    assert response.get_json()['error'] == 'not_current_slot'
 
 
-def test_skip_lesson_double_call_same_lesson_returns_already_deferred(
-    authenticated_client, db_session, test_module,
-):
-    lesson1, _lesson2 = _make_two_lesson_spine(db_session, test_module)
-
-    first = authenticated_client.post(
-        '/api/daily-plan/skip-lesson',
-        json={'lesson_id': lesson1.id},
-    )
-    second = authenticated_client.post(
-        '/api/daily-plan/skip-lesson',
-        json={'lesson_id': lesson1.id},
-    )
-
-    assert first.status_code == 200
-    assert second.status_code == 400
-    assert second.get_json()['error'] == 'already_deferred'
-
-
-def test_skip_lesson_quota_exhausted_for_next_current_lesson(
-    authenticated_client, db_session, test_module,
-):
-    lesson1, lesson2 = _make_two_lesson_spine(db_session, test_module)
-
-    first = authenticated_client.post(
-        '/api/daily-plan/skip-lesson',
-        json={'lesson_id': lesson1.id},
-    )
-    second = authenticated_client.post(
-        '/api/daily-plan/skip-lesson',
-        json={'lesson_id': lesson2.id},
-    )
+def test_slot_skip_quota_is_one_per_day(authenticated_client):
+    with patch('app.daily_plan.linear.plan.get_linear_plan', return_value=_plan(first='srs')):
+        first = authenticated_client.post(
+            '/api/daily-plan/events',
+            json={
+                'event_type': 'slot_skipped',
+                'step_kind': 'srs',
+                'reason_text': 'not_today',
+            },
+        )
+        second = authenticated_client.post(
+            '/api/daily-plan/events',
+            json={
+                'event_type': 'slot_skipped',
+                'step_kind': 'curriculum',
+                'reason_text': 'not_today',
+            },
+        )
 
     assert first.status_code == 200
     assert second.status_code == 429
     assert second.get_json()['error'] == 'skip_quota_exhausted'
-
-
-def test_skip_lesson_requires_integer_lesson_id(authenticated_client):
-    response = authenticated_client.post(
-        '/api/daily-plan/skip-lesson',
-        json={'lesson_id': '1'},
-    )
-
-    assert response.status_code == 400
-    assert response.get_json()['error'] == 'invalid_lesson'

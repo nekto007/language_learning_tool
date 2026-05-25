@@ -109,25 +109,44 @@ def _pick_next_slot(
     """Walk the chain in display order, return the first incomplete slot
     that comes AFTER the current one (or anywhere if current not found).
 
-    Skipped slots and the current slot itself are ignored. When the
-    current slot can't be located in the chain (e.g. user reopened a
-    finished lesson directly), fall back to the first incomplete slot —
-    that's still the most useful next-step CTA.
+    Blocked slots and the current slot itself are ignored. If the user
+    skipped an earlier slot and later exhausts the available path, fall
+    back to that skipped-but-open slot so they can still close the day.
     """
     found_current = False
+
+    def _is_active_candidate(slot: dict[str, Any]) -> bool:
+        return (
+            not slot.get('completed')
+            and not slot.get('skipped')
+            and not slot.get('blocked')
+        )
+
+    def _is_fallback_candidate(slot: dict[str, Any]) -> bool:
+        return not slot.get('completed') and not slot.get('blocked')
+
     for slot in all_slots:
         if _is_current_slot(slot, slot_param, current_lesson_id):
             found_current = True
             continue
         if not found_current:
             continue
-        if slot.get('completed') or slot.get('skipped'):
+        if not _is_active_candidate(slot):
             continue
         return slot
 
     if not found_current:
         for slot in all_slots:
-            if not (slot.get('completed') or slot.get('skipped')):
+            if _is_active_candidate(slot):
+                return slot
+        for slot in all_slots:
+            if _is_fallback_candidate(slot):
+                return slot
+    else:
+        for slot in all_slots:
+            if _is_current_slot(slot, slot_param, current_lesson_id):
+                continue
+            if _is_fallback_candidate(slot):
                 return slot
 
     return None
@@ -144,10 +163,7 @@ def _compute_day_secured(
     is one of them — because the caller is about to finish it. When there
     are no baseline slots left incomplete, the day is secured.
     """
-    incomplete = [
-        slot for slot in baseline_slots
-        if not (slot.get('completed') or slot.get('skipped'))
-    ]
+    incomplete = [slot for slot in baseline_slots if not slot.get('completed')]
     if not incomplete:
         return True
     if slot_param and any(

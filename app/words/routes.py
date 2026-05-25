@@ -390,16 +390,38 @@ def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, 
         chain_meta = plan.get('chain_meta') or {}
         baseline_count = int(chain_meta.get('baseline_count') or len(baseline_slots))
         completion = _compute_linear_slot_completion(baseline_slots, daily_summary)
+        def _slot_effectively_done(idx: int, slot: dict) -> bool:
+            return (
+                slot.get('completed', False)
+                or (idx < baseline_count and completion.get(slot.get('kind', ''), False))
+            )
         next_slot = next(
             (
                 slot for idx, slot in enumerate(chain_slots)
-                if not slot.get('completed', False)
-                and not (idx < baseline_count and completion.get(slot.get('kind', ''), False))
+                if not _slot_effectively_done(idx, slot)
+                and not slot.get('skipped')
+                and not slot.get('blocked')
             ),
             None,
         )
+        if next_slot is None:
+            next_slot = next(
+                (
+                    slot for idx, slot in enumerate(chain_slots)
+                    if not _slot_effectively_done(idx, slot)
+                    and slot.get('skipped')
+                    and not slot.get('blocked')
+                ),
+                None,
+            )
         if next_slot and next_slot.get('url'):
             return next_slot.get('title') or 'Следующий слот', next_slot.get('url')
+        if any(
+            not _slot_effectively_done(idx, slot)
+            and (slot.get('skipped') or slot.get('blocked'))
+            for idx, slot in enumerate(chain_slots)
+        ):
+            return None, None
         continuation = plan.get('continuation') or {}
         next_lessons = continuation.get('next_lessons') or []
         if next_lessons:
@@ -2186,14 +2208,30 @@ def _next_step_from_linear(plan: dict, daily_summary: dict) -> tuple:
         'reading': '\U0001f4d5',
         'error_review': '\U0001f50d',
     }
+    def _slot_effectively_done(idx: int, slot: dict) -> bool:
+        return (
+            slot.get('completed', False)
+            or (idx < baseline_count and plan_completion.get(slot.get('kind', ''), False))
+        )
     next_slot = next(
         (
             slot for idx, slot in enumerate(chain_slots)
-            if not slot.get('completed', False)
-            and not (idx < baseline_count and plan_completion.get(slot.get('kind', ''), False))
+            if not _slot_effectively_done(idx, slot)
+            and not slot.get('skipped')
+            and not slot.get('blocked')
         ),
         None,
     )
+    if next_slot is None:
+        next_slot = next(
+            (
+                slot for idx, slot in enumerate(chain_slots)
+                if not _slot_effectively_done(idx, slot)
+                and slot.get('skipped')
+                and not slot.get('blocked')
+            ),
+            None,
+        )
     if next_slot and next_slot.get('url'):
         kind = next_slot.get('kind', '')
         return jsonify({
@@ -2202,6 +2240,17 @@ def _next_step_from_linear(plan: dict, daily_summary: dict) -> tuple:
             'step_title': next_slot.get('title') or 'Следующий слот',
             'step_url': next_slot['url'],
             'step_icon': slot_icons.get(kind, '\U0001f4cc'),
+            'steps_done': steps_done,
+            'steps_total': steps_total,
+        }), 200
+
+    if any(
+        not _slot_effectively_done(idx, slot)
+        and (slot.get('skipped') or slot.get('blocked'))
+        for idx, slot in enumerate(chain_slots)
+    ):
+        return jsonify({
+            'has_next': False,
             'steps_done': steps_done,
             'steps_total': steps_total,
         }), 200

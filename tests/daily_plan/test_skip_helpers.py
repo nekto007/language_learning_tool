@@ -1,10 +1,10 @@
-"""Tests for skip helpers + curriculum slot skip data.
+"""Tests for legacy LessonSkip rows and curriculum slot behavior.
 
 Covers:
 - get_deferred_lesson_ids
 - get_skips_used_today
 - find_next_lesson_linear with exclude_lesson_ids
-- build_curriculum_slot skip_allowed / skips_remaining in slot.data
+- build_curriculum_slot ignores legacy LessonSkip rows and skip fields
 """
 from __future__ import annotations
 
@@ -18,7 +18,6 @@ from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.daily_plan.linear.progression import find_next_lesson_linear
 from app.daily_plan.linear.slots.curriculum_slot import (
-    DAILY_SKIP_QUOTA,
     build_curriculum_slot,
     get_deferred_lesson_ids,
     get_skips_used_today,
@@ -198,7 +197,7 @@ class TestFindNextLessonLinearExclude:
         assert result is None
 
 
-class TestBuildCurriculumSlotSkipData:
+class TestBuildCurriculumSlotIgnoresLessonSkipRows:
     def _curriculum(self, db_session):
         user = _make_user(db_session)
         level = _make_level(db_session, order=1)
@@ -207,51 +206,35 @@ class TestBuildCurriculumSlotSkipData:
         lesson2 = _make_lesson(db_session, module, 2)
         return user, lesson1, lesson2
 
-    def test_skip_allowed_true_when_quota_available(self, db_session):
+    def test_no_lesson_skip_data_on_curriculum_slot(self, db_session):
         user, lesson1, lesson2 = self._curriculum(db_session)
-        today = date.today()
-        with patch('app.daily_plan.linear.slots.curriculum_slot.get_user_local_date', return_value=today):
-            slot = build_curriculum_slot(user.id, real_db)
-        assert slot.data.get('skip_allowed') is True
-        assert slot.data.get('skips_remaining') == DAILY_SKIP_QUOTA
+        slot = build_curriculum_slot(user.id, real_db)
+        assert slot.data.get('lesson_id') == lesson1.id
+        assert 'skip_allowed' not in slot.data
+        assert 'skips_remaining' not in slot.data
 
-    def test_skip_allowed_false_when_quota_exhausted(self, db_session):
+    def test_deferred_lesson_no_longer_replaced_by_next(self, db_session):
         user, lesson1, lesson2 = self._curriculum(db_session)
         today = date.today()
         _skip(db_session, user.id, lesson1.id, today)
-        with patch('app.daily_plan.linear.slots.curriculum_slot.get_user_local_date', return_value=today):
-            slot = build_curriculum_slot(user.id, real_db)
-        assert slot.data.get('skip_allowed') is False
-        assert slot.data.get('skips_remaining') == 0
-
-    def test_deferred_lesson_replaced_by_next(self, db_session):
-        user, lesson1, lesson2 = self._curriculum(db_session)
-        today = date.today()
-        _skip(db_session, user.id, lesson1.id, today)
-        with patch('app.daily_plan.linear.slots.curriculum_slot.get_user_local_date', return_value=today):
-            slot = build_curriculum_slot(user.id, real_db)
-        assert slot.data.get('lesson_id') == lesson2.id
+        slot = build_curriculum_slot(user.id, real_db)
+        assert slot.data.get('lesson_id') == lesson1.id
 
     def test_no_skip_data_when_completed(self, db_session):
         user, lesson1, lesson2 = self._curriculum(db_session)
-        today = date.today()
         # mark lesson1 completed so curriculum slot returns done_today = completed
         db_session.add(LessonProgress(
             user_id=user.id, lesson_id=lesson1.id, status='completed', score=100.0,
         ))
         db_session.commit()
         # simulate done_today via patching _curriculum_done_today
-        with patch('app.daily_plan.linear.slots.curriculum_slot._curriculum_done_today', return_value=True), \
-             patch('app.daily_plan.linear.slots.curriculum_slot.get_user_local_date', return_value=today):
+        with patch('app.daily_plan.linear.slots.curriculum_slot._curriculum_done_today', return_value=True):
             slot = build_curriculum_slot(user.id, real_db)
-        # completed slot has no skip keys
         assert 'skip_allowed' not in slot.data
 
-    def test_pre_passed_deferred_lesson_overridden(self, db_session):
+    def test_pre_passed_deferred_lesson_kept(self, db_session):
         user, lesson1, lesson2 = self._curriculum(db_session)
         today = date.today()
         _skip(db_session, user.id, lesson1.id, today)
-        with patch('app.daily_plan.linear.slots.curriculum_slot.get_user_local_date', return_value=today):
-            slot = build_curriculum_slot(user.id, real_db, next_lesson=lesson1)
-        # Even though lesson1 was passed in, it should be replaced by lesson2
-        assert slot.data.get('lesson_id') == lesson2.id
+        slot = build_curriculum_slot(user.id, real_db, next_lesson=lesson1)
+        assert slot.data.get('lesson_id') == lesson1.id

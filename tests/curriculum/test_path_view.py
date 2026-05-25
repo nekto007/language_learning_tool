@@ -78,7 +78,7 @@ def test_today_segment_marks_first_incomplete_slot_as_current():
     assert seg.nodes[1].icon == SLOT_KIND_ICONS['srs']
 
 
-def test_today_segment_carries_curriculum_skip_data():
+def test_today_segment_carries_slot_skip_data():
     plan = {
         'slots': [
             {
@@ -89,8 +89,8 @@ def test_today_segment_carries_curriculum_skip_data():
                 'eta_minutes': 12,
                 'data': {
                     'lesson_id': 1,
-                    'skip_allowed': True,
-                    'skips_remaining': 1,
+                    'slot_skip_allowed': True,
+                    'slot_skips_remaining': 1,
                 },
             },
         ],
@@ -99,8 +99,8 @@ def test_today_segment_carries_curriculum_skip_data():
     seg = _build_today_segment(plan, {})
     node = seg.nodes[0]
     assert node.lesson_id == 1
-    assert node.skip_allowed is True
-    assert node.skips_remaining == 1
+    assert node.slot_skip_allowed is True
+    assert node.slot_skips_remaining == 1
 
 
 def test_today_segment_done_state_from_plan_completion():
@@ -116,7 +116,7 @@ def test_today_segment_done_state_from_plan_completion():
     assert [n.state for n in seg.nodes] == ['done', 'current']
 
 
-def test_today_segment_skips_skipped_slots():
+def test_today_segment_keeps_skipped_slots_openable():
     plan = {
         'slots': [
             {'kind': 'curriculum', 'title': 'V', 'url': '/x', 'completed': False, 'data': {}},
@@ -126,7 +126,23 @@ def test_today_segment_skips_skipped_slots():
         'chain_meta': {'baseline_count': 3},
     }
     seg = _build_today_segment(plan, {})
-    assert [n.slot_kind for n in seg.nodes] == ['curriculum', 'book']
+    assert [n.slot_kind for n in seg.nodes] == ['curriculum', 'srs', 'book']
+    assert [n.state for n in seg.nodes] == ['current', 'skipped', 'locked']
+
+
+def test_today_segment_blocked_slot_does_not_consume_current():
+    plan = {
+        'slots': [
+            {'kind': 'curriculum', 'title': 'V', 'url': '/x', 'completed': False, 'skipped': True, 'data': {}},
+            {'kind': 'listening', 'title': 'L', 'url': '/l', 'completed': False, 'blocked': True,
+             'data': {'locked_reason': 'Сначала завершите урок курса'}},
+            {'kind': 'reading', 'title': 'B', 'url': '/z', 'completed': False, 'data': {}},
+        ],
+        'chain_meta': {'baseline_count': 3},
+    }
+    seg = _build_today_segment(plan, {})
+    assert [n.state for n in seg.nodes] == ['skipped', 'locked', 'current']
+    assert seg.nodes[1].locked_reason == 'Сначала завершите урок курса'
 
 
 def test_today_segment_extension_uses_only_slot_completed_flag():
@@ -287,18 +303,18 @@ def test_dashboard_path_to_dict_serialises_for_api():
     node = PathNode(
         title='X', icon='book-open', state='current', url='/x',
         segment='today', offset_px=0, slot_kind='curriculum',
-        lesson_id=7, skip_allowed=True, skips_remaining=1,
+        lesson_id=7, slot_skip_allowed=True, slot_skips_remaining=1,
     )
     segment = PathSegment(kind='today', label='Сегодня', nodes=[node])
     path = DashboardPath(segments=[segment], preview_module_label=None)
     d = path.to_dict()
     assert d['segments'][0]['nodes'][0]['slot_kind'] == 'curriculum'
-    assert d['segments'][0]['nodes'][0]['skip_allowed'] is True
-    assert d['segments'][0]['nodes'][0]['skips_remaining'] == 1
+    assert d['segments'][0]['nodes'][0]['slot_skip_allowed'] is True
+    assert d['segments'][0]['nodes'][0]['slot_skips_remaining'] == 1
     assert d['is_empty'] is False
 
 
-def test_path_node_renders_curriculum_skip_button(app):
+def test_path_node_renders_slot_skip_button(app):
     template = app.jinja_env.get_template('components/_path_node.html')
     node = PathNode(
         title='Lesson',
@@ -307,22 +323,22 @@ def test_path_node_renders_curriculum_skip_button(app):
         url='/learn/7/?from=linear_plan',
         segment='today',
         offset_px=0,
-        slot_kind='curriculum',
+        slot_kind='srs',
         lesson_id=7,
-        skip_allowed=True,
-        skips_remaining=1,
+        slot_skip_allowed=True,
+        slot_skips_remaining=1,
     )
 
     html = template.render(node=node, is_current=True, is_last=True)
 
-    assert 'data-skip-lesson-button="true"' in html
-    assert 'data-lesson-id="7"' in html
-    assert 'Пропустить урок' in html
+    assert 'data-skip-slot-button="true"' in html
+    assert 'data-skip-kind="srs"' in html
+    assert 'Сделать другое' in html
     assert 'доступен 1 пропуск сегодня' in html
     assert 'href="/learn/7/?from=linear_plan"' in html
 
 
-def test_path_node_renders_disabled_skip_when_quota_exhausted(app):
+def test_path_node_renders_disabled_slot_skip_when_quota_exhausted(app):
     template = app.jinja_env.get_template('components/_path_node.html')
     node = PathNode(
         title='Lesson',
@@ -333,13 +349,13 @@ def test_path_node_renders_disabled_skip_when_quota_exhausted(app):
         offset_px=0,
         slot_kind='curriculum',
         lesson_id=7,
-        skip_allowed=False,
-        skips_remaining=0,
+        slot_skip_allowed=False,
+        slot_skips_remaining=0,
     )
 
     html = template.render(node=node, is_current=True, is_last=True)
 
-    assert 'Пропустить урок' in html
+    assert 'Сделать другое' in html
     assert 'disabled' in html
     assert 'Лимит пропусков исчерпан' in html
 

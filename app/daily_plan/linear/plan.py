@@ -36,6 +36,20 @@ SLOT_ESTIMATED_MINUTES: dict[str, int] = {
     'error_review': 12,
 }
 
+# One "not now" action per user-local day. This skips a daily-plan source
+# slot, not a lesson inside the curriculum spine.
+DAILY_SLOT_SKIP_QUOTA = 1
+
+# Slots backed by the curriculum spine. If the main course lesson is skipped
+# today, later curriculum-derived slots must stay locked until that skipped
+# lesson is actually completed.
+_CURRICULUM_DEPENDENT_KINDS = frozenset({
+    'curriculum',
+    'listening',
+    'speaking',
+    'writing',
+})
+
 
 def get_plan_intensity(minutes: int) -> str:
     """Return intensity label based on total estimated minutes.
@@ -115,6 +129,114 @@ def _get_skipped_slot_kinds(
         plan_date=plan_date,
     ).all()
     return {e.step_kind for e in events if e.step_kind}
+
+
+def get_slot_skip_key(slot: dict[str, Any], index: Optional[int] = None) -> str:
+    """Return a stable key for a rebuilt slot.
+
+    Curriculum-backed slots carry lesson_id, which prevents a skip of one
+    course lesson from drifting to the next course lesson after the user later
+    completes the skipped one.
+    """
+    kind = slot.get('kind') or ''
+    data = slot.get('data') or {}
+    lesson_id = data.get('lesson_id')
+    if lesson_id:
+        return f'lesson:{lesson_id}'
+    if index is not None:
+        return f'slot:{index}:{kind}'
+    return f'kind:{kind}'
+
+
+def _is_curriculum_backed_slot(slot: dict[str, Any]) -> bool:
+    """Return True for daily-plan slots that are backed by a curriculum lesson."""
+    kind = slot.get('kind')
+    data = slot.get('data') or {}
+    return kind in _CURRICULUM_DEPENDENT_KINDS and bool(data.get('lesson_id'))
+
+
+def _get_skipped_slots(
+    user_id: int,
+    plan_date: Any,
+    db_session: Any,
+) -> list[tuple[str, Optional[str]]]:
+    """Return ``[(kind, slot_key)]`` for skipped slots today."""
+    from app.daily_plan.models import DailyPlanEvent
+
+    events = db_session.session.query(DailyPlanEvent).filter_by(
+        user_id=user_id,
+        event_type='slot_skipped',
+        plan_date=plan_date,
+    ).all()
+    return [
+        (e.step_kind, e.mission_type)
+        for e in events
+        if e.step_kind
+    ]
+
+
+def get_slot_skips_used_today(
+    user_id: int,
+    plan_date: Any,
+    db_session: Any,
+) -> int:
+    """Return how many daily-plan slot skips the user used today."""
+    from app.daily_plan.models import DailyPlanEvent
+
+    return db_session.session.query(DailyPlanEvent).filter_by(
+        user_id=user_id,
+        event_type='slot_skipped',
+        plan_date=plan_date,
+    ).count()
+
+
+def _apply_skipped_slots(
+    all_slots: list[dict[str, Any]],
+    skipped_slots: list[tuple[str, Optional[str]]],
+) -> None:
+    """Mark skipped slots and block curriculum dependants after a skipped course step."""
+    if not skipped_slots:
+        return
+
+    skipped_curriculum = False
+    remaining = list(skipped_slots)
+    for slot_index, slot in enumerate(all_slots):
+        kind = slot.get('kind')
+        slot_key = get_slot_skip_key(slot, slot_index)
+        matched_idx = next(
+            (
+                idx for idx, (skip_kind, skip_key) in enumerate(remaining)
+                if skip_kind == kind and (skip_key is None or skip_key == slot_key)
+            ),
+            None,
+        )
+        if matched_idx is not None and not slot.get('completed', False):
+            slot['skipped'] = True
+            remaining.pop(matched_idx)
+            if _is_curriculum_backed_slot(slot):
+                skipped_curriculum = True
+            continue
+
+        if skipped_curriculum and kind in _CURRICULUM_DEPENDENT_KINDS:
+            if not slot.get('completed', False):
+                slot['blocked'] = True
+                slot.setdefault('data', {})['locked_reason'] = (
+                    'Сначала завершите урок курса'
+                )
+
+
+def annotate_slot_skip_quota(
+    all_slots: list[dict[str, Any]],
+    skips_used: int,
+) -> None:
+    """Expose the daily slot-skip quota on currently actionable slots."""
+    skips_remaining = max(DAILY_SLOT_SKIP_QUOTA - skips_used, 0)
+    for slot in all_slots:
+        if slot.get('completed') or slot.get('skipped') or slot.get('blocked'):
+            continue
+        data = slot.setdefault('data', {})
+        data['slot_skip_allowed'] = skips_remaining > 0
+        data['slot_skips_remaining'] = skips_remaining
 
 
 def _apply_time_of_day_order(
@@ -254,11 +376,12 @@ def get_linear_plan(
     baseline_slots = all_slots[:baseline_count]
 
     plan_date = get_user_local_date(user_id, session_provider)
-    skipped_kinds = _get_skipped_slot_kinds(user_id, plan_date, session_provider)
-    if skipped_kinds:
-        for slot in all_slots:
-            if slot.get('kind') in skipped_kinds and not slot.get('completed', False):
-                slot['skipped'] = True
+    skipped_slots = _get_skipped_slots(user_id, plan_date, session_provider)
+    _apply_skipped_slots(all_slots, skipped_slots)
+    annotate_slot_skip_quota(
+        all_slots,
+        get_slot_skips_used_today(user_id, plan_date, session_provider),
+    )
 
     day_secured = compute_linear_day_secured(baseline_slots)
 
@@ -280,6 +403,8 @@ def get_linear_plan(
         SLOT_ESTIMATED_MINUTES.get(slot.get('kind', ''), 0)
         for slot in all_slots
         if not slot.get('completed', False)
+        and not slot.get('skipped', False)
+        and not slot.get('blocked', False)
     )
 
     tomorrow_preview = build_tomorrow_preview(user_id, session_provider) if day_secured else None

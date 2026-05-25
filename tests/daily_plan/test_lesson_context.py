@@ -107,6 +107,28 @@ def test_pick_next_slot_skips_skipped_slots():
     assert nxt['kind'] == 'book'
 
 
+def test_pick_next_slot_uses_skipped_fallback_when_no_active_slot():
+    slots = [
+        {'kind': 'curriculum', 'completed': True, 'data': {'lesson_id': 1}},
+        {'kind': 'srs', 'completed': False, 'skipped': True, 'data': {}},
+        {'kind': 'listening', 'completed': False, 'blocked': True, 'data': {'lesson_id': 2}},
+    ]
+    nxt = _pick_next_slot(slots, slot_param='curriculum', current_lesson_id=1)
+    assert nxt is not None
+    assert nxt['kind'] == 'srs'
+
+
+def test_pick_next_slot_skips_blocked_slots():
+    slots = [
+        {'kind': 'curriculum', 'completed': False, 'data': {'lesson_id': 1}},
+        {'kind': 'listening', 'completed': False, 'blocked': True, 'data': {'lesson_id': 2}},
+        {'kind': 'book', 'completed': False, 'data': {'book_id': 5}},
+    ]
+    nxt = _pick_next_slot(slots, slot_param='curriculum', current_lesson_id=1)
+    assert nxt is not None
+    assert nxt['kind'] == 'book'
+
+
 def test_pick_next_slot_fallback_when_current_not_found(plan_three_baseline):
     """User opened a lesson without correct slot context — give them
     *some* useful next-step rather than nothing."""
@@ -155,6 +177,26 @@ def test_compute_day_secured_false_when_finishing_extension_with_baseline_pendin
         {'kind': 'srs', 'completed': True, 'data': {}},
     ]
     secured = _compute_day_secured(baseline, slot_param='srs', current_lesson_id=None)
+    assert secured is False
+
+
+def test_compute_day_secured_false_when_skipped_baseline_pending():
+    baseline = [
+        {'kind': 'curriculum', 'completed': False, 'skipped': True, 'data': {'lesson_id': 1}},
+        {'kind': 'srs', 'completed': True, 'data': {}},
+        {'kind': 'book', 'completed': False, 'data': {'book_id': 5}},
+    ]
+    secured = _compute_day_secured(baseline, slot_param='book', current_lesson_id=None)
+    assert secured is False
+
+
+def test_compute_day_secured_false_when_blocked_baseline_pending():
+    baseline = [
+        {'kind': 'curriculum', 'completed': True, 'data': {'lesson_id': 1}},
+        {'kind': 'book', 'completed': False, 'data': {'book_id': 5}},
+        {'kind': 'listening', 'completed': False, 'blocked': True, 'data': {'lesson_id': 2}},
+    ]
+    secured = _compute_day_secured(baseline, slot_param='book', current_lesson_id=None)
     assert secured is False
 
 

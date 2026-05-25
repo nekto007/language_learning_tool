@@ -194,30 +194,34 @@
         return target.closest('[data-slot-state="locked"]');
     }
 
-    function _findSkipLessonButton(target) {
+    function _findSkipSlotButton(target) {
         if (!target || !target.closest) return null;
-        return target.closest('[data-skip-lesson-button="true"]');
+        return target.closest('[data-skip-slot-button="true"]');
     }
 
-    function _skipLesson(button) {
-        var lessonId = parseInt(button.getAttribute('data-lesson-id') || '', 10);
-        if (!lessonId || isNaN(lessonId)) {
-            _showLockedToast('Не удалось определить урок');
+    function _skipSlot(button) {
+        var slotKind = button.getAttribute('data-skip-kind') || '';
+        if (!slotKind) {
+            _showLockedToast('Не удалось определить шаг');
             return;
         }
         button.disabled = true;
-        fetch('/api/daily-plan/skip-lesson', {
+        fetch('/api/daily-plan/events', {
             method: 'POST',
             credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCsrfToken()
             },
-            body: JSON.stringify({ lesson_id: lessonId })
+            body: JSON.stringify({
+                event_type: 'slot_skipped',
+                step_kind: slotKind,
+                reason_text: button.getAttribute('data-skip-reason') || 'not_today'
+            })
         }).then(function (resp) {
             if (!resp.ok) {
                 return resp.json().catch(function () { return {}; }).then(function (data) {
-                    throw new Error(data.message || 'Не удалось пропустить урок');
+                    throw new Error(data.message || 'Не удалось пропустить шаг');
                 });
             }
             return resp.json();
@@ -225,7 +229,7 @@
             window.location.reload();
         }).catch(function (err) {
             button.disabled = false;
-            _showLockedToast(err && err.message ? err.message : 'Не удалось пропустить урок');
+            _showLockedToast(err && err.message ? err.message : 'Не удалось пропустить шаг');
         });
     }
 
@@ -236,11 +240,11 @@
             closeModal();
             return;
         }
-        var skipLesson = _findSkipLessonButton(event.target);
-        if (skipLesson) {
+        var skipSlot = _findSkipSlotButton(event.target);
+        if (skipSlot) {
             event.preventDefault();
             event.stopPropagation();
-            _skipLesson(skipLesson);
+            _skipSlot(skipSlot);
             return;
         }
         var lockedSlot = _findLockedSlot(event.target);

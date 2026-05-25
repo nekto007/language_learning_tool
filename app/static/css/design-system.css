@@ -16733,6 +16733,29 @@ body.dashboard-path-wide main.container {
 }
 .path-card--done:hover .path-card__cta { background: rgba(16, 185, 129, 0.18); }
 
+/* SKIPPED — still openable so the user can come back later today */
+.path-card--skipped {
+    border-color: rgba(245, 158, 11, 0.5);
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02),
+                0 4px 12px rgba(245, 158, 11, 0.10);
+}
+.path-card--skipped::before { display: none; }
+.path-card--skipped .path-card__icon {
+    background: #fef3c7;
+    color: #b45309;
+    box-shadow: none;
+}
+.path-card--skipped .path-card__label { color: #b45309; }
+.path-card--skipped .path-card__cta {
+    background: #fef3c7;
+    color: #92400e;
+}
+.path-card--skipped:hover .path-card__cta {
+    background: #fde68a;
+}
+
 /* LOCKED — dashed muted, no hover lift, lock icon, reason instead of meta */
 .path-card--locked {
     border: 1px dashed var(--path-slate-300);

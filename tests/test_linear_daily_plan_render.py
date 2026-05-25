@@ -613,37 +613,47 @@ class TestLinearPlanChainExtension:
         # Summary stays on the minimum (baseline) count, not the chain length.
         assert '>3/3<' in html
 
-    def test_current_curriculum_renders_lesson_skip_button(self, app):
+    def test_current_slot_renders_slot_skip_button(self, app):
         plan = _plan(slots=[
             _slot(
-                'curriculum',
-                url='/learn/1/?from=linear_plan',
-                data={'lesson_id': 1, 'skip_allowed': True, 'skips_remaining': 1},
+                'srs',
+                url='/study?source=linear_plan',
+                data={'slot_skip_allowed': True, 'slot_skips_remaining': 1},
             ),
         ])
 
         html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
 
-        assert 'data-skip-lesson-button="true"' in html
-        assert 'data-lesson-id="1"' in html
-        assert 'Пропустить урок' in html
+        assert 'data-skip-kind="srs"' in html
+        assert 'Сделать другое' in html
         assert 'доступен 1 пропуск сегодня' in html
-        assert 'data-skip-reasons="curriculum"' not in html
+        assert 'data-skip-reasons="srs"' in html
 
-    def test_current_curriculum_renders_disabled_skip_when_quota_exhausted(self, app):
+    def test_current_slot_renders_disabled_skip_when_quota_exhausted(self, app):
         plan = _plan(slots=[
             _slot(
                 'curriculum',
                 url='/learn/1/?from=linear_plan',
-                data={'lesson_id': 1, 'skip_allowed': False, 'skips_remaining': 0},
+                data={'slot_skip_allowed': False, 'slot_skips_remaining': 0},
             ),
         ])
 
         html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
 
-        assert 'Пропустить урок' in html
+        assert 'Сделать другое' in html
         assert 'Лимит пропусков исчерпан' in html
         assert 'disabled' in html
+
+    def test_skipped_slot_renders_return_action(self, app):
+        slot = _slot('curriculum', url='/learn/1/?from=linear_plan')
+        slot['skipped'] = True
+        plan = _plan(slots=[slot])
+
+        html = _render(app, {'linear_plan': plan, 'plan_completion': {}})
+
+        assert 'Пропущено' in html
+        assert 'Выполнить' in html
+        assert 'slot_return_after_skip' in html
 
 
 class TestBookSelectModalPresent:

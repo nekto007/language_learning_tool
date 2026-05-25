@@ -32,6 +32,7 @@
         'url': slot.get('url'),
         'completed': _completed,
         'skipped': slot.get('skipped', False),
+        'blocked': slot.get('blocked', False),
         'data': slot.get('data') or {},
     } %}
     {% set _ = l_slots.append(_merged) %}
@@ -271,10 +272,13 @@
             {% endif %}
             {% set _completed = slot.completed %}
             {% set _skipped = slot.get('skipped', False) %}
+            {% set _blocked = slot.get('blocked', False) %}
             {% if _completed %}
                 {% set _state = 'done' %}
             {% elif _skipped %}
                 {% set _state = 'skipped' %}
+            {% elif _blocked %}
+                {% set _state = 'locked' %}
             {% elif not lns.current_found %}
                 {% set _state = 'current' %}
                 {% set lns.current_found = true %}
@@ -451,13 +455,21 @@
                         {% elif _completed %}
                         <span class="linear-slot__badge linear-slot__badge--done">Готово &#10003;</span>
                         {% elif _state == 'skipped' %}
-                        <span class="linear-slot__badge linear-slot__badge--skipped">Пропущено</span>
+                        <div class="linear-slot__action-group">
+                            <span class="linear-slot__badge linear-slot__badge--skipped">Пропущено</span>
+                            {% if slot.url %}
+                            <a href="{{ slot.url }}"
+                               class="linear-slot__btn"
+                               data-linear-event="slot_return_after_skip"
+                               data-slot-click-kind="{{ _kind }}">Выполнить</a>
+                            {% endif %}
+                        </div>
                         {% elif _state == 'locked' %}
                         <span class="linear-slot__badge linear-slot__badge--locked"
                               data-linear-locked="true"
-                              aria-label="Заблокировано — завершите предыдущее задание">
+                              aria-label="Заблокировано — {{ _data.get('locked_reason') or 'завершите предыдущее задание' }}">
                             <span class="linear-slot__lock-icon" aria-hidden="true">&#128274;</span>
-                            <span class="linear-slot__lock-text">Откроется после завершения предыдущего</span>
+                            <span class="linear-slot__lock-text">{{ _data.get('locked_reason') or 'Откроется после завершения предыдущего' }}</span>
                         </span>
                         {% elif _needs_selection %}
                         <a href="#book-select-modal"
@@ -473,36 +485,26 @@
                                 {% if _state == 'current' %}Начать{% else %}Открыть{% endif %}
                             </a>
                             {% if _state == 'current' %}
-                            {% if _kind == 'curriculum' and _data.get('skips_remaining') is not none %}
-                                {% if _data.get('skip_allowed') %}
-                                <button type="button"
-                                        class="linear-slot__skip-btn"
-                                        data-skip-lesson-button="true"
-                                        data-lesson-id="{{ _data.get('lesson_id') }}"
-                                        aria-label="Пропустить урок до завтра">
-                                    Пропустить урок
-                                </button>
-                                <span class="linear-slot__skip-hint">доступен {{ _data.get('skips_remaining', 0) }} пропуск сегодня</span>
-                                {% else %}
-                                <button type="button"
-                                        class="linear-slot__skip-btn"
-                                        disabled
-                                        title="Лимит пропусков исчерпан"
-                                        aria-label="Лимит пропусков исчерпан">
-                                    Пропустить урок
-                                </button>
-                                {% endif %}
-                            {% else %}
+                            {% if _data.get('slot_skip_allowed') %}
                             <button type="button"
                                     class="linear-slot__skip-btn"
                                     data-skip-kind="{{ _kind }}"
-                                    aria-label="Пропустить это задание">
-                                Пропустить
+                                    aria-label="Сделать другое задание">
+                                Сделать другое
+                            </button>
+                            <span class="linear-slot__skip-hint">доступен {{ _data.get('slot_skips_remaining', 0) }} пропуск сегодня</span>
+                            {% elif _data.get('slot_skips_remaining') is not none %}
+                            <button type="button"
+                                    class="linear-slot__skip-btn"
+                                    disabled
+                                    title="Лимит пропусков исчерпан"
+                                    aria-label="Лимит пропусков исчерпан">
+                                Сделать другое
                             </button>
                             {% endif %}
                             {% endif %}
                         </div>
-                        {% if _state == 'current' and not (_kind == 'curriculum' and _data.get('skips_remaining') is not none) %}
+                        {% if _state == 'current' and _data.get('slot_skip_allowed') %}
                         <div class="linear-slot__skip-reasons" hidden data-skip-reasons="{{ _kind }}">
                             <div class="linear-slot__skip-reasons-label">Почему пропускаешь?</div>
                             <div class="linear-slot__skip-reasons-btns">
@@ -568,6 +570,7 @@
         {% if _ch_category == 'listening_deep' %}
             {% for slot in l_slots %}
                 {% if _chns.btn_url is none and not slot.completed and slot.url
+                      and not slot.blocked
                       and (slot.kind == 'listening'
                            or (slot.data and slot.data.lesson_type in _listening_types)) %}
                     {% set _chns.btn_url = slot.url %}
@@ -576,15 +579,17 @@
             {% if _chns.btn_url is none %}
                 {% for slot in l_slots %}
                     {% if _chns.btn_url is none and not slot.completed and slot.url %}
+                        {% if not slot.blocked %}
                         {% set _chns.btn_url = slot.url %}
                         {% set _chns.btn_label = 'Продолжить план' %}
                         {% set _chns.hint = 'Урок аудирования откроется после следующего шага плана' %}
+                        {% endif %}
                     {% endif %}
                 {% endfor %}
             {% endif %}
         {% else %}
             {% for slot in l_slots %}
-                {% if _chns.btn_url is none and not slot.completed and slot.url %}
+                {% if _chns.btn_url is none and not slot.completed and not slot.blocked and slot.url %}
                     {% set _chns.btn_url = slot.url %}
                 {% endif %}
             {% endfor %}
@@ -633,7 +638,7 @@
          rendered below in the details list. #}
     {% set _cns = namespace(slot=none) %}
     {% for slot in l_slots %}
-        {% if _cns.slot is none and not slot.completed and slot.url %}
+        {% if _cns.slot is none and not slot.completed and not slot.blocked and slot.url %}
             {% set _cns.slot = slot %}
         {% endif %}
     {% endfor %}
