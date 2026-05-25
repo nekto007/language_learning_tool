@@ -13278,6 +13278,17 @@ button.nav-section-title {
     text-underline-offset: 2px;
 }
 .linear-slot__skip-btn:hover { color: #64748b; }
+.linear-slot__skip-btn:disabled {
+    cursor: not-allowed;
+    color: #cbd5e1;
+}
+.linear-slot__skip-hint {
+    max-width: 9rem;
+    color: #94a3b8;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    text-align: right;
+}
 .linear-slot__skip-reasons {
     margin-top: 0.4rem;
     padding: 0.5rem 0.75rem;
@@ -16642,6 +16653,48 @@ body.dashboard-path-wide main.container {
 .path-card:hover .path-card__cta { background: #0284c7; }
 .path-card__cta-arrow { width: 14px; height: 14px; }
 .path-card__cta svg { width: 14px; height: 14px; }
+.path-card__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+    z-index: 1;
+}
+.path-card__actions .path-card__cta {
+    text-decoration: none;
+}
+.path-card__skip {
+    border: 1px solid rgba(14, 165, 233, 0.24);
+    background: #fff;
+    color: var(--path-accent);
+    border-radius: 999px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color var(--transition-fast, 0.15s),
+                border-color var(--transition-fast, 0.15s),
+                color var(--transition-fast, 0.15s);
+}
+.path-card__skip:hover:not(:disabled) {
+    background: rgba(14, 165, 233, 0.08);
+    border-color: rgba(14, 165, 233, 0.45);
+}
+.path-card__skip:disabled,
+.path-card__skip--disabled {
+    cursor: not-allowed;
+    color: var(--path-slate-400);
+    border-color: var(--path-slate-200);
+    background: var(--path-slate-50);
+}
+.path-card__skip-hint {
+    max-width: 9.5rem;
+    color: var(--path-slate-500);
+    font-size: 0.68rem;
+    line-height: 1.2;
+    text-align: right;
+}
 
 /* ─── path-card state variants ──────────────────────────────────── */
 

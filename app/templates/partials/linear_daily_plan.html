@@ -473,6 +473,26 @@
                                 {% if _state == 'current' %}Начать{% else %}Открыть{% endif %}
                             </a>
                             {% if _state == 'current' %}
+                            {% if _kind == 'curriculum' and _data.get('skips_remaining') is not none %}
+                                {% if _data.get('skip_allowed') %}
+                                <button type="button"
+                                        class="linear-slot__skip-btn"
+                                        data-skip-lesson-button="true"
+                                        data-lesson-id="{{ _data.get('lesson_id') }}"
+                                        aria-label="Пропустить урок до завтра">
+                                    Пропустить урок
+                                </button>
+                                <span class="linear-slot__skip-hint">доступен {{ _data.get('skips_remaining', 0) }} пропуск сегодня</span>
+                                {% else %}
+                                <button type="button"
+                                        class="linear-slot__skip-btn"
+                                        disabled
+                                        title="Лимит пропусков исчерпан"
+                                        aria-label="Лимит пропусков исчерпан">
+                                    Пропустить урок
+                                </button>
+                                {% endif %}
+                            {% else %}
                             <button type="button"
                                     class="linear-slot__skip-btn"
                                     data-skip-kind="{{ _kind }}"
@@ -480,8 +500,9 @@
                                 Пропустить
                             </button>
                             {% endif %}
+                            {% endif %}
                         </div>
-                        {% if _state == 'current' %}
+                        {% if _state == 'current' and not (_kind == 'curriculum' and _data.get('skips_remaining') is not none) %}
                         <div class="linear-slot__skip-reasons" hidden data-skip-reasons="{{ _kind }}">
                             <div class="linear-slot__skip-reasons-label">Почему пропускаешь?</div>
                             <div class="linear-slot__skip-reasons-btns">

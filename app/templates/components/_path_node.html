@@ -32,7 +32,13 @@ card (.path-card), варианты по state class:
 {% else %}
   {# Card-based nodes: current / done / locked / preview / bonus.
      Single layout, the state-class drives the visual styling. #}
-  {% set _is_clickable = node.state in ('current', 'done', 'preview', 'bonus') and node.url %}
+  {% set _has_curriculum_skip = (
+      node.state == 'current'
+      and node.slot_kind == 'curriculum'
+      and node.skips_remaining is not none
+      and node.lesson_id
+  ) %}
+  {% set _is_clickable = node.state in ('current', 'done', 'preview', 'bonus') and node.url and not _has_curriculum_skip %}
   {% set _tag = 'a' if _is_clickable else 'div' %}
   <div class="path-node path-node--{{ node.state }}"
        style="--node-offset: {{ node.offset_px }}px;"
@@ -71,6 +77,37 @@ card (.path-card), варианты по state class:
         </div>
       </div>
 
+      {% if _has_curriculum_skip %}
+      <span class="path-card__actions">
+        {% if node.url %}
+        <a class="path-card__cta"
+           href="{{ node.url }}"
+           data-linear-event="slot_start"
+           data-slot-click-kind="{{ node.slot_kind }}">
+          Начать
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        {% endif %}
+        {% if node.skip_allowed %}
+        <button type="button"
+                class="path-card__skip"
+                data-skip-lesson-button="true"
+                data-lesson-id="{{ node.lesson_id }}"
+                aria-label="Пропустить урок до завтра">
+          Пропустить урок
+        </button>
+        <span class="path-card__skip-hint">доступен {{ node.skips_remaining }} пропуск сегодня</span>
+        {% else %}
+        <button type="button"
+                class="path-card__skip path-card__skip--disabled"
+                disabled
+                title="Лимит пропусков исчерпан"
+                aria-label="Лимит пропусков исчерпан">
+          Пропустить урок
+        </button>
+        {% endif %}
+      </span>
+      {% else %}
       <span class="path-card__cta" aria-hidden="true">
         {% if node.state == 'current' %}
           Начать
@@ -87,6 +124,7 @@ card (.path-card), варианты по state class:
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
         {% endif %}
       </span>
+      {% endif %}
     </{{ _tag }}>
 
     {% if not is_last %}<div class="path-node__connector" aria-hidden="true"></div>{% endif %}
