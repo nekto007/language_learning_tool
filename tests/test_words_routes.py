@@ -85,6 +85,17 @@ class TestWordList:
         resp = authenticated_client.get('/words')
         assert resp.status_code == 200
 
+    def test_word_list_baseline_renders_dictionary_content(self, authenticated_client, words_module, sample_words):
+        word = sample_words[0]
+        resp = authenticated_client.get('/words')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert word.english_word in html
+        assert word.russian_word in html
+        assert '/words?' in html
+        assert f'/words/{word.id}' in html
+
     def test_search_filter(self, authenticated_client, words_module, sample_words):
         search_term = sample_words[0].english_word
         resp = authenticated_client.get(f'/words?search={search_term}')
@@ -194,6 +205,19 @@ class TestWordDetail:
         resp = authenticated_client.get(f'/words/{word.id}')
         assert resp.status_code == 200
         assert word.english_word.encode() in resp.data
+
+    def test_word_detail_baseline_renders_profile_content(self, authenticated_client, words_module, sample_words):
+        word = sample_words[0]
+        resp = authenticated_client.get(f'/words/{word.id}')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert f'<title>{word.english_word} - Словарь</title>' in html
+        assert word.english_word in html
+        assert word.russian_word in html
+        assert 'Статус слова' in html
+        assert 'Следующее повторение' in html
+        assert 'startLearningWord' in html
 
     def test_word_detail_with_user_status(self, authenticated_client, words_module, sample_words, user_word_statuses):
         word = sample_words[0]
@@ -436,6 +460,19 @@ class TestPublicWord:
         slug = word.english_word.replace(' ', '_')
         resp = client.get(f'/dictionary/{slug}')
         assert resp.status_code == 200
+
+    def test_public_word_baseline_renders_public_profile(self, client, sample_words):
+        word = sample_words[0]
+        slug = word.english_word.replace(' ', '_')
+        resp = client.get(f'/dictionary/{slug}')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert word.english_word in html
+        assert word.russian_word in html
+        assert 'Начни учить это слово' in html
+        assert f'/dictionary/{slug}' in html
+        assert f'/words/{word.id}' not in html
 
 
 # ==================== PHRASAL VERBS REDIRECT ====================

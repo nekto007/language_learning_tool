@@ -52,6 +52,24 @@ class TestPublicWordRoute:
         assert 'og:title' in html
         assert 'og:description' in html
 
+    def test_public_word_has_title_meta_and_canonical(self, client, sample_word):
+        slug = sample_word.english_word.lower().replace(' ', '-')
+        response = client.get(f'/dictionary/{slug}')
+        html = response.data.decode()
+
+        assert response.status_code == 200
+        assert (
+            f'<title>{sample_word.english_word} — перевод, примеры | LLT English</title>'
+            in html
+        )
+        assert '<meta name="description" content="' in html
+        assert sample_word.english_word in html
+        assert sample_word.russian_word in html
+        assert (
+            f'<link rel="canonical" href="https://llt-english.com/dictionary/{slug}">'
+            in html
+        )
+
     def test_public_word_has_json_ld(self, client, sample_word):
         slug = sample_word.english_word.lower().replace(' ', '-')
         response = client.get(f'/dictionary/{slug}')
