@@ -10,6 +10,7 @@ from sqlalchemy import case, func, or_
 
 from app.study.models import GameScore
 from app.utils.db import db
+from app.words.detail_service import build_word_profile, get_related_words
 from app.words.forms import WordFilterForm, WordSearchForm
 from app.words.models import CollectionWords
 from app.modules.decorators import module_required
@@ -185,16 +186,8 @@ def public_word(word_slug: str):
     if word.level and word.level not in PUBLIC_CEFR_CODES:
         abort(404)
 
-    # Related words (same level, limit 6)
-    related_words = []
-    if word.level:
-        related_words = (
-            CollectionWords.query
-            .filter(CollectionWords.id != word.id, CollectionWords.level == word.level)
-            .order_by(func.random())
-            .limit(6)
-            .all()
-        )
+    word_profile = build_word_profile(word)
+    related_words = get_related_words(word, limit=6, public_only=True)
 
     # Related grammar topics (same level)
     related_grammar = []
@@ -216,6 +209,8 @@ def public_word(word_slug: str):
     return render_template(
         'words/public_word.html',
         word=word,
+        word_profile=word_profile,
+        word_profile_public=True,
         related_words=related_words,
         related_grammar=related_grammar,
         meta_description=meta_description,
@@ -2045,15 +2040,14 @@ def word_detail(word_id):
         # Простое решение - берем книги без частоты
         books = [(book, 1) for book in word.books]
 
-    # Получаем похожие слова (из того же уровня)
-    related_words = CollectionWords.query.filter(
-        CollectionWords.id != word_id,
-        CollectionWords.level == word.level if word.level else CollectionWords.level.isnot(None)
-    ).limit(6).all()
+    word_profile = build_word_profile(word)
+    related_words = get_related_words(word, limit=6)
 
     return render_template(
         'words/details_optimized.html',
         word=word,
+        word_profile=word_profile,
+        word_profile_public=False,
         books=books,
         related_words=related_words
     )

@@ -1,0 +1,254 @@
+{% set profile = word_profile or {} %}
+{% set synonyms = profile.synonyms or [] %}
+{% set antonyms = profile.antonyms or [] %}
+{% set base_word = profile.base_word %}
+{% set phrasal_verbs = profile.phrasal_verbs or [] %}
+
+<style>
+.wprof {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.wprof-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+.wprof-title {
+  margin: 0 0 1rem;
+  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+.wprof-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+.wprof-fact {
+  min-width: 0;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.wprof-fact dt {
+  margin: 0 0 0.25rem;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.wprof-fact dd {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.wprof-pronunciation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+}
+.wprof-pronunciation__label {
+  color: #1e40af;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.wprof-pronunciation__value {
+  color: #0f172a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1rem;
+}
+.wprof-section {
+  display: grid;
+  gap: 0.625rem;
+}
+.wprof-section + .wprof-section {
+  margin-top: 1rem;
+}
+.wprof-label {
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+.wprof-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.wprof-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.375rem 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  color: #0f172a;
+  font-size: 0.85rem;
+  font-weight: 650;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.wprof-chip[href]:hover {
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+.wprof-chip--positive {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+.wprof-chip--contrast {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+.wprof-copy {
+  margin: 0;
+  color: #334155;
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+.wprof-link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  color: #0f172a;
+  text-decoration: none;
+  border-top: 1px solid #e2e8f0;
+}
+.wprof-link-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.wprof-link-row:hover .wprof-link-row__main {
+  color: #1d4ed8;
+}
+.wprof-link-row__main {
+  font-weight: 750;
+}
+.wprof-link-row__sub {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+.wprof-empty {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+@media (max-width: 640px) {
+  .wprof-facts {
+    grid-template-columns: 1fr;
+  }
+  .wprof-pronunciation {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+</style>
+
+<div class="wprof">
+  <section class="wprof-panel">
+    <h2 class="wprof-title">{{ _('Словарная карточка') }}</h2>
+    <dl class="wprof-facts">
+      {% for fact in profile.facts or [] %}
+      <div class="wprof-fact">
+        <dt>{{ fact.label }}</dt>
+        <dd>{{ fact.value }}</dd>
+      </div>
+      {% endfor %}
+    </dl>
+
+    {% if word.ipa_transcription %}
+    <div class="wprof-section">
+      <div class="wprof-pronunciation">
+        <span class="wprof-pronunciation__label">IPA</span>
+        <span class="wprof-pronunciation__value">/{{ word.ipa_transcription }}/</span>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  {% if word.usage_context or synonyms or antonyms or word.etymology %}
+  <section class="wprof-panel">
+    <h2 class="wprof-title">{{ _('Значение и употребление') }}</h2>
+
+    {% if word.usage_context %}
+    <div class="wprof-section">
+      <div class="wprof-label">{{ _('Контекст употребления') }}</div>
+      <p class="wprof-copy">{{ word.usage_context }}</p>
+    </div>
+    {% endif %}
+
+    {% if synonyms %}
+    <div class="wprof-section">
+      <div class="wprof-label">{{ _('Синонимы') }}</div>
+      <div class="wprof-chips">
+        {% for synonym in synonyms %}
+        <span class="wprof-chip wprof-chip--positive">{{ synonym }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if antonyms %}
+    <div class="wprof-section">
+      <div class="wprof-label">{{ _('Антонимы') }}</div>
+      <div class="wprof-chips">
+        {% for antonym in antonyms %}
+        <span class="wprof-chip wprof-chip--contrast">{{ antonym }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if word.etymology %}
+    <div class="wprof-section">
+      <div class="wprof-label">{{ _('Происхождение') }}</div>
+      <p class="wprof-copy">{{ word.etymology }}</p>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if base_word or phrasal_verbs %}
+  <section class="wprof-panel">
+    <h2 class="wprof-title">{{ _('Связанные формы') }}</h2>
+
+    {% if base_word %}
+    <a class="wprof-link-row" href="{{ url_for('words.public_word', word_slug=base_word.english_word|word_slug) if word_profile_public else url_for('words.word_detail', word_id=base_word.id) }}">
+      <span>
+        <span class="wprof-link-row__main">{{ base_word.english_word }}</span>
+        <span class="wprof-link-row__sub">{{ _('базовое слово') }}</span>
+      </span>
+      <span class="wprof-link-row__sub">{{ base_word.russian_word }}</span>
+    </a>
+    {% endif %}
+
+    {% if phrasal_verbs %}
+    <div class="wprof-section">
+      <div class="wprof-label">{{ _('Фразовые варианты') }}</div>
+      {% for phrasal in phrasal_verbs %}
+      <a class="wprof-link-row" href="{{ url_for('words.public_word', word_slug=phrasal.english_word|word_slug) if word_profile_public else url_for('words.word_detail', word_id=phrasal.id) }}">
+        <span class="wprof-link-row__main">{{ phrasal.english_word }}</span>
+        <span class="wprof-link-row__sub">{{ phrasal.russian_word }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>

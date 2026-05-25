@@ -1,7 +1,9 @@
 """Tests for public word pages and SEO sitemap."""
-import pytest
 import uuid
-from app.words.models import CollectionWords
+
+import pytest
+
+from app.words.models import CollectionWords, Topic
 
 
 @pytest.fixture
@@ -78,6 +80,51 @@ class TestPublicWordRoute:
         response = client.get(f'/dictionary/{slug}')
         html = response.data.decode()
         assert 'test sentence' in html
+
+    def test_public_word_uses_extended_collection_word_fields(self, client, db_session):
+        suffix = uuid.uuid4().hex[:8]
+        word = CollectionWords(
+            english_word=f'student{suffix}',
+            russian_word='студент',
+            level='B1',
+            frequency_rank=320,
+            frequency_band=1,
+            brown=1,
+            get_download=1,
+            listening=f'[sound:pronunciation_student{suffix}.mp3]',
+            sentences='The student asked a clear question.',
+            item_type='word',
+            usage_context='Used for a person who studies at school or university.',
+            ipa_transcription='ˈstjuːdənt',
+            synonyms=[f'pupil{suffix}', f'learner{suffix}'],
+            antonyms=[f'teacher{suffix}'],
+            etymology='From Latin studere, meaning to be eager.',
+        )
+        related = CollectionWords(
+            english_word=f'pupil{suffix}',
+            russian_word='ученик',
+            level='B1',
+            frequency_rank=380,
+            frequency_band=1,
+            item_type='word',
+        )
+        topic = Topic(name=f'Education {suffix}', description='Education vocabulary')
+        topic.words.extend([word, related])
+        db_session.add_all([word, related, topic])
+        db_session.commit()
+
+        response = client.get(f'/dictionary/{word.english_word}')
+        html = response.data.decode()
+
+        assert response.status_code == 200
+        assert '/ˈstjuːdənt/' in html
+        assert 'Top 1000' in html
+        assert 'Brown corpus' in html
+        assert 'Used for a person who studies' in html
+        assert f'pupil{suffix}' in html
+        assert f'teacher{suffix}' in html
+        assert 'From Latin studere' in html
+        assert 'синоним' in html
 
 
 class TestPublicDictionaryRoute:

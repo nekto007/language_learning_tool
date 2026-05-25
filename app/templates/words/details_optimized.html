@@ -379,6 +379,17 @@
   margin-top: 0.125rem;
 }
 
+.wdet-related__reason {
+  display: inline-flex;
+  margin-top: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--wdet-radius-pill);
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .wdet-empty-text {
   color: var(--wdet-text-muted);
   font-size: 0.875rem;
@@ -623,6 +634,8 @@
   <div class="wdet-grid">
     <!-- Left Column -->
     <div>
+      {% include 'words/_word_profile.html' %}
+
       <!-- Audio Section -->
       {% if word.get_download and word.listening %}
       <div class="wdet-card wdet-animate wdet-animate--d2">
@@ -693,6 +706,9 @@
           <a href="{{ url_for('words.word_detail', word_id=related.id) }}" class="wdet-related">
             <div class="wdet-related__en">{{ related.english_word }}</div>
             <div class="wdet-related__ru">{{ related.russian_word }}</div>
+            {% if related.related_reason %}
+            <div class="wdet-related__reason">{{ related.related_reason }}</div>
+            {% endif %}
           </a>
           {% endfor %}
         </div>

@@ -172,6 +172,57 @@ class TestWordDetail:
         resp = authenticated_client.get('/words/999999')
         assert resp.status_code == 404
 
+    def test_word_detail_uses_extended_collection_word_fields(self, authenticated_client, db_session, words_module):
+        suffix = uuid.uuid4().hex[:8]
+        base = CollectionWords(
+            english_word=f'learn{suffix}',
+            russian_word='учиться',
+            level='A2',
+            frequency_rank=210,
+            frequency_band=1,
+            brown=1,
+            get_download=1,
+            listening=f'[sound:pronunciation_learn{suffix}.mp3]',
+            sentences='I learn English every day.',
+            item_type='word',
+            usage_context='Used when someone studies or gains knowledge.',
+            ipa_transcription='lɜːn',
+            synonyms=[f'study{suffix}'],
+            antonyms=[f'forget{suffix}'],
+            etymology='From Old English leornian.',
+        )
+        phrasal = CollectionWords(
+            english_word=f'learn about{suffix}',
+            russian_word='узнавать о',
+            level='A2',
+            item_type='phrasal_verb',
+            base_word=base,
+        )
+        synonym = CollectionWords(
+            english_word=f'study{suffix}',
+            russian_word='изучать',
+            level='A2',
+            frequency_rank=230,
+            frequency_band=1,
+            item_type='word',
+        )
+        db_session.add_all([base, phrasal, synonym])
+        db_session.commit()
+
+        resp = authenticated_client.get(f'/words/{base.id}')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert '/lɜːn/' in html
+        assert 'Top 1000' in html
+        assert 'Brown corpus' in html
+        assert 'Used when someone studies' in html
+        assert f'study{suffix}' in html
+        assert f'forget{suffix}' in html
+        assert 'From Old English leornian' in html
+        assert f'learn about{suffix}' in html
+        assert 'синоним' in html
+
 
 # ==================== UPDATE WORD STATUS ====================
 

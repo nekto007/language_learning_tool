@@ -148,6 +148,11 @@
 .pubw-related:hover { border-color: var(--pubw-primary); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(37,99,235,0.1); }
 .pubw-related__en { font-weight: 600; color: var(--pubw-text); font-size: 0.95rem; }
 .pubw-related__ru { font-size: 0.8rem; color: var(--pubw-text-muted); margin-top: 0.125rem; }
+.pubw-related__reason {
+  display: inline-flex; margin-top: 0.5rem; padding: 0.2rem 0.5rem;
+  border-radius: 999px; background: #eff6ff; color: #1d4ed8;
+  font-size: 0.72rem; font-weight: 700;
+}
 
 /* Bottom CTA Banner */
 .pubw-banner {
@@ -222,6 +227,8 @@
     </div>
   </div>
 
+  {% include 'words/_word_profile.html' %}
+
   <!-- Audio Section -->
   {% if word.get_download and word.listening %}
   <div class="pubw-card pubw-animate pubw-animate--d2">
@@ -272,6 +279,9 @@
       <a href="{{ url_for('words.public_word', word_slug=related.english_word|word_slug) }}" class="pubw-related">
         <div class="pubw-related__en">{{ related.english_word }}</div>
         <div class="pubw-related__ru">{{ related.russian_word }}</div>
+        {% if related.related_reason %}
+        <div class="pubw-related__reason">{{ related.related_reason }}</div>
+        {% endif %}
       </a>
       {% endfor %}
     </div>
