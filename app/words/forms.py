@@ -35,12 +35,13 @@ class WordFilterForm(FlaskForm):
         ('C1', 'C1'),
     ], default='', validators=[Optional()])
     sort = SelectField(_l('Сортировка'), choices=[
+        ('recommended', _l('Рекомендованные сначала')),
         ('frequency', _l('Частые сначала')),
         ('alpha', 'A-Z'),
         ('level', _l('По уровню')),
         ('status', _l('Сначала мои')),
         ('due', _l('К повторению')),
-    ], default='frequency', validators=[Optional()])
+    ], default='recommended', validators=[Optional()])
     letter = StringField(_l('Буква'), validators=[Optional()])
     book_id = SelectField(_l('Книга'), coerce=int, validators=[Optional()])
 

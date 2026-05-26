@@ -119,7 +119,7 @@ def sitemap() -> Response:
 @seo_bp.route('/robots.txt')
 def robots() -> Response:
     """Serve robots.txt."""
-    site_urls = _site_urls()
+    site_url = (current_app.config.get('SITE_URL') or '').rstrip('/')
     content = (
         'User-agent: *\n'
         'Allow: /\n'
@@ -136,5 +136,5 @@ def robots() -> Response:
         'Disallow: /reset_password\n'
         'Disallow: /notifications/\n'
     )
-    content += ''.join(f'\nSitemap: {site_url}/sitemap.xml' for site_url in site_urls) + '\n'
+    content += f'\nSitemap: {site_url}/sitemap.xml\n'
     return Response(content, mimetype='text/plain')

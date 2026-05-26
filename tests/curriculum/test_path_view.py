@@ -333,7 +333,8 @@ def test_path_node_renders_slot_skip_button(app):
 
     assert 'data-skip-slot-button="true"' in html
     assert 'data-skip-kind="srs"' in html
-    assert 'Сделать другое' in html
+    assert 'Пропустить' in html
+    assert 'Сделать другое' not in html
     assert 'доступен 1 пропуск сегодня' in html
     assert 'href="/learn/7/?from=linear_plan"' in html
 
@@ -355,7 +356,8 @@ def test_path_node_renders_disabled_slot_skip_when_quota_exhausted(app):
 
     html = template.render(node=node, is_current=True, is_last=True)
 
-    assert 'Сделать другое' in html
+    assert 'Пропустить' in html
+    assert 'Сделать другое' not in html
     assert 'disabled' in html
     assert 'Лимит пропусков исчерпан' in html
 

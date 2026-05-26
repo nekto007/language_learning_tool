@@ -155,12 +155,15 @@ def collection_list():
     pagination = _AdminPagination(page=page, per_page=per_page, total=total, pages=total_pages)
 
     topics = Topic.query.order_by(Topic.name).all()
+    pagination_args = request.args.to_dict(flat=True)
+    pagination_args.pop('page', None)
 
     return render_template(
         'admin/collections/list.html',
         collections=collections,
         topics=topics,
         pagination=pagination,
+        pagination_args=pagination_args,
     )
 
 
