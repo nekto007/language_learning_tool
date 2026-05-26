@@ -218,34 +218,61 @@ class WordManagementService:
         return max(sequence_score, token_score)
 
     @staticmethod
-    def _get_topic_by_name(topic_name):
-        """Return topic by normalized name, or None."""
+    def _get_topic_by_name(topic_name, topic_cache=None):
+        """Return topic by normalized name, or None.
+
+        ``topic_cache`` is an optional ``{normalized_key: Topic}`` dict — when
+        provided, lookups are O(1) and avoid re-issuing ``Topic.query.all()``
+        and re-normalizing every DB topic on every call. Bulk import paths
+        build this cache once and reuse it across all rows.
+        """
         target_key = WordManagementService._normalize_topic_key(topic_name)
         if not target_key:
             return None
+        if topic_cache is not None:
+            return topic_cache.get(target_key)
         for topic in Topic.query.all():
             if WordManagementService._normalize_topic_key(topic.name) == target_key:
                 return topic
         return None
 
     @staticmethod
-    def _get_or_create_topic(topic_name):
+    def _get_or_create_topic(topic_name, topic_cache=None):
         """Return existing topic by normalized name or create a new one."""
-        topic = WordManagementService._get_topic_by_name(topic_name)
+        topic = WordManagementService._get_topic_by_name(topic_name, topic_cache=topic_cache)
         if topic is not None:
             return topic
         topic = Topic(name=topic_name)
         db.session.add(topic)
         db.session.flush()
+        if topic_cache is not None:
+            target_key = WordManagementService._normalize_topic_key(topic_name)
+            if target_key:
+                topic_cache[target_key] = topic
         return topic
 
     @staticmethod
-    def _find_topic_suggestion(topic_name, existing_topics, existing_topic_index=None):
+    def _build_topic_cache():
+        """Snapshot every Topic into a {normalized_key: Topic} dict for bulk paths."""
+        cache = {}
+        for topic in Topic.query.all():
+            key = WordManagementService._normalize_topic_key(topic.name)
+            if key:
+                cache.setdefault(key, topic)
+        return cache
+
+    @staticmethod
+    def _find_topic_suggestion(topic_name, existing_topics, existing_topic_index=None, token_postings=None):
         """Find the closest existing topic for preview suggestions.
 
-        existing_topic_index is an optional precomputed list of
-        ``(topic, normalized_key, token_set)`` tuples — passing it skips
-        re-normalizing every DB topic for each unmatched import row.
+        existing_topic_index — optional precomputed list of
+        ``(topic, normalized_key, token_set)`` tuples to avoid re-normalizing
+        every DB topic for each unmatched import row.
+
+        token_postings — optional inverted index ``token -> list of indices into
+        existing_topic_index``. When provided, only topics sharing at least one
+        token with ``topic_name`` are scored, dropping the comparison count
+        from O(N·M) to O(N·k) where k = mean postings list length.
         """
         topic_key = WordManagementService._normalize_topic_key(topic_name)
         if not topic_key:
@@ -263,9 +290,19 @@ class WordManagementService:
                 for topic in existing_topics
             ]
 
+        if token_postings is not None and topic_tokens:
+            candidate_indices = set()
+            for token in topic_tokens:
+                candidate_indices.update(token_postings.get(token, ()))
+            if not candidate_indices:
+                return None
+            candidates = (existing_topic_index[i] for i in candidate_indices)
+        else:
+            candidates = existing_topic_index
+
         best_topic = None
         best_score = 0.0
-        for topic, existing_key, existing_tokens in existing_topic_index:
+        for topic, existing_key, existing_tokens in candidates:
             score = WordManagementService._score_normalized(
                 topic_key, topic_tokens, existing_key, existing_tokens
             )
@@ -283,28 +320,42 @@ class WordManagementService:
 
     @staticmethod
     def _score_normalized(topic_key, topic_tokens, existing_key, existing_tokens):
-        """Variant of _topic_similarity_score that works on precomputed keys/tokens."""
+        """Variant of _topic_similarity_score that works on precomputed keys/tokens.
+
+        SequenceMatcher.ratio() is by far the most expensive operation here and
+        on bulk imports it dominates runtime. We now compute the cheap
+        token-based score first and only fall back to SequenceMatcher when
+        token information is insufficient to reach the suggestion threshold.
+        """
         if not topic_key or not existing_key:
             return 0.0
 
-        sequence_score = SequenceMatcher(None, topic_key, existing_key).ratio()
-        if not topic_tokens or not existing_tokens:
-            return sequence_score
+        if topic_tokens and existing_tokens:
+            shared_tokens = topic_tokens & existing_tokens
+            if shared_tokens:
+                # When tokens overlap, rely entirely on the token-based score.
+                # SequenceMatcher.ratio() costs O(n·m) per call and a 600-row
+                # import × thousands of DB topics × token-filtered candidates
+                # makes the cumulative SM cost dominate the preview latency
+                # (was 15-20 s of pure SM work for the user's import).
+                import_coverage = len(shared_tokens) / len(topic_tokens)
+                dice_score = (2 * len(shared_tokens)) / (
+                    len(topic_tokens) + len(existing_tokens)
+                )
+                anchor_score = max(
+                    TOPIC_ANCHOR_TOKEN_SCORES.get(token, 0.0)
+                    for token in shared_tokens
+                )
+                token_score = max(import_coverage, dice_score, anchor_score)
+                if import_coverage == 1:
+                    token_score = max(token_score, 0.91)
+                return token_score
 
-        shared_tokens = topic_tokens & existing_tokens
-        if not shared_tokens:
-            return sequence_score
-
-        import_coverage = len(shared_tokens) / len(topic_tokens)
-        dice_score = (2 * len(shared_tokens)) / (len(topic_tokens) + len(existing_tokens))
-        anchor_score = max(
-            TOPIC_ANCHOR_TOKEN_SCORES.get(token, 0.0)
-            for token in shared_tokens
-        )
-        token_score = max(import_coverage, dice_score, anchor_score)
-        if import_coverage == 1:
-            token_score = max(token_score, 0.91)
-        return max(sequence_score, token_score)
+        # No token overlap — fall back to the expensive string-similarity
+        # check. Callers that pass a `token_postings` index already filter
+        # out the no-overlap case, so this path is reached only when an
+        # ad-hoc caller skips the index.
+        return SequenceMatcher(None, topic_key, existing_key).ratio()
 
     @staticmethod
     def prepare_topic_resolution_preview(existing_words, missing_words):
@@ -321,6 +372,15 @@ class WordManagementService:
             (topic, key, WordManagementService._topic_tokens(topic.name))
             for key, topic in existing_by_key.items()
         ]
+        # Inverted index: token -> list of positions in existing_topic_index.
+        # Drops _find_topic_suggestion from O(M) per call to O(k), where k is
+        # the number of DB topics that share at least one token with the
+        # unmatched import topic. Critical for imports with hundreds of unique
+        # candidate topics against thousands of DB topics.
+        token_postings: dict = {}
+        for idx, (_topic, _key, tokens) in enumerate(existing_topic_index):
+            for token in tokens:
+                token_postings.setdefault(token, []).append(idx)
 
         candidates_by_topic = {}
         for word_data in all_words:
@@ -343,6 +403,7 @@ class WordManagementService:
                     topic_name,
                     existing_topics,
                     existing_topic_index=existing_topic_index,
+                    token_postings=token_postings,
                 )
                 existing_candidate = {
                     'key': candidate_key,
@@ -367,17 +428,17 @@ class WordManagementService:
         }
 
     @staticmethod
-    def _resolve_import_topic(word_data, topic_resolutions=None):
+    def _resolve_import_topic(word_data, topic_resolutions=None, topic_cache=None):
         """Resolve topic for one word based on preview choices."""
         topic_name = word_data.get('topic')
         if not topic_name:
             return None
 
         if topic_resolutions is None:
-            return WordManagementService._get_or_create_topic(topic_name)
+            return WordManagementService._get_or_create_topic(topic_name, topic_cache=topic_cache)
 
         if word_data.get('topic_status') == 'existing':
-            return WordManagementService._get_topic_by_name(topic_name)
+            return WordManagementService._get_topic_by_name(topic_name, topic_cache=topic_cache)
 
         resolution_key = word_data.get('topic_resolution_key')
         resolution = (topic_resolutions or {}).get(resolution_key, {})
@@ -391,11 +452,11 @@ class WordManagementService:
                 return None
             return Topic.query.get(int(topic_id))
         if action == 'create':
-            return WordManagementService._get_or_create_topic(topic_name)
+            return WordManagementService._get_or_create_topic(topic_name, topic_cache=topic_cache)
         return None
 
     @staticmethod
-    def _apply_enrichment_fields(word, word_data, topic_resolutions=None):
+    def _apply_enrichment_fields(word, word_data, topic_resolutions=None, topic_cache=None):
         """Apply optional enrichment fields without overwriting with blanks."""
         if word_data.get('ipa_transcription'):
             word.ipa_transcription = word_data['ipa_transcription']
@@ -413,6 +474,7 @@ class WordManagementService:
             topic = WordManagementService._resolve_import_topic(
                 word_data,
                 topic_resolutions=topic_resolutions,
+                topic_cache=topic_cache,
             )
             if topic is not None and topic not in word.topics:
                 word.topics.append(topic)
@@ -804,11 +866,23 @@ class WordManagementService:
             updated_count = 0
             added_count = 0
 
+            # Build per-import caches once; the per-row variant of these used to
+            # do Topic.query.all() + a full normalize-loop per word, which made a
+            # 600-row import wait on minutes of redundant SQL.
+            topic_cache = WordManagementService._build_topic_cache()
+
+            existing_english_words = [w['english_word'] for w in existing_words]
+            word_cache: dict = {}
+            for chunk in chunk_ids(existing_english_words, chunk_size=1000):
+                rows = CollectionWords.query.filter(
+                    CollectionWords.english_word.in_(chunk)
+                ).all()
+                for row in rows:
+                    word_cache[row.english_word] = row
+
             # Обновляем существующие слова
             for word_data in existing_words:
-                word = CollectionWords.query.filter_by(
-                    english_word=word_data['english_word']
-                ).first()
+                word = word_cache.get(word_data['english_word'])
                 if word:
                     word.russian_word = word_data['russian_translate']
                     word.sentences = f"{word_data['english_sentence']}<br>{word_data['russian_sentence']}"
@@ -818,6 +892,7 @@ class WordManagementService:
                         word,
                         word_data,
                         topic_resolutions=topic_resolutions,
+                        topic_cache=topic_cache,
                     )
                     updated_count += 1
 
@@ -837,6 +912,7 @@ class WordManagementService:
                         new_word,
                         word_data,
                         topic_resolutions=topic_resolutions,
+                        topic_cache=topic_cache,
                     )
                     added_count += 1
 

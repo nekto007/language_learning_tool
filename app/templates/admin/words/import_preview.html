@@ -103,15 +103,14 @@
                                     </select>
                                 </td>
                                 <td>
-                                    <select class="form-control form-control-sm"
+                                    {# Empty select populated client-side from a single shared
+                                       topic list. Rendering full <option> sets per row scales as
+                                       O(candidates * topics) and stalled the preview for files
+                                       with hundreds of unique topics. #}
+                                    <select class="form-control form-control-sm topic-map-select"
                                             name="topic_map_{{ candidate.key }}"
+                                            data-selected-topic-id="{{ candidate.suggestion.id if candidate.suggestion else '' }}"
                                             {% if not existing_topics %}disabled{% endif %}>
-                                        {% for topic in existing_topics %}
-                                        <option value="{{ topic.id }}"
-                                                {% if candidate.suggestion and topic.id == candidate.suggestion.id %}selected{% endif %}>
-                                            {{ topic.name }}
-                                        </option>
-                                        {% endfor %}
                                     </select>
                                 </td>
                             </tr>
@@ -281,6 +280,42 @@
         </div>
     </form>
 </div>
+
+{% if existing_topics %}
+<script id="existing-topics-data" type="application/json">
+{{ existing_topics | tojson }}
+</script>
+<script>
+(function() {
+    var dataNode = document.getElementById('existing-topics-data');
+    if (!dataNode) return;
+    var topics;
+    try {
+        topics = JSON.parse(dataNode.textContent);
+    } catch (e) {
+        return;
+    }
+    if (!topics || !topics.length) return;
+
+    // Build the <option> set ONCE in a DocumentFragment, then clone per <select>.
+    var template = document.createDocumentFragment();
+    for (var i = 0; i < topics.length; i++) {
+        var opt = document.createElement('option');
+        opt.value = topics[i].id;
+        opt.textContent = topics[i].name;
+        template.appendChild(opt);
+    }
+
+    var selects = document.querySelectorAll('select.topic-map-select');
+    for (var j = 0; j < selects.length; j++) {
+        var sel = selects[j];
+        sel.appendChild(template.cloneNode(true));
+        var preferred = sel.getAttribute('data-selected-topic-id');
+        if (preferred) sel.value = preferred;
+    }
+})();
+</script>
+{% endif %}
 
 <script>
 function selectAllMissing() {

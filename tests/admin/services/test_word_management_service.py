@@ -571,10 +571,11 @@ class TestTopicResolutionPreview:
 class TestImportTranslations:
     """Tests for import_translations method"""
 
+    @patch('app.admin.services.word_management_service.Topic')
     @patch('app.admin.services.word_management_service.logger')
     @patch('app.admin.services.word_management_service.db')
     @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_import_update_existing(self, mock_words, mock_db, mock_logger):
+    def test_import_update_existing(self, mock_words, mock_db, mock_logger, mock_topic):
         """Test updating existing words"""
         existing_words = [
             {
@@ -588,7 +589,9 @@ class TestImportTranslations:
         ]
 
         mock_word = Mock()
-        mock_words.query.filter_by.return_value.first.return_value = mock_word
+        mock_word.english_word = 'test'
+        mock_words.query.filter.return_value.all.return_value = [mock_word]
+        mock_topic.query.all.return_value = []
 
         updated, added = WordManagementService.import_translations(
             existing_words=existing_words,
@@ -626,7 +629,9 @@ class TestImportTranslations:
         ]
 
         mock_word = Mock()
-        mock_words.query.filter_by.return_value.first.return_value = mock_word
+        mock_word.english_word = 'pen'
+        mock_words.query.filter.return_value.all.return_value = [mock_word]
+        mock_topic.query.all.return_value = []
 
         updated, added = WordManagementService.import_translations(
             existing_words=existing_words,
@@ -642,10 +647,11 @@ class TestImportTranslations:
         assert mock_word.frequency_band == 1
         assert mock_word.etymology == 'from Latin penna, feather'
 
+    @patch('app.admin.services.word_management_service.Topic')
     @patch('app.admin.services.word_management_service.logger')
     @patch('app.admin.services.word_management_service.db')
     @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_import_add_new_words(self, mock_words, mock_db, mock_logger):
+    def test_import_add_new_words(self, mock_words, mock_db, mock_logger, mock_topic):
         """Test adding new words"""
         missing_words = [
             {
@@ -658,7 +664,8 @@ class TestImportTranslations:
             }
         ]
 
-        mock_words.query.filter_by.return_value.first.return_value = None
+        mock_words.query.filter.return_value.all.return_value = []
+        mock_topic.query.all.return_value = []
 
         updated, added = WordManagementService.import_translations(
             existing_words=[],
@@ -671,10 +678,11 @@ class TestImportTranslations:
         mock_db.session.add.assert_called_once()
         mock_db.session.flush.assert_called_once()
 
+    @patch('app.admin.services.word_management_service.Topic')
     @patch('app.admin.services.word_management_service.logger')
     @patch('app.admin.services.word_management_service.db')
     @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_import_mixed_update_and_add(self, mock_words, mock_db, mock_logger):
+    def test_import_mixed_update_and_add(self, mock_words, mock_db, mock_logger, mock_topic):
         """Test both updating existing and adding new words"""
         existing_words = [{'english_word': 'test', 'russian_translate': 'тест',
                           'english_sentence': 'Test', 'russian_sentence': 'Тест',
@@ -684,7 +692,9 @@ class TestImportTranslations:
                          'level': 'A1', 'line_num': 2}]
 
         mock_word = Mock()
-        mock_words.query.filter_by.return_value.first.return_value = mock_word
+        mock_word.english_word = 'test'
+        mock_words.query.filter.return_value.all.return_value = [mock_word]
+        mock_topic.query.all.return_value = []
 
         updated, added = WordManagementService.import_translations(
             existing_words=existing_words,
@@ -695,16 +705,18 @@ class TestImportTranslations:
         assert updated == 1
         assert added == 1
 
+    @patch('app.admin.services.word_management_service.Topic')
     @patch('app.admin.services.word_management_service.logger')
     @patch('app.admin.services.word_management_service.db')
     @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_import_error_rollback(self, mock_words, mock_db, mock_logger):
+    def test_import_error_rollback(self, mock_words, mock_db, mock_logger, mock_topic):
         """Test error handling and rollback during import"""
         existing_words = [{'english_word': 'test', 'russian_translate': 'тест',
                           'english_sentence': 'Test', 'russian_sentence': 'Тест',
                           'level': 'A1', 'line_num': 1}]
 
-        mock_words.query.filter_by.side_effect = Exception("Database error")
+        mock_topic.query.all.return_value = []
+        mock_words.query.filter.side_effect = Exception("Database error")
 
         with pytest.raises(Exception):
             WordManagementService.import_translations(
@@ -716,14 +728,16 @@ class TestImportTranslations:
         mock_db.session.rollback.assert_called_once()
         mock_logger.error.assert_called_once()
 
+    @patch('app.admin.services.word_management_service.Topic')
     @patch('app.admin.services.word_management_service.logger')
     @patch('app.admin.services.word_management_service.db')
     @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_import_duplicate_word_raises_value_error_duplicate_entry(self, mock_words, mock_db, mock_logger):
+    def test_import_duplicate_word_raises_value_error_duplicate_entry(self, mock_words, mock_db, mock_logger, mock_topic):
         """IntegrityError on duplicate english_word is re-raised as ValueError('duplicate_entry')."""
         from sqlalchemy.exc import IntegrityError as SAIntegrityError
 
-        mock_words.query.filter_by.return_value.first.return_value = None
+        mock_words.query.filter.return_value.all.return_value = []
+        mock_topic.query.all.return_value = []
         mock_db.session.add.return_value = None
         mock_db.session.flush.side_effect = SAIntegrityError(
             statement='INSERT', params={}, orig=Exception('unique constraint')
