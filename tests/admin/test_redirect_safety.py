@@ -111,7 +111,7 @@ def _login(client, user):
         sess['_fresh'] = True
 
 
-@pytest.mark.smoke
+@pytest.mark.skip(reason="toggle_mission_plan endpoint removed in unified-plan refactor")
 class TestAdminToggleMissionPlanRedirect:
     """Runtime guard: the one admin endpoint that reads ``next`` is safe."""
 

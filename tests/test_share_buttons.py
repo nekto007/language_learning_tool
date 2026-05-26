@@ -25,27 +25,27 @@ class TestShareButtonsOnGrammarTopic:
     """Test share buttons on grammar topic detail page."""
 
     def test_grammar_topic_has_share_buttons(self, client, sample_grammar_topic):
-        response = client.get(f'/grammar-lab/topic/{sample_grammar_topic.id}')
+        response = client.get(f'/grammar-lab/topic/{sample_grammar_topic.slug}')
         html = response.data.decode()
         assert 'share-btn' in html
 
     def test_grammar_topic_has_telegram_share(self, client, sample_grammar_topic):
-        response = client.get(f'/grammar-lab/topic/{sample_grammar_topic.id}')
+        response = client.get(f'/grammar-lab/topic/{sample_grammar_topic.slug}')
         html = response.data.decode()
         assert 'share-btn--telegram' in html
 
     def test_grammar_topic_has_whatsapp_share(self, client, sample_grammar_topic):
-        response = client.get(f'/grammar-lab/topic/{sample_grammar_topic.id}')
+        response = client.get(f'/grammar-lab/topic/{sample_grammar_topic.slug}')
         html = response.data.decode()
         assert 'share-btn--whatsapp' in html
 
     def test_grammar_topic_has_twitter_share(self, client, sample_grammar_topic):
-        response = client.get(f'/grammar-lab/topic/{sample_grammar_topic.id}')
+        response = client.get(f'/grammar-lab/topic/{sample_grammar_topic.slug}')
         html = response.data.decode()
         assert 'share-btn--twitter' in html
 
     def test_grammar_topic_has_copy_button(self, client, sample_grammar_topic):
-        response = client.get(f'/grammar-lab/topic/{sample_grammar_topic.id}')
+        response = client.get(f'/grammar-lab/topic/{sample_grammar_topic.slug}')
         html = response.data.decode()
         assert 'share-btn--copy' in html
 

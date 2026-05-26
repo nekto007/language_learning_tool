@@ -87,7 +87,7 @@
   {% if topics %}
   <div class="topics-list">
     {% for topic in topics %}
-    <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="topic-card">
+    <a href="{{ url_for('grammar_lab.topic_detail', slug=topic.slug) }}" class="topic-card">
       <!-- Level Badge -->
       <div class="topic-card__level topic-card__level--{{ topic.level[0]|lower }}">
         {{ topic.level }}

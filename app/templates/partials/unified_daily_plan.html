@@ -54,13 +54,17 @@
 } %}
 
 
-{# Resolve per-item completion + locate the first incomplete required index. #}
+{# Resolve per-item completion + locate the first actionable required index.
+   "Actionable" = not completed, not skipped, not blocked. Skipped items
+   stay visible (with a return CTA) but don't count as current. #}
 {% set ns = namespace(done=0, current_idx=-1) %}
 {% for item in u_required %}
     {% set _completed = item.get('completed', false) or (plan_completion and plan_completion.get(item.get('id'), false)) %}
+    {% set _skipped = item.get('skipped', false) %}
+    {% set _blocked = item.get('blocked', false) %}
     {% if _completed %}
         {% set ns.done = ns.done + 1 %}
-    {% elif ns.current_idx == -1 %}
+    {% elif ns.current_idx == -1 and not _skipped and not _blocked %}
         {% set ns.current_idx = loop.index0 %}
     {% endif %}
 {% endfor %}
@@ -123,11 +127,23 @@
         {% for item in u_required %}
           {% set _id = item.get('id') %}
           {% set _completed = item.get('completed', false) or (plan_completion and plan_completion.get(_id, false)) %}
+          {% set _skipped = item.get('skipped', false) %}
+          {% set _blocked = item.get('blocked', false) %}
           {% set _is_current = (loop.index0 == u_current_idx) %}
-          {% set _is_locked = (not _completed and not _is_current) %}
+          {% set _is_locked = (not _completed and not _is_current and not _skipped and not _blocked) %}
           {% set _kind = item.get('kind', '') %}
           {% set _url = item.get('url') or '#' %}
-          {% set _state = 'done' if _completed else ('locked' if _is_locked else 'current') %}
+          {% if _completed %}
+              {% set _state = 'done' %}
+          {% elif _skipped %}
+              {% set _state = 'skipped' %}
+          {% elif _blocked %}
+              {% set _state = 'blocked' %}
+          {% elif _is_current %}
+              {% set _state = 'current' %}
+          {% else %}
+              {% set _state = 'locked' %}
+          {% endif %}
           {# Resolve kind-label + display title (overrides item.title for
              curriculum, where module.title is the human-readable «theme of the day»). #}
           {% set _item_data = item.get('data') or {} %}
@@ -155,7 +171,7 @@
                   {% endif %}
                 </a>
               </div>
-            {% elif _is_locked %}
+            {% elif _state == 'locked' %}
               <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">&#128274;</span>
               <div class="plan-item__body">
                 {% if _label %}
@@ -164,8 +180,31 @@
                 <span class="plan-item__title plan-item__title--locked">{{ _display_title }}</span>
                 <span class="plan-item__lock-hint">Откроется после предыдущего шага</span>
               </div>
+            {% elif _state == 'blocked' %}
+              <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">&#128274;</span>
+              <div class="plan-item__body">
+                {% if _label %}
+                  <span class="plan-item__kind-label">{{ _label }}</span>
+                {% endif %}
+                <span class="plan-item__title plan-item__title--locked">{{ _display_title }}</span>
+                <span class="plan-item__lock-hint">{{ _item_data.get('locked_reason') or 'Сначала завершите урок курса' }}</span>
+              </div>
+            {% elif _state == 'skipped' %}
+              <span class="plan-item__marker plan-item__marker--skipped" aria-hidden="true">⤼</span>
+              <div class="plan-item__body">
+                {% if _label %}
+                  <span class="plan-item__kind-label">{{ _label }}</span>
+                {% endif %}
+                <span class="plan-item__title">{{ _display_title }}</span>
+                <span class="plan-item__skipped-hint">Пропущено — можно вернуться в любой момент</span>
+              </div>
+              {% if item.get('url') %}
+                <a class="plan-item__cta plan-item__cta--button plan-item__cta--secondary" href="{{ item.get('url') }}">
+                  Вернуться <span aria-hidden="true">→</span>
+                </a>
+              {% endif %}
             {% else %}
-              {# Current item — kind-label, theme title, ETA, primary CTA. #}
+              {# Current item — kind-label, theme title, ETA, primary CTA + skip. #}
               <span class="plan-item__marker" aria-hidden="true">{{ loop.index }}</span>
               <div class="plan-item__body">
                 {% if _label %}
@@ -181,9 +220,36 @@
                   <span class="plan-item__hint">{{ _item_data.get('reason_hint') }}</span>
                 {% endif %}
               </div>
-              <a class="plan-item__cta plan-item__cta--button" href="{{ _url }}">
-                Начать <span aria-hidden="true">→</span>
-              </a>
+              <div class="plan-item__actions">
+                <a class="plan-item__cta plan-item__cta--button" href="{{ _url }}">
+                  Начать <span aria-hidden="true">→</span>
+                </a>
+                {% if _item_data.get('slot_skip_allowed') %}
+                  <button type="button"
+                          class="plan-item__skip-btn"
+                          data-skip-kind="{{ _kind }}"
+                          aria-label="Пропустить задание">
+                    Пропустить
+                  </button>
+                  <span class="plan-item__skip-hint">доступен {{ _item_data.get('slot_skips_remaining', 0) }} пропуск сегодня</span>
+                  <div class="plan-item__skip-reasons" hidden data-skip-reasons="{{ _kind }}">
+                    <div class="plan-item__skip-reasons-label">Почему пропускаешь?</div>
+                    <div class="plan-item__skip-reasons-btns">
+                      <button type="button" class="plan-item__skip-reason-btn" data-reason="no_time">Нет времени</button>
+                      <button type="button" class="plan-item__skip-reason-btn" data-reason="too_hard">Слишком сложно</button>
+                      <button type="button" class="plan-item__skip-reason-btn" data-reason="not_today">Не сейчас</button>
+                    </div>
+                  </div>
+                {% elif _item_data.get('slot_skips_remaining') is not none %}
+                  <button type="button"
+                          class="plan-item__skip-btn"
+                          disabled
+                          title="Лимит пропусков исчерпан"
+                          aria-label="Лимит пропусков исчерпан">
+                    Пропустить
+                  </button>
+                {% endif %}
+              </div>
             {% endif %}
           </li>
         {% endfor %}
@@ -345,6 +411,49 @@
     if (btn) btn.addEventListener('click', function() { window.location.reload(); });
     root.querySelectorAll('.plan-item--locked .plan-item__link, .plan-item--optional-locked .plan-item__link').forEach(function(a) {
         a.addEventListener('click', function(ev) { ev.preventDefault(); });
+    });
+
+    // Skip-slot: click "Пропустить" → reveal reason chips → POST event → reload.
+    root.querySelectorAll('.plan-item__skip-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (btn.disabled) { return; }
+            var kind = btn.dataset.skipKind;
+            var reasonsDiv = root.querySelector('[data-skip-reasons="' + kind + '"]');
+            if (reasonsDiv) {
+                reasonsDiv.hidden = !reasonsDiv.hidden;
+            }
+        });
+    });
+    root.querySelectorAll('.plan-item__skip-reason-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var reason = btn.dataset.reason;
+            var reasonsDiv = btn.closest('[data-skip-reasons]');
+            var kind = reasonsDiv ? reasonsDiv.dataset.skipReasons : '';
+            if (!kind || !reason) { return; }
+            btn.disabled = true;
+            var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            var headers = { 'Content-Type': 'application/json' };
+            if (csrfMeta) { headers['X-CSRFToken'] = csrfMeta.content; }
+            fetch('/api/daily-plan/events', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({
+                    event_type: 'slot_skipped',
+                    step_kind: kind,
+                    reason_text: reason
+                })
+            }).then(function (r) {
+                if (r.ok) {
+                    window.location.reload();
+                } else {
+                    btn.disabled = false;
+                }
+            }).catch(function () {
+                btn.disabled = false;
+            });
+        });
     });
 })();
 </script>

@@ -53,6 +53,7 @@ def no_focus_user(db_session):
     return user
 
 
+@pytest.mark.skip(reason="Legacy dashboard.html personalization markers no longer rendered for unified users")
 class TestDashboardPersonalization:
     """Test that dashboard reorders widgets based on onboarding_focus."""
 

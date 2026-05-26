@@ -542,19 +542,27 @@ def _compute_daily_race_state(plan: dict, daily_summary: dict, streak: int) -> d
 
 
 def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
+    from datetime import datetime as _dt_age
     from app.auth.models import User
     from app.achievements.daily_race import get_race_standings
     from app.admin.site_settings import get_site_setting
-    from app.daily_plan.rivals import is_adult_user
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_current_streak, get_daily_summary
     import pytz
+
+    def _is_adult(birth_year):
+        if birth_year is None:
+            return True
+        try:
+            return (_dt_age.utcnow().year - int(birth_year)) >= 18
+        except (TypeError, ValueError):
+            return True
 
     if get_site_setting('daily_race_enabled', 'true') != 'true':
         return None
 
     user = User.query.get(current_user_id)
-    if user is None or not is_adult_user(getattr(user, 'birth_year', None)):
+    if user is None or not _is_adult(getattr(user, 'birth_year', None)):
         return None
 
     try:
@@ -1588,92 +1596,16 @@ def dashboard():
     t_elapsed = time.time() - t_start
     logger.info("Dashboard data loaded in %.3fs for user_id=%s", t_elapsed, current_user.id)
 
-    # Recompute day_secured from actual activity; plan payload always has completed=False
-    # at assembly time (phases are built before any activity is recorded).
-    _effective_mode = daily_plan.get('_plan_meta', {}).get('effective_mode')
-    if _effective_mode == 'mission':
-        _phases = daily_plan.get('phases', [])
-        _required = [p for p in _phases if p.get('required', True)]
-        daily_plan['day_secured'] = bool(_required) and all(
-            plan_completion.get(p.get('id', ''), False) for p in _required
-        )
-    elif _effective_mode == 'linear':
-        from app.daily_plan.linear.chain import extend_chain_after_activity
-        extend_chain_after_activity(daily_plan, plan_completion, current_user.id, db)
-        _slots = daily_plan.get('baseline_slots', [])
-        daily_plan['day_secured'] = bool(_slots) and all(
-            plan_completion.get(s.get('kind', ''), False) for s in _slots
-        )
-        from app.daily_plan.linear.chain import recompute_continuation_available
-        recompute_continuation_available(daily_plan)
-
-    if daily_plan.get('day_secured') and _effective_mode in ('mission', 'linear'):
-        try:
-            from app.api.daily_plan import emit_minimum_completed
-            from app.daily_plan.service import write_secured_at
-            import pytz as _pytz
-            _tz_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
-            try:
-                _tz_obj = _pytz.timezone(_tz_name)
-            except Exception:
-                _tz_obj = _pytz.timezone(DEFAULT_TIMEZONE)
-            _today = datetime.now(_tz_obj).date()
-            _mission = daily_plan.get('mission') or {}
-            _mission_type = (
-                _mission.get('type') if isinstance(_mission, dict) else None
-            )
-            emit_minimum_completed(current_user.id, _mission_type, _today)
-            write_secured_at(current_user.id, _today, _mission_type)
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+    # Day-secured is recomputed by /api/daily-status. Dashboard render is read-only.
 
     plan_paused_until = daily_plan.get('paused_until') if daily_plan.get('mode') == 'paused' else None
     unified_plan = daily_plan if daily_plan.get('mode') == 'unified' else None
-    linear_plan = daily_plan if daily_plan.get('mode') == 'linear' else None
-    mission_plan = daily_plan if daily_plan.get('mission') else None
+    linear_plan = None
+    mission_plan = None
     plan_meta = daily_plan.get('_plan_meta', {})
     phase_urls = {}
-    if mission_plan:
-        for p in daily_plan.get('phases', []):
-            phase_urls[p.get('id', '')] = _phase_url(p, daily_plan)
-    route_metadata = (
-        _build_route_metadata(daily_plan.get('phases', []), plan_completion)
-        if mission_plan else None
-    )
-    # Route progress state for Task 14 route board UI.
-    # Also syncs route progress from server-side activity data (idempotent per phase/day).
+    route_metadata = None
     route_progress_state = None
-    if mission_plan:
-        try:
-            from app.daily_plan.route_progress import (
-                add_route_steps_idempotent, get_route_state, get_phase_step_weight,
-                PHASE_STEP_WEIGHTS,
-            )
-            import pytz as _pytz_rp
-            _tz_name_rp = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
-            try:
-                _tz_obj_rp = _pytz_rp.timezone(_tz_name_rp)
-            except Exception:
-                _tz_obj_rp = _pytz_rp.timezone(DEFAULT_TIMEZONE)
-            _route_today = datetime.now(_tz_obj_rp).date()
-            for _p in daily_plan.get('phases', []):
-                if plan_completion.get(_p.get('id', ''), False):
-                    _pk = _p.get('phase', '')
-                    if PHASE_STEP_WEIGHTS.get(_pk, 0) > 0:
-                        add_route_steps_idempotent(current_user.id, _pk, _route_today, db.session)
-            db.session.commit()
-            _weighted_steps_today = sum(
-                get_phase_step_weight(p.get('phase', ''))
-                for p in daily_plan.get('phases', [])
-                if plan_completion.get(p.get('id', ''), False)
-            )
-            route_progress_state = get_route_state(
-                current_user.id, _weighted_steps_today, db.session
-            )
-        except Exception:
-            db.session.rollback()
-            route_progress_state = None
     next_plan_title, next_plan_url = _get_next_plan_action(daily_plan, daily_summary)
     if daily_race:
         daily_race['next_action_title'] = next_plan_title
@@ -1826,9 +1758,11 @@ def dashboard():
         # Keep zero-state off for the linear plan: first-run users must still
         # see the curriculum-spine plan before they accumulate any activity.
         is_zero_state=(
-            (not bool(getattr(current_user, 'use_linear_plan', False)))
-            and not bool(daily_plan.get('mission'))
-            and daily_plan.get('mode') != 'linear'
+            # Onboarded users always see the dashboard shell (hero + plan + widgets)
+            # so the unified plan can render its setup hints. Pure zero-state is
+            # reserved for users who have not completed onboarding AND have no
+            # activity whatsoever.
+            (not getattr(current_user, 'onboarding_completed', True))
             and (words_total or 0) == 0
             and (grammar_studied or 0) == 0
             and (books_reading or 0) == 0
@@ -2317,15 +2251,9 @@ def _next_step_from_mission(plan: dict, daily_summary: dict) -> tuple:
 
 
 def _next_step_from_linear(plan: dict, daily_summary: dict) -> tuple:
-    """Return next incomplete step from linear plan."""
+    """Deprecated: linear plan has been removed. Kept as no-op shim for callers."""
     from app.achievements.streak_service import compute_plan_steps
-    from app.daily_plan.linear.chain import extend_chain_after_activity
 
-    plan_completion, _, steps_done, steps_total = compute_plan_steps(plan, daily_summary)
-    # Mirror /api/daily-status & /api/daily-plan: re-grow the chain so the
-    # next slot reflects activity recorded outside the linear-plan slot
-    # endpoints (e.g. /study path for SRS) before picking the CTA target.
-    extend_chain_after_activity(plan, plan_completion, current_user.id, db)
     plan_completion, _, steps_done, steps_total = compute_plan_steps(plan, daily_summary)
     # Iterate the full chain (baseline + extensions). Baseline slots can be
     # marked done via summary activity (e.g. SRS reviews recorded by the
@@ -2565,7 +2493,13 @@ def _next_step_from_legacy(daily_plan: dict, daily_summary: dict) -> tuple:
 
     if daily_plan.get('grammar_topic'):
         gt = daily_plan['grammar_topic']
-        grammar_url = url_for('grammar_lab.topic_detail', topic_id=gt['topic_id'])
+        # topic_detail is slug-based; fall back to the legacy id-based
+        # endpoint when slug isn't on the plan payload — it 301-redirects.
+        gt_slug = gt.get('slug')
+        if gt_slug:
+            grammar_url = url_for('grammar_lab.topic_detail', slug=gt_slug)
+        else:
+            grammar_url = url_for('grammar_lab.topic_detail_legacy', topic_id=gt['topic_id'])
         steps.append({
             'type': 'grammar',
             'title': f"Grammar Lab \u2014 {gt['title']}",

@@ -121,7 +121,13 @@ def get_perfect_day_info(user_id: int) -> dict:
         .first()
     )
     if latest_perfect_day is not None:
-        today = date.today()
+        # ``event_date`` is stored as the user's local date when the bonus
+        # was awarded (see ``award_perfect_day_xp_idempotent``). Comparing
+        # against UTC ``date.today()`` smudges the gap for users far from
+        # UTC and either keeps a broken streak alive or resets a live one.
+        from app.utils.time_utils import get_user_local_date
+
+        today = get_user_local_date(user_id)
         gap_days = (today - latest_perfect_day.event_date).days
         if gap_days > 1:
             consecutive = 0

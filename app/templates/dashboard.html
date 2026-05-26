@@ -821,11 +821,11 @@
                 {% if gs.state == 'completed' %}
                 <span class="dash-step__btn">Готово &#10003;</span>
                 {% elif gs.state == 'available' and gs.get('topic_id') %}
-                <a href="{{ url_for('grammar_lab.topic_detail', topic_id=gs.topic_id) }}?from=daily_plan" class="dash-step__btn">
+                <a href="{{ url_for('grammar_lab.topic_detail_legacy', topic_id=gs.topic_id) }}?from=daily_plan" class="dash-step__btn">
                     {% if gs.get('status') == 'not_started' %}Теория{% else %}Повторить{% endif %}
                 </a>
                 {% elif gs.state == 'suggest_start' and gs.get('topic_id') %}
-                <a href="{{ url_for('grammar_lab.topic_detail', topic_id=gs.topic_id) }}?from=daily_plan" class="dash-step__btn">Теория</a>
+                <a href="{{ url_for('grammar_lab.topic_detail_legacy', topic_id=gs.topic_id) }}?from=daily_plan" class="dash-step__btn">Теория</a>
                 {% endif %}
             </div>
         </div>

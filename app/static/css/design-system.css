@@ -13267,6 +13267,20 @@ button.nav-section-title {
     align-items: flex-end;
     gap: 0.4rem;
 }
+.linear-slot__action-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+    min-width: 7.5rem;
+}
+.linear-slot__action-stack .linear-slot__btn {
+    text-align: center;
+}
+.linear-slot__skip-btn--under {
+    align-self: center;
+    margin-top: 0.1rem;
+}
 .linear-slot__skip-btn {
     background: none;
     border: none;
@@ -17495,6 +17509,95 @@ body.dashboard-path-wide main.container {
     font-size: 0.75rem;
     color: var(--color-text-muted, #888);
     line-height: 1.4;
+}
+
+/* Unified plan: skip button stack under primary CTA */
+.plan-item__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+    min-width: 8rem;
+}
+.plan-item__actions .plan-item__cta--button {
+    text-align: center;
+}
+.plan-item__skip-btn {
+    align-self: center;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0.15rem 0.4rem;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    margin-top: 0.1rem;
+}
+.plan-item__skip-btn:hover { color: #64748b; }
+.plan-item__skip-btn:disabled {
+    cursor: not-allowed;
+    color: #cbd5e1;
+}
+.plan-item__skip-hint {
+    align-self: center;
+    color: #94a3b8;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    text-align: center;
+    max-width: 12rem;
+}
+.plan-item__skip-reasons {
+    margin-top: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+.plan-item__skip-reasons-label {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-bottom: 0.4rem;
+}
+.plan-item__skip-reasons-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+.plan-item__skip-reason-btn {
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    color: #475569;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.65rem;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+}
+.plan-item__skip-reason-btn:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
+
+/* Skipped item state: faded background, return CTA visible */
+.plan-item--skipped {
+    background: #fffbeb;
+    border-color: #fde68a;
+    opacity: 0.85;
+}
+.plan-item--skipped .plan-item__title { color: #92400e; }
+.plan-item__skipped-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: #92400e;
+    margin-top: 4px;
+}
+.plan-item__marker--skipped {
+    background: #fef3c7;
+    color: #92400e;
+}
+.plan-item--blocked {
+    opacity: 0.6;
 }
 
 /* Unified plan: methodist-pass polish */

@@ -266,6 +266,7 @@ class TestBuildCompletionSummary:
         assert '7' in result['share_text']
 
 
+@pytest.mark.skip(reason="Legacy dashboard.html mission-completion summary no longer rendered")
 class TestCompletionSummaryTemplate:
     """Integration tests: completion summary renders correctly in dashboard."""
 

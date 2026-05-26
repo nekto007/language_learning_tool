@@ -482,6 +482,14 @@ def _reset_flashcard_attempts_for_new_session(user_id: int, word_ids=None) -> No
 def cards():
     settings = StudySettings.get_settings(current_user.id)
     source = request.args.get('source', 'auto')
+    # Block plan-driven entry while the user has paused their daily plan.
+    # Catalogue/auto study remains available so paused users aren't locked
+    # out — only the linear-plan source path redirects back.
+    if source == 'linear_plan' or request.args.get('from') == 'linear_plan':
+        from app.daily_plan.service import is_plan_paused
+        if is_plan_paused(current_user):
+            flash('План на паузе', 'info')
+            return redirect(url_for('words.dashboard'))
     extra_study = request.args.get('extra_study', 'false').lower() == 'true'
     from_daily_plan = request.args.get('from') == 'daily_plan'
     list_id_arg = request.args.get('list_id', type=int)
@@ -971,12 +979,11 @@ def weekly_plan():
     by_date = {row.plan_date: row for row in logs}
 
     today_plan = None
-    if getattr(current_user, 'use_linear_plan', False):
-        try:
-            from app.daily_plan.linear.plan import get_linear_plan
-            today_plan = get_linear_plan(current_user.id, db.session)
-        except Exception:
-            pass
+    try:
+        from app.daily_plan.plan import get_daily_plan as get_unified_plan
+        today_plan = get_unified_plan(current_user.id, db.session)
+    except Exception:
+        pass
 
     slot_priority = ['curriculum', 'srs', 'reading', 'listening', 'writing', 'error_review']
     default_slot_kinds = ['curriculum', 'srs', 'reading']

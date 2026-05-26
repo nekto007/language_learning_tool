@@ -101,29 +101,6 @@ def toggle_admin_status(user_id):
     return redirect(url_for('user_admin.users'))
 
 
-@user_bp.route('/users/<int:user_id>/toggle_mission_plan', methods=['POST'])
-@admin_required
-def toggle_mission_plan(user_id):
-    """Enable/disable mission-based daily plan for a user."""
-    result = UserManagementService.toggle_mission_plan(user_id)
-
-    if result:
-        state = "включён" if result['use_mission_plan'] else "выключен"
-        action = 'user.enable_mission_plan' if result['use_mission_plan'] else 'user.disable_mission_plan'
-        log_admin_action(current_user.id, action, target_type='user', target_id=user_id)
-        db.session.commit()
-        flash(f'Mission-based daily plan для {result["username"]} {state}.', 'success')
-    else:
-        flash('Пользователь не найден.', 'danger')
-
-    from app.auth.routes import get_safe_redirect_url
-    next_url = get_safe_redirect_url(
-        request.form.get('next') or request.referrer,
-        fallback='user_admin.users'
-    )
-    return redirect(next_url)
-
-
 @user_bp.route('/users/<int:user_id>')
 @admin_required
 def user_detail(user_id):
@@ -134,71 +111,6 @@ def user_detail(user_id):
         return redirect(url_for('user_admin.users'))
 
     return render_template('admin/user_detail.html', detail=detail)
-
-
-@user_bp.route('/linear-plan/<int:user_id>')
-@admin_required
-def linear_plan_user_inspector(user_id):
-    """Per-user linear plan inspector for admin debugging."""
-    from sqlalchemy import desc
-
-    from app.achievements.models import StreakEvent
-    from app.admin.audit import log_admin_action
-    from app.daily_plan.linear.models import QuizErrorLog
-    from app.daily_plan.linear.plan import get_linear_plan
-    from app.utils.db import db
-
-    user = User.query.get(user_id)
-    if user is None:
-        flash('Пользователь не найден.', 'danger')
-        return redirect(url_for('user_admin.users'))
-
-    log_admin_action(
-        admin_id=current_user.id,
-        action='user.linear_plan_inspect',
-        target_type='user',
-        target_id=user_id,
-    )
-    db.session.commit()
-
-    plan_payload = None
-    plan_error = None
-    if user.use_linear_plan:
-        try:
-            plan_payload = get_linear_plan(user_id, db)
-        except Exception as exc:  # noqa: BLE001
-            logger.exception('Failed to assemble linear plan for user %s', user_id)
-            plan_error = str(exc)
-            # Plan assembly may have left the SQLAlchemy session in a
-            # pending-rollback state; reset it so the follow-up StreakEvent /
-            # QuizErrorLog queries below don't 500 with InvalidRequestError.
-            db.session.rollback()
-
-    recent_xp_events = (
-        StreakEvent.query
-        .filter(StreakEvent.user_id == user_id)
-        .filter(StreakEvent.event_type.like('xp_linear%'))
-        .order_by(desc(StreakEvent.created_at))
-        .limit(20)
-        .all()
-    )
-
-    recent_errors = (
-        QuizErrorLog.query
-        .filter(QuizErrorLog.user_id == user_id)
-        .order_by(desc(QuizErrorLog.created_at))
-        .limit(10)
-        .all()
-    )
-
-    return render_template(
-        'admin/linear_plan_user.html',
-        user=user,
-        plan_payload=plan_payload,
-        plan_error=plan_error,
-        recent_xp_events=recent_xp_events,
-        recent_errors=recent_errors,
-    )
 
 
 @user_bp.route('/users/export')

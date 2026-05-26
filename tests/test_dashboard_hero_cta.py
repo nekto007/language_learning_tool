@@ -2,9 +2,15 @@
 
 Tests patch Flask's ``url_for`` and the review-budget check so the helper is
 exercised in isolation, without a database or request context.
+
+NOTE: skipped after mission-plan removal — `_resolve_hero_cta` and
+`resolve_next_phase` operate on mission-plan phases which no longer exist.
 """
+import pytest
 from types import SimpleNamespace
 from unittest.mock import patch
+
+pytestmark = pytest.mark.skip(reason="Mission-plan hero CTA helpers removed")
 
 
 def _fake_url_for(endpoint, **values):

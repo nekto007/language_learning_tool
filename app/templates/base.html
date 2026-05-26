@@ -197,7 +197,7 @@
                             {% if current_user.is_authenticated %}
                             {% set active_gt = get_active_grammar_topic() %}
                             {% if active_gt %}
-                            <li><a class="dropdown-item text-success fw-semibold" href="{{ url_for('grammar_lab.topic_detail', topic_id=active_gt.id) }}"><i class="fas fa-play-circle me-2"></i>Продолжить: {{ active_gt.title }}</a></li>
+                            <li><a class="dropdown-item text-success fw-semibold" href="{{ url_for('grammar_lab.topic_detail', slug=active_gt.slug) }}"><i class="fas fa-play-circle me-2"></i>Продолжить: {{ active_gt.title }}</a></li>
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
                             {% endif %}
