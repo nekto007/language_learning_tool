@@ -420,7 +420,7 @@ def create_app(config_class=Config):
 
         try:
             # NB: pass the SQLAlchemy `db` object, not `db.session`. The
-            # downstream call chain (build_lesson_context → get_linear_plan
+            # downstream call chain (build_lesson_context → get_daily_plan
             # → find_next_lesson_linear) does `db.session.query(...)`; if
             # we hand it a scoped session, that becomes `session.session`
             # and silently dies, leaving the lesson page with catalog CTAs

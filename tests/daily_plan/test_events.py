@@ -126,7 +126,7 @@ class TestSlotSkipEndpoint:
         assert r.status_code == 200
 
     def test_all_valid_reasons_accepted(self, authenticated_client, db_session):
-        with patch('app.daily_plan.linear.plan.get_slot_skips_used_today', return_value=0), \
+        with patch('app.daily_plan.skips.get_slot_skips_used_today', return_value=0), \
              patch('app.daily_plan.plan.get_daily_plan',
                    return_value=_plan_for_current('reading')):
             for reason in ('no_time', 'too_hard', 'not_today'):

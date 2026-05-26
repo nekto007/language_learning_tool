@@ -675,7 +675,7 @@ def record_daily_plan_event():
                 f'reason must be one of: {", ".join(sorted(_SKIP_REASONS))}',
                 400,
             )
-        from app.daily_plan.linear.plan import (
+        from app.daily_plan.skips import (
             DAILY_SLOT_SKIP_QUOTA,
             get_slot_skip_key,
             get_slot_skips_used_today,

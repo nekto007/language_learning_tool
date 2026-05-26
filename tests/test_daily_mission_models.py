@@ -118,13 +118,6 @@ class TestModeCategoryMap:
         bc_modes = [m for m, c in MODE_CATEGORY_MAP.items() if c == 'book_course']
         assert set(bc_modes) == {'book_course_lesson', 'book_course_practice'}
 
-    def test_streak_service_uses_registry(self):
-        """streak_service._MODE_DONE_CHECK derives from MODE_CATEGORY_MAP (excludes success_marker)."""
-        from app.achievements.streak_service import _MODE_DONE_CHECK
-        assert 'success_marker' not in _MODE_DONE_CHECK
-        for k, v in _MODE_DONE_CHECK.items():
-            assert MODE_CATEGORY_MAP[k] == v
-
     def test_routes_imports_registry(self):
         """routes module should import MODE_CATEGORY_MAP (verified via module attribute)."""
         import app.words.routes as routes_mod

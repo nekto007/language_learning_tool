@@ -36,9 +36,14 @@ SLOT_ESTIMATED_MINUTES: dict[str, int] = {
     'error_review': 12,
 }
 
-# One "not now" action per user-local day. This skips a daily-plan source
-# slot, not a lesson inside the curriculum spine.
-DAILY_SLOT_SKIP_QUOTA = 1
+# Skip helpers were promoted to ``app/daily_plan/skips.py`` so the API +
+# unified orchestrator stop reaching into the legacy ``linear/`` namespace.
+# We re-export them here for any callers still importing from this module.
+from app.daily_plan.skips import (  # noqa: F401 (re-export)
+    DAILY_SLOT_SKIP_QUOTA,
+    get_slot_skip_key,
+    get_slot_skips_used_today,
+)
 
 # Slots backed by the curriculum spine. If the main course lesson is skipped
 # today, later curriculum-derived slots must stay locked until that skipped
@@ -133,23 +138,6 @@ def _get_skipped_slot_kinds(
     return {e.step_kind for e in events if e.step_kind}
 
 
-def get_slot_skip_key(slot: dict[str, Any], index: Optional[int] = None) -> str:
-    """Return a stable key for a rebuilt slot.
-
-    Curriculum-backed slots carry lesson_id, which prevents a skip of one
-    course lesson from drifting to the next course lesson after the user later
-    completes the skipped one.
-    """
-    kind = slot.get('kind') or ''
-    data = slot.get('data') or {}
-    lesson_id = data.get('lesson_id')
-    if lesson_id:
-        return f'lesson:{lesson_id}'
-    if index is not None:
-        return f'slot:{index}:{kind}'
-    return f'kind:{kind}'
-
-
 def _is_curriculum_backed_slot(slot: dict[str, Any]) -> bool:
     """Return True for daily-plan slots that are backed by a curriculum lesson."""
     kind = slot.get('kind')
@@ -175,21 +163,6 @@ def _get_skipped_slots(
         for e in events
         if e.step_kind
     ]
-
-
-def get_slot_skips_used_today(
-    user_id: int,
-    plan_date: Any,
-    db_session: Any,
-) -> int:
-    """Return how many daily-plan slot skips the user used today."""
-    from app.daily_plan.models import DailyPlanEvent
-
-    return db_session.session.query(DailyPlanEvent).filter_by(
-        user_id=user_id,
-        event_type='slot_skipped',
-        plan_date=plan_date,
-    ).count()
 
 
 def _apply_skipped_slots(

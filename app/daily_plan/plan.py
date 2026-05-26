@@ -98,7 +98,7 @@ def _annotate_unified_skip_quota(
     skips_used: int,
 ) -> None:
     """Expose the daily slot-skip quota on currently actionable items."""
-    from app.daily_plan.linear.plan import DAILY_SLOT_SKIP_QUOTA
+    from app.daily_plan.skips import DAILY_SLOT_SKIP_QUOTA
 
     skips_remaining = max(DAILY_SLOT_SKIP_QUOTA - skips_used, 0)
     for item in required_dicts:
@@ -350,7 +350,7 @@ def get_daily_plan(
 
     # Apply per-day skip state before serialising so the template sees
     # 'skipped'/'blocked' flags and the skip-quota annotation in one place.
-    from app.daily_plan.linear.plan import get_slot_skips_used_today
+    from app.daily_plan.skips import get_slot_skips_used_today
 
     skipped_kinds = _get_unified_skipped_kinds(user_id, session)
     if skipped_kinds:
