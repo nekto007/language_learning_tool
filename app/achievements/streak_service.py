@@ -163,6 +163,15 @@ def _compute_unified_item_completion(
         'error_review': (
             int(daily_summary.get('error_review_resolved_today', 0) or 0) > 0
         ),
+        # ``daily_summary['lessons_count']`` counts curriculum
+        # LessonProgress rows completed today (see telegram.queries
+        # get_daily_summary). Falls back to ``lessons_completed_today`` for
+        # callers that surface that key instead. Lets day_secured flip True
+        # even if the curriculum item rebuilt around the next pending lesson.
+        'curriculum': (
+            int(daily_summary.get('lessons_count', 0) or 0) > 0
+            or int(daily_summary.get('lessons_completed_today', 0) or 0) > 0
+        ),
     }
 
     result: dict[str, bool] = {}
