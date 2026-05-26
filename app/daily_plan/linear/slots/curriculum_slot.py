@@ -98,21 +98,84 @@ def _eta_minutes(lesson_type: Optional[str]) -> int:
 
 
 def _curriculum_done_today(user_id: int, db: Any) -> bool:
-    """Return True when the user has already earned curriculum XP today."""
+    """Return True when the user has completed a curriculum lesson today.
+
+    Primary signal: a ``StreakEvent(xp_linear)`` written by
+    ``maybe_award_curriculum_xp`` for any curriculum source. Fallback:
+    any ``LessonProgress`` row for a curriculum-typed lesson with
+    ``completed_at`` inside the user-local day. The fallback guards
+    against silent XP failures (rollback in the submit path) so the
+    slot still reflects truth visible to the rest of the app.
+    """
     from app.achievements.models import StreakEvent
 
     today = get_linear_event_local_date(user_id, db)
-    query = db.session.query(StreakEvent).filter(
-        StreakEvent.user_id == user_id,
-        StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
-        StreakEvent.event_date == today,
-        StreakEvent.details['source'].astext.in_(list(_CURRICULUM_XP_SOURCES)),
-    )
-    return db.session.query(query.exists()).scalar() or False
+    xp_exists = db.session.query(
+        db.session.query(StreakEvent)
+        .filter(
+            StreakEvent.user_id == user_id,
+            StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
+            StreakEvent.event_date == today,
+            StreakEvent.details['source'].astext.in_(list(_CURRICULUM_XP_SOURCES)),
+        )
+        .exists()
+    ).scalar() or False
+    if xp_exists:
+        return True
+
+    today_start, today_end = get_user_local_day_bounds(user_id, db)
+    progress_exists = db.session.query(
+        db.session.query(LessonProgress)
+        .join(Lessons, Lessons.id == LessonProgress.lesson_id)
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+            LessonProgress.completed_at.isnot(None),
+            LessonProgress.completed_at >= today_start,
+            LessonProgress.completed_at < today_end,
+            Lessons.type.in_(tuple(_CURRICULUM_LESSON_TYPES)),
+        )
+        .exists()
+    ).scalar() or False
+    return progress_exists
 
 
 def _get_lesson_completed_today(user_id: int, db: Any) -> Optional[Lessons]:
-    """Return the most recent linear-curriculum lesson completed today."""
+    """Return the most recent linear-curriculum lesson completed today.
+
+    Primary signal: the most recent ``StreakEvent`` written by
+    ``maybe_award_curriculum_xp`` today carries ``details['lesson_id']``.
+    Falling back to ``LessonProgress.completed_at`` covers older events
+    (written before lesson_id was tracked) and lesson types whose
+    completion path runs through ``LessonProgress`` but not XP (rare).
+    """
+    from app.achievements.models import StreakEvent
+
+    today = get_linear_event_local_date(user_id, db)
+    event = (
+        db.session.query(StreakEvent)
+        .filter(
+            StreakEvent.user_id == user_id,
+            StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
+            StreakEvent.event_date == today,
+            StreakEvent.details['source'].astext.in_(list(_CURRICULUM_XP_SOURCES)),
+        )
+        .order_by(StreakEvent.id.desc())
+        .first()
+    )
+    if event is not None:
+        details = event.details or {}
+        lesson_id_raw = details.get('lesson_id')
+        if lesson_id_raw is not None:
+            try:
+                lesson_id = int(lesson_id_raw)
+            except (TypeError, ValueError):
+                lesson_id = None
+            if lesson_id is not None:
+                lesson = db.session.get(Lessons, lesson_id)
+                if lesson is not None:
+                    return lesson
+
     today_start, today_end = get_user_local_day_bounds(user_id, db)
     progress = (
         db.session.query(LessonProgress)

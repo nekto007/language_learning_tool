@@ -1,9 +1,9 @@
 {% extends 'base.html' if current_user.is_authenticated else 'public_base.html' %}
 
-{% block title %}{{ topic.title }} ({{ topic.title_ru }}) — Грамматика {{ topic.level }} | LLT English{% endblock %}
+{% block title %}{{ topic.title_ru }} ({{ topic.title }}) — правила, примеры, упражнения | Грамматика английского {{ topic.level }}{% endblock %}
 
 {% block og_tags %}
-<meta property="og:title" content="{{ topic.title }} ({{ topic.title_ru }}) — Грамматика {{ topic.level }} | LLT English">
+<meta property="og:title" content="{{ topic.title_ru }} ({{ topic.title }}) — правила, примеры, упражнения | {{ topic.level }}">
 <meta property="og:description" content="{{ meta_description | default('') }}">
 <meta property="og:type" content="article">
 <meta property="og:url" content="{{ request.base_url }}">
@@ -12,18 +12,19 @@
 {% block meta_description %}<meta name="description" content="{{ meta_description | default('')}}">{% endblock %}
 
 {% block head_extra %}
-<link rel="canonical" href="https://llt-english.com/grammar-lab/topic/{{ topic.id }}">
-<link rel="alternate" hreflang="ru" href="https://llt-english.com/grammar-lab/topic/{{ topic.id }}">
+<link rel="canonical" href="https://llt-english.com/grammar-lab/topic/{{ topic.slug }}">
+<link rel="alternate" hreflang="ru" href="https://llt-english.com/grammar-lab/topic/{{ topic.slug }}">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "LearningResource",
-  "name": "{{ topic.title }}",
+  "name": "{{ topic.title_ru }} ({{ topic.title }})",
   "description": "{{ meta_description|e }}",
   "educationalLevel": "{{ topic.level }}",
   "inLanguage": ["en", "ru"],
   "learningResourceType": "Grammar reference",
-  "url": "https://llt-english.com/grammar-lab/topic/{{ topic.id }}",
+  "url": "https://llt-english.com/grammar-lab/topic/{{ topic.slug }}",
+  {% if topic.estimated_time %}"timeRequired": "PT{{ topic.estimated_time }}M",{% endif %}
   "provider": {
     "@type": "Organization",
     "name": "LLT English"
@@ -42,6 +43,27 @@
   ]
 }
 </script>
+{% set _faq_mistakes = (topic.content or {}).get('common_mistakes') or [] %}
+{% if _faq_mistakes %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {% for m in _faq_mistakes[:10] %}
+    {
+      "@type": "Question",
+      "name": {{ ('Как правильно: «' ~ (m.wrong or '') ~ '»?')|tojson }},
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": {{ (('Правильно: «' ~ (m.correct or '') ~ '». ' ~ (m.explanation or '')) | trim)|tojson }}
+      }
+    }{{ ',' if not loop.last }}
+    {% endfor %}
+  ]
+}
+</script>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -63,7 +85,7 @@
   {% if prev_topic or next_topic %}
   <div class="topic-nav-adjacent">
     {% if prev_topic %}
-    <a href="{{ url_for('grammar_lab.topic_detail', topic_id=prev_topic.id) }}" class="topic-nav-adjacent__link topic-nav-adjacent__link--prev">
+    <a href="{{ url_for('grammar_lab.topic_detail', slug=prev_topic.slug) }}" class="topic-nav-adjacent__link topic-nav-adjacent__link--prev">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M19 12H5M12 19l-7-7 7-7"/>
       </svg>
@@ -76,7 +98,7 @@
     <div></div>
     {% endif %}
     {% if next_topic %}
-    <a href="{{ url_for('grammar_lab.topic_detail', topic_id=next_topic.id) }}" class="topic-nav-adjacent__link topic-nav-adjacent__link--next">
+    <a href="{{ url_for('grammar_lab.topic_detail', slug=next_topic.slug) }}" class="topic-nav-adjacent__link topic-nav-adjacent__link--next">
       <span class="topic-nav-adjacent__text">
         <span class="topic-nav-adjacent__label">Следующая</span>
         <span class="topic-nav-adjacent__title">{{ next_topic.title }}</span>
@@ -100,7 +122,19 @@
     </div>
 
     <div class="topic-hero__content">
-      <div class="topic-hero__badge">{{ topic.level }}</div>
+      <div class="topic-hero__badge-row" style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+        <div class="topic-hero__badge">{{ topic.level }}</div>
+        {% if topic.estimated_time %}
+        <span class="topic-hero__meta-pill" style="background:rgba(255,255,255,0.18); color:#fff; border-radius:999px; padding:0.2rem 0.65rem; font-size:0.78rem; font-weight:700;">
+          ≈ {{ topic.estimated_time }} мин
+        </span>
+        {% endif %}
+        {% if topic.difficulty %}
+        <span class="topic-hero__meta-pill" style="background:rgba(255,255,255,0.18); color:#fff; border-radius:999px; padding:0.2rem 0.65rem; font-size:0.78rem; font-weight:700;">
+          Сложность {{ topic.difficulty }}/5
+        </span>
+        {% endif %}
+      </div>
       <h1 class="topic-hero__title">{{ topic.title }}</h1>
       <p class="topic-hero__subtitle">{{ topic.title_ru }}</p>
 
@@ -142,7 +176,7 @@
 
   <!-- Share -->
   <div style="margin-bottom: 1rem;">
-    {% set share_url = 'https://llt-english.com/grammar-lab/topic/' ~ topic.id %}
+    {% set share_url = 'https://llt-english.com/grammar-lab/topic/' ~ topic.slug %}
     {% set share_text = topic.title ~ ' (' ~ topic.title_ru ~ ') — Grammar Lab | LLT English' %}
     {% include 'components/share_buttons.html' %}
   </div>
@@ -617,7 +651,7 @@
     <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--grammar-text); margin: 0 0 1rem;">Похожие темы уровня {{ topic.level }}</h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem;">
       {% for rt in related_topics %}
-      <a href="{{ url_for('grammar_lab.topic_detail', topic_id=rt.id) }}" class="topic-related-card" style="display: block; padding: 1rem; background: var(--grammar-surface); border: 1px solid var(--grammar-border); border-radius: 12px; text-decoration: none; transition: all 0.2s;">
+      <a href="{{ url_for('grammar_lab.topic_detail', slug=rt.slug) }}" class="topic-related-card" style="display: block; padding: 1rem; background: var(--grammar-surface); border: 1px solid var(--grammar-border); border-radius: 12px; text-decoration: none; transition: all 0.2s;">
         <div style="font-weight: 600; color: var(--grammar-text); font-size: 0.9rem;">{{ rt.title }}</div>
         <div style="font-size: 0.8rem; color: var(--grammar-text-muted); margin-top: 0.25rem;">{{ rt.title_ru }}</div>
       </a>

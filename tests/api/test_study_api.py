@@ -6,6 +6,7 @@ Covers:
 - POST /study/api/update-study-item: submit correct and incorrect card answers
 - POST /study/api/complete-session: missing JSON content-type -> 415
 """
+from datetime import datetime, timedelta, timezone
 import uuid
 import pytest
 from unittest.mock import patch, MagicMock
@@ -183,6 +184,49 @@ def test_complete_session_invalid_session(authenticated_client):
 
 # ── Get study items ──────────────────────────────────────────────────────────
 
+def _utcnow_naive():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _create_word_detail_card(
+    db_session,
+    user,
+    english_prefix,
+    *,
+    state='review',
+    next_review=None,
+    buried_until=None,
+):
+    """Create a collection word with one user-owned study card."""
+    from app.study.models import UserCardDirection, UserWord
+    from app.words.models import CollectionWords
+
+    now = _utcnow_naive()
+    word = CollectionWords(
+        english_word=f'{english_prefix}_{uuid.uuid4().hex[:8]}',
+        russian_word='перевод',
+        level='A1',
+    )
+    db_session.add(word)
+    db_session.flush()
+
+    user_word = UserWord(user_id=user.id, word_id=word.id)
+    user_word.status = 'review'
+    db_session.add(user_word)
+    db_session.flush()
+
+    direction = UserCardDirection(
+        user_word_id=user_word.id,
+        direction='eng-rus',
+    )
+    direction.state = state
+    direction.next_review = next_review if next_review is not None else now - timedelta(minutes=5)
+    direction.buried_until = buried_until
+    db_session.add(direction)
+    db_session.flush()
+
+    return word, user_word, direction
+
 def test_get_study_items_authenticated(authenticated_client):
     """Authenticated GET /study/api/get-study-items returns 200 with items list."""
     response = authenticated_client.get('/study/api/get-study-items')
@@ -205,3 +249,94 @@ def test_get_study_items_invalid_deck(authenticated_client):
     data = response.get_json()
     assert data['success'] is False
     assert data['error'] == 'deck_not_found'
+
+
+def test_get_study_items_word_detail_requires_word_id(authenticated_client, study_settings):
+    """word_detail source must report a standardized client error without word_id."""
+    response = authenticated_client.get('/study/api/get-study-items?source=word_detail')
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert data == {
+        'success': False,
+        'error': 'invalid_input',
+        'message': 'word_id is required for word_detail study',
+        'status': 400,
+    }
+
+
+def test_get_study_items_word_detail_extra_study_stays_scoped_to_word_id(
+    authenticated_client, db_session, test_user, second_user, study_settings,
+):
+    """extra_study can include future target cards but must not broaden the word scope."""
+    now = _utcnow_naive()
+    study_settings.new_words_per_day = 50
+    study_settings.reviews_per_day = 50
+
+    target_word, _, target_direction = _create_word_detail_card(
+        db_session,
+        test_user,
+        'target_future',
+        next_review=now + timedelta(days=5),
+    )
+    other_word, _, other_direction = _create_word_detail_card(
+        db_session,
+        test_user,
+        'other_future',
+        next_review=now + timedelta(days=5),
+    )
+    _, _, other_user_direction = _create_word_detail_card(
+        db_session,
+        second_user,
+        'other_user_due',
+        next_review=now - timedelta(days=1),
+    )
+    db_session.commit()
+
+    response = authenticated_client.get(
+        f'/study/api/get-study-items?source=word_detail&word_id={target_word.id}'
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['status'] == 'success'
+    assert data['items'] == []
+
+    response = authenticated_client.get(
+        f'/study/api/get-study-items?source=word_detail&word_id={target_word.id}&extra_study=true'
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+
+    assert data['status'] == 'success'
+    assert [item['word_id'] for item in data['items']] == [target_word.id]
+    assert [item['id'] for item in data['items']] == [target_direction.id]
+    assert other_word.id not in {item['word_id'] for item in data['items']}
+    assert other_direction.id not in {item['id'] for item in data['items']}
+    assert other_user_direction.id not in {item['id'] for item in data['items']}
+
+
+def test_get_study_items_word_detail_skips_buried_target_card(
+    authenticated_client, db_session, test_user, study_settings,
+):
+    """word_detail study must not unbury a buried card, even for the selected word."""
+    now = _utcnow_naive()
+    study_settings.new_words_per_day = 50
+    study_settings.reviews_per_day = 50
+    target_word, _, buried_direction = _create_word_detail_card(
+        db_session,
+        test_user,
+        'buried_target',
+        next_review=now - timedelta(days=1),
+        buried_until=now + timedelta(hours=4),
+    )
+    db_session.commit()
+
+    response = authenticated_client.get(
+        f'/study/api/get-study-items?source=word_detail&word_id={target_word.id}&extra_study=true'
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['status'] == 'success'
+    assert data['items'] == []
+    assert buried_direction.id not in {item['id'] for item in data['items']}

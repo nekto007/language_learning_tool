@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import patch
 
 
+@pytest.mark.skip(reason="toggle_mission_plan route removed in unified-plan refactor")
 class TestToggleMissionPlanRoute:
     """Tests for mission plan admin toggle route."""
 

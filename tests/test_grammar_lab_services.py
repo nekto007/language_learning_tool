@@ -1191,7 +1191,7 @@ class TestGrammarLabRouteNavigation:
             topics.append(t)
         db_session.commit()
 
-        response = authenticated_client.get(f'/grammar-lab/topic/{topics[1].id}')
+        response = authenticated_client.get(f'/grammar-lab/topic/{topics[1].slug}')
         assert response.status_code == 200
         html = response.data.decode('utf-8')
         assert 'Предыдущая' in html
@@ -1231,7 +1231,7 @@ class TestGrammarLabRouteNavigation:
         db_session.add(ex)
         db_session.commit()
 
-        response = authenticated_client.get(f'/grammar-lab/topic/{topic.id}')
+        response = authenticated_client.get(f'/grammar-lab/topic/{topic.slug}')
         assert response.status_code == 200
         html = response.data.decode('utf-8')
         assert 'К упражнениям' in html

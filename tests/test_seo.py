@@ -51,7 +51,7 @@ class TestSitemap:
         response = client.get('/sitemap.xml')
         xml_text = response.data.decode('utf-8')
         site_url = app.config.get('SITE_URL', 'https://llt-english.com')
-        assert f'{site_url}/grammar-lab/topic/{grammar_topic.id}' in xml_text
+        assert f'{site_url}/grammar-lab/topic/{grammar_topic.slug}' in xml_text
 
     def test_sitemap_uses_single_configured_host(self, client, app):
         original_site_url = app.config.get('SITE_URL', '')

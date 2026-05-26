@@ -48,10 +48,13 @@ def normalise_word_list(value) -> list[str]:
     else:
         return []
     clean_items = []
+    seen_items = set()
     for item in raw_items:
         text = _clean_optional_text(item)
-        if text:
+        lookup = _normalise_lookup(text)
+        if text and lookup not in seen_items:
             clean_items.append(text)
+            seen_items.add(lookup)
     return clean_items
 
 
@@ -77,12 +80,25 @@ def _semantic_group_labels(value: str) -> set[str]:
 
 
 def frequency_band_label(band) -> str:
+    try:
+        band = int(band)
+    except (TypeError, ValueError):
+        band = None
     labels = {
         1: 'Top 1000',
         2: 'Top 3000',
         3: 'Top 10000',
     }
     return labels.get(band, 'Не указана')
+
+
+def _is_public_word_profile_candidate(word: CollectionWords | None) -> bool:
+    if word is None:
+        return False
+
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+
+    return word.level in PUBLIC_CEFR_CODES
 
 
 def _plural_days(days: int) -> str:
@@ -150,7 +166,7 @@ def _build_article_mistake(word: CollectionWords) -> dict | None:
     }
 
 
-def build_word_profile(word: CollectionWords) -> dict:
+def build_word_profile(word: CollectionWords, *, public_only: bool = False) -> dict:
     """Prepare all user-facing collection_words fields for word detail pages."""
     synonyms = normalise_word_list(word.synonyms)
     antonyms = normalise_word_list(word.antonyms)
@@ -160,6 +176,14 @@ def build_word_profile(word: CollectionWords) -> dict:
         list(getattr(word, 'phrasal_verbs', []) or []),
         key=lambda item: ((item.frequency_rank or 999999), item.english_word or ''),
     )
+    base_word = word.base_word
+    if public_only:
+        base_word = base_word if _is_public_word_profile_candidate(base_word) else None
+        phrasal_verbs = [
+            item
+            for item in phrasal_verbs
+            if _is_public_word_profile_candidate(item)
+        ]
     audio_available = bool(word.get_download and word.listening)
 
     admin_facts = [
@@ -206,7 +230,7 @@ def build_word_profile(word: CollectionWords) -> dict:
         'admin_facts': admin_facts,
         'study_facts': study_facts,
         'public_facts': public_facts,
-        'base_word': word.base_word,
+        'base_word': base_word,
         'phrasal_verbs': phrasal_verbs[:8],
         'common_mistake': _build_article_mistake(word),
     }

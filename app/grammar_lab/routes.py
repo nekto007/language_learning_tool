@@ -73,8 +73,25 @@ def topics(level=None):
 
 
 @grammar_lab_bp.route('/topic/<int:topic_id>')
-def topic_detail(topic_id):
+def topic_detail_legacy(topic_id):
+    """Legacy ID-based URL. 301-redirect to slug URL for SEO."""
+    topic = GrammarTopic.query.get(topic_id)
+    if not topic:
+        return redirect(url_for('grammar_lab.topics'))
+    return redirect(
+        url_for('grammar_lab.topic_detail', slug=topic.slug, **request.args.to_dict()),
+        code=301,
+    )
+
+
+@grammar_lab_bp.route('/topic/<slug>')
+def topic_detail(slug):
     """Topic detail page with theory — public, exercises require auth"""
+    topic_row = GrammarTopic.query.filter_by(slug=slug).first()
+    if not topic_row:
+        return redirect(url_for('grammar_lab.topics'))
+
+    topic_id = topic_row.id
     user_id = current_user.id if current_user.is_authenticated else None
     topic = grammar_service.get_topic_detail(topic_id, user_id)
 

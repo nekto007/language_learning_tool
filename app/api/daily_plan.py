@@ -108,13 +108,7 @@ def _get_recovery_suggestion(user_id: int, tz: str) -> dict | None:
     if log is None or log.secured_at is not None:
         return None
 
-    user = db.session.get(User, user_id)
-    if user is not None and getattr(user, 'use_unified_plan', False):
-        action_url = '/dashboard'
-    elif user is not None and user.use_linear_plan:
-        action_url = '/study?source=linear_plan'
-    else:
-        action_url = '/dashboard'
+    action_url = '/dashboard'
 
     missed_kind = log.mission_type or 'srs'
     return {'missed_kind': missed_kind, 'action_url': action_url, 'missed_date': yesterday.isoformat()}
@@ -272,46 +266,17 @@ def daily_status():
     yesterday = get_yesterday_summary(user_id, tz=tz)
 
     plan_completion, steps_available, steps_done, steps_total = compute_plan_steps(plan, summary)
-    if plan.get('_plan_meta', {}).get('effective_mode') == 'linear':
-        from app.daily_plan.linear.chain import extend_chain_after_activity
-        extend_chain_after_activity(plan, plan_completion, user_id, db)
     streak_result = process_streak_on_activity(
         user_id, steps_done, steps_total, tz=tz,
         daily_plan=plan, plan_completion=plan_completion,
     )
 
     from app.daily_plan.service import compute_day_secured_from_activity
-    phases = plan.get('phases', [])
     effective_mode = plan.get('_plan_meta', {}).get('effective_mode')
     day_secured = compute_day_secured_from_activity(plan, plan_completion)
     plan['day_secured'] = day_secured
-    if effective_mode == 'linear':
-        from app.daily_plan.linear.chain import recompute_continuation_available
-        recompute_continuation_available(plan)
 
-    # Sync route progress for completed phases so steps are recorded even if
-    # the user never reloads /api/daily-plan after finishing their mission.
-    if plan.get('mission'):
-        try:
-            from datetime import datetime as _dt_rp
-            import pytz as _pytz_rp
-            from app.daily_plan.route_progress import add_route_steps_idempotent, PHASE_STEP_WEIGHTS
-            _user_tz_name = current_user.timezone or DEFAULT_TZ
-            try:
-                _tz_obj = _pytz_rp.timezone(_user_tz_name)
-            except Exception:
-                _tz_obj = _pytz_rp.timezone(DEFAULT_TZ)
-            _route_today = _dt_rp.now(_tz_obj).date()
-            for _p in phases:
-                if plan_completion.get(_p.get('id', ''), False):
-                    _pk = _p.get('phase', '')
-                    if PHASE_STEP_WEIGHTS.get(_pk, 0) > 0:
-                        add_route_steps_idempotent(user_id, _pk, _route_today, db.session)
-            db.session.commit()
-        except Exception:
-            logger.warning("route_step sync failed in daily_status", exc_info=True)
-            db.session.rollback()
-    elif effective_mode == 'unified':
+    if effective_mode == 'unified':
         _sync_unified_route_steps(user_id, plan, plan_completion, tz)
 
     logger.info(
@@ -328,8 +293,6 @@ def daily_status():
         except pytz.UnknownTimeZoneError:
             tz_obj = pytz.timezone(DEFAULT_TZ)
         today = datetime.now(tz_obj).date()
-        mission = plan.get('mission') or {}
-        mission_type = mission.get('type') if isinstance(mission, dict) else None
         try:
             # daily_plan_completed milestone (transient notification, not
             # part of the plan payload). Emit BEFORE emit_minimum_completed
@@ -341,15 +304,8 @@ def daily_status():
                 emit_daily_plan_completed(user_id, today, db)
             except Exception:
                 logger.warning("daily_plan_completed milestone emit failed", exc_info=True)
-            emit_minimum_completed(user_id, mission_type, today)
-            write_secured_at(user_id, today, mission_type)
-            if effective_mode == 'linear':
-                from app.daily_plan.linear.xp import (
-                    maybe_record_linear_plan_completion,
-                )
-                maybe_record_linear_plan_completion(
-                    user_id, plan, plan_completion, today, db,
-                )
+            emit_minimum_completed(user_id, None, today)
+            write_secured_at(user_id, today, None)
             try:
                 from app.achievements.services import check_immersion_achievement
                 check_immersion_achievement(user_id, today, db.session, tz=tz)
@@ -363,8 +319,8 @@ def daily_status():
                 logger.warning("plan streak milestone notification failed for user %s", user_id, exc_info=True)
             db.session.commit()
             logger.info(
-                "daily_status user=%s day_secured=true mission_type=%s date=%s",
-                user_id, mission_type, today,
+                "daily_status user=%s day_secured=true date=%s",
+                user_id, today,
             )
         except Exception:
             logger.warning("secured_at write failed in daily_status", exc_info=True)
@@ -447,10 +403,7 @@ def daily_plan():
         route_state: Current route progress state
     """
     from app.daily_plan.service import get_daily_plan_unified
-    from app.daily_plan.route_progress import (
-        get_route_state, get_phase_step_weight,
-        add_route_steps_idempotent, PHASE_STEP_WEIGHTS,
-    )
+    from app.daily_plan.route_progress import get_route_state
     from app.telegram.queries import get_daily_summary
     from app.achievements.streak_service import compute_plan_steps
 
@@ -460,49 +413,16 @@ def daily_plan():
     summary = get_daily_summary(user_id, tz=tz)
 
     plan_completion, _, _, _ = compute_plan_steps(plan, summary)
-    if plan.get('_plan_meta', {}).get('effective_mode') == 'linear':
-        from app.daily_plan.linear.chain import extend_chain_after_activity
-        extend_chain_after_activity(plan, plan_completion, user_id, db)
 
-    phases = plan.get('phases') or []
-    steps_today = sum(
-        get_phase_step_weight(p.get('phase', ''))
-        for p in phases
-        if plan_completion.get(p.get('id', ''), False)
-    )
+    steps_today = 0
 
-    # Sync route progress before reading state so total_steps stays consistent
-    # with steps_today when the user hasn't visited the dashboard yet today.
-    if plan.get('mission'):
-        try:
-            from datetime import datetime
-            import pytz as _pytz_rp
-            _user_tz_name = current_user.timezone or DEFAULT_TZ
-            try:
-                _tz_obj = _pytz_rp.timezone(_user_tz_name)
-            except Exception:
-                _tz_obj = _pytz_rp.timezone(DEFAULT_TZ)
-            _route_today = datetime.now(_tz_obj).date()
-            for _p in phases:
-                if plan_completion.get(_p.get('id', ''), False):
-                    _pk = _p.get('phase', '')
-                    if PHASE_STEP_WEIGHTS.get(_pk, 0) > 0:
-                        add_route_steps_idempotent(user_id, _pk, _route_today, db.session)
-            db.session.commit()
-        except Exception:
-            logger.warning("mission route_step sync failed in daily_plan", exc_info=True)
-            db.session.rollback()
-    elif plan.get('_plan_meta', {}).get('effective_mode') == 'unified':
+    if plan.get('_plan_meta', {}).get('effective_mode') == 'unified':
         _sync_unified_route_steps(user_id, plan, plan_completion, tz)
 
     route_state = get_route_state(user_id, steps_today, db.session)
 
     from app.daily_plan.service import compute_day_secured_from_activity
-    effective_mode = plan.get('_plan_meta', {}).get('effective_mode')
     plan['day_secured'] = compute_day_secured_from_activity(plan, plan_completion)
-    if effective_mode == 'linear':
-        from app.daily_plan.linear.chain import recompute_continuation_available
-        recompute_continuation_available(plan)
 
     from app.study.services import SRSService
     srs_limit_reason = SRSService.get_adaptive_limit_reason(user_id)
@@ -581,18 +501,12 @@ def daily_race_status():
     from datetime import datetime
     import pytz
     from app.auth.models import User
-    from app.daily_plan.rivals import is_adult_user
-    from app.daily_plan.service import get_daily_plan_unified
-    from app.telegram.queries import get_daily_summary
-    from app.achievements.streak_service import compute_plan_steps
     from app.achievements.daily_race import (
         CHALLENGE_BONUS_POINTS,
         get_race_standings,
-        update_race_points_from_plan,
-        update_race_points_from_linear_plan,
+        is_daily_race_enabled,
     )
     from app.daily_plan.challenge import get_today_challenge
-    from app.achievements.daily_race import is_daily_race_enabled
 
     tz = _validate_timezone(request.args.get('tz', current_user.timezone or DEFAULT_TZ))
     user_id = current_user.id
@@ -601,8 +515,18 @@ def daily_race_status():
         return api_error('feature_disabled', 'Race feature is disabled', 403)
 
     user = User.query.get(user_id)
-    if user is None or not is_adult_user(user.birth_year):
-        return api_error('age_restricted', 'Race feature not available', 403)
+    if user is None:
+        return api_error('not_found', 'User not found', 404)
+    # Adult-gating via birth_year (was previously via rivals.is_adult_user).
+    # None birth_year is treated as adult — the legacy helper defaulted to True
+    # for users without a recorded year, preserving that here.
+    birth_year = getattr(user, 'birth_year', None)
+    if birth_year is not None:
+        try:
+            if (datetime.utcnow().year - int(birth_year)) < 18:
+                return api_error('age_restricted', 'Race feature not available', 403)
+        except (TypeError, ValueError):
+            pass
 
     try:
         tz_obj = pytz.timezone(tz)
@@ -610,210 +534,16 @@ def daily_race_status():
         tz_obj = pytz.timezone(DEFAULT_TZ)
     local_today = datetime.now(tz_obj).date()
 
-    plan = get_daily_plan_unified(user_id, tz=tz)
-    summary = get_daily_summary(user_id, tz=tz)
-    plan_completion, _, _, _ = compute_plan_steps(plan, summary)
-
     try:
         challenge_data = get_today_challenge(user_id, db)
-        ch_bonus = CHALLENGE_BONUS_POINTS if challenge_data.get('is_completed') else 0
+        _ = CHALLENGE_BONUS_POINTS if challenge_data.get('is_completed') else 0
     except Exception:
         logger.warning("daily race: challenge bonus lookup failed for user %s", user_id, exc_info=True)
-        ch_bonus = 0
-
-    phases = plan.get('phases') or []
-    baseline_slots = plan.get('baseline_slots') or []
-    if phases:
-        try:
-            update_race_points_from_plan(
-                user_id, local_today, phases, plan_completion,
-                challenge_bonus=ch_bonus,
-            )
-            db.session.commit()
-        except Exception:
-            logger.warning("update_race_points_from_plan failed for user %s", user_id, exc_info=True)
-            db.session.rollback()
-    elif baseline_slots and plan.get('mode') == 'linear':
-        try:
-            update_race_points_from_linear_plan(
-                user_id, local_today, baseline_slots, plan_completion,
-                challenge_bonus=ch_bonus,
-            )
-            db.session.commit()
-        except Exception:
-            logger.warning("update_race_points_from_linear_plan failed for user %s", user_id, exc_info=True)
-            db.session.rollback()
 
     standings = get_race_standings(user_id, local_today, tz=tz)
     db.session.commit()
 
     return jsonify({'success': True, 'race': standings})
-
-
-# Mapping between internal ``LinearSlot.kind`` values (used inside the
-# plan payload and ``plan_completion`` dict) and ``LinearSlotKind`` values
-# (the stable query-param form surfaced in URLs and frontend sessionStorage).
-# Only the reading slot diverges (kind='reading' → query-param form 'book').
-_SLOT_KIND_TO_LINEAR = {
-    'curriculum': 'curriculum',
-    'srs': 'srs',
-    'reading': 'book',
-    'listening': 'listening',
-    'speaking': 'speaking',
-    'writing': 'writing',
-    'error_review': 'error_review',
-}
-_LINEAR_TO_SLOT_KIND = {v: k for k, v in _SLOT_KIND_TO_LINEAR.items()}
-
-
-@api_daily_plan.route('/daily-plan/next-slot')
-@api_auth_required
-def daily_plan_next_slot():
-    """Return the next incomplete baseline slot for the linear daily plan.
-
-    Gated on ``User.use_linear_plan`` — returns 404 for users on
-    mission/legacy so stale plan-context URLs (e.g. a Telegram link with
-    ``?from=linear_plan``) cannot influence unrelated flows.
-
-    Query params:
-        current (str, optional): LinearSlotKind value (curriculum/srs/book/
-            error_review/listening/speaking/writing) identifying the slot the
-            caller just left. The endpoint skips that kind when picking the
-            next slot, except for SRS: an incomplete SRS slot is returned
-            again until the plan-available due queue is actually empty.
-        tz (str, optional): user timezone. Used to resolve the local day
-            for the secured_at write.
-
-    Response JSON:
-        next: {"kind", "url", "title"} | null — first incomplete baseline
-            slot whose kind != ``current``. ``null`` when the day is
-            secured (all baseline slots completed).
-        day_secured: bool — True when every baseline slot is completed
-            (combining slot state + summary signals, same recomputation
-            used by /api/daily-status).
-        secured_just_now: bool — True iff this call is the one that
-            wrote ``DailyPlanLog.secured_at``. Idempotent across calls:
-            subsequent invocations on the same day return False.
-    """
-    from datetime import datetime
-    import pytz
-
-    from app.auth.models import User
-    from app.daily_plan.linear.plan import get_linear_plan
-    from app.daily_plan.models import DailyPlanLog
-    from app.daily_plan.service import write_secured_at
-    from app.telegram.queries import get_daily_summary
-    from app.achievements.streak_service import compute_plan_steps
-
-    user = User.query.get(current_user.id)
-    if user is None or not user.use_linear_plan:
-        return api_error('linear_plan_disabled', 'Linear plan not enabled', 404)
-
-    tz = _validate_timezone(request.args.get('tz', user.timezone or DEFAULT_TZ))
-    raw_current = request.args.get('current')
-    current_slot_kind = _LINEAR_TO_SLOT_KIND.get(raw_current) if raw_current else None
-
-    plan = get_linear_plan(user.id)
-    summary = get_daily_summary(user.id, tz=tz)
-    plan_completion, _, _, _ = compute_plan_steps(plan, summary)
-
-    baseline_slots = plan.get('baseline_slots') or []
-    day_secured = bool(baseline_slots) and all(
-        plan_completion.get(slot.get('kind', ''), False)
-        for slot in baseline_slots
-    )
-
-    next_slot_payload = None
-    if not day_secured:
-        for slot in baseline_slots:
-            slot_kind = slot.get('kind', '')
-            if slot.get('skipped') or slot.get('blocked'):
-                continue
-            current_slot_incomplete = (
-                slot_kind == current_slot_kind
-                and not plan_completion.get(slot_kind, False)
-            )
-            if slot_kind == current_slot_kind and not (
-                current_slot_kind == 'srs' and current_slot_incomplete
-            ):
-                continue
-            if plan_completion.get(slot_kind, False):
-                continue
-            slot_url = slot.get('url')
-            # Fragment-only URLs (e.g. ``#book-select-modal`` when the user
-            # has no chosen book yet) only work on the dashboard, so rewrite
-            # them so the CTA from a lesson completion actually goes somewhere.
-            if isinstance(slot_url, str) and slot_url.startswith('#'):
-                slot_url = '/dashboard' + slot_url
-            next_slot_payload = {
-                'kind': _SLOT_KIND_TO_LINEAR.get(slot_kind, slot_kind),
-                'url': slot_url,
-                'title': slot.get('title'),
-            }
-            break
-
-    completion_summary = " ".join(
-        f"{s.get('kind')}={'done' if plan_completion.get(s.get('kind', ''), False) else 'pending'}"
-        for s in baseline_slots
-    )
-    logger.info(
-        "next_slot user=%s current=%s day_secured=%s next=%s [%s]",
-        user.id, raw_current, day_secured,
-        next_slot_payload.get('kind') if next_slot_payload else 'none',
-        completion_summary,
-    )
-
-    secured_just_now = False
-    if day_secured:
-        try:
-            tz_obj = pytz.timezone(tz)
-        except pytz.UnknownTimeZoneError:
-            tz_obj = pytz.timezone(DEFAULT_TZ)
-        today = datetime.now(tz_obj).date()
-
-        existing = DailyPlanLog.query.filter_by(
-            user_id=user.id, plan_date=today,
-        ).first()
-        was_already_secured = existing is not None and existing.secured_at is not None
-
-        try:
-            emit_minimum_completed(user.id, None, today)
-            write_secured_at(user.id, today, None)
-            from app.daily_plan.linear.xp import (
-                maybe_record_linear_plan_completion,
-            )
-            maybe_record_linear_plan_completion(
-                user.id, plan, plan_completion, today, db,
-            )
-            try:
-                from app.achievements.services import check_immersion_achievement
-                check_immersion_achievement(user.id, today, db.session, tz=tz)
-            except Exception:
-                logger.warning("immersion achievement check failed for user %s", user.id, exc_info=True)
-            try:
-                from app.notifications.services import check_plan_streak_milestone_notification
-                from app.telegram.queries import get_current_streak as _get_streak
-                _streak = _get_streak(user.id, tz=tz)
-                check_plan_streak_milestone_notification(user.id, _streak, today)
-            except Exception:
-                logger.warning("plan streak milestone notification failed for user %s", user.id, exc_info=True)
-            db.session.commit()
-            secured_just_now = not was_already_secured
-            if secured_just_now:
-                logger.info("next_slot user=%s day_secured_just_now=true date=%s", user.id, today)
-        except Exception:
-            logger.warning(
-                "secured_at write failed in daily_plan_next_slot",
-                exc_info=True,
-            )
-            db.session.rollback()
-
-    return jsonify({
-        'success': True,
-        'next': next_slot_payload,
-        'day_secured': day_secured,
-        'secured_just_now': secured_just_now,
-    })
 
 
 @api_daily_plan.route('/daily-plan/continuation')
@@ -895,6 +625,15 @@ def record_daily_plan_event():
             400,
         )
 
+    # Reject plan-altering events while the user has the plan on pause.
+    # Read-only events (next_step_shown, vocab_lookup, etc.) stay allowed
+    # because they're telemetry — only state-changing actions are gated.
+    _PAUSE_BLOCKED = {'slot_skipped', 'next_step_accepted', 'session_ended_at_minimum'}
+    if event_type in _PAUSE_BLOCKED:
+        from app.daily_plan.service import is_plan_paused
+        if is_plan_paused(current_user):
+            return api_error('plan_paused', 'План на паузе', 403)
+
     import pytz as _pytz_ev
     _tz_name_ev = getattr(current_user, 'timezone', None) or DEFAULT_TZ
     try:
@@ -936,12 +675,12 @@ def record_daily_plan_event():
                 f'reason must be one of: {", ".join(sorted(_SKIP_REASONS))}',
                 400,
             )
-        from app.daily_plan.linear.plan import (
+        from app.daily_plan.skips import (
             DAILY_SLOT_SKIP_QUOTA,
-            get_linear_plan,
             get_slot_skip_key,
             get_slot_skips_used_today,
         )
+        from app.daily_plan.plan import get_daily_plan as get_unified_plan
 
         skips_used = get_slot_skips_used_today(current_user.id, plan_date, db)
         if skips_used >= DAILY_SLOT_SKIP_QUOTA:
@@ -951,10 +690,16 @@ def record_daily_plan_event():
                 429,
             )
 
-        plan = get_linear_plan(current_user.id, db)
+        # All users are unified now — validate that the skip targets the
+        # current actionable item from the unified plan.
         active_slot = None
         active_index = None
-        for idx, slot in enumerate(plan.get('slots') or plan.get('baseline_slots') or []):
+        try:
+            unified = get_unified_plan(current_user.id, db) or {}
+            active_items = unified.get('required') or []
+        except Exception:
+            active_items = []
+        for idx, slot in enumerate(active_items):
             if (
                 not slot.get('completed')
                 and not slot.get('skipped')
@@ -1131,27 +876,6 @@ def complete_error_review():
             'leveled_up': perfect_day.leveled_up,
         }
     return jsonify(response)
-
-
-@api_daily_plan.route('/daily-plan/dismiss-rival-strip', methods=['POST'])
-@csrf.exempt
-@api_auth_required
-def dismiss_rival_strip():
-    """Permanently dismiss the ghost rival strip for the current user."""
-    from app.auth.models import User
-
-    user = db.session.get(User, current_user.id)
-    if user is None:
-        return api_error('not_found', 'User not found', 404)
-
-    user.rival_strip_dismissed = True
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        return api_error('db_error', 'Failed to dismiss rival strip', 500)
-
-    return jsonify({'status': 'ok'})
 
 
 @api_daily_plan.route('/plan/pause', methods=['POST'])

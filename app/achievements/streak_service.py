@@ -8,7 +8,6 @@ from sqlalchemy.exc import IntegrityError
 
 from app.utils.db import db
 from app.achievements.models import StreakCoins, StreakEvent
-from app.daily_plan.models import MODE_CATEGORY_MAP
 from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
@@ -33,8 +32,6 @@ def get_required_steps(streak_length: int, steps_total: int) -> int:
         required = 1
     return min(required, steps_total)
 
-
-_MODE_DONE_CHECK = {k: v for k, v in MODE_CATEGORY_MAP.items() if k != 'success_marker'}
 
 _MODE_COMPLETION_BUCKET: dict[str, str] = {
     'srs_review': 'srs',
@@ -162,6 +159,15 @@ def _compute_unified_item_completion(
         ),
         'error_review': (
             int(daily_summary.get('error_review_resolved_today', 0) or 0) > 0
+        ),
+        # ``daily_summary['lessons_count']`` counts curriculum
+        # LessonProgress rows completed today (see telegram.queries
+        # get_daily_summary). Falls back to ``lessons_completed_today`` for
+        # callers that surface that key instead. Lets day_secured flip True
+        # even if the curriculum item rebuilt around the next pending lesson.
+        'curriculum': (
+            int(daily_summary.get('lessons_count', 0) or 0) > 0
+            or int(daily_summary.get('lessons_completed_today', 0) or 0) > 0
         ),
     }
 

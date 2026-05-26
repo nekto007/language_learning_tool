@@ -78,13 +78,15 @@ def sitemap() -> Response:
     for base_url in site_urls:
         for topic in topics:
             url_el = SubElement(urlset, 'url')
-            SubElement(url_el, 'loc').text = f'{base_url}/grammar-lab/topic/{topic.id}'
+            SubElement(url_el, 'loc').text = f'{base_url}/grammar-lab/topic/{topic.slug}'
             SubElement(url_el, 'priority').text = '0.7'
             SubElement(url_el, 'changefreq').text = 'monthly'
             if topic.updated_at:
                 SubElement(url_el, 'lastmod').text = topic.updated_at.strftime('%Y-%m-%d')
 
-    # Dictionary pages (top 500 words)
+    # Dictionary pages — all public words, capped at Google's per-sitemap limit (50k).
+    # Words ordered by frequency_rank so the most valuable URLs are indexed first
+    # if the cap is ever hit.
     from app.words.models import CollectionWords
     top_words = (
         CollectionWords.query
@@ -94,7 +96,7 @@ def sitemap() -> Response:
             CollectionWords.frequency_rank.asc().nullslast(),
             CollectionWords.id.asc(),
         )
-        .limit(500)
+        .limit(45000)
         .all()
     )
     letters = (
@@ -116,10 +118,39 @@ def sitemap() -> Response:
     return Response(xml_bytes, mimetype='application/xml')
 
 
+@seo_bp.route('/llms.txt')
+def llms_txt() -> Response:
+    """Serve llms.txt — emerging standard declaring site structure for LLM crawlers."""
+    site_url = (current_app.config.get('SITE_URL') or 'https://llt-english.com').rstrip('/')
+    content = (
+        '# LLT English — Language Learning Tool\n\n'
+        '> Бесплатная платформа для изучения английского языка: '
+        'грамматика с правилами и примерами, англо-русский словарь с уровнями CEFR, '
+        'аудио, упражнения и интервальное повторение.\n\n'
+        '## Основные разделы\n\n'
+        f'- [Главная]({site_url}/): курсы по уровням, словарь, грамматика\n'
+        f'- [Каталог курсов]({site_url}/courses/): курсы английского по уровням A1–C1\n'
+        f'- [Грамматика английского]({site_url}/grammar-lab/topics): темы с правилами, '
+        'примерами и таблицами\n'
+        f'- [Англо-русский словарь]({site_url}/dictionary): переводы, IPA, '
+        'примеры, частотность\n\n'
+        '## Структурированные данные\n\n'
+        '- WebSite / FAQPage на главной\n'
+        '- LearningResource + BreadcrumbList + FAQPage на страницах грамматических тем\n'
+        '- DefinedTerm на страницах словаря\n'
+        '- Course / CourseInstance в каталоге курсов\n'
+        '- ItemList на листингах\n\n'
+        '## Машинные ресурсы\n\n'
+        f'- [Sitemap]({site_url}/sitemap.xml)\n'
+        f'- [Robots]({site_url}/robots.txt)\n'
+    )
+    return Response(content, mimetype='text/plain; charset=utf-8')
+
+
 @seo_bp.route('/robots.txt')
 def robots() -> Response:
     """Serve robots.txt."""
-    site_urls = _site_urls()
+    site_url = (current_app.config.get('SITE_URL') or '').rstrip('/')
     content = (
         'User-agent: *\n'
         'Allow: /\n'
@@ -136,5 +167,5 @@ def robots() -> Response:
         'Disallow: /reset_password\n'
         'Disallow: /notifications/\n'
     )
-    content += ''.join(f'\nSitemap: {site_url}/sitemap.xml' for site_url in site_urls) + '\n'
+    content += f'\nSitemap: {site_url}/sitemap.xml\n'
     return Response(content, mimetype='text/plain')

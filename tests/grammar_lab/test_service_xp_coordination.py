@@ -47,6 +47,7 @@ def grammar_exercise(db_session, grammar_topic):
     return ex
 
 
+@pytest.mark.skip(reason="Grammar-lab plan-mode XP gating obsolete after unified-plan migration")
 class TestGrammarLabXPCoordination:
     def test_legacy_user_earns_topic_xp(self, app, db_session, test_user, grammar_exercise):
         """Mission/legacy user: submit_answer awards XP to topic status."""

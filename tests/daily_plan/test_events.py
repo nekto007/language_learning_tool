@@ -42,12 +42,14 @@ def _make_slot(kind='curriculum', completed=False, skipped=False, blocked=False)
 
 
 def _plan_for_current(kind='curriculum'):
-    slots = [_make_slot(kind)]
+    """Build a unified-plan payload with one required item of the given kind."""
+    slot = _make_slot(kind)
+    slot['id'] = f'{kind}:fake'
     return {
-        'mode': 'linear',
-        'slots': slots,
-        'baseline_slots': slots,
-        'chain_meta': {'baseline_count': len(slots)},
+        'mode': 'unified',
+        'required': [slot],
+        'optional': [],
+        'setup': [],
     }
 
 
@@ -96,7 +98,7 @@ class TestClientEventsSet:
 
 class TestSlotSkipEndpoint:
     def test_valid_skip_top_level_fields(self, authenticated_client, db_session):
-        with patch('app.daily_plan.linear.plan.get_linear_plan',
+        with patch('app.daily_plan.plan.get_daily_plan',
                    return_value=_plan_for_current('curriculum')):
             r = authenticated_client.post(
                 '/api/daily-plan/events',
@@ -112,7 +114,7 @@ class TestSlotSkipEndpoint:
         assert data['event_type'] == 'slot_skipped'
 
     def test_valid_skip_meta_format(self, authenticated_client, db_session):
-        with patch('app.daily_plan.linear.plan.get_linear_plan',
+        with patch('app.daily_plan.plan.get_daily_plan',
                    return_value=_plan_for_current('srs')):
             r = authenticated_client.post(
                 '/api/daily-plan/events',
@@ -124,8 +126,8 @@ class TestSlotSkipEndpoint:
         assert r.status_code == 200
 
     def test_all_valid_reasons_accepted(self, authenticated_client, db_session):
-        with patch('app.daily_plan.linear.plan.get_slot_skips_used_today', return_value=0), \
-             patch('app.daily_plan.linear.plan.get_linear_plan',
+        with patch('app.daily_plan.skips.get_slot_skips_used_today', return_value=0), \
+             patch('app.daily_plan.plan.get_daily_plan',
                    return_value=_plan_for_current('reading')):
             for reason in ('no_time', 'too_hard', 'not_today'):
                 r = authenticated_client.post(
@@ -181,122 +183,6 @@ class TestSlotSkipEndpoint:
             },
         )
         assert r.status_code == 400
-
-
-# ── _get_skipped_slot_kinds unit tests ────────────────────────────────────────
-
-
-class TestGetSkippedSlotKinds:
-    def test_returns_empty_set_when_no_events(self, app):
-        with app.app_context():
-            from app.daily_plan.linear.plan import _get_skipped_slot_kinds
-            mock_db = MagicMock()
-            mock_db.session.query.return_value.filter_by.return_value.all.return_value = []
-            result = _get_skipped_slot_kinds(1, date.today(), mock_db)
-            assert result == set()
-
-    def test_returns_kinds_from_events(self, app):
-        with app.app_context():
-            from app.daily_plan.linear.plan import _get_skipped_slot_kinds
-            mock_db = MagicMock()
-            events = [
-                _make_mock_event(step_kind='curriculum'),
-                _make_mock_event(step_kind='srs'),
-            ]
-            mock_db.session.query.return_value.filter_by.return_value.all.return_value = events
-            result = _get_skipped_slot_kinds(1, date.today(), mock_db)
-            assert result == {'curriculum', 'srs'}
-
-    def test_ignores_events_with_null_step_kind(self, app):
-        with app.app_context():
-            from app.daily_plan.linear.plan import _get_skipped_slot_kinds
-            mock_db = MagicMock()
-            ev = _make_mock_event(step_kind=None)
-            mock_db.session.query.return_value.filter_by.return_value.all.return_value = [ev]
-            result = _get_skipped_slot_kinds(1, date.today(), mock_db)
-            assert result == set()
-
-
-class TestApplySkippedSlots:
-    def test_curriculum_skip_blocks_later_curriculum_dependent_slots(self, app):
-        with app.app_context():
-            from app.daily_plan.linear.plan import _apply_skipped_slots
-            slots = [
-                _make_slot('curriculum'),
-                _make_slot('reading'),
-                _make_slot('listening'),
-            ]
-            slots[0]['data'] = {'lesson_id': 10}
-            slots[2]['data'] = {'lesson_id': 11}
-
-            _apply_skipped_slots(slots, [('curriculum', 'lesson:10')])
-
-            assert slots[0]['skipped'] is True
-            assert slots[1].get('skipped') is not True
-            assert slots[1].get('blocked') is not True
-            assert slots[2]['blocked'] is True
-
-    def test_any_curriculum_backed_skip_blocks_later_curriculum_slots(self, app):
-        with app.app_context():
-            from app.daily_plan.linear.plan import _apply_skipped_slots
-            slots = [
-                _make_slot('listening'),
-                _make_slot('reading'),
-                _make_slot('writing'),
-            ]
-            slots[0]['data'] = {'lesson_id': 10}
-            slots[2]['data'] = {'lesson_id': 11}
-
-            _apply_skipped_slots(slots, [('listening', 'lesson:10')])
-
-            assert slots[0]['skipped'] is True
-            assert slots[1].get('blocked') is not True
-            assert slots[2]['blocked'] is True
-
-    def test_completed_skipped_lesson_does_not_skip_next_curriculum(self, app):
-        with app.app_context():
-            from app.daily_plan.linear.plan import _apply_skipped_slots
-            slots = [
-                _make_slot('curriculum', completed=True),
-                _make_slot('curriculum'),
-            ]
-            slots[0]['data'] = {'lesson_id': 10}
-            slots[1]['data'] = {'lesson_id': 11}
-
-            _apply_skipped_slots(slots, [('curriculum', 'lesson:10')])
-
-            assert slots[0].get('skipped') is not True
-            assert slots[1].get('skipped') is not True
-
-
-# ── compute_linear_day_secured with skipped slots ────────────────────────────
-
-
-class TestComputeLinearDaySecured:
-    def test_skipped_slot_not_completed_blocks_secured(self, app):
-        with app.app_context():
-            from app.daily_plan.linear.plan import compute_linear_day_secured
-            slots = [
-                _make_slot('curriculum', completed=True),
-                _make_slot('srs', skipped=True),
-                _make_slot('reading', completed=True),
-            ]
-            # skipped ≠ completed: day must NOT be secured
-            assert compute_linear_day_secured(slots) is False
-
-    def test_all_completed_is_secured(self, app):
-        with app.app_context():
-            from app.daily_plan.linear.plan import compute_linear_day_secured
-            slots = [
-                _make_slot('curriculum', completed=True),
-                _make_slot('srs', completed=True),
-            ]
-            assert compute_linear_day_secured(slots) is True
-
-    def test_empty_baseline_not_secured(self, app):
-        with app.app_context():
-            from app.daily_plan.linear.plan import compute_linear_day_secured
-            assert compute_linear_day_secured([]) is False
 
 
 # ── Template state machine: skipped unlocks next slot ────────────────────────

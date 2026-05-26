@@ -111,14 +111,22 @@ def get_linear_event_local_date(
 
 
 def is_linear_user(user_id: int) -> bool:
-    """Return True when the user has the linear plan flag enabled."""
+    """Compat shim: linear and unified users get the same XP wiring.
+
+    Previously gated XP awards on ``use_linear_plan``. After the unified
+    refactor every active user receives these XP credits, so this just
+    confirms the user exists. Kept under the old name so existing call
+    sites (XP helpers, slot completion endpoints) need no rename.
+    """
     from app.auth.models import User
     from app.utils.db import db
 
     user = db.session.get(User, user_id)
-    if user is None:
-        return False
-    return bool(getattr(user, 'use_linear_plan', False))
+    return user is not None
+
+
+# Alias the canonical helper name for new call sites.
+is_unified_user = is_linear_user
 
 
 def get_source_for_lesson_type(lesson_type: Optional[str]) -> Optional[str]:
@@ -152,12 +160,15 @@ def award_linear_slot_xp_idempotent(
     for_date: Optional[date_cls] = None,
     db_session: Any = None,
     score: Optional[float] = None,
+    extra_details: Optional[dict] = None,
 ) -> Optional[XPAward]:
     """Award linear XP once per (user, date, source).
 
     Returns the ``XPAward`` on first call for that tuple, ``None`` on
     subsequent calls the same day. Caller owns the commit. ``score``
-    (0..100) scales the base XP for graded sources.
+    (0..100) scales the base XP for graded sources. ``extra_details``
+    is merged into ``StreakEvent.details`` so callers can record
+    auxiliary keys (e.g., ``lesson_id`` for curriculum sources).
     """
     if source not in LINEAR_XP:
         logger.warning('linear_xp: unknown source %r for user=%s', source, user_id)
@@ -173,12 +184,15 @@ def award_linear_slot_xp_idempotent(
         return None
 
     result = award_linear_xp(user_id, source, score=score)
+    details: dict = {'source': source, 'xp': result.xp_awarded}
+    if extra_details:
+        details.update(extra_details)
     db_obj.session.add(StreakEvent(
         user_id=user_id,
         event_type=LINEAR_XP_EVENT_TYPE,
         event_date=when,
         coins_delta=0,
-        details={'source': source, 'xp': result.xp_awarded},
+        details=details,
     ))
     from app.daily_plan.models import DailyPlanEvent
 
@@ -229,8 +243,12 @@ def maybe_award_curriculum_xp(
     if source is None:
         return None
 
+    lesson_id = getattr(lesson, 'id', None)
+    extra = {'lesson_id': int(lesson_id)} if lesson_id is not None else None
+
     return award_linear_slot_xp_idempotent(
         user_id, source, for_date, db_session, score=score,
+        extra_details=extra,
     )
 
 
@@ -254,14 +272,29 @@ def maybe_award_book_reading_xp(
 ) -> Optional[XPAward]:
     """Award linear XP when the reading slot completes for the day.
 
-    Called once per day regardless of how many chapters the user
-    advances — the slot itself only flips to ``completed=True`` when the
-    ``UserChapterProgress`` delta crosses ``READ_PROGRESS_THRESHOLD``.
+    Defends the time gate inside the helper so any future call site
+    can't credit XP by simply invoking this — it requires the user to
+    have a selected book AND ≥``MIN_READING_SECONDS`` of closed-session
+    time today for that book. Idempotent per (user, date, source).
     """
     if not is_linear_user(user_id):
         return None
+
+    from app.utils.db import db
+    from app.books.reading_session import has_min_reading_time_today
+    from app.daily_plan.linear.slots.reading_slot import get_user_reading_preference
+
+    db_obj = db_session if db_session is not None else db
+
+    preference = get_user_reading_preference(user_id, db_obj)
+    if preference is None or preference.book_id is None:
+        return None
+
+    if not has_min_reading_time_today(user_id, int(preference.book_id), db_obj):
+        return None
+
     return award_linear_slot_xp_idempotent(
-        user_id, 'linear_book_reading', for_date, db_session,
+        user_id, 'linear_book_reading', for_date, db_obj,
     )
 
 

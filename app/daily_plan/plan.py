@@ -40,6 +40,74 @@ logger = logging.getLogger(__name__)
 
 OPTIONAL_MAX = 10
 
+# Items that must wait for the curriculum slot to complete — skipping
+# curriculum locks them too. Same set as the linear plan uses (listening
+# is intentionally NOT in this set; it walks the spine independently).
+_CURRICULUM_DEPENDENT_KINDS = frozenset({'curriculum', 'speaking', 'writing'})
+
+
+def _get_unified_skipped_kinds(user_id: int, db: Any) -> set[str]:
+    """Return the kinds of required items the user skipped today."""
+    from app.daily_plan.models import DailyPlanEvent
+    from app.utils.time_utils import get_user_local_date
+
+    today = get_user_local_date(user_id, db)
+    rows = (
+        db.session.query(DailyPlanEvent.step_kind)
+        .filter(
+            DailyPlanEvent.user_id == user_id,
+            DailyPlanEvent.event_type == 'slot_skipped',
+            DailyPlanEvent.plan_date == today,
+        )
+        .all()
+    )
+    return {row.step_kind for row in rows if row.step_kind}
+
+
+def _apply_unified_skip_state(
+    required_dicts: list[dict[str, Any]],
+    skipped_kinds: set[str],
+) -> None:
+    """Mark skipped items + lock curriculum-dependents after a curriculum skip.
+
+    Mutates ``required_dicts`` in place. Idempotent; safe to call multiple
+    times. Items that are already completed are never marked skipped or
+    blocked — completion always wins.
+    """
+    if not skipped_kinds:
+        return
+    curriculum_skipped = False
+    for item in required_dicts:
+        if item.get('completed', False):
+            continue
+        kind = item.get('kind', '')
+        if kind in skipped_kinds:
+            item['skipped'] = True
+            if kind == 'curriculum':
+                curriculum_skipped = True
+            continue
+        if curriculum_skipped and kind in _CURRICULUM_DEPENDENT_KINDS:
+            item['blocked'] = True
+            item.setdefault('data', {})['locked_reason'] = (
+                'Сначала завершите урок курса'
+            )
+
+
+def _annotate_unified_skip_quota(
+    required_dicts: list[dict[str, Any]],
+    skips_used: int,
+) -> None:
+    """Expose the daily slot-skip quota on currently actionable items."""
+    from app.daily_plan.skips import DAILY_SLOT_SKIP_QUOTA
+
+    skips_remaining = max(DAILY_SLOT_SKIP_QUOTA - skips_used, 0)
+    for item in required_dicts:
+        if item.get('completed') or item.get('skipped') or item.get('blocked'):
+            continue
+        data = item.setdefault('data', {})
+        data['slot_skip_allowed'] = skips_remaining > 0
+        data['slot_skips_remaining'] = skips_remaining
+
 # Priority order for building optional items. Items already present in
 # required (matched by ``id``) are skipped to avoid duplication.
 _OPTIONAL_PRIORITY = (
@@ -278,12 +346,26 @@ def get_daily_plan(
             user_id, [it.kind for it in setup],
         )
 
+    required_dicts = [it.to_dict() for it in required]
+
+    # Apply per-day skip state before serialising so the template sees
+    # 'skipped'/'blocked' flags and the skip-quota annotation in one place.
+    from app.daily_plan.skips import get_slot_skips_used_today
+
+    skipped_kinds = _get_unified_skipped_kinds(user_id, session)
+    if skipped_kinds:
+        _apply_unified_skip_state(required_dicts, skipped_kinds)
+    _annotate_unified_skip_quota(
+        required_dicts,
+        get_slot_skips_used_today(user_id, _today_user_local(user_id, session), session),
+    )
+
     return {
         'mode': 'unified',
         'position': _position_from_lesson(next_lesson),
         'progress': _level_progress_to_dict(level_progress),
         'module_progress': module_progress,
-        'required': [it.to_dict() for it in required],
+        'required': required_dicts,
         'optional': [it.to_dict() for it in optional],
         'setup': [it.to_dict() for it in setup],
         'day_secured': day_secured,
@@ -291,6 +373,11 @@ def get_daily_plan(
         'plan_intensity': get_plan_intensity(total_estimated_minutes),
         'has_more_optional': has_more_optional,
     }
+
+
+def _today_user_local(user_id: int, db: Any):
+    from app.utils.time_utils import get_user_local_date
+    return get_user_local_date(user_id, db)
 
 
 def _compute_module_progress(user_id: int, db: Any, next_lesson: Any) -> Optional[dict[str, Any]]:

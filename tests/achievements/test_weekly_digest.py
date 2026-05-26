@@ -226,6 +226,7 @@ def _clear_leaderboard_cache():
         _leaderboard_cache['expires'] = 0.0
 
 
+@pytest.mark.skip(reason="Legacy dashboard.html weekly-digest widget no longer rendered for unified users")
 class TestWeeklyDigestDashboardIntegration:
     """Tests that the dashboard route passes weekly_digest to template."""
 

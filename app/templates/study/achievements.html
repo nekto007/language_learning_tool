@@ -147,7 +147,14 @@
       {% set earned = item.earned %}
       {% set earned_at = item.earned_at %}
 
-      <div class="ach-card {% if earned %}ach-card--earned{% else %}ach-card--locked{% endif %}">
+      {% set _tip_prefix = 'Получено: ' if earned else 'Как получить: ' %}
+      {% set _tip_text = _tip_prefix ~ ach.description %}
+      <div class="ach-card {% if earned %}ach-card--earned{% else %}ach-card--locked{% endif %}"
+           data-ach-tooltip="{{ _tip_text }}"
+           title="{{ _tip_text }}"
+           tabindex="0"
+           role="group"
+           aria-label="{{ ach.name }} — {{ _tip_text }}">
         {% if earned %}
         <div class="ach-card__badge">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -498,6 +505,61 @@
   padding: 1.25rem 1rem;
   text-align: center;
   transition: all 0.25s ease;
+  cursor: help;
+  outline: none;
+}
+
+/* Hover tooltip — shows "Как получить:" / "Получено:" + ach.description.
+   Suppresses the native title bubble (we rely on data-ach-tooltip via CSS)
+   only on devices that actually support hover; touch devices keep title for
+   long-press accessibility. */
+@media (hover: hover) {
+  .ach-card[data-ach-tooltip]::after {
+    content: attr(data-ach-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    background: rgba(15, 23, 42, 0.96);
+    color: #f8fafc;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    font-weight: 500;
+    padding: 0.5rem 0.7rem;
+    border-radius: 8px;
+    max-width: 220px;
+    width: max-content;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 10;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  }
+  .ach-card[data-ach-tooltip]::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(15, 23, 42, 0.96);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10;
+  }
+  .ach-card[data-ach-tooltip]:hover::after,
+  .ach-card[data-ach-tooltip]:focus::after,
+  .ach-card[data-ach-tooltip]:focus-visible::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .ach-card[data-ach-tooltip]:hover::before,
+  .ach-card[data-ach-tooltip]:focus::before,
+  .ach-card[data-ach-tooltip]:focus-visible::before {
+    opacity: 1;
+  }
 }
 
 .ach-card--earned {

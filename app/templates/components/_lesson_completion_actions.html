@@ -23,19 +23,12 @@ Catalog flow (default, no plan context):
 #}
 {% set _dp = daily_plan_ctx %}
 {% if _dp and _dp.is_daily_plan %}
-  {# ── Daily-plan flow: two-button minimal CTA stack ── #}
-  {% if _dp.next_slot_url %}
-    <a href="{{ _dp.next_slot_url }}"
-       class="lsn-btn lsn-btn--primary"
-       data-plan-cta="next-slot"
-       data-plan-next-slot-url="{{ _dp.next_slot_url }}"
-       data-plan-next-slot-title="{{ _dp.next_slot_title or '' }}">
-      Дальше{% if _dp.next_slot_title %}: {{ _dp.next_slot_title }}{% endif %}
-      <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </a>
-  {% endif %}
+  {# ── Daily-plan flow: two equal-weight CTAs.
+       Both rendered with the primary style so the user perceives them
+       as parallel choices (dashboard vs. next plan slot) rather than a
+       primary/secondary hierarchy. #}
   <a href="{{ _dp.dashboard_url }}{% if _dp.day_secured %}?day_secured=1{% endif %}"
-     class="lsn-btn lsn-btn--{% if _dp.next_slot_url %}outline{% else %}primary{% endif %}"
+     class="lsn-btn lsn-btn--primary lsn-btn--plan-equal"
      data-plan-cta="dashboard">
     {% if _dp.day_secured and not _dp.next_slot_url %}
       День завершён · на дашборд
@@ -43,6 +36,16 @@ Catalog flow (default, no plan context):
       На дашборд
     {% endif %}
   </a>
+  {% if _dp.next_slot_url %}
+    <a href="{{ _dp.next_slot_url }}"
+       class="lsn-btn lsn-btn--primary lsn-btn--plan-equal"
+       data-plan-cta="next-slot"
+       data-plan-next-slot-url="{{ _dp.next_slot_url }}"
+       data-plan-next-slot-title="{{ _dp.next_slot_title or '' }}">
+      Следующий урок плана
+      <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </a>
+  {% endif %}
 {% else %}
   {# ── Catalog flow: legacy "next lesson" + "back to module" ── #}
   {% set _back_url = back_url %}

@@ -483,7 +483,15 @@ def lesson_by_id(lesson_id):
 
     lesson = Lessons.query.get_or_404(lesson_id)
     if lesson.type in _CANONICAL_LESSON_ROUTE_TYPES:
-        return redirect(url_for('curriculum_lessons.lesson_detail', lesson_id=lesson.id))
+        # Сохраняем query string при редиректе: иначе ?from=linear_plan&
+        # slot=... теряется и daily_plan_ctx приходит is_daily_plan=False,
+        # из-за чего на listening_immersion/quiz/final_test показывались
+        # каталожные CTA вместо «На дашборд / Следующий урок плана».
+        query = request.query_string.decode('utf-8') if request.query_string else ''
+        target = url_for('curriculum_lessons.lesson_detail', lesson_id=lesson.id)
+        if query:
+            target = f'{target}?{query}'
+        return redirect(target)
 
     # Get or create user progress
     progress = LessonProgress.query.filter_by(

@@ -17,7 +17,6 @@ from typing import Any, Optional
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
-from app.daily_plan.linear.progression import find_next_lesson_linear
 from app.daily_plan.linear.slots import LinearSlot
 from app.daily_plan.linear.slots.curriculum_slot import _eta_minutes
 
@@ -59,14 +58,18 @@ def _listening_done_today(user_id: int, db: Any) -> bool:
 
 
 def _find_next_listening_lesson(user_id: int, db: Any) -> Optional[Lessons]:
-    """Return the next incomplete listening lesson in the user's current module.
+    """Return the next incomplete listening lesson on the linear spine.
 
-    Looks within the module of the user's current spine position. Returns
-    ``None`` when the current module has no incomplete listening lessons.
+    Walks the linear spine (CEFRLevel.order, Module.number, Lessons.number)
+    starting from the user's onboarding level and returns the first
+    listening lesson whose module's prerequisites are satisfied — so the
+    slot is reachable even if the user has skipped/deferred the current
+    curriculum lesson. Returns ``None`` when no eligible listening
+    lesson remains.
     """
-    next_lesson = find_next_lesson_linear(user_id, db)
-    if next_lesson is None:
-        return None
+    from app.daily_plan.linear.progression import _user_min_level_order
+
+    min_order = _user_min_level_order(user_id, db)
 
     completed_subq = (
         db.session.query(LessonProgress.lesson_id)
@@ -77,16 +80,33 @@ def _find_next_listening_lesson(user_id: int, db: Any) -> Optional[Lessons]:
         .subquery()
     )
 
-    return (
+    candidates = (
         db.session.query(Lessons)
+        .join(Module, Module.id == Lessons.module_id)
+        .join(CEFRLevel, CEFRLevel.id == Module.level_id)
         .filter(
-            Lessons.module_id == next_lesson.module_id,
+            CEFRLevel.order >= min_order,
             Lessons.type.in_(list(_LISTENING_LESSON_TYPES)),
             Lessons.id.notin_(db.session.query(completed_subq.c.lesson_id)),
         )
-        .order_by(Lessons.number.asc(), Lessons.id.asc())
-        .first()
+        .order_by(
+            CEFRLevel.order.asc(),
+            Module.number.asc(),
+            Lessons.number.asc(),
+            Lessons.id.asc(),
+        )
+        .limit(20)
+        .all()
     )
+
+    for lesson in candidates:
+        module = lesson.module
+        if module is None:
+            continue
+        accessible, _ = module.check_prerequisites(user_id, min_level_order=min_order)
+        if accessible:
+            return lesson
+    return None
 
 
 def build_listening_slot(user_id: int, db: Any) -> Optional[LinearSlot]:

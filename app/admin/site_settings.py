@@ -15,8 +15,6 @@ logger = logging.getLogger(__name__)
 # Values are stored as TEXT; callers cast to the appropriate type.
 SETTING_DEFAULTS: dict[str, str] = {
     # Feature flags
-    'default_linear_plan': 'false',
-    'default_mission_plan': 'false',
     'daily_race_enabled': 'true',
     'streak_shield_enabled': 'true',
     # SEO defaults
@@ -48,14 +46,6 @@ SETTING_DEFAULTS: dict[str, str] = {
 # SETTING_DEFAULTS exactly; an entry missing from SETTING_META falls back
 # to type='str' with no description.
 SETTING_META: dict[str, dict[str, str]] = {
-    'default_linear_plan': {
-        'type': 'bool',
-        'description': 'Новые пользователи получают use_linear_plan=True при регистрации.',
-    },
-    'default_mission_plan': {
-        'type': 'bool',
-        'description': 'Новые пользователи получают use_mission_plan=True при регистрации.',
-    },
     'daily_race_enabled': {
         'type': 'bool',
         'description': 'Включает функцию ежедневной гонки (daily race) на дашборде.',

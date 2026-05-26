@@ -12,7 +12,38 @@
 {% endblock %}
 
 {% block head_extra %}
-<link rel="canonical" href="https://llt-english.com/grammar-lab/topics{% if current_level %}/{{ current_level }}{% endif %}">
+<link rel="canonical" href="https://llt-english.com/grammar-lab/topics{% if current_level %}/{{ current_level|lower }}{% endif %}">
+{% if topics %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": {{ ('Темы грамматики английского языка' ~ (' — ' ~ current_level if current_level else ''))|tojson }},
+  "numberOfItems": {{ topics|length }},
+  "itemListElement": [
+    {% for t in topics %}
+    {
+      "@type": "ListItem",
+      "position": {{ loop.index }},
+      "url": {{ ('https://llt-english.com/grammar-lab/topic/' ~ t.slug)|tojson }},
+      "name": {{ ((t.title_ru or t.title) ~ ' (' ~ (t.title) ~ ')')|tojson }}
+    }{{ ',' if not loop.last }}
+    {% endfor %}
+  ]
+}
+</script>
+{% endif %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "LLT English", "item": "https://llt-english.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Grammar Lab", "item": "https://llt-english.com/grammar-lab/"}
+    {% if current_level %},{"@type": "ListItem", "position": 3, "name": {{ current_level|tojson }}, "item": {{ ('https://llt-english.com/grammar-lab/topics/' ~ current_level|lower)|tojson }} }{% endif %}
+  ]
+}
+</script>
 {% endblock %}
 
 {% block content %}
@@ -87,7 +118,7 @@
   {% if topics %}
   <div class="topics-list">
     {% for topic in topics %}
-    <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="topic-card">
+    <a href="{{ url_for('grammar_lab.topic_detail', slug=topic.slug) }}" class="topic-card">
       <!-- Level Badge -->
       <div class="topic-card__level topic-card__level--{{ topic.level[0]|lower }}">
         {{ topic.level }}

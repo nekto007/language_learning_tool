@@ -329,6 +329,26 @@ def require_lesson_access(f):
         if getattr(current_user, 'is_admin', False):
             return f(*args, **kwargs)
 
+        # Block plan-driven entry when the user has paused the daily plan.
+        # The pause is a soft block: catalogue access (no ``from=linear_plan``)
+        # remains open so the user can still browse content, but the plan
+        # itself doesn't push them into lessons.
+        from app.daily_plan.service import is_plan_paused
+        from_param = ''
+        try:
+            from_param = (request.args.get('from') or '').strip()
+        except RuntimeError:
+            from_param = ''
+        if from_param == 'linear_plan' and is_plan_paused(current_user):
+            if _is_api_request():
+                return jsonify({
+                    'success': False,
+                    'error': 'plan_paused',
+                    'message': 'План на паузе',
+                }), 403
+            flash('План на паузе', 'info')
+            return redirect(url_for('words.dashboard'))
+
         if check_lesson_access(lesson_id):
             return f(*args, **kwargs)
 
