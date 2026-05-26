@@ -145,10 +145,21 @@ def public_dictionary(letter: str | None = None):
         CollectionWords.english_word.asc(),
     ).limit(12).all()
 
-    meta_description = (
-        'Англо-русский словарь LLT English: переводы, уровни CEFR, '
-        'примеры употребления и произношение английских слов.'
-    )
+    if selected_letter:
+        meta_description = (
+            f'Английские слова на букву {selected_letter.upper()}: '
+            f'{words_page.total} переводов с примерами, уровни CEFR, произношение.'
+        )
+    elif selected_level:
+        meta_description = (
+            f'Английские слова уровня {selected_level}: '
+            f'{words_page.total} переводов на русский с примерами и произношением.'
+        )
+    else:
+        meta_description = (
+            'Англо-русский словарь LLT English: переводы, уровни CEFR, '
+            'примеры употребления и произношение английских слов.'
+        )
 
     return render_template(
         'words/public_dictionary.html',
@@ -205,6 +216,15 @@ def public_word(word_slug: str):
             .all()
         )
 
+    # Collocations (many-per-word; surface for SEO depth)
+    from app.curriculum.models import WordCollocation
+    collocations = (
+        WordCollocation.query
+        .filter(WordCollocation.word_id == word.id)
+        .order_by(WordCollocation.id)
+        .all()
+    )
+
     meta_description = (
         f'{word.english_word} — перевод: {word.russian_word}. '
         f'Уровень {word.level or ""}. Примеры, произношение и упражнения.'
@@ -221,6 +241,7 @@ def public_word(word_slug: str):
         word_profile_public=True,
         related_words=related_words,
         related_grammar=related_grammar,
+        collocations=collocations,
         meta_description=meta_description,
         canonical_url=canonical_url,
     )

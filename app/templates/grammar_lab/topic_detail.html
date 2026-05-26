@@ -43,6 +43,27 @@
   ]
 }
 </script>
+{% set _faq_mistakes = (topic.content or {}).get('common_mistakes') or [] %}
+{% if _faq_mistakes %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {% for m in _faq_mistakes[:10] %}
+    {
+      "@type": "Question",
+      "name": {{ ('Как правильно: «' ~ (m.wrong or '') ~ '»?')|tojson }},
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": {{ (('Правильно: «' ~ (m.correct or '') ~ '». ' ~ (m.explanation or '')) | trim)|tojson }}
+      }
+    }{{ ',' if not loop.last }}
+    {% endfor %}
+  ]
+}
+</script>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -101,7 +122,19 @@
     </div>
 
     <div class="topic-hero__content">
-      <div class="topic-hero__badge">{{ topic.level }}</div>
+      <div class="topic-hero__badge-row" style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center;">
+        <div class="topic-hero__badge">{{ topic.level }}</div>
+        {% if topic.estimated_time %}
+        <span class="topic-hero__meta-pill" style="background:rgba(255,255,255,0.18); color:#fff; border-radius:999px; padding:0.2rem 0.65rem; font-size:0.78rem; font-weight:700;">
+          ≈ {{ topic.estimated_time }} мин
+        </span>
+        {% endif %}
+        {% if topic.difficulty %}
+        <span class="topic-hero__meta-pill" style="background:rgba(255,255,255,0.18); color:#fff; border-radius:999px; padding:0.2rem 0.65rem; font-size:0.78rem; font-weight:700;">
+          Сложность {{ topic.difficulty }}/5
+        </span>
+        {% endif %}
+      </div>
       <h1 class="topic-hero__title">{{ topic.title }}</h1>
       <p class="topic-hero__subtitle">{{ topic.title_ru }}</p>
 
@@ -143,7 +176,7 @@
 
   <!-- Share -->
   <div style="margin-bottom: 1rem;">
-    {% set share_url = 'https://llt-english.com/grammar-lab/topic/' ~ topic.id %}
+    {% set share_url = 'https://llt-english.com/grammar-lab/topic/' ~ topic.slug %}
     {% set share_text = topic.title ~ ' (' ~ topic.title_ru ~ ') — Grammar Lab | LLT English' %}
     {% include 'components/share_buttons.html' %}
   </div>
