@@ -71,8 +71,12 @@ class TestPublicWordRoute:
             app.config['SITE_URL'] = original_site_url
 
         assert response.status_code == 200
+        # Title is built from `word.english_word` + level. Template at
+        # app/templates/words/public_word.html renders
+        # «<word> — перевод на русский, примеры, произношение | <level> английский».
         assert (
-            f'<title>{sample_word.english_word} — перевод, примеры | LLT English</title>'
+            f'<title>{sample_word.english_word} — перевод на русский, '
+            f'примеры, произношение | {sample_word.level} английский</title>'
             in html
         )
         assert '<meta name="description" content="' in html

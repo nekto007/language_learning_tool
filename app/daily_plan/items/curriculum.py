@@ -73,19 +73,76 @@ def _eta_minutes(lesson_type: Optional[str]) -> int:
 
 
 def _curriculum_done_today(user_id: int, db: Any) -> bool:
+    """Return True when the user has completed a curriculum lesson today.
+
+    Primary: StreakEvent(xp_linear) from ``maybe_award_curriculum_xp``.
+    Fallback: any LessonProgress(completed) inside the user-local day —
+    catches paths where XP failed but the lesson was still marked done.
+    """
     from app.achievements.models import StreakEvent
 
     today = get_linear_event_local_date(user_id, db)
-    query = db.session.query(StreakEvent).filter(
-        StreakEvent.user_id == user_id,
-        StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
-        StreakEvent.event_date == today,
-        StreakEvent.details['source'].astext.in_(list(_CURRICULUM_XP_SOURCES)),
-    )
-    return db.session.query(query.exists()).scalar() or False
+    xp_exists = db.session.query(
+        db.session.query(StreakEvent)
+        .filter(
+            StreakEvent.user_id == user_id,
+            StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
+            StreakEvent.event_date == today,
+            StreakEvent.details['source'].astext.in_(list(_CURRICULUM_XP_SOURCES)),
+        )
+        .exists()
+    ).scalar() or False
+    if xp_exists:
+        return True
+
+    today_start, today_end = get_user_local_day_bounds(user_id, db)
+    return db.session.query(
+        db.session.query(LessonProgress)
+        .join(Lessons, Lessons.id == LessonProgress.lesson_id)
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+            LessonProgress.completed_at.isnot(None),
+            LessonProgress.completed_at >= today_start,
+            LessonProgress.completed_at < today_end,
+            Lessons.type.in_(tuple(_CURRICULUM_LESSON_TYPES)),
+        )
+        .exists()
+    ).scalar() or False
 
 
 def _get_lesson_completed_today(user_id: int, db: Any) -> Optional[Lessons]:
+    """Return the most recent curriculum lesson finished today.
+
+    Primary signal: today's ``StreakEvent.details['lesson_id']`` written
+    by ``maybe_award_curriculum_xp``. Fallback: ``LessonProgress``.
+    """
+    from app.achievements.models import StreakEvent
+
+    today = get_linear_event_local_date(user_id, db)
+    event = (
+        db.session.query(StreakEvent)
+        .filter(
+            StreakEvent.user_id == user_id,
+            StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
+            StreakEvent.event_date == today,
+            StreakEvent.details['source'].astext.in_(list(_CURRICULUM_XP_SOURCES)),
+        )
+        .order_by(StreakEvent.id.desc())
+        .first()
+    )
+    if event is not None:
+        lesson_id_raw = (event.details or {}).get('lesson_id')
+        if lesson_id_raw is not None:
+            try:
+                lesson_id = int(lesson_id_raw)
+            except (TypeError, ValueError):
+                lesson_id = None
+            if lesson_id is not None:
+                lesson = db.session.get(Lessons, lesson_id)
+                if lesson is not None:
+                    return lesson
+
     today_start, today_end = get_user_local_day_bounds(user_id, db)
     progress = (
         db.session.query(LessonProgress)
@@ -227,10 +284,41 @@ def build_curriculum_item(
     if next_lesson is None:
         return None
 
-    # Always surface the next pending lesson on the spine. Previously this
-    # branch returned today's completed lesson as a «done» card, which hid
-    # the actual next step from the user (e.g. user finished L1 today, but
-    # the card kept showing L1 instead of advancing to L2/L3).
+    # When the user has already completed a curriculum lesson today, surface
+    # THAT lesson as a done card so the daily plan reflects what the user
+    # actually did. Without this short-circuit the item silently advances to
+    # the next pending lesson (e.g. L4 after finishing L3), the card looks
+    # unchanged, and ``plan_completion[item.id]`` can never flip True —
+    # ``_compute_unified_item_completion`` keys on ``item.id`` and only ever
+    # sees the freshly-built L4 card whose ``completed`` is False. Re-render
+    # tomorrow will naturally advance the spine.
+    done_today = _curriculum_done_today(user_id, db)
+    if done_today:
+        completed_lesson = _get_lesson_completed_today(user_id, db) or next_lesson
+        c_module = completed_lesson.module
+        c_level = c_module.level if c_module is not None else None
+        return PlanItem(
+            id=f'curriculum:lesson:{completed_lesson.id}',
+            section=section,  # type: ignore[arg-type]
+            kind='curriculum',
+            title=completed_lesson.title,
+            subtitle=_lesson_subtitle(completed_lesson),
+            lesson_type=completed_lesson.type,
+            eta_minutes=0,
+            url=None,
+            completed=True,
+            completion_signal='lesson_completed',
+            data={
+                'lesson_id': completed_lesson.id,
+                'lesson_number': completed_lesson.number,
+                'module_id': completed_lesson.module_id,
+                'module_number': c_module.number if c_module is not None else None,
+                'module_title': c_module.title if c_module is not None else None,
+                'level_code': c_level.code if c_level is not None else None,
+                'state': 'done_today',
+            },
+        )
+
     module = next_lesson.module
     level = module.level if module is not None else None
     data: dict[str, Any] = {

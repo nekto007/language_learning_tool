@@ -239,8 +239,8 @@ def build_lesson_context(
         )
 
     try:
-        from app.daily_plan.linear.plan import get_linear_plan
-        plan = get_linear_plan(user_id, db) or {}
+        from app.daily_plan.plan import get_daily_plan as get_unified_plan
+        plan = get_unified_plan(user_id, db) or {}
     except Exception:
         # Defensive: if plan assembly fails, degrade to catalog flow
         # rather than 500'ing the lesson page.
@@ -254,8 +254,13 @@ def build_lesson_context(
             dashboard_url=dashboard_url,
         )
 
-    all_slots = plan.get('slots') or []
-    baseline_slots = plan.get('baseline_slots') or []
+    # Unified plan: required items act as baseline; optional items extend
+    # the chain. Both arrays carry the same shape (kind/url/data.lesson_id),
+    # so the helper logic that selects "current" and "next" works as-is.
+    required = plan.get('required') or []
+    optional = plan.get('optional') or []
+    all_slots = required + optional
+    baseline_slots = required
 
     next_slot = _pick_next_slot(all_slots, slot_param, current_lesson_id)
     day_secured = _compute_day_secured(baseline_slots, slot_param, current_lesson_id)
