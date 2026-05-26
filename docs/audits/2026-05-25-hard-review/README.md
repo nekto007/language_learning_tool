@@ -91,6 +91,7 @@ Date: 2026-05-25
 - Task 6 full-suite regression was fixed and passed: `pytest tests/ -q --timeout=60`
 - Task 6 focused failure rerun passed: `pytest tests/test_module_content_quality.py tests/daily_plan/test_linear_progression.py::TestGetUserLevelProgress::test_fresh_user_zero_percent -q`
 - Task 6 coverage workflow check found no project coverage target or command in `pyproject.toml`, `pytest.ini`, `.coveragerc`, `Makefile`, `tox.ini`, or `setup.cfg`; coverage.py is installed, but there is no configured `--cov`/`fail-under` baseline to compare against.
+- Task 7 documentation validation passed: `pytest tests/docs -q`
 
 ## Task 2 brainstorm: Study API word_detail
 
@@ -157,3 +158,19 @@ Date: 2026-05-25
 - Full-suite validation exposed current-tree defects outside the words/Study review files: invalid Jinja pagination kwargs on admin collections, missing legacy book-course statistics helper, robots.txt sitemap host behavior, missing `share.js` on the public base template, random CEFR fixture code collisions, and local ignored `module_completed/fixed` content-quality violations. The tracked code/test defects were fixed; the ignored local content corpus was normalized in the workspace but remains uncommitted because `module_completed/` is gitignored as confidential local content.
 - `ruff` is declared in `requirements-test.txt` but is not installed in the active virtualenv; the exact lint command was attempted and documented as an environment gap.
 - There is no configured coverage target/workflow in the tracked project config, so coverage regression cannot be compared to a project target in this workspace.
+
+## Task 7 brainstorm: documentation finalization
+
+- Project patterns: the review reinforced existing rules rather than creating a new cross-cutting pattern. `CLAUDE.md` already documents standardized `api_error(...)` usage and avoiding hardcoded domains; the fixes applied those rules to Study API and public word SEO surfaces.
+- User-facing docs: `README.md` is setup/test/project-structure documentation and does not describe public word page CTAs, canonical metadata, or the Study API `word_detail` request shape. Updating it would add implementation detail outside its current scope.
+- Audit-only documentation: the useful permanent record for this pass is the audit journal: findings, evidence, linked tests, unresolved gaps, and validation commands.
+- Remaining risks: environment gaps remain documented for `ruff` and coverage target verification; no unresolved P0/P1 findings remain in the reviewed surfaces.
+
+## Final summary
+
+- Findings: 14 total findings were recorded.
+- Fixed findings: 7 findings were fixed with regression tests (`HRW-005`, `HRW-008`, `HRW-009`, `HRW-010`, `HRW-011`, `HRW-012`, `HRW-013`).
+- Covered findings: 7 findings are guarded by baseline/regression tests or explicit verification without code changes (`HRW-001`, `HRW-002`, `HRW-003`, `HRW-004`, `HRW-006`, `HRW-007`, `HRW-014`).
+- Remaining risks: no unresolved P0/P1/P2 review finding remains; `ruff` could not run because it is missing from the active environment, and coverage could not be compared because the tracked project config has no coverage target/workflow.
+- Documentation status: no `README.md` update is needed because no setup or public usage documentation changed; no `CLAUDE.md` update is needed because the relevant future-work patterns already exist there.
+- Test status: Task 1 through Task 6 commands are recorded above; Task 7 documentation validation passed with `pytest tests/docs -q`.

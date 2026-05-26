@@ -148,9 +148,9 @@
 - Modify: `README.md` only if user-facing behavior changed
 - Modify: `CLAUDE.md` only if internal patterns changed
 
-- [ ] Брейншторм: определить, появились ли новые project patterns или только локальные fixes.
-- [ ] Финализировать audit-журнал: summary, fixed findings count, remaining risks, commands run, test status.
-- [ ] Update `README.md` only if public/user-facing word page behavior or study flow changed.
-- [ ] Update `CLAUDE.md` only if появился новый внутренний паттерн, который будущим задачам нужно соблюдать.
-- [ ] Run documentation-related tests if changed: `pytest tests/docs -q`.
-- [ ] Run targeted tests again after docs-only changes if no docs tests exist: `pytest tests/test_words_routes.py tests/test_public_words_seo.py -q`.
+- [x] Брейншторм: определить, появились ли новые project patterns или только локальные fixes.
+- [x] Финализировать audit-журнал: summary, fixed findings count, remaining risks, commands run, test status.
+- [x] Update `README.md` only if public/user-facing word page behavior or study flow changed (not changed - README has no word-page/study-flow behavior section to update).
+- [x] Update `CLAUDE.md` only if появился новый внутренний паттерн, который будущим задачам нужно соблюдать (not changed - existing API error and URL rules cover the reviewed fixes).
+- [x] Run documentation-related tests if changed: `pytest tests/docs -q`.
+- [x] Run targeted tests again after docs-only changes if no docs tests exist: `pytest tests/test_words_routes.py tests/test_public_words_seo.py -q` (skipped - docs tests exist and passed).
