@@ -522,85 +522,30 @@ def _handle_plan(chat_id: int, telegram_id: int) -> None:
     streak = get_current_streak(user_id, tz=user_tz)
     coins = get_or_create_coins(user_id)
 
-    if plan.get('mission'):
-        from app.achievements.streak_service import _compute_phase_completion
-        from app.telegram.notifications import format_mission_plan_text
-        completion = _compute_phase_completion(plan['phases'], summary)
-        for p in plan['phases']:
-            p['completed'] = completion.get(p['id'], False)
-        text = format_mission_plan_text(plan)
-        text += f'\n\n\U0001f525 {streak} дней подряд  \U0001f4b0 {coins.balance}'
+    # All users are on the unified plan; legacy mission/linear branches removed.
+    if plan.get('mode') == 'unified':
+        required = plan.get('required') or []
+        text_lines = ['\U0001f4cb План на сегодня:', '']
+        for it in required:
+            icon = '\u2705' if it.get('completed') else '\u2b1c'
+            text_lines.append(f"{icon} {it.get('title', '')}")
+        text_lines.append('')
+        text_lines.append(f'\U0001f525 {streak} дней подряд  \U0001f4b0 {coins.balance}')
         buttons: list[list[dict]] = []
-        if site_url:
-            buttons.append([{
-                'text': '\U0001f3af Начать занятие',
-                'url': f'{site_url}/study?from=telegram',
-            }])
-        reply_markup = {'inline_keyboard': buttons} if buttons else None
-        _send_message(chat_id, text, reply_markup=reply_markup)
-        return
-
-    if plan.get('mode') == 'linear':
-        from app.achievements.streak_service import (
-            _compute_linear_slot_completion,
-            compute_plan_steps,
-        )
-        from app.daily_plan.linear.chain import extend_chain_after_activity
-        from app.daily_plan.linear.plan import compute_linear_day_secured
-        from app.telegram.notifications import format_linear_plan_text
-        from app.utils.db import db as _db
-
-        plan_completion, _, _, _ = compute_plan_steps(plan, summary)
-        extend_chain_after_activity(plan, plan_completion, user_id, _db)
-
-        baseline_completion = _compute_linear_slot_completion(
-            plan.get('baseline_slots') or [], summary
-        )
-        for slot in plan.get('baseline_slots') or []:
-            kind = slot.get('kind', '')
-            slot['completed'] = baseline_completion.get(kind, slot.get('completed', False))
-
-        # extend_chain_after_activity may have flipped baseline slots to
-        # completed; recompute day_secured so format_linear_plan_text doesn't
-        # render the now-stale "После минимума" hint while the CTA already
-        # points at the chain extension's next lesson.
-        plan['day_secured'] = compute_linear_day_secured(plan.get('baseline_slots') or [])
-
-        text = format_linear_plan_text(plan)
-        text += f'\n\n\U0001f525 {streak} дней подряд  \U0001f4b0 {coins.balance}'
-        buttons: list[list[dict]] = []
-        chain_slots = plan.get('slots') or plan.get('baseline_slots') or []
-        next_slot = next(
-            (
-                slot for slot in chain_slots
-                if not slot.get('completed')
-                and not slot.get('skipped')
-                and not slot.get('blocked')
-                and slot.get('url')
-            ),
+        next_item = next(
+            (it for it in required if not it.get('completed') and not it.get('skipped') and not it.get('blocked') and it.get('url')),
             None,
         )
-        if next_slot is None:
-            next_slot = next(
-                (
-                    slot for slot in chain_slots
-                    if not slot.get('completed')
-                    and slot.get('skipped')
-                    and not slot.get('blocked')
-                    and slot.get('url')
-                ),
-                None,
-            )
-        if site_url and next_slot:
+        if site_url and next_item:
             buttons.append([{
                 'text': '\U0001f3af Продолжить',
-                'url': site_url.rstrip('/') + next_slot['url'],
+                'url': site_url.rstrip('/') + next_item['url'],
             }])
         reply_markup = {'inline_keyboard': buttons} if buttons else None
-        _send_message(chat_id, text, reply_markup=reply_markup)
+        _send_message(chat_id, '\n'.join(text_lines), reply_markup=reply_markup)
         return
 
-    # Build checklist items: (done, label, url_or_none)
+    # Legacy/paused fallback path: build checklist items: (done, label, url_or_none)
     steps: list[tuple[bool, str, str | None]] = []
 
     # 1. Lesson

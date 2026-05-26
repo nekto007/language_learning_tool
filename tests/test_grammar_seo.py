@@ -29,13 +29,13 @@ class TestGrammarBreadcrumbs:
     @pytest.mark.smoke
     def test_topic_has_breadcrumb_html(self, client, grammar_topics):
         t1, _ = grammar_topics
-        response = client.get(f'/grammar-lab/topic/{t1.id}')
+        response = client.get(f'/grammar-lab/topic/{t1.slug}')
         html = response.data.decode()
         assert 'grammar-breadcrumb' in html
 
     def test_topic_has_breadcrumb_json_ld(self, client, grammar_topics):
         t1, _ = grammar_topics
-        response = client.get(f'/grammar-lab/topic/{t1.id}')
+        response = client.get(f'/grammar-lab/topic/{t1.slug}')
         html = response.data.decode()
         assert 'BreadcrumbList' in html
 
@@ -45,13 +45,13 @@ class TestRelatedTopics:
 
     def test_topic_shows_related(self, client, grammar_topics):
         t1, t2 = grammar_topics
-        response = client.get(f'/grammar-lab/topic/{t1.id}')
+        response = client.get(f'/grammar-lab/topic/{t1.slug}')
         html = response.data.decode()
         assert t2.title in html
 
     def test_topic_does_not_show_self(self, client, grammar_topics):
         t1, _ = grammar_topics
-        response = client.get(f'/grammar-lab/topic/{t1.id}')
+        response = client.get(f'/grammar-lab/topic/{t1.slug}')
         html = response.data.decode()
         assert 'topic-related' in html
 

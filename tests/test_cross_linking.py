@@ -52,12 +52,12 @@ class TestGrammarToWordCrossLink:
 
     def test_grammar_page_has_vocabulary_section(self, client, cross_link_data):
         _, topic = cross_link_data
-        response = client.get(f'/grammar-lab/topic/{topic.id}')
+        response = client.get(f'/grammar-lab/topic/{topic.slug}')
         html = response.data.decode()
         assert 'Словарь уровня' in html or 'dictionary/' in html
 
     def test_grammar_page_has_continue_learning(self, client, cross_link_data):
         _, topic = cross_link_data
-        response = client.get(f'/grammar-lab/topic/{topic.id}')
+        response = client.get(f'/grammar-lab/topic/{topic.slug}')
         html = response.data.decode()
         assert 'Курс' in html and topic.level in html

@@ -173,22 +173,9 @@ class TestUserToggleAuditLog:
         assert entry is not None
         assert entry.action in ('user.grant_admin', 'user.revoke_admin')
 
+    @pytest.mark.skip(reason="toggle_mission_plan route removed in unified-plan refactor")
     def test_toggle_mission_plan_logs_action(self, app, client, db_session):
-        admin = _make_admin(db_session)
-        target = _make_target_user(db_session)
-        db_session.commit()
-        _login(client, admin)
-
-        response = client.post(f'/admin/users/{target.id}/toggle_mission_plan', follow_redirects=False)
-        assert response.status_code in (302, 303)
-
-        entry = db_session.query(AdminAuditLog).filter_by(
-            admin_id=admin.id,
-            target_type='user',
-            target_id=target.id,
-        ).order_by(AdminAuditLog.id.desc()).first()
-        assert entry is not None
-        assert entry.action in ('user.enable_mission_plan', 'user.disable_mission_plan')
+        pass
 
 
 class TestCurriculumDeleteAuditLog:

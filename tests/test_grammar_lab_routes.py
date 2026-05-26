@@ -80,22 +80,32 @@ class TestTopics:
 
 
 class TestTopicDetail:
-    """GET /grammar-lab/topic/<id>"""
+    """GET /grammar-lab/topic/<slug> + legacy /grammar-lab/topic/<id> 301 redirect"""
 
     @pytest.mark.smoke
     def test_topic_detail_exists(self, client, db_session, grammar_topic):
-        resp = client.get(f"/grammar-lab/topic/{grammar_topic.id}")
+        resp = client.get(f"/grammar-lab/topic/{grammar_topic.slug}")
         assert resp.status_code == 200
         assert b"Present Perfect" in resp.data
 
     def test_topic_detail_missing_redirects(self, client, db_session):
-        resp = client.get("/grammar-lab/topic/999999")
+        resp = client.get("/grammar-lab/topic/no-such-topic-slug")
         assert resp.status_code == 302
         assert "/grammar-lab/topics" in resp.headers["Location"]
 
     def test_topic_detail_authenticated(self, authenticated_client, db_session, grammar_topic):
-        resp = authenticated_client.get(f"/grammar-lab/topic/{grammar_topic.id}")
+        resp = authenticated_client.get(f"/grammar-lab/topic/{grammar_topic.slug}")
         assert resp.status_code == 200
+
+    def test_legacy_id_url_redirects_to_slug(self, client, db_session, grammar_topic):
+        resp = client.get(f"/grammar-lab/topic/{grammar_topic.id}")
+        assert resp.status_code == 301
+        assert f"/grammar-lab/topic/{grammar_topic.slug}" in resp.headers["Location"]
+
+    def test_legacy_missing_id_redirects_to_topics(self, client, db_session):
+        resp = client.get("/grammar-lab/topic/999999")
+        assert resp.status_code == 302
+        assert "/grammar-lab/topics" in resp.headers["Location"]
 
 
 # ==================== HTML Pages (Auth Required) ====================

@@ -141,11 +141,11 @@ class TestValidateSettingValue:
         ('No', 'false'),
     ])
     def test_bool_normalisation(self, raw, expected):
-        assert validate_setting_value('default_linear_plan', raw) == expected
+        assert validate_setting_value('daily_race_enabled', raw) == expected
 
     def test_bool_invalid_raises(self):
         with pytest.raises(SettingValidationError):
-            validate_setting_value('default_linear_plan', 'maybe')
+            validate_setting_value('daily_race_enabled', 'maybe')
 
     def test_int_basic(self):
         assert validate_setting_value('referral_bonus_xp', '42') == '42'

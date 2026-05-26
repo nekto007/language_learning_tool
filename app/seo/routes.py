@@ -78,7 +78,7 @@ def sitemap() -> Response:
     for base_url in site_urls:
         for topic in topics:
             url_el = SubElement(urlset, 'url')
-            SubElement(url_el, 'loc').text = f'{base_url}/grammar-lab/topic/{topic.id}'
+            SubElement(url_el, 'loc').text = f'{base_url}/grammar-lab/topic/{topic.slug}'
             SubElement(url_el, 'priority').text = '0.7'
             SubElement(url_el, 'changefreq').text = 'monthly'
             if topic.updated_at:

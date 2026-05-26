@@ -290,7 +290,7 @@
     </div>
     <div class="pubw-related-grid">
       {% for gt in related_grammar %}
-      <a href="{{ url_for('grammar_lab.topic_detail', topic_id=gt.id) }}" class="pubw-related">
+      <a href="{{ url_for('grammar_lab.topic_detail', slug=gt.slug) }}" class="pubw-related">
         <div class="pubw-related__en">{{ gt.title }}</div>
         <div class="pubw-related__ru">{{ gt.title_ru }}</div>
       </a>

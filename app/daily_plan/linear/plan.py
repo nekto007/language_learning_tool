@@ -43,9 +43,11 @@ DAILY_SLOT_SKIP_QUOTA = 1
 # Slots backed by the curriculum spine. If the main course lesson is skipped
 # today, later curriculum-derived slots must stay locked until that skipped
 # lesson is actually completed.
+# Listening is intentionally NOT in this set: it walks the spine independently
+# (see _find_next_listening_lesson) so it can surface a reachable lesson even
+# when the user defers the current curriculum slot.
 _CURRICULUM_DEPENDENT_KINDS = frozenset({
     'curriculum',
-    'listening',
     'speaking',
     'writing',
 })

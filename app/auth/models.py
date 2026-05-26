@@ -53,15 +53,18 @@ class User(db.Model, UserMixin):
     notify_in_app_streaks = Column(Boolean, default=True, nullable=False, server_default='true')
     notify_in_app_weekly = Column(Boolean, default=True, nullable=False, server_default='true')
 
-    # Daily plan: mission-based plan feature flag
+    # Daily plan: legacy mission-based plan feature flag.
+    # Deprecated — kept for backward compat with existing rows and admin UI.
+    # The router no longer reads it; unified plan is the only active mode.
     use_mission_plan = Column(Boolean, default=False, nullable=False, server_default='false')
 
-    # Daily plan: linear (curriculum spine) feature flag
+    # Daily plan: legacy linear (curriculum spine) feature flag.
+    # Deprecated — kept for backward compat with existing rows and admin UI.
+    # The router no longer reads it; unified plan is the only active mode.
     use_linear_plan = Column(Boolean, default=False, nullable=False, server_default='false')
 
-    # Daily plan: unified required/optional/setup model (replaces linear/mission/legacy).
-    # When true, get_daily_plan_unified returns the new payload format.
-    use_unified_plan = Column(Boolean, default=False, nullable=False, server_default='false')
+    # Daily plan: unified required/optional/setup model. The only active mode now.
+    use_unified_plan = Column(Boolean, default=True, nullable=False, server_default='true')
 
     # Age gating: used to determine adult status for rival strip (Phase 3).
     # Null = unknown age (treated as adult for backward compatibility).

@@ -68,7 +68,7 @@ class TestSettingsPOST:
 
     def test_post_saves_bool_true_when_checkbox_present(self, app, client, admin_user):
         client.post('/admin/settings', data={
-            'default_linear_plan': '1',
+            'daily_race_enabled': '1',
             'site_title': '',
             'site_description': '',
             'og_image_url': '',
@@ -79,11 +79,11 @@ class TestSettingsPOST:
         }, follow_redirects=True)
 
         with app.app_context():
-            value = get_site_setting('default_linear_plan')
+            value = get_site_setting('daily_race_enabled')
             assert value == 'true'
 
     def test_post_saves_bool_false_when_checkbox_absent(self, app, client, admin_user, db_session):
-        set_site_setting('default_mission_plan', 'true', db_session=db_session)
+        set_site_setting('daily_race_enabled', 'true', db_session=db_session)
         db_session.commit()
 
         client.post('/admin/settings', data={
@@ -97,7 +97,7 @@ class TestSettingsPOST:
         }, follow_redirects=True)
 
         with app.app_context():
-            value = get_site_setting('default_mission_plan')
+            value = get_site_setting('daily_race_enabled')
             assert value == 'false'
 
     def test_post_saves_int_value(self, app, client, admin_user):
@@ -219,8 +219,6 @@ class TestSettingsAuditLog:
         # form values they'd flip to 'false' and look "changed").
         set_site_setting('site_title', 'Stable', db_session=db_session)
         set_site_setting('referral_bonus_xp', '50', db_session=db_session)
-        set_site_setting('default_linear_plan', 'false', db_session=db_session)
-        set_site_setting('default_mission_plan', 'false', db_session=db_session)
         set_site_setting('daily_race_enabled', 'true', db_session=db_session)
         set_site_setting('streak_shield_enabled', 'true', db_session=db_session)
         db_session.commit()
@@ -243,6 +241,7 @@ class TestSettingsAuditLog:
         assert db_session.query(AdminAuditLog).count() == baseline
 
 
+@pytest.mark.skip(reason="Register no longer reads default_linear_plan/default_mission_plan after unified-plan migration")
 class TestFeatureFlagOnRegistration:
     """Feature flags from SiteSettings applied during user registration."""
 

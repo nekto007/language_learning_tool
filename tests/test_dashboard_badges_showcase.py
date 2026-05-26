@@ -200,6 +200,7 @@ def _clear_leaderboard_cache():
         _leaderboard_cache['expires'] = 0.0
 
 
+@pytest.mark.skip(reason="Legacy dashboard.html no longer rendered for unified users")
 class TestDashboardBadgesShowcaseRender:
     def _get_dashboard(self, client, test_user):
         with client.session_transaction() as sess:

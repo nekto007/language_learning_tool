@@ -216,7 +216,8 @@ def test_daily_status_emits_minimum_completed_when_secured(authenticated_client,
         event_type='minimum_completed',
     ).first()
     assert ev is not None
-    assert ev.mission_type == 'progress'
+    # mission_type column kept for backward compat; unified plan writes None.
+    assert ev.mission_type is None
 
 
 def test_daily_status_no_event_when_not_secured(authenticated_client, db_session, test_user):

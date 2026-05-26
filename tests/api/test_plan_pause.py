@@ -241,9 +241,7 @@ class TestPauseStreakNeutrality:
         test_user.plan_paused_until = date.today() - timedelta(days=1)
         db_session.flush()
 
-        with patch('app.daily_plan.service._get_linear_plan_safe', return_value=None), \
-             patch('app.daily_plan.service.get_mission_plan', return_value=None), \
-             patch('app.telegram.queries.get_daily_plan_v2', return_value={'mode': 'legacy'}):
+        with patch('app.daily_plan.plan.get_daily_plan', return_value={'mode': 'unified', 'required': []}):
             plan = get_daily_plan_unified(test_user.id)
 
         assert plan.get('mode') != 'paused'
@@ -255,9 +253,7 @@ class TestPauseStreakNeutrality:
         test_user.plan_paused_until = None
         db_session.flush()
 
-        with patch('app.daily_plan.service._get_linear_plan_safe', return_value=None), \
-             patch('app.daily_plan.service.get_mission_plan', return_value=None), \
-             patch('app.telegram.queries.get_daily_plan_v2', return_value={'mode': 'legacy'}):
+        with patch('app.daily_plan.plan.get_daily_plan', return_value={'mode': 'unified', 'required': []}):
             plan = get_daily_plan_unified(test_user.id)
 
         assert plan.get('mode') != 'paused'

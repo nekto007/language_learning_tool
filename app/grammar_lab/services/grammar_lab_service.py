@@ -414,11 +414,12 @@ class GrammarLabService:
                     xp_earned += GRAMMAR_XP['exercise_mastered']
 
         if xp_earned > 0:
-            from app.daily_plan.linear.xp import is_linear_user
-            if is_linear_user(user_id):
-                xp_earned = 0
-            else:
-                self.srs.add_xp(user_id, exercise.topic_id, xp_earned)
+            # All users are on the unified plan. Standalone grammar-lab XP is
+            # still awarded here so direct grammar-lab practice (outside the
+            # curriculum spine) credits the user. Curriculum-driven grammar
+            # lessons award their own XP via maybe_award_curriculum_xp and
+            # ignore this path.
+            self.srs.add_xp(user_id, exercise.topic_id, xp_earned)
 
         # Update topic status based on exercise activity
         topic_status = self.srs.get_or_create_topic_status(user_id, exercise.topic_id)

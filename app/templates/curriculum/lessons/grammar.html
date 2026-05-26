@@ -460,7 +460,7 @@
           <p class="theory-topic-pull__summary">{{ theory_topic.content.introduction }}</p>
         {% endif %}
         <a class="theory-topic-pull__link"
-           href="{{ url_for('grammar_lab.topic_detail', topic_id=theory_topic.id) }}"
+           href="{{ url_for('grammar_lab.topic_detail', slug=theory_topic.slug) }}"
            target="_blank" rel="noopener">
           {{ _('Открыть полную теорию') }}
         </a>

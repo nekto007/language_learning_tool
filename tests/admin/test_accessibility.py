@@ -67,8 +67,6 @@ def _mock_dashboard():
         patch("app.admin.routes.dashboard_routes.get_content_quality",
               return_value={"coverage_pct": 0, "no_completions_count": 0,
                             "missing_audio_count": 0, "no_vocabulary_count": 0}),
-        patch("app.admin.routes.dashboard_routes.get_linear_plan_metrics",
-              return_value=None),
     ]
 
 

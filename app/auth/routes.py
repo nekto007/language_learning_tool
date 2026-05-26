@@ -333,15 +333,9 @@ def register():
         )
         user.set_password(form.password.data)
 
-        # Apply feature-flag defaults from SiteSettings
-        try:
-            from app.admin.site_settings import get_site_setting
-            if get_site_setting('default_linear_plan', 'false') == 'true':
-                user.use_linear_plan = True
-            if get_site_setting('default_mission_plan', 'false') == 'true':
-                user.use_mission_plan = True
-        except Exception:
-            current_app.logger.warning('Could not read feature flag defaults from SiteSettings', exc_info=True)
+        # All users default to the unified daily plan; legacy linear/mission
+        # flags have been removed.
+        user.use_unified_plan = True
 
         # Pre-fill onboarding level from param (validated against canonical CEFR codes)
         if level_param:

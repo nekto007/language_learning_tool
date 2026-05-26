@@ -551,6 +551,10 @@
         {{ _('Заново') }}
       </button>
 
+      {# Catalog-flow «next lesson / finish» buttons. Hidden in daily-plan
+         flow — the unified completion partial above takes over with two
+         equal CTAs (dashboard / next plan slot). #}
+      {% if not (daily_plan_ctx and daily_plan_ctx.is_daily_plan) %}
       {% if next_lesson %}
         <button type="button"
                 class="lsn-btn lsn-btn--primary btn-lesson btn-primary"
@@ -571,6 +575,7 @@
           <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           {{ _('Завершить') }}
         </button>
+      {% endif %}
       {% endif %}
     {% endblock %}
     </div>
@@ -646,7 +651,7 @@ window.showLessonCompletion = function(opts) {
     var nextBtn = actions.querySelector('[data-plan-cta="next-slot"]');
     if (nextBtn && nextUrl) {
       nextBtn.setAttribute('href', nextUrl);
-      var label = 'Следующий слот плана' + (nextTitle ? ': ' + nextTitle : '');
+      var label = 'Следующий урок плана';
       var firstText = nextBtn.firstChild;
       while (firstText && firstText.nodeType !== Node.TEXT_NODE) {
         firstText = firstText.nextSibling;

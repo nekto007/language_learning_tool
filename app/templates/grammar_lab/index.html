@@ -135,7 +135,7 @@
             <span class="grammar-next-topic__reason">{{ next_topic.reason_text }}</span>
           </div>
         </div>
-        <a href="{{ url_for('grammar_lab.topic_detail', topic_id=next_topic.id) }}" class="grammar-next-topic__btn">
+        <a href="{{ url_for('grammar_lab.topic_detail', slug=next_topic.slug) }}" class="grammar-next-topic__btn">
           Перейти
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -160,7 +160,7 @@
 
       <div class="recommendations-grid">
         {% for topic in recommendations %}
-          <a href="{{ url_for('grammar_lab.topic_detail', topic_id=topic.id) }}" class="recommendation-card">
+          <a href="{{ url_for('grammar_lab.topic_detail', slug=topic.slug) }}" class="recommendation-card">
             <div class="recommendation-card__header">
               <span class="recommendation-card__level recommendation-card__level--{{ topic.level[0]|lower }}">{{ topic.level }}</span>
               <span class="recommendation-card__reason recommendation-card__reason--{{ topic.reason }}">

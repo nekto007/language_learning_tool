@@ -6,9 +6,11 @@ from unittest.mock import patch
 from app.daily_plan.models import DailyPlanEvent
 
 
-def _plan(*, first='srs') -> dict:
-    slots = [
+def _unified_plan(*, first='srs') -> dict:
+    """Build a fake unified plan payload with two required items."""
+    required = [
         {
+            'id': f'{first}:global',
             'kind': first,
             'title': first,
             'completed': False,
@@ -16,6 +18,7 @@ def _plan(*, first='srs') -> dict:
             'data': {'slot_skip_allowed': True, 'slot_skips_remaining': 1},
         },
         {
+            'id': 'curriculum:lesson:1',
             'kind': 'curriculum',
             'title': 'Course lesson',
             'completed': False,
@@ -24,15 +27,15 @@ def _plan(*, first='srs') -> dict:
         },
     ]
     return {
-        'mode': 'linear',
-        'slots': slots,
-        'baseline_slots': slots,
-        'chain_meta': {'baseline_count': len(slots)},
+        'mode': 'unified',
+        'required': required,
+        'optional': [],
+        'setup': [],
     }
 
 
 def test_slot_skip_records_current_slot(authenticated_client, db_session, test_user):
-    with patch('app.daily_plan.linear.plan.get_linear_plan', return_value=_plan(first='srs')):
+    with patch('app.daily_plan.plan.get_daily_plan', return_value=_unified_plan(first='srs')):
         response = authenticated_client.post(
             '/api/daily-plan/events',
             json={
@@ -48,11 +51,10 @@ def test_slot_skip_records_current_slot(authenticated_client, db_session, test_u
         event_type='slot_skipped',
     ).one()
     assert event.step_kind == 'srs'
-    assert event.mission_type == 'slot:0:srs'
 
 
 def test_slot_skip_rejects_non_current_slot(authenticated_client):
-    with patch('app.daily_plan.linear.plan.get_linear_plan', return_value=_plan(first='srs')):
+    with patch('app.daily_plan.plan.get_daily_plan', return_value=_unified_plan(first='srs')):
         response = authenticated_client.post(
             '/api/daily-plan/events',
             json={
@@ -67,7 +69,7 @@ def test_slot_skip_rejects_non_current_slot(authenticated_client):
 
 
 def test_slot_skip_quota_is_one_per_day(authenticated_client):
-    with patch('app.daily_plan.linear.plan.get_linear_plan', return_value=_plan(first='srs')):
+    with patch('app.daily_plan.plan.get_daily_plan', return_value=_unified_plan(first='srs')):
         first = authenticated_client.post(
             '/api/daily-plan/events',
             json={

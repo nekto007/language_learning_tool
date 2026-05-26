@@ -492,25 +492,7 @@ def get_retention_metrics() -> dict:
     }
 
 
-@cache_result('linear_plan_metrics', timeout=300)
-def get_linear_plan_metrics() -> dict:
-    """Linear daily plan rollout metrics (cohort = users with use_linear_plan=True)."""
-    from app.admin.services.linear_plan_metrics import get_linear_plan_metrics as _compute
-    try:
-        return _compute()
-    except Exception:
-        logger.exception("Error computing linear plan metrics")
-        return {
-            'cohort_size': 0,
-            'day_secured_rate': 0.0,
-            'average_slots_completed': 0.0,
-            'error_review_trigger_rate': 0.0,
-            'error_review_completion_rate': 0.0,
-            'book_select_rate': 0.0,
-            'reading_gate_completion_rate': 0.0,
-            'focus_distribution': {},
-            'focus_average_slots': {},
-        }
+# Linear plan rollout metrics widget removed (cohort is now 100% of users).
 
 
 @cache_result('streak_analytics', timeout=300)
@@ -873,7 +855,7 @@ def dashboard():
     streaks = get_streak_analytics()
     referrals = get_referral_analytics()
     coins = get_coin_economy()
-    linear_plan = get_linear_plan_metrics()
+    linear_plan = {}
     content_quality = get_content_quality()
     content_alerts = get_content_alerts()
     system_health = get_system_health()
