@@ -84,6 +84,13 @@ Date: 2026-05-25
 - Task 5 import check passed: `python -c "import app.words.detail_service; import app.words.routes; import app.study.api_routes"`
 - Task 5 focused regression validation passed: `pytest tests/test_words_routes.py::TestWordList::test_word_list_default_and_invalid_sort_use_recommended_level_order -q`
 - Task 5 validation passed: `pytest tests/test_words_routes.py tests/test_public_words_seo.py -q`
+- Task 6 dependency diff passed with no output: `git diff -- requirements.txt requirements-test.txt pyproject.toml`
+- Task 6 lint command could not run in the active environment: `ruff check app/study/api_routes.py app/study/routes.py app/words/detail_service.py app/words/forms.py app/words/routes.py tests/test_words_routes.py tests/test_public_words_seo.py` returned `zsh:1: command not found: ruff`. `python -m ruff --version` also reports `No module named ruff`; no install was performed because this review plan forbids installing dependencies.
+- Task 6 targeted validation passed after final fixes: `pytest tests/test_words_routes.py tests/test_public_words_seo.py tests/api/test_study_api.py -q`
+- Task 6 smoke validation passed after final fixes: `pytest -m smoke -q`
+- Task 6 full-suite regression was fixed and passed: `pytest tests/ -q --timeout=60`
+- Task 6 focused failure rerun passed: `pytest tests/test_module_content_quality.py tests/daily_plan/test_linear_progression.py::TestGetUserLevelProgress::test_fresh_user_zero_percent -q`
+- Task 6 coverage workflow check found no project coverage target or command in `pyproject.toml`, `pytest.ini`, `.coveragerc`, `Makefile`, `tox.ini`, or `setup.cfg`; coverage.py is installed, but there is no configured `--cov`/`fail-under` baseline to compare against.
 
 ## Task 2 brainstorm: Study API word_detail
 
@@ -131,3 +138,22 @@ Date: 2026-05-25
 - No false-positive P0/P1 finding remains unresolved after the sweep.
 - The `rg` pass over profile helpers, public-only flags, canonical/meta variables, and the new `recommended` sort found active references only; no stale helper, duplicate branch, or stale import needed removal.
 - The only extra consolidation coverage needed in this pass is HRW-014, which locks the current default/invalid word-list sort behavior to the recommended CEFR-first ordering.
+
+## Task 6 brainstorm: acceptance criteria final pass
+
+- Dependencies: the reviewed tasks should not change `requirements.txt`, `requirements-test.txt`, or `pyproject.toml`; a clean dependency diff is required before acceptance.
+- Test discipline: Tasks 1-5 each added or updated focused regression/baseline tests; Task 6 is a verification pass and should only add tests if final commands expose an uncovered defect.
+- P0/P1 status: HRW-005, HRW-008, HRW-009, HRW-010, HRW-011, HRW-012, and HRW-013 are fixed; HRW-006 and HRW-007 are covered boundary risks; no unresolved P0/P1 finding is listed.
+- P2 status: HRW-014 is covered as a regression guard for recommended word-list ordering; no remaining P2 item requires code before documentation finalization.
+- Lint and targeted suites must stay green for the reviewed app/test files.
+- Smoke and full-suite runs are the broad regression gates; any unrelated dirty worktree changes must be treated as current-tree validation risk, not silently ignored.
+- Coverage verification should use an existing project workflow if one is available; otherwise the missing explicit coverage command/target must be recorded as a gap.
+
+## Task 6 acceptance verification notes
+
+- No dependency files changed in `requirements.txt`, `requirements-test.txt`, or `pyproject.toml`.
+- Tasks 1-5 each have linked test coverage in the findings/commands table; Task 6 added a deterministic fixture fix after full-suite validation exposed random two-character CEFR code collisions.
+- P0/P1 findings remain fixed or explicitly covered by tests; HRW-014 remains the only P2 item and is covered by a regression test.
+- Full-suite validation exposed current-tree defects outside the words/Study review files: invalid Jinja pagination kwargs on admin collections, missing legacy book-course statistics helper, robots.txt sitemap host behavior, missing `share.js` on the public base template, random CEFR fixture code collisions, and local ignored `module_completed/fixed` content-quality violations. The tracked code/test defects were fixed; the ignored local content corpus was normalized in the workspace but remains uncommitted because `module_completed/` is gitignored as confidential local content.
+- `ruff` is declared in `requirements-test.txt` but is not installed in the active virtualenv; the exact lint command was attempted and documented as an environment gap.
+- There is no configured coverage target/workflow in the tracked project config, so coverage regression cannot be compared to a project target in this workspace.

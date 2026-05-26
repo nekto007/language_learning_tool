@@ -6,6 +6,7 @@ lessons, and traverse module/level boundaries correctly.
 """
 from __future__ import annotations
 
+import itertools
 import uuid
 
 import pytest
@@ -21,9 +22,16 @@ from app.daily_plan.linear.progression import (
 from app.utils.db import db as real_db
 
 
+_CODE_COUNTER = itertools.count()
+_CODE_ALPHABET = 'QRSTUVWXYZ'
+
+
 def _unique_code() -> str:
-    # CEFRLevel.code is VARCHAR(2); keep exactly 2 chars, uppercase.
-    return uuid.uuid4().hex[:2].upper()
+    # CEFRLevel.code is VARCHAR(2); keep exactly 2 chars and avoid random
+    # duplicate collisions inside the small generated curriculum fixture.
+    index = next(_CODE_COUNTER)
+    base = len(_CODE_ALPHABET)
+    return f'{_CODE_ALPHABET[index // base]}{_CODE_ALPHABET[index % base]}'
 
 
 def _make_user(db_session, onboarding_level: str | None = None) -> User:

@@ -133,13 +133,13 @@
 - Modify: `docs/audits/2026-05-25-hard-review/README.md`
 - Modify: tests only if final verification exposes uncovered defects
 
-- [ ] Брейншторм: финальный pass по критериям приемки: нет новых зависимостей, каждый Task имеет tests, P0/P1 закрыты, P2 либо закрыты, либо явно задокументированы.
-- [ ] Run `git diff -- requirements.txt requirements-test.txt pyproject.toml` and confirm no new dependency was added.
-- [ ] Run `ruff check app/study/api_routes.py app/study/routes.py app/words/detail_service.py app/words/forms.py app/words/routes.py tests/test_words_routes.py tests/test_public_words_seo.py`.
-- [ ] Run `pytest tests/test_words_routes.py tests/test_public_words_seo.py tests/api/test_study_api.py -q`.
-- [ ] Run `pytest -m smoke -q`.
-- [ ] Run full test suite: `pytest tests/ -q --timeout=60`.
-- [ ] Verify coverage does not regress below the project target: use the existing coverage workflow if present; otherwise document the coverage-command gap in the audit journal.
+- [x] Брейншторм: финальный pass по критериям приемки: нет новых зависимостей, каждый Task имеет tests, P0/P1 закрыты, P2 либо закрыты, либо явно задокументированы.
+- [x] Run `git diff -- requirements.txt requirements-test.txt pyproject.toml` and confirm no new dependency was added.
+- [x] Run `ruff check app/study/api_routes.py app/study/routes.py app/words/detail_service.py app/words/forms.py app/words/routes.py tests/test_words_routes.py tests/test_public_words_seo.py` (skipped - `ruff` is not installed in the active environment; exact command attempted and documented in the audit).
+- [x] Run `pytest tests/test_words_routes.py tests/test_public_words_seo.py tests/api/test_study_api.py -q`.
+- [x] Run `pytest -m smoke -q`.
+- [x] Run full test suite: `pytest tests/ -q --timeout=60`.
+- [x] Verify coverage does not regress below the project target: use the existing coverage workflow if present; otherwise document the coverage-command gap in the audit journal (documented - no tracked coverage target/workflow is configured).
 
 ### Task 7: Update documentation
 

@@ -74,6 +74,19 @@ def cache_result(key, timeout=_cache_timeout):
     return decorator
 
 
+@cache_result('book_course_statistics')
+def get_book_course_statistics():
+    """Return cached summary counts for book-course admin screens."""
+    return {
+        'total_courses': BookCourse.query.count(),
+        'active_courses': BookCourse.query.filter_by(is_active=True).count(),
+        'featured_courses': BookCourse.query.filter_by(is_featured=True).count(),
+        'total_enrollments': BookCourseEnrollment.query.count(),
+        'total_modules': BookCourseModule.query.count(),
+        'total_daily_lessons': DailyLesson.query.count(),
+    }
+
+
 
 # Register blueprint from main admin routes
 def register_book_course_routes(admin_bp):
