@@ -286,15 +286,13 @@ class TestGetWordsForExport:
 class TestParseImportFile:
     """Tests for parse_import_file method"""
 
-    @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_parse_valid_file(self, mock_words):
+    @patch.object(WordManagementService, '_find_existing_english_words')
+    def test_parse_valid_file(self, mock_lookup):
         """Test parsing valid import file"""
         content = "test;тест;Test sentence;Тестовое предложение;A1\nhello;привет;Hello world;Привет мир;A2"
 
-        # First word exists
-        mock_word1 = Mock()
-        # Second word doesn't exist
-        mock_words.query.filter_by.return_value.first.side_effect = [mock_word1, None]
+        # "test" exists in DB; "hello" doesn't.
+        mock_lookup.return_value = {'test'}
 
         existing, missing, errors = WordManagementService.parse_import_file(content)
 
@@ -325,39 +323,39 @@ class TestParseImportFile:
         assert len(missing) == 0
         assert len(errors) == 0
 
-    @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_parse_with_comments(self, mock_words):
+    @patch.object(WordManagementService, '_find_existing_english_words')
+    def test_parse_with_comments(self, mock_lookup):
         """Test parsing file with comments"""
         content = "# This is a comment\ntest;тест;Test sentence;Тестовое предложение;A1"
 
-        mock_words.query.filter_by.return_value.first.return_value = Mock()
+        mock_lookup.return_value = {'test'}
 
         existing, missing, errors = WordManagementService.parse_import_file(content)
 
         assert len(existing) == 1
         assert len(errors) == 0
 
-    @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_parse_with_blank_lines(self, mock_words):
+    @patch.object(WordManagementService, '_find_existing_english_words')
+    def test_parse_with_blank_lines(self, mock_lookup):
         """Test parsing file with blank lines"""
         content = "test;тест;Test sentence;Тестовое предложение;A1\n\n\nhello;привет;Hello;Привет;A1"
 
-        mock_words.query.filter_by.return_value.first.return_value = None
+        mock_lookup.return_value = set()
 
         existing, missing, errors = WordManagementService.parse_import_file(content)
 
         assert len(missing) == 2
         assert len(errors) == 0
 
-    @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_parse_enriched_file(self, mock_words):
+    @patch.object(WordManagementService, '_find_existing_english_words')
+    def test_parse_enriched_file(self, mock_lookup):
         """Test parsing valid import file with vocabulary enrichment fields."""
         content = (
             "pen;ручка, перо;I write with a pen.;Я пишу ручкой.;A1;"
             "stationery;/pen/;writing tool, ballpoint;eraser;high;"
             "from Latin penna, feather"
         )
-        mock_words.query.filter_by.return_value.first.return_value = Mock()
+        mock_lookup.return_value = {'pen'}
 
         existing, missing, errors = WordManagementService.parse_import_file(content)
 
@@ -372,15 +370,15 @@ class TestParseImportFile:
         assert existing[0]['etymology'] == 'from Latin penna, feather'
         assert existing[0]['has_enrichment'] is True
 
-    @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_parse_bilingual_topic_enriched_file(self, mock_words):
+    @patch.object(WordManagementService, '_find_existing_english_words')
+    def test_parse_bilingual_topic_enriched_file(self, mock_lookup):
         """Test parsing 12-column import with topic_ru/topic_en normalization."""
         content = (
             "pen;ручка, перо;I wrote the note with a pen.;Я написал записку ручкой.;A1;"
             "Канцелярия;Stationery;pen;[marker, ballpoint];[pencil];1;"
             "from Old French penne, from Latin penna meaning feather"
         )
-        mock_words.query.filter_by.return_value.first.return_value = Mock()
+        mock_lookup.return_value = {'pen'}
 
         existing, missing, errors = WordManagementService.parse_import_file(content)
 

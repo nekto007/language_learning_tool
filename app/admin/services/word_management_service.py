@@ -18,6 +18,7 @@ from app.books.models import Book
 from app.study.models import UserWord
 from app.utils.audio import get_clean_audio_filename
 from app.utils.db import db
+from app.utils.db_utils import chunk_ids
 from app.words.models import CollectionWords, Topic
 
 logger = logging.getLogger(__name__)
@@ -239,18 +240,34 @@ class WordManagementService:
         return topic
 
     @staticmethod
-    def _find_topic_suggestion(topic_name, existing_topics):
-        """Find the closest existing topic for preview suggestions."""
+    def _find_topic_suggestion(topic_name, existing_topics, existing_topic_index=None):
+        """Find the closest existing topic for preview suggestions.
+
+        existing_topic_index is an optional precomputed list of
+        ``(topic, normalized_key, token_set)`` tuples — passing it skips
+        re-normalizing every DB topic for each unmatched import row.
+        """
         topic_key = WordManagementService._normalize_topic_key(topic_name)
         if not topic_key:
             return None
 
+        topic_tokens = WordManagementService._topic_tokens(topic_name)
+
+        if existing_topic_index is None:
+            existing_topic_index = [
+                (
+                    topic,
+                    WordManagementService._normalize_topic_key(topic.name),
+                    WordManagementService._topic_tokens(topic.name),
+                )
+                for topic in existing_topics
+            ]
+
         best_topic = None
         best_score = 0.0
-        for topic in existing_topics:
-            score = WordManagementService._topic_similarity_score(
-                topic_name,
-                topic.name,
+        for topic, existing_key, existing_tokens in existing_topic_index:
+            score = WordManagementService._score_normalized(
+                topic_key, topic_tokens, existing_key, existing_tokens
             )
             if score > best_score:
                 best_topic = topic
@@ -265,6 +282,31 @@ class WordManagementService:
         return None
 
     @staticmethod
+    def _score_normalized(topic_key, topic_tokens, existing_key, existing_tokens):
+        """Variant of _topic_similarity_score that works on precomputed keys/tokens."""
+        if not topic_key or not existing_key:
+            return 0.0
+
+        sequence_score = SequenceMatcher(None, topic_key, existing_key).ratio()
+        if not topic_tokens or not existing_tokens:
+            return sequence_score
+
+        shared_tokens = topic_tokens & existing_tokens
+        if not shared_tokens:
+            return sequence_score
+
+        import_coverage = len(shared_tokens) / len(topic_tokens)
+        dice_score = (2 * len(shared_tokens)) / (len(topic_tokens) + len(existing_tokens))
+        anchor_score = max(
+            TOPIC_ANCHOR_TOKEN_SCORES.get(token, 0.0)
+            for token in shared_tokens
+        )
+        token_score = max(import_coverage, dice_score, anchor_score)
+        if import_coverage == 1:
+            token_score = max(token_score, 0.91)
+        return max(sequence_score, token_score)
+
+    @staticmethod
     def prepare_topic_resolution_preview(existing_words, missing_words):
         """Annotate import rows with topic resolution data for preview UI."""
         all_words = [*existing_words, *missing_words]
@@ -273,6 +315,12 @@ class WordManagementService:
             WordManagementService._normalize_topic_key(topic.name): topic
             for topic in existing_topics
         }
+        # Precompute (topic, key, tokens) once so each unmatched import topic
+        # doesn't re-normalize the full DB topic list during fuzzy matching.
+        existing_topic_index = [
+            (topic, key, WordManagementService._topic_tokens(topic.name))
+            for key, topic in existing_by_key.items()
+        ]
 
         candidates_by_topic = {}
         for word_data in all_words:
@@ -294,6 +342,7 @@ class WordManagementService:
                 suggestion = WordManagementService._find_topic_suggestion(
                     topic_name,
                     existing_topics,
+                    existing_topic_index=existing_topic_index,
                 )
                 existing_candidate = {
                     'key': candidate_key,
@@ -589,6 +638,25 @@ class WordManagementService:
             return []
 
     @staticmethod
+    def _find_existing_english_words(english_words):
+        """Return set of english_word strings that already exist in DB.
+
+        Single batched IN() query (with chunking) instead of one SELECT per row —
+        the preview step renders thousands of CSV rows and a per-row lookup
+        used to dominate import latency.
+        """
+        if not english_words:
+            return set()
+
+        existing = set()
+        for chunk in chunk_ids(list(english_words), chunk_size=1000):
+            rows = db.session.query(CollectionWords.english_word).filter(
+                CollectionWords.english_word.in_(chunk)
+            ).all()
+            existing.update(row[0] for row in rows)
+        return existing
+
+    @staticmethod
     def parse_import_file(content):
         """
         Парсит содержимое файла импорта переводов
@@ -599,8 +667,7 @@ class WordManagementService:
         Returns:
             tuple: (existing_words: list, missing_words: list, errors: list)
         """
-        existing_words = []
-        missing_words = []
+        parsed_rows = []
         errors = []
 
         reader = csv.reader(StringIO(content), delimiter=';')
@@ -697,9 +764,17 @@ class WordManagementService:
             else:
                 word_data['has_enrichment'] = False
 
-            # Найти слово в базе
-            word = CollectionWords.query.filter_by(english_word=english_word).first()
-            if word:
+            parsed_rows.append(word_data)
+
+        # Single batched lookup: which english_words already exist in DB.
+        existing_set = WordManagementService._find_existing_english_words(
+            {row['english_word'] for row in parsed_rows}
+        )
+
+        existing_words = []
+        missing_words = []
+        for word_data in parsed_rows:
+            if word_data['english_word'] in existing_set:
                 existing_words.append(word_data)
             else:
                 missing_words.append(word_data)
@@ -818,8 +893,7 @@ class WordManagementService:
         import csv
         from io import StringIO
 
-        new_verbs = []
-        existing_verbs = []
+        parsed_rows = []
         errors = []
 
         try:
@@ -854,20 +928,13 @@ class WordManagementService:
                     })
                     continue
 
-                verb_data = {
+                parsed_rows.append({
                     'line_num': line_num,
                     'phrasal_verb': phrasal_verb,
                     'russian_translate': russian_translate,
                     'using': using,
-                    'sentence': sentence
-                }
-
-                # Check if phrasal verb already exists in CollectionWords
-                existing = CollectionWords.query.filter_by(english_word=phrasal_verb).first()
-                if existing:
-                    existing_verbs.append(verb_data)
-                else:
-                    new_verbs.append(verb_data)
+                    'sentence': sentence,
+                })
 
         except Exception as e:
             errors.append({
@@ -875,6 +942,20 @@ class WordManagementService:
                 'line': '',
                 'error': f'Ошибка парсинга CSV: {str(e)}'
             })
+            return [], [], errors
+
+        # Single batched lookup instead of one SELECT per phrasal verb.
+        existing_set = WordManagementService._find_existing_english_words(
+            {row['phrasal_verb'] for row in parsed_rows}
+        )
+
+        new_verbs = []
+        existing_verbs = []
+        for verb_data in parsed_rows:
+            if verb_data['phrasal_verb'] in existing_set:
+                existing_verbs.append(verb_data)
+            else:
+                new_verbs.append(verb_data)
 
         return new_verbs, existing_verbs, errors
 
