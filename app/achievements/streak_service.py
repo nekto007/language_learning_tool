@@ -8,7 +8,6 @@ from sqlalchemy.exc import IntegrityError
 
 from app.utils.db import db
 from app.achievements.models import StreakCoins, StreakEvent
-from app.daily_plan.models import MODE_CATEGORY_MAP
 from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
@@ -33,8 +32,6 @@ def get_required_steps(streak_length: int, steps_total: int) -> int:
         required = 1
     return min(required, steps_total)
 
-
-_MODE_DONE_CHECK = {k: v for k, v in MODE_CATEGORY_MAP.items() if k != 'success_marker'}
 
 _MODE_COMPLETION_BUCKET: dict[str, str] = {
     'srs_review': 'srs',

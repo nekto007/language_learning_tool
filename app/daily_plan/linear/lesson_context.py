@@ -184,7 +184,7 @@ def build_lesson_context(
 
     Args:
         user_id: the current user (used to fetch the plan).
-        db: SQLAlchemy session, passed through to ``get_linear_plan``.
+        db: SQLAlchemy session, passed through to ``get_daily_plan`` (unified).
         current_lesson_id: the lesson the user is currently on; passed to
             disambiguate which slot they're inside. Pass ``None`` for
             slot kinds without a lesson id (SRS/book/error_review) — the
@@ -286,7 +286,7 @@ def build_lesson_context_from_plan(
     """Build a context dataclass from an already-loaded plan.
 
     Useful in tests and in places where the caller has already fetched
-    ``get_linear_plan(...)`` and wants to avoid the duplicate call.
+    ``get_daily_plan(...)`` and wants to avoid the duplicate call.
     """
     if from_param != PLAN_FROM_VALUE:
         return DailyPlanLessonContext(

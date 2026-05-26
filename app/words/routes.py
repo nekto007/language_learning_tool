@@ -1014,6 +1014,27 @@ def _render_unified_dashboard(tz: str):
     plan_completion, _avail, steps_done, steps_total = compute_plan_steps(
         unified_plan, daily_summary
     )
+
+    # plan payload приходит с day_secured=False (assembly-time всегда False);
+    # пересчитываем по фактической активности и записываем в payload, иначе
+    # шаблон оставляет «Дополнительно» заблокированным даже при 4/4.
+    from app.daily_plan.service import compute_day_secured_from_activity, write_secured_at
+    _day_secured = compute_day_secured_from_activity(unified_plan, plan_completion)
+    unified_plan['day_secured'] = _day_secured
+    if _day_secured:
+        try:
+            from datetime import datetime as _dt_sec
+            import pytz as _pytz_sec
+            try:
+                _tz_sec = _pytz_sec.timezone(tz)
+            except _pytz_sec.UnknownTimeZoneError:
+                _tz_sec = _pytz_sec.timezone(DEFAULT_TIMEZONE)
+            write_secured_at(current_user.id, _dt_sec.now(_tz_sec).date())
+            db.session.commit()
+        except Exception:
+            logger.warning('write_secured_at failed in unified dashboard', exc_info=True)
+            db.session.rollback()
+
     streak_result = process_streak_on_activity(
         current_user.id, steps_done, steps_total, tz=tz,
         daily_plan=unified_plan, plan_completion=plan_completion,
@@ -1039,8 +1060,18 @@ def _render_unified_dashboard(tz: str):
     total_xp = (stats.total_xp if stats else 0) or 0
     level_info = get_level_info(total_xp)
     try:
-        xp_today = get_today_xp(current_user.id) or 0
+        # get_today_xp требует date — без него падал в TypeError, и из-за
+        # silent except шло «0 XP сегодня» даже после выполненных заданий.
+        from datetime import datetime
+        import pytz as _pytz_xp
+        try:
+            _tz = _pytz_xp.timezone(tz)
+        except _pytz_xp.UnknownTimeZoneError:
+            _tz = _pytz_xp.timezone(DEFAULT_TIMEZONE)
+        _today_local = datetime.now(_tz).date()
+        xp_today = get_today_xp(current_user.id, _today_local) or 0
     except Exception:
+        logger.warning('get_today_xp failed in unified dashboard', exc_info=True)
         xp_today = 0
 
     words_today = (daily_summary or {}).get('words_studied', 0) if daily_summary else 0
