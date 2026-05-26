@@ -1074,7 +1074,12 @@ def _render_unified_dashboard(tz: str):
         logger.warning('get_today_xp failed in unified dashboard', exc_info=True)
         xp_today = 0
 
-    words_today = (daily_summary or {}).get('words_studied', 0) if daily_summary else 0
+    # Daily word goal counter: total cards reviewed today (new + reviews).
+    # The previous `daily_summary['words_studied']` key never existed in
+    # get_daily_summary()'s return value, so the hero counter was stuck at 0
+    # regardless of activity. `words_reviewed` is the broadest signal the
+    # summary exposes and is the one users expect to see grow as they study.
+    words_today = (daily_summary or {}).get('words_reviewed', 0) or 0
     words_goal = getattr(current_user, 'daily_word_goal', None) or _FOCUS_DEFAULT_WORDS_TARGET
 
     from app.admin.site_settings import is_streak_shield_enabled
@@ -1226,7 +1231,8 @@ def _render_path_dashboard(tz: str):
         logger.warning('xp_today lookup failed', exc_info=True)
         xp_today = 0
 
-    words_today = (daily_summary or {}).get('words_studied', 0) if daily_summary else 0
+    # See unified-dashboard branch above — total cards reviewed today.
+    words_today = (daily_summary or {}).get('words_reviewed', 0) or 0
     words_goal = getattr(current_user, 'daily_word_goal', None) or _FOCUS_DEFAULT_WORDS_TARGET
 
     from app.admin.site_settings import is_streak_shield_enabled

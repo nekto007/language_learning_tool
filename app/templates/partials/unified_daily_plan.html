@@ -301,6 +301,19 @@
      buttons. The user has clear motivation: finish required → unlock these. #}
   {% if u_optional %}
     {% set u_optional_locked = not u_day_secured %}
+    {# Sequentially unlock optional items: same UX as required slots — the
+       first not-yet-done item is `current`, every later item is `locked`
+       until the previous one is completed. Pre-day_secured the whole
+       section is locked behind one hint; post-day_secured items unlock
+       one at a time. #}
+    {% set opt_ns = namespace(current_idx=-1) %}
+    {% for item in u_optional %}
+      {% set _completed = item.get('completed', false) or (plan_completion and plan_completion.get(item.get('id'), false)) %}
+      {% if not _completed and opt_ns.current_idx == -1 %}
+        {% set opt_ns.current_idx = loop.index0 %}
+      {% endif %}
+    {% endfor %}
+    {% set u_optional_current_idx = opt_ns.current_idx %}
     <div class="daily-plan__section daily-plan__section--optional{% if u_optional_locked %} daily-plan__section--optional-locked{% endif %}"
          data-section="optional">
       <div class="daily-plan__section-header">
@@ -317,18 +330,25 @@
           {% set _is_challenge = _data.get('is_challenge') %}
           {% set _bonus = _data.get('bonus_xp') %}
           {% set _url = item.get('url') or '#' %}
-          <li class="plan-item plan-item--{{ _kind }} plan-item--optional{% if u_optional_locked %} plan-item--optional-locked{% endif %}"
+          {% set _completed = item.get('completed', false) or (plan_completion and plan_completion.get(_id, false)) %}
+          {% set _is_current = (not u_optional_locked) and (loop.index0 == u_optional_current_idx) %}
+          {% set _is_step_locked = (not u_optional_locked) and (not _completed) and (not _is_current) %}
+          {% set _is_locked_any = u_optional_locked or _is_step_locked %}
+          <li class="plan-item plan-item--{{ _kind }} plan-item--optional{% if _is_locked_any %} plan-item--optional-locked{% endif %}{% if _completed %} plan-item--compact{% endif %}"
               data-plan-item="true"
               data-item-id="{{ _id }}"
               data-item-kind="{{ _kind }}"
-              data-locked="{{ 'true' if u_optional_locked else 'false' }}"
+              data-locked="{{ 'true' if _is_locked_any else 'false' }}"
               {% if _is_challenge %}data-challenge="true"{% endif %}>
             <span class="plan-item__badge">
-              {% if _is_challenge and _bonus %}+{{ _bonus }} XP{% else %}Бонус{% endif %}
+              {% if _completed %}&#10003;{% elif _is_challenge and _bonus %}+{{ _bonus }} XP{% else %}Бонус{% endif %}
             </span>
             <div class="plan-item__body">
-              {% if u_optional_locked %}
+              {% if _is_locked_any %}
                 <span class="plan-item__title plan-item__title--locked">{{ item.get('title') }}</span>
+                {% if _is_step_locked %}
+                  <span class="plan-item__lock-hint">Откроется после предыдущего шага</span>
+                {% endif %}
               {% else %}
                 <a class="plan-item__link" href="{{ _url }}">
                   <span class="plan-item__title">{{ item.get('title') }}</span>
@@ -342,7 +362,7 @@
                 </span>
               {% endif %}
             </div>
-            {% if not u_optional_locked %}
+            {% if _is_current %}
               <a class="plan-item__cta plan-item__cta--button plan-item__cta--secondary" href="{{ _url }}">
                 Начать <span aria-hidden="true">→</span>
               </a>
