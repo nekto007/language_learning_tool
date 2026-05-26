@@ -318,17 +318,62 @@ class WordManagementService:
         }
 
     @staticmethod
-    def _resolve_import_topic(word_data, topic_resolutions=None):
-        """Resolve topic for one word based on preview choices."""
+    def _build_topic_index():
+        """Snapshot all topics keyed by normalized name + id for batch lookup.
+
+        Used by the import flow to avoid issuing ``Topic.query.all()`` once
+        per word (~1000+ rows on large imports).
+        """
+        topics = Topic.query.all()
+        by_key: dict[str, Topic] = {}
+        for t in topics:
+            key = WordManagementService._normalize_topic_key(t.name)
+            if key and key not in by_key:
+                by_key[key] = t
+        return {
+            'by_key': by_key,
+            'by_id': {t.id: t for t in topics},
+        }
+
+    @staticmethod
+    def _resolve_import_topic(word_data, topic_resolutions=None, topic_index=None):
+        """Resolve topic for one word based on preview choices.
+
+        ``topic_index`` (from ``_build_topic_index``) avoids per-call DB hits;
+        when None, falls back to direct queries (preserves legacy callers).
+        """
         topic_name = word_data.get('topic')
         if not topic_name:
             return None
 
+        def _lookup_by_name(name):
+            if topic_index is None:
+                return WordManagementService._get_topic_by_name(name)
+            key = WordManagementService._normalize_topic_key(name)
+            return topic_index['by_key'].get(key) if key else None
+
+        def _lookup_by_id(tid):
+            if topic_index is None:
+                return Topic.query.get(int(tid))
+            return topic_index['by_id'].get(int(tid))
+
+        def _create(name):
+            new_topic = Topic(name=name)
+            db.session.add(new_topic)
+            db.session.flush()
+            if topic_index is not None:
+                key = WordManagementService._normalize_topic_key(name)
+                if key:
+                    topic_index['by_key'][key] = new_topic
+                topic_index['by_id'][new_topic.id] = new_topic
+            return new_topic
+
         if topic_resolutions is None:
-            return WordManagementService._get_or_create_topic(topic_name)
+            existing = _lookup_by_name(topic_name)
+            return existing if existing is not None else _create(topic_name)
 
         if word_data.get('topic_status') == 'existing':
-            return WordManagementService._get_topic_by_name(topic_name)
+            return _lookup_by_name(topic_name)
 
         resolution_key = word_data.get('topic_resolution_key')
         resolution = (topic_resolutions or {}).get(resolution_key, {})
@@ -340,13 +385,14 @@ class WordManagementService:
             topic_id = resolution.get('topic_id')
             if not topic_id:
                 return None
-            return Topic.query.get(int(topic_id))
+            return _lookup_by_id(topic_id)
         if action == 'create':
-            return WordManagementService._get_or_create_topic(topic_name)
+            existing = _lookup_by_name(topic_name)
+            return existing if existing is not None else _create(topic_name)
         return None
 
     @staticmethod
-    def _apply_enrichment_fields(word, word_data, topic_resolutions=None):
+    def _apply_enrichment_fields(word, word_data, topic_resolutions=None, topic_index=None):
         """Apply optional enrichment fields without overwriting with blanks."""
         if word_data.get('ipa_transcription'):
             word.ipa_transcription = word_data['ipa_transcription']
@@ -364,6 +410,7 @@ class WordManagementService:
             topic = WordManagementService._resolve_import_topic(
                 word_data,
                 topic_resolutions=topic_resolutions,
+                topic_index=topic_index,
             )
             if topic is not None and topic not in word.topics:
                 word.topics.append(topic)
@@ -598,10 +645,16 @@ class WordManagementService:
 
         Returns:
             tuple: (existing_words: list, missing_words: list, errors: list)
+
+        Batched lookup: walks all rows once to build word_data dicts,
+        then issues a single ``IN(...)`` query against CollectionWords to
+        decide existing vs missing — avoiding ~one query per line on
+        large imports (1000+ lines previously took >30s).
         """
         existing_words = []
         missing_words = []
         errors = []
+        parsed_rows: list[dict] = []
 
         reader = csv.reader(StringIO(content), delimiter=';')
         for line_num, parts in enumerate(reader, 1):
@@ -697,9 +750,23 @@ class WordManagementService:
             else:
                 word_data['has_enrichment'] = False
 
-            # Найти слово в базе
-            word = CollectionWords.query.filter_by(english_word=english_word).first()
-            if word:
+            parsed_rows.append(word_data)
+
+        # Bulk-resolve existence with one query (chunked for safety on huge files).
+        from app.utils.db_utils import chunk_ids
+
+        unique_words = list({row['english_word'] for row in parsed_rows})
+        existing_set: set[str] = set()
+        for chunk in chunk_ids(unique_words, chunk_size=500):
+            rows = (
+                db.session.query(CollectionWords.english_word)
+                .filter(CollectionWords.english_word.in_(chunk))
+                .all()
+            )
+            existing_set.update(r[0] for r in rows)
+
+        for word_data in parsed_rows:
+            if word_data['english_word'] in existing_set:
                 existing_words.append(word_data)
             else:
                 missing_words.append(word_data)
@@ -726,14 +793,32 @@ class WordManagementService:
             tuple: (updated_count: int, added_count: int)
         """
         try:
+            from app.utils.db_utils import chunk_ids
+            from sqlalchemy.orm import selectinload
+
             updated_count = 0
             added_count = 0
 
+            # Cache topic index once — avoids ``Topic.query.all()`` per word
+            # via ``_get_topic_by_name`` on large imports.
+            topic_index = WordManagementService._build_topic_index()
+
+            # Bulk-fetch existing CollectionWords with their topics preloaded.
+            existing_keys = list({w['english_word'] for w in existing_words})
+            word_by_key: dict[str, CollectionWords] = {}
+            for chunk in chunk_ids(existing_keys, chunk_size=500):
+                rows = (
+                    CollectionWords.query
+                    .options(selectinload(CollectionWords.topics))
+                    .filter(CollectionWords.english_word.in_(chunk))
+                    .all()
+                )
+                for row in rows:
+                    word_by_key[row.english_word] = row
+
             # Обновляем существующие слова
             for word_data in existing_words:
-                word = CollectionWords.query.filter_by(
-                    english_word=word_data['english_word']
-                ).first()
+                word = word_by_key.get(word_data['english_word'])
                 if word:
                     word.russian_word = word_data['russian_translate']
                     word.sentences = f"{word_data['english_sentence']}<br>{word_data['russian_sentence']}"
@@ -743,12 +828,14 @@ class WordManagementService:
                         word,
                         word_data,
                         topic_resolutions=topic_resolutions,
+                        topic_index=topic_index,
                     )
                     updated_count += 1
 
             # Добавляем новые слова (если выбраны)
+            words_to_add_set = set(map(str, words_to_add or []))
             for word_data in missing_words:
-                if str(word_data['line_num']) in words_to_add:
+                if str(word_data['line_num']) in words_to_add_set:
                     english_word_normalized = word_data['english_word'].lower().strip()
                     new_word = CollectionWords(
                         english_word=english_word_normalized,
@@ -762,6 +849,7 @@ class WordManagementService:
                         new_word,
                         word_data,
                         topic_resolutions=topic_resolutions,
+                        topic_index=topic_index,
                     )
                     added_count += 1
 

@@ -283,18 +283,27 @@ class TestGetWordsForExport:
         mock_logger.error.assert_called_once()
 
 
+def _mock_existing_words_query(mock_db, existing_set):
+    """Configure ``db.session.query(...).filter(...).all()`` to return
+    one-tuple rows for english_words in ``existing_set``. The new
+    batched lookup issues a single ``IN(...)`` query and reads the
+    first column of each row.
+    """
+    mock_db.session.query.return_value.filter.return_value.all.return_value = [
+        (word,) for word in existing_set
+    ]
+
+
 class TestParseImportFile:
     """Tests for parse_import_file method"""
 
-    @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_parse_valid_file(self, mock_words):
+    @patch('app.admin.services.word_management_service.db')
+    def test_parse_valid_file(self, mock_db):
         """Test parsing valid import file"""
         content = "test;тест;Test sentence;Тестовое предложение;A1\nhello;привет;Hello world;Привет мир;A2"
 
-        # First word exists
-        mock_word1 = Mock()
-        # Second word doesn't exist
-        mock_words.query.filter_by.return_value.first.side_effect = [mock_word1, None]
+        # First word exists, second doesn't.
+        _mock_existing_words_query(mock_db, {'test'})
 
         existing, missing, errors = WordManagementService.parse_import_file(content)
 
@@ -325,39 +334,39 @@ class TestParseImportFile:
         assert len(missing) == 0
         assert len(errors) == 0
 
-    @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_parse_with_comments(self, mock_words):
+    @patch('app.admin.services.word_management_service.db')
+    def test_parse_with_comments(self, mock_db):
         """Test parsing file with comments"""
         content = "# This is a comment\ntest;тест;Test sentence;Тестовое предложение;A1"
 
-        mock_words.query.filter_by.return_value.first.return_value = Mock()
+        _mock_existing_words_query(mock_db, {'test'})
 
         existing, missing, errors = WordManagementService.parse_import_file(content)
 
         assert len(existing) == 1
         assert len(errors) == 0
 
-    @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_parse_with_blank_lines(self, mock_words):
+    @patch('app.admin.services.word_management_service.db')
+    def test_parse_with_blank_lines(self, mock_db):
         """Test parsing file with blank lines"""
         content = "test;тест;Test sentence;Тестовое предложение;A1\n\n\nhello;привет;Hello;Привет;A1"
 
-        mock_words.query.filter_by.return_value.first.return_value = None
+        _mock_existing_words_query(mock_db, set())
 
         existing, missing, errors = WordManagementService.parse_import_file(content)
 
         assert len(missing) == 2
         assert len(errors) == 0
 
-    @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_parse_enriched_file(self, mock_words):
+    @patch('app.admin.services.word_management_service.db')
+    def test_parse_enriched_file(self, mock_db):
         """Test parsing valid import file with vocabulary enrichment fields."""
         content = (
             "pen;ручка, перо;I write with a pen.;Я пишу ручкой.;A1;"
             "stationery;/pen/;writing tool, ballpoint;eraser;high;"
             "from Latin penna, feather"
         )
-        mock_words.query.filter_by.return_value.first.return_value = Mock()
+        _mock_existing_words_query(mock_db, {'pen'})
 
         existing, missing, errors = WordManagementService.parse_import_file(content)
 
@@ -372,15 +381,15 @@ class TestParseImportFile:
         assert existing[0]['etymology'] == 'from Latin penna, feather'
         assert existing[0]['has_enrichment'] is True
 
-    @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_parse_bilingual_topic_enriched_file(self, mock_words):
+    @patch('app.admin.services.word_management_service.db')
+    def test_parse_bilingual_topic_enriched_file(self, mock_db):
         """Test parsing 12-column import with topic_ru/topic_en normalization."""
         content = (
             "pen;ручка, перо;I wrote the note with a pen.;Я написал записку ручкой.;A1;"
             "Канцелярия;Stationery;pen;[marker, ballpoint];[pencil];1;"
             "from Old French penne, from Latin penna meaning feather"
         )
-        mock_words.query.filter_by.return_value.first.return_value = Mock()
+        _mock_existing_words_query(mock_db, {'pen'})
 
         existing, missing, errors = WordManagementService.parse_import_file(content)
 
@@ -573,10 +582,11 @@ class TestTopicResolutionPreview:
 class TestImportTranslations:
     """Tests for import_translations method"""
 
+    @patch('app.admin.services.word_management_service.Topic')
     @patch('app.admin.services.word_management_service.logger')
     @patch('app.admin.services.word_management_service.db')
     @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_import_update_existing(self, mock_words, mock_db, mock_logger):
+    def test_import_update_existing(self, mock_words, mock_db, mock_logger, mock_topic):
         """Test updating existing words"""
         existing_words = [
             {
@@ -590,7 +600,9 @@ class TestImportTranslations:
         ]
 
         mock_word = Mock()
-        mock_words.query.filter_by.return_value.first.return_value = mock_word
+        mock_word.english_word = 'test'
+        mock_words.query.options.return_value.filter.return_value.all.return_value = [mock_word]
+        mock_topic.query.all.return_value = []
 
         updated, added = WordManagementService.import_translations(
             existing_words=existing_words,
@@ -628,7 +640,9 @@ class TestImportTranslations:
         ]
 
         mock_word = Mock()
-        mock_words.query.filter_by.return_value.first.return_value = mock_word
+        mock_word.english_word = 'pen'
+        mock_words.query.options.return_value.filter.return_value.all.return_value = [mock_word]
+        mock_topic.query.all.return_value = []
 
         updated, added = WordManagementService.import_translations(
             existing_words=existing_words,
@@ -644,10 +658,11 @@ class TestImportTranslations:
         assert mock_word.frequency_band == 1
         assert mock_word.etymology == 'from Latin penna, feather'
 
+    @patch('app.admin.services.word_management_service.Topic')
     @patch('app.admin.services.word_management_service.logger')
     @patch('app.admin.services.word_management_service.db')
     @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_import_add_new_words(self, mock_words, mock_db, mock_logger):
+    def test_import_add_new_words(self, mock_words, mock_db, mock_logger, mock_topic):
         """Test adding new words"""
         missing_words = [
             {
@@ -660,7 +675,8 @@ class TestImportTranslations:
             }
         ]
 
-        mock_words.query.filter_by.return_value.first.return_value = None
+        mock_words.query.options.return_value.filter.return_value.all.return_value = []
+        mock_topic.query.all.return_value = []
 
         updated, added = WordManagementService.import_translations(
             existing_words=[],
@@ -673,10 +689,11 @@ class TestImportTranslations:
         mock_db.session.add.assert_called_once()
         mock_db.session.flush.assert_called_once()
 
+    @patch('app.admin.services.word_management_service.Topic')
     @patch('app.admin.services.word_management_service.logger')
     @patch('app.admin.services.word_management_service.db')
     @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_import_mixed_update_and_add(self, mock_words, mock_db, mock_logger):
+    def test_import_mixed_update_and_add(self, mock_words, mock_db, mock_logger, mock_topic):
         """Test both updating existing and adding new words"""
         existing_words = [{'english_word': 'test', 'russian_translate': 'тест',
                           'english_sentence': 'Test', 'russian_sentence': 'Тест',
@@ -686,7 +703,9 @@ class TestImportTranslations:
                          'level': 'A1', 'line_num': 2}]
 
         mock_word = Mock()
-        mock_words.query.filter_by.return_value.first.return_value = mock_word
+        mock_word.english_word = 'test'
+        mock_words.query.options.return_value.filter.return_value.all.return_value = [mock_word]
+        mock_topic.query.all.return_value = []
 
         updated, added = WordManagementService.import_translations(
             existing_words=existing_words,
@@ -697,16 +716,18 @@ class TestImportTranslations:
         assert updated == 1
         assert added == 1
 
+    @patch('app.admin.services.word_management_service.Topic')
     @patch('app.admin.services.word_management_service.logger')
     @patch('app.admin.services.word_management_service.db')
     @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_import_error_rollback(self, mock_words, mock_db, mock_logger):
+    def test_import_error_rollback(self, mock_words, mock_db, mock_logger, mock_topic):
         """Test error handling and rollback during import"""
         existing_words = [{'english_word': 'test', 'russian_translate': 'тест',
                           'english_sentence': 'Test', 'russian_sentence': 'Тест',
                           'level': 'A1', 'line_num': 1}]
 
-        mock_words.query.filter_by.side_effect = Exception("Database error")
+        mock_topic.query.all.return_value = []
+        mock_words.query.options.return_value.filter.return_value.all.side_effect = Exception("Database error")
 
         with pytest.raises(Exception):
             WordManagementService.import_translations(
@@ -718,14 +739,16 @@ class TestImportTranslations:
         mock_db.session.rollback.assert_called_once()
         mock_logger.error.assert_called_once()
 
+    @patch('app.admin.services.word_management_service.Topic')
     @patch('app.admin.services.word_management_service.logger')
     @patch('app.admin.services.word_management_service.db')
     @patch('app.admin.services.word_management_service.CollectionWords')
-    def test_import_duplicate_word_raises_value_error_duplicate_entry(self, mock_words, mock_db, mock_logger):
+    def test_import_duplicate_word_raises_value_error_duplicate_entry(self, mock_words, mock_db, mock_logger, mock_topic):
         """IntegrityError on duplicate english_word is re-raised as ValueError('duplicate_entry')."""
         from sqlalchemy.exc import IntegrityError as SAIntegrityError
 
-        mock_words.query.filter_by.return_value.first.return_value = None
+        mock_words.query.options.return_value.filter.return_value.all.return_value = []
+        mock_topic.query.all.return_value = []
         mock_db.session.add.return_value = None
         mock_db.session.flush.side_effect = SAIntegrityError(
             statement='INSERT', params={}, orig=Exception('unique constraint')
