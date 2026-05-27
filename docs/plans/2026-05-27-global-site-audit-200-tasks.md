@@ -1064,12 +1064,12 @@
 - Modify: `app/templates/` (levelup UI)
 - Modify: `tests/test_levelup_celebration.py`
 
-- [ ] Проверить что level-up notification показывается только один раз (не при каждом reload)
-- [ ] Убедиться что confetti respects prefers-reduced-motion
-- [ ] Проверить что get_level_info корректна при total_xp=0 (level=1)
-- [ ] Убедиться что level-up не дублируется при concurrent XP awards
-- [ ] Тесты для one-time display, motion preference, zero XP, concurrent
-- [ ] run pytest tests/test_levelup_celebration.py -x
+- [x] Проверить что level-up notification показывается только один раз (не при каждом reload)
+- [x] Убедиться что confetti respects prefers-reduced-motion
+- [x] Проверить что get_level_info корректна при total_xp=0 (level=1)
+- [x] Убедиться что level-up не дублируется при concurrent XP awards
+- [x] Тесты для one-time display, motion preference, zero XP, concurrent
+- [x] run pytest tests/test_levelup_celebration.py -x
 
 ### Task 79: Dashboard badges showcase
 

@@ -63,10 +63,30 @@ def notify_achievement(user_id: int, achievement_name: str, achievement_icon: st
     )
 
 
-def notify_level_up(user_id: int, new_level: int) -> Notification:
+def notify_level_up(user_id: int, new_level: int) -> Notification | None:
+    """Create a level-up notification, deduplicating per level per day.
+
+    Multiple concurrent XP awards that both trigger the same level-up will
+    produce at most one notification row.
+    """
+    from datetime import timezone as _tz
+    title = f'Уровень {new_level}!'
+    day_start = (
+        datetime.now(_tz.utc)
+        .replace(hour=0, minute=0, second=0, microsecond=0)
+        .replace(tzinfo=None)
+    )
+    existing = Notification.query.filter(
+        Notification.user_id == user_id,
+        Notification.type == 'level_up',
+        Notification.title == title,
+        Notification.created_at >= day_start,
+    ).first()
+    if existing:
+        return existing
     return create_notification(
         user_id, 'level_up',
-        title=f'Уровень {new_level}!',
+        title=title,
         message='Поздравляем с новым уровнем!',
         icon='🎉',
         link='/dashboard',
