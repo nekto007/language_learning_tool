@@ -9108,6 +9108,7 @@ textarea:focus-visible,
     font-weight: 500;
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
+    touch-action: manipulation;
 }
 
 .audio-speed-btn:hover {
@@ -9250,6 +9251,7 @@ textarea:focus-visible,
     transition: var(--transition-base);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     white-space: nowrap;
+    touch-action: manipulation;
 }
 
 .audio-play-btn:hover {
@@ -18066,3 +18068,58 @@ body.dashboard-path-wide main.container {
 .feedback-modal__success i { color: #10b981; font-size: 2.25rem; }
 .feedback-modal__success p { margin: .75rem 0 0; color: #0f172a; font-weight: 600; }
 body.feedback-modal-open { overflow: hidden; }
+
+/* ==========================================================================
+   Mobile — 375px (iPhone SE) targeted fixes
+   ========================================================================== */
+
+/* Prevent lesson-shell horizontal overflow on very narrow screens */
+@media (max-width: 480px) {
+    .lesson-shell {
+        overflow-x: hidden;
+    }
+    .lesson-shell__meta {
+        flex-wrap: wrap;
+        gap: var(--space-2);
+    }
+}
+
+/* Tighten linear-modal inner padding on very small phones */
+@media (max-width: 375px) {
+    .linear-modal__header {
+        padding: 1rem 1rem 0.5rem;
+    }
+    .linear-modal__hint {
+        margin: 0 1rem 0.75rem;
+    }
+    .linear-modal__body {
+        padding: 0 1rem 1rem;
+    }
+}
+
+/* Dashboard rank band: allow progress section to shrink below 240px */
+@media (max-width: 480px) {
+    .dash-rank--band .dash-rank__progress--band {
+        min-width: 0;
+        width: 100%;
+    }
+    .dash-rank__band-row {
+        gap: 8px;
+    }
+}
+
+/* Leaderboard row: reduce gap and font size on very small screens */
+@media (max-width: 400px) {
+    .dash-leaderboard--under-plan .dash-leaderboard__row {
+        gap: 6px;
+        font-size: 0.8125rem;
+    }
+}
+
+/* Audio controls: ensure touch targets accessible on mobile */
+.audio-play-btn,
+.audio-speed-btn,
+.option-btn,
+.cm-speak-btn {
+    touch-action: manipulation;
+}

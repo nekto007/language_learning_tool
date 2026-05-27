@@ -659,12 +659,12 @@
 - Modify: `app/static/css/design-system.css`
 - Modify: `app/static/js/mobile-reader.js`
 
-- [ ] Проверить что dashboard читаем на 375px (iPhone SE)
-- [ ] Убедиться что lesson shell не overflow на мобильных
-- [ ] Проверить что audio controls доступны на mobile (не скрыты CSS)
-- [ ] Убедиться что collocation_matching drag-and-drop работает на touch
-- [ ] Проверить что modal окна не выходят за экран на small screens
-- [ ] run pytest -m smoke -x
+- [x] Проверить что dashboard читаем на 375px (iPhone SE)
+- [x] Убедиться что lesson shell не overflow на мобильных
+- [x] Проверить что audio controls доступны на mobile (не скрыты CSS)
+- [x] Убедиться что collocation_matching drag-and-drop работает на touch
+- [x] Проверить что modal окна не выходят за экран на small screens
+- [x] run pytest -m smoke -x
 
 ### Task 49: Frontend — Web Speech API fallback
 
