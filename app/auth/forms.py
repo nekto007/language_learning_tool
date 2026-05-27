@@ -7,8 +7,8 @@ from app.utils.password_validator import validate_password_strength
 
 
 class LoginForm(FlaskForm):
-    username_or_email = StringField(_l('Username or Email'), validators=[DataRequired()])
-    password = PasswordField(_l('Password'), validators=[DataRequired()])
+    username_or_email = StringField(_l('Username or Email'), validators=[DataRequired(), Length(max=254)])
+    password = PasswordField(_l('Password'), validators=[DataRequired(), Length(max=128)])
     remember_me = BooleanField(_l('Remember Me'))
     submit = SubmitField(_l('Sign In'))
 
@@ -48,14 +48,13 @@ class RequestResetForm(FlaskForm):
     email = StringField(_l('Email'), validators=[
         DataRequired(),
         Email(),
-        Length(max=120)
+        Length(max=254)
     ])
     submit = SubmitField(_l('Request Password Reset'))
-
-    def validate_email(self, email):
-        user = User.query.filter_by(email=email.data).first()
-        if not user:
-            raise ValidationError(_l('There is no account with that email. You must register first.'))
+    # NOTE: Do NOT add validate_email here — querying whether an email
+    # exists would allow user enumeration.  The route always shows the
+    # same "check your inbox" message regardless of whether the address
+    # is registered.
 
 
 class ResetPasswordForm(FlaskForm):

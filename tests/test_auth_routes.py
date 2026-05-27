@@ -590,3 +590,187 @@ class TestDuplicateEmailRegistration:
             }, follow_redirects=True)
         assert r.status_code == 200
         assert 'уже зарегистрирован' not in r.data.decode()
+
+
+# ---------------------------------------------------------------------------
+# Security: field length limits
+# ---------------------------------------------------------------------------
+
+class TestFieldLengthLimits:
+    """Login and register forms must reject oversized inputs."""
+
+    def test_login_rejects_oversized_username(self, client):
+        """username_or_email > 254 chars must be rejected by form validation (200, not 302)."""
+        long_input = 'a' * 255
+        r = client.post('/login', data={
+            'username_or_email': long_input,
+            'password': 'whatever',
+        }, follow_redirects=False)
+        # Form validation fails → re-render 200, or 401 if somehow passed → either
+        # way we must NOT get a successful redirect 302 to dashboard.
+        assert r.status_code != 302
+
+    def test_login_rejects_oversized_password(self, client):
+        """password > 128 chars must be rejected by form validation."""
+        long_pass = 'A1!' + 'x' * 130
+        r = client.post('/login', data={
+            'username_or_email': 'someuser',
+            'password': long_pass,
+        }, follow_redirects=False)
+        assert r.status_code != 302
+
+    def test_login_accepts_max_length_email(self, client, test_user):
+        """username_or_email exactly at 254 chars must pass form validation (length check only)."""
+        # We're not testing successful auth here — only that the form doesn't
+        # reject 254-char inputs outright before reaching the auth logic.
+        exactly_254 = 'a' * 242 + '@example.com'  # 254 chars total
+        assert len(exactly_254) == 254
+        r = client.post('/login', data={
+            'username_or_email': exactly_254,
+            'password': 'wrongpass',
+        }, follow_redirects=False)
+        # Auth fails (user not found) → 401, NOT a form-validation 200
+        assert r.status_code == 401
+
+    def test_register_rejects_oversized_email(self, client):
+        """Register form must reject email > 120 chars (DB column limit)."""
+        # 121-char email: 109 chars local + @example.com (= 121 total)
+        long_email = 'a' * 109 + '@example.com'
+        assert len(long_email) == 121
+        r = client.post('/register', data={
+            'username': 'someuser123',
+            'email': long_email,
+            'password': 'Xk9$mP2vL!qw',
+            'password2': 'Xk9$mP2vL!qw',
+        }, follow_redirects=False)
+        # Form validation fails → re-render (200), not redirect (302)
+        assert r.status_code != 302
+
+    def test_register_rejects_oversized_password(self, client):
+        """Register form must reject password > 128 chars."""
+        long_pass = 'A1!' + 'x' * 130
+        r = client.post('/register', data={
+            'username': 'someuser123',
+            'email': 'valid@example.com',
+            'password': long_pass,
+            'password2': long_pass,
+        }, follow_redirects=False)
+        assert r.status_code != 302
+
+
+# ---------------------------------------------------------------------------
+# Security: no email enumeration on password reset
+# ---------------------------------------------------------------------------
+
+class TestNoEmailEnumeration:
+    """Password-reset endpoint must not leak whether an email is registered."""
+
+    @patch('app.auth.routes.email_sender')
+    def test_unknown_email_redirects_to_login(self, mock_email, client):
+        """POST /reset_password with unknown email must redirect (not re-render with error)."""
+        mock_email.send_email.return_value = True
+        r = client.post('/reset_password', data={
+            'email': 'nobody_here@example.com',
+        }, follow_redirects=False)
+        # Must be a redirect (same as known-email path) — not a 200 with error
+        assert r.status_code == 302
+
+    @patch('app.auth.routes.email_sender')
+    def test_known_email_also_redirects(self, mock_email, client, test_user):
+        """POST /reset_password with known email also redirects."""
+        mock_email.send_email.return_value = True
+        r = client.post('/reset_password', data={
+            'email': test_user.email,
+        }, follow_redirects=False)
+        assert r.status_code == 302
+
+    @patch('app.auth.routes.email_sender')
+    def test_response_bodies_indistinguishable(self, mock_email, client, test_user):
+        """Both known and unknown emails must reach the same page after redirect."""
+        mock_email.send_email.return_value = True
+        r_known = client.post('/reset_password', data={
+            'email': test_user.email,
+        }, follow_redirects=True)
+        r_unknown = client.post('/reset_password', data={
+            'email': 'nobody_registered@example.com',
+        }, follow_redirects=True)
+        # Both land on the login page — status codes equal
+        assert r_known.status_code == r_unknown.status_code == 200
+        # Neither response body should contain "There is no account" / enumeration text
+        for body in (r_known.data.decode(), r_unknown.data.decode()):
+            assert 'there is no account' not in body.lower()
+            assert 'no account with' not in body.lower()
+            assert 'you must register' not in body.lower()
+
+
+# ---------------------------------------------------------------------------
+# Security: rate limits on login and register
+# ---------------------------------------------------------------------------
+
+class TestRateLimits:
+    """Rate-limiting decorators must be present and active on login/register."""
+
+    def test_login_has_rate_limit_decorator(self):
+        """The login view must be wrapped with a limiter decorator.
+
+        Flask-Limiter 3.x stores the limiter instance on the decorated
+        function under the attribute '__wrapper-limiter-instance'.
+        """
+        from app.auth import routes as auth_routes
+        view = auth_routes.login
+        # Flask-Limiter 3.x uses '__wrapper-limiter-instance'
+        assert getattr(view, '__wrapper-limiter-instance', None) is not None, (
+            "login view is missing a @limiter.limit() decorator"
+        )
+
+    def test_register_has_rate_limit_decorator(self):
+        """The register view must be wrapped with a limiter decorator."""
+        from app.auth import routes as auth_routes
+        view = auth_routes.register
+        assert getattr(view, '__wrapper-limiter-instance', None) is not None, (
+            "register view is missing a @limiter.limit() decorator"
+        )
+
+    def test_reset_request_has_rate_limit_decorator(self):
+        """The reset_request view must be wrapped with a limiter decorator."""
+        from app.auth import routes as auth_routes
+        view = auth_routes.reset_request
+        assert getattr(view, '__wrapper-limiter-instance', None) is not None, (
+            "reset_request view is missing a @limiter.limit() decorator"
+        )
+
+    def test_login_limit_string_is_strict_enough(self):
+        """The login rate limit must be ≤ 20 POST requests per minute.
+
+        We verify the limit string in the source rather than runtime behaviour
+        because the test suite disables rate limiting globally (RATELIMIT_ENABLED=False).
+        The production value is '10 per minute'.
+        """
+        import inspect
+        from app.auth import routes as auth_routes
+        source = inspect.getsource(auth_routes.login)
+        # Accept any limit that uses 'per minute' with a number ≤ 20
+        import re
+        match = re.search(r'@limiter\.limit\(["\'](\d+)\s+per\s+minute', source)
+        assert match is not None, (
+            "login must have @limiter.limit('<N> per minute') decorator in source"
+        )
+        limit_n = int(match.group(1))
+        assert limit_n <= 20, (
+            f"login rate limit ({limit_n}/min) is too lenient; must be ≤ 20 to resist brute-force"
+        )
+
+    def test_register_limit_string_is_strict_enough(self):
+        """The register rate limit must be ≤ 10 POST requests per minute."""
+        import inspect
+        import re
+        from app.auth import routes as auth_routes
+        source = inspect.getsource(auth_routes.register)
+        match = re.search(r'@limiter\.limit\(["\'](\d+)\s+per\s+minute', source)
+        assert match is not None, (
+            "register must have @limiter.limit('<N> per minute') decorator in source"
+        )
+        limit_n = int(match.group(1))
+        assert limit_n <= 10, (
+            f"register rate limit ({limit_n}/min) is too lenient; must be ≤ 10 to resist abuse"
+        )
