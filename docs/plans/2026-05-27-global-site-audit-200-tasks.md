@@ -699,12 +699,12 @@
 - Modify: `app/books/api.py`
 - Modify: `tests/books/`
 
-- [ ] Проверить что reading progress sync не дублируется при rapid scroll
-- [ ] Убедиться что reading session end вызывается при page unload (не только explicit)
-- [ ] Проверить что reader не теряет позицию при tab switch + return
-- [ ] Убедиться что offset_delta всегда 0..1 (не > 1 при fast read)
-- [ ] Тесты для scroll dedup, unload handler, offset bounds
-- [ ] run pytest tests/books/ -x
+- [x] Проверить что reading progress sync не дублируется при rapid scroll
+- [x] Убедиться что reading session end вызывается при page unload (не только explicit)
+- [x] Проверить что reader не теряет позицию при tab switch + return
+- [x] Убедиться что offset_delta всегда 0..1 (не > 1 при fast read)
+- [x] Тесты для scroll dedup, unload handler, offset bounds
+- [x] run pytest tests/books/ -x
 
 ### Task 52: Email — templates и deliverability
 
