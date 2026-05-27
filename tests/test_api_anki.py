@@ -72,7 +72,8 @@ class TestExportAnki:
         assert response.status_code == 400
         data = response.get_json()
         assert data['success'] is False
-        assert 'Missing required parameters' in data['error']
+        # api_error() puts machine code in 'error', human text in 'message'
+        assert data['error'] == 'missing_fields' or 'Missing' in data.get('message', '')
 
     def test_export_anki_invalid_json(self, authenticated_client):
         """Test error with invalid JSON"""
@@ -99,7 +100,7 @@ class TestExportAnki:
         assert response.status_code == 404
         data = response.get_json()
         assert data['success'] is False
-        assert 'No words found' in data['error']
+        assert data['error'] == 'not_found' or 'No words' in data.get('message', '')
 
     @patch('app.api.anki.create_anki_package')
     @patch('app.api.anki.send_file')

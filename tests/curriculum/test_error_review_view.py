@@ -15,13 +15,10 @@ from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.daily_plan.linear.errors import log_quiz_error
 from app.grammar_lab.models import GrammarTopic
 from app.utils.db import db as real_db
+from tests.conftest import unique_level_code
 
 
 pytestmark = pytest.mark.usefixtures('app')
-
-
-def _unique_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
 
 
 def _make_user(db_session) -> User:
@@ -53,7 +50,7 @@ def _make_topic(db_session, slug: str, title: str) -> GrammarTopic:
 
 
 def _make_lesson(db_session, title: str, topic_id=None) -> Lessons:
-    level = CEFRLevel(code=_unique_code(), name='L', description='d', order=1)
+    level = CEFRLevel(code=unique_level_code(), name='L', description='d', order=1)
     db_session.add(level)
     db_session.commit()
     module = Module(

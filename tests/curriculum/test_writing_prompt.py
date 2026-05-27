@@ -13,14 +13,12 @@ from app.curriculum.models import (
     CEFRLevel, LessonProgress, Lessons, Module, UserWritingAttempt,
     save_writing_attempt,
 )
+from tests.conftest import unique_level_code
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _unique_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
 
 
 def _make_writing_lesson(
@@ -31,7 +29,7 @@ def _make_writing_lesson(
     example_response: str | None = None,
     checklist: list[str] | None = None,
 ) -> Lessons:
-    level = CEFRLevel(code=_unique_code(), name="Level", description="d", order=1)
+    level = CEFRLevel(code=unique_level_code(), name="Level", description="d", order=1)
     db_session.add(level)
     db_session.commit()
     module = Module(

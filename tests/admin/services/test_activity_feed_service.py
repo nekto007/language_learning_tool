@@ -18,6 +18,7 @@ from app.admin.services.activity_feed_service import (
 )
 from app.auth.models import User
 from app.utils.db import db
+from tests.conftest import unique_level_code
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +100,7 @@ class TestFetchLessonCompleted:
         from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 
         user = _make_user(db_session)
-        code = uuid.uuid4().hex[:2].upper()
+        code = unique_level_code()
         level = CEFRLevel(code=code, name="Lvl", description="", order=88)
         db_session.add(level)
         db_session.flush()
@@ -133,7 +134,7 @@ class TestFetchLessonCompleted:
 
         user1 = _make_user(db_session)
         user2 = _make_user(db_session)
-        code = uuid.uuid4().hex[:2].upper()
+        code = unique_level_code()
         level = CEFRLevel(code=code, name="Lvl", description="", order=87)
         db_session.add(level)
         db_session.flush()
@@ -163,7 +164,7 @@ class TestFetchLessonCompleted:
         from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 
         user = _make_user(db_session)
-        code = uuid.uuid4().hex[:2].upper()
+        code = unique_level_code()
         level = CEFRLevel(code=code, name="Lvl", description="", order=86)
         db_session.add(level)
         db_session.flush()
@@ -195,7 +196,7 @@ class TestFetchLessonCompleted:
         from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 
         user = _make_user(db_session)
-        code = uuid.uuid4().hex[:2].upper()
+        code = unique_level_code()
         level = CEFRLevel(code=code, name="Lvl", description="", order=85)
         db_session.add(level)
         db_session.flush()

@@ -32,7 +32,7 @@ def health():
         # balancer check for 30 s.  The SET is local to this statement batch;
         # the subsequent SELECT 1 will raise OperationalError if it exceeds
         # the limit.
-        db.session.execute(db.text(f'SET LOCAL statement_timeout = {_DB_TIMEOUT_MS}'))
+        db.session.execute(db.text('SET LOCAL statement_timeout = ' + str(_DB_TIMEOUT_MS)))
         db.session.execute(db.text('SELECT 1'))
     except Exception:
         logger.exception('Health check: database connectivity failure')

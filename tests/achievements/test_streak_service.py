@@ -340,7 +340,7 @@ class TestLongestStreakTracking:
         from app.study.insights_service import get_personal_bests
         from app.curriculum.models import CEFRLevel, Module, Lessons, LessonProgress
 
-        code = uuid.uuid4().hex[:2].upper()
+        from tests.conftest import unique_level_code; code = unique_level_code()
         level = CEFRLevel(code=code, name='L', description='d', order=1)
         db_session.add(level)
         db_session.flush()

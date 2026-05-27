@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.daily_plan.models import LessonSkip
+from tests.conftest import unique_level_code
 
 
 def _make_user(db_session) -> User:
@@ -22,7 +23,7 @@ def _make_user(db_session) -> User:
 
 
 def _make_lesson(db_session) -> Lessons:
-    uid = uuid.uuid4().hex[:2].upper()
+    uid = unique_level_code()
     level = CEFRLevel(code=uid, name='Beginner', description='desc', order=1)
     db_session.add(level)
     db_session.commit()

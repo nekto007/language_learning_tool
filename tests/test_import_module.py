@@ -5,11 +5,13 @@ Tests for import_module.py - JSON module import functionality
 import json
 import pytest
 import tempfile
+import uuid
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from import_module import import_module_from_json
 from app.curriculum.models import CEFRLevel, Module, Lessons
+from tests.conftest import unique_level_code
 
 
 class TestImportModuleBasic:
@@ -123,10 +125,9 @@ class TestImportModuleBasic:
 
     def test_import_creates_missing_level(self, app, db_session):
         """Тест создания уровня если он отсутствует - создается A1"""
-        import uuid
         with app.app_context():
-            # Use a random level code that doesn't exist
-            level_code = uuid.uuid4().hex[:2].upper()
+            # Use a unique level code that doesn't exist
+            level_code = unique_level_code()
             module_id = int(uuid.uuid4().hex[:6], 16) % 100000
 
             test_data = {

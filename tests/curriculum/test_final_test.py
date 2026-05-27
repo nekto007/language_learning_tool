@@ -13,10 +13,7 @@ from app.curriculum.grading import (
     check_final_test_attempts_exhausted,
 )
 from app.curriculum.models import CEFRLevel, LessonAttempt, Lessons, Module
-
-
-def _unique_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
+from tests.conftest import unique_level_code
 
 
 def _make_user(db_session, *, is_admin: bool = False) -> User:
@@ -34,7 +31,7 @@ def _make_user(db_session, *, is_admin: bool = False) -> User:
 
 
 def _make_final_test_lesson(db_session) -> Lessons:
-    level = CEFRLevel(code=_unique_code(), name='L', description='d', order=1)
+    level = CEFRLevel(code=unique_level_code(), name='L', description='d', order=1)
     db_session.add(level)
     db_session.commit()
     module = Module(

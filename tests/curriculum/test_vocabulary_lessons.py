@@ -18,6 +18,7 @@ from app.curriculum.models import (
     WordCollocation,
 )
 from app.words.models import CollectionWords
+from tests.conftest import unique_level_code
 
 
 # ---------------------------------------------------------------------------
@@ -30,7 +31,7 @@ def _unique() -> str:
 
 def _make_level(db_session) -> CEFRLevel:
     level = CEFRLevel(
-        code=uuid.uuid4().hex[:2].upper(),
+        code=unique_level_code(),
         name="TestLevel",
         description="d",
         order=1,

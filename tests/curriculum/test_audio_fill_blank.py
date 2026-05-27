@@ -13,6 +13,7 @@ from marshmallow import ValidationError
 from app.curriculum.grading import grade_audio_fill_blank
 from app.curriculum.validators import LessonContentValidator
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
+from tests.conftest import unique_level_code
 
 
 # ---------------------------------------------------------------------------
@@ -213,8 +214,6 @@ class TestGradeAudioFillBlank:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _unique_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
 
 
 def _make_afb_lesson(db_session, *, items=None) -> Lessons:
@@ -223,7 +222,7 @@ def _make_afb_lesson(db_session, *, items=None) -> Lessons:
             {'text_with_gap': 'She ___ to school.', 'answer': 'goes'},
             {'text_with_gap': 'I ___ reading.', 'answer': 'like'},
         ]
-    level = CEFRLevel(code=_unique_code(), name="Level", description="d", order=1)
+    level = CEFRLevel(code=unique_level_code(), name="Level", description="d", order=1)
     db_session.add(level)
     db_session.commit()
     module = Module(

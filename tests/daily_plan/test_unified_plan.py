@@ -21,6 +21,7 @@ from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.daily_plan.plan import build_optional, build_required, build_setup, get_daily_plan
 from app.utils.db import db as real_db
+from tests.conftest import unique_level_code
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -43,7 +44,7 @@ def _make_user(db_session, **kwargs) -> User:
 
 def _make_level(db_session, code: str | None = None, order: int = 1) -> CEFRLevel:
     if code is None:
-        code = uuid.uuid4().hex[:2].upper()
+        code = unique_level_code()
     level = CEFRLevel(code=code, name=f'Level {code}', description='', order=order)
     db_session.add(level)
     db_session.commit()

@@ -7,6 +7,7 @@ import pytest
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonAttempt, LessonProgress, Lessons, Module
 from app.utils.db import db
+from tests.conftest import unique_level_code
 
 
 def _make_user(db_session):
@@ -25,7 +26,7 @@ def _make_user(db_session):
 
 def _make_lesson(db_session):
     """Create a minimal lesson hierarchy and return the Lessons object."""
-    code = uuid.uuid4().hex[:2].upper()
+    code = unique_level_code()
     level = CEFRLevel(code=code, name='Test', description='Test', order=99)
     db_session.add(level)
     db_session.flush()

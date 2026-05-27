@@ -492,23 +492,29 @@ class TestStreakShieldOrder:
     def test_shield_repair_counted_by_get_current_streak(self, db_session, shield_user):
         """Shield-repaired day must count in get_current_streak.
 
-        Sets up: activity today + shield_repair for yesterday.
+        Sets up: activity today + shield_repair for yesterday (all in DEFAULT_TZ).
         Expects streak >= 2.
         """
-        from app.telegram.queries import get_current_streak
+        import pytz
+        from app.telegram.queries import get_current_streak, DEFAULT_TZ
         from app.achievements.streak_service import apply_shield_repair
 
-        # Write shield_repair event for yesterday
-        yesterday = date.today() - timedelta(days=1)
+        tz_obj = pytz.timezone(DEFAULT_TZ)
+        local_now = datetime.now(tz_obj)
+        local_today = local_now.date()
+        yesterday = local_today - timedelta(days=1)
+
+        # Write shield_repair event for DEFAULT_TZ yesterday
         apply_shield_repair(shield_user.id, yesterday)
         db_session.flush()
 
-        # Write StudySession for today (so has_activity_today returns True)
-        today_start = datetime.now(timezone.utc).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        ).replace(tzinfo=None)
+        # Write StudySession within DEFAULT_TZ today (noon local = safe middle of day)
+        local_noon = tz_obj.localize(
+            datetime(local_today.year, local_today.month, local_today.day, 12, 0, 0)
+        )
+        utc_noon = local_noon.astimezone(pytz.utc).replace(tzinfo=None)
         ss = StudySession(user_id=shield_user.id, session_type='cards')
-        ss.start_time = today_start + timedelta(hours=1)
+        ss.start_time = utc_noon
         db_session.add(ss)
         db_session.flush()
 

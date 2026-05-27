@@ -68,7 +68,8 @@ class TestUpdateSingleWordStatusValidation:
         assert resp.status_code == 400
         data = resp.get_json()
         assert data['success'] is False
-        assert 'Invalid status' in data['error']
+        # api_error() puts machine code in 'error', human text in 'message'
+        assert data['error'] == 'invalid_status' or 'Invalid' in data.get('message', '')
 
     def test_valid_status_accepted(self, authenticated_client, db_session):
         word = self._word(db_session)

@@ -22,6 +22,7 @@ from app.curriculum.security import (
     check_lesson_access,
 )
 from app.utils.db import db as real_db
+from tests.conftest import unique_level_code
 
 
 # ---------------------------------------------------------------------------
@@ -30,7 +31,7 @@ from app.utils.db import db as real_db
 
 def _make_level(db_session, order=10) -> CEFRLevel:
     level = CEFRLevel(
-        code=uuid.uuid4().hex[:2].upper(),
+        code=unique_level_code(),
         name='TestLevel',
         order=order,
     )

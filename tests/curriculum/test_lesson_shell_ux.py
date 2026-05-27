@@ -14,6 +14,7 @@ from unittest.mock import patch
 import pytest
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
+from tests.conftest import unique_level_code
 
 
 STATIC_JS = (
@@ -34,10 +35,6 @@ DESIGN_SYSTEM_CSS = (
 # helpers
 # ---------------------------------------------------------------------------
 
-def _unique():
-    return uuid.uuid4().hex[:2].upper()
-
-
 def _login(client, user):
     with client.session_transaction() as sess:
         sess["_user_id"] = str(user.id)
@@ -46,7 +43,7 @@ def _login(client, user):
 
 @pytest.fixture()
 def _level(db_session):
-    code = _unique()
+    code = unique_level_code()
     level = CEFRLevel(code=code, name=f"Level {code}", description="d", order=1)
     db_session.add(level)
     db_session.commit()

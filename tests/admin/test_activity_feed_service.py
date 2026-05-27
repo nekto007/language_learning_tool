@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 import pytest
 
 from app.auth.models import User
+from tests.conftest import unique_level_code
 
 
 def _make_user(db_session):
@@ -31,7 +32,7 @@ class TestFetchLessonCompleted:
         from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 
         user = _make_user(db_session)
-        code = uuid.uuid4().hex[:2].upper()
+        code = unique_level_code()
         level = CEFRLevel(code=code, name='Test', description='Test', order=88)
         db_session.add(level)
         db_session.flush()
@@ -64,7 +65,7 @@ class TestFetchLessonCompleted:
         from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 
         user = _make_user(db_session)
-        code = uuid.uuid4().hex[:2].upper()
+        code = unique_level_code()
         level = CEFRLevel(code=code, name='Test2', description='T', order=87)
         db_session.add(level)
         db_session.flush()
@@ -442,7 +443,7 @@ class TestPagination:
         base = _now()
 
         # lesson_completed (oldest)
-        code = uuid.uuid4().hex[:2].upper()
+        code = unique_level_code()
         level = CEFRLevel(code=code, name='T', description='T', order=77)
         db_session.add(level)
         db_session.flush()

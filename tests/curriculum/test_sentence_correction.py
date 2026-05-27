@@ -9,14 +9,12 @@ import pytest
 from app.curriculum.grading import grade_sentence_correction
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.validators import LessonContentValidator
+from tests.conftest import unique_level_code
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _unique_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
 
 
 def _make_sentence_correction_lesson(
@@ -28,7 +26,7 @@ def _make_sentence_correction_lesson(
     explanation: str = "Third-person singular requires -s on the verb.",
     options=None,
 ) -> Lessons:
-    level = CEFRLevel(code=_unique_code(), name="Level", description="d", order=1)
+    level = CEFRLevel(code=unique_level_code(), name="Level", description="d", order=1)
     db_session.add(level)
     db_session.commit()
     module = Module(

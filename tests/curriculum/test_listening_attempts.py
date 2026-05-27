@@ -10,14 +10,11 @@ import pytest
 
 from app.curriculum.models import CEFRLevel, Lessons, ListeningAttempt, Module
 from app.curriculum.listening_service import log_listening_attempt
-
-
-def _unique_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
+from tests.conftest import unique_level_code
 
 
 def _make_listening_lesson(db_session, lesson_type: str = 'dictation') -> Lessons:
-    level = CEFRLevel(code=_unique_code(), name='Level', description='d', order=1)
+    level = CEFRLevel(code=unique_level_code(), name='Level', description='d', order=1)
     db_session.add(level)
     db_session.commit()
     module = Module(

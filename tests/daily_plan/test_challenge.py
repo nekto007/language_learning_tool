@@ -31,6 +31,7 @@ from app.daily_plan.challenge import (
     get_challenge_streak,
     get_today_challenge,
 )
+from tests.conftest import unique_level_code
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -48,7 +49,7 @@ def _make_user(db_session):
 
 def _make_dictation_lesson(db_session):
     from app.curriculum.models import CEFRLevel, Lessons, Module
-    uid = uuid.uuid4().hex[:2].upper()
+    uid = unique_level_code()
     level = CEFRLevel(code=uid, name='Test', description='d', order=99)
     db_session.add(level)
     db_session.commit()

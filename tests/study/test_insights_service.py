@@ -11,8 +11,20 @@ Task 79: Accuracy improvement chart.
 """
 from __future__ import annotations
 
+import itertools
 import uuid
 from datetime import datetime, date, timedelta, timezone
+
+# Thread-safe sequential counter for unique 2-char CEFR codes in tests.
+# Uses base-36 (0-9, A-Z) starting from high values to avoid real codes (A1..C2).
+_CODE_COUNTER = itertools.count(100)  # starts at '2S' in base-36
+
+
+def _unique_level_code() -> str:
+    """Return a unique 2-char code that won't collide within a test session."""
+    n = next(_CODE_COUNTER)
+    chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    return chars[n // 36 % 36] + chars[n % 36]
 
 import pytest
 
@@ -28,7 +40,7 @@ from app.utils.db import db
 # ---------------------------------------------------------------------------
 
 def _unique_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
+    return _unique_level_code()
 
 
 def _make_lesson(db_session) -> Lessons:
@@ -984,7 +996,7 @@ _eta_order_counter = 100
 
 def _make_cefr_level(db_session, order: int) -> CEFRLevel:
     """Create a CEFRLevel with a unique 2-char code."""
-    code = uuid.uuid4().hex[:2].upper()
+    code = _unique_level_code()
     level = CEFRLevel(code=code, name=f'Level {code}', description='d', order=order)
     db_session.add(level)
     db_session.flush()
@@ -1113,7 +1125,7 @@ class TestGetLevelEta:
 # ---------------------------------------------------------------------------
 
 def _make_quiz_lesson(db_session, lesson_type: str = 'quiz') -> Lessons:
-    code = uuid.uuid4().hex[:2].upper()
+    code = _unique_level_code()
     level = CEFRLevel(code=code, name='LevelQ', description='d', order=99)
     db_session.add(level)
     db_session.flush()
@@ -1417,7 +1429,7 @@ class TestGetStudyTimeDistribution:
 # ---------------------------------------------------------------------------
 
 def _make_dictation_lesson(db_session) -> Lessons:
-    code = uuid.uuid4().hex[:2].upper()
+    code = _unique_level_code()
     level = CEFRLevel(code=code, name='LevelD', description='d', order=99)
     db_session.add(level)
     db_session.flush()

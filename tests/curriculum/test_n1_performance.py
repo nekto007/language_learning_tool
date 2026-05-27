@@ -12,6 +12,7 @@ from sqlalchemy import event
 
 from app.curriculum.models import CEFRLevel, Lessons, LessonProgress, Module
 from app.utils.db import db
+from tests.conftest import unique_level_code
 
 
 # ---------------------------------------------------------------------------
@@ -23,7 +24,7 @@ def _uid() -> str:
 
 
 def _make_level(db_session) -> CEFRLevel:
-    level = CEFRLevel(code=uuid.uuid4().hex[:2].upper(), name=f"Level-{_uid()}", order=99)
+    level = CEFRLevel(code=unique_level_code(), name=f"Level-{_uid()}", order=99)
     db_session.add(level)
     db_session.commit()
     return level

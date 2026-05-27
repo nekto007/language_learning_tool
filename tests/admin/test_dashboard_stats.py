@@ -8,6 +8,7 @@ import pytest
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonAttempt, LessonProgress, Lessons, Module
 from app.utils.db import db
+from tests.conftest import unique_level_code
 
 
 class TestGetDashboardStatistics:
@@ -148,7 +149,7 @@ class TestGetDailyActivityData:
         db_session.flush()
 
         level = CEFRLevel(
-            code=uuid.uuid4().hex[:2].upper(),
+            code=unique_level_code(),
             name='Test', description='Test', order=1
         )
         db_session.add(level)
@@ -349,7 +350,7 @@ class TestLearningMetrics:
         db_session.flush()
 
         level = CEFRLevel(
-            code=uuid.uuid4().hex[:2].upper(),
+            code=unique_level_code(),
             name='Test', description='Test', order=99
         )
         db_session.add(level)
@@ -394,7 +395,7 @@ class TestLearningMetrics:
         db_session.flush()
 
         level = CEFRLevel(
-            code=uuid.uuid4().hex[:2].upper(),
+            code=unique_level_code(),
             name='Test', description='Test', order=98
         )
         db_session.add(level)
@@ -945,7 +946,7 @@ class TestContentQuality:
         db_session.flush()
 
         level = CEFRLevel(
-            code=uuid.uuid4().hex[:2].upper(),
+            code=unique_level_code(),
             name='Test', description='Test', order=97
         )
         db_session.add(level)
@@ -995,7 +996,7 @@ class TestContentQuality:
         db_session.flush()
 
         level = CEFRLevel(
-            code=uuid.uuid4().hex[:2].upper(),
+            code=unique_level_code(),
             name='Test', description='Test', order=96
         )
         db_session.add(level)

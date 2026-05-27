@@ -1238,12 +1238,12 @@
 - Modify: `tests/conftest.py` (если нужны фиксы)
 - Modify: `pytest.ini`
 
-- [ ] Запустить полный pytest -m smoke и исправить все провалившиеся тесты
-- [ ] Убедиться что все новые тесты из тасок 1-90 помечены @pytest.mark.smoke где применимо
-- [ ] Проверить что db_session fixture использует savepoint pattern (не DELETE cleanup)
-- [ ] Убедиться что нет test isolation нарушений (порядок запуска не влияет)
-- [ ] Запустить pytest --tb=short и убедиться что 0 failures, 0 errors
-- [ ] run pytest -x
+- [x] Запустить полный pytest -m smoke и исправить все провалившиеся тесты
+- [x] Убедиться что все новые тесты из тасок 1-90 помечены @pytest.mark.smoke где применимо
+- [x] Проверить что db_session fixture использует savepoint pattern (не DELETE cleanup)
+- [x] Убедиться что нет test isolation нарушений (порядок запуска не влияет)
+- [x] Запустить pytest --tb=short и убедиться что 0 failures, 0 errors
+- [x] run pytest -x
 
 ### Task 92: Документация и CLAUDE.md обновление
 

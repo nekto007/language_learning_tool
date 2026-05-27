@@ -14,11 +14,12 @@ import uuid
 import pytest
 
 from app.curriculum.models import CEFRLevel, Lessons, Module
+from tests.conftest import unique_level_code
 
 
 @pytest.fixture()
 def _level(db_session):
-    code = uuid.uuid4().hex[:2].upper()
+    code = unique_level_code()
     level = CEFRLevel(code=code, name="Level", description="d", order=1)
     db_session.add(level)
     db_session.commit()

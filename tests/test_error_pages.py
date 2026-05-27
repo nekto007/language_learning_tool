@@ -19,7 +19,8 @@ class TestErrorPages:
         assert response.status_code == 404
         data = response.get_json()
         assert data['success'] is False
-        assert data['error'] == 'Not found'
+        # api_error() puts machine code in 'error', human text in 'message'
+        assert data['error'] == 'not_found'
 
     def test_404_returns_json_for_xhr(self, client):
         response = client.get('/nonexistent-page', headers={'X-Requested-With': 'XMLHttpRequest'})
@@ -42,7 +43,7 @@ class TestErrorPages:
         assert rv.status_code == 403
         data = rv.get_json()
         assert data['success'] is False
-        assert data['error'] == 'Forbidden'
+        assert data['error'] == 'forbidden'
 
     def test_500_handler_html(self, app):
         with patch('app.admin.routes.dashboard_routes.increment_5xx_counter'):
@@ -61,4 +62,4 @@ class TestErrorPages:
         assert rv.status_code == 500
         data = rv.get_json()
         assert data['success'] is False
-        assert data['error'] == 'Internal server error'
+        assert data['error'] == 'internal_error'

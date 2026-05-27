@@ -16,6 +16,7 @@ def _fast_generate_password_hash(password: str, method: str = 'pbkdf2:sha256:1',
 werkzeug.security.generate_password_hash = _fast_generate_password_hash
 # ============================================================================
 
+import itertools
 import pytest
 import json
 import os
@@ -26,6 +27,17 @@ import sqlalchemy.event
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
 from pathlib import Path
+
+# Sequential unique 2-char code generator for CEFRLevel in tests.
+# Uses base-36 chars. Starts at offset 50 to skip low-value hex codes.
+_CEFR_CODE_COUNTER = itertools.count(50)
+_CEFR_CODE_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+
+def unique_level_code() -> str:
+    """Return a unique 2-char code safe for use as CEFRLevel.code in tests."""
+    n = next(_CEFR_CODE_COUNTER)
+    return _CEFR_CODE_CHARS[(n // 36) % 36] + _CEFR_CODE_CHARS[n % 36]
 from dotenv import load_dotenv
 
 # Load test environment variables before importing the application
@@ -269,15 +281,9 @@ def admin_user(app, db_session, client):
 
 @pytest.fixture(scope='function')
 def test_level(db_session):
-    """Create test CEFR level with unique code.
-
-    Uses uuid prefix for code to avoid collisions.
-    db_session TRUNCATE ensures clean table at start.
-    """
-    code = uuid.uuid4().hex[:2].upper()
-
+    """Create test CEFR level with unique code."""
     level = CEFRLevel(
-        code=code,
+        code=unique_level_code(),
         name='Beginner',
         description='Beginner level',
         order=1
