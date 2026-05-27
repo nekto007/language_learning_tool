@@ -82,12 +82,12 @@
 - Modify: `app/daily_plan/models.py`
 - Modify: `tests/daily_plan/`
 
-- [ ] Убедиться что POST /api/daily-plan/skip-lesson возвращает 400 для невалидного lesson_id
-- [ ] Проверить что already_deferred корректно возвращается при повторном skip
-- [ ] Убедиться что skip_quota_exhausted корректно считает по user-local date
-- [ ] Проверить что slot_skipped event не дублируется при concurrent requests
-- [ ] Тесты для quota edge cases и concurrent skip attempts
-- [ ] run pytest tests/daily_plan/ -x
+- [x] Убедиться что POST /api/daily-plan/skip-lesson возвращает 400 для невалидного lesson_id
+- [x] Проверить что already_deferred корректно возвращается при повторном skip
+- [x] Убедиться что skip_quota_exhausted корректно считает по user-local date
+- [x] Проверить что slot_skipped event не дублируется при concurrent requests
+- [x] Тесты для quota edge cases и concurrent skip attempts
+- [x] run pytest tests/daily_plan/ -x
 
 ### Task 6: Daily Plan — /api/daily-status payload correctness
 
