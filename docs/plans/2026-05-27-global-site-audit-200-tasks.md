@@ -874,12 +874,12 @@
 - Modify: `app/daily_plan/service.py`
 - Modify: `tests/daily_plan/`
 
-- [ ] Проверить что POST /api/plan/pause принимает только валидные date параметры
-- [ ] Убедиться что paused дни не ломают streak (streak_neutral)
-- [ ] Проверить что resume до paused_until даты корректно работает
-- [ ] Убедиться что plan_paused_until в прошлом не блокирует план
-- [ ] Тесты для pause validation, streak neutrality, early resume
-- [ ] run pytest tests/daily_plan/ -x
+- [x] Проверить что POST /api/plan/pause принимает только валидные date параметры
+- [x] Убедиться что paused дни не ломают streak (streak_neutral)
+- [x] Проверить что resume до paused_until даты корректно работает
+- [x] Убедиться что plan_paused_until в прошлом не блокирует план
+- [x] Тесты для pause validation, streak neutrality, early resume
+- [x] run pytest tests/daily_plan/ -x
 
 ### Task 65: DailyChallenge — completion и achievements
 
