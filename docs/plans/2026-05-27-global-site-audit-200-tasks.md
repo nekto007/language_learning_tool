@@ -1155,12 +1155,12 @@
 - Modify: `app/admin/routes/grammar_lab_routes.py`
 - Modify: `tests/admin/`
 
-- [ ] Проверить что bulk delete упражнений каскадно удаляет UserGrammarExercise
-- [ ] Убедиться что quiz edit с невалидным content возвращает 400 (не 500)
-- [ ] Проверить что grammar quiz import валидирует все обязательные поля
-- [ ] Убедиться что difficulty поле принимает только 0..1 range
-- [ ] Тесты для cascade delete, validation errors, difficulty bounds
-- [ ] run pytest tests/admin/ -x
+- [x] Проверить что bulk delete упражнений каскадно удаляет UserGrammarExercise
+- [x] Убедиться что quiz edit с невалидным content возвращает 400 (не 500)
+- [x] Проверить что grammar quiz import валидирует все обязательные поля
+- [x] Убедиться что difficulty поле принимает только 0..1 range
+- [x] Тесты для cascade delete, validation errors, difficulty bounds
+- [x] run pytest tests/admin/ -x
 
 ### Task 86: Admin word management — bulk operations
 

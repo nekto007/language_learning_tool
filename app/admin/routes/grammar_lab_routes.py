@@ -239,7 +239,13 @@ def create_exercise(topic_id):
         try:
             exercise_type = request.form.get('exercise_type', 'fill_blank')
             order = int(request.form.get('order', 0))
-            difficulty = int(request.form.get('difficulty', 1))
+            try:
+                difficulty = int(request.form.get('difficulty', 1))
+            except (ValueError, TypeError):
+                difficulty = 1
+            if not (1 <= difficulty <= 3):
+                flash('Difficulty must be between 1 and 3.', 'danger')
+                return render_template('admin/grammar_lab/exercise_form.html', topic=topic, exercise=None), 400
 
             # Parse content JSON
             content_json = request.form.get('content', '{}')
@@ -295,7 +301,14 @@ def edit_exercise(exercise_id):
         try:
             exercise.exercise_type = request.form.get('exercise_type', exercise.exercise_type)
             exercise.order = int(request.form.get('order', exercise.order))
-            exercise.difficulty = int(request.form.get('difficulty', exercise.difficulty))
+            try:
+                new_difficulty = int(request.form.get('difficulty', exercise.difficulty))
+            except (ValueError, TypeError):
+                new_difficulty = exercise.difficulty
+            if not (1 <= new_difficulty <= 3):
+                flash('Difficulty must be between 1 and 3.', 'danger')
+                return render_template('admin/grammar_lab/exercise_form.html', topic=topic, exercise=exercise), 400
+            exercise.difficulty = new_difficulty
 
             content_json = request.form.get('content', '{}')
             try:
@@ -310,7 +323,7 @@ def edit_exercise(exercise_id):
             except ValueError as ve:
                 db.session.rollback()
                 flash(f'Invalid exercise content: {ve}', 'danger')
-                return render_template('admin/grammar_lab/exercise_form.html', topic=topic, exercise=exercise)
+                return render_template('admin/grammar_lab/exercise_form.html', topic=topic, exercise=exercise), 400
 
             log_admin_action(
                 admin_id=current_user.id,
@@ -714,15 +727,34 @@ def _import_exercises_json_file(file, deleted_topic_ids: set[int]) -> tuple[bool
             deleted_topic_ids.add(topic.id)
             deleted_in_this_file = True
 
+        from app.grammar_lab.content_validator import validate_exercise_content
         for session in sessions:
             for ex in session.get('exercises', []):
+                ex_type = ex.get('exercise_type', 'fill_blank')
                 content = ex.get('content', {})
                 content['source'] = 'json_import'
+
+                try:
+                    validate_exercise_content(ex_type, content)
+                except ValueError as ve:
+                    logger.warning(
+                        'Skipping exercise in %s: invalid content (%s): %s',
+                        filename, ex_type, ve,
+                    )
+                    continue
+
+                raw_diff = ex.get('difficulty', 1)
+                try:
+                    diff_int = int(float(raw_diff))
+                except (TypeError, ValueError):
+                    diff_int = 1
+                difficulty = max(1, min(3, diff_int))
+
                 exercise = GrammarExercise(
                     topic_id=topic.id,
-                    exercise_type=ex.get('exercise_type', 'fill_blank'),
+                    exercise_type=ex_type,
                     content=content,
-                    difficulty=ex.get('difficulty', 1),
+                    difficulty=difficulty,
                     order=ex.get('order', 0)
                 )
                 db.session.add(exercise)
