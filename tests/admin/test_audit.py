@@ -219,3 +219,197 @@ class TestAuditLogUI:
         disposition = resp.headers.get('Content-Disposition', '')
         assert 'attachment' in disposition
         assert '.csv' in disposition
+
+
+class TestAdminAuditRequiredDecorator:
+    """Tests for @admin_audit_required — status-code filtering.
+
+    We patch admin_required to identity (lambda f: f) at decoration time so
+    that wrapped_view is tested without the Flask-Login gate. current_user is
+    set up via login_user() only for paths that actually read it (2xx/3xx).
+    """
+
+    @staticmethod
+    def _make_view(action: str, status_code: int):
+        """Return a view decorated with admin_audit_required, bypassing admin_required."""
+        from unittest.mock import patch
+        from app.admin.utils.decorators import admin_audit_required
+
+        with patch('app.admin.utils.decorators.admin_required', lambda f: f):
+            @admin_audit_required(action=action)
+            def _view():
+                return 'response', status_code
+
+        return _view
+
+    def test_creates_row_on_200(self, app, db_session, admin_user):
+        """Decorator creates audit row when view returns 200."""
+        from flask_login import login_user
+
+        action = f'dec_200_{uuid.uuid4().hex[:8]}'
+        view = self._make_view(action, 200)
+
+        with app.test_request_context('/admin/test'):
+            login_user(admin_user)
+            view()
+
+        count = db_session.query(AdminAuditLog).filter_by(action=action).count()
+        assert count == 1, 'Audit row MUST be created for 200 response'
+
+    def test_no_row_on_400(self, app, db_session, admin_user):
+        """Decorator must NOT create audit row when view returns 400."""
+        action = f'dec_400_{uuid.uuid4().hex[:8]}'
+        view = self._make_view(action, 400)
+
+        # current_user is never accessed on 4xx path — no login_user needed
+        with app.test_request_context('/admin/test'):
+            view()
+
+        count = db_session.query(AdminAuditLog).filter_by(action=action).count()
+        assert count == 0, 'Audit row must NOT be created for 4xx response'
+
+    def test_no_row_on_500(self, app, db_session, admin_user):
+        """Decorator must NOT create audit row when view returns 500."""
+        action = f'dec_500_{uuid.uuid4().hex[:8]}'
+        view = self._make_view(action, 500)
+
+        with app.test_request_context('/admin/test'):
+            view()
+
+        count = db_session.query(AdminAuditLog).filter_by(action=action).count()
+        assert count == 0, 'Audit row must NOT be created for 5xx response'
+
+    def test_creates_row_on_redirect(self, app, db_session, admin_user):
+        """Decorator creates audit row when view returns 302."""
+        from flask import redirect
+        from flask_login import login_user
+        from unittest.mock import patch
+        from app.admin.utils.decorators import admin_audit_required
+
+        action = f'dec_302_{uuid.uuid4().hex[:8]}'
+
+        with patch('app.admin.utils.decorators.admin_required', lambda f: f):
+            @admin_audit_required(action=action)
+            def _redirect_view():
+                return redirect('/admin/')
+
+        with app.test_request_context('/admin/test'):
+            login_user(admin_user)
+            _redirect_view()
+
+        count = db_session.query(AdminAuditLog).filter_by(action=action).count()
+        assert count == 1, 'Audit row SHOULD be created for 3xx redirect'
+
+
+class TestAuditLogNullTargetId:
+    """Tests for audit log UI behavior with null target_type/target_id."""
+
+    def test_ui_renders_dash_for_null_target_type(self, app, client, db_session, admin_user):
+        """Entries with null target_type must render '—' in the object column."""
+        log_admin_action(
+            admin_id=admin_user.id,
+            action='system.clear_cache',
+            target_type=None,
+            target_id=None,
+        )
+        db_session.commit()
+
+        resp = client.get('/admin/audit-log')
+        assert resp.status_code == 200
+        assert 'system.clear_cache'.encode() in resp.data
+        assert '—'.encode() in resp.data
+
+    def test_ui_renders_type_without_id_when_target_id_is_null(self, app, client, db_session, admin_user):
+        """Entry with target_type set but target_id=None shows badge but no '#N'."""
+        tag = uuid.uuid4().hex[:6]
+        action = f'gsc.disconnect_{tag}'
+        log_admin_action(
+            admin_id=admin_user.id,
+            action=action,
+            target_type='gsc_token',
+            target_id=None,
+        )
+        db_session.commit()
+
+        resp = client.get(f'/admin/audit-log?action={action}')
+        assert resp.status_code == 200
+        data = resp.data.decode('utf-8')
+        assert 'gsc_token' in data
+        assert f'#{admin_user.id}' not in data.split(action)[1].split('</tr>')[0]
+
+    def test_log_admin_action_accepts_null_target_id(self, app, db_session, admin_user):
+        """log_admin_action must persist with target_type set but target_id=None."""
+        log_admin_action(
+            admin_id=admin_user.id,
+            action='test.null_target_id',
+            target_type='config',
+            target_id=None,
+        )
+        db_session.flush()
+
+        entry = db_session.query(AdminAuditLog).filter_by(
+            admin_id=admin_user.id,
+            action='test.null_target_id',
+        ).first()
+
+        assert entry is not None
+        assert entry.target_type == 'config'
+        assert entry.target_id is None
+
+
+class TestAuditLogSensitiveData:
+    """Tests that audit log model and helpers don't expose sensitive data."""
+
+    def test_model_schema_has_no_details_column(self, app, db_session):
+        """AdminAuditLog must not have a 'details' or 'payload' column."""
+        from sqlalchemy import inspect as sa_inspect
+        inspector = sa_inspect(AdminAuditLog)
+        col_names = {c.key for c in inspector.mapper.column_attrs}
+        assert 'details' not in col_names, 'No details column — sensitive data must not be stored'
+        assert 'payload' not in col_names, 'No payload column — sensitive data must not be stored'
+
+    def test_log_admin_action_signature_has_no_details_param(self):
+        """log_admin_action must not accept a details/payload parameter."""
+        import inspect as py_inspect
+        sig = py_inspect.signature(log_admin_action)
+        param_names = set(sig.parameters.keys())
+        assert 'details' not in param_names
+        assert 'payload' not in param_names
+        assert 'password' not in param_names
+        assert 'token' not in param_names
+
+    def test_audit_log_columns_are_safe(self, app, db_session, admin_user):
+        """Audit log entry only stores standard safe fields."""
+        log_admin_action(
+            admin_id=admin_user.id,
+            action='user.toggle_admin',
+            target_type='user',
+            target_id=42,
+        )
+        db_session.flush()
+
+        entry = db_session.query(AdminAuditLog).filter_by(
+            admin_id=admin_user.id,
+            action='user.toggle_admin',
+            target_id=42,
+        ).first()
+        assert entry is not None
+        # Only these fields should exist on the model
+        allowed = {'id', 'admin_id', 'action', 'target_type', 'target_id', 'created_at'}
+        actual = {c.key for c in type(entry).__mapper__.column_attrs}
+        assert actual == allowed, f'Unexpected columns in AdminAuditLog: {actual - allowed}'
+
+    def test_gsc_token_not_in_audit_action_name(self, app, client, db_session, admin_user):
+        """GSC disconnect action name must not contain token value."""
+        log_admin_action(
+            admin_id=admin_user.id,
+            action='gsc.disconnect',
+            target_type='gsc',
+        )
+        db_session.commit()
+
+        resp = client.get('/admin/audit-log?action=gsc.disconnect')
+        assert resp.status_code == 200
+        data = resp.data.decode('utf-8')
+        assert 'refresh_token' not in data
+        assert 'client_secret' not in data

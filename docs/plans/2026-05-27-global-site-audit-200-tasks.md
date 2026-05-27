@@ -564,12 +564,12 @@
 - Modify: `app/admin/utils/decorators.py`
 - Modify: `tests/admin/test_audit.py`
 
-- [ ] Grep все DELETE/dangerous POST endpoints и проверить наличие AdminAuditLog
-- [ ] Убедиться что @admin_audit_required не создаёт audit row при 4xx/5xx
-- [ ] Проверить что audit log UI корректно отображает target_id=None
-- [ ] Убедиться что audit log не утекает sensitive данные (passwords, tokens) в details
-- [ ] Тесты для missing audit on destructive ops, null target_id, sensitive data filtering
-- [ ] run pytest tests/admin/test_audit.py -x
+- [x] Grep все DELETE/dangerous POST endpoints и проверить наличие AdminAuditLog
+- [x] Убедиться что @admin_audit_required не создаёт audit row при 4xx/5xx
+- [x] Проверить что audit log UI корректно отображает target_id=None
+- [x] Убедиться что audit log не утекает sensitive данные (passwords, tokens) в details
+- [x] Тесты для missing audit on destructive ops, null target_id, sensitive data filtering
+- [x] run pytest tests/admin/test_audit.py -x
 
 ### Task 42: Admin — dashboard N+1 queries
 
