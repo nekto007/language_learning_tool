@@ -723,10 +723,12 @@ def book_words(book_id):
     book_words = pagination.items
 
     word_ids = [item[0].id for item in book_words]
-    user_words = UserWord.query.filter(
-        UserWord.user_id == current_user.id,
-        UserWord.word_id.in_(word_ids)
-    ).all()
+    from app.utils.db_utils import chunk_ids, query_by_ids
+    user_words = query_by_ids(
+        UserWord.query.filter(UserWord.user_id == current_user.id),
+        UserWord.word_id,
+        word_ids,
+    ) if word_ids else []
 
     from app.utils.db import string_to_status
     word_statuses = {uw.word_id: string_to_status(uw.status) for uw in user_words}

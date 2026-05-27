@@ -806,12 +806,12 @@
 - Modify: `app/books/routes.py`
 - Modify: `tests/`
 
-- [ ] Проверить что word list page использует joinedload для translations
-- [ ] Убедиться что book catalog не делает N+1 для chapter counts
-- [ ] Проверить что UserWord query использует bulk load (не per-word)
-- [ ] Убедиться что chunk_ids используется для bulk word lookups
-- [ ] Тесты для query count bounds на list pages
-- [ ] run pytest tests/words/ tests/books/ -x
+- [x] Проверить что word list page использует joinedload для translations
+- [x] Убедиться что book catalog не делает N+1 для chapter counts
+- [x] Проверить что UserWord query использует bulk load (не per-word)
+- [x] Убедиться что chunk_ids используется для bulk word lookups
+- [x] Тесты для query count bounds на list pages
+- [x] run pytest tests/words/ tests/books/ -x
 
 ### Task 60: Performance — caching strategy
 
