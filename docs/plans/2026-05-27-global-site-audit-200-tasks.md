@@ -1051,12 +1051,12 @@
 - Modify: `app/admin/routes/seo_routes.py`
 - Modify: `tests/admin/test_admin_gsc.py`
 
-- [ ] Проверить что GSC OAuth callback проверяет state parameter (CSRF)
-- [ ] Убедиться что gsc_refresh_token хранится зашифрованным (не plaintext)
-- [ ] Проверить что /admin/seo/disconnect очищает оба GSC ключа
-- [ ] Убедиться что fetch_gsc_data gracefully handles expired refresh token
-- [ ] Тесты для state CSRF check, disconnect cleanup, expired token
-- [ ] run pytest tests/admin/test_admin_gsc.py -x
+- [x] Проверить что GSC OAuth callback проверяет state parameter (CSRF)
+- [x] Убедиться что gsc_refresh_token хранится зашифрованным (не plaintext)
+- [x] Проверить что /admin/seo/disconnect очищает оба GSC ключа
+- [x] Убедиться что fetch_gsc_data gracefully handles expired refresh token
+- [x] Тесты для state CSRF check, disconnect cleanup, expired token
+- [x] run pytest tests/admin/test_admin_gsc.py -x
 
 ### Task 78: Levelup celebration и UI feedback
 
