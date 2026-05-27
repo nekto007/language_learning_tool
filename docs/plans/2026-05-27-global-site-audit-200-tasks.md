@@ -591,12 +591,12 @@
 - Modify: `app/admin/services/cohort_service.py`
 - Modify: `tests/admin/test_cohort.py`
 
-- [ ] Проверить что funnel steps монотонно невозрастающие (каждый шаг ≤ предыдущего)
-- [ ] Убедиться что все datetime сравнения naive UTC (нет tz-aware mix)
-- [ ] Проверить что retention calculation корректна при 0 users в cohort
-- [ ] Убедиться что days/weeks параметры валидируются (нет SQL injection через них)
-- [ ] Тесты для monotonic funnel, zero-cohort, parameter validation
-- [ ] run pytest tests/admin/test_cohort.py -x
+- [x] Проверить что funnel steps монотонно невозрастающие (каждый шаг ≤ предыдущего)
+- [x] Убедиться что все datetime сравнения naive UTC (нет tz-aware mix)
+- [x] Проверить что retention calculation корректна при 0 users в cohort
+- [x] Убедиться что days/weeks параметры валидируются (нет SQL injection через них)
+- [x] Тесты для monotonic funnel, zero-cohort, parameter validation
+- [x] run pytest tests/admin/test_cohort.py -x
 
 ### Task 44: Admin — book management и sync
 
