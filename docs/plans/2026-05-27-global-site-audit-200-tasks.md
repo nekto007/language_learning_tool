@@ -455,12 +455,12 @@
 - Modify: `app/__init__.py`
 - Modify: `tests/api/`
 
-- [ ] Проверить что все мутирующие API endpoints (POST/PUT/DELETE) защищены CSRF или JWT
-- [ ] Убедиться что @csrf.exempt применён только там, где есть JWT проверка
-- [ ] Проверить что JWT expired token возвращает 401 с понятным сообщением
-- [ ] Убедиться что refresh endpoint не принимает access token вместо refresh token
-- [ ] Тесты для CSRF missing, expired JWT, wrong token type
-- [ ] run pytest tests/api/ -x
+- [x] Проверить что все мутирующие API endpoints (POST/PUT/DELETE) защищены CSRF или JWT
+- [x] Убедиться что @csrf.exempt применён только там, где есть JWT проверка
+- [x] Проверить что JWT expired token возвращает 401 с понятным сообщением
+- [x] Убедиться что refresh endpoint не принимает access token вместо refresh token
+- [x] Тесты для CSRF missing, expired JWT, wrong token type
+- [x] run pytest tests/api/ -x
 
 ### Task 34: API — rate limiting coverage
 
