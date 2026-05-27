@@ -1225,12 +1225,12 @@
 - Modify: `migrations/versions/20260527_feedback.py`
 - Modify: `tests/test_feedback.py`
 
-- [ ] Проверить что feedback widget корректно отображается и отправляет данные
-- [ ] Убедиться что feedback submission валидирует входные данные (нет пустых submissions)
-- [ ] Проверить что admin может просматривать и обрабатывать feedback
-- [ ] Убедиться что feedback migration chain консистентна
-- [ ] Тесты для feedback submission, validation, admin view
-- [ ] run pytest tests/test_feedback.py -x
+- [x] Проверить что feedback widget корректно отображается и отправляет данные
+- [x] Убедиться что feedback submission валидирует входные данные (нет пустых submissions)
+- [x] Проверить что admin может просматривать и обрабатывать feedback
+- [x] Убедиться что feedback migration chain консистентна
+- [x] Тесты для feedback submission, validation, admin view
+- [x] run pytest tests/test_feedback.py -x
 
 ### Task 91: Общая регрессия и smoke suite
 
