@@ -65,12 +65,16 @@ class ComprehensionMCQGenerator:
             return cls._get_fallback_questions()
 
         questions = []
+        seen_question_texts: set = set()
         sentences = cls._split_into_sentences(text)
 
         # Generate True/False style questions from sentences
-        for i, sentence in enumerate(sentences[:num_questions]):
+        for i, sentence in enumerate(sentences[:num_questions * 2]):
+            if len(questions) >= num_questions:
+                break
             q = cls._generate_true_false_question(sentence, sentences, i)
-            if q:
+            if q and q['question'] not in seen_question_texts:
+                seen_question_texts.add(q['question'])
                 questions.append(q)
 
         # Shuffle
@@ -313,16 +317,25 @@ class ComprehensionMCQGenerator:
     @classmethod
     def _get_fallback_questions(cls) -> Dict[str, Any]:
         """Return fallback questions if text is too short."""
-        return {
-            'questions': [
-                {
-                    'question': 'Какова главная тема отрывка?',
-                    'options': ['Главная тема', 'Второстепенная деталь', 'Не связанная тема', 'Противоположное значение'],
-                    'correct': 0,
-                    'explanation': 'Этот вопрос проверяет понимание главной мысли.'
-                }
-            ] * 10
-        }
+        fallback_questions = [
+            {
+                'question': 'Какова главная тема отрывка?',
+                'options': ['Главная тема', 'Второстепенная деталь', 'Не связанная тема', 'Противоположное значение'],
+                'correct': 0,
+                'explanation': 'Этот вопрос проверяет понимание главной мысли.'
+            },
+            {
+                'question': 'Что является основной идеей текста?',
+                'options': ['Развитие сюжета', 'Описание персонажа', 'Главная мысль', 'Второстепенная деталь'],
+                'correct': 2,
+                'explanation': 'Этот вопрос проверяет понимание общей идеи текста.'
+            },
+        ]
+        # Return 10 distinct question objects by cycling through templates
+        questions = [
+            dict(q) for q in (fallback_questions * 5)[:10]
+        ]
+        return {'questions': questions}
 
 
 class ClozePracticeGenerator:

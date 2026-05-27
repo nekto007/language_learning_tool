@@ -127,13 +127,14 @@ def _generate_vocabulary_task(block: Block, text: str, vocab: List[Dict]) -> Opt
 
     cards = []
     for word_data in vocab[:20]:  # Max 20 cards
-        # Find example sentence in text
-        example = _find_word_in_context(word_data['english'], text)
+        english = word_data.get('english') or ''
+        russian = word_data.get('russian') or ''
+        example = _find_word_in_context(english, text) if english else None
 
         card = {
-            'front': word_data['english'],
+            'front': english,
             'back': {
-                'translation': word_data['russian'] or '',
+                'translation': russian,
                 'examples': [example] if example else [],
                 'level': word_data.get('level', ''),
             }
@@ -163,7 +164,7 @@ def _generate_reading_passage_task(block: Block, text: str, vocab: List[Dict]) -
         passage_text = passage_text[:last_period + 1]
 
     # Create vocabulary highlights
-    vocab_words = [v['english'].lower() for v in vocab]
+    vocab_words = [(v.get('english') or '').lower() for v in vocab if v.get('english')]
 
     return {
         'text': passage_text,

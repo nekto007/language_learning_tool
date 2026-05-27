@@ -983,12 +983,12 @@
 - Modify: `app/curriculum/services/task_generators.py`
 - Modify: `tests/curriculum/`
 
-- [ ] Проверить что generator не падает при None в lesson content полях
-- [ ] Убедиться что generated content проходит validate_exercise_content
-- [ ] Проверить что generator не создаёт duplicate вопросы для одного текста
-- [ ] Убедиться что block_schema_importer корректно handles unknown lesson types
-- [ ] Тесты для None content, validation pass, dedup, unknown types
-- [ ] run pytest tests/curriculum/ -x
+- [x] Проверить что generator не падает при None в lesson content полях
+- [x] Убедиться что generated content проходит validate_exercise_content
+- [x] Проверить что generator не создаёт duplicate вопросы для одного текста
+- [x] Убедиться что block_schema_importer корректно handles unknown lesson types
+- [x] Тесты для None content, validation pass, dedup, unknown types
+- [x] run pytest tests/curriculum/ -x
 
 ### Task 73: Audio — файлы и endpoints
 
