@@ -68,12 +68,12 @@
 - Modify: `app/daily_plan/service.py`
 - Modify: `tests/daily_plan/`
 
-- [ ] Проверить поведение get_daily_plan_unified когда нет ни одного доступного урока
-- [ ] Убедиться что plan_paused_until в прошлом не блокирует план навсегда
-- [ ] Проверить что total_estimated_minutes не отрицательный при пустых слотах
-- [ ] Проверить что compute_day_secured_from_activity не падает при пустом плане
-- [ ] Тесты для empty-plan, paused, и no-lessons-available сценариев
-- [ ] run pytest tests/daily_plan/ -x
+- [x] Проверить поведение get_daily_plan_unified когда нет ни одного доступного урока
+- [x] Убедиться что plan_paused_until в прошлом не блокирует план навсегда
+- [x] Проверить что total_estimated_minutes не отрицательный при пустых слотах
+- [x] Проверить что compute_day_secured_from_activity не падает при пустом плане
+- [x] Тесты для empty-plan, paused, и no-lessons-available сценариев
+- [x] run pytest tests/daily_plan/ -x
 
 ### Task 5: Daily Plan — skip lesson и квота
 
