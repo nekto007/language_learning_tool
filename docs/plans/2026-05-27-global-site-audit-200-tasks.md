@@ -334,12 +334,12 @@
 - Modify: `app/utils/activity_tracker.py`
 - Modify: `tests/test_activity_tracker.py`
 
-- [ ] Проверить что все 8 источников активности учитываются
-- [ ] Убедиться что has_learning_activity не падает при start_utc > end_utc
-- [ ] Проверить что StreakEvent с xp_linear% корректно матчит LIKE pattern
-- [ ] Убедиться что streak shield применяется до increment (не после)
-- [ ] Тесты для all 8 sources, invalid date range, shield application order
-- [ ] run pytest tests/ -k streak -x
+- [x] Проверить что все 8 источников активности учитываются
+- [x] Убедиться что has_learning_activity не падает при start_utc > end_utc
+- [x] Проверить что StreakEvent с xp_linear% корректно матчит LIKE pattern
+- [x] Убедиться что streak shield применяется до increment (не после)
+- [x] Тесты для all 8 sources, invalid date range, shield application order
+- [x] run pytest tests/ -k streak -x
 
 ### Task 25: Streak — get_immersion_streak и 4 skill check
 
