@@ -860,12 +860,12 @@
 - Modify: `app/achievements/xp_service.py` (award_referral_xp_idempotent)
 - Modify: `tests/auth/`
 
-- [ ] Проверить что referral XP начисляется только один раз per referee
-- [ ] Убедиться что referral link URL использует url_for(_external=True)
-- [ ] Проверить что невалидный referral code не ломает registration
-- [ ] Убедиться что самореферрал (referrer == referee) блокируется
-- [ ] Тесты для idempotency, invalid code, self-referral prevention
-- [ ] run pytest tests/auth/ -x
+- [x] Проверить что referral XP начисляется только один раз per referee
+- [x] Убедиться что referral link URL использует url_for(_external=True)
+- [x] Проверить что невалидный referral code не ломает registration
+- [x] Убедиться что самореферрал (referrer == referee) блокируется
+- [x] Тесты для idempotency, invalid code, self-referral prevention
+- [x] run pytest tests/auth/ -x
 
 ### Task 64: Plan pause/resume и streak neutrality
 

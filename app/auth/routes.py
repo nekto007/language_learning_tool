@@ -343,9 +343,9 @@ def register():
             if normalized_level in ('A1', 'A2', 'B1', 'B2', 'C1'):
                 user.onboarding_level = normalized_level
 
-        # Handle referral code
-        ref_code = ref_param or request.form.get('ref')
-        if ref_code:
+        # Handle referral code — validate format before DB lookup
+        ref_code = (ref_param or request.form.get('ref', '') or '').strip()
+        if ref_code and len(ref_code) <= 16 and ref_code.isalnum():
             referrer = User.query.filter_by(referral_code=ref_code).first()
             if referrer:
                 user.referred_by_id = referrer.id
@@ -353,6 +353,11 @@ def register():
         try:
             db.session.add(user)
             db.session.commit()
+
+            # Guard: clear self-referral in case IDs collided (shouldn't happen, but safe)
+            if user.referred_by_id is not None and user.referred_by_id == user.id:
+                user.referred_by_id = None
+                db.session.commit()
 
             # Process referral
             saved_ref = request.cookies.get('ref')

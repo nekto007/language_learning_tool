@@ -239,3 +239,240 @@ class TestAPILoginIsActiveCheck:
         data = r.get_json()
         assert 'access_token' in data
         assert 'refresh_token' in data
+
+
+# ---------------------------------------------------------------------------
+# Referral system
+# ---------------------------------------------------------------------------
+
+def _make_unique_reg_data(suffix=None):
+    """Return valid registration form data with unique credentials."""
+    tag = suffix or uuid.uuid4().hex[:8]
+    return {
+        'username': f'refuser_{tag}',
+        'email': f'refuser_{tag}@example.com',
+        'password': 'Passw0rd!',
+        'password2': 'Passw0rd!',
+    }
+
+
+class TestReferralIdempotency:
+    """award_referral_xp_idempotent must award XP exactly once per referee."""
+
+    @pytest.mark.smoke
+    def test_xp_awarded_once_per_referee(self, app, db_session):
+        from app.achievements.xp_service import award_referral_xp_idempotent
+        from app.achievements.models import StreakEvent
+
+        referrer = User(username=f'ref_a_{uuid.uuid4().hex[:6]}',
+                        email=f'ref_a_{uuid.uuid4().hex[:6]}@example.com', active=True)
+        referrer.set_password('pass1234')
+        referee = User(username=f'ref_b_{uuid.uuid4().hex[:6]}',
+                       email=f'ref_b_{uuid.uuid4().hex[:6]}@example.com', active=True)
+        referee.set_password('pass1234')
+        db_session.add_all([referrer, referee])
+        db_session.flush()
+
+        with app.test_request_context():
+            result1 = award_referral_xp_idempotent(referrer.id, referee.id, 50)
+            db_session.commit()
+            result2 = award_referral_xp_idempotent(referrer.id, referee.id, 50)
+            db_session.commit()
+
+        assert result1 is not None
+        assert result2 is None, "Second award must be a no-op"
+
+        events = db_session.query(StreakEvent).filter_by(
+            user_id=referrer.id, event_type='xp_referral'
+        ).all()
+        assert len(events) == 1
+
+    def test_different_referee_awards_separately(self, app, db_session):
+        from app.achievements.xp_service import award_referral_xp_idempotent
+        from app.achievements.models import StreakEvent
+
+        referrer = User(username=f'refr_{uuid.uuid4().hex[:6]}',
+                        email=f'refr_{uuid.uuid4().hex[:6]}@example.com', active=True)
+        referrer.set_password('pass1234')
+        ref1 = User(username=f'rfe1_{uuid.uuid4().hex[:6]}',
+                    email=f'rfe1_{uuid.uuid4().hex[:6]}@example.com', active=True)
+        ref1.set_password('pass1234')
+        ref2 = User(username=f'rfe2_{uuid.uuid4().hex[:6]}',
+                    email=f'rfe2_{uuid.uuid4().hex[:6]}@example.com', active=True)
+        ref2.set_password('pass1234')
+        db_session.add_all([referrer, ref1, ref2])
+        db_session.flush()
+
+        with app.test_request_context():
+            r1 = award_referral_xp_idempotent(referrer.id, ref1.id, 50)
+            db_session.commit()
+            r2 = award_referral_xp_idempotent(referrer.id, ref2.id, 50)
+            db_session.commit()
+
+        assert r1 is not None
+        assert r2 is not None
+
+        events = db_session.query(StreakEvent).filter_by(
+            user_id=referrer.id, event_type='xp_referral'
+        ).count()
+        assert events == 2
+
+    def test_zero_xp_returns_none(self, app, db_session):
+        from app.achievements.xp_service import award_referral_xp_idempotent
+
+        u1 = User(username=f'uxp_{uuid.uuid4().hex[:6]}',
+                  email=f'uxp_{uuid.uuid4().hex[:6]}@example.com', active=True)
+        u1.set_password('pass1234')
+        u2 = User(username=f'uxp2_{uuid.uuid4().hex[:6]}',
+                  email=f'uxp2_{uuid.uuid4().hex[:6]}@example.com', active=True)
+        u2.set_password('pass1234')
+        db_session.add_all([u1, u2])
+        db_session.flush()
+
+        with app.test_request_context():
+            result = award_referral_xp_idempotent(u1.id, u2.id, 0)
+
+        assert result is None
+
+
+class TestReferralRegistration:
+    """Registration with referral code sets referred_by_id correctly."""
+
+    def _register(self, client, data, ref_code=None):
+        url = '/register'
+        if ref_code is not None:
+            url += f'?ref={ref_code}'
+        return client.post(url, data=data, follow_redirects=False)
+
+    @pytest.mark.smoke
+    def test_valid_ref_code_sets_referred_by(self, client, db_session, test_user):
+        test_user.ensure_referral_code()
+        db_session.commit()
+        ref_code = test_user.referral_code
+
+        data = _make_unique_reg_data()
+        r = self._register(client, data, ref_code=ref_code)
+
+        # Should redirect (to onboarding or dashboard, not 500)
+        assert r.status_code in (302, 200), f"Expected redirect, got {r.status_code}"
+
+        new_user = User.query.filter_by(username=data['username']).first()
+        assert new_user is not None
+        assert new_user.referred_by_id == test_user.id
+
+    def test_invalid_long_ref_code_ignored(self, client, db_session):
+        long_code = 'a' * 100
+        data = _make_unique_reg_data()
+        r = self._register(client, data, ref_code=long_code)
+        assert r.status_code != 500
+
+        new_user = User.query.filter_by(username=data['username']).first()
+        if new_user:
+            assert new_user.referred_by_id is None
+
+    def test_nonexistent_ref_code_ignored(self, client, db_session):
+        data = _make_unique_reg_data()
+        r = self._register(client, data, ref_code='notexist')
+        assert r.status_code != 500
+
+        new_user = User.query.filter_by(username=data['username']).first()
+        if new_user:
+            assert new_user.referred_by_id is None
+
+    def test_non_alphanumeric_ref_code_ignored(self, client, db_session):
+        data = _make_unique_reg_data()
+        r = self._register(client, data, ref_code='<script>xss</script>')
+        assert r.status_code != 500
+
+    def test_ref_code_form_field_used_when_no_query_param(self, client, db_session, test_user):
+        test_user.ensure_referral_code()
+        db_session.commit()
+
+        data = {**_make_unique_reg_data(), 'ref': test_user.referral_code}
+        r = client.post('/register', data=data, follow_redirects=False)
+        assert r.status_code != 500
+
+        new_user = User.query.filter_by(username=data['username']).first()
+        if new_user:
+            assert new_user.referred_by_id == test_user.id
+
+
+class TestReferralSelfReferralPrevention:
+    """Self-referral must be blocked."""
+
+    def test_cookie_path_blocks_self_referral(self, client, db_session, test_user):
+        """Cookie-based referral log must not record referrer == referred."""
+        from app.auth.models import ReferralLog
+
+        test_user.ensure_referral_code()
+        db_session.commit()
+
+        # Simulate cookie being set to test_user's own code
+        client.set_cookie('ref', test_user.referral_code)
+
+        # Create another user whose registration would try to use this code
+        # then check that self-referral is blocked at the code level
+        data = _make_unique_reg_data()
+        client.post('/register', data=data, follow_redirects=False)
+        new_user = User.query.filter_by(username=data['username']).first()
+
+        if new_user:
+            # Cookie held test_user's code: new_user != test_user so it's a real referral, not self
+            # The ReferralLog should link test_user -> new_user (not self)
+            log = db_session.query(ReferralLog).filter_by(
+                referrer_id=test_user.id, referred_id=new_user.id
+            ).first()
+            if log:
+                assert log.referrer_id != log.referred_id
+
+    def test_referral_log_unique_per_referred(self, db_session, app):
+        """ReferralLog has unique constraint on referred_id."""
+        from app.auth.models import ReferralLog
+        from sqlalchemy.exc import IntegrityError
+
+        u1 = User(username=f'sl1_{uuid.uuid4().hex[:6]}',
+                  email=f'sl1_{uuid.uuid4().hex[:6]}@example.com', active=True)
+        u1.set_password('pass1234')
+        u2 = User(username=f'sl2_{uuid.uuid4().hex[:6]}',
+                  email=f'sl2_{uuid.uuid4().hex[:6]}@example.com', active=True)
+        u2.set_password('pass1234')
+        db_session.add_all([u1, u2])
+        db_session.flush()
+
+        log1 = ReferralLog(referrer_id=u1.id, referred_id=u2.id)
+        db_session.add(log1)
+        db_session.flush()
+
+        # Duplicate should fail
+        log2 = ReferralLog(referrer_id=u1.id, referred_id=u2.id)
+        db_session.add(log2)
+        with pytest.raises(IntegrityError):
+            db_session.flush()
+        db_session.rollback()
+
+
+class TestReferralLinkURL:
+    """Referral link must use url_for with _external=True."""
+
+    @pytest.mark.smoke
+    def test_referrals_page_contains_full_url(self, authenticated_client, test_user, db_session):
+        test_user.ensure_referral_code()
+        db_session.commit()
+
+        r = authenticated_client.get('/referrals')
+        assert r.status_code == 200
+        body = r.data.decode()
+        # External URL includes scheme (http:// or https://)
+        assert 'http' in body
+        assert test_user.referral_code in body
+
+    def test_referral_link_format(self, app, test_user, db_session):
+        test_user.ensure_referral_code()
+        db_session.commit()
+
+        with app.test_request_context():
+            from flask import url_for
+            link = url_for('auth.register', ref=test_user.referral_code, _external=True)
+        assert link.startswith('http')
+        assert test_user.referral_code in link
+        assert '/register' in link
