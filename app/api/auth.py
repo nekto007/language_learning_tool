@@ -71,6 +71,9 @@ def api_login():
 
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
+            if not user.is_active:
+                return api_error('account_inactive', 'Account is inactive', 403)
+
             # Update last login
             user.last_login = datetime.now(timezone.utc)
             db.session.commit()
