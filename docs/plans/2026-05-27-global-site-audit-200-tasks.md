@@ -739,12 +739,12 @@
 - Modify: `app/seo/routes.py`
 - Modify: `tests/test_landing_improvements.py`
 
-- [ ] Проверить что sitemap не включает noindex страницы
-- [ ] Убедиться что canonical URL использует url_for(_external=True) (нет hardcoded domain)
-- [ ] Проверить что sitemap lastmod дата корректна (не future date)
-- [ ] Убедиться что robots.txt не блокирует /curriculum/ и /study/ routes
-- [ ] Тесты для noindex exclusion, canonical format, lastmod validity
-- [ ] run pytest tests/ -k seo -x
+- [x] Проверить что sitemap не включает noindex страницы
+- [x] Убедиться что canonical URL использует url_for(_external=True) (нет hardcoded domain)
+- [x] Проверить что sitemap lastmod дата корректна (не future date)
+- [x] Убедиться что robots.txt не блокирует /curriculum/ и /study/ routes
+- [x] Тесты для noindex exclusion, canonical format, lastmod validity
+- [x] run pytest tests/ -k seo -x
 
 ### Task 55: Landing — page performance и SEO meta
 
