@@ -387,12 +387,12 @@
 - Modify: `app/study/deck_routes.py`
 - Modify: `tests/study/test_study_deck_routes.py`
 
-- [ ] Проверить что GET /study/deck/<id> возвращает 404 для несуществующего deck
-- [ ] Убедиться что чужой пользователь не может edit/delete чужой deck
-- [ ] Проверить что удаление deck каскадно удаляет DeckCard и QuizResult
-- [ ] Убедиться что deck без карточек не крашит quiz start
-- [ ] Тесты для 404, ownership, cascade delete, empty deck quiz
-- [ ] run pytest tests/study/ -x
+- [x] Проверить что GET /study/deck/<id> возвращает 404 для несуществующего deck
+- [x] Убедиться что чужой пользователь не может edit/delete чужой deck
+- [x] Проверить что удаление deck каскадно удаляет DeckCard и QuizResult
+- [x] Убедиться что deck без карточек не крашит quiz start
+- [x] Тесты для 404, ownership, cascade delete, empty deck quiz
+- [x] run pytest tests/study/ -x
 
 ### Task 29: Study — game routes и score submission
 
