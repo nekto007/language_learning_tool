@@ -1115,12 +1115,12 @@
 - Modify: `app/middleware/request_id.py`
 - Modify: `app/__init__.py`
 
-- [ ] Проверить что X-Request-ID header присутствует в каждом response
-- [ ] Убедиться что request_id передаётся в error logs
-- [ ] Проверить что request_id из входящего header принимается (не перезатирается)
-- [ ] Убедиться что request_id UUID формат валидируется (нет injection)
-- [ ] Тесты для header presence, log correlation, input validation
-- [ ] run pytest tests/ -k request_id -x
+- [x] Проверить что X-Request-ID header присутствует в каждом response
+- [x] Убедиться что request_id передаётся в error logs
+- [x] Проверить что request_id из входящего header принимается (не перезатирается)
+- [x] Убедиться что request_id UUID формат валидируется (нет injection)
+- [x] Тесты для header presence, log correlation, input validation
+- [x] run pytest tests/ -k request_id -x
 
 ### Task 83: Admin activity feed — aggregation correctness
 
