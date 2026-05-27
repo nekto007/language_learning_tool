@@ -766,12 +766,12 @@
 - Modify: `app/health.py`
 - Modify: `tests/`
 
-- [ ] Проверить что /health endpoint проверяет DB connectivity
-- [ ] Убедиться что /health не требует аутентификации (доступен для load balancer)
-- [ ] Проверить что health response содержит version/timestamp
-- [ ] Убедиться что DB connection timeout не вешает /health на 30с
-- [ ] Тесты для DB-down scenario, response format, auth bypass
-- [ ] run pytest tests/ -k health -x
+- [x] Проверить что /health endpoint проверяет DB connectivity
+- [x] Убедиться что /health не требует аутентификации (доступен для load balancer)
+- [x] Проверить что health response содержит version/timestamp
+- [x] Убедиться что DB connection timeout не вешает /health на 30с
+- [x] Тесты для DB-down scenario, response format, auth bypass
+- [x] run pytest tests/ -k health -x
 
 ### Task 57: Migrations — chain consistency и idempotency
 
