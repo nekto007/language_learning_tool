@@ -150,12 +150,12 @@
 - Modify: `app/curriculum/listening_service.py`
 - Modify: `tests/curriculum/`
 
-- [ ] Проверить что log_listening_attempt не падает при score=None
-- [ ] Убедиться что listening_immersion корректно роутится через LESSON_TYPE_ROUTES
-- [ ] Проверить что save_writing_attempt не сохраняет пустой response_text
-- [ ] Убедиться что checklist_completed=False блокирует submission корректно
-- [ ] Тесты для listening/writing completion и validation
-- [ ] run pytest tests/curriculum/ -x
+- [x] Проверить что log_listening_attempt не падает при score=None
+- [x] Убедиться что listening_immersion корректно роутится через LESSON_TYPE_ROUTES
+- [x] Проверить что save_writing_attempt не сохраняет пустой response_text
+- [x] Убедиться что checklist_completed=False блокирует submission корректно
+- [x] Тесты для listening/writing completion и validation
+- [x] run pytest tests/curriculum/ -x
 
 ### Task 11: SRS — due card counting и budget
 

@@ -24,7 +24,7 @@ def log_listening_attempt(
     attempt = ListeningAttempt(
         user_id=user_id,
         lesson_id=lesson_id,
-        score=float(score),
+        score=float(score) if score is not None else 0.0,
         replay_count=int(replay_count),
     )
     db.session.add(attempt)

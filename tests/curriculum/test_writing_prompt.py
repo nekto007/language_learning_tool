@@ -145,11 +145,11 @@ class TestUserWritingAttemptModel:
         )
         assert attempt.word_count == 3
 
-    def test_empty_text_word_count_zero(self, app, db_session, test_user):
+    def test_empty_text_raises_value_error(self, app, db_session, test_user):
         lesson = _make_writing_lesson(db_session)
         from app.utils.db import db
-        attempt = save_writing_attempt(test_user.id, lesson.id, "", False, db)
-        assert attempt.word_count == 0
+        with pytest.raises(ValueError, match="response_text cannot be empty"):
+            save_writing_attempt(test_user.id, lesson.id, "", False, db)
 
     def test_multiple_attempts_per_lesson_allowed(self, app, db_session, test_user):
         lesson = _make_writing_lesson(db_session)
