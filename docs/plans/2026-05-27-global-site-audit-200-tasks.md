@@ -1090,12 +1090,12 @@
 - Modify: `app/static/js/deck-select-modal.js`
 - Modify: `app/templates/`
 
-- [ ] Проверить что modal закрывается при нажатии Escape
-- [ ] Убедиться что поиск по decks не делает запрос при каждом keypress (debounce)
-- [ ] Проверить что empty search result показывает empty state (не blank)
-- [ ] Убедиться что modal не накапливает event listeners при повторном открытии
-- [ ] Тесты для keyboard accessibility, debounce, empty state
-- [ ] run pytest -m smoke -x
+- [x] Проверить что modal закрывается при нажатии Escape
+- [x] Убедиться что поиск по decks не делает запрос при каждом keypress (debounce)
+- [x] Проверить что empty search result показывает empty state (не blank)
+- [x] Убедиться что modal не накапливает event listeners при повторном открытии
+- [x] Тесты для keyboard accessibility, debounce, empty state
+- [x] run pytest -m smoke -x
 
 ### Task 81: Compression и static assets
 

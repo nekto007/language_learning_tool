@@ -20,9 +20,21 @@ class DeckSelectModal {
         this.isBulk = false;
         this.isCreatingDeck = false;
         this.forceDecks = false;
+        this._searchDebounceTimer = null;
 
         // Create modal element on initialization
         this._createModalElement();
+    }
+
+    /**
+     * Returns a debounced version of fn with the given delay.
+     * Uses a single instance timer stored on the class to avoid accumulation.
+     */
+    _debounce(fn, delay) {
+        return (...args) => {
+            clearTimeout(this._searchDebounceTimer);
+            this._searchDebounceTimer = setTimeout(() => fn.apply(this, args), delay);
+        };
     }
 
     /**
@@ -71,6 +83,14 @@ class DeckSelectModal {
                                     </button>
                                 </div>
 
+                                <!-- Search Input -->
+                                <div class="deck-search-wrapper mb-2">
+                                    <input type="search" class="form-control form-control-sm deck-search-input"
+                                           placeholder="Поиск по колодам..."
+                                           aria-label="Поиск колоды"
+                                           autocomplete="off">
+                                </div>
+
                                 <!-- Create Deck Form (hidden by default) -->
                                 <div class="deck-create-form mb-3" style="display: none;">
                                     <div class="input-group">
@@ -93,11 +113,17 @@ class DeckSelectModal {
                                     </div>
                                 </div>
 
-                                <!-- Empty State -->
+                                <!-- Empty State: no decks at all -->
                                 <div class="deck-list-empty text-center py-3" style="display: none;">
                                     <i class="fas fa-folder-open text-muted mb-2" style="font-size: 2rem;"></i>
                                     <p class="text-muted mb-0">У вас пока нет колод</p>
                                     <small class="text-muted">Создайте первую колоду выше</small>
+                                </div>
+
+                                <!-- Empty Search State: search found nothing -->
+                                <div class="deck-search-empty text-center py-3" style="display: none;">
+                                    <i class="fas fa-search text-muted mb-2" style="font-size: 1.5rem;"></i>
+                                    <p class="text-muted mb-0">Колоды не найдены</p>
                                 </div>
                             </div>
                         </div>
@@ -151,11 +177,30 @@ class DeckSelectModal {
             }
         });
 
+        // Search input with debounce — one listener added once, no accumulation
+        const searchInput = this.modalElement.querySelector('.deck-search-input');
+        const debouncedSearch = this._debounce((query) => this._filterDecks(query), 300);
+        searchInput.addEventListener('input', (e) => debouncedSearch(e.target.value));
+
+        // Escape key inside search clears the field without closing the modal
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && searchInput.value) {
+                e.stopPropagation();
+                searchInput.value = '';
+                this._filterDecks('');
+            }
+        });
+
         // Modal hidden event - reset state
         this.modalElement.addEventListener('hidden.bs.modal', () => {
             createForm.style.display = 'none';
             createToggle.style.display = 'inline-block';
             createInput.value = '';
+
+            // Clear search
+            searchInput.value = '';
+            clearTimeout(this._searchDebounceTimer);
+            this.modalElement.querySelector('.deck-search-empty').style.display = 'none';
 
             // Reset forceDecks state
             this._setForceDecks(false);
@@ -166,6 +211,60 @@ class DeckSelectModal {
 
             // Show deck list container
             this.modalElement.querySelector('.deck-list-container').style.display = 'block';
+        });
+    }
+
+    /**
+     * Filter rendered deck list by query string (client-side, no extra requests).
+     */
+    _filterDecks(query) {
+        const q = query.trim().toLowerCase();
+        const deckList = this.modalElement.querySelector('.deck-list');
+        const emptyState = this.modalElement.querySelector('.deck-list-empty');
+        const searchEmpty = this.modalElement.querySelector('.deck-search-empty');
+
+        if (!q) {
+            // No filter — render full list
+            this._renderDecks();
+            searchEmpty.style.display = 'none';
+            return;
+        }
+
+        const filtered = this.decks.filter(d => d.name.toLowerCase().includes(q));
+
+        if (filtered.length === 0) {
+            deckList.innerHTML = '';
+            emptyState.style.display = 'none';
+            searchEmpty.style.display = 'block';
+            return;
+        }
+
+        searchEmpty.style.display = 'none';
+        emptyState.style.display = 'none';
+
+        const decksHTML = filtered.map(deck => `
+            <button class="deck-option w-100 mb-2" data-deck-id="${deck.id}">
+                <div class="d-flex align-items-center">
+                    <div class="deck-option-icon bg-secondary">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <div class="deck-option-content flex-grow-1">
+                        <div class="deck-option-title">${this._escapeHtml(deck.name)}</div>
+                        <div class="deck-option-desc">${deck.word_count} слов</div>
+                    </div>
+                    ${deck.is_public ? '<span class="badge bg-info ms-2">Публичная</span>' : ''}
+                </div>
+            </button>
+        `).join('');
+
+        deckList.innerHTML = decksHTML;
+
+        deckList.querySelectorAll('.deck-option').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const deckId = parseInt(btn.dataset.deckId);
+                const deckName = btn.querySelector('.deck-option-title').textContent;
+                this._selectDeck(deckId, deckName);
+            });
         });
     }
 
@@ -392,6 +491,17 @@ class DeckSelectModal {
     }
 
     /**
+     * Reset the search input and hide search-empty state.
+     * Call before every show* to prevent stale search from previous open.
+     */
+    _clearSearch() {
+        const searchInput = this.modalElement.querySelector('.deck-search-input');
+        searchInput.value = '';
+        clearTimeout(this._searchDebounceTimer);
+        this.modalElement.querySelector('.deck-search-empty').style.display = 'none';
+    }
+
+    /**
      * Show modal for single word
      * @param {number} wordId - Word ID to add
      * @param {function} callback - Called with { deckId, deckName }
@@ -421,6 +531,7 @@ class DeckSelectModal {
         const deckListHeader = this.modalElement.querySelector('.deck-list-header');
         deckListHeader.style.display = '';
 
+        this._clearSearch();
         this._loadDecks();
         this.modal.show();
     }
@@ -460,6 +571,7 @@ class DeckSelectModal {
         const deckListHeader = this.modalElement.querySelector('.deck-list-header');
         deckListHeader.style.display = '';
 
+        this._clearSearch();
         this._loadDecks();
         this.modal.show();
     }
@@ -518,6 +630,7 @@ class DeckSelectModal {
         const deckListHeader = this.modalElement.querySelector('.deck-list-header');
         deckListHeader.style.display = '';
 
+        this._clearSearch();
         this._loadDecks();
         this.modal.show();
     }
