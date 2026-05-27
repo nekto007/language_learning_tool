@@ -308,12 +308,12 @@
 - Modify: `app/achievements/services.py`
 - Modify: `tests/achievements/`
 
-- [ ] Проверить что grant_achievement при IntegrityError возвращает existing record (не None)
-- [ ] Убедиться что проверка ачивки check_immersion_achievement корректна для timezone edge
-- [ ] Проверить что check_challenge_achievements не дублирует ачивки при retry
-- [ ] Убедиться что check_listening/writing/speaking achievements не падают при 0 attempts
-- [ ] Тесты для race condition, timezone boundary, zero-attempt edge cases
-- [ ] run pytest tests/achievements/ -x
+- [x] Проверить что grant_achievement при IntegrityError возвращает existing record (не None)
+- [x] Убедиться что проверка ачивки check_immersion_achievement корректна для timezone edge
+- [x] Проверить что check_challenge_achievements не дублирует ачивки при retry
+- [x] Убедиться что check_listening/writing/speaking achievements не падают при 0 attempts
+- [x] Тесты для race condition, timezone boundary, zero-attempt edge cases
+- [x] run pytest tests/achievements/ -x
 
 ### Task 23: Achievements — XP award и idempotency
 
