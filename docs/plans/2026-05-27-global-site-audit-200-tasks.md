@@ -1037,12 +1037,12 @@
 - Modify: `app/curriculum/routes/public.py`
 - Modify: `tests/test_public_courses.py`
 
-- [ ] Проверить что публичный каталог не раскрывает unpublished courses
-- [ ] Убедиться что anonymous user может просматривать catalog (не 302 на login)
-- [ ] Проверить что enrollment из public catalog работает для new users
-- [ ] Убедиться что course preview не раскрывает premium content
-- [ ] Тесты для unpublished filter, anonymous access, enrollment flow
-- [ ] run pytest tests/test_public_courses.py -x
+- [x] Проверить что публичный каталог не раскрывает unpublished courses
+- [x] Убедиться что anonymous user может просматривать catalog (не 302 на login)
+- [x] Проверить что enrollment из public catalog работает для new users
+- [x] Убедиться что course preview не раскрывает premium content
+- [x] Тесты для unpublished filter, anonymous access, enrollment flow
+- [x] run pytest tests/test_public_courses.py -x
 
 ### Task 77: Admin SEO — GSC OAuth и audit
 

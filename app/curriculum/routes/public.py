@@ -1,6 +1,8 @@
 # app/curriculum/routes/public.py
 """Public course catalog routes — no login required."""
 
+from collections import defaultdict
+
 from flask import Blueprint, abort, render_template
 from sqlalchemy import func
 
@@ -72,21 +74,28 @@ def level_detail(level_code: str):
         .all()
     )
 
-    # Get sample lesson titles per module (first 3)
-    modules_data = []
-    for module in modules:
-        sample_lessons = (
+    # Batch query: all lessons for all modules to avoid N+1
+    module_ids = [m.id for m in modules]
+    all_lessons: list[Lessons] = []
+    if module_ids:
+        all_lessons = (
             Lessons.query
-            .filter_by(module_id=module.id)
-            .order_by(Lessons.order)
-            .limit(3)
+            .filter(Lessons.module_id.in_(module_ids))
+            .order_by(Lessons.module_id, Lessons.order)
             .all()
         )
-        lesson_count = Lessons.query.filter_by(module_id=module.id).count()
+
+    lessons_by_module: dict[int, list[Lessons]] = defaultdict(list)
+    for lesson in all_lessons:
+        lessons_by_module[lesson.module_id].append(lesson)
+
+    modules_data = []
+    for module in modules:
+        module_lessons = lessons_by_module[module.id]
         modules_data.append({
             'module': module,
-            'sample_lessons': sample_lessons,
-            'lesson_count': lesson_count,
+            'sample_lessons': module_lessons[:3],
+            'lesson_count': len(module_lessons),
         })
 
     meta_description = (
