@@ -5,6 +5,8 @@ Covers:
 - Streak recovery purchase flow (paid repair)
 - Streak freeze / double-repair protection handling
 - Listening streak (get_listening_streak)
+- Writing streak (get_writing_streak)
+- Speaking streak (get_speaking_streak)
 """
 from datetime import date, datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
@@ -23,6 +25,8 @@ from app.achievements.streak_service import (
     get_or_create_coins,
     get_repair_cost,
     get_required_steps,
+    get_speaking_streak,
+    get_writing_streak,
     has_repair_for_date,
     save_daily_completion,
 )
@@ -632,6 +636,181 @@ class TestStreakShield:
             StreakEvent.event_type == 'shield_repair',
         ).count()
         assert event_count == 0
+
+
+# ---------------------------------------------------------------------------
+# 8. Writing streak
+# ---------------------------------------------------------------------------
+
+
+def _make_writing_lesson(db_session):
+    """Create minimal CEFRLevel → Module → Lessons chain for UserWritingAttempt FK."""
+    from app.curriculum.models import CEFRLevel, Module, Lessons
+
+    code = uuid.uuid4().hex[:2].upper()
+    level = CEFRLevel(code=code, name='Level', description='d', order=1)
+    db_session.add(level)
+    db_session.flush()
+    module = Module(
+        level_id=level.id,
+        number=1,
+        title='M',
+        description='d',
+        raw_content={'module': {'id': 1}},
+    )
+    db_session.add(module)
+    db_session.flush()
+    lesson = Lessons(
+        module_id=module.id,
+        number=1,
+        title='Writing',
+        type='writing_prompt',
+        content={'prompt_ru': 'Опиши свой день', 'min_sentences': 3},
+    )
+    db_session.add(lesson)
+    db_session.flush()
+    return lesson
+
+
+def _add_writing_attempt(db_session, user_id, lesson_id, created_at_naive):
+    from app.curriculum.models import UserWritingAttempt
+    row = UserWritingAttempt(
+        user_id=user_id,
+        lesson_id=lesson_id,
+        response_text='Some meaningful writing response text here.',
+        word_count=7,
+        checklist_completed=True,
+        created_at=created_at_naive,
+    )
+    db_session.add(row)
+    db_session.flush()
+    return row
+
+
+class TestGetWritingStreak:
+    """get_writing_streak() counts consecutive days with UserWritingAttempt rows."""
+
+    def test_no_attempts_returns_zero(self, db_session, streak_user):
+        result = get_writing_streak(streak_user.id, tz='UTC')
+        assert result == 0
+
+    def test_three_consecutive_days_returns_3(self, db_session, streak_user):
+        lesson = _make_writing_lesson(db_session)
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        for offset in range(3):
+            _add_writing_attempt(db_session, streak_user.id, lesson.id,
+                                 now_naive - timedelta(days=offset))
+
+        result = get_writing_streak(streak_user.id, tz='UTC')
+        assert result == 3
+
+    def test_gap_resets_streak_to_1(self, db_session, streak_user):
+        lesson = _make_writing_lesson(db_session)
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        # Today and 3 days ago — gap on yesterday and 2 days ago
+        for offset in (0, 3):
+            _add_writing_attempt(db_session, streak_user.id, lesson.id,
+                                 now_naive - timedelta(days=offset))
+
+        result = get_writing_streak(streak_user.id, tz='UTC')
+        assert result == 1
+
+    def test_only_yesterday_and_before_no_today(self, db_session, streak_user):
+        lesson = _make_writing_lesson(db_session)
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        for offset in (1, 2):
+            _add_writing_attempt(db_session, streak_user.id, lesson.id,
+                                 now_naive - timedelta(days=offset))
+
+        result = get_writing_streak(streak_user.id, tz='UTC')
+        assert result == 2
+
+    def test_multiple_attempts_same_day_count_as_one(self, db_session, streak_user):
+        lesson = _make_writing_lesson(db_session)
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        for _ in range(4):
+            _add_writing_attempt(db_session, streak_user.id, lesson.id, now_naive)
+
+        result = get_writing_streak(streak_user.id, tz='UTC')
+        assert result == 1
+
+
+# ---------------------------------------------------------------------------
+# 9. Speaking streak
+# ---------------------------------------------------------------------------
+
+
+def _add_pronunciation_attempt(db_session, user_id, created_at_naive):
+    from app.curriculum.models import PronunciationAttempt
+    row = PronunciationAttempt(
+        user_id=user_id,
+        word='hello',
+        recognized_text='hello',
+        matched=True,
+        created_at=created_at_naive,
+    )
+    db_session.add(row)
+    db_session.flush()
+    return row
+
+
+class TestGetSpeakingStreak:
+    """get_speaking_streak() counts consecutive days with PronunciationAttempt rows."""
+
+    def test_no_attempts_returns_zero(self, db_session, streak_user):
+        result = get_speaking_streak(streak_user.id, tz='UTC')
+        assert result == 0
+
+    def test_three_consecutive_days_returns_3(self, db_session, streak_user):
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        for offset in range(3):
+            _add_pronunciation_attempt(db_session, streak_user.id,
+                                       now_naive - timedelta(days=offset))
+
+        result = get_speaking_streak(streak_user.id, tz='UTC')
+        assert result == 3
+
+    def test_gap_resets_streak_to_1(self, db_session, streak_user):
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        for offset in (0, 3):
+            _add_pronunciation_attempt(db_session, streak_user.id,
+                                       now_naive - timedelta(days=offset))
+
+        result = get_speaking_streak(streak_user.id, tz='UTC')
+        assert result == 1
+
+    def test_only_yesterday_and_before_no_today(self, db_session, streak_user):
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        for offset in (1, 2):
+            _add_pronunciation_attempt(db_session, streak_user.id,
+                                       now_naive - timedelta(days=offset))
+
+        result = get_speaking_streak(streak_user.id, tz='UTC')
+        assert result == 2
+
+    def test_multiple_attempts_same_day_count_as_one(self, db_session, streak_user):
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        for _ in range(5):
+            _add_pronunciation_attempt(db_session, streak_user.id, now_naive)
+
+        result = get_speaking_streak(streak_user.id, tz='UTC')
+        assert result == 1
+
+    def test_unmatched_attempts_still_count(self, db_session, streak_user):
+        """Streak counts any attempt, including unmatched ones."""
+        from app.curriculum.models import PronunciationAttempt
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        db_session.add(PronunciationAttempt(
+            user_id=streak_user.id,
+            word='difficult',
+            recognized_text='difficalt',
+            matched=False,
+            created_at=now_naive,
+        ))
+        db_session.flush()
+
+        result = get_speaking_streak(streak_user.id, tz='UTC')
+        assert result == 1
 
         db_session.refresh(streak_user)
         assert streak_user.streak_shield_active is False

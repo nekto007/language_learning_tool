@@ -347,12 +347,12 @@
 - Modify: `app/achievements/streak_service.py`
 - Modify: `tests/achievements/test_streak_service.py`
 
-- [ ] Проверить что get_immersion_streak правильно требует ВСЕ 4 skill в один день
-- [ ] Убедиться что отсутствие одного skill обнуляет consecutive count
-- [ ] Проверить что immersion_week achievement не дублируется при повторном check
-- [ ] Убедиться что get_listening/writing/speaking_streak корректно считает consecutive days
-- [ ] Тесты для 4-skill requirement, streak break, duplicate achievement prevention
-- [ ] run pytest tests/achievements/ -x
+- [x] Проверить что get_immersion_streak правильно требует ВСЕ 4 skill в один день
+- [x] Убедиться что отсутствие одного skill обнуляет consecutive count
+- [x] Проверить что immersion_week achievement не дублируется при повторном check
+- [x] Убедиться что get_listening/writing/speaking_streak корректно считает consecutive days
+- [x] Тесты для 4-skill requirement, streak break, duplicate achievement prevention
+- [x] run pytest tests/achievements/ -x
 
 ### Task 26: Notifications — создание и user preferences
 
