@@ -367,6 +367,136 @@ def quiz_deck_reorder_words(deck_id):
     return jsonify({'success': True})
 
 
+@admin.route('/quiz-decks/<int:deck_id>/export')
+@admin_required
+def quiz_deck_export(deck_id):
+    """Export quiz deck as JSON (works with 0 cards — returns empty words list)."""
+    deck = QuizDeck.query.get_or_404(deck_id)
+    words = deck.words.order_by(QuizDeckWord.order_index).all()
+
+    data = {
+        'title': deck.title,
+        'description': deck.description or '',
+        'is_public': deck.is_public,
+        'words': [
+            {
+                'english': w.english_word or '',
+                'russian': w.russian_word or '',
+                'custom_english': w.custom_english,
+                'custom_russian': w.custom_russian,
+                'order_index': w.order_index,
+            }
+            for w in words
+        ],
+    }
+
+    response = jsonify(data)
+    response.headers['Content-Disposition'] = f'attachment; filename="deck_{deck_id}.json"'
+    return response
+
+
+@admin.route('/quiz-decks/import', methods=['POST'])
+@admin_required
+def quiz_deck_import():
+    """Import a quiz deck from JSON, validating format before any DB writes."""
+    if not request.is_json:
+        return jsonify({'success': False, 'message': 'Content-Type must be application/json'}), 400
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'success': False, 'message': 'Invalid JSON format'}), 400
+
+    title = (data.get('title') or '').strip()
+    if not title:
+        return jsonify({'success': False, 'message': 'title is required'}), 400
+
+    words_data = data.get('words', [])
+    if not isinstance(words_data, list):
+        return jsonify({'success': False, 'message': 'words must be a list'}), 400
+
+    # Validate every word entry before touching the DB
+    for i, word in enumerate(words_data):
+        if not isinstance(word, dict):
+            return jsonify({'success': False, 'message': f'words[{i}] must be an object'}), 400
+        if not (word.get('english') or '').strip() or not (word.get('russian') or '').strip():
+            return jsonify({'success': False, 'message': f'words[{i}] requires non-empty english and russian'}), 400
+
+    deck = QuizDeck(
+        title=title,
+        description=(data.get('description') or '').strip(),
+        user_id=current_user.id,
+        is_public=bool(data.get('is_public', False)),
+    )
+
+    if deck.is_public:
+        deck.generate_share_code()
+
+    db.session.add(deck)
+    db.session.flush()
+
+    for i, word_data in enumerate(words_data):
+        deck_word = QuizDeckWord(
+            deck_id=deck.id,
+            custom_english=word_data['english'].strip(),
+            custom_russian=word_data['russian'].strip(),
+            order_index=word_data.get('order_index', i),
+        )
+        db.session.add(deck_word)
+
+    log_admin_action(current_user.id, 'quiz_deck.import', target_type='quiz_deck', target_id=deck.id)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'Колода "{title}" импортирована ({len(words_data)} слов)',
+        'deck_id': deck.id,
+        'word_count': len(words_data),
+    })
+
+
+@admin.route('/quiz-decks/<int:deck_id>/clone', methods=['POST'])
+@admin_required
+def quiz_deck_clone(deck_id):
+    """Create a deep copy of a quiz deck with all its words."""
+    deck = QuizDeck.query.get_or_404(deck_id)
+    words = deck.words.order_by(QuizDeckWord.order_index).all()
+
+    new_deck = QuizDeck(
+        title=f'{deck.title} (копия)',
+        description=deck.description,
+        user_id=current_user.id,
+        is_public=False,
+    )
+
+    db.session.add(new_deck)
+    db.session.flush()
+
+    # Deep copy — each QuizDeckWord is a new independent row
+    for w in words:
+        new_word = QuizDeckWord(
+            deck_id=new_deck.id,
+            word_id=w.word_id,
+            custom_english=w.custom_english,
+            custom_russian=w.custom_russian,
+            custom_sentences=w.custom_sentences,
+            order_index=w.order_index,
+        )
+        db.session.add(new_word)
+
+    log_admin_action(current_user.id, 'quiz_deck.clone', target_type='quiz_deck', target_id=deck_id)
+    db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+        return jsonify({
+            'success': True,
+            'message': f'Колода скопирована',
+            'new_deck_id': new_deck.id,
+        })
+
+    flash(f'Колода "{deck.title}" скопирована', 'success')
+    return redirect(url_for('admin.quiz_deck_edit', deck_id=new_deck.id))
+
+
 @admin.route('/api/words/search')
 @admin_required
 def api_words_search():

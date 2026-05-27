@@ -1196,12 +1196,12 @@
 - Modify: `app/admin/quiz_decks.py`
 - Modify: `tests/admin/`
 
-- [ ] Проверить что quiz deck export корректен при 0 карточек
-- [ ] Убедиться что deck import валидирует формат перед записью
-- [ ] Проверить что clone deck создаёт deep copy (не shallow reference)
-- [ ] Убедиться что public deck флаг не позволяет видеть admin-only decks
-- [ ] Тесты для empty export, import validation, clone, visibility
-- [ ] run pytest tests/admin/ -x
+- [x] Проверить что quiz deck export корректен при 0 карточек
+- [x] Убедиться что deck import валидирует формат перед записью
+- [x] Проверить что clone deck создаёт deep copy (не shallow reference)
+- [x] Убедиться что public deck флаг не позволяет видеть admin-only decks
+- [x] Тесты для empty export, import validation, clone, visibility
+- [x] run pytest tests/admin/ -x
 
 ### Task 89: NLP и text processing
 
