@@ -685,12 +685,12 @@
 - Modify: `app/static/js/daily-plan-next.js`
 - Modify: `app/static/js/unified-js.js`
 
-- [ ] Проверить что network errors при plan fetch показывают retry кнопку (не blank)
-- [ ] Убедиться что JSON parse error не крашит весь план (graceful fallback)
-- [ ] Проверить что skip-lesson request показывает loading state во время ожидания
-- [ ] Убедиться что continuation endpoint failure не блокирует основной план
-- [ ] Тесты для network error UI, JSON parse failure
-- [ ] run pytest -m smoke -x
+- [x] Проверить что network errors при plan fetch показывают retry кнопку (не blank)
+- [x] Убедиться что JSON parse error не крашит весь план (graceful fallback)
+- [x] Проверить что skip-lesson request показывает loading state во время ожидания
+- [x] Убедиться что continuation endpoint failure не блокирует основной план
+- [x] Тесты для network error UI, JSON parse failure
+- [x] run pytest -m smoke -x
 
 ### Task 51: Reader — книжный ридер и progress sync
 

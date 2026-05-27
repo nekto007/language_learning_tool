@@ -78,8 +78,17 @@
       credentials: 'same-origin',
       headers: headers
     })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
+      .then(function(r) {
+        if (!r.ok) { throw new Error('network_error:' + r.status); }
+        return r.text();
+      })
+      .then(function(text) {
+        var data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          throw new Error('json_parse_error');
+        }
         if (!data || typeof data !== 'object') return;
         // Legacy banner (backward compatibility) — only if container exists
         if (container) {
@@ -112,6 +121,20 @@
       })
       .catch(function(err) {
         console.error('Daily plan next step error:', err);
+        // Show retry button in the banner container so user is not left with blank
+        if (container) {
+          var retryBtn = document.createElement('button');
+          retryBtn.type = 'button';
+          retryBtn.className = 'daily-next-retry-btn';
+          retryBtn.textContent = '\u041f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u044c'; // "Повторить"
+          container.innerHTML = '';
+          container.appendChild(retryBtn);
+          retryBtn.addEventListener('click', function() {
+            container.innerHTML = '';
+            lastShownAt = 0; // reset debounce to allow immediate retry
+            document.dispatchEvent(new CustomEvent('dailyPlanStepComplete'));
+          });
+        }
       });
   });
 
