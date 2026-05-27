@@ -249,6 +249,9 @@ def import_curriculum():
                     target_id=result.get('lesson_id'),
                 )
                 db.session.commit()
+                # Invalidate curriculum cache so stale data is not served
+                from app.curriculum.cache import cache as _curr_cache
+                _curr_cache.clear()
                 flash(
                     f'Материал успешно импортирован! Создан урок ID: {result["lesson_id"]}',
                     'success'

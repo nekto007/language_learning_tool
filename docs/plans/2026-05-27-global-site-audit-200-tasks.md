@@ -792,12 +792,12 @@
 - Modify: `app/curriculum/routes/lessons.py`
 - Modify: `tests/curriculum/`
 
-- [ ] Профилировать /curriculum/ page (joinedload для Module+Lesson+Topic)
-- [ ] Убедиться что lesson page не делает отдельный query для каждого связанного объекта
-- [ ] Проверить что curriculum cache (app/curriculum/cache.py) используется в hot paths
-- [ ] Убедиться что cache invalidation происходит при admin content edit
-- [ ] Тесты для query count на curriculum page
-- [ ] run pytest tests/curriculum/ -x
+- [x] Профилировать /curriculum/ page (joinedload для Module+Lesson+Topic)
+- [x] Убедиться что lesson page не делает отдельный query для каждого связанного объекта
+- [x] Проверить что curriculum cache (app/curriculum/cache.py) используется в hot paths
+- [x] Убедиться что cache invalidation происходит при admin content edit
+- [x] Тесты для query count на curriculum page
+- [x] run pytest tests/curriculum/ -x
 
 ### Task 59: Performance — N+1 в words и books routes
 
