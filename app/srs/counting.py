@@ -23,6 +23,7 @@ from sqlalchemy import func, or_
 from app.srs.constants import CardState
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db as _db
+from app.utils.db_utils import chunk_ids
 
 
 def _naive_utc_now(now_utc: Optional[datetime] = None) -> datetime:
@@ -78,7 +79,13 @@ def count_due_cards(
     if word_ids is not None:
         if not word_ids:
             return 0
-        query = query.filter(UserWord.word_id.in_(word_ids))
+        word_ids_list = list(word_ids)
+        if len(word_ids_list) <= 1000:
+            return int(query.filter(UserWord.word_id.in_(word_ids_list)).scalar() or 0)
+        total = 0
+        for chunk in chunk_ids(word_ids_list):
+            total += int(query.filter(UserWord.word_id.in_(chunk)).scalar() or 0)
+        return total
     return int(query.scalar() or 0)
 
 

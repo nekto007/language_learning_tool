@@ -79,6 +79,28 @@ def _make_direction(
     return row
 
 
+class TestChunkIds:
+    """chunk_ids correctness — used by count_due_cards for large word_ids."""
+
+    def test_empty_list_yields_nothing(self):
+        from app.utils.db_utils import chunk_ids
+        assert list(chunk_ids([])) == []
+
+    def test_list_smaller_than_chunk_size_single_chunk(self):
+        from app.utils.db_utils import chunk_ids
+        ids = list(range(500))
+        chunks = list(chunk_ids(ids, chunk_size=1000))
+        assert len(chunks) == 1
+        assert chunks[0] == ids
+
+    def test_list_larger_than_chunk_size_multiple_chunks(self):
+        from app.utils.db_utils import chunk_ids
+        ids = list(range(2500))
+        chunks = list(chunk_ids(ids, chunk_size=1000))
+        assert len(chunks) == 3
+        assert sum(len(c) for c in chunks) == 2500
+
+
 class TestCountDueCards:
     def test_empty_db_returns_zero(self, db_session):
         user = _make_user(db_session)
@@ -186,6 +208,35 @@ class TestCountDueCards:
         assert count_due_cards(user.id, real_db, word_ids=[word_in.id]) == 1
         assert count_due_cards(user.id, real_db, word_ids=[]) == 0
 
+    def test_large_word_ids_list_chunks_correctly(self, db_session):
+        """word_ids > 1000 triggers chunked queries and returns correct count."""
+        user = _make_user(db_session)
+        now = _now_naive()
+
+        real_word_ids = []
+        for _ in range(2):
+            word = _make_word(db_session)
+            uw = _make_user_word(db_session, user, word)
+            _make_direction(
+                db_session, uw,
+                state=CardState.REVIEW.value,
+                next_review=now - timedelta(minutes=5),
+            )
+            real_word_ids.append(word.id)
+
+        # Pad to >1000 with non-existent IDs
+        fake_ids = list(range(99_000_000, 99_000_000 + 999))
+        large_list = real_word_ids + fake_ids  # 1001 total → triggers chunk path
+
+        result = count_due_cards(user.id, real_db, word_ids=large_list)
+        assert result == 2
+
+    def test_large_word_ids_empty_after_padding(self, db_session):
+        """Large list of non-existent IDs returns 0 without crash."""
+        user = _make_user(db_session)
+        fake_ids = list(range(99_100_000, 99_100_000 + 1001))
+        assert count_due_cards(user.id, real_db, word_ids=fake_ids) == 0
+
 
 class TestCountNewAndReviewsToday:
     def test_new_cards_today_and_reviews_disjoint(self, db_session):
@@ -244,6 +295,40 @@ class TestCountNewAndReviewsToday:
         )
         assert count_new_cards_today(user.id, real_db) == 0
 
+    def test_aware_now_utc_normalized_in_count_new_cards(self, db_session):
+        """Passing tz-aware datetime to count_new_cards_today must work (no TypeError)."""
+        user = _make_user(db_session)
+        aware_now = datetime.now(timezone.utc)
+        result = count_new_cards_today(user.id, real_db, now_utc=aware_now)
+        assert result == 0
+
+    def test_aware_now_utc_normalized_in_count_reviews_today(self, db_session):
+        """Passing tz-aware datetime to count_reviews_today must work (no TypeError)."""
+        user = _make_user(db_session)
+        aware_now = datetime.now(timezone.utc)
+        result = count_reviews_today(user.id, real_db, now_utc=aware_now)
+        assert result == 0
+
+    def test_timezone_boundary_card_reviewed_yesterday_not_counted(self, db_session):
+        """Card reviewed 1 second before midnight UTC is excluded from today's count."""
+        user = _make_user(db_session)
+        today_start = _now_naive().replace(hour=0, minute=0, second=0, microsecond=0)
+        just_before_midnight = today_start - timedelta(seconds=1)
+
+        word = _make_word(db_session)
+        uw = _make_user_word(db_session, user, word)
+        _make_direction(
+            db_session, uw,
+            state=CardState.REVIEW.value,
+            first_reviewed=just_before_midnight - timedelta(days=3),
+            last_reviewed=just_before_midnight,
+            next_review=today_start + timedelta(days=1),
+        )
+
+        # Neither count should include this card (it was reviewed yesterday)
+        assert count_new_cards_today(user.id, real_db) == 0
+        assert count_reviews_today(user.id, real_db) == 0
+
 
 class TestGetNewCardBudget:
     def _settings(self, db_session, user, *, new_per_day: int = 10, reviews_per_day: int = 50) -> StudySettings:
@@ -300,6 +385,38 @@ class TestGetNewCardBudget:
         remaining_new, remaining_reviews = get_new_card_budget(user.id, real_db)
         assert remaining_new == 0
         assert remaining_reviews == 5
+
+    def test_budget_with_no_study_settings_returns_defaults(self, db_session):
+        """Missing StudySettings triggers auto-creation with defaults (new=5, reviews=20)."""
+        user = _make_user(db_session)
+        # No StudySettings created; get_settings auto-creates with defaults
+        remaining_new, remaining_reviews = get_new_card_budget(user.id, real_db)
+        assert remaining_new >= 0
+        assert remaining_reviews >= 0
+        # Defaults: new_words_per_day=5, reviews_per_day=20
+        assert remaining_new == 5
+        assert remaining_reviews == 20
+
+    def test_budget_reviews_never_negative_when_over_limit(self, db_session):
+        """reviews remaining must be ≥ 0 even when more reviews happened than limit."""
+        user = _make_user(db_session)
+        self._settings(db_session, user, new_per_day=5, reviews_per_day=2)
+        now = _now_naive()
+
+        # 3 review-cards reviewed today (first_reviewed yesterday → review, not new)
+        for _ in range(3):
+            word = _make_word(db_session)
+            uw = _make_user_word(db_session, user, word)
+            _make_direction(
+                db_session, uw,
+                state=CardState.REVIEW.value,
+                first_reviewed=now - timedelta(days=2),
+                last_reviewed=now,
+                next_review=now + timedelta(days=1),
+            )
+
+        _, remaining_reviews = get_new_card_budget(user.id, real_db)
+        assert remaining_reviews == 0  # clamped to 0, not -1
 
     def test_low_accuracy_triggers_adaptive_cap(self, db_session):
         user = _make_user(db_session)

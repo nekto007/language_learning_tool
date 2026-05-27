@@ -163,12 +163,12 @@
 - Modify: `app/srs/counting.py`
 - Modify: `tests/srs/test_counting.py`
 
-- [ ] Проверить что count_due_cards корректен при word_ids=[] (пустой список)
-- [ ] Убедиться что get_new_card_budget не возвращает отрицательные значения
-- [ ] Проверить naive-UTC convention: нет tz-aware datetime в srs queries
-- [ ] Убедиться что chunk_ids используется для больших word_ids списков
-- [ ] Тесты для empty budgets, large id lists, timezone boundary
-- [ ] run pytest tests/srs/ -x
+- [x] Проверить что count_due_cards корректен при word_ids=[] (пустой список)
+- [x] Убедиться что get_new_card_budget не возвращает отрицательные значения
+- [x] Проверить naive-UTC convention: нет tz-aware datetime в srs queries
+- [x] Убедиться что chunk_ids используется для больших word_ids списков
+- [x] Тесты для empty budgets, large id lists, timezone boundary
+- [x] run pytest tests/srs/ -x
 
 ### Task 12: SRS — grading и leech logic
 
