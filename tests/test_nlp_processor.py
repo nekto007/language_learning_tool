@@ -3,6 +3,7 @@ Tests for NLP processor module
 Тесты модуля обработки естественного языка
 """
 import pytest
+import time
 from unittest.mock import patch, MagicMock
 from app.nlp.processor import (
     get_wordnet_pos,
@@ -12,7 +13,8 @@ from app.nlp.processor import (
     filter_english_words,
     process_text,
     process_html_content,
-    prepare_word_data
+    prepare_word_data,
+    NLP_TIMEOUT_SECONDS,
 )
 from nltk.corpus import wordnet
 
@@ -358,3 +360,169 @@ class TestPrepareWordData:
 
         assert len(result) == 1
         assert result[0][3] == 3  # frequency = 3
+
+
+class TestProcessTextEmptyInput:
+    """Тесты защиты от пустого ввода в process_text"""
+
+    def test_empty_string_returns_empty_list(self):
+        result = process_text("", {'hello'}, set())
+        assert result == []
+
+    def test_whitespace_only_returns_empty_list(self):
+        result = process_text("   \n\t  ", {'hello'}, set())
+        assert result == []
+
+    def test_none_like_empty_string_is_guarded(self):
+        # Ensure no crash on zero-length text
+        result = process_text("", set(), set())
+        assert isinstance(result, list)
+        assert len(result) == 0
+
+
+class TestProcessHtmlContentEmptyInput:
+    """Тесты защиты от пустого HTML в process_html_content"""
+
+    @patch('app.nlp.processor.initialize_nltk')
+    def test_empty_html_returns_empty_without_calling_nltk(self, mock_init):
+        mock_init.return_value = (set(), set(), set())
+        result = process_html_content("")
+        assert result == []
+        mock_init.assert_not_called()
+
+    @patch('app.nlp.processor.initialize_nltk')
+    def test_whitespace_html_returns_empty_without_calling_nltk(self, mock_init):
+        mock_init.return_value = (set(), set(), set())
+        result = process_html_content("   ")
+        assert result == []
+        mock_init.assert_not_called()
+
+    @patch('app.nlp.processor.initialize_nltk')
+    @patch('app.nlp.processor.extract_text_from_html')
+    def test_empty_extracted_text_returns_empty(self, mock_extract, mock_init):
+        mock_init.return_value = (set(), set(), set())
+        mock_extract.return_value = ""
+        result = process_html_content("<html><body></body></html>")
+        assert result == []
+
+
+class TestNltkGracefulFailure:
+    """Тесты graceful handling когда NLTK ресурсы недоступны"""
+
+    def test_initialize_nltk_graceful_on_lookup_error(self):
+        from app.nlp.setup import initialize_nltk, _reset_cache
+        _reset_cache()
+
+        with patch('app.nlp.setup.get_english_vocabulary', side_effect=LookupError("punkt not found")):
+            result = initialize_nltk()
+
+        vocab, brown, sw = result
+        assert isinstance(vocab, set)
+        assert isinstance(brown, set)
+        assert isinstance(sw, set)
+        # All should be empty sets (graceful fallback)
+        assert vocab == set()
+        assert brown == set()
+        assert sw == set()
+
+        # Restore cache for subsequent tests
+        _reset_cache()
+
+    def test_initialize_nltk_graceful_on_os_error(self):
+        from app.nlp.setup import initialize_nltk, _reset_cache
+        _reset_cache()
+
+        with patch('app.nlp.setup.get_english_vocabulary', side_effect=OSError("data path not found")):
+            result = initialize_nltk()
+
+        vocab, brown, sw = result
+        assert vocab == set()
+        _reset_cache()
+
+
+class TestNltkCaching:
+    """Тесты кэширования initialize_nltk"""
+
+    def test_initialize_nltk_cached_second_call_no_reload(self):
+        from app.nlp.setup import initialize_nltk, _reset_cache
+        _reset_cache()
+
+        with patch('app.nlp.setup.get_english_vocabulary', return_value={'hello', 'world'}) as mock_vocab, \
+             patch('app.nlp.setup.get_brown_words', return_value={'hello'}) as mock_brown, \
+             patch('app.nlp.setup.get_stopwords', return_value={'the'}) as mock_sw:
+
+            result1 = initialize_nltk()
+            result2 = initialize_nltk()
+
+        # Expensive calls happen only once due to caching
+        mock_vocab.assert_called_once()
+        mock_brown.assert_called_once()
+        mock_sw.assert_called_once()
+        # Both calls return the same tuple object
+        assert result1 is result2
+
+        _reset_cache()
+
+    def test_process_html_calls_initialize_once_per_invocation(self):
+        """initialize_nltk is cached — multiple process_html_content calls reuse it"""
+        from app.nlp.setup import initialize_nltk, _reset_cache
+        _reset_cache()
+
+        call_count = {'n': 0}
+        original_vocab = {'hello'}
+
+        def counting_vocab():
+            call_count['n'] += 1
+            return original_vocab
+
+        with patch('app.nlp.setup.get_english_vocabulary', side_effect=counting_vocab), \
+             patch('app.nlp.setup.get_brown_words', return_value=set()), \
+             patch('app.nlp.setup.get_stopwords', return_value=set()), \
+             patch('app.nlp.processor.extract_text_from_html', return_value=""), \
+             patch('app.nlp.processor.initialize_nltk', side_effect=initialize_nltk):
+
+            process_html_content("<html><body>hi</body></html>")
+            process_html_content("<html><body>hello</body></html>")
+
+        # Vocab loader called only once across multiple process_html_content calls
+        assert call_count['n'] == 1
+        _reset_cache()
+
+
+class TestNlpTimeout:
+    """Тесты timeout для NLP обработки"""
+
+    def test_timeout_constant_exists_and_positive(self):
+        assert NLP_TIMEOUT_SECONDS > 0
+
+    @patch('app.nlp.processor.initialize_nltk')
+    @patch('app.nlp.processor.extract_text_from_html')
+    def test_process_html_returns_empty_list_on_timeout(self, mock_extract, mock_init):
+        mock_init.return_value = (set(), set(), set())
+        mock_extract.return_value = "some text to process"
+
+        def slow_process(*args, **kwargs):
+            time.sleep(0.5)
+            return ['word']
+
+        with patch('app.nlp.processor.process_text', side_effect=slow_process):
+            result = process_html_content(
+                "<html><body>some text</body></html>",
+                timeout=0.05,
+            )
+
+        assert result == []
+
+    @patch('app.nlp.processor.initialize_nltk')
+    @patch('app.nlp.processor.extract_text_from_html')
+    def test_process_html_returns_result_within_timeout(self, mock_extract, mock_init):
+        mock_init.return_value = (set(), set(), set())
+        mock_extract.return_value = "some text"
+
+        with patch('app.nlp.processor.process_text', return_value=['some', 'text']):
+            result = process_html_content(
+                "<html><body>some text</body></html>",
+                timeout=5,
+            )
+
+        assert result == ['some', 'text']

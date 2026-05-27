@@ -83,14 +83,42 @@ def get_stopwords():
     return set(stopwords.words("english"))
 
 
-def initialize_nltk():
+_nltk_cache: tuple | None = None
+
+
+def _reset_cache() -> None:
+    """Reset the NLTK initialization cache. Used in tests."""
+    global _nltk_cache
+    _nltk_cache = None
+
+
+def initialize_nltk() -> tuple:
     """
-    Initializes all necessary NLTK resources.
+    Initializes all necessary NLTK resources with module-level caching.
+    Returns empty sets gracefully when NLTK data is missing.
 
     Returns:
         tuple: (english_vocab, brown_words, stop_words)
     """
-    english_vocab = get_english_vocabulary()
-    brown_words_set = get_brown_words()
-    stop_words = get_stopwords()
-    return english_vocab, brown_words_set, stop_words
+    global _nltk_cache
+
+    if _nltk_cache is not None:
+        return _nltk_cache
+
+    try:
+        english_vocab = get_english_vocabulary()
+        brown_words_set = get_brown_words()
+        stop_words = get_stopwords()
+    except (LookupError, OSError) as e:
+        logger.error("Failed to initialize NLTK resources: %s. Using empty sets.", e)
+        english_vocab = set()
+        brown_words_set = set()
+        stop_words = set()
+    except Exception as e:
+        logger.error("Unexpected error initializing NLTK: %s. Using empty sets.", e)
+        english_vocab = set()
+        brown_words_set = set()
+        stop_words = set()
+
+    _nltk_cache = (english_vocab, brown_words_set, stop_words)
+    return _nltk_cache

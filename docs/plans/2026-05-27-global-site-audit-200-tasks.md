@@ -1209,11 +1209,11 @@
 - Modify: `app/` (NLP-related files)
 - Modify: `tests/test_nlp_processor.py`
 
-- [ ] Проверить что NLP processor graceful при импорте модели (нет crash при отсутствии)
-- [ ] Убедиться что NLP обработка ограничена по времени (timeout)
-- [ ] Проверить что результат NLP кешируется (нет повторной обработки)
-- [ ] Убедиться что NLP не применяется к пустому тексту
-- [ ] run pytest tests/test_nlp_processor.py -x
+- [x] Проверить что NLP processor graceful при импорте модели (нет crash при отсутствии)
+- [x] Убедиться что NLP обработка ограничена по времени (timeout)
+- [x] Проверить что результат NLP кешируется (нет повторной обработки)
+- [x] Убедиться что NLP не применяется к пустому тексту
+- [x] run pytest tests/test_nlp_processor.py -x
 
 ### Task 90: Feedback система — маршруты и хранение
 
