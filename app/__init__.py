@@ -296,7 +296,7 @@ def create_app(config_class=Config):
         from flask import jsonify, render_template
         from app.admin.error_handlers import is_admin_request, render_admin_403
         if _wants_json():
-            return jsonify({'success': False, 'error': 'Forbidden'}), 403
+            return jsonify({'success': False, 'error': 'forbidden', 'message': 'Forbidden', 'status': 403}), 403
         if is_admin_request():
             return render_admin_403()
         return render_template('errors/403.html'), 403
@@ -306,7 +306,7 @@ def create_app(config_class=Config):
         from flask import jsonify, render_template
         from app.admin.error_handlers import is_admin_request, render_admin_404
         if _wants_json():
-            return jsonify({'success': False, 'error': 'Not found'}), 404
+            return jsonify({'success': False, 'error': 'not_found', 'message': 'Not found', 'status': 404}), 404
         if is_admin_request():
             return render_admin_404()
         return render_template('errors/404.html'), 404
@@ -322,7 +322,7 @@ def create_app(config_class=Config):
             logger.exception("Failed to rollback session in 500 handler")
         increment_5xx_counter()
         if _wants_json():
-            return jsonify({'success': False, 'error': 'Internal server error'}), 500
+            return jsonify({'success': False, 'error': 'internal_error', 'message': 'Internal server error', 'status': 500}), 500
         if is_admin_request():
             return render_admin_500()
         return render_template('errors/500.html'), 500

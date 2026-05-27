@@ -6,6 +6,7 @@ from flask import Blueprint, jsonify, request, send_file
 from flask_login import current_user
 
 from app.api.decorators import api_auth_required
+from app.api.errors import api_error
 from app.utils.anki_export import create_anki_package
 from app.words.models import CollectionWords
 
@@ -19,11 +20,7 @@ api_anki = Blueprint('api_anki', __name__)
 @api_auth_required
 def export_anki():
     if not request.is_json:
-        return jsonify({
-            'success': False,
-            'error': 'Invalid JSON format',
-            'status_code': 400
-        }), 400
+        return api_error('invalid_json', 'Invalid JSON format', 400)
 
     data = request.get_json()
     deck_name = data.get('deckName')
@@ -34,22 +31,14 @@ def export_anki():
     word_ids = data.get('wordIds', [])
 
     if not deck_name or not card_format or not word_ids:
-        return jsonify({
-            'success': False,
-            'error': 'Missing required parameters',
-            'status_code': 400
-        }), 400
+        return api_error('missing_fields', 'Missing required parameters', 400)
 
     try:
         # Get words
         words = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
 
         if not words:
-            return jsonify({
-                'success': False,
-                'error': 'No words found',
-                'status_code': 404
-            }), 404
+            return api_error('not_found', 'No words found', 404)
 
         # Temporary file to store the Anki package
         with tempfile.NamedTemporaryFile(suffix='.apkg', delete=False) as temp_file:
@@ -86,8 +75,4 @@ def export_anki():
                 logger.exception("Failed to clean up temp file: %s", temp_path)
 
         logger.error(f'Anki export error: {e}', exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': 'Export failed',
-            'status_code': 500
-        }), 500
+        return api_error('export_failed', 'Export failed', 500)
