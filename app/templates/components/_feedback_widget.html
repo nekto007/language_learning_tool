@@ -1,0 +1,184 @@
+{# In-app feedback widget: floating launcher + simple modal.
+   Posts to /api/feedback (login_required, rate-limited). #}
+<button type="button"
+        id="feedback-fab"
+        class="feedback-fab"
+        aria-label="Сообщить о баге или предложить идею"
+        title="Обратная связь">
+    <i class="fas fa-comment-dots" aria-hidden="true"></i>
+</button>
+
+<div id="feedback-modal" class="feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title" hidden>
+    <div class="feedback-modal__backdrop" data-feedback-close="true"></div>
+    <div class="feedback-modal__panel" role="document">
+        <div class="feedback-modal__header">
+            <h2 id="feedback-modal-title" class="feedback-modal__title">Обратная связь</h2>
+            <button type="button" class="feedback-modal__close" data-feedback-close="true" aria-label="Закрыть">
+                &times;
+            </button>
+        </div>
+        <form id="feedback-form" class="feedback-modal__body">
+            <fieldset class="feedback-modal__categories">
+                <legend class="feedback-modal__label">Что хочется сказать?</legend>
+                <label class="feedback-cat">
+                    <input type="radio" name="category" value="bug" required>
+                    <span class="feedback-cat__badge feedback-cat__badge--bug">Баг</span>
+                    <span class="feedback-cat__hint">Что-то сломалось или ведёт себя не так</span>
+                </label>
+                <label class="feedback-cat">
+                    <input type="radio" name="category" value="idea">
+                    <span class="feedback-cat__badge feedback-cat__badge--idea">Идея</span>
+                    <span class="feedback-cat__hint">Что добавить или улучшить</span>
+                </label>
+                <label class="feedback-cat">
+                    <input type="radio" name="category" value="question">
+                    <span class="feedback-cat__badge feedback-cat__badge--question">Вопрос</span>
+                    <span class="feedback-cat__hint">Что-то непонятно</span>
+                </label>
+            </fieldset>
+            <label class="feedback-modal__label" for="feedback-message">Сообщение</label>
+            <textarea id="feedback-message"
+                      name="message"
+                      class="feedback-modal__textarea"
+                      rows="5"
+                      maxlength="4000"
+                      placeholder="Опишите, что произошло или что предлагаете."
+                      required></textarea>
+            <p id="feedback-error" class="feedback-modal__error" role="alert" hidden></p>
+            <div class="feedback-modal__actions">
+                <button type="button" class="feedback-modal__btn feedback-modal__btn--ghost" data-feedback-close="true">
+                    Отмена
+                </button>
+                <button type="submit" id="feedback-submit" class="feedback-modal__btn feedback-modal__btn--primary">
+                    Отправить
+                </button>
+            </div>
+        </form>
+        <div id="feedback-success" class="feedback-modal__success" hidden>
+            <i class="fas fa-check-circle"></i>
+            <p>Спасибо! Передали команде.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    var fab = document.getElementById('feedback-fab');
+    var modal = document.getElementById('feedback-modal');
+    var form = document.getElementById('feedback-form');
+    var submitBtn = document.getElementById('feedback-submit');
+    var errorBox = document.getElementById('feedback-error');
+    var successBox = document.getElementById('feedback-success');
+    if (!fab || !modal || !form) return;
+
+    var inFlight = false;
+
+    function open() {
+        modal.hidden = false;
+        document.body.classList.add('feedback-modal-open');
+        setTimeout(function() {
+            var firstRadio = modal.querySelector('input[name="category"]');
+            if (firstRadio) firstRadio.focus();
+        }, 0);
+    }
+    function close() {
+        modal.hidden = true;
+        document.body.classList.remove('feedback-modal-open');
+        // Reset state so a second open() shows the form again, not the success card.
+        successBox.hidden = true;
+        form.hidden = false;
+        form.reset();
+        errorBox.hidden = true;
+        errorBox.textContent = '';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Отправить';
+        inFlight = false;
+    }
+
+    fab.addEventListener('click', open);
+    modal.querySelectorAll('[data-feedback-close="true"]').forEach(function(el) {
+        el.addEventListener('click', close);
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !modal.hidden) close();
+    });
+
+    function submit() {
+        if (inFlight) return;
+        errorBox.hidden = true;
+        errorBox.textContent = '';
+
+        var category = (form.querySelector('input[name="category"]:checked') || {}).value;
+        var message = (form.querySelector('#feedback-message').value || '').trim();
+        if (!category) {
+            errorBox.textContent = 'Выберите категорию.';
+            errorBox.hidden = false;
+            return;
+        }
+        if (!message) {
+            errorBox.textContent = 'Опишите, что хотите сообщить.';
+            errorBox.hidden = false;
+            return;
+        }
+
+        inFlight = true;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Отправляю…';
+
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        var csrf = meta ? meta.getAttribute('content') : '';
+
+        fetch('/api/feedback', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrf,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                category: category,
+                message: message,
+                url: window.location.href,
+            }),
+        }).then(function(r) {
+            if (r.ok) {
+                form.hidden = true;
+                successBox.hidden = false;
+                inFlight = false;
+                setTimeout(close, 1800);
+                return;
+            }
+            return r.json().catch(function() { return {}; }).then(function(body) {
+                var msg = (body && body.message) ? body.message :
+                          (r.status === 429 ? 'Слишком много отправок. Попробуйте позже.' :
+                          'Не удалось отправить. Попробуйте позже.');
+                errorBox.textContent = msg;
+                errorBox.hidden = false;
+                inFlight = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Отправить';
+            });
+        }).catch(function() {
+            errorBox.textContent = 'Сеть недоступна. Проверьте подключение.';
+            errorBox.hidden = false;
+            inFlight = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Отправить';
+        });
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        submit();
+    });
+
+    // Ctrl+Enter (or Cmd+Enter on macOS) inside the textarea sends the form.
+    form.querySelector('#feedback-message').addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            submit();
+        }
+    });
+})();
+</script>

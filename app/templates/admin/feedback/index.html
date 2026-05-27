@@ -1,0 +1,184 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}Обратная связь{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Обратная связь', '')]) }}
+{% endblock %}
+
+{% set category_labels = {'bug': 'Баг', 'idea': 'Идея', 'question': 'Вопрос'} %}
+{% set category_badges = {'bug': 'danger', 'idea': 'success', 'question': 'info'} %}
+{% set status_labels = {'new': 'Новые', 'seen': 'Просмотрено', 'resolved': 'Закрыто'} %}
+{% set status_badges = {'new': 'primary', 'seen': 'warning', 'resolved': 'secondary'} %}
+
+{% block content %}
+{{ page_header('Обратная связь', 'Сообщения пользователей: баги, идеи, вопросы') }}
+
+<div class="row g-3 mb-4">
+    {% for st in statuses %}
+    <div class="col-sm-4">
+        <div class="card">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted">{{ status_labels[st] }}</span>
+                    <span class="badge bg-{{ status_badges[st] }}">{{ counts_by_status.get(st, 0) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Фильтры</h6>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('feedback_admin.feedback_index') }}" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Категория</label>
+                <select name="category" class="form-select">
+                    <option value="">Все</option>
+                    {% for c in categories %}
+                    <option value="{{ c }}" {% if filter_category == c %}selected{% endif %}>{{ category_labels[c] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Статус</label>
+                <select name="status" class="form-select">
+                    <option value="">Все</option>
+                    {% for st in statuses %}
+                    <option value="{{ st }}" {% if filter_status == st %}selected{% endif %}>{{ status_labels[st] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">С даты</label>
+                <input type="date" name="date_from" class="form-control" value="{{ filter_date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">По дату</label>
+                <input type="date" name="date_to" class="form-control" value="{{ filter_date_to }}">
+            </div>
+            <div class="col-md-2 d-flex gap-2 align-items-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search me-1"></i>Применить
+                </button>
+                <a href="{{ url_for('feedback_admin.feedback_index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-comments me-2"></i>Сообщения</h6>
+        <span class="badge bg-secondary">
+            {% if entries %}Страница {{ page }}{% if has_more %}, ещё есть{% endif %}{% else %}Нет записей{% endif %}
+        </span>
+    </div>
+    <div class="card-body p-0">
+        {% if entries %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 130px;">Время</th>
+                        <th style="width: 90px;">Тип</th>
+                        <th style="width: 110px;">Статус</th>
+                        <th>Сообщение</th>
+                        <th style="width: 200px;">Пользователь / URL</th>
+                        <th style="width: 240px;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <td class="text-muted small">
+                            {{ entry.created_at.strftime('%d.%m.%Y %H:%M') if entry.created_at else '—' }}
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ category_badges.get(entry.category, 'light text-dark') }}">
+                                {{ category_labels.get(entry.category, entry.category) }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ status_badges.get(entry.status, 'light text-dark') }}">
+                                {{ status_labels.get(entry.status, entry.status) }}
+                            </span>
+                        </td>
+                        <td class="small" style="white-space: pre-wrap; word-break: break-word;">{{ entry.message }}</td>
+                        <td class="small">
+                            {% if entry.user_email %}
+                                <div title="user_id={{ entry.user_id }}">{{ entry.user_username or entry.user_email }}</div>
+                            {% else %}
+                                <span class="text-muted">аноним</span>
+                            {% endif %}
+                            {% if entry.url %}
+                                <div class="text-muted text-truncate" style="max-width: 200px;" title="{{ entry.url }}">
+                                    <i class="fas fa-link me-1"></i>{{ entry.url }}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1 flex-wrap">
+                                {% for st in statuses %}
+                                    {% if st != entry.status %}
+                                    <form method="POST"
+                                          action="{{ url_for('feedback_admin.feedback_set_status', feedback_id=entry.id, page=page, category=filter_category, status=filter_status) }}"
+                                          class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="status" value="{{ st }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-{{ status_badges[st] }}">
+                                            → {{ status_labels[st] }}
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+            <p>Сообщений нет</p>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if page > 1 or has_more %}
+    <div class="card-footer">
+        <nav aria-label="Pagination">
+            <ul class="pagination mb-0 justify-content-center">
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('feedback_admin.feedback_index', page=page-1, category=filter_category, status=filter_status, date_from=filter_date_from, date_to=filter_date_to) }}">
+                        <i class="fas fa-chevron-left"></i> Назад
+                    </a>
+                </li>
+                {% endif %}
+                <li class="page-item disabled">
+                    <span class="page-link">Страница {{ page }}</span>
+                </li>
+                {% if has_more %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('feedback_admin.feedback_index', page=page+1, category=filter_category, status=filter_status, date_from=filter_date_from, date_to=filter_date_to) }}">
+                        Вперёд <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

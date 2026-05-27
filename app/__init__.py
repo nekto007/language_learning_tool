@@ -35,6 +35,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'system_admin.', 'grammar_lab_admin.', 'admin_curriculum.',
     'curriculum_admin.', 'reminders.', 'settings_admin.', 'seo_admin.',
     'activity_admin.', 'audit_admin.', 'dashboard_admin.',
+    'feedback.', 'feedback_admin.',
     'refresh_csrf_token',
     'health_check',
 )
@@ -200,6 +201,10 @@ def create_app(config_class=Config):
     # Register Onboarding blueprint
     from app.onboarding import onboarding_bp
     app.register_blueprint(onboarding_bp)
+
+    # Register Feedback blueprint (POST /api/feedback)
+    from app.feedback import feedback_bp
+    app.register_blueprint(feedback_bp)
 
     # Register SEO blueprint (sitemap.xml, robots.txt)
     from app.seo import seo_bp

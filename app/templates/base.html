@@ -311,6 +311,10 @@
         {% block content %}{% endblock %}
     </main>
 
+    {% if current_user.is_authenticated %}
+    {% include 'components/_feedback_widget.html' %}
+    {% endif %}
+
     <!-- Modern Clean Footer -->
     <footer class="mt-auto py-4 footer-styled">
         <div class="container">

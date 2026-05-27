@@ -16,6 +16,7 @@ Language Learning Tool — полный каталог API-эндпоинтов.
 - [Anki Export API](#anki-export-api)
 - [Telegram API](#telegram-api)
 - [Notifications API](#notifications-api)
+- [Feedback API](#feedback-api)
 - [System API](#system-api)
 - [SEO & Public Pages](#seo--public-pages)
 - [Типы авторизации](#типы-авторизации)
@@ -1217,6 +1218,49 @@ SRS-информация по конкретному упражнению.
 ```json
 { "success": true, "count": 3 }
 ```
+
+---
+
+## Feedback API
+
+In-app channel for product feedback (bug reports / ideas / questions). Surfaces in the floating widget in the footer of every authenticated page; admins triage on `/admin/feedback`.
+
+### `POST /api/feedback`
+Создать запись обратной связи. Каждая отправка также рассылает in-app уведомление всем администраторам.
+
+**Auth:** `@login_required`
+
+**Rate limit:** 5 per hour per user.
+
+**Headers:** `X-CSRFToken: <token>` (берётся из `meta[name="csrf-token"]`).
+
+**Body:**
+```json
+{
+  "category": "bug",
+  "message": "Кнопка «Начать» не открывает урок.",
+  "url": "https://llt-english.com/learn/a1/m1/l3"
+}
+```
+
+| Поле | Тип | Описание | Обязательное |
+|------|-----|----------|:---:|
+| category | string | Одно из `bug`, `idea`, `question` | ✓ |
+| message | string | Текст сообщения, обрезается до 4000 символов | ✓ |
+| url | string | URL, на котором юзер был при отправке. Если не задан — берётся `Referer`-заголовок | - |
+
+`user_agent` пишется сервером из заголовка запроса. Анонимная отправка не поддерживается — для неавторизованных запрос возвращает 302/401.
+
+**Response (201):**
+```json
+{ "success": true, "id": 42 }
+```
+
+**Errors:**
+- `400 invalid_category` — категория не из разрешённого набора.
+- `400 empty_message` — пустой `message`.
+- `429` — превышен rate limit.
+- `500 save_failed` — сбой записи в БД.
 
 ---
 
