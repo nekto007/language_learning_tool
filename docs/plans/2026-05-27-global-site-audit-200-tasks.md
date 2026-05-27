@@ -833,12 +833,12 @@
 - Modify: `app/admin/site_settings.py`
 - Modify: `tests/admin/test_admin_settings.py`
 
-- [ ] Проверить что daily_race_enabled flag корректно gate'ит DailyRace endpoint
-- [ ] Убедиться что streak_shield_enabled flag корректно gate'ит shield logic
-- [ ] Проверить что get_site_setting не делает DB query при уже seeded значении
-- [ ] Убедиться что concurrent set_site_setting не создаёт duplicate rows
-- [ ] Тесты для feature flag gating, concurrent set
-- [ ] run pytest tests/admin/test_admin_settings.py -x
+- [x] Проверить что daily_race_enabled flag корректно gate'ит DailyRace endpoint
+- [x] Убедиться что streak_shield_enabled flag корректно gate'ит shield logic
+- [x] Проверить что get_site_setting не делает DB query при уже seeded значении
+- [x] Убедиться что concurrent set_site_setting не создаёт duplicate rows
+- [x] Тесты для feature flag gating, concurrent set
+- [x] run pytest tests/admin/test_admin_settings.py -x
 
 ### Task 62: Word of Day и public widgets
 

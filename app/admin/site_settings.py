@@ -226,12 +226,29 @@ def get_site_setting(key: str, default: Any = None, db_session=None) -> Optional
 
 
 def set_site_setting(key: str, value: str, db_session=None) -> SiteSettings:
-    """Upsert *key* → *value*.  Flush only — caller commits."""
+    """Upsert *key* → *value*.  Flush only — caller commits.
+
+    Uses a savepoint for the initial INSERT so that concurrent callers that
+    both observe a missing row don't produce an unhandled duplicate-key
+    IntegrityError.  The losing writer reloads the winner's row and applies
+    its update instead.
+    """
     session = db_session or db.session
     row = session.get(SiteSettings, key)
     if row is None:
-        row = SiteSettings(key=key, value=value)
-        session.add(row)
+        try:
+            nested = session.begin_nested()
+            row = SiteSettings(key=key, value=value)
+            session.add(row)
+            nested.commit()
+        except IntegrityError:
+            nested.rollback()
+            # Another concurrent writer already inserted this key; reload it.
+            session.expire_all()
+            row = session.get(SiteSettings, key)
+            if row is not None:
+                row.value = value
+                row.updated_at = datetime.now(UTC).replace(tzinfo=None)
     else:
         row.value = value
         row.updated_at = datetime.now(UTC).replace(tzinfo=None)
