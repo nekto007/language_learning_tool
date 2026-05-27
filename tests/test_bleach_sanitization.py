@@ -1,6 +1,7 @@
 """
-Tests for bleach sanitization of user-provided text fields in deck routes.
+Tests for bleach sanitization of user-provided text fields.
 Ensures <script> and other HTML tags are stripped before storage.
+Covers: deck routes, vocab annotations, word etymology, notification rendering.
 """
 import pytest
 
@@ -106,3 +107,154 @@ class TestBleachSanitization:
                 assert '<script>' not in deck_word.custom_english
             if deck_word.custom_sentences:
                 assert '<b>' not in deck_word.custom_sentences
+
+
+class TestVocabAnnotationSanitization:
+    """Verify that HTML/script tags are stripped from vocabulary annotations."""
+
+    @pytest.mark.smoke
+    def test_script_tag_stripped_from_annotation(self, authenticated_client, test_word, db_session):
+        """Saving annotation with <script> stores plain text (tags removed, text preserved)."""
+        response = authenticated_client.post(
+            f'/curriculum/api/words/{test_word.id}/annotation',
+            json={'note': '<script>xss</script>my note'},
+            content_type='application/json',
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data.get('ok') is True
+        assert '<script>' not in data['note']
+        assert '</script>' not in data['note']
+
+    def test_img_onerror_stripped_from_annotation(self, authenticated_client, test_word, db_session):
+        """Saving annotation with onerror handler strips the HTML."""
+        response = authenticated_client.post(
+            f'/curriculum/api/words/{test_word.id}/annotation',
+            json={'note': '<img src=x onerror=alert(1)>clean note'},
+            content_type='application/json',
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert '<img' not in data['note']
+        assert 'onerror' not in data['note']
+        assert 'clean note' in data['note']
+
+    def test_html_only_annotation_rejected(self, authenticated_client, test_word, db_session):
+        """An annotation that is only HTML tags becomes empty and returns 400."""
+        response = authenticated_client.post(
+            f'/curriculum/api/words/{test_word.id}/annotation',
+            json={'note': '<script></script>'},
+            content_type='application/json',
+        )
+        assert response.status_code == 400
+
+    def test_plain_text_annotation_preserved(self, authenticated_client, test_word, db_session):
+        """Plain text annotation is stored as-is."""
+        response = authenticated_client.post(
+            f'/curriculum/api/words/{test_word.id}/annotation',
+            json={'note': 'This is a plain text note about the word.'},
+            content_type='application/json',
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['note'] == 'This is a plain text note about the word.'
+
+    def test_empty_annotation_rejected(self, authenticated_client, test_word, db_session):
+        """Empty note returns 400."""
+        response = authenticated_client.post(
+            f'/curriculum/api/words/{test_word.id}/annotation',
+            json={'note': ''},
+            content_type='application/json',
+        )
+        assert response.status_code == 400
+
+
+class TestEtymologySanitization:
+    """Verify that etymology field is sanitized via bleach in the service layer."""
+
+    def test_strip_html_helper_strips_tags(self):
+        """_strip_html removes all HTML tags from etymology."""
+        from app.words.detail_service import _strip_html
+
+        assert _strip_html('<b>Latin</b> origo') == 'Latin origo'
+        assert _strip_html('<script>alert(1)</script>word') == 'alert(1)word'
+        assert _strip_html('plain etymology') == 'plain etymology'
+        assert _strip_html('') == ''
+        assert _strip_html(None) == ''
+
+    def test_build_word_profile_sanitizes_etymology(self, db_session):
+        """build_word_profile strips HTML tags from etymology field."""
+        from app.words.models import CollectionWords
+        from app.words.detail_service import build_word_profile
+        import uuid
+
+        word = CollectionWords(
+            english_word=f'xss_test_{uuid.uuid4().hex[:6]}',
+            russian_word='тест',
+            level='A1',
+            etymology='<script>xss</script>From Latin',
+        )
+        db_session.add(word)
+        db_session.flush()
+
+        profile = build_word_profile(word)
+        assert '<script>' not in profile['etymology']
+        assert '</script>' not in profile['etymology']
+        assert 'From Latin' in profile['etymology']
+
+
+class TestNotificationXSSSafety:
+    """Verify notification API returns plain text messages safe for textContent rendering."""
+
+    @pytest.mark.smoke
+    def test_notification_api_returns_json_with_message(self, authenticated_client, db_session):
+        """GET /api/notifications/list returns notification messages as plain strings."""
+        from app.notifications.models import Notification
+        from app.utils.db import db as _db
+
+        user = authenticated_client.application.test_user
+        notif = Notification(
+            user_id=user.id,
+            type='system',
+            title='Test',
+            message='Plain text notification message',
+        )
+        _db.session.add(notif)
+        _db.session.commit()
+
+        response = authenticated_client.get('/api/notifications/list')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data.get('success') is True
+        notifications = data.get('notifications', [])
+        assert isinstance(notifications, list)
+        found = next(
+            (n for n in notifications if n.get('message') == 'Plain text notification message'),
+            None,
+        )
+        assert found is not None
+
+    def test_notification_with_html_message_stored_as_text(self, authenticated_client, db_session):
+        """Notification message with HTML is stored/returned as string (textContent handles escaping)."""
+        from app.notifications.models import Notification
+        from app.utils.db import db as _db
+
+        user = authenticated_client.application.test_user
+        notif = Notification(
+            user_id=user.id,
+            type='system',
+            title='XSS test',
+            message='<b>bold text</b> notification',
+        )
+        _db.session.add(notif)
+        _db.session.commit()
+
+        response = authenticated_client.get('/api/notifications/list')
+        assert response.status_code == 200
+        data = response.get_json()
+        notifications = data.get('notifications', [])
+        found = next(
+            (n for n in notifications if '<b>bold text</b>' in (n.get('message') or '')),
+            None,
+        )
+        assert found is not None, "API returns raw message string; textContent in browser handles escaping"

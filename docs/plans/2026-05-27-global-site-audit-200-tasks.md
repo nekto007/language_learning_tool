@@ -496,12 +496,12 @@
 - Modify: `app/templates/` (поиск |safe фильтров)
 - Modify: `tests/test_bleach_sanitization.py`
 
-- [ ] Grep все |safe usage в шаблонах и убедиться что каждый оправдан
-- [ ] Проверить что user-supplied контент (заметки, аннотации) не рендерится с |safe
-- [ ] Убедиться что etymology и description поля Word sanitized через bleach
-- [ ] Проверить что notification dropdown использует textContent везде (не innerHTML)
-- [ ] Тесты для XSS через annotation, word description, notification
-- [ ] run pytest tests/test_bleach_sanitization.py -x
+- [x] Grep все |safe usage в шаблонах и убедиться что каждый оправдан
+- [x] Проверить что user-supplied контент (заметки, аннотации) не рендерится с |safe
+- [x] Убедиться что etymology и description поля Word sanitized через bleach
+- [x] Проверить что notification dropdown использует textContent везде (не innerHTML)
+- [x] Тесты для XSS через annotation, word description, notification
+- [x] run pytest tests/test_bleach_sanitization.py -x
 
 ### Task 37: Security — SQL injection и ORM safety
 

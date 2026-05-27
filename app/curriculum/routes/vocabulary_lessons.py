@@ -786,6 +786,9 @@ def save_word_annotation(word_id: int):
     note = data.get('note', '').strip()
     if not note:
         return jsonify({'error': 'note is required'}), 400
+    note = bleach.clean(note, tags=[], strip=True)
+    if not note:
+        return jsonify({'error': 'note is required'}), 400
     if len(note) > 2000:
         return jsonify({'error': 'note too long'}), 400
     annotation = save_annotation(current_user.id, word_id, note, db)
