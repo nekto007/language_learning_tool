@@ -19,6 +19,8 @@ from app.utils.file_security import (
     validate_text_file_upload,
     validate_image_mime_type,
     process_and_save_cover_image,
+    FORBIDDEN_EXTENSIONS,
+    check_forbidden_magic_bytes,
 )
 
 
@@ -511,4 +513,271 @@ class TestEdgeCases:
             max_size_mb=5
         )
 
+        assert is_valid is True
+
+
+class TestForbiddenExtensions:
+    """Tests that FORBIDDEN_EXTENSIONS blocks dangerous file types regardless of whitelist"""
+
+    def test_env_file_blocked(self):
+        """Test that .env file is blocked even if caller passes 'env' in allowed_extensions"""
+        file = FileStorage(
+            stream=io.BytesIO(b'SECRET_KEY=abc123\nDATABASE_URL=postgres://...\n'),
+            filename='production.env',
+            content_type='text/plain'
+        )
+
+        is_valid, error = validate_text_file_upload(
+            file,
+            allowed_extensions={'env', 'txt'},
+            max_size_mb=5
+        )
+
+        assert is_valid is False
+        assert 'запрещено' in error.lower() or '.env' in error
+
+    def test_py_file_blocked(self):
+        """Test that .py file is always blocked"""
+        file = FileStorage(
+            stream=io.BytesIO(b'import os\nos.system("rm -rf /")\n'),
+            filename='malicious.py',
+            content_type='text/plain'
+        )
+
+        is_valid, error = validate_text_file_upload(
+            file,
+            allowed_extensions={'py', 'txt'},
+            max_size_mb=5
+        )
+
+        assert is_valid is False
+        assert 'запрещено' in error.lower() or '.py' in error
+
+    def test_sh_file_blocked(self):
+        """Test that .sh shell script is blocked"""
+        file = FileStorage(
+            stream=io.BytesIO(b'#!/bin/bash\nrm -rf /\n'),
+            filename='deploy.sh',
+            content_type='text/plain'
+        )
+
+        is_valid, error = validate_text_file_upload(
+            file,
+            allowed_extensions={'sh', 'txt'},
+            max_size_mb=5
+        )
+
+        assert is_valid is False
+
+    def test_php_file_blocked(self):
+        """Test that .php file is blocked"""
+        file = FileStorage(
+            stream=io.BytesIO(b'<?php echo "hello"; ?>'),
+            filename='index.php',
+            content_type='text/plain'
+        )
+
+        is_valid, error = validate_text_file_upload(
+            file,
+            allowed_extensions={'php', 'txt'},
+            max_size_mb=5
+        )
+
+        assert is_valid is False
+
+    def test_exe_extension_blocked(self):
+        """Test that .exe file is blocked"""
+        file = FileStorage(
+            stream=io.BytesIO(b'MZ' + b'\x00' * 100),
+            filename='setup.exe',
+            content_type='application/octet-stream'
+        )
+
+        is_valid, error = validate_text_file_upload(
+            file,
+            allowed_extensions={'exe', 'txt'},
+            max_size_mb=5
+        )
+
+        assert is_valid is False
+
+    def test_sql_file_blocked(self):
+        """Test that .sql file is always blocked"""
+        file = FileStorage(
+            stream=io.BytesIO(b'DROP TABLE users; SELECT * FROM passwords;\n'),
+            filename='backup.sql',
+            content_type='text/plain'
+        )
+
+        is_valid, error = validate_text_file_upload(
+            file,
+            allowed_extensions={'sql', 'txt'},
+            max_size_mb=5
+        )
+
+        assert is_valid is False
+
+    def test_forbidden_extensions_constant_coverage(self):
+        """Test that key dangerous extensions are in FORBIDDEN_EXTENSIONS"""
+        must_include = {'env', 'py', 'sh', 'php', 'exe', 'bat', 'cmd', 'ps1', 'sql', 'key', 'pem'}
+        for ext in must_include:
+            assert ext in FORBIDDEN_EXTENSIONS, f".{ext} must be in FORBIDDEN_EXTENSIONS"
+
+    def test_normal_csv_not_blocked_by_forbidden_list(self):
+        """Ensure regular allowed extensions are not in FORBIDDEN_EXTENSIONS"""
+        safe_extensions = {'csv', 'txt', 'json'}
+        for ext in safe_extensions:
+            assert ext not in FORBIDDEN_EXTENSIONS, f".{ext} should not be in FORBIDDEN_EXTENSIONS"
+
+
+class TestMagicBytesDetection:
+    """Tests for magic byte signature detection"""
+
+    def test_exe_magic_bytes_detected(self):
+        """Test MZ header (Windows PE) is detected as dangerous"""
+        exe_data = b'MZ\x90\x00' + b'\x00' * 100
+        result = check_forbidden_magic_bytes(exe_data)
+        assert result is not None
+        assert 'executable' in result.lower() or 'PE' in result
+
+    def test_elf_magic_bytes_detected(self):
+        """Test ELF header (Linux binary) is detected as dangerous"""
+        elf_data = b'\x7fELF' + b'\x00' * 100
+        result = check_forbidden_magic_bytes(elf_data)
+        assert result is not None
+
+    def test_php_magic_bytes_detected(self):
+        """Test PHP opening tag is detected as dangerous"""
+        php_data = b'<?php echo "pwned"; ?>'
+        result = check_forbidden_magic_bytes(php_data)
+        assert result is not None
+        assert 'PHP' in result or 'php' in result.lower()
+
+    def test_shebang_detected(self):
+        """Test shell shebang is detected as dangerous"""
+        shebang_data = b'#!/bin/bash\nrm -rf /'
+        result = check_forbidden_magic_bytes(shebang_data)
+        assert result is not None
+        assert 'script' in result.lower() or 'shebang' in result.lower()
+
+    def test_zip_magic_bytes_detected(self):
+        """Test ZIP magic bytes are detected"""
+        zip_data = b'PK\x03\x04' + b'\x00' * 100
+        result = check_forbidden_magic_bytes(zip_data)
+        assert result is not None
+
+    def test_safe_json_not_detected(self):
+        """Test that valid JSON content is not flagged as dangerous"""
+        json_data = b'{"key": "value", "number": 42}'
+        result = check_forbidden_magic_bytes(json_data)
+        assert result is None
+
+    def test_safe_csv_not_detected(self):
+        """Test that CSV content is not flagged as dangerous"""
+        csv_data = b'name,value\nalice,1\nbob,2\n'
+        result = check_forbidden_magic_bytes(csv_data)
+        assert result is None
+
+    def test_safe_utf8_text_not_detected(self):
+        """Test that plain UTF-8 text is not flagged"""
+        text_data = 'Привет мир, hello world'.encode('utf-8')
+        result = check_forbidden_magic_bytes(text_data)
+        assert result is None
+
+    def test_exe_disguised_as_txt_rejected(self):
+        """Test that EXE content in a .txt file is rejected by validate_text_file_upload"""
+        file = FileStorage(
+            stream=io.BytesIO(b'MZ\x90\x00' + b'\x00' * 200),
+            filename='notexe.txt',
+            content_type='text/plain'
+        )
+
+        is_valid, error = validate_text_file_upload(
+            file,
+            allowed_extensions={'txt'},
+            max_size_mb=5
+        )
+
+        assert is_valid is False
+        assert error is not None
+
+    def test_php_disguised_as_csv_rejected(self):
+        """Test that PHP content in a .csv file is rejected"""
+        file = FileStorage(
+            stream=io.BytesIO(b'<?php system($_GET["cmd"]); ?>'),
+            filename='data.csv',
+            content_type='text/csv'
+        )
+
+        is_valid, error = validate_text_file_upload(
+            file,
+            allowed_extensions={'csv'},
+            max_size_mb=5
+        )
+
+        assert is_valid is False
+
+
+class TestUploadSizeLimitEnforced:
+    """Tests confirming size limit is enforced in code, not just config"""
+
+    def test_exactly_at_size_limit_passes(self):
+        """File at exactly the size limit should pass"""
+        content = b'x' * (5 * 1024 * 1024)  # exactly 5MB
+        file = FileStorage(
+            stream=io.BytesIO(content),
+            filename='exact.txt',
+            content_type='text/plain'
+        )
+
+        is_valid, error = validate_text_file_upload(
+            file,
+            allowed_extensions={'txt'},
+            max_size_mb=5
+        )
+
+        assert is_valid is True
+
+    def test_one_byte_over_limit_fails(self):
+        """File one byte over limit should fail"""
+        content = b'x' * (5 * 1024 * 1024 + 1)
+        file = FileStorage(
+            stream=io.BytesIO(content),
+            filename='over.txt',
+            content_type='text/plain'
+        )
+
+        is_valid, error = validate_text_file_upload(
+            file,
+            allowed_extensions={'txt'},
+            max_size_mb=5
+        )
+
+        assert is_valid is False
+        assert 'МБ' in error or 'размер' in error.lower()
+
+    def test_custom_size_limit_respected(self):
+        """Custom max_size_mb parameter is respected"""
+        content = b'x' * (2 * 1024 * 1024)  # 2MB
+        file = FileStorage(
+            stream=io.BytesIO(content),
+            filename='file.txt',
+            content_type='text/plain'
+        )
+
+        # Should fail with 1MB limit
+        is_valid, error = validate_text_file_upload(
+            file,
+            allowed_extensions={'txt'},
+            max_size_mb=1
+        )
+        assert is_valid is False
+
+        # Should pass with 3MB limit
+        file.stream.seek(0)
+        is_valid, error = validate_text_file_upload(
+            file,
+            allowed_extensions={'txt'},
+            max_size_mb=3
+        )
         assert is_valid is True

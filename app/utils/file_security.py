@@ -21,6 +21,48 @@ MAX_COVER_WIDTH = 400
 MAX_COVER_HEIGHT = 600
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
+# Extensions that are ALWAYS forbidden regardless of allowed_extensions whitelist
+FORBIDDEN_EXTENSIONS = frozenset({
+    'env', 'py', 'pyc', 'pyo', 'pyd',  # Python / config secrets
+    'sh', 'bash', 'zsh', 'fish',         # Shell scripts
+    'php', 'php3', 'php4', 'php5', 'phtml',  # PHP
+    'asp', 'aspx', 'jsp', 'jspx',        # Server-side scripts
+    'exe', 'dll', 'so', 'dylib',         # Executables / shared libs
+    'bat', 'cmd', 'ps1', 'psm1',         # Windows scripts
+    'rb', 'pl', 'pm', 'cgi',             # Ruby / Perl
+    'htaccess', 'htpasswd',              # Apache config
+    'key', 'pem', 'p12', 'pfx', 'cer',  # Certificates / keys
+    'sql',                                # SQL dumps
+})
+
+# Magic byte signatures for dangerous file types
+# Maps (prefix_bytes, description) — prefix_bytes is checked against start of file
+DANGEROUS_MAGIC_SIGNATURES: list = [
+    (b'MZ', 'Windows PE executable'),                   # EXE, DLL
+    (b'\x7fELF', 'ELF executable'),                    # Linux binary
+    (b'<?php', 'PHP script'),
+    (b'#!/', 'Shell script (shebang)'),
+    (b'#!/', 'Shell script (shebang)'),
+    (b'\xca\xfe\xba\xbe', 'Mach-O fat binary'),        # macOS executable
+    (b'\xfe\xed\xfa\xce', 'Mach-O binary (LE)'),
+    (b'\xce\xfa\xed\xfe', 'Mach-O binary (BE)'),
+    (b'PK\x03\x04', 'ZIP archive'),                    # ZIP, DOCX, JAR etc.
+    (b'Rar!', 'RAR archive'),
+    (b'\x1f\x8b', 'GZIP archive'),
+]
+
+
+def check_forbidden_magic_bytes(data: bytes) -> Optional[str]:
+    """
+    Check file content for dangerous magic byte signatures.
+
+    Returns description of the dangerous type detected, or None if safe.
+    """
+    for signature, description in DANGEROUS_MAGIC_SIGNATURES:
+        if data[:len(signature)] == signature:
+            return description
+    return None
+
 
 def validate_image_mime_type(file_path: str) -> bool:
     """
@@ -246,6 +288,11 @@ def validate_text_file_upload(
         return False, "Файл должен иметь расширение"
 
     extension = safe_name.rsplit('.', 1)[1].lower()
+
+    # Defense-in-depth: always block forbidden extensions regardless of whitelist
+    if extension in FORBIDDEN_EXTENSIONS:
+        return False, f"Расширение .{extension} запрещено по соображениям безопасности"
+
     if extension not in allowed_extensions:
         return False, f"Расширение .{extension} не разрешено. Разрешены: {', '.join(allowed_extensions)}"
 
@@ -285,6 +332,12 @@ def validate_text_file_upload(
 
         if not sample:
             return False, "Файл пуст"
+
+        # Check magic bytes for known dangerous binary formats
+        dangerous_type = check_forbidden_magic_bytes(sample)
+        if dangerous_type:
+            logger.warning(f"Dangerous magic bytes detected ({dangerous_type}) in file {safe_name}")
+            return False, f"Содержимое файла не является текстовым ({dangerous_type})"
 
         # Проверяем, что это текст (UTF-8)
         # Выборка может обрезать многобайтовый символ UTF-8 (кириллица = 2 байта)

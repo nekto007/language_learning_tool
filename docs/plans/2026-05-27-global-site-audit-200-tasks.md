@@ -483,12 +483,12 @@
 - Modify: `app/uploads/routes.py`
 - Modify: `tests/`
 
-- [ ] Проверить что file upload проверяет magic bytes, не только extension
-- [ ] Убедиться что filename sanitized перед сохранением (path traversal prevention)
-- [ ] Проверить что upload size limit enforced (не только config, но и код)
-- [ ] Убедиться что служебные файлы (.env, .py) не могут быть загружены
-- [ ] Тесты для magic bytes, path traversal, size limit, forbidden extensions
-- [ ] run pytest tests/ -k upload -x
+- [x] Проверить что file upload проверяет magic bytes, не только extension
+- [x] Убедиться что filename sanitized перед сохранением (path traversal prevention)
+- [x] Проверить что upload size limit enforced (не только config, но и код)
+- [x] Убедиться что служебные файлы (.env, .py) не могут быть загружены
+- [x] Тесты для magic bytes, path traversal, size limit, forbidden extensions
+- [x] run pytest tests/ -k upload -x
 
 ### Task 36: Security — XSS prevention в templates
 
