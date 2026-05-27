@@ -249,6 +249,13 @@ def create_exercise(topic_id):
                 flash('Invalid JSON in content field', 'danger')
                 return render_template('admin/grammar_lab/exercise_form.html', topic=topic, exercise=None)
 
+            from app.grammar_lab.content_validator import validate_exercise_content
+            try:
+                validate_exercise_content(exercise_type, content)
+            except ValueError as ve:
+                flash(f'Invalid exercise content: {ve}', 'danger')
+                return render_template('admin/grammar_lab/exercise_form.html', topic=topic, exercise=None), 400
+
             exercise = GrammarExercise(
                 topic_id=topic_id,
                 exercise_type=exercise_type,

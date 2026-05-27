@@ -282,12 +282,12 @@
 - Modify: `app/grammar_lab/routes.py`
 - Modify: `tests/grammar_lab/`
 
-- [ ] Проверить что validate_exercise_content поднимает ValueError для всех неверных типов
-- [ ] Убедиться что удаление GrammarExercise каскадно удаляет UserGrammarExercise
-- [ ] Проверить что routes возвращают 400 (не 500) при невалидном exercise content
-- [ ] Убедиться что grammar SRS не создаёт сессий для несуществующих упражнений
-- [ ] Тесты для validation errors, cascade delete, 400 responses
-- [ ] run pytest tests/grammar_lab/ -x
+- [x] Проверить что validate_exercise_content поднимает ValueError для всех неверных типов
+- [x] Убедиться что удаление GrammarExercise каскадно удаляет UserGrammarExercise
+- [x] Проверить что routes возвращают 400 (не 500) при невалидном exercise content
+- [x] Убедиться что grammar SRS не создаёт сессий для несуществующих упражнений
+- [x] Тесты для validation errors, cascade delete, 400 responses
+- [x] run pytest tests/grammar_lab/ -x
 
 ### Task 21: Grammar Lab — mastery и difficulty seeding
 

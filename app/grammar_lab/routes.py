@@ -255,6 +255,10 @@ def api_submit_answer(exercise_id):
     if not data or 'answer' not in data:
         return jsonify({'error': 'Answer required'}), 400
 
+    exercise = GrammarExercise.query.get(exercise_id)
+    if not exercise:
+        return jsonify({'error': 'Exercise not found'}), 404
+
     result = grammar_service.submit_answer(
         exercise_id=exercise_id,
         user_id=current_user.id,
