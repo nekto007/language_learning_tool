@@ -840,10 +840,11 @@ def get_content_alerts() -> list:
 
 @cache_result('system_health', timeout=60)
 def get_system_health() -> dict:
-    """System health: DB connection, uptime, 5xx error count (per worker)."""
+    """System health: DB connection, pool stats, uptime, 5xx error count (per worker)."""
     health = {
         'db_status': 'ok',
         'db_error': None,
+        'db_pool': None,
         'uptime_seconds': int(_time.time() - _app_start_time),
         'errors_5xx': _error_5xx_count,
     }
@@ -853,6 +854,18 @@ def get_system_health() -> dict:
         logger.warning("DB health check failed: %s", e)
         health['db_status'] = 'error'
         health['db_error'] = str(e)
+
+    try:
+        pool = db.engine.pool
+        health['db_pool'] = {
+            'size': pool.size(),
+            'checked_in': pool.checkedin(),
+            'checked_out': pool.checkedout(),
+            'overflow': pool.overflow(),
+        }
+    except Exception:
+        # Not all pool types (StaticPool, NullPool) support size/checkin stats.
+        pass
 
     return health
 

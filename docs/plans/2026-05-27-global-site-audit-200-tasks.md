@@ -1142,12 +1142,12 @@
 - Modify: `app/admin/services/system_service.py`
 - Modify: `tests/admin/`
 
-- [ ] Проверить что cache clear endpoint защищён admin_required и audit logged
-- [ ] Убедиться что partial cache clear (по ключу) корректно работает
-- [ ] Проверить что system health показывает реальный DB pool status
-- [ ] Убедиться что 5xx counter корректно инкрементируется при 500 ошибках
-- [ ] Тесты для auth check, audit logging, counter increment
-- [ ] run pytest tests/admin/ -x
+- [x] Проверить что cache clear endpoint защищён admin_required и audit logged
+- [x] Убедиться что partial cache clear (по ключу) корректно работает
+- [x] Проверить что system health показывает реальный DB pool status
+- [x] Убедиться что 5xx counter корректно инкрементируется при 500 ошибках
+- [x] Тесты для auth check, audit logging, counter increment
+- [x] run pytest tests/admin/ -x
 
 ### Task 85: Admin grammar lab — quiz management
 

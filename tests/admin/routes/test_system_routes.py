@@ -287,6 +287,97 @@ class TestSanitizeDbVersion:
         assert sanitize_db_version('') == 'unknown'
 
 
+class TestClearCacheAuditLog:
+    """Verify clear_cache and clear_cache_prefix write to the audit log."""
+
+    @patch('app.admin.routes.system_routes.log_admin_action')
+    @patch('app.admin.routes.system_routes.clear_admin_cache')
+    def test_clear_cache_calls_audit_log(self, mock_clear, mock_audit, admin_client, mock_admin_user):
+        admin_client.post(
+            '/admin/system/clear-cache',
+            data={'confirm': CLEAR_CACHE_CONFIRM},
+        )
+        mock_audit.assert_called_once()
+        action = mock_audit.call_args[0][1]
+        assert 'cache' in action
+
+    @patch('app.admin.routes.system_routes.log_admin_action')
+    @patch('app.admin.routes.system_routes.clear_admin_cache')
+    def test_clear_cache_no_audit_on_missing_confirm(self, mock_clear, mock_audit, admin_client, mock_admin_user):
+        admin_client.post('/admin/system/clear-cache')
+        mock_audit.assert_not_called()
+
+
+class TestClearCachePrefix:
+    """Tests for clear_cache_prefix route."""
+
+    @patch('app.admin.routes.system_routes.clear_cache_by_prefix')
+    def test_clear_prefix_success(self, mock_clear, admin_client, mock_admin_user):
+        mock_clear.return_value = 3
+        response = admin_client.post(
+            '/admin/system/clear-cache-prefix',
+            data={'prefix': 'seo_'},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        mock_clear.assert_called_once_with('seo_')
+
+    @patch('app.admin.routes.system_routes.clear_cache_by_prefix')
+    def test_clear_prefix_rejects_empty_prefix(self, mock_clear, admin_client, mock_admin_user):
+        response = admin_client.post(
+            '/admin/system/clear-cache-prefix',
+            data={'prefix': ''},
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        mock_clear.assert_not_called()
+
+    @patch('app.admin.routes.system_routes.log_admin_action')
+    @patch('app.admin.routes.system_routes.clear_cache_by_prefix')
+    def test_clear_prefix_calls_audit_log(self, mock_clear, mock_audit, admin_client, mock_admin_user):
+        mock_clear.return_value = 2
+        admin_client.post(
+            '/admin/system/clear-cache-prefix',
+            data={'prefix': 'leaderboard'},
+        )
+        mock_audit.assert_called_once()
+        action = mock_audit.call_args[0][1]
+        assert 'cache' in action
+
+    def test_clear_prefix_requires_admin(self, client):
+        response = client.post(
+            '/admin/system/clear-cache-prefix',
+            data={'prefix': 'seo_'},
+        )
+        assert response.status_code == 302
+
+
+class TestCachePrefixUnit:
+    """Unit tests for clear_cache_by_prefix helper."""
+
+    def test_prefix_removes_matching_keys(self):
+        from app.admin.utils.cache import _cache, set_cache, clear_cache_by_prefix
+        _cache.clear()
+        set_cache('prefix_a', 1)
+        set_cache('prefix_b', 2)
+        set_cache('other_key', 3)
+
+        removed = clear_cache_by_prefix('prefix_')
+        assert removed == 2
+        assert 'other_key' in _cache
+        assert 'prefix_a' not in _cache
+        assert 'prefix_b' not in _cache
+        _cache.clear()
+
+    def test_prefix_no_match_returns_zero(self):
+        from app.admin.utils.cache import _cache, set_cache, clear_cache_by_prefix
+        _cache.clear()
+        set_cache('key1', 1)
+        removed = clear_cache_by_prefix('nonexistent_')
+        assert removed == 0
+        _cache.clear()
+
+
 class TestSystemInfoConfigLeak:
     """Make sure the rendered system info never exposes credentials."""
 
