@@ -1257,7 +1257,7 @@
 
 ### Task 93: Verify acceptance criteria
 
-- [ ] run pytest (полный suite) — 0 failures
-- [ ] run pytest -m smoke — все проходят < 30s
-- [ ] Проверить что нет новых TODO/FIXME без owner
-- [ ] Проверить git log на наличие всех тасок как отдельных коммитов
+- [x] run pytest (полный suite) — 0 failures (9018 passed, 165 skipped, 0 failures)
+- [x] run pytest -m smoke — все проходят < 30s (463 passed in 14.99s)
+- [x] Проверить что нет новых TODO/FIXME без owner (0 found in app/)
+- [x] Проверить git log на наличие всех тасок как отдельных коммитов (1845 commits, all audit tasks present)
