@@ -122,13 +122,13 @@
 - Modify: `app/curriculum/grading.py`
 - Modify: `tests/curriculum/test_grading.py`
 
-- [ ] Проверить fill-in-blank с unicode символами (диакритика, кириллица)
-- [ ] Убедиться что _levenshtein не применяется к пустой строке
-- [ ] Проверить matching когда user_pairs частично заполнен (не все пары)
-- [ ] Убедиться что score 0 при пустом ответе (не None/error)
-- [ ] Проверить что грейдер не падает при None в content полях
-- [ ] Тесты для unicode, empty answer, partial matching edge cases
-- [ ] run pytest tests/curriculum/test_grading.py -x
+- [x] Проверить fill-in-blank с unicode символами (диакритика, кириллица)
+- [x] Убедиться что _levenshtein не применяется к пустой строке
+- [x] Проверить matching когда user_pairs частично заполнен (не все пары)
+- [x] Убедиться что score 0 при пустом ответе (не None/error)
+- [x] Проверить что грейдер не падает при None в content полях
+- [x] Тесты для unicode, empty answer, partial matching edge cases
+- [x] run pytest tests/curriculum/test_grading.py -x
 
 ### Task 9: Curriculum — final test attempt limit и LessonAttempt
 

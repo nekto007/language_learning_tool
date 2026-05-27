@@ -16,7 +16,11 @@ from app.curriculum.grading import (
     _levenshtein,
     _normalize_answer,
     _strict_text_match,
+    grade_audio_fill_blank,
+    grade_collocation_matching,
     grade_dictation,
+    grade_sentence_completion,
+    grade_sentence_correction_multi,
     grade_translation,
     process_quiz_submission,
 )
@@ -302,3 +306,212 @@ class TestTranslationValidator:
             assert False, "Should have raised"
         except ValidationError:
             pass
+
+
+# ---------------------------------------------------------------------------
+# Task 8 additions: unicode, empty answer, partial matching, None content fields
+# ---------------------------------------------------------------------------
+
+class TestUnicodeAndDiacritics:
+    """fill-in-blank grading with unicode characters, diacritics, Cyrillic."""
+
+    def test_cyrillic_exact_match(self):
+        assert _strict_text_match("привет", ["привет"]) is True
+
+    def test_cyrillic_case_insensitive(self):
+        assert _strict_text_match("ПРИВЕТ", ["привет"]) is True
+
+    def test_cyrillic_mismatch(self):
+        assert _strict_text_match("привет", ["пока"]) is False
+
+    def test_diacritic_exact_match(self):
+        assert _strict_text_match("café", ["café"]) is True
+
+    def test_diacritic_typo_tolerance(self):
+        # "cafe" vs "café" — 1 substitution for the accented char
+        assert _strict_text_match("cafe", ["café"]) is True
+
+    def test_normalize_answer_cyrillic_preserved(self):
+        assert _normalize_answer("Привет!") == "привет"
+
+    def test_normalize_answer_diacritic_preserved(self):
+        assert _normalize_answer("Café,") == "café"
+
+    def test_grade_translation_cyrillic_correct_answer(self):
+        # Correct answer contains Cyrillic; user submits same
+        result = grade_translation("книга", "книга")
+        assert result["is_correct"] is True
+
+    def test_quiz_fill_in_blank_cyrillic(self):
+        questions = [{"type": "fill_in_blank", "answer": "книга"}]
+        result = process_quiz_submission(questions, {0: "книга"})
+        assert result["correct_answers"] == 1
+
+    def test_quiz_fill_in_blank_diacritic(self):
+        questions = [{"type": "fill_in_blank", "answer": "café"}]
+        result = process_quiz_submission(questions, {0: "café"})
+        assert result["correct_answers"] == 1
+
+
+class TestLevenshteinEmptyString:
+    """_levenshtein handles empty inputs; _strict_text_match never passes empty to it."""
+
+    def test_levenshtein_empty_a(self):
+        assert _levenshtein("", "abc") == 3
+
+    def test_levenshtein_empty_b(self):
+        assert _levenshtein("abc", "") == 3
+
+    def test_levenshtein_both_empty(self):
+        assert _levenshtein("", "") == 0
+
+    def test_strict_text_match_empty_user_does_not_call_levenshtein(self):
+        # Empty user answer → False immediately, no levenshtein involved
+        assert _strict_text_match("", ["apple"]) is False
+        assert _strict_text_match("   ", ["apple"]) is False
+
+    def test_strict_text_match_empty_candidate_skipped(self):
+        # Empty/None candidates are skipped; valid candidate still graded
+        assert _strict_text_match("apple", [None, "", "apple"]) is True
+        assert _strict_text_match("apple", [None, ""]) is False
+
+    def test_strict_text_match_very_short_word_no_levenshtein(self):
+        # Words <4 chars — levenshtein tolerance does NOT apply
+        # "is" vs "in": 1 edit, but both <4 chars → must be exact
+        assert _strict_text_match("is", ["in"]) is False
+        assert _strict_text_match("is", ["is"]) is True
+
+
+class TestPartialMatching:
+    """_grade_matching_pairs with fewer user pairs than correct pairs."""
+
+    def test_partial_pairs_rejected(self):
+        correct = [
+            {"left": "cat", "right": "кот"},
+            {"left": "dog", "right": "пёс"},
+            {"left": "fish", "right": "рыба"},
+        ]
+        user = [{"left": "cat", "right": "кот"}]
+        assert _grade_matching_pairs(user, correct) is False
+
+    def test_extra_user_pairs_rejected(self):
+        correct = [{"left": "cat", "right": "кот"}]
+        user = [
+            {"left": "cat", "right": "кот"},
+            {"left": "dog", "right": "пёс"},
+        ]
+        assert _grade_matching_pairs(user, correct) is False
+
+    def test_empty_user_pairs_rejected(self):
+        correct = [{"left": "cat", "right": "кот"}]
+        assert _grade_matching_pairs([], correct) is False
+
+    def test_empty_correct_pairs_rejected(self):
+        user = [{"left": "cat", "right": "кот"}]
+        assert _grade_matching_pairs(user, []) is False
+
+    def test_quiz_matching_partial_pairs(self):
+        questions = [
+            {
+                "type": "matching",
+                "pairs": [
+                    {"left": "cat", "right": "кот"},
+                    {"left": "dog", "right": "пёс"},
+                ],
+            }
+        ]
+        partial = [{"left": "cat", "right": "кот"}]
+        result = process_quiz_submission(questions, {0: partial})
+        assert result["correct_answers"] == 0
+
+
+class TestEmptyAnswerScoreZero:
+    """Score is 0 (not None/error) when user answer is empty."""
+
+    def test_grade_translation_empty_is_incorrect(self):
+        result = grade_translation("", "target")
+        assert result["is_correct"] is False
+
+    def test_grade_audio_fill_blank_empty_answer(self):
+        items = [{"answer": "hello"}]
+        result = grade_audio_fill_blank([""], items)
+        assert result["score"] == 0
+        assert result["passed"] is False
+        assert result["correct_items"] == 0
+
+    def test_grade_sentence_completion_empty_answer(self):
+        items = [{"prompt": "I go ...", "answer": "home"}]
+        result = grade_sentence_completion([""], items)
+        assert result["score"] == 0
+        assert result["correct_items"] == 0
+
+    def test_grade_sentence_correction_multi_empty_answer(self):
+        items = [{"incorrect_sentence": "I goed", "correct_sentence": "I went"}]
+        result = grade_sentence_correction_multi([""], items)
+        assert result["score"] == 0
+        assert result["correct_items"] == 0
+
+    def test_grade_collocation_matching_empty_user_pairs(self):
+        correct = [{"phrase": "make a decision", "translation": "принять решение"}]
+        result = grade_collocation_matching([], correct)
+        assert result["score"] == 0
+        assert result["correct_items"] == 0
+
+    def test_quiz_fill_blank_empty_string_answer(self):
+        questions = [{"type": "fill_in_blank", "answer": "apple"}]
+        result = process_quiz_submission(questions, {0: ""})
+        assert result["correct_answers"] == 0
+        assert result["score"] == 0
+
+
+class TestNoneInContentFields:
+    """Graders must not raise exceptions when content fields are None."""
+
+    def test_grade_audio_fill_blank_none_items(self):
+        result = grade_audio_fill_blank(["any"], None)
+        assert result["score"] == 0
+        assert result["total_items"] == 0
+
+    def test_grade_audio_fill_blank_item_with_none_answer(self):
+        items = [{"answer": None}]
+        result = grade_audio_fill_blank(["anything"], items)
+        assert result["score"] == 0
+        assert result["correct_items"] == 0
+
+    def test_grade_sentence_completion_none_items(self):
+        result = grade_sentence_completion(["home"], None)
+        assert result["score"] == 0
+        assert result["total_items"] == 0
+
+    def test_grade_sentence_completion_item_with_none_answer(self):
+        items = [{"prompt": "I go ...", "answer": None}]
+        result = grade_sentence_completion(["home"], items)
+        assert result["score"] == 0
+
+    def test_grade_sentence_correction_multi_none_items(self):
+        result = grade_sentence_correction_multi(["I went"], None)
+        assert result["score"] == 0
+        assert result["total_items"] == 0
+
+    def test_grade_collocation_matching_none_correct_pairs(self):
+        result = grade_collocation_matching([{"phrase": "x", "translation": "y"}], None)
+        assert result["score"] == 0
+        assert result["total_items"] == 0
+
+    def test_grade_dictation_none_user_text(self):
+        result = grade_dictation(None, "the cat sat")
+        assert result["score"] == 0
+        assert result["passed"] is False
+
+    def test_grade_dictation_none_transcript(self):
+        result = grade_dictation("the cat sat", None)
+        assert result["score"] == 0
+        assert result["total_words"] == 0
+
+    def test_grade_translation_none_user_answer(self):
+        result = grade_translation(None, "apple")
+        assert result["is_correct"] is False
+
+    def test_grade_translation_none_correct_answer(self):
+        result = grade_translation("apple", None)
+        assert result["is_correct"] is False
