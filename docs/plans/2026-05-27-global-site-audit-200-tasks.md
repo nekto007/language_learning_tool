@@ -536,12 +536,12 @@
 - Modify: `app/admin/services/user_management_service.py`
 - Modify: `tests/admin/test_admin_users.py`
 
-- [ ] Убедиться что все user-management endpoints защищены admin_required
-- [ ] Проверить что изменение is_admin флага логируется через AdminAuditLog
-- [ ] Убедиться что admin не может деактивировать свой собственный аккаунт
-- [ ] Проверить что user export sanitizes поля через _sanitize_csv_cell
-- [ ] Тесты для admin self-deactivation prevention, audit logging
-- [ ] run pytest tests/admin/ -x
+- [x] Убедиться что все user-management endpoints защищены admin_required
+- [x] Проверить что изменение is_admin флага логируется через AdminAuditLog
+- [x] Убедиться что admin не может деактивировать свой собственный аккаунт
+- [x] Проверить что user export sanitizes поля через _sanitize_csv_cell
+- [x] Тесты для admin self-deactivation prevention, audit logging
+- [x] run pytest tests/admin/ -x
 
 ### Task 40: Admin — SiteSettings validation
 
