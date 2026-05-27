@@ -441,12 +441,12 @@
 - Modify: `app/api/daily_plan.py`, `app/api/books.py`, `app/api/words.py`
 - Modify: `tests/api/test_api_error_format.py`
 
-- [ ] Проверить что все API endpoints используют api_error вместо ad-hoc dict ответов
-- [ ] Убедиться что status codes консистентны (400 для валидации, 403 для доступа, 404 для not found)
-- [ ] Проверить что 500 ошибки не утекают stack traces в production
-- [ ] Убедиться что error response всегда имеет поля code, message
-- [ ] Тесты для каждого error scenario в ключевых API endpoints
-- [ ] run pytest tests/api/ -x
+- [x] Проверить что все API endpoints используют api_error вместо ad-hoc dict ответов
+- [x] Убедиться что status codes консистентны (400 для валидации, 403 для доступа, 404 для not found)
+- [x] Проверить что 500 ошибки не утекают stack traces в production
+- [x] Убедиться что error response всегда имеет поля code, message
+- [x] Тесты для каждого error scenario в ключевых API endpoints
+- [x] run pytest tests/api/ -x
 
 ### Task 33: API — CSRF и аутентификация
 
