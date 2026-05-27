@@ -10,6 +10,8 @@ from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.attributes import flag_modified
 
+from app import limiter
+from app.utils.rate_limit_helpers import get_authenticated_user_key
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.security import require_lesson_access, sanitize_json_content
 from app.curriculum.service import (
@@ -305,6 +307,7 @@ def update_lesson_progress(lesson_id):
 
 @lessons_bp.route('/api/lesson/<int:lesson_id>/submit', methods=['POST'])
 @login_required
+@limiter.limit("30 per minute", key_func=get_authenticated_user_key)
 @require_lesson_access
 def submit_lesson(lesson_id):
     """Submit lesson answers with proper validation"""

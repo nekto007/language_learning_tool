@@ -469,12 +469,12 @@
 - Modify: `app/__init__.py`
 - Modify: `tests/test_rate_limiting.py`
 
-- [ ] Проверить что submission endpoints (grading, SRS review) имеют tight rate limits
-- [ ] Убедиться что rate limit storage настроен на Redis в production (не memory)
-- [ ] Проверить что rate limit response имеет Retry-After header
-- [ ] Убедиться что admin endpoints имеют отдельный rate limit (не shared с user endpoints)
-- [ ] Тесты для rate limit headers, storage fallback
-- [ ] run pytest tests/test_rate_limiting.py -x
+- [x] Проверить что submission endpoints (grading, SRS review) имеют tight rate limits
+- [x] Убедиться что rate limit storage настроен на Redis в production (не memory)
+- [x] Проверить что rate limit response имеет Retry-After header
+- [x] Убедиться что admin endpoints имеют отдельный rate limit (не shared с user endpoints)
+- [x] Тесты для rate limit headers, storage fallback
+- [x] run pytest tests/test_rate_limiting.py -x
 
 ### Task 35: Security — file upload validation
 

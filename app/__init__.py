@@ -83,6 +83,13 @@ def create_app(config_class=Config):
     migrate = Migrate(app, db)
     login_manager.init_app(app)
     limiter.init_app(app)
+
+    # Warn if using in-memory rate limit storage in production
+    if not app.config.get('TESTING') and os.environ.get('RATELIMIT_STORAGE_URI', 'memory://') == 'memory://':
+        logger.warning(
+            "Rate limit storage is 'memory://' — limits are not shared across workers. "
+            "Set RATELIMIT_STORAGE_URI to a Redis URL for production deployments."
+        )
     jwt.init_app(app)
     init_babel(app)
 
