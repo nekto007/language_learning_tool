@@ -522,12 +522,12 @@
 - Modify: `app/middleware/security.py`
 - Modify: `tests/`
 
-- [ ] Убедиться что CSP header включает nonce для inline scripts
-- [ ] Проверить что HSTS header с preload для production
-- [ ] Убедиться что X-Content-Type-Options: nosniff присутствует
-- [ ] Проверить что Referrer-Policy header выставлен
-- [ ] Тесты для всех security headers
-- [ ] run pytest tests/ -k security -x
+- [x] Убедиться что CSP header включает nonce для inline scripts
+- [x] Проверить что HSTS header с preload для production
+- [x] Убедиться что X-Content-Type-Options: nosniff присутствует
+- [x] Проверить что Referrer-Policy header выставлен
+- [x] Тесты для всех security headers
+- [x] run pytest tests/ -k security -x
 
 ### Task 39: Admin — user management security
 
