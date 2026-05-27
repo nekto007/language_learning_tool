@@ -296,11 +296,11 @@
 - Modify: `app/grammar_lab/grammar_srs.py`
 - Modify: `tests/grammar_lab/`
 
-- [ ] Проверить что MASTERED_THRESHOLD_DAYS=30 применяется к UserGrammarExercise (не 180)
-- [ ] Убедиться что compute_initial_ease_for_difficulty не уходит ниже MIN_EASE при difficulty=1.0
-- [ ] Проверить что get_or_create не создаёт дубликатов при concurrent requests
-- [ ] Тесты для mastery threshold, ease seeding, concurrent get_or_create
-- [ ] run pytest tests/grammar_lab/ -x
+- [x] Проверить что MASTERED_THRESHOLD_DAYS=30 применяется к UserGrammarExercise (не 180)
+- [x] Убедиться что compute_initial_ease_for_difficulty не уходит ниже MIN_EASE при difficulty=1.0
+- [x] Проверить что get_or_create не создаёт дубликатов при concurrent requests
+- [x] Тесты для mastery threshold, ease seeding, concurrent get_or_create
+- [x] run pytest tests/grammar_lab/ -x
 
 ### Task 22: Achievements — grant_achievement race safety
 
