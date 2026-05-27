@@ -54,12 +54,12 @@
 - Modify: `app/onboarding/routes.py`
 - Modify: `tests/test_onboarding*.py`
 
-- [ ] Проверить что повторный заход на onboarding routes после completion корректно редиректит
-- [ ] Убедиться что незаполненный onboarding_level не ломает find_next_lesson
-- [ ] Проверить что пропуск шагов onboarding не оставляет User в невалидном состоянии
-- [ ] Проверить timezone и birth_year не принимают мусорные значения
-- [ ] Тесты для incomplete/skip/retry сценариев onboarding
-- [ ] run pytest tests/ -k onboarding -x
+- [x] Проверить что повторный заход на onboarding routes после completion корректно редиректит
+- [x] Убедиться что незаполненный onboarding_level не ломает find_next_lesson
+- [x] Проверить что пропуск шагов onboarding не оставляет User в невалидном состоянии
+- [x] Проверить timezone и birth_year не принимают мусорные значения
+- [x] Тесты для incomplete/skip/retry сценариев onboarding
+- [x] run pytest tests/ -k onboarding -x
 
 ### Task 4: Daily Plan — сборка плана и edge cases
 

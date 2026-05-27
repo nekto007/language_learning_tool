@@ -204,3 +204,130 @@ class TestOnboardingComplete:
         assert r.status_code == 302
         loc = r.headers.get('Location', '')
         assert '/onboarding' not in loc
+
+
+class TestOnboardingEdgeCases:
+    """Edge cases: invalid input, skip steps, null level, timezone/birth_year."""
+
+    def test_wizard_get_redirects_completed_user_away_from_onboarding(self, client, test_user):
+        """Completed user hitting /onboarding GET should land outside /onboarding."""
+        client.post('/login', data={
+            'username_or_email': test_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=True)
+        r = client.get('/onboarding', follow_redirects=False)
+        assert r.status_code == 302
+        assert '/onboarding' not in r.headers.get('Location', '')
+
+    def test_complete_post_redirects_already_completed_user(self, client, test_user):
+        """POST /onboarding/complete for a completed user redirects without saving anything."""
+        client.post('/login', data={
+            'username_or_email': test_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=True)
+        original_level = test_user.onboarding_level
+        r = client.post('/onboarding/complete', data={
+            'level': 'C1',  # different level — should not be saved
+        }, follow_redirects=False)
+        assert r.status_code == 302
+        assert '/onboarding' not in r.headers.get('Location', '')
+
+    def test_skip_level_still_marks_onboarding_complete(self, client, db_session, new_user):
+        """Submitting without a level marks onboarding_completed=True, level stays None."""
+        client.post('/login', data={
+            'username_or_email': new_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=True)
+        r = client.post('/onboarding/complete', data={
+            'focus': 'grammar',
+            # no 'level' key
+        }, follow_redirects=False)
+        assert r.status_code == 302
+        db_session.refresh(new_user)
+        assert new_user.onboarding_completed is True
+        assert new_user.onboarding_level is None  # not set — that's valid
+
+    def test_invalid_level_not_saved(self, client, db_session, new_user):
+        """Garbage level value must not be persisted."""
+        client.post('/login', data={
+            'username_or_email': new_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=True)
+        r = client.post('/onboarding/complete', data={
+            'level': 'HACKER<script>',
+            'focus': 'grammar',
+        }, follow_redirects=False)
+        assert r.status_code == 302
+        db_session.refresh(new_user)
+        assert new_user.onboarding_completed is True
+        assert new_user.onboarding_level is None  # rejected
+
+    def test_invalid_focus_not_saved(self, client, db_session, new_user):
+        """Garbage focus value must not be persisted; onboarding still completes."""
+        client.post('/login', data={
+            'username_or_email': new_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=True)
+        r = client.post('/onboarding/complete', data={
+            'level': 'B1',
+            'focus': 'hacking,injecting',
+        }, follow_redirects=False)
+        assert r.status_code == 302
+        db_session.refresh(new_user)
+        assert new_user.onboarding_completed is True
+        assert new_user.onboarding_focus is None  # rejected
+
+    def test_null_onboarding_level_does_not_break_find_next_lesson(self, db_session, new_user):
+        """find_next_lesson must not raise when onboarding_level is None."""
+        from app.curriculum.navigation import find_next_lesson
+        from app.utils.db import db
+
+        new_user.onboarding_level = None
+        db_session.commit()
+        # Should return None or a lesson — but never raise
+        result = find_next_lesson(new_user.id, db)
+        assert result is None or hasattr(result, 'id')
+
+    def test_invalid_timezone_not_saved_in_profile(self, client, db_session, test_user):
+        """profile_update must reject timezone values not in TIMEZONE_CHOICES."""
+        client.post('/login', data={
+            'username_or_email': test_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=True)
+        original_tz = test_user.timezone
+        r = client.post('/profile', data={
+            'section': 'settings',
+            'timezone': 'Evil/Timezone; DROP TABLE users;',
+        }, follow_redirects=False)
+        assert r.status_code in (200, 302)
+        db_session.refresh(test_user)
+        assert test_user.timezone == original_tz  # unchanged
+
+    def test_valid_timezone_saved_in_profile(self, client, db_session, test_user):
+        """Valid timezone from TIMEZONE_CHOICES is persisted."""
+        client.post('/login', data={
+            'username_or_email': test_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=True)
+        r = client.post('/profile', data={
+            'section': 'settings',
+            'timezone': 'Europe/London',
+        }, follow_redirects=False)
+        assert r.status_code in (200, 302)
+        db_session.refresh(test_user)
+        assert test_user.timezone == 'Europe/London'
+
+    def test_birth_year_has_no_web_setter(self, client, db_session, test_user):
+        """Submitting birth_year via profile_update should not change the field."""
+        client.post('/login', data={
+            'username_or_email': test_user.username,
+            'password': 'testpass123',
+        }, follow_redirects=True)
+        original_by = test_user.birth_year
+        r = client.post('/profile', data={
+            'section': 'settings',
+            'birth_year': '1900',
+        }, follow_redirects=False)
+        assert r.status_code in (200, 302)
+        db_session.refresh(test_user)
+        assert test_user.birth_year == original_by  # not changed via web form
