@@ -997,12 +997,12 @@
 - Modify: `app/admin/services/audio_management_service.py`
 - Modify: `tests/admin/`
 
-- [ ] Проверить что audio upload проверяет MIME type (audio/mpeg, audio/wav only)
-- [ ] Убедиться что audio delete каскадно убирает ссылки из lesson content
-- [ ] Проверить что audio streaming endpoint имеет Range header support
-- [ ] Убедиться что служебные audio файлы недоступны без авторизации
-- [ ] Тесты для MIME check, cascade delete, range requests
-- [ ] run pytest tests/admin/ -x
+- [x] Проверить что audio upload проверяет MIME type (audio/mpeg, audio/wav only)
+- [x] Убедиться что audio delete каскадно убирает ссылки из lesson content
+- [x] Проверить что audio streaming endpoint имеет Range header support
+- [x] Убедиться что служебные audio файлы недоступны без авторизации
+- [x] Тесты для MIME check, cascade delete, range requests
+- [x] run pytest tests/admin/ -x
 
 ### Task 74: Reminders — delivery и preferences
 

@@ -52,6 +52,9 @@ DANGEROUS_MAGIC_SIGNATURES: list = [
 ]
 
 
+ALLOWED_AUDIO_MIME_TYPES = frozenset({'audio/mpeg', 'audio/wav'})
+
+
 def check_forbidden_magic_bytes(data: bytes) -> Optional[str]:
     """
     Check file content for dangerous magic byte signatures.
@@ -62,6 +65,65 @@ def check_forbidden_magic_bytes(data: bytes) -> Optional[str]:
         if data[:len(signature)] == signature:
             return description
     return None
+
+
+def check_audio_mime_type(data: bytes) -> Optional[str]:
+    """Detect audio MIME type from magic bytes.
+
+    Returns 'audio/mpeg', 'audio/wav', or None for unrecognised/non-audio data.
+    Only audio/mpeg and audio/wav are considered valid for upload.
+    """
+    if len(data) < 4:
+        return None
+    # WAV: RIFF header + WAVE marker at offset 8
+    if data[:4] == b'RIFF' and len(data) >= 12 and data[8:12] == b'WAVE':
+        return 'audio/wav'
+    # MP3 with ID3v2 tag
+    if data[:3] == b'ID3':
+        return 'audio/mpeg'
+    # MP3 without ID3 tag (MPEG sync bytes: 0xff + 0b111xxxxx)
+    if len(data) >= 2 and data[0] == 0xff and (data[1] & 0xe0) == 0xe0:
+        return 'audio/mpeg'
+    return None
+
+
+def validate_audio_file_upload(
+    file: FileStorage,
+    max_size_mb: int = 50,
+) -> Tuple[bool, Optional[str]]:
+    """Validate an uploaded audio file.
+
+    Checks extension allow-list (mp3, wav), size limit, and magic bytes.
+    Returns (is_valid, error_message).
+    """
+    if not file or not hasattr(file, 'filename') or not file.filename:
+        return False, "Файл не предоставлен"
+
+    from werkzeug.utils import secure_filename as _secure
+    safe_name = _secure(file.filename)
+    if not safe_name or '.' not in safe_name:
+        return False, "Недопустимое имя файла"
+
+    ext = safe_name.rsplit('.', 1)[1].lower()
+    if ext not in {'mp3', 'wav'}:
+        return False, f"Расширение .{ext} не разрешено. Разрешены: mp3, wav"
+
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
+    file.seek(0)
+    if size > max_size_mb * 1024 * 1024:
+        return False, f"Файл ({size / 1024 / 1024:.1f} МБ) превышает лимит {max_size_mb} МБ"
+    if size == 0:
+        return False, "Файл пуст"
+
+    header = file.read(12)
+    file.seek(0)
+
+    detected = check_audio_mime_type(header)
+    if detected not in ALLOWED_AUDIO_MIME_TYPES:
+        return False, "Файл не является аудиофайлом допустимого формата (audio/mpeg или audio/wav)"
+
+    return True, None
 
 
 def validate_image_mime_type(file_path: str) -> bool:

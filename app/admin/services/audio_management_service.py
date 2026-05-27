@@ -587,6 +587,29 @@ class AudioManagementService:
             return {'error': str(e)}
 
     @staticmethod
+    def clear_audio_references(filename: str, db_session) -> int:
+        """Nullify Chapter.audio_url rows that reference ``filename``.
+
+        Call before (or after) deleting a referenced audio file so that the
+        DB is not left pointing at a missing path. Returns the count of rows
+        updated; does NOT commit — caller is responsible for the commit.
+        """
+        safe_name = safe_audio_filename(filename)
+        if safe_name is None:
+            return 0
+        from app.books.models import Chapter
+        updated = (
+            db_session.query(Chapter)
+            .filter(Chapter.audio_url.ilike(f'%{safe_name}'))
+            .all()
+        )
+        count = 0
+        for chapter in updated:
+            chapter.audio_url = None
+            count += 1
+        return count
+
+    @staticmethod
     def delete_orphan_audio_files(media_folder, dry_run=True):
         """Delete orphan mp3 files inside ``media_folder``.
 

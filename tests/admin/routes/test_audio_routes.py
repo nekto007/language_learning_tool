@@ -621,3 +621,269 @@ class TestFixListeningFieldsSafety:
         refreshed = db_session.get(CollectionWords, bad.id)
         # Unsafe sound payload was rejected — original bracket form remains.
         assert refreshed.listening == '[sound:../escape.mp3]'
+
+class TestAudioMimeValidation:
+    """Task 73 — MIME type validation for audio uploads."""
+
+    def test_check_audio_mime_type_mp3_id3(self):
+        from app.utils.file_security import check_audio_mime_type
+        data = b'ID3\x03\x00' + b'\x00' * 100
+        assert check_audio_mime_type(data) == 'audio/mpeg'
+
+    def test_check_audio_mime_type_mp3_sync(self):
+        from app.utils.file_security import check_audio_mime_type
+        data = b'\xff\xfb' + b'\x00' * 100
+        assert check_audio_mime_type(data) == 'audio/mpeg'
+
+    def test_check_audio_mime_type_wav(self):
+        from app.utils.file_security import check_audio_mime_type
+        data = b'RIFF\x00\x00\x00\x00WAVE' + b'\x00' * 100
+        assert check_audio_mime_type(data) == 'audio/wav'
+
+    def test_check_audio_mime_type_rejects_non_audio(self):
+        from app.utils.file_security import check_audio_mime_type
+        assert check_audio_mime_type(b'\x89PNG\r\n\x1a\n' + b'\x00' * 100) is None
+        assert check_audio_mime_type(b'PK\x03\x04' + b'\x00' * 100) is None
+        assert check_audio_mime_type(b'') is None
+        assert check_audio_mime_type(b'\x00\x00') is None
+
+    def test_validate_audio_file_upload_accepts_mp3(self, tmp_path):
+        from io import BytesIO
+        from werkzeug.datastructures import FileStorage
+        from app.utils.file_security import validate_audio_file_upload
+        mp3_header = b'ID3\x03\x00' + b'\x00' * 200
+        f = FileStorage(stream=BytesIO(mp3_header), filename='test.mp3', content_type='audio/mpeg')
+        ok, err = validate_audio_file_upload(f)
+        assert ok is True, err
+
+    def test_validate_audio_file_upload_accepts_wav(self, tmp_path):
+        from io import BytesIO
+        from werkzeug.datastructures import FileStorage
+        from app.utils.file_security import validate_audio_file_upload
+        wav_data = b'RIFF\x00\x00\x00\x00WAVE' + b'\x00' * 200
+        f = FileStorage(stream=BytesIO(wav_data), filename='test.wav', content_type='audio/wav')
+        ok, err = validate_audio_file_upload(f)
+        assert ok is True, err
+
+    def test_validate_audio_file_upload_rejects_wrong_extension(self):
+        from io import BytesIO
+        from werkzeug.datastructures import FileStorage
+        from app.utils.file_security import validate_audio_file_upload
+        data = b'ID3\x03\x00' + b'\x00' * 100
+        f = FileStorage(stream=BytesIO(data), filename='test.ogg', content_type='audio/ogg')
+        ok, err = validate_audio_file_upload(f)
+        assert ok is False
+        assert 'ogg' in (err or '')
+
+    def test_validate_audio_file_upload_rejects_fake_mp3(self):
+        from io import BytesIO
+        from werkzeug.datastructures import FileStorage
+        from app.utils.file_security import validate_audio_file_upload
+        data = b'\x89PNG\r\n\x1a\n' + b'\x00' * 100
+        f = FileStorage(stream=BytesIO(data), filename='fake.mp3', content_type='audio/mpeg')
+        ok, err = validate_audio_file_upload(f)
+        assert ok is False
+
+    def test_validate_audio_file_upload_rejects_empty(self):
+        from io import BytesIO
+        from werkzeug.datastructures import FileStorage
+        from app.utils.file_security import validate_audio_file_upload
+        f = FileStorage(stream=BytesIO(b''), filename='empty.mp3', content_type='audio/mpeg')
+        ok, err = validate_audio_file_upload(f)
+        assert ok is False
+
+
+class TestAudioCascadeDelete:
+    """Task 73 — cascade cleanup of audio references on delete."""
+
+    def _make_book_and_chapter(self, db_session, audio_url):
+        from app.books.models import Book, Chapter
+        import uuid
+        slug = uuid.uuid4().hex[:6]
+        book = Book(title=f'Test Book {slug}', author='Author', chapters_cnt=1)
+        db_session.add(book)
+        db_session.flush()
+        chapter = Chapter(
+            book_id=book.id,
+            chap_num=1,
+            title='Chapter 1',
+            words=10,
+            text_raw='Hello world.',
+            audio_url=audio_url,
+        )
+        db_session.add(chapter)
+        db_session.flush()
+        return book, chapter
+
+    def test_clear_audio_references_nullifies_matching_chapter(self, db_session):
+        from app.admin.services.audio_management_service import AudioManagementService
+        book, chapter = self._make_book_and_chapter(
+            db_session, 'static/audio/pronunciation_en_hello.mp3'
+        )
+        count = AudioManagementService.clear_audio_references(
+            'pronunciation_en_hello.mp3', db_session
+        )
+        assert count == 1
+        # check in-memory state (not flushed yet — no refresh needed)
+        assert chapter.audio_url is None
+
+    def test_clear_audio_references_leaves_other_chapters_intact(self, db_session):
+        from app.admin.services.audio_management_service import AudioManagementService
+        _, chapter_match = self._make_book_and_chapter(
+            db_session, 'static/audio/pronunciation_en_hello.mp3'
+        )
+        _, chapter_other = self._make_book_and_chapter(
+            db_session, 'static/audio/pronunciation_en_world.mp3'
+        )
+        count = AudioManagementService.clear_audio_references(
+            'pronunciation_en_hello.mp3', db_session
+        )
+        assert count == 1
+        # chapter_other should remain unchanged in-memory
+        assert chapter_other.audio_url is not None
+
+    def test_clear_audio_references_rejects_unsafe_filename(self, db_session):
+        from app.admin.services.audio_management_service import AudioManagementService
+        count = AudioManagementService.clear_audio_references(
+            '../etc/passwd.mp3', db_session
+        )
+        assert count == 0
+
+    def test_clear_audio_references_no_match_returns_zero(self, db_session):
+        from app.admin.services.audio_management_service import AudioManagementService
+        count = AudioManagementService.clear_audio_references(
+            'pronunciation_en_nonexistent.mp3', db_session
+        )
+        assert count == 0
+
+
+class TestAudioStreamingRange:
+    """Task 73 — Range header support in serve_chapter_audio."""
+
+    def _seed_chapter_with_audio(self, db_session, tmp_path, audio_content=None):
+        from app.books.models import Book, Chapter
+        import uuid
+        if audio_content is None:
+            audio_content = b'ID3\x03\x00' + b'\x00' * 300
+        audio_file = tmp_path / 'chapter_audio.mp3'
+        audio_file.write_bytes(audio_content)
+        slug = uuid.uuid4().hex[:6]
+        book = Book(title=f'Audio Book {slug}', author='Author', chapters_cnt=1)
+        db_session.add(book)
+        db_session.flush()
+        chapter = Chapter(
+            book_id=book.id,
+            chap_num=1,
+            title='Chapter 1',
+            words=5,
+            text_raw='Audio chapter.',
+            audio_url=str(audio_file),
+        )
+        db_session.add(chapter)
+        db_session.flush()
+        return book, chapter, audio_file
+
+    @staticmethod
+    def _make_authed_user():
+        from unittest.mock import MagicMock
+        from datetime import datetime, timezone
+        u = MagicMock()
+        u.is_authenticated = True
+        u.is_active = True
+        u.is_anonymous = False
+        u.get_id.return_value = '1'
+        u.last_login = datetime.now(timezone.utc)
+        u.id = 1
+        return u
+
+    def test_serve_audio_no_range_returns_200(self, client, db_session, tmp_path):
+        from unittest.mock import patch
+        book, chapter, audio_file = self._seed_chapter_with_audio(db_session, tmp_path)
+        with patch('flask_login.utils._get_user', return_value=self._make_authed_user()):
+            with patch('app.books.api.Chapter.query') as mock_q:
+                mock_q.filter_by.return_value.first_or_404.return_value = chapter
+                chapter.audio_url = str(audio_file)
+                with patch('app.books.api.os.path.join', return_value=str(audio_file)):
+                    with patch('app.books.api.os.path.isfile', return_value=True):
+                        resp = client.get(f'/audio/{book.id}/chapter/1')
+        assert resp.status_code in (200, 206)
+
+    def test_serve_audio_range_header_returns_206(self, client, db_session, tmp_path):
+        """Sending Range header must yield 206 Partial Content."""
+        from unittest.mock import patch
+        book, chapter, audio_file = self._seed_chapter_with_audio(db_session, tmp_path)
+        with patch('flask_login.utils._get_user', return_value=self._make_authed_user()):
+            with patch('app.books.api.Chapter.query') as mock_q:
+                mock_q.filter_by.return_value.first_or_404.return_value = chapter
+                chapter.audio_url = str(audio_file)
+                with patch('app.books.api.os.path.join', return_value=str(audio_file)):
+                    with patch('app.books.api.os.path.isfile', return_value=True):
+                        with patch('app.books.api.os.path.getsize', return_value=305):
+                            resp = client.get(
+                                f'/audio/{book.id}/chapter/1',
+                                headers={'Range': 'bytes=0-99'},
+                            )
+        assert resp.status_code == 206
+        assert 'Content-Range' in resp.headers
+        assert resp.headers.get('Content-Range', '').startswith('bytes 0-99/')
+
+    def test_serve_audio_no_audio_url_returns_404(self, client, db_session, tmp_path):
+        from unittest.mock import patch
+        from app.books.models import Book, Chapter
+        import uuid
+        slug = uuid.uuid4().hex[:6]
+        book = Book(title=f'Silent {slug}', author='Author', chapters_cnt=1)
+        db_session.add(book)
+        db_session.flush()
+        chapter = Chapter(
+            book_id=book.id, chap_num=1, title='Ch', words=1,
+            text_raw='text', audio_url=None,
+        )
+        db_session.add(chapter)
+        db_session.flush()
+        with patch('flask_login.utils._get_user', return_value=self._make_authed_user()):
+            with patch('app.books.api.Chapter.query') as mock_q:
+                mock_q.filter_by.return_value.first_or_404.return_value = chapter
+                resp = client.get(f'/audio/{book.id}/chapter/1')
+        assert resp.status_code == 404
+
+    def test_serve_audio_missing_file_returns_404(self, client, db_session, tmp_path):
+        from unittest.mock import patch
+        book, chapter, _ = self._seed_chapter_with_audio(db_session, tmp_path)
+        with patch('flask_login.utils._get_user', return_value=self._make_authed_user()):
+            with patch('app.books.api.Chapter.query') as mock_q:
+                mock_q.filter_by.return_value.first_or_404.return_value = chapter
+                chapter.audio_url = '/nonexistent/path.mp3'
+                with patch('app.books.api.os.path.join', return_value='/nonexistent/path.mp3'):
+                    with patch('app.books.api.os.path.isfile', return_value=False):
+                        resp = client.get(f'/audio/{book.id}/chapter/1')
+        assert resp.status_code == 404
+
+    def test_serve_audio_requires_login(self, client):
+        resp = client.get('/audio/1/chapter/1')
+        assert resp.status_code in (302, 401)
+
+
+class TestAdminAudioRoutesAuth:
+    """Task 73 — all admin audio endpoints require admin auth."""
+
+    def test_audio_management_no_auth_redirects(self, client):
+        assert client.get('/admin/audio').status_code == 302
+
+    def test_update_download_status_no_auth_redirects(self, client):
+        assert client.post('/admin/audio/update-download-status', json={}).status_code == 302
+
+    def test_fix_listening_no_auth_redirects(self, client):
+        assert client.post('/admin/audio/fix-listening-fields').status_code == 302
+
+    def test_normalize_listening_no_auth_redirects(self, client):
+        assert client.post('/admin/audio/normalize-listening-fields').status_code == 302
+
+    def test_fill_empty_listening_no_auth_redirects(self, client):
+        assert client.post('/admin/audio/fill-empty-listening').status_code == 302
+
+    def test_orphans_no_auth_redirects(self, client):
+        assert client.get('/admin/audio/orphans').status_code in (302, 401, 403)
+
+    def test_orphans_cleanup_no_auth_redirects(self, client):
+        assert client.post('/admin/audio/orphans/cleanup').status_code in (302, 401, 403)
