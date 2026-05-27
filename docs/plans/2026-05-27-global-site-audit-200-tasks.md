@@ -887,12 +887,12 @@
 - Modify: `app/daily_plan/challenge.py`
 - Modify: `tests/`
 
-- [ ] Проверить что get_today_challenge возвращает None корректно (не 500) когда нет challenge
-- [ ] Убедиться что challenge completion не дублируется при retry
-- [ ] Проверить что bonus_xp начисляется только при реальном completion (не при view)
-- [ ] Убедиться что challenge_streak_7 achievement проверяется корректно
-- [ ] Тесты для no-challenge day, duplicate prevention, streak check
-- [ ] run pytest tests/ -k challenge -x
+- [x] Проверить что get_today_challenge возвращает None корректно (не 500) когда нет challenge
+- [x] Убедиться что challenge completion не дублируется при retry
+- [x] Проверить что bonus_xp начисляется только при реальном completion (не при view)
+- [x] Убедиться что challenge_streak_7 achievement проверяется корректно
+- [x] Тесты для no-challenge day, duplicate prevention, streak check
+- [x] run pytest tests/ -k challenge -x
 
 ### Task 66: Milestones и next_step continuation
 
