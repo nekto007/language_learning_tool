@@ -136,12 +136,12 @@
 - Modify: `app/curriculum/routes/lessons.py`
 - Modify: `tests/curriculum/test_final_test.py`
 
-- [ ] Убедиться что process_final_test_submission правильно считает rolling 24h
-- [ ] Проверить что admin bypass (is_admin=True) работает корректно
-- [ ] Убедиться что попытка #4 возвращает retry_after в правильном формате (ISO timestamp)
-- [ ] Проверить что attempts_exhausted не создаёт LessonAttempt запись
-- [ ] Тесты для 3-attempt limit, admin bypass, retry_after calculation
-- [ ] run pytest tests/curriculum/ -x
+- [x] Убедиться что process_final_test_submission правильно считает rolling 24h
+- [x] Проверить что admin bypass (is_admin=True) работает корректно
+- [x] Убедиться что попытка #4 возвращает retry_after в правильном формате (ISO timestamp)
+- [x] Проверить что attempts_exhausted не создаёт LessonAttempt запись
+- [x] Тесты для 3-attempt limit, admin bypass, retry_after calculation
+- [x] run pytest tests/curriculum/ -x
 
 ### Task 10: Curriculum — listening и writing lessons completion
 
