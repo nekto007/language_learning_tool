@@ -109,12 +109,12 @@
 - Modify: `app/curriculum/routes/main.py`
 - Modify: `tests/curriculum/`
 
-- [ ] Проверить что check_module_access правильно различает API vs HTML запросы
-- [ ] Убедиться что прямой URL урока без LessonProgress не создаёт дублирующих записей
-- [ ] Проверить что guest/anonymous запрос на /curriculum/* получает 401, не 500
-- [ ] Убедиться что prerequisites check не падает когда prerequisites пустой список
-- [ ] Тесты для direct URL access без prerequisites
-- [ ] run pytest tests/curriculum/ -x
+- [x] Проверить что check_module_access правильно различает API vs HTML запросы
+- [x] Убедиться что прямой URL урока без LessonProgress не создаёт дублирующих записей
+- [x] Проверить что guest/anonymous запрос на /curriculum/* получает 401, не 500
+- [x] Убедиться что prerequisites check не падает когда prerequisites пустой список
+- [x] Тесты для direct URL access без prerequisites
+- [x] run pytest tests/curriculum/ -x
 
 ### Task 8: Curriculum — grading edge cases
 
