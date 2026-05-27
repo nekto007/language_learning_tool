@@ -176,12 +176,12 @@
 - Modify: `app/srs/service.py`
 - Modify: `tests/srs/test_srs_service.py`
 
-- [ ] Проверить что leech suspend после LEECH_THRESHOLD=6 работает атомарно
-- [ ] Убедиться что RELEARNING_STEPS=[10, 1440] применяются в правильном порядке
-- [ ] Проверить что buried карточки не появляются в due list даже при force-refresh
-- [ ] Убедиться что ease_factor не уходит ниже MIN_EASE_FACTOR при many lapses
-- [ ] Тесты для leech threshold, relearning steps, buried cards
-- [ ] run pytest tests/srs/ -x
+- [x] Проверить что leech suspend после LEECH_THRESHOLD=6 работает атомарно
+- [x] Убедиться что RELEARNING_STEPS=[10, 1440] применяются в правильном порядке
+- [x] Проверить что buried карточки не появляются в due list даже при force-refresh
+- [x] Убедиться что ease_factor не уходит ниже MIN_EASE_FACTOR при many lapses
+- [x] Тесты для leech threshold, relearning steps, buried cards
+- [x] run pytest tests/srs/ -x
 
 ### Task 13: SRS — lesson-safe flag и daily limits
 
