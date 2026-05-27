@@ -8,6 +8,7 @@ Runs daily via APScheduler. Sends emails to inactive users:
 import logging
 import secrets
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfoNotFoundError, ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -21,6 +22,24 @@ _scheduler: BackgroundScheduler | None = None
 
 # Unsubscribe token field name on User model
 UNSUBSCRIBE_TOKEN_FIELD = 'email_unsubscribe_token'
+
+# Only deliver emails during this local-time window (inclusive).
+DELIVERY_HOUR_START = 8
+DELIVERY_HOUR_END = 20
+
+
+def is_delivery_window(user: User) -> bool:
+    """Return True if user's local time is within the delivery window (8am–8pm).
+
+    Falls back to UTC if the timezone is unknown or invalid.
+    """
+    tz_name = getattr(user, 'timezone', None) or 'UTC'
+    try:
+        tz = ZoneInfo(tz_name)
+    except (ZoneInfoNotFoundError, KeyError):
+        tz = ZoneInfo('UTC')
+    local_hour = datetime.now(tz).hour
+    return DELIVERY_HOUR_START <= local_hour < DELIVERY_HOUR_END
 
 
 def get_inactive_users(days_inactive: int, tolerance_hours: int = 12) -> list[User]:
@@ -109,14 +128,23 @@ def run_reengagement_job() -> None:
 
     sent = 0
     for user in get_inactive_users(3):
+        if not is_delivery_window(user):
+            logger.debug(f'Skipping user {user.id}: outside delivery window in their timezone')
+            continue
         if send_day3_email(user):
             sent += 1
 
     for user in get_inactive_users(7):
+        if not is_delivery_window(user):
+            logger.debug(f'Skipping user {user.id}: outside delivery window in their timezone')
+            continue
         if send_day7_email(user):
             sent += 1
 
     for user in get_inactive_users(30):
+        if not is_delivery_window(user):
+            logger.debug(f'Skipping user {user.id}: outside delivery window in their timezone')
+            continue
         if send_day30_email(user):
             sent += 1
 

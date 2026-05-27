@@ -1010,12 +1010,12 @@
 - Modify: `app/reminders/routes.py`
 - Modify: `tests/`
 
-- [ ] Проверить что reminder delivery уважает user timezone
-- [ ] Убедиться что unsubscribe через email link работает без authentication
-- [ ] Проверить что reminder не отправляется suspended/deleted users
-- [ ] Убедиться что reminder frequency не превышает configured rate
-- [ ] Тесты для timezone delivery, unsubscribe, suspended user skip
-- [ ] run pytest tests/ -k reminder -x
+- [x] Проверить что reminder delivery уважает user timezone
+- [x] Убедиться что unsubscribe через email link работает без authentication
+- [x] Проверить что reminder не отправляется suspended/deleted users
+- [x] Убедиться что reminder frequency не превышает configured rate
+- [x] Тесты для timezone delivery, unsubscribe, suspended user skip
+- [x] run pytest tests/ -k reminder -x
 
 ### Task 75: Modules — feature gates и activation
 
