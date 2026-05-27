@@ -427,12 +427,12 @@
 - Modify: `app/words/routes.py` (leaderboard caching)
 - Modify: `tests/study/`
 
-- [ ] Проверить что _get_cached_leaderboard не возвращает stale data после user XP change
-- [ ] Убедиться что leaderboard правильно читает UserStatistics.total_xp (не legacy UserXP)
-- [ ] Проверить что stats_service не падает при User без UserStatistics row
-- [ ] Убедиться что get_level_info(0) возвращает level=1 (не level=0)
-- [ ] Тесты для missing UserStatistics, level=0 guard, cache staleness
-- [ ] run pytest tests/study/ -x
+- [x] Проверить что _get_cached_leaderboard не возвращает stale data после user XP change
+- [x] Убедиться что leaderboard правильно читает UserStatistics.total_xp (не legacy UserXP)
+- [x] Проверить что stats_service не падает при User без UserStatistics row
+- [x] Убедиться что get_level_info(0) возвращает level=1 (не level=0)
+- [x] Тесты для missing UserStatistics, level=0 guard, cache staleness
+- [x] run pytest tests/study/ -x
 
 ### Task 32: API — стандартизация ошибок через api_error
 
