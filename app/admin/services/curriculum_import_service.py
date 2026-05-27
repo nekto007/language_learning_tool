@@ -18,6 +18,7 @@ from app.curriculum.validators import LessonContentValidator
 from app.study.models import UserWord
 from app.utils.audio import normalize_listening
 from app.utils.db import db
+from app.utils.db_utils import chunk_ids
 from app.words.models import Collection, CollectionWordLink, CollectionWords
 from marshmallow import ValidationError
 
@@ -58,11 +59,32 @@ class CurriculumImportService:
         """
         Обрабатывает словарь без тегов (поддержка двух форматов)
 
+        Batch pre-fetches existing words using chunked IN() queries to avoid
+        N+1 per-word SELECT patterns for large vocabulary sets.
+
         Args:
             vocabulary_data: Список слов с переводами
             collection: Коллекция для добавления слов
             level_code: Код уровня CEFR
         """
+        # Collect all english words for a single batch lookup
+        english_words = [
+            (wd.get('word') or wd.get('english', '')).lower()
+            for wd in vocabulary_data
+            if wd.get('word') or wd.get('english')
+        ]
+
+        # Pre-fetch existing words in chunks to avoid large IN() clauses
+        existing_words_map: dict[str, CollectionWords] = {}
+        for chunk in chunk_ids(english_words):
+            for w in CollectionWords.query.filter(
+                CollectionWords.english_word.in_(chunk)
+            ).all():
+                existing_words_map[w.english_word] = w
+
+        # Track words already linked during this call (caller deletes old links first)
+        linked_word_ids: set = set()
+
         for word_data in vocabulary_data:
             # Поддержка обоих форматов: {word, translation} и {english, russian}
             english_word = (word_data.get('word') or word_data.get('english', '')).lower()
@@ -75,8 +97,7 @@ class CurriculumImportService:
                 ru = word_data.get('example_translation', '')
                 sentences_text = f"{en}<br>{ru}" if ru else en
 
-            # Find or create the word
-            word = CollectionWords.query.filter_by(english_word=english_word).first()
+            word = existing_words_map.get(english_word)
             if not word:
                 word = CollectionWords(
                     english_word=english_word,
@@ -88,6 +109,7 @@ class CurriculumImportService:
                 )
                 db.session.add(word)
                 db.session.flush()
+                existing_words_map[english_word] = word
             else:
                 # Update all fields if provided
                 if word_data.get('frequency_rank'):
@@ -101,14 +123,11 @@ class CurriculumImportService:
                 if sentences_text:
                     word.sentences = sentences_text
 
-            # Link the word to the collection
-            existing = CollectionWordLink.query.filter_by(
-                collection_id=collection.id,
-                word_id=word.id
-            ).first()
-            if not existing:
+            # Link the word to the collection (guard against duplicate words in source)
+            if word.id not in linked_word_ids:
                 link = CollectionWordLink(collection_id=collection.id, word_id=word.id)
                 db.session.add(link)
+                linked_word_ids.add(word.id)
 
     @staticmethod
     def process_grammar(grammar_data):
@@ -214,6 +233,65 @@ class CurriculumImportService:
 
         processed_grammar['xp_reward'] = lesson_data.get('xp_reward')
         return processed_grammar
+
+    @staticmethod
+    def preview_import(data: dict) -> dict:
+        """Validate and summarise an import payload without writing to the DB.
+
+        Applies the same format normalisation and field validation as
+        import_curriculum_data but makes zero DB writes.  Raises ValueError
+        for structurally invalid payloads.
+
+        Returns a dict with keys:
+            level, module_number, module_title, lesson_count, lessons
+        """
+        # Normalise new format (mirrors import_curriculum_data)
+        if 'module' in data and isinstance(data['module'], dict):
+            module_data = data['module']
+            data = {
+                'level': module_data.get('level'),
+                'module': (
+                    module_data.get('order')
+                    or module_data.get('id')
+                    or module_data.get('number')
+                ),
+                'title': module_data.get('title'),
+                'lessons': module_data.get('lessons', []),
+            }
+
+        if 'level' not in data or 'module' not in data:
+            raise ValueError("В JSON отсутствуют обязательные поля 'level' и 'module'")
+
+        level_code = data.get('level')
+        if level_code not in ALLOWED_CEFR_LEVELS:
+            raise ValueError(
+                f"Недопустимый уровень CEFR '{level_code}'. "
+                f"Разрешены: {', '.join(ALLOWED_CEFR_LEVELS)}."
+            )
+
+        type_mapping = {'flashcards': 'card'}
+        lessons_preview = []
+        for lesson_data in data.get('lessons', []):
+            lesson_type = lesson_data.get('lesson_type') or lesson_data.get('type')
+            lesson_type = type_mapping.get(lesson_type, lesson_type)
+            number = (
+                lesson_data.get('lesson_number')
+                or lesson_data.get('order')
+                or lesson_data.get('id')
+            )
+            lessons_preview.append({
+                'number': number,
+                'type': lesson_type,
+                'title': lesson_data.get('title', ''),
+            })
+
+        return {
+            'level': level_code,
+            'module_number': data.get('module'),
+            'module_title': data.get('title', ''),
+            'lesson_count': len(data.get('lessons', [])),
+            'lessons': lessons_preview,
+        }
 
     @staticmethod
     def import_curriculum_data(data):

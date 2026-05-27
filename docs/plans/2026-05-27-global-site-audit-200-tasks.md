@@ -618,12 +618,12 @@
 - Modify: `app/admin/services/curriculum_import_service.py`
 - Modify: `tests/admin/`
 
-- [ ] Убедиться что import preview не создаёт DB записей (только preview)
-- [ ] Проверить что batch DB lookups используют chunk_ids
-- [ ] Убедиться что невалидный JSON не вызывает 500 (graceful 400)
-- [ ] Проверить что import подтверждение идемпотентно при двойном submit
-- [ ] Тесты для preview-no-write, invalid JSON, double submit
-- [ ] run pytest tests/admin/ -x
+- [x] Убедиться что import preview не создаёт DB записей (только preview)
+- [x] Проверить что batch DB lookups используют chunk_ids
+- [x] Убедиться что невалидный JSON не вызывает 500 (graceful 400)
+- [x] Проверить что import подтверждение идемпотентно при двойном submit
+- [x] Тесты для preview-no-write, invalid JSON, double submit
+- [x] run pytest tests/admin/ -x
 
 ### Task 46: Frontend — dashboard UX
 
