@@ -779,11 +779,11 @@
 - Modify: `migrations/`
 - Modify: `tests/migrations/test_migration_chain.py`
 
-- [ ] Проверить migration chain (нет gaps, нет branching)
-- [ ] Убедиться что все CASCADE migrations идемпотентны (повторный запуск безопасен)
-- [ ] Проверить что migration для streak_shield column имеет корректный DEFAULT
-- [ ] Убедиться что alembic downgrade не ломает данные для последних 5 миграций
-- [ ] run pytest tests/migrations/ -x
+- [x] Проверить migration chain (нет gaps, нет branching)
+- [x] Убедиться что все CASCADE migrations идемпотентны (повторный запуск безопасен)
+- [x] Проверить что migration для streak_shield column имеет корректный DEFAULT
+- [x] Убедиться что alembic downgrade не ломает данные для последних 5 миграций
+- [x] run pytest tests/migrations/ -x
 
 ### Task 58: Performance — N+1 в curriculum routes
 
