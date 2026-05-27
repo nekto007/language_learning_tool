@@ -267,7 +267,7 @@
         (function() {
             var ctx = document.getElementById('grammarMasteryCanvas');
             if (!ctx) return;
-            var labels = [{% for t in grammar_mastery %}"{{ t.title }}"{% if not loop.last %},{% endif %}{% endfor %}];
+            var labels = {{ grammar_mastery | map(attribute='title') | list | tojson }};
             var accuracies = [{% for t in grammar_mastery %}{{ t.accuracy }}{% if not loop.last %},{% endif %}{% endfor %}];
             var masteredCounts = [{% for t in grammar_mastery %}{{ t.mastered_count }}{% if not loop.last %},{% endif %}{% endfor %}];
             var totalCounts = [{% for t in grammar_mastery %}{{ t.total_count }}{% if not loop.last %},{% endif %}{% endfor %}];

@@ -413,12 +413,12 @@
 - Modify: `app/study/insights_service.py`
 - Modify: `tests/study/`
 
-- [ ] Проверить что get_skills_balance возвращает dict с 6 ключами всегда (нет KeyError)
-- [ ] Убедиться что get_listening/writing/pronunciation_stats не падают при 0 attempts
-- [ ] Проверить что все виджеты обёрнуты в _safe_widget_call (нет необёрнутых вызовов)
-- [ ] Убедиться что Chart.js данные sanitized перед вставкой в шаблон
-- [ ] Тесты для empty stats, missing widget graceful failure
-- [ ] run pytest tests/study/ -x
+- [x] Проверить что get_skills_balance возвращает dict с 6 ключами всегда (нет KeyError)
+- [x] Убедиться что get_listening/writing/pronunciation_stats не падают при 0 attempts
+- [x] Проверить что все виджеты обёрнуты в _safe_widget_call (нет необёрнутых вызовов)
+- [x] Убедиться что Chart.js данные sanitized перед вставкой в шаблон
+- [x] Тесты для empty stats, missing widget graceful failure
+- [x] run pytest tests/study/ -x
 
 ### Task 31: Study — SRS stats и leaderboard
 
