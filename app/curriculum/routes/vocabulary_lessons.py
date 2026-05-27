@@ -2,6 +2,7 @@
 
 import logging
 
+import bleach
 from flask import abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from marshmallow import ValidationError
@@ -139,7 +140,7 @@ def render_vocabulary_lesson(lesson):
                     'synonyms': word.synonyms or [],
                     'antonyms': word.antonyms or [],
                     'frequency_band': word.frequency_band,
-                    'etymology': word.etymology or '',
+                    'etymology': bleach.clean(word.etymology or '', tags=[], strip=True),
                     'annotation': annotations.get(word.id, ''),
                     'examples': [
                         {
@@ -466,7 +467,7 @@ def vocabulary_lesson(lesson_id):
                     'synonyms': word.synonyms or [],
                     'antonyms': word.antonyms or [],
                     'frequency_band': word.frequency_band,
-                    'etymology': word.etymology or '',
+                    'etymology': bleach.clean(word.etymology or '', tags=[], strip=True),
                     'annotation': annotations.get(word.id, ''),
                     'examples': [
                         {

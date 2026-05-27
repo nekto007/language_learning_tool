@@ -255,12 +255,12 @@
 - Modify: `app/words/routes.py`
 - Modify: `tests/words/`
 
-- [ ] Проверить что WordCollocation query не падает при word без collocations
-- [ ] Убедиться что VocabAnnotation AJAX save возвращает 400 для пустой note
-- [ ] Проверить что frequency_band=None не ломает UI (нет KeyError)
-- [ ] Убедиться что etymology с HTML-тегами санируется перед рендерингом
-- [ ] Тесты для empty collocations, annotation validation, HTML sanitization
-- [ ] run pytest tests/words/ -x
+- [x] Проверить что WordCollocation query не падает при word без collocations
+- [x] Убедиться что VocabAnnotation AJAX save возвращает 400 для пустой note
+- [x] Проверить что frequency_band=None не ломает UI (нет KeyError)
+- [x] Убедиться что etymology с HTML-тегами санируется перед рендерингом
+- [x] Тесты для empty collocations, annotation validation, HTML sanitization
+- [x] run pytest tests/words/ -x
 
 ### Task 19: Words — import preview и confirm performance
 
