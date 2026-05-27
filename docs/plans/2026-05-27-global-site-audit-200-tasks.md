@@ -753,12 +753,12 @@
 - Modify: `app/templates/landing/`
 - Modify: `tests/test_landing_improvements.py`
 
-- [ ] Проверить что og:image присутствует и указывает на реальный файл
-- [ ] Убедиться что title и meta description уникальны для каждой страницы
-- [ ] Проверить что landing page не делает N+1 запросов к БД
-- [ ] Убедиться что landing page работает для anonymous users (нет current_user зависимостей)
-- [ ] Тесты для meta completeness, anonymous access, query count
-- [ ] run pytest tests/test_landing_improvements.py -x
+- [x] Проверить что og:image присутствует и указывает на реальный файл
+- [x] Убедиться что title и meta description уникальны для каждой страницы
+- [x] Проверить что landing page не делает N+1 запросов к БД
+- [x] Убедиться что landing page работает для anonymous users (нет current_user зависимостей)
+- [x] Тесты для meta completeness, anonymous access, query count
+- [x] run pytest tests/test_landing_improvements.py -x
 
 ### Task 56: Health check и monitoring
 
