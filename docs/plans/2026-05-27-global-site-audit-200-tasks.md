@@ -374,12 +374,12 @@
 - Modify: `app/achievements/daily_race.py`
 - Modify: `tests/test_daily_race.py`
 
-- [ ] Проверить что get_or_create_race не создаёт дублирующих участников при concurrent requests
-- [ ] Убедиться что ghost points не хранятся в БД (только вычисляются)
-- [ ] Проверить что adult-gate (birth_year check) корректно работает при birth_year=None
-- [ ] Убедиться что route_position (0-100) не выходит за границы
-- [ ] Тесты для concurrent race creation, null birth_year, position bounds
-- [ ] run pytest tests/ -k daily_race -x
+- [x] Проверить что get_or_create_race не создаёт дублирующих участников при concurrent requests
+- [x] Убедиться что ghost points не хранятся в БД (только вычисляются)
+- [x] Проверить что adult-gate (birth_year check) корректно работает при birth_year=None
+- [x] Убедиться что route_position (0-100) не выходит за границы
+- [x] Тесты для concurrent race creation, null birth_year, position bounds
+- [x] run pytest tests/ -k daily_race -x
 
 ### Task 28: Study — deck management и card ownership
 

@@ -29,6 +29,7 @@ from sqlalchemy import (
     Integer,
     UniqueConstraint,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
@@ -342,8 +343,22 @@ def get_or_create_race(user_id: int, race_date: date_cls) -> RaceCohort:
         user_id=user_id,
         race_date=race_date,
     )
-    db.session.add(participant)
-    db.session.flush()
+    try:
+        with db.session.begin_nested():
+            db.session.add(participant)
+    except IntegrityError:
+        # A concurrent request won the race — re-query the winning row.
+        existing = (
+            db.session.query(DailyRaceParticipant)
+            .filter_by(user_id=user_id, race_date=race_date)
+            .first()
+        )
+        if existing is None:
+            raise
+        race = db.session.get(DailyRace, existing.race_id)
+        if race is None:
+            raise
+        return _build_cohort(race)
 
     return _build_cohort(race)
 
