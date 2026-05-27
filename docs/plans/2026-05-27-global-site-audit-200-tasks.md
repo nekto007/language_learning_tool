@@ -1169,12 +1169,12 @@
 - Modify: `app/admin/services/word_management_service.py`
 - Modify: `tests/admin/`
 
-- [ ] Проверить что bulk word delete корректно обрабатывает WordCollocation и UserWord
-- [ ] Убедиться что collocation add/remove логируется через AdminAuditLog
-- [ ] Проверить что word frequency_band update принимает только 1,2,3 или NULL
-- [ ] Убедиться что admin word search с SQL-символами не ломается
-- [ ] Тесты для bulk delete, audit log, frequency bounds, search sanitization
-- [ ] run pytest tests/admin/ -x
+- [x] Проверить что bulk word delete корректно обрабатывает WordCollocation и UserWord
+- [x] Убедиться что collocation add/remove логируется через AdminAuditLog
+- [x] Проверить что word frequency_band update принимает только 1,2,3 или NULL
+- [x] Убедиться что admin word search с SQL-символами не ломается
+- [x] Тесты для bulk delete, audit log, frequency bounds, search sanitization
+- [x] run pytest tests/admin/ -x
 
 ### Task 87: Admin topic/collection management
 

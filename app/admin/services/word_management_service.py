@@ -651,6 +651,26 @@ class WordManagementService:
             return False, 0, 0, str(e)
 
     @staticmethod
+    def bulk_delete_words(word_ids: list) -> int:
+        """Delete CollectionWords by id list.
+
+        WordCollocation and UserWord cascade-delete via DB FK.
+        Returns number of deleted rows. Flush only — caller commits.
+        """
+        if not word_ids:
+            return 0
+
+        deleted = 0
+        for chunk in chunk_ids(word_ids, chunk_size=500):
+            rows = CollectionWords.query.filter(CollectionWords.id.in_(chunk)).all()
+            for word in rows:
+                db.session.delete(word)
+                deleted += 1
+
+        db.session.flush()
+        return deleted
+
+    @staticmethod
     def get_words_for_export(status=None, user_id=None):
         """
         Получает слова для экспорта по критериям
