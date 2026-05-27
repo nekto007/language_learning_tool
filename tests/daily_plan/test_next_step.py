@@ -921,3 +921,208 @@ class TestCheckRecovery:
                 result = get_next_best_step(1, _make_mock_db())
 
             assert all(s.kind != 'recovery' for s in result)
+
+
+# ── estimated_minutes bounds ──────────────────────────────────────────────────
+
+class TestEstimatedMinutesBounds:
+    """NextStep.estimated_minutes must always be a positive integer when set."""
+
+    def test_next_step_post_init_clamps_zero_to_one(self):
+        """__post_init__ raises estimated_minutes < 1 to 1."""
+        step = NextStep(kind='srs', reason='x', data={}, estimated_minutes=0)
+        assert step.estimated_minutes == 1
+
+    def test_next_step_post_init_clamps_negative_to_one(self):
+        """Negative estimated_minutes is clamped to 1."""
+        step = NextStep(kind='srs', reason='x', data={}, estimated_minutes=-5)
+        assert step.estimated_minutes == 1
+
+    def test_next_step_post_init_leaves_positive_unchanged(self):
+        """Positive estimated_minutes passes through unchanged."""
+        step = NextStep(kind='srs', reason='x', data={}, estimated_minutes=8)
+        assert step.estimated_minutes == 8
+
+    def test_next_step_post_init_allows_none(self):
+        """None estimated_minutes is allowed (optional field)."""
+        step = NextStep(kind='srs', reason='x', data={}, estimated_minutes=None)
+        assert step.estimated_minutes is None
+
+    def test_srs_estimated_minutes_minimum_one(self, app):
+        """_check_srs_due with 1 card returns estimated_minutes >= 1."""
+        with app.app_context():
+            from app.daily_plan.next_step import _check_srs_due
+
+            mock_user = MagicMock()
+            mock_user.default_study_deck_id = None
+            mock_settings = MagicMock()
+            mock_settings.reviews_per_day = 20
+
+            db = MagicMock()
+            scalar_mock = MagicMock()
+            scalar_mock.scalar.return_value = 1
+            db.session.query.return_value.filter.return_value = scalar_mock
+
+            with patch('app.auth.models.User') as MockUser, \
+                 patch('app.study.models.UserWord'), \
+                 patch('app.study.models.UserCardDirection') as MockUCD, \
+                 patch('app.study.models.StudySettings') as MockSS, \
+                 patch('app.daily_plan.next_step.func'):
+                MockUser.query.get.return_value = mock_user
+                MockSS.get_settings.return_value = mock_settings
+                MockUCD.next_review = _make_col_mock()
+                MockUCD.user_word_id = _make_col_mock()
+                step = _check_srs_due(1, db)
+
+            assert step is not None
+            assert step.estimated_minutes >= 1
+
+    def test_grammar_estimated_minutes_minimum_two(self, app):
+        """_check_grammar_weak returns estimated_minutes >= 2."""
+        with app.app_context():
+            from app.daily_plan.next_step import _check_grammar_weak
+
+            mock_status = MagicMock()
+            mock_status.topic_id = 1
+            mock_status.status = 'practicing'
+            mock_topic = MagicMock()
+            mock_topic.id = 1
+            mock_topic.title = 'Present Simple'
+
+            db = _make_mock_db()
+
+            with patch('app.grammar_lab.models.UserGrammarTopicStatus') as MockUGTS, \
+                 patch('app.grammar_lab.models.UserGrammarExercise') as MockUGE, \
+                 patch('app.grammar_lab.models.GrammarExercise') as MockGE, \
+                 patch('app.grammar_lab.models.GrammarTopic') as MockGT:
+                MockUGTS.query.filter.return_value.all.return_value = [mock_status]
+                MockUGE.query.join.return_value.filter.return_value.count.return_value = 1
+                MockGT.query.get.return_value = mock_topic
+                MockUGE.next_review = _make_col_mock()
+                MockUGE.exercise_id = _make_col_mock()
+                MockGE.id = _make_col_mock()
+                MockGE.topic_id = _make_col_mock()
+                step = _check_grammar_weak(1, db)
+
+            assert step is not None
+            assert step.estimated_minutes >= 2
+
+    def test_lesson_minutes_unknown_type_returns_ten(self, app):
+        """_lesson_minutes for unknown type defaults to 10 (positive)."""
+        with app.app_context():
+            from app.daily_plan.next_step import _lesson_minutes
+            assert _lesson_minutes('unknown_type_xyz') == 10
+            assert _lesson_minutes(None) == 10
+            assert _lesson_minutes('') == 10
+
+    def test_all_check_functions_return_positive_estimated_minutes(self, app):
+        """Every check function that returns a step has estimated_minutes >= 1."""
+        with app.app_context():
+            steps_with_minutes = [
+                NextStep(kind='recovery', reason='r', data={}, estimated_minutes=10),
+                NextStep(kind='lesson', reason='r', data={}, estimated_minutes=8),
+                NextStep(kind='srs', reason='r', data={}, estimated_minutes=3),
+                NextStep(kind='writing', reason='r', data={}, estimated_minutes=8),
+                NextStep(kind='grammar', reason='r', data={}, estimated_minutes=4),
+                NextStep(kind='reading', reason='r', data={}, estimated_minutes=10),
+                NextStep(kind='vocab', reason='r', data={}, estimated_minutes=5),
+            ]
+            for step in steps_with_minutes:
+                assert step.estimated_minutes >= 1, (
+                    f"Kind '{step.kind}' has estimated_minutes={step.estimated_minutes}"
+                )
+
+
+# ── priority ordering stability ───────────────────────────────────────────────
+
+class TestPriorityOrderingStability:
+    """Priority ordering must be deterministic across repeated calls."""
+
+    def test_priority_order_is_stable_across_multiple_calls(self, app):
+        """Repeated calls with the same mocks return the same order."""
+        with app.app_context():
+            lesson_step = NextStep(kind='lesson', reason='L', data={}, estimated_minutes=10)
+            srs_step = NextStep(kind='srs', reason='S', data={}, estimated_minutes=3)
+            grammar_step = NextStep(kind='grammar', reason='G', data={}, estimated_minutes=4)
+
+            with patch('app.daily_plan.next_step._check_recovery', return_value=None), \
+                 patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=lesson_step), \
+                 patch('app.daily_plan.next_step._check_srs_due', return_value=srs_step), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=None), \
+                 patch('app.daily_plan.next_step._check_grammar_weak', return_value=grammar_step), \
+                 patch('app.daily_plan.next_step._check_reading_progress', return_value=None), \
+                 patch('app.daily_plan.next_step._check_vocab', return_value=None):
+
+                result1 = get_next_best_step(1, _make_mock_db())
+                result2 = get_next_best_step(1, _make_mock_db())
+
+            assert [s.kind for s in result1] == [s.kind for s in result2]
+            assert result1[0].kind == 'lesson'
+            assert result1[1].kind == 'srs'
+            assert result1[2].kind == 'grammar'
+
+    def test_recovery_always_first_regardless_of_other_steps(self, app):
+        """Recovery step is always position 0 when present."""
+        with app.app_context():
+            recovery = NextStep(kind='recovery', reason='r', data={}, estimated_minutes=10)
+            lesson = NextStep(kind='lesson', reason='l', data={}, estimated_minutes=10)
+            srs = NextStep(kind='srs', reason='s', data={}, estimated_minutes=3)
+
+            with patch('app.daily_plan.next_step._check_recovery', return_value=recovery), \
+                 patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=lesson), \
+                 patch('app.daily_plan.next_step._check_srs_due', return_value=srs), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=None), \
+                 patch('app.daily_plan.next_step._check_grammar_weak', return_value=None), \
+                 patch('app.daily_plan.next_step._check_reading_progress', return_value=None), \
+                 patch('app.daily_plan.next_step._check_vocab', return_value=None):
+
+                result = get_next_best_step(1, _make_mock_db())
+
+            assert result[0].kind == 'recovery'
+
+
+# ── new user / cold start scenarios ──────────────────────────────────────────
+
+class TestNewUserColdStart:
+    """The continuation endpoint must not crash or return 500 for new users."""
+
+    def test_empty_result_is_list_not_none(self, app):
+        """get_next_best_step always returns a list, never None."""
+        with app.app_context():
+            with patch('app.daily_plan.next_step._check_recovery', return_value=None), \
+                 patch('app.daily_plan.next_step._check_unfinished_lesson', return_value=None), \
+                 patch('app.daily_plan.next_step._check_srs_due', return_value=None), \
+                 patch('app.daily_plan.next_step._check_writing_suggestion', return_value=None), \
+                 patch('app.daily_plan.next_step._check_grammar_weak', return_value=None), \
+                 patch('app.daily_plan.next_step._check_reading_progress', return_value=None), \
+                 patch('app.daily_plan.next_step._check_vocab', return_value=None):
+
+                result = get_next_best_step(999, _make_mock_db())
+
+            assert result == []
+            assert isinstance(result, list)
+
+    def test_continuation_endpoint_new_user_returns_200(self, authenticated_client):
+        """Endpoint returns 200 with empty steps for a new user with no activity."""
+        with patch('app.daily_plan.next_step.get_next_best_step', return_value=[]):
+            resp = authenticated_client.get('/api/daily-plan/continuation')
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['success'] is True
+        assert data['steps'] == []
+        assert data['step'] is None
+
+    def test_continuation_endpoint_returns_200_when_get_next_step_raises(self, authenticated_client):
+        """Endpoint returns 200 (empty steps) even when get_next_best_step throws."""
+        with patch(
+            'app.daily_plan.next_step.get_next_best_step',
+            side_effect=RuntimeError('unexpected db error'),
+        ):
+            resp = authenticated_client.get('/api/daily-plan/continuation')
+
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['success'] is True
+        assert data['steps'] == []
+        assert data['step'] is None

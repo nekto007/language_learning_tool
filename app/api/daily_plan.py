@@ -593,7 +593,11 @@ def daily_plan_continuation():
     from app.daily_plan.next_step import get_next_best_step
 
     user_id = current_user.id
-    steps = get_next_best_step(user_id, db)
+    try:
+        steps = get_next_best_step(user_id, db)
+    except Exception:
+        logger.exception("get_next_best_step failed for user=%s", user_id)
+        steps = []
 
     def _serialize(s):
         return {

@@ -901,12 +901,12 @@
 - Modify: `app/daily_plan/next_step.py`
 - Modify: `tests/daily_plan/`
 
-- [ ] Проверить что get_next_best_step возвращает [] (не None) когда нечего делать
-- [ ] Убедиться что NextStep.estimated_minutes всегда положительное число
-- [ ] Проверить что priority ordering стабильна при одинаковых условиях
-- [ ] Убедиться что GET /api/daily-plan/continuation не падает при новом пользователе
-- [ ] Тесты для empty result, estimated_minutes bounds, new user
-- [ ] run pytest tests/daily_plan/ -x
+- [x] Проверить что get_next_best_step возвращает [] (не None) когда нечего делать
+- [x] Убедиться что NextStep.estimated_minutes всегда положительное число
+- [x] Проверить что priority ordering стабильна при одинаковых условиях
+- [x] Убедиться что GET /api/daily-plan/continuation не падает при новом пользователе
+- [x] Тесты для empty result, estimated_minutes bounds, new user
+- [x] run pytest tests/daily_plan/ -x
 
 ### Task 67: Grammar weakness hint и curriculum item enrichment
 
