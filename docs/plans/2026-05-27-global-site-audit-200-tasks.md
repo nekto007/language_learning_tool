@@ -1077,12 +1077,12 @@
 - Modify: `app/templates/` (badges)
 - Modify: `tests/test_dashboard_badges_showcase.py`
 
-- [ ] Проверить что badges отображаются корректно при 0 achievements
-- [ ] Убедиться что badge tooltip не использует innerHTML (XSS safe)
-- [ ] Проверить что locked badges не показывают progress для других пользователей
-- [ ] Убедиться что badge count на dashboard консистентен с actual UserAchievement count
-- [ ] Тесты для zero badges, tooltip XSS, count consistency
-- [ ] run pytest tests/test_dashboard_badges_showcase.py -x
+- [x] Проверить что badges отображаются корректно при 0 achievements
+- [x] Убедиться что badge tooltip не использует innerHTML (XSS safe)
+- [x] Проверить что locked badges не показывают progress для других пользователей
+- [x] Убедиться что badge count на dashboard консистентен с actual UserAchievement count
+- [x] Тесты для zero badges, tooltip XSS, count consistency
+- [x] run pytest tests/test_dashboard_badges_showcase.py -x
 
 ### Task 80: Словарный запас — deck select modal
 

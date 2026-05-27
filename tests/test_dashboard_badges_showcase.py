@@ -1,4 +1,4 @@
-"""Tests for Task 19: badges showcase on dashboard."""
+"""Tests for badges showcase on dashboard (Task 79 audit)."""
 import uuid
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
@@ -300,3 +300,172 @@ class TestDashboardBadgesShowcaseRender:
         assert 'dash-badges' in html
         assert 'data-badge-item="locked"' in html
         assert 'Можно получить' in html
+
+
+class TestGetAchievementsByCategory:
+    """Task 79: get_achievements_by_category — zero badges, count consistency, isolation."""
+
+    def test_zero_achievements_returns_safe_empty_values(self, db_session, test_user):
+        Achievement.query.delete()
+        db_session.commit()
+
+        result = StatsService.get_achievements_by_category(test_user.id)
+
+        assert result['by_category'] == {}
+        assert result['total_achievements'] == 0
+        assert result['earned_count'] == 0
+        assert result['progress_percentage'] == 0
+        assert result['total_xp_earned'] == 0
+
+    def test_earned_count_consistent_with_userachievement_db(self, db_session, test_user):
+        a1 = _make_achievement(db_session, category='streak')
+        a2 = _make_achievement(db_session, category='streak')
+        _make_achievement(db_session, category='streak')
+        _award(db_session, test_user.id, a1)
+        _award(db_session, test_user.id, a2)
+
+        result = StatsService.get_achievements_by_category(test_user.id)
+
+        db_count = UserAchievement.query.filter_by(user_id=test_user.id).count()
+        assert result['earned_count'] == db_count
+        assert result['earned_count'] == 2
+
+    def test_locked_badges_scoped_to_current_user(self, db_session, test_user, second_user):
+        """When another user earns a badge, current user still sees it as locked."""
+        ach = _make_achievement(db_session, name='Чужая ачивка')
+        _award(db_session, second_user.id, ach)
+
+        result = StatsService.get_achievements_by_category(test_user.id)
+
+        cat_items = result['by_category'].get(ach.category, [])
+        item = next((i for i in cat_items if i['achievement'].code == ach.code), None)
+        assert item is not None
+        assert item['earned'] is False
+        assert result['earned_count'] == 0
+
+    def test_progress_percentage_never_exceeds_100(self, db_session, test_user):
+        ach = _make_achievement(db_session)
+        _award(db_session, test_user.id, ach)
+
+        result = StatsService.get_achievements_by_category(test_user.id)
+
+        assert 0 <= result['progress_percentage'] <= 100
+
+    def test_by_category_groups_achievements(self, db_session, test_user):
+        a1 = _make_achievement(db_session, category='words')
+        a2 = _make_achievement(db_session, category='words')
+        a3 = _make_achievement(db_session, category='streak')
+        _award(db_session, test_user.id, a1)
+
+        result = StatsService.get_achievements_by_category(test_user.id)
+
+        words_items = result['by_category'].get('words', [])
+        streak_items = result['by_category'].get('streak', [])
+        assert len(words_items) >= 2
+        assert len(streak_items) >= 1
+        words_earned = [i for i in words_items if i['earned']]
+        assert len(words_earned) >= 1
+        words_locked = [i for i in words_items if not i['earned']]
+        assert len(words_locked) >= 1
+
+
+class TestBadgeTooltipXSSSafety:
+    """Task 79: badge tooltips must not use innerHTML; XSS payloads must be escaped."""
+
+    def _login(self, client, user):
+        with client.session_transaction() as sess:
+            sess['_user_id'] = str(user.id)
+            sess['_fresh'] = True
+
+    def test_achievements_page_escapes_xss_in_description(
+        self, client, app, db_session, test_user,
+    ):
+        payload = '<script>alert("xss")</script>'
+        _make_achievement(
+            db_session,
+            name='XSS Test',
+            description=payload,
+            category='mission',
+        )
+        self._login(client, test_user)
+
+        response = client.get('/study/achievements')
+
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert '<script>alert("xss")</script>' not in html
+        assert '&lt;script&gt;' in html
+
+    def test_achievements_page_escapes_xss_in_name(
+        self, client, app, db_session, test_user,
+    ):
+        payload = '"><img src=x onerror=alert(1)>'
+        _make_achievement(
+            db_session,
+            name=payload,
+            description='Безопасное описание',
+            category='mission',
+        )
+        self._login(client, test_user)
+
+        response = client.get('/study/achievements')
+
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert '"><img src=x onerror=alert(1)>' not in html
+
+    def test_dashboard_achievements_tooltip_is_title_attribute(
+        self, db_session,
+    ):
+        """Verify template uses title= (auto-escaped attr) not data insertion via JS."""
+        import os
+        template_path = os.path.join(
+            os.path.dirname(__file__),
+            '../app/templates/words/dashboard_unified.html',
+        )
+        with open(template_path, encoding='utf-8') as f:
+            source = f.read()
+        assert 'innerHTML' not in source
+        assert 'title=' in source
+
+    def test_achievements_template_tooltip_uses_attr_not_innerHTML(self, db_session):
+        import os
+        template_path = os.path.join(
+            os.path.dirname(__file__),
+            '../app/templates/study/achievements.html',
+        )
+        with open(template_path, encoding='utf-8') as f:
+            source = f.read()
+        assert 'data-ach-tooltip' in source
+        assert source.count('innerHTML') == 0
+
+
+class TestBadgeCountDashboardConsistency:
+    """Task 79: earned badge count in dashboard matches real UserAchievement rows."""
+
+    def test_count_matches_after_multiple_awards(self, db_session, test_user):
+        badges = [_make_achievement(db_session) for _ in range(5)]
+        for b in badges[:3]:
+            _award(db_session, test_user.id, b)
+
+        result = StatsService.get_achievements_by_category(test_user.id)
+        db_count = UserAchievement.query.filter_by(user_id=test_user.id).count()
+
+        assert result['earned_count'] == db_count == 3
+        assert result['total_achievements'] >= 5
+
+    def test_count_zero_for_new_user(self, db_session, second_user):
+        _make_achievement(db_session)
+
+        result = StatsService.get_achievements_by_category(second_user.id)
+
+        assert result['earned_count'] == 0
+        assert UserAchievement.query.filter_by(user_id=second_user.id).count() == 0
+
+    def test_count_does_not_include_other_users(self, db_session, test_user, second_user):
+        ach = _make_achievement(db_session)
+        _award(db_session, second_user.id, ach)
+
+        result = StatsService.get_achievements_by_category(test_user.id)
+
+        assert result['earned_count'] == 0
