@@ -645,12 +645,12 @@
 - Modify: `app/templates/curriculum/lessons/`
 - Modify: `app/static/css/design-system.css`
 
-- [ ] Проверить что .lesson-shell__progress обновляется при переходе между шагами
-- [ ] Убедиться что .result-badge[--correct|--incorrect] не остаётся видимым после retry
-- [ ] Проверить что .input--checking состояние не зависает при network error
-- [ ] Убедиться что prefers-reduced-motion корректно подавляет все анимации уроков
-- [ ] Проверить что lesson completion не отправляется дважды при double-click
-- [ ] run pytest -m smoke -x
+- [x] Проверить что .lesson-shell__progress обновляется при переходе между шагами
+- [x] Убедиться что .result-badge[--correct|--incorrect] не остаётся видимым после retry
+- [x] Проверить что .input--checking состояние не зависает при network error
+- [x] Убедиться что prefers-reduced-motion корректно подавляет все анимации уроков
+- [x] Проверить что lesson completion не отправляется дважды при double-click
+- [x] run pytest -m smoke -x
 
 ### Task 48: Frontend — mobile responsiveness
 
