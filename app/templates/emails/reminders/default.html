@@ -88,7 +88,12 @@
 
         <div class="footer">
             <p>Вы получили это письмо, потому что зарегистрированы на LLT English.</p>
-            <p>Если вы не хотите получать напоминания, <a href="{{ url_for('study.settings', _external=True) }}">измените настройки уведомлений</a>.</p>
+            <p>
+                <a href="{{ url_for('study.settings', _external=True) }}">Настройки уведомлений</a> |
+                {% if unsubscribe_token %}
+                <a href="{{ url_for('study.settings', token=unsubscribe_token, _external=True) }}">Отписаться</a>
+                {% endif %}
+            </p>
         </div>
     </div>
 </body>

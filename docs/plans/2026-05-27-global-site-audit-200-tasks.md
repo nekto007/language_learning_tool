@@ -713,12 +713,12 @@
 - Modify: `app/utils/email_utils.py`
 - Modify: `tests/`
 
-- [ ] Проверить что email templates корректно рендерятся при None значениях
-- [ ] Убедиться что unsubscribe link в каждом marketing email
-- [ ] Проверить что email sending ошибки логируются (не тихо игнорируются)
-- [ ] Убедиться что DEBUG smtp не используется в production конфиге
-- [ ] Тесты для None values in templates, error logging
-- [ ] run pytest tests/ -k email -x
+- [x] Проверить что email templates корректно рендерятся при None значениях
+- [x] Убедиться что unsubscribe link в каждом marketing email
+- [x] Проверить что email sending ошибки логируются (не тихо игнорируются)
+- [x] Убедиться что DEBUG smtp не используется в production конфиге
+- [x] Тесты для None values in templates, error logging
+- [x] run pytest tests/ -k email -x
 
 ### Task 53: Telegram — webhook security и idempotency
 

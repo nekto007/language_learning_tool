@@ -97,6 +97,138 @@ class TestEmailRendering:
         assert 'нового' in html.lower()
 
 
+class TestNoneValuesInTemplates:
+    """Templates must render without errors when context values are None."""
+
+    def test_welcome_html_renders_with_none_username(self, app):
+        from flask import render_template
+        html = render_template('emails/welcome.html', username=None, dashboard_url=None)
+        assert 'Добро пожаловать' in html
+        assert 'None' not in html
+
+    def test_welcome_txt_renders_with_none_username(self, app):
+        from flask import render_template
+        txt = render_template('emails/welcome.txt', username=None, dashboard_url=None)
+        assert 'None' not in txt
+
+    def test_day7_html_renders_with_none_lessons_completed(self, app):
+        from flask import render_template
+        html = render_template(
+            'emails/reengagement/day7.html',
+            username='TestUser',
+            lessons_completed=None,
+            site_url='https://llt-english.com',
+            unsubscribe_url='https://llt-english.com/unsubscribe?token=test',
+        )
+        assert 'None' not in html
+        assert '0' in html
+
+    def test_day3_html_renders_with_none_username(self, app):
+        from flask import render_template
+        html = render_template(
+            'emails/reengagement/day3.html',
+            username=None,
+            site_url='https://llt-english.com',
+            unsubscribe_url='https://llt-english.com/unsubscribe?token=test',
+        )
+        assert 'None' not in html
+
+    def test_day30_html_renders_with_none_username(self, app):
+        from flask import render_template
+        html = render_template(
+            'emails/reengagement/day30.html',
+            username=None,
+            site_url='https://llt-english.com',
+            unsubscribe_url='https://llt-english.com/unsubscribe?token=test',
+        )
+        assert 'None' not in html
+
+
+class TestUnsubscribeLinksInMarketingEmails:
+    """All marketing email templates must include an unsubscribe link."""
+
+    def test_day3_has_unsubscribe(self, app):
+        from flask import render_template
+        html = render_template(
+            'emails/reengagement/day3.html',
+            username='User', site_url='https://llt-english.com',
+            unsubscribe_url='https://llt-english.com/unsubscribe?token=abc',
+        )
+        assert 'unsubscribe' in html.lower() or 'отписаться' in html.lower()
+
+    def test_day7_has_unsubscribe(self, app):
+        from flask import render_template
+        html = render_template(
+            'emails/reengagement/day7.html',
+            username='User', lessons_completed=5, site_url='https://llt-english.com',
+            unsubscribe_url='https://llt-english.com/unsubscribe?token=abc',
+        )
+        assert 'unsubscribe' in html.lower() or 'отписаться' in html.lower()
+
+    def test_day30_has_unsubscribe(self, app):
+        from flask import render_template
+        html = render_template(
+            'emails/reengagement/day30.html',
+            username='User', site_url='https://llt-english.com',
+            unsubscribe_url='https://llt-english.com/unsubscribe?token=abc',
+        )
+        assert 'unsubscribe' in html.lower() or 'отписаться' in html.lower()
+
+    def test_reminder_default_has_unsubscribe_when_token_given(self, app):
+        """reminders/default.html shows unsubscribe link when unsubscribe_token is provided."""
+        from flask import render_template
+        from datetime import datetime, timezone
+
+        class FakeUser:
+            last_login = None
+            username = 'User'
+
+        html = render_template(
+            'emails/reminders/default.html',
+            user=FakeUser(),
+            now=datetime.now(timezone.utc),
+            unsubscribe_token='abc123',
+        )
+        assert 'отписаться' in html.lower() or 'token=abc123' in html.lower()
+
+
+class TestSmtpDebugProduction:
+    """SMTP debug level must default to 0 to avoid verbose output in production."""
+
+    def test_smtp_debug_defaults_to_zero(self):
+        """Verify default SMTP_DEBUG_LEVEL is 0 (no debug output by default)."""
+        import os
+        from unittest.mock import patch
+        with patch.dict(os.environ, {}, clear=True):
+            from app.utils.email_utils import EmailSender
+            sender = EmailSender()
+            assert sender.smtp_debug_level == 0, (
+                "SMTP_DEBUG_LEVEL must default to 0; nonzero value leaks SMTP conversation to logs in production"
+            )
+
+
+class TestEmailErrorLogging:
+    """Email sending errors must be logged, not silently swallowed."""
+
+    def test_smtp_failure_is_logged(self, app):
+        from unittest.mock import patch
+        import smtplib
+        with app.app_context():
+            with patch('app.utils.email_utils.logger') as mock_logger:
+                with patch('app.utils.email_utils.smtplib.SMTP',
+                           side_effect=smtplib.SMTPException("connection refused")):
+                    from app.utils.email_utils import EmailSender
+                    sender = EmailSender()
+                    sender.email_host = 'smtp.example.com'
+                    sender.default_from_email = 'noreply@example.com'
+                    result = sender.send_email('Subj', 'to@test.com', 'welcome',
+                                               {'username': 'X', 'dashboard_url': '#'})
+                    assert result is False
+                    assert mock_logger.exception.called, (
+                        "SMTP failure must be logged via logger.exception"
+                    )
+
+
 class TestUnsubscribeFlow:
     """Test one-click email unsubscribe."""
 
