@@ -112,4 +112,20 @@ def add_security_headers(app: Flask):
 
         return response
 
+    @app.after_request
+    def set_static_cache_headers(response):
+        """Set Cache-Control headers for static file responses."""
+        from flask import request as _req
+        if _req.endpoint == 'static':
+            if _req.args.get('v'):
+                # Versioned assets are immutable — safe to cache for 1 year
+                response.cache_control.public = True
+                response.cache_control.max_age = 31536000
+                response.cache_control.immutable = True
+            else:
+                # Unversioned static files: 1-hour public cache
+                response.cache_control.public = True
+                response.cache_control.max_age = 3600
+        return response
+
     app.logger.info("Security headers middleware initialized")

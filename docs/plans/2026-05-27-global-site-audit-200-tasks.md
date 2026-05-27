@@ -1103,11 +1103,11 @@
 - Modify: `app/__init__.py` (Compress config)
 - Modify: `tests/test_compression.py`
 
-- [ ] Убедиться что gzip сжатие включено для HTML, JSON, CSS, JS
-- [ ] Проверить что ETag headers присутствуют для static files
-- [ ] Убедиться что Cache-Control headers корректны (immutable для versioned assets)
-- [ ] Проверить что компрессия не применяется к уже сжатым форматам (jpg, mp3)
-- [ ] run pytest tests/test_compression.py -x
+- [x] Убедиться что gzip сжатие включено для HTML, JSON, CSS, JS
+- [x] Проверить что ETag headers присутствуют для static files
+- [x] Убедиться что Cache-Control headers корректны (immutable для versioned assets)
+- [x] Проверить что компрессия не применяется к уже сжатым форматам (jpg, mp3)
+- [x] run pytest tests/test_compression.py -x
 
 ### Task 82: Request ID tracking и logging
 
