@@ -321,12 +321,12 @@
 - Modify: `app/achievements/xp_service.py`
 - Modify: `tests/achievements/test_xp_service.py`
 
-- [ ] Проверить что award_xp с score=0 даёт 50% base (не 0)
-- [ ] Убедиться что award_game_xp_idempotent с неверным session_id возвращает None
-- [ ] Проверить что streak multiplier корректно капируется на 2.0
-- [ ] Убедиться что consecutive perfect-day multipliers не применяются при broken streak
-- [ ] Тесты для score=0/100, wrong session_id, multiplier cap, broken streak
-- [ ] run pytest tests/achievements/ -x
+- [x] Проверить что award_xp с score=0 даёт 50% base (не 0)
+- [x] Убедиться что award_game_xp_idempotent с неверным session_id возвращает None
+- [x] Проверить что streak multiplier корректно капируется на 2.0
+- [x] Убедиться что consecutive perfect-day multipliers не применяются при broken streak
+- [x] Тесты для score=0/100, wrong session_id, multiplier cap, broken streak
+- [x] run pytest tests/achievements/ -x
 
 ### Task 24: Streak — has_learning_activity и все источники
 
