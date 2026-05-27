@@ -672,12 +672,12 @@
 - Modify: `app/static/js/speech_api.js`
 - Modify: `app/templates/curriculum/lessons/pronunciation.html`
 
-- [ ] Проверить что self-assess fallback показывается когда Web Speech API недоступен
-- [ ] Убедиться что микрофон permission denied обрабатывается (не пустой экран)
-- [ ] Проверить что speech recognition не стартует при prefers-reduced-motion
-- [ ] Убедиться что pronunciation attempt записывается даже при self-assess
-- [ ] Тесты для fallback path, permission denied, self-assess recording
-- [ ] run pytest tests/curriculum/ -k pronunciation -x
+- [x] Проверить что self-assess fallback показывается когда Web Speech API недоступен
+- [x] Убедиться что микрофон permission denied обрабатывается (не пустой экран)
+- [x] Проверить что speech recognition не стартует при prefers-reduced-motion
+- [x] Убедиться что pronunciation attempt записывается даже при self-assess
+- [x] Тесты для fallback path, permission denied, self-assess recording
+- [x] run pytest tests/curriculum/ -k pronunciation -x
 
 ### Task 50: Frontend — JS error handling в daily-plan-next.js
 
