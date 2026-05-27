@@ -361,12 +361,12 @@
 - Modify: `app/notifications/routes.py`
 - Modify: `tests/test_notifications.py`
 
-- [ ] Проверить что создание notification уважает все preference flags
-- [ ] Убедиться что notification dropdown рендерится через textContent (нет innerHTML XSS)
-- [ ] Проверить что mark-as-read не позволяет чужому пользователю помечать чужие уведомления
-- [ ] Убедиться что bulk mark-all-read использует user_id из сессии (не из body)
-- [ ] Тесты для preference flags, XSS prevention, ownership check
-- [ ] run pytest tests/ -k notification -x
+- [x] Проверить что создание notification уважает все preference flags
+- [x] Убедиться что notification dropdown рендерится через textContent (нет innerHTML XSS)
+- [x] Проверить что mark-as-read не позволяет чужому пользователю помечать чужие уведомления
+- [x] Убедиться что bulk mark-all-read использует user_id из сессии (не из body)
+- [x] Тесты для preference flags, XSS prevention, ownership check
+- [x] run pytest tests/ -k notification -x
 
 ### Task 27: Daily Race — matchmaking и ghost participants
 
