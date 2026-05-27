@@ -268,12 +268,12 @@
 - Modify: `app/words/routes.py`
 - Modify: `tests/words/test_import.py`
 
-- [ ] Убедиться что bulk import preview использует chunk_ids для >1000 слов
-- [ ] Проверить что повторный import одного слова не создаёт дубликатов
-- [ ] Убедиться что import с невалидным CSV не падает с 500
-- [ ] Проверить что import limit MAX_EXPORT_ROWS=10000 применяется на import тоже
-- [ ] Тесты для large import, duplicate prevention, invalid CSV
-- [ ] run pytest tests/words/ -x
+- [x] Убедиться что bulk import preview использует chunk_ids для >1000 слов
+- [x] Проверить что повторный import одного слова не создаёт дубликатов
+- [x] Убедиться что import с невалидным CSV не падает с 500
+- [x] Проверить что import limit MAX_EXPORT_ROWS=10000 применяется на import тоже
+- [x] Тесты для large import, duplicate prevention, invalid CSV
+- [x] run pytest tests/words/ -x
 
 ### Task 20: Grammar Lab — exercise validation и cascade
 

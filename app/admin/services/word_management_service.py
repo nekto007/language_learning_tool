@@ -37,6 +37,7 @@ IMPORT_BASE_COLUMNS = 5
 IMPORT_ENRICHED_COLUMNS = 11
 IMPORT_BILINGUAL_TOPIC_COLUMNS = 12
 IMPORT_HEADER_NAMES = {'english_word', 'word', 'english'}
+MAX_IMPORT_ROWS = 10000
 TOPIC_SUGGESTION_THRESHOLD = 0.72
 TOPIC_TOKEN_ALIASES = {
     'action': 'action',
@@ -731,6 +732,7 @@ class WordManagementService:
         """
         parsed_rows = []
         errors = []
+        seen_english_words: set[str] = set()
 
         reader = csv.reader(StringIO(content), delimiter=';')
         for line_num, parts in enumerate(reader, 1):
@@ -767,6 +769,28 @@ class WordManagementService:
             english_sentence = parts[2].strip()
             russian_sentence = parts[3].strip()
             level = parts[4].strip()
+
+            # Skip within-file duplicates — keep first occurrence only.
+            if english_word in seen_english_words:
+                errors.append({
+                    'line_num': line_num,
+                    'line': raw_line,
+                    'error': f'дублирующееся слово "{english_word}" (уже встречалось в файле)',
+                })
+                continue
+            seen_english_words.add(english_word)
+
+            # Enforce row limit — stop parsing once MAX_IMPORT_ROWS valid rows collected.
+            if len(parsed_rows) >= MAX_IMPORT_ROWS:
+                errors.append({
+                    'line_num': line_num,
+                    'line': raw_line,
+                    'error': (
+                        f'превышен лимит импорта ({MAX_IMPORT_ROWS} строк). '
+                        'Оставшиеся строки пропущены.'
+                    ),
+                })
+                break
 
             word_data = {
                 'line_num': line_num,
@@ -810,6 +834,7 @@ class WordManagementService:
                             '(используйте high/medium/low или 1/2/3)'
                         )
                     })
+                    seen_english_words.discard(english_word)
                     continue
 
                 word_data.update({
