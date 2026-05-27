@@ -8,6 +8,7 @@ from sqlalchemy import func
 from app.admin.audit import log_admin_action
 from app.admin.main_routes import admin
 from app.admin.utils.decorators import admin_required
+from app.admin.utils.request_validators import escape_like
 from app.study.models import QuizDeck, QuizDeckWord, QuizResult
 from app.utils.db import db
 from app.words.models import CollectionWords
@@ -23,12 +24,13 @@ def quiz_decks_list():
     decks_query = QuizDeck.query.order_by(QuizDeck.created_at.desc())
 
     # Search
-    search = request.args.get('search', '')
+    search = request.args.get('search', '').strip()[:200]
     if search:
+        like_pattern = f'%{escape_like(search)}%'
         decks_query = decks_query.filter(
             db.or_(
-                QuizDeck.title.ilike(f'%{search}%'),
-                QuizDeck.description.ilike(f'%{search}%')
+                QuizDeck.title.ilike(like_pattern, escape='\\'),
+                QuizDeck.description.ilike(like_pattern, escape='\\')
             )
         )
 

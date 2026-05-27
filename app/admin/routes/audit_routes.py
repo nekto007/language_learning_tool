@@ -15,6 +15,7 @@ from app.admin.utils.export_helpers import (
     _sanitize_csv_cell,
     _stream_csv_rows,
 )
+from app.admin.utils.request_validators import escape_like
 from app.auth.models import User
 from app.utils.db import db
 from flask import Response
@@ -95,7 +96,7 @@ def _get_audit_entries(
     if admin_id is not None:
         query = query.filter(AdminAuditLog.admin_id == admin_id)
     if action_filter:
-        query = query.filter(AdminAuditLog.action.ilike(f'%{action_filter}%'))
+        query = query.filter(AdminAuditLog.action.ilike(f'%{escape_like(action_filter)}%', escape='\\'))
     if date_from:
         query = query.filter(AdminAuditLog.created_at >= date_from)
     if date_to:
@@ -138,7 +139,7 @@ def audit_export_csv():
     if admin_id is not None:
         query = query.filter(AdminAuditLog.admin_id == admin_id)
     if action_filter:
-        query = query.filter(AdminAuditLog.action.ilike(f'%{action_filter}%'))
+        query = query.filter(AdminAuditLog.action.ilike(f'%{escape_like(action_filter)}%', escape='\\'))
     if date_from:
         query = query.filter(AdminAuditLog.created_at >= date_from)
     if date_to:

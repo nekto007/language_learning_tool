@@ -509,12 +509,12 @@
 - Modify: `app/admin/routes/` (поиск raw SQL)
 - Modify: `tests/`
 
-- [ ] Grep text() usage и убедиться что все параметры bindparam'ы, не f-strings
-- [ ] Проверить admin search endpoints на ORM filter injection
-- [ ] Убедиться что CSV export _sanitize_csv_cell применяется ко всем полям
-- [ ] Проверить что admin user search не раскрывает hashed passwords через API
-- [ ] Тесты для parametrized queries, CSV injection, password leakage
-- [ ] run pytest tests/ -k security -x
+- [x] Grep text() usage и убедиться что все параметры bindparam'ы, не f-strings
+- [x] Проверить admin search endpoints на ORM filter injection
+- [x] Убедиться что CSV export _sanitize_csv_cell применяется ко всем полям
+- [x] Проверить что admin user search не раскрывает hashed passwords через API
+- [x] Тесты для parametrized queries, CSV injection, password leakage
+- [x] run pytest tests/ -k security -x
 
 ### Task 38: Security — headers и CSP
 
