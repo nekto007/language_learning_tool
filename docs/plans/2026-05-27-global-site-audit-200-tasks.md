@@ -941,12 +941,12 @@
 - Modify: `app/daily_plan/linear/xp.py`
 - Modify: `tests/`
 
-- [ ] Проверить что award_curriculum_lesson_xp_idempotent flush only (не commit)
-- [ ] Убедиться что for_date использует get_user_local_date (не UTC now)
-- [ ] Проверить что повторный complete_lesson не дублирует StreakEvent
-- [ ] Убедиться что maybe_award_listening/writing_xp корректно проверяют idempotency key
-- [ ] Тесты для flush-only, date source, duplicate prevention
-- [ ] run pytest tests/ -k xp -x
+- [x] Проверить что award_curriculum_lesson_xp_idempotent flush only (не commit)
+- [x] Убедиться что for_date использует get_user_local_date (не UTC now)
+- [x] Проверить что повторный complete_lesson не дублирует StreakEvent
+- [x] Убедиться что maybe_award_listening/writing_xp корректно проверяют idempotency key
+- [x] Тесты для flush-only, date source, duplicate prevention
+- [x] run pytest tests/ -k xp -x
 
 ### Task 70: Rank system — check_rank_up и notifications
 
