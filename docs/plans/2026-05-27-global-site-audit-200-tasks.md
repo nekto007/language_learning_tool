@@ -189,11 +189,11 @@
 - Modify: `app/curriculum/routes/card_lessons.py`
 - Modify: `tests/srs/`
 
-- [ ] Проверить что lesson_safe=true корректно обходит только global new-card limit
-- [ ] Убедиться что без lesson_safe флага free study уважает daily limits
-- [ ] Проверить что параллельные запросы с lesson_safe не создают дублирующих карточек
-- [ ] Тесты для lesson_safe bypass и free-study limit enforcement
-- [ ] run pytest tests/srs/ tests/curriculum/ -x
+- [x] Проверить что lesson_safe=true корректно обходит только global new-card limit
+- [x] Убедиться что без lesson_safe флага free study уважает daily limits
+- [x] Проверить что параллельные запросы с lesson_safe не создают дублирующих карточек
+- [x] Тесты для lesson_safe bypass и free-study limit enforcement
+- [x] run pytest tests/srs/ tests/curriculum/ -x
 
 ### Task 14: Books — reading progress и compute_book_progress_percent
 
