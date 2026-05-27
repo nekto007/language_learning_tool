@@ -550,12 +550,12 @@
 - Modify: `app/admin/routes/settings_routes.py`
 - Modify: `tests/admin/test_admin_settings.py`
 
-- [ ] Убедиться что validate_setting_value вызывается перед set_site_setting везде
-- [ ] Проверить что SettingValidationError возвращает 400 (не 500)
-- [ ] Убедиться что ensure_defaults_seeded идемпотентен при concurrent startup
-- [ ] Проверить что GSC токены не утекают в error messages
-- [ ] Тесты для validation errors, concurrent seeding, token leakage
-- [ ] run pytest tests/admin/test_admin_settings.py -x
+- [x] Убедиться что validate_setting_value вызывается перед set_site_setting везде
+- [x] Проверить что SettingValidationError возвращает 400 (не 500)
+- [x] Убедиться что ensure_defaults_seeded идемпотентен при concurrent startup
+- [x] Проверить что GSC токены не утекают в error messages
+- [x] Тесты для validation errors, concurrent seeding, token leakage
+- [x] run pytest tests/admin/test_admin_settings.py -x
 
 ### Task 41: Admin — audit log completeness
 

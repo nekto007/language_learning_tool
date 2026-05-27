@@ -6,6 +6,8 @@ import logging
 from datetime import datetime, UTC
 from typing import Any, Optional
 
+from sqlalchemy.exc import IntegrityError
+
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
@@ -287,10 +289,20 @@ def get_public_settings(db_session=None) -> dict[str, str]:
 
 
 def ensure_defaults_seeded(db_session=None) -> None:
-    """Create any missing default rows in site_settings.  Caller commits."""
+    """Create any missing default rows in site_settings.  Caller commits.
+
+    Uses per-key savepoints so concurrent startup workers don't collide —
+    a duplicate-key IntegrityError for a given row is silently absorbed
+    rather than aborting the whole seed pass.
+    """
     session = db_session or db.session
     for key, default_value in SETTING_DEFAULTS.items():
         existing = session.get(SiteSettings, key)
-        if existing is None:
+        if existing is not None:
+            continue
+        try:
+            nested = session.begin_nested()
             session.add(SiteSettings(key=key, value=default_value))
-    session.flush()
+            nested.commit()
+        except IntegrityError:
+            nested.rollback()
