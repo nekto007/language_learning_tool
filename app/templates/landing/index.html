@@ -818,7 +818,7 @@
         <h2 class="land-section__title">Слово дня</h2>
         <div style="max-width: 500px; margin: 0 auto; background: var(--land-surface); border: 1px solid var(--land-border); border-radius: var(--land-radius); padding: 1.5rem; text-align: center;">
             <div style="font-size: 2rem; font-weight: 800; color: var(--land-primary); margin-bottom: 0.25rem;">{{ word_of_day.english_word }}</div>
-            <div style="font-size: 1.1rem; color: var(--land-text-muted); margin-bottom: 1rem;">{{ word_of_day.russian_word }}</div>
+            {% if word_of_day.russian_word %}<div style="font-size: 1.1rem; color: var(--land-text-muted); margin-bottom: 1rem;">{{ word_of_day.russian_word }}</div>{% endif %}
             {% if word_of_day.sentences %}
             <div style="font-size: 0.9rem; color: var(--land-text); line-height: 1.6; padding: 0.75rem 1rem; background: var(--land-surface-alt); border-radius: 8px; border-left: 3px solid var(--land-primary); text-align: left; margin-bottom: 1rem;">
                 {{ word_of_day.sentences|truncate(150)|sanitize }}

@@ -846,12 +846,12 @@
 - Modify: `app/words/routes.py` (word of day logic)
 - Modify: `tests/test_word_of_day.py`
 
-- [ ] Проверить что word of day консистентен в течение дня (нет per-request randomness)
-- [ ] Убедиться что word of day работает для anonymous users
-- [ ] Проверить что word без translations не ломает word of day
-- [ ] Убедиться что word of day не возвращает suspended/deleted words
-- [ ] Тесты для daily consistency, anonymous access, no-translation word
-- [ ] run pytest tests/test_word_of_day.py -x
+- [x] Проверить что word of day консистентен в течение дня (нет per-request randomness)
+- [x] Убедиться что word of day работает для anonymous users
+- [x] Проверить что word без translations не ломает word of day
+- [x] Убедиться что word of day не возвращает suspended/deleted words
+- [x] Тесты для daily consistency, anonymous access, no-translation word
+- [x] run pytest tests/test_word_of_day.py -x
 
 ### Task 63: Referral система и idempotency
 

@@ -37,17 +37,19 @@ def index():
     from datetime import date
     import hashlib
     today_seed = int(hashlib.md5(str(date.today()).encode()).hexdigest(), 16)
-    total_words = CollectionWords.query.filter(
+    _wotd_filter = [
         CollectionWords.frequency_rank > 0,
         CollectionWords.sentences.isnot(None),
-    ).count()
+        CollectionWords.russian_word.isnot(None),
+    ]
+    total_words = CollectionWords.query.filter(*_wotd_filter).count()
     word_of_day = None
     if total_words > 0:
         offset = today_seed % total_words
         word_of_day = (
             CollectionWords.query
-            .filter(CollectionWords.frequency_rank > 0, CollectionWords.sentences.isnot(None))
-            .order_by(CollectionWords.frequency_rank.asc())
+            .filter(*_wotd_filter)
+            .order_by(CollectionWords.frequency_rank.asc(), CollectionWords.id.asc())
             .offset(offset)
             .limit(1)
             .first()
