@@ -215,12 +215,12 @@
 - Modify: `app/books/api.py`
 - Modify: `tests/books/`
 
-- [ ] Проверить что end_session(session_id) возвращает 403 для чужой сессии
-- [ ] Убедиться что start_session не создаёт дублирующих сессий для одной главы
-- [ ] Проверить что has_min_reading_time_today >= 60s правильно агрегирует multiple sessions
-- [ ] Убедиться что offset_delta < 0 не ломает агрегацию
-- [ ] Тесты для ownership check, duplicate sessions, negative offset
-- [ ] run pytest tests/books/ -x
+- [x] Проверить что end_session(session_id) возвращает 403 для чужой сессии
+- [x] Убедиться что start_session не создаёт дублирующих сессий для одной главы
+- [x] Проверить что has_min_reading_time_today >= 60s правильно агрегирует multiple sessions
+- [x] Убедиться что offset_delta < 0 не ломает агрегацию
+- [x] Тесты для ownership check, duplicate sessions, negative offset
+- [x] run pytest tests/books/ -x
 
 ### Task 16: Books — book catalog и доступ
 

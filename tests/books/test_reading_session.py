@@ -189,6 +189,133 @@ class TestSaveReadingPositionTimeGate:
         assert events == 0
 
 
+class TestTask15Audit:
+    """Task 15 audit: ownership, no-duplicate sessions, aggregation, negative offset."""
+
+    def test_end_session_returns_403_for_foreign_session(
+        self, authenticated_client, db_session, second_user, test_chapter,
+    ):
+        """end_session API must return 403 when session belongs to a different user."""
+        other = start_session(second_user.id, test_chapter.id, db)
+        db_session.commit()
+        r = authenticated_client.post(
+            '/api/books/reading-session/end',
+            json={'session_id': other.id},
+        )
+        assert r.status_code == 403
+        body = r.get_json()
+        assert body.get('error') == 'forbidden'
+
+    def test_start_session_no_duplicate_open_rows(
+        self, app, db_session, test_user, test_chapter,
+    ):
+        """start_session must produce at most one open row per (user, chapter).
+
+        A second call auto-closes the first open session before inserting a
+        new one — the partial unique index enforces the invariant.
+        """
+        s1 = start_session(test_user.id, test_chapter.id, db)
+        db_session.commit()
+        s2 = start_session(test_user.id, test_chapter.id, db)
+        db_session.commit()
+
+        open_count = (
+            db_session.query(UserReadingSession)
+            .filter(
+                UserReadingSession.user_id == test_user.id,
+                UserReadingSession.chapter_id == test_chapter.id,
+                UserReadingSession.ended_at.is_(None),
+            )
+            .count()
+        )
+        assert open_count == 1
+        # First session must now be closed
+        s1_fresh = db.session.get(UserReadingSession, s1.id)
+        assert s1_fresh.ended_at is not None
+        # Second session is the currently open one
+        s2_fresh = db.session.get(UserReadingSession, s2.id)
+        assert s2_fresh.ended_at is None
+
+    def test_has_min_reading_time_aggregates_multiple_sessions(
+        self, app, db_session, test_user, test_chapter, test_book,
+    ):
+        """Two sessions each shorter than MIN_READING_SECONDS must together
+        satisfy has_min_reading_time_today when their sum >= minimum.
+        """
+        half = MIN_READING_SECONDS // 2 + 5  # each session alone: below threshold
+
+        s1 = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s1, half)
+        s2 = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s2, half)
+        db_session.commit()
+
+        total = get_session_duration(test_user.id, test_chapter.id, db)
+        assert total >= MIN_READING_SECONDS
+        assert has_min_reading_time_today(test_user.id, test_book.id, db) is True
+
+    def test_single_session_below_threshold_insufficient(
+        self, app, db_session, test_user, test_chapter, test_book,
+    ):
+        """A single session shorter than MIN_READING_SECONDS must not satisfy
+        has_min_reading_time_today even when another open (unclosed) session exists.
+        """
+        s = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s, MIN_READING_SECONDS - 10)
+        # Open session — must NOT contribute to duration
+        start_session(test_user.id, test_chapter.id, db)
+        db_session.commit()
+
+        assert has_min_reading_time_today(test_user.id, test_book.id, db) is False
+
+    def test_negative_offset_delta_does_not_break_aggregation(
+        self, app, db_session, test_user, test_chapter, test_book,
+    ):
+        """offset_delta is always clamped to >= 0 by end_session (max(0, ...)).
+        has_min_reading_time_today aggregates duration_seconds — unaffected
+        by offset values. A session with offset_delta=0 still contributes
+        its full duration to the time-gate sum.
+        """
+        s = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s, MIN_READING_SECONDS + 5)
+        # Force offset_delta to 0 (simulates start_offset_pct == current offset)
+        s.offset_delta = 0.0
+        db_session.commit()
+
+        # Duration gate still met regardless of offset_delta value
+        assert has_min_reading_time_today(test_user.id, test_book.id, db) is True
+
+    def test_end_session_offset_delta_clamped_never_negative(
+        self, app, db_session, test_user, test_chapter,
+    ):
+        """end_session must compute offset_delta = max(0, ...) so it can never
+        be negative even when start_offset_pct > current progress.
+        """
+        from app.books.models import UserChapterProgress
+
+        # Persist progress at 0.5, then start a session that snapshots 0.5
+        db_session.add(UserChapterProgress(
+            user_id=test_user.id, chapter_id=test_chapter.id, offset_pct=0.5,
+        ))
+        db_session.commit()
+
+        s = start_session(test_user.id, test_chapter.id, db)
+        # Simulate progress going backward (should not happen in practice but
+        # we want to verify the guard)
+        progress = (
+            db_session.query(UserChapterProgress)
+            .filter_by(user_id=test_user.id, chapter_id=test_chapter.id)
+            .first()
+        )
+        progress.offset_pct = 0.0  # regressed
+        db_session.commit()
+
+        closed = end_session(s.id, db_session=db)
+        db_session.commit()
+        assert closed is not None
+        assert closed.offset_delta >= 0.0
+
+
 class TestReadingSessionEndpoints:
     def test_start_then_end_returns_duration(
         self, authenticated_client, db_session, test_user, test_chapter,
