@@ -969,12 +969,12 @@
 - Modify: `app/curriculum/routes/book_courses_api.py`
 - Modify: `tests/`
 
-- [ ] Проверить что enrollment idempotent (повторный enroll не создаёт дублей)
-- [ ] Убедиться что chapter completion XP не начисляется дважды
-- [ ] Проверить что book course progress корректен при removed chapter
-- [ ] Убедиться что unenrollment cascade обрабатывает все связанные записи
-- [ ] Тесты для idempotent enrollment, removed chapter, unenrollment
-- [ ] run pytest tests/ -k book_course -x
+- [x] Проверить что enrollment idempotent (повторный enroll не создаёт дублей)
+- [x] Убедиться что chapter completion XP не начисляется дважды
+- [x] Проверить что book course progress корректен при removed chapter
+- [x] Убедиться что unenrollment cascade обрабатывает все связанные записи
+- [x] Тесты для idempotent enrollment, removed chapter, unenrollment
+- [x] run pytest tests/ -k book_course -x
 
 ### Task 72: Comprehension generator и lesson content quality
 
