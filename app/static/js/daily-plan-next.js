@@ -80,6 +80,7 @@
     })
       .then(function(r) { return r.json(); })
       .then(function(data) {
+        if (!data || typeof data !== 'object') return;
         // Legacy banner (backward compatibility) — only if container exists
         if (container) {
           if (data.has_next) {

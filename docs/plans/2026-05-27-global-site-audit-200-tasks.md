@@ -632,12 +632,12 @@
 - Modify: `app/templates/partials/unified_daily_plan.html`
 - Modify: `app/static/css/design-system.css`
 
-- [ ] Проверить что skeleton loaders не остаются видимыми после загрузки данных
-- [ ] Убедиться что .btn--loading класс применяется на все кнопки с network requests
-- [ ] Проверить что empty state показывается когда план пустой (не blank screen)
-- [ ] Убедиться что day_secured визуально отражается в UI (нет de-sync с payload)
-- [ ] Проверить что dashboard не крашит JS при null значениях в plan payload
-- [ ] run pytest -m smoke -x
+- [x] Проверить что skeleton loaders не остаются видимыми после загрузки данных
+- [x] Убедиться что .btn--loading класс применяется на все кнопки с network requests
+- [x] Проверить что empty state показывается когда план пустой (не blank screen)
+- [x] Убедиться что day_secured визуально отражается в UI (нет de-sync с payload)
+- [x] Проверить что dashboard не крашит JS при null значениях в plan payload
+- [x] run pytest -m smoke -x
 
 ### Task 47: Frontend — lesson shell и progress indicators
 

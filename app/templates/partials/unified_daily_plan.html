@@ -262,9 +262,12 @@
         <p class="daily-plan__secured-note">День закрыт <span aria-hidden="true">&#10003;</span></p>
       {% endif %}
     {% else %}
-      <p class="daily-plan__empty">
-        Завершите настройку ниже, чтобы получить план дня.
-      </p>
+      <div class="daily-plan__empty-state" role="status" aria-live="polite">
+        <span class="daily-plan__empty-icon" aria-hidden="true">&#128203;</span>
+        <p class="daily-plan__empty">
+          Завершите настройку ниже, чтобы получить план дня.
+        </p>
+      </div>
     {% endif %}
   </div>
 
@@ -428,7 +431,11 @@
     var root = document.querySelector('[data-daily-plan="true"][data-mode="unified"]');
     if (!root) return;
     var btn = root.querySelector('[data-action="reload-plan"]');
-    if (btn) btn.addEventListener('click', function() { window.location.reload(); });
+    if (btn) btn.addEventListener('click', function() {
+        btn.classList.add('btn--loading');
+        btn.textContent = 'Загрузка\u2026';
+        window.location.reload();
+    });
     root.querySelectorAll('.plan-item--locked .plan-item__link, .plan-item--optional-locked .plan-item__link').forEach(function(a) {
         a.addEventListener('click', function(ev) { ev.preventDefault(); });
     });
@@ -453,6 +460,7 @@
             var kind = reasonsDiv ? reasonsDiv.dataset.skipReasons : '';
             if (!kind || !reason) { return; }
             btn.disabled = true;
+            btn.classList.add('btn--loading');
             var csrfMeta = document.querySelector('meta[name="csrf-token"]');
             var headers = { 'Content-Type': 'application/json' };
             if (csrfMeta) { headers['X-CSRFToken'] = csrfMeta.content; }
@@ -469,9 +477,11 @@
                     window.location.reload();
                 } else {
                     btn.disabled = false;
+                    btn.classList.remove('btn--loading');
                 }
             }).catch(function () {
                 btn.disabled = false;
+                btn.classList.remove('btn--loading');
             });
         });
     });
