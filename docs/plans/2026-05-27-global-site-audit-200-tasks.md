@@ -726,12 +726,12 @@
 - Modify: `app/telegram/routes.py`
 - Modify: `tests/telegram/`
 
-- [ ] Проверить что webhook endpoint проверяет X-Telegram-Bot-Api-Secret-Token
-- [ ] Убедиться что повторная обработка одного update_id идемпотентна
-- [ ] Проверить что TelegramUser linking не позволяет hijack чужого аккаунта
-- [ ] Убедиться что webhook не раскрывает bot token через error messages
-- [ ] Тесты для secret token check, idempotency, account linking security
-- [ ] run pytest tests/telegram/ -x
+- [x] Проверить что webhook endpoint проверяет X-Telegram-Bot-Api-Secret-Token
+- [x] Убедиться что повторная обработка одного update_id идемпотентна
+- [x] Проверить что TelegramUser linking не позволяет hijack чужого аккаунта
+- [x] Убедиться что webhook не раскрывает bot token через error messages
+- [x] Тесты для secret token check, idempotency, account linking security
+- [x] run pytest tests/telegram/ -x
 
 ### Task 54: SEO — sitemap и canonical correctness
 

@@ -1,5 +1,7 @@
 """Telegram webhook and account linking routes."""
 import logging
+import threading
+from collections import deque
 
 from flask import request, jsonify, current_app
 from flask_login import login_required, current_user
@@ -9,6 +11,33 @@ from app.telegram.models import TelegramLinkCode, TelegramUser
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
+
+
+# ── Update-ID deduplication (Telegram retries protection) ───────────
+
+class _BoundedUpdateSet:
+    """Thread-safe bounded set for deduplicating Telegram update_ids."""
+
+    def __init__(self, maxlen: int = 1000) -> None:
+        self._maxlen = maxlen
+        self._queue: deque[int] = deque()
+        self._seen: set[int] = set()
+        self._lock = threading.Lock()
+
+    def is_duplicate(self, update_id: int) -> bool:
+        """Return True if update_id was already seen; register it if not."""
+        with self._lock:
+            if update_id in self._seen:
+                return True
+            self._queue.append(update_id)
+            self._seen.add(update_id)
+            if len(self._queue) > self._maxlen:
+                old = self._queue.popleft()
+                self._seen.discard(old)
+            return False
+
+
+_update_tracker = _BoundedUpdateSet(maxlen=1000)
 
 
 # ── Account linking API (website side) ──────────────────────────────
@@ -80,6 +109,12 @@ def webhook():
     data = request.get_json(silent=True)
     if not data:
         return '', 400
+
+    # Idempotency: skip updates Telegram already delivered successfully
+    update_id = data.get('update_id')
+    if update_id is not None and _update_tracker.is_duplicate(update_id):
+        logger.debug('Skipping duplicate Telegram update_id=%s', update_id)
+        return '', 200
 
     try:
         handle_update(data)
