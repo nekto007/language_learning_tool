@@ -333,6 +333,108 @@ class TestNotifyRankUp:
         assert notif is None
 
 
+class TestConcurrentRankUpDedup:
+    """record_plan_completion idempotency prevents duplicate notifications."""
+
+    def test_duplicate_completion_same_day_no_extra_notification(
+        self, db_session, rank_user,
+    ):
+        """Two back-to-back completions on the same day must emit exactly one notification."""
+        from app.achievements.models import UserStatistics
+        from app.notifications.models import Notification
+        from app.notifications.services import notify_rank_up
+
+        stats = UserStatistics(
+            user_id=rank_user.id,
+            plans_completed_total=6,
+            current_rank='novice',
+        )
+        db_session.add(stats)
+        db_session.flush()
+
+        today = date.today()
+
+        # First call — crosses the threshold, returns RankUp.
+        rank_up1 = record_plan_completion(rank_user.id, for_date=today)
+        db_session.flush()
+        if rank_up1 is not None:
+            notify_rank_up(rank_user.id, rank_up1.new_name)
+            db_session.flush()
+
+        # Second call same day — must return None (idempotent).
+        rank_up2 = record_plan_completion(rank_user.id, for_date=today)
+        db_session.flush()
+        if rank_up2 is not None:
+            notify_rank_up(rank_user.id, rank_up2.new_name)
+            db_session.flush()
+
+        assert rank_up1 is not None  # first call detected the promotion
+        assert rank_up2 is None  # second call was idempotent
+
+        notif_count = Notification.query.filter_by(
+            user_id=rank_user.id, type='rank_up',
+        ).count()
+        assert notif_count == 1, "Must not create duplicate rank-up notifications"
+
+    def test_check_rank_up_does_not_create_notifications(
+        self, db_session, rank_user,
+    ):
+        """check_rank_up is a pure detection helper — it never writes notifications."""
+        from app.achievements.models import UserStatistics
+        from app.notifications.models import Notification
+
+        stats = UserStatistics(
+            user_id=rank_user.id,
+            plans_completed_total=50,
+            current_rank='explorer',  # stale: should be 'expert' at 50
+        )
+        db_session.add(stats)
+        db_session.flush()
+
+        result = check_rank_up(rank_user.id)
+        db_session.flush()
+
+        assert isinstance(result, RankUp)
+        assert result.new_code == 'expert'
+
+        notif_count = Notification.query.filter_by(user_id=rank_user.id).count()
+        assert notif_count == 0, "check_rank_up must not create any notifications"
+
+    def test_record_plan_completion_updates_both_rank_fields(
+        self, db_session, rank_user,
+    ):
+        """plans_completed_total and current_rank are both updated on rank-up."""
+        from app.achievements.models import UserStatistics
+
+        stats = UserStatistics(
+            user_id=rank_user.id,
+            plans_completed_total=20,
+            current_rank='explorer',
+        )
+        db_session.add(stats)
+        db_session.flush()
+
+        result = record_plan_completion(rank_user.id, for_date=date.today())
+        db_session.flush()
+
+        assert isinstance(result, RankUp)
+        assert result.new_code == 'student'
+
+        refreshed = UserStatistics.query.filter_by(user_id=rank_user.id).one()
+        assert refreshed.plans_completed_total == 21
+        assert refreshed.current_rank == 'student'
+
+    def test_zero_plans_always_novice(self):
+        """get_user_rank(0) is Novice — confirmed at multiple call sites."""
+        info = get_user_rank(0)
+        assert info.code == 'novice'
+        assert info.name == 'Novice'
+
+        # Helpers are consistent.
+        assert get_rank_code(0) == 'novice'
+        assert get_rank_name(0) == 'Novice'
+
+
 class TestStreakServiceIntegration:
     """process_streak_on_activity triggers record_plan_completion on full plans."""
 

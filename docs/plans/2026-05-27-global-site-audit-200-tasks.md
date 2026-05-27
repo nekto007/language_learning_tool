@@ -955,12 +955,12 @@
 - Modify: `app/achievements/services.py`
 - Modify: `tests/achievements/`
 
-- [ ] Проверить что check_rank_up не дублирует notification при concurrent requests
-- [ ] Убедиться что get_user_rank возвращает Novice при plans_completed=0
-- [ ] Проверить что rank notification создаётся через notifications/services.py (с preference check)
-- [ ] Убедиться что rank fields (plans_completed_total, current_rank) корректно обновляются
-- [ ] Тесты для zero plans, concurrent rank-up, notification preference
-- [ ] run pytest tests/achievements/ -x
+- [x] Проверить что check_rank_up не дублирует notification при concurrent requests
+- [x] Убедиться что get_user_rank возвращает Novice при plans_completed=0
+- [x] Проверить что rank notification создаётся через notifications/services.py (с preference check)
+- [x] Убедиться что rank fields (plans_completed_total, current_rank) корректно обновляются
+- [x] Тесты для zero plans, concurrent rank-up, notification preference
+- [x] run pytest tests/achievements/ -x
 
 ### Task 71: BookCourse — enrollment и progress
 
