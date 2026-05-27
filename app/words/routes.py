@@ -2173,9 +2173,23 @@ def word_detail(word_id):
         .all()
     )
 
-    word_profile = build_word_profile(word)
+    try:
+        word_profile = build_word_profile(word)
+    except Exception:
+        logger.exception('build_word_profile failed for word_id=%s', word_id)
+        word_profile = {
+            'synonyms': [], 'antonyms': [], 'usage_context': '', 'etymology': '',
+            'frequency_band_label': 'Не указана', 'item_type_label': '',
+            'audio_available': False, 'facts': [], 'admin_facts': [],
+            'study_facts': [], 'public_facts': [],
+            'base_word': None, 'phrasal_verbs': [], 'common_mistake': None,
+        }
     study_summary = build_word_study_summary(user_word)
-    related_words = get_related_words(word, limit=6)
+    try:
+        related_words = get_related_words(word, limit=6)
+    except Exception:
+        logger.exception('get_related_words failed for word_id=%s', word_id)
+        related_words = []
 
     return render_template(
         'words/details_optimized.html',

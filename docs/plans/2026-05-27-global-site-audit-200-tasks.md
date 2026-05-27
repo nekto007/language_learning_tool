@@ -242,12 +242,12 @@
 - Modify: `app/words/detail_service.py`
 - Modify: `tests/words/`
 
-- [ ] Проверить что /words/<word_id> возвращает 404 для несуществующего word_id
-- [ ] Убедиться что translation lookup не раскрывает внутренние ошибки через 500
-- [ ] Проверить что ipa_transcription=None не ломает шаблон
-- [ ] Убедиться что synonyms/antonyms=None рендерятся как пустой список (не "None")
-- [ ] Тесты для 404, None fields, translation failure graceful degradation
-- [ ] run pytest tests/words/ -x
+- [x] Проверить что /words/<word_id> возвращает 404 для несуществующего word_id
+- [x] Убедиться что translation lookup не раскрывает внутренние ошибки через 500
+- [x] Проверить что ipa_transcription=None не ломает шаблон
+- [x] Убедиться что synonyms/antonyms=None рендерятся как пустой список (не "None")
+- [x] Тесты для 404, None fields, translation failure graceful degradation
+- [x] run pytest tests/words/ -x
 
 ### Task 18: Words — collocation и vocabulary depth fields
 

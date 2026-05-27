@@ -688,6 +688,88 @@ class TestWordDetail:
         assert "playAudio('" not in html
         assert 'onclick=\'playAudio("' in html
 
+    def test_word_detail_none_russian_word_not_shown(
+        self,
+        authenticated_client,
+        db_session,
+        words_module,
+    ):
+        """None russian_word must not render as the string 'None' in the hero section."""
+        suffix = uuid.uuid4().hex[:8]
+        word = CollectionWords(
+            english_word=f'nulltrans{suffix}',
+            russian_word=None,
+            level='A1',
+            item_type='word',
+        )
+        db_session.add(word)
+        db_session.commit()
+
+        resp = authenticated_client.get(f'/words/{word.id}')
+        html = resp.get_data(as_text=True)
+
+        assert resp.status_code == 200
+        assert '>None<' not in html
+        assert 'class="wdet-hero__translation">None' not in html
+
+    def test_word_detail_service_failure_does_not_return_500(
+        self,
+        authenticated_client,
+        db_session,
+        words_module,
+        monkeypatch,
+    ):
+        """If get_related_words raises unexpectedly the route falls back gracefully."""
+        suffix = uuid.uuid4().hex[:8]
+        word = CollectionWords(
+            english_word=f'failword{suffix}',
+            russian_word='тест',
+            level='A2',
+            item_type='word',
+        )
+        db_session.add(word)
+        db_session.commit()
+
+        import app.words.routes as words_routes_mod
+
+        def _boom(*args, **kwargs):
+            raise RuntimeError('simulated DB error')
+
+        monkeypatch.setattr(words_routes_mod, 'get_related_words', _boom)
+
+        resp = authenticated_client.get(f'/words/{word.id}')
+
+        assert resp.status_code == 200
+
+    def test_word_detail_profile_service_failure_does_not_return_500(
+        self,
+        authenticated_client,
+        db_session,
+        words_module,
+        monkeypatch,
+    ):
+        """If build_word_profile raises the route falls back to empty profile."""
+        suffix = uuid.uuid4().hex[:8]
+        word = CollectionWords(
+            english_word=f'profilefail{suffix}',
+            russian_word='тест',
+            level='A2',
+            item_type='word',
+        )
+        db_session.add(word)
+        db_session.commit()
+
+        import app.words.routes as words_routes_mod
+
+        def _boom(*args, **kwargs):
+            raise RuntimeError('simulated profile build error')
+
+        monkeypatch.setattr(words_routes_mod, 'build_word_profile', _boom)
+
+        resp = authenticated_client.get(f'/words/{word.id}')
+
+        assert resp.status_code == 200
+
 
 # ==================== UPDATE WORD STATUS ====================
 
