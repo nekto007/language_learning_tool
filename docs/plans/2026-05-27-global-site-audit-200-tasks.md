@@ -605,12 +605,12 @@
 - Modify: `app/admin/routes/book_routes.py`
 - Modify: `tests/admin/`
 
-- [ ] Убедиться что sync_book_course_from_book не перезатирает title/description
-- [ ] Проверить что book delete каскадно обрабатывает связанные BookCourse
-- [ ] Убедиться что book slug unique constraint выдаёт понятную ошибку (не 500)
-- [ ] Проверить что audio file upload для book chapter проверяет MIME type
-- [ ] Тесты для sync fields, cascade delete, slug conflict
-- [ ] run pytest tests/admin/ -x
+- [x] Убедиться что sync_book_course_from_book не перезатирает title/description
+- [x] Проверить что book delete каскадно обрабатывает связанные BookCourse
+- [x] Убедиться что book slug unique constraint выдаёт понятную ошибку (не 500)
+- [x] Проверить что audio file upload для book chapter проверяет MIME type
+- [x] Тесты для sync fields, cascade delete, slug conflict
+- [x] run pytest tests/admin/ -x
 
 ### Task 45: Admin — curriculum import preview
 

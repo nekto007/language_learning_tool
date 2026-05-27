@@ -3,7 +3,7 @@
 import re
 from datetime import datetime, timezone
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text, Boolean
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref as sa_backref
 from app.utils.db import db
 
 
@@ -34,7 +34,13 @@ def sync_book_course_from_book(book_id: int, db_session=None) -> int:
         modules_count = BookCourseModule.query.filter_by(course_id=course.id).count()
         changed = False
         if new_slug and course.slug != new_slug:
-            course.slug = new_slug
+            # Avoid unique-constraint violation: if another course already holds this
+            # slug, append the course id to disambiguate.
+            slug_taken = BookCourse.query.filter(
+                BookCourse.slug == new_slug,
+                BookCourse.id != course.id,
+            ).first()
+            course.slug = f"{new_slug}-{course.id}" if slug_taken else new_slug
             changed = True
         if course.total_modules != modules_count:
             course.total_modules = modules_count
@@ -96,7 +102,10 @@ class BookCourse(db.Model):
                         onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
-    book = relationship('Book', backref='book_courses')
+    # passive_deletes=True: when a Book is deleted via the ORM, SQLAlchemy will
+    # not try to SET NULL on book_id (which is NOT NULL); instead the DB-level
+    # ON DELETE CASCADE removes the BookCourse rows automatically.
+    book = relationship('Book', backref=sa_backref('book_courses', passive_deletes=True))
     modules = relationship('BookCourseModule', back_populates='course', cascade='all, delete-orphan')
     enrollments = relationship('BookCourseEnrollment', back_populates='course', cascade='all, delete-orphan')
 
