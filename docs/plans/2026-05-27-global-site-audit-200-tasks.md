@@ -914,12 +914,12 @@
 - Modify: `app/daily_plan/items/curriculum.py`
 - Modify: `tests/daily_plan/`
 
-- [ ] Проверить что _get_weak_grammar_topic_ids не падает при 0 attempts
-- [ ] Убедиться что weak_topic_hint=True не меняет spine (только enrichment)
-- [ ] Проверить что min_attempts=3 threshold корректно фильтрует новых пользователей
-- [ ] Убедиться что max_accuracy=0.6 граница корректно вычисляется
-- [ ] Тесты для zero attempts, spine invariance, threshold boundary
-- [ ] run pytest tests/daily_plan/ -x
+- [x] Проверить что _get_weak_grammar_topic_ids не падает при 0 attempts
+- [x] Убедиться что weak_topic_hint=True не меняет spine (только enrichment)
+- [x] Проверить что min_attempts=3 threshold корректно фильтрует новых пользователей
+- [x] Убедиться что max_accuracy=0.6 граница корректно вычисляется
+- [x] Тесты для zero attempts, spine invariance, threshold boundary
+- [x] run pytest tests/daily_plan/ -x
 
 ### Task 68: Error review — scaling и pool
 
