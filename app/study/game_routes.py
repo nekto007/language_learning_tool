@@ -607,10 +607,10 @@ def complete_matching_game():
     difficulty = data.get('difficulty', 'easy')
 
     try:
-        pairs_matched = int(data.get('pairs_matched', 0))
-        total_pairs = int(data.get('total_pairs', 0))
-        moves = int(data.get('moves', 0))
-        time_taken = int(data.get('time_taken', 0))
+        pairs_matched = max(0, min(int(data.get('pairs_matched', 0)), 200))
+        total_pairs = max(0, min(int(data.get('total_pairs', 0)), 200))
+        moves = max(0, int(data.get('moves', 0)))
+        time_taken = max(0, int(data.get('time_taken', 0)))
         word_ids = data.get('word_ids', [])
     except (ValueError, TypeError):
         return jsonify({
@@ -629,7 +629,7 @@ def complete_matching_game():
 
     from app.achievements.xp_service import award_game_xp_idempotent, get_level_info
     from app.achievements.models import UserStatistics as _UserStats
-    score_percentage = (pairs_matched / total_pairs * 100) if total_pairs > 0 else 0
+    score_percentage = min(100.0, (pairs_matched / total_pairs * 100) if total_pairs > 0 else 0)
     xp_breakdown = _calculate_matching_xp(
         score=score_percentage,
         total_pairs=total_pairs,

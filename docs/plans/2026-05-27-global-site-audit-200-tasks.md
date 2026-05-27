@@ -400,12 +400,12 @@
 - Modify: `app/study/game_routes.py`
 - Modify: `tests/study/`
 
-- [ ] Проверить что score submit не принимает score > 100 или < 0
-- [ ] Убедиться что game session не переиспользуется чужим пользователем
-- [ ] Проверить что award_game_xp_idempotent вызывается с verified session_id
-- [ ] Убедиться что game result page не падает при deleted deck
-- [ ] Тесты для score bounds, session ownership, deleted-deck result
-- [ ] run pytest tests/study/ -x
+- [x] Проверить что score submit не принимает score > 100 или < 0
+- [x] Убедиться что game session не переиспользуется чужим пользователем
+- [x] Проверить что award_game_xp_idempotent вызывается с verified session_id
+- [x] Убедиться что game result page не падает при deleted deck
+- [x] Тесты для score bounds, session ownership, deleted-deck result
+- [x] run pytest tests/study/ -x
 
 ### Task 30: Study — insights и analytics widgets
 
