@@ -1128,12 +1128,12 @@
 - Modify: `app/admin/services/activity_feed_service.py`
 - Modify: `tests/admin/`
 
-- [ ] Проверить что get_recent_events правильно агрегирует все 5 источников
-- [ ] Убедиться что outer joins не создают дублирующих строк при multiple achievements
-- [ ] Проверить что xp_awarded считает из details['xp'] (не coins_delta)
-- [ ] Убедиться что pagination (limit/offset) корректна при смешанных источниках
-- [ ] Тесты для all 5 sources, outer join dedup, xp reading, pagination
-- [ ] run pytest tests/admin/ -x
+- [x] Проверить что get_recent_events правильно агрегирует все 5 источников
+- [x] Убедиться что outer joins не создают дублирующих строк при multiple achievements
+- [x] Проверить что xp_awarded считает из details['xp'] (не coins_delta)
+- [x] Убедиться что pagination (limit/offset) корректна при смешанных источниках
+- [x] Тесты для all 5 sources, outer join dedup, xp reading, pagination
+- [x] run pytest tests/admin/ -x
 
 ### Task 84: Admin system — cache management
 
