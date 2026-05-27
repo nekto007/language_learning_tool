@@ -19,6 +19,35 @@ logger = logging.getLogger(__name__)
 DEFAULT_TZ = DEFAULT_TIMEZONE
 
 
+def _count_leech_suspended(user_id: int) -> int:
+    """Count distinct words currently buried due to leech threshold crossing.
+
+    Returns an int (never None). Counts distinct user_word_id so a word
+    leeched in both directions counts as one suspended item for the UI toast.
+    """
+    from datetime import datetime, timezone
+    from sqlalchemy import func, distinct
+    from app.study.models import UserCardDirection, UserWord
+    from app.srs.constants import LEECH_THRESHOLD
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    try:
+        return (
+            db.session.query(func.count(distinct(UserCardDirection.user_word_id)))
+            .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+            .filter(
+                UserWord.user_id == user_id,
+                UserCardDirection.lapses >= LEECH_THRESHOLD,
+                UserCardDirection.buried_until.isnot(None),
+                UserCardDirection.buried_until > now,
+            )
+            .scalar() or 0
+        )
+    except Exception:
+        logger.warning("leech_suspended count failed for user %s", user_id, exc_info=True)
+        return 0
+
+
 def _streak_shield_visible(user) -> bool:
     """Return True only when the user holds a shield AND the feature is enabled."""
     from app.admin.site_settings import is_streak_shield_enabled
@@ -347,6 +376,7 @@ def daily_status():
         pronunciation_weak_words = []
 
     recovery_suggestion = _get_recovery_suggestion(user_id, tz)
+    leech_suspended_count = _count_leech_suspended(user_id)
 
     payload = {
         'success': True,
@@ -367,6 +397,7 @@ def daily_status():
         'pronunciation_weak_words': pronunciation_weak_words,
         'minutes_studied_today': minutes_studied_today,
         'streak_shield_active': _streak_shield_visible(current_user),
+        'leech_suspended_count': leech_suspended_count,
         **listening_goal_data,
         **goal_progress_data,
     }

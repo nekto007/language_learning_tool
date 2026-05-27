@@ -95,12 +95,12 @@
 - Modify: `app/api/daily_plan.py`
 - Modify: `tests/api/test_daily_plan_api.py`
 
-- [ ] Проверить что leech_suspended_count всегда число (не None)
-- [ ] Убедиться что srs_limit_reason присутствует только когда != 'normal'
-- [ ] Проверить что tomorrow_preview не включает suspended/unavailable уроки
-- [ ] Убедиться что recovery suggestion корректен когда yesterday_plan отсутствует в БД
-- [ ] Тесты для каждого поля payload при различных состояниях пользователя
-- [ ] run pytest tests/api/ -x
+- [x] Проверить что leech_suspended_count всегда число (не None)
+- [x] Убедиться что srs_limit_reason присутствует только когда != 'normal'
+- [x] Проверить что tomorrow_preview не включает suspended/unavailable уроки
+- [x] Убедиться что recovery suggestion корректен когда yesterday_plan отсутствует в БД
+- [x] Тесты для каждого поля payload при различных состояниях пользователя
+- [x] run pytest tests/api/ -x
 
 ### Task 7: Curriculum — доступ к урокам и prerequisites
 
