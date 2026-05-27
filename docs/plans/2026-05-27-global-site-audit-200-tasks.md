@@ -578,12 +578,12 @@
 - Modify: `app/admin/routes/dashboard_routes.py`
 - Modify: `tests/admin/test_admin_dashboard.py`
 
-- [ ] Профилировать dashboard queries через SQLAlchemy echo
-- [ ] Убедиться что DAU/WAU/MAU использует UNION query (не 7 отдельных)
-- [ ] Проверить что _count_active_users_in_range не делает N+1 для каждого дня
-- [ ] Убедиться что dashboard cache работает (нет cache miss на каждый request)
-- [ ] Тесты для query count bounded, cache hit
-- [ ] run pytest tests/admin/test_admin_dashboard.py -x
+- [x] Профилировать dashboard queries через SQLAlchemy echo
+- [x] Убедиться что DAU/WAU/MAU использует UNION query (не 7 отдельных)
+- [x] Проверить что _count_active_users_in_range не делает N+1 для каждого дня
+- [x] Убедиться что dashboard cache работает (нет cache miss на каждый request)
+- [x] Тесты для query count bounded, cache hit
+- [x] run pytest tests/admin/test_admin_dashboard.py -x
 
 ### Task 43: Admin — cohort и funnel data correctness
 
