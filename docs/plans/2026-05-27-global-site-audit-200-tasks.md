@@ -201,12 +201,12 @@
 - Modify: `app/books/progress.py`
 - Modify: `tests/books/test_progress.py`
 
-- [ ] Проверить что compute_book_progress_percent возвращает 0.0 при 0 глав
-- [ ] Убедиться что max_partial_of_incomplete не суммируется неправильно при multiple incomplete
-- [ ] Проверить что прогресс не превышает 100% при edge cases
-- [ ] Убедиться что progress recalculation thread-safe (нет dirty reads)
-- [ ] Тесты для 0 chapters, all-complete, partial-complete, >100% guard
-- [ ] run pytest tests/books/ -x
+- [x] Проверить что compute_book_progress_percent возвращает 0.0 при 0 глав
+- [x] Убедиться что max_partial_of_incomplete не суммируется неправильно при multiple incomplete
+- [x] Проверить что прогресс не превышает 100% при edge cases
+- [x] Убедиться что progress recalculation thread-safe (нет dirty reads)
+- [x] Тесты для 0 chapters, all-complete, partial-complete, >100% guard
+- [x] run pytest tests/books/ -x
 
 ### Task 15: Books — reading session start/end и time gate
 

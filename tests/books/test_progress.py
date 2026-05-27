@@ -131,3 +131,39 @@ class TestComputeBookProgressPercent:
         _add_progress(db_session, other, chapters[0], 1.0)
         # current user has no progress → 0
         assert compute_book_progress_percent(test_user.id, book.id, db_session) == 0.0
+
+    def test_multiple_incomplete_chapters_uses_max_not_sum(self, db_session, test_user, book_with_chapters):
+        """Only the highest partial offset counts, not the sum of all partial chapters."""
+        book, chapters = book_with_chapters
+        _add_progress(db_session, test_user, chapters[0], 1.0)
+        _add_progress(db_session, test_user, chapters[1], 1.0)
+        # Two incomplete chapters: 0.5 and 0.3 — max partial should be 0.5, not 0.5+0.3=0.8
+        _add_progress(db_session, test_user, chapters[2], 0.5)
+        _add_progress(db_session, test_user, chapters[3], 0.3)
+        # (2 + 0.5) / 10 * 100 = 25.0, not (2 + 0.5 + 0.3) / 10 * 100 = 28.0
+        result = compute_book_progress_percent(test_user.id, book.id, db_session)
+        assert result == pytest.approx(25.0)
+        assert result < 28.0
+
+    def test_progress_does_not_exceed_100(self, db_session, test_user, book_with_chapters):
+        """All chapters complete returns exactly 100.0, never more."""
+        book, chapters = book_with_chapters
+        for ch in chapters:
+            _add_progress(db_session, test_user, ch, 1.0)
+        result = compute_book_progress_percent(test_user.id, book.id, db_session)
+        assert result == pytest.approx(100.0)
+        assert result <= 100.0
+
+    def test_partial_complete_progress(self, db_session, test_user, book_with_chapters):
+        """5 of 10 chapters complete → exactly 50%."""
+        book, chapters = book_with_chapters
+        for ch in chapters[:5]:
+            _add_progress(db_session, test_user, ch, 1.0)
+        assert compute_book_progress_percent(test_user.id, book.id, db_session) == pytest.approx(50.0)
+
+    def test_single_chapter_book_zero_chapters(self, db_session, test_user):
+        """Book with no chapters at all returns 0.0, not division error."""
+        book = Book(title='NoChapBook', author='A', level='A1', chapters_cnt=0)
+        db_session.add(book)
+        db_session.flush()
+        assert compute_book_progress_percent(test_user.id, book.id, db_session) == 0.0
