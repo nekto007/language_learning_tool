@@ -38,6 +38,9 @@ class Book(db.Model):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     cover_image = Column(String(255))
     
+    # Visibility: False means draft, not shown to regular users
+    is_published = Column(db.Boolean, default=True, nullable=False, server_default='true')
+
     # Course generation fields
     create_course = Column(db.Boolean, default=False, nullable=False)
 

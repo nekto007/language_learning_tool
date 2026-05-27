@@ -7,7 +7,7 @@ import threading
 
 from datetime import datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import desc, func
@@ -334,6 +334,9 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
     else:
         book = Book.query.get_or_404(book_id)
 
+    if not book.is_published and not current_user.is_admin:
+        abort(404)
+
     chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
 
     if not chapters:
@@ -410,6 +413,9 @@ def book_list():
     letter_filter = request.args.get('letter', '')
 
     query = db.select(Book)
+
+    if not current_user.is_admin:
+        query = query.where(Book.is_published == True)
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -538,6 +544,9 @@ def book_list():
 def book_details(book_id):
     book = Book.query.get_or_404(book_id)
 
+    if not book.is_published and not current_user.is_admin:
+        abort(404)
+
     word_stats_query = db.select(
         UserWord.status,
         func.count().label('count')
@@ -656,6 +665,9 @@ def book_details(book_id):
 @login_required
 def book_words(book_id):
     book = Book.query.get_or_404(book_id)
+
+    if not book.is_published and not current_user.is_admin:
+        abort(404)
 
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)

@@ -228,12 +228,12 @@
 - Modify: `app/books/routes.py`
 - Modify: `tests/books/test_routes.py`
 
-- [ ] Проверить что неавторизованный пользователь не видит premium книги
-- [ ] Убедиться что chapter pagination работает при chapter_index=0 и last chapter
-- [ ] Проверить что book detail page не падает для книги без chapters
-- [ ] Убедиться что книга с is_published=False недоступна через прямой URL
-- [ ] Тесты для access control, empty chapters, unpublished books
-- [ ] run pytest tests/books/ -x
+- [x] Проверить что неавторизованный пользователь не видит premium книги
+- [x] Убедиться что chapter pagination работает при chapter_index=0 и last chapter
+- [x] Проверить что book detail page не падает для книги без chapters
+- [x] Убедиться что книга с is_published=False недоступна через прямой URL
+- [x] Тесты для access control, empty chapters, unpublished books
+- [x] run pytest tests/books/ -x
 
 ### Task 17: Words — word detail и translation lookup
 
