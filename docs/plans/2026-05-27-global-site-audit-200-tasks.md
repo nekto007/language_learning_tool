@@ -927,12 +927,12 @@
 - Modify: `app/daily_plan/linear/errors.py`
 - Modify: `tests/daily_plan/`
 
-- [ ] Проверить что get_review_pool_size возвращает корректные значения для граничных случаев
-- [ ] Убедиться что dynamic cooldown правильно применяется (≥15/≥25 unresolved)
-- [ ] Проверить что get_sibling_exercise не возвращает оригинальное упражнение
-- [ ] Убедиться что log_quiz_errors_from_result пишет exercise_id и difficulty
-- [ ] Тесты для pool size boundaries, sibling exclusion, error logging
-- [ ] run pytest tests/daily_plan/ -x
+- [x] Проверить что get_review_pool_size возвращает корректные значения для граничных случаев
+- [x] Убедиться что dynamic cooldown правильно применяется (≥15/≥25 unresolved)
+- [x] Проверить что get_sibling_exercise не возвращает оригинальное упражнение
+- [x] Убедиться что log_quiz_errors_from_result пишет exercise_id и difficulty
+- [x] Тесты для pool size boundaries, sibling exclusion, error logging
+- [x] run pytest tests/daily_plan/ -x
 
 ### Task 69: Curriculum XP — idempotency и for_date
 
