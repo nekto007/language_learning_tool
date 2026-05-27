@@ -12,6 +12,9 @@ from flask_login import current_user
 logger = logging.getLogger(__name__)
 
 
+_CACHE_MAX_SIZE = 2000  # hard upper bound to prevent unbounded growth
+
+
 class SimpleCache:
     """Simple in-memory cache implementation"""
 
@@ -34,6 +37,18 @@ class SimpleCache:
         self._cache[key] = value
         if timeout:
             self._expiry[key] = datetime.now(timezone.utc) + timedelta(seconds=timeout)
+        # Prune expired entries when the cache grows too large.
+        if len(self._cache) > _CACHE_MAX_SIZE:
+            self.prune()
+
+    def prune(self) -> int:
+        """Remove all expired entries. Returns count of removed keys."""
+        now = datetime.now(timezone.utc)
+        expired = [k for k, exp in list(self._expiry.items()) if now > exp]
+        for key in expired:
+            self._cache.pop(key, None)
+            self._expiry.pop(key, None)
+        return len(expired)
 
     def delete(self, key: str) -> None:
         """Delete key from cache"""

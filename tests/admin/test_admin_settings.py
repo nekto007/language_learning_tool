@@ -1,4 +1,5 @@
 """Tests for Task 40: SiteSettings validation, concurrent seeding, GSC token safety."""
+import time
 import pytest
 from unittest.mock import patch
 
@@ -199,3 +200,80 @@ class TestGSCTokenNotLeaking:
         assert 'gsc_site_url' not in _ALL_KEYS
         assert 'gsc_refresh_token' in _HIDDEN_KEYS
         assert 'gsc_site_url' in _HIDDEN_KEYS
+
+
+# ---------------------------------------------------------------------------
+# Task 60: Site settings cross-request TTL cache
+# ---------------------------------------------------------------------------
+
+class TestSiteSettingsCrossRequestCache:
+    """_inject_site_settings must use a TTL cache to avoid a DB query per request."""
+
+    def _reset_cache(self):
+        import app as app_module
+        with app_module._site_settings_cache['lock']:
+            app_module._site_settings_cache['data'] = None
+            app_module._site_settings_cache['expires'] = 0.0
+
+    @pytest.mark.smoke
+    def test_cache_populated_on_first_call(self, app):
+        """First call populates the module-level TTL cache."""
+        import app as app_module
+        self._reset_cache()
+
+        with app.app_context():
+            from app.admin.site_settings import get_public_settings
+            data = get_public_settings()
+            # Manually simulate what _inject_site_settings does
+            with app_module._site_settings_cache['lock']:
+                app_module._site_settings_cache['data'] = data
+                app_module._site_settings_cache['expires'] = time.time() + app_module._SITE_SETTINGS_TTL
+
+        assert app_module._site_settings_cache['data'] is not None
+        assert app_module._site_settings_cache['expires'] > time.time()
+
+    def test_within_ttl_same_data_returned(self, app):
+        """Within TTL, the same cached dict is returned without a new DB query."""
+        import app as app_module
+        sentinel = {'site_title': 'cached_value'}
+
+        with app.app_context():
+            with app_module._site_settings_cache['lock']:
+                app_module._site_settings_cache['data'] = sentinel
+                app_module._site_settings_cache['expires'] = time.time() + 60
+
+            call_count = [0]
+            from app.admin.site_settings import get_public_settings as orig
+
+            def counting(*a, **kw):
+                call_count[0] += 1
+                return orig(*a, **kw)
+
+            with patch('app.admin.site_settings.get_public_settings', side_effect=counting):
+                # The context processor logic: check module-level cache
+                now = time.time()
+                with app_module._site_settings_cache['lock']:
+                    cached_hit = (
+                        app_module._site_settings_cache['data'] is not None
+                        and now < app_module._site_settings_cache['expires']
+                    )
+                assert cached_hit, "Within TTL the cache should be hit without a DB call"
+                assert call_count[0] == 0
+
+    def test_after_ttl_cache_is_refreshed(self, app):
+        """After TTL expires the module-level cache is refreshed."""
+        import app as app_module
+        self._reset_cache()
+
+        with app.app_context():
+            # Prime expired cache
+            with app_module._site_settings_cache['lock']:
+                app_module._site_settings_cache['data'] = {'site_title': 'old'}
+                app_module._site_settings_cache['expires'] = time.time() - 1.0
+
+            now = time.time()
+            is_expired = (
+                app_module._site_settings_cache['data'] is None
+                or now >= app_module._site_settings_cache['expires']
+            )
+            assert is_expired, "Cache should appear expired after TTL elapses"

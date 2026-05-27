@@ -380,6 +380,13 @@ def award_xp(
             user_id, new_info.current_level, source, new_total,
         )
 
+    # Expire the leaderboard TTL cache so the next render shows fresh ranking.
+    try:
+        from app.words.routes import invalidate_leaderboard_cache
+        invalidate_leaderboard_cache()
+    except Exception:
+        pass
+
     return XPAward(
         xp_awarded=awarded,
         multiplier=multiplier,

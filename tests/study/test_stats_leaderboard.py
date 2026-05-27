@@ -278,3 +278,43 @@ class TestCachedLeaderboard:
         assert not errors, f"Concurrent cache access raised: {errors}"
         for r in results:
             assert isinstance(r, list)
+
+    def test_invalidate_leaderboard_cache_expires_immediately(self, db_session):
+        """invalidate_leaderboard_cache() expires the cache so the next read is fresh."""
+        from app.words.routes import _get_cached_leaderboard, _leaderboard_cache, invalidate_leaderboard_cache
+        from app.study.services.stats_service import StatsService
+
+        self._reset_cache()
+        # Populate cache with a fresh call
+        _get_cached_leaderboard(StatsService, limit=5)
+        assert _leaderboard_cache['data'] is not None
+        assert _leaderboard_cache['expires'] > time.time()
+
+        invalidate_leaderboard_cache()
+
+        # After invalidation the TTL must be in the past (or zero)
+        assert _leaderboard_cache['expires'] <= time.time(), (
+            "Cache should be expired immediately after invalidate_leaderboard_cache()"
+        )
+
+    @pytest.mark.smoke
+    def test_award_xp_triggers_cache_invalidation(self, db_session):
+        """award_xp() calls invalidate_leaderboard_cache() so stale data is not served."""
+        from app.words.routes import _leaderboard_cache, _get_cached_leaderboard
+        from app.study.services.stats_service import StatsService
+        from app.achievements.xp_service import award_xp
+
+        user = _make_user(db_session, xp=50)
+        db_session.commit()
+
+        self._reset_cache()
+        # Prime the cache
+        _get_cached_leaderboard(StatsService, limit=5)
+        assert _leaderboard_cache['expires'] > time.time()
+
+        # award_xp should expire the leaderboard cache
+        award_xp(user.id, 10, 'test_source')
+
+        assert _leaderboard_cache['expires'] <= time.time(), (
+            "award_xp should have expired the leaderboard cache"
+        )

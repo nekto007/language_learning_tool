@@ -318,6 +318,16 @@ def _get_cached_leaderboard(stats_service_cls, limit: int = 5):
     return data
 
 
+def invalidate_leaderboard_cache() -> None:
+    """Expire the leaderboard cache immediately.
+
+    Call this after any XP award so the next dashboard request reflects
+    the updated ranking without waiting for the 5-minute TTL to expire.
+    """
+    with _leaderboard_cache['lock']:
+        _leaderboard_cache['expires'] = 0.0
+
+
 _MEDAL_BY_RANK = {1: 'gold', 2: 'silver', 3: 'bronze'}
 
 

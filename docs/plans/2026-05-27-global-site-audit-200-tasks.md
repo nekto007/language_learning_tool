@@ -820,12 +820,12 @@
 - Modify: `app/admin/services/seo_audit_service.py`
 - Modify: `app/__init__.py` (_inject_site_settings)
 
-- [ ] Проверить что leaderboard cache правильно инвалидируется при XP update
-- [ ] Убедиться что SEO audit cache key включает version (для cross-worker invalidation)
-- [ ] Проверить что _inject_site_settings не делает DB query на каждый request
-- [ ] Убедиться что curriculum cache не растёт бесконечно (есть TTL или eviction)
-- [ ] Тесты для cache invalidation, TTL expiry
-- [ ] run pytest -m smoke -x
+- [x] Проверить что leaderboard cache правильно инвалидируется при XP update
+- [x] Убедиться что SEO audit cache key включает version (для cross-worker invalidation)
+- [x] Проверить что _inject_site_settings не делает DB query на каждый request
+- [x] Убедиться что curriculum cache не растёт бесконечно (есть TTL или eviction)
+- [x] Тесты для cache invalidation, TTL expiry
+- [x] run pytest -m smoke -x
 
 ### Task 61: SiteSettings — feature flags и race-safe
 
