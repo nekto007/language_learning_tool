@@ -1024,12 +1024,12 @@
 - Modify: `app/modules/decorators.py`
 - Modify: `tests/`
 
-- [ ] Проверить что @feature_gate decorator правильно проверяет UserModule status
-- [ ] Убедиться что деактивированный модуль недоступен через прямой URL
-- [ ] Проверить что module activation не создаёт дублирующих UserModule записей
-- [ ] Убедиться что modules page корректна для пользователя без активных модулей
-- [ ] Тесты для feature gate, direct URL block, duplicate activation
-- [ ] run pytest tests/ -k module -x
+- [x] Проверить что @feature_gate decorator правильно проверяет UserModule status
+- [x] Убедиться что деактивированный модуль недоступен через прямой URL
+- [x] Проверить что module activation не создаёт дублирующих UserModule записей
+- [x] Убедиться что modules page корректна для пользователя без активных модулей
+- [x] Тесты для feature gate, direct URL block, duplicate activation
+- [x] run pytest tests/ -k module -x
 
 ### Task 76: Public courses — catalog и доступ
 

@@ -46,7 +46,10 @@ class ModuleService:
         )
 
         if enabled_only:
-            query = query.filter(UserModule.is_enabled == True)
+            query = query.filter(
+                UserModule.is_enabled == True,
+                SystemModule.is_active == True,
+            )
 
         return query.order_by(SystemModule.order).all()
 
