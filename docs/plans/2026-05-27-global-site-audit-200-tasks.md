@@ -1183,12 +1183,12 @@
 - Modify: `app/admin/routes/collection_routes.py`
 - Modify: `tests/admin/`
 
-- [ ] Проверить что удаление topic каскадно обрабатывает связанные lessons
-- [ ] Убедиться что collection sort order уникален (нет дублирующих positions)
-- [ ] Проверить что topic slug уникален и sanitized
-- [ ] Убедиться что collection с 0 items доступна (не 500)
-- [ ] Тесты для cascade delete, sort dedup, slug uniqueness, empty collection
-- [ ] run pytest tests/admin/ -x
+- [x] Проверить что удаление topic каскадно обрабатывает связанные lessons
+- [x] Убедиться что collection sort order уникален (нет дублирующих positions)
+- [x] Проверить что topic slug уникален и sanitized
+- [x] Убедиться что collection с 0 items доступна (не 500)
+- [x] Тесты для cascade delete, sort dedup, slug uniqueness, empty collection
+- [x] run pytest tests/admin/ -x
 
 ### Task 88: Admin quiz decks — управление
 
