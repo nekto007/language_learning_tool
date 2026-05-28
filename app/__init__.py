@@ -472,13 +472,12 @@ def create_app(config_class=Config):
         try:
             from app.admin.site_settings import get_public_settings
             fresh = get_public_settings()
+            with _site_settings_cache['lock']:
+                _site_settings_cache['data'] = fresh
+                _site_settings_cache['expires'] = time.time() + _SITE_SETTINGS_TTL
         except Exception:
             logger.exception('Failed to load public site settings')
             fresh = {}
-
-        with _site_settings_cache['lock']:
-            _site_settings_cache['data'] = fresh
-            _site_settings_cache['expires'] = time.time() + _SITE_SETTINGS_TTL
 
         g._site_settings_cached = fresh
         return {'site_settings': fresh}

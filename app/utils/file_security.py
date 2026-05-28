@@ -155,9 +155,10 @@ def validate_image_mime_type(file_path: str) -> bool:
                 logger.warning(f"Image type {image_type} is not allowed")
                 return False
 
-            # Проверяем, что файл - валидное изображение
-            img.verify()
-            return True
+        # verify() must be called on a freshly opened Image (it destroys the
+        # image object state and must be the sole operation on that handle).
+        Image.open(file_path).verify()
+        return True
 
     except Exception as e:
         logger.error(f"Error validating image MIME type: {e}")

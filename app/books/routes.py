@@ -921,6 +921,9 @@ def edit_book_info_with_cover(book_id):
 def book_read(book_id):
     book = Book.query.get_or_404(book_id)
 
+    if not book.is_published and not current_user.is_admin:
+        abort(404)
+
     has_chapters = Chapter.query.filter_by(book_id=book_id).first() is not None
 
     if has_chapters:

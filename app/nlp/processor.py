@@ -629,14 +629,18 @@ def process_html_content(html_content: str, selector: str = None,
     if not text or not text.strip():
         return []
 
-    # Run NLP processing with a timeout guard
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(process_text, text, english_vocab, stop_words, brown_words)
-        try:
-            return future.result(timeout=timeout)
-        except concurrent.futures.TimeoutError:
-            logger.error("NLP processing timed out after %ds", timeout)
-            return []
+    # Run NLP processing with a timeout guard.
+    # Use shutdown(wait=False) so the executor doesn't block until the worker
+    # thread finishes when a timeout fires.
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(process_text, text, english_vocab, stop_words, brown_words)
+    try:
+        return future.result(timeout=timeout)
+    except concurrent.futures.TimeoutError:
+        logger.error("NLP processing timed out after %ds", timeout)
+        return []
+    finally:
+        executor.shutdown(wait=False)
 
 
 def prepare_word_data(words: List[str], brown_words: Set[str]) -> List[Tuple]:
